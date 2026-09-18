@@ -18,7 +18,7 @@ import { TemplateManifestSchema, type TemplateManifest } from '@shared/knowledge
 import type { Provenance } from '@shared/pipeline.js';
 import type { DesignProfile } from '@shared/profile.js';
 import type { Settings } from '../config.js';
-import { runNode } from '../pipeline/process.js';
+import { describeSandbox, runNode } from '../pipeline/process.js';
 import { listFiles, matchesAnyGlob, sha256File } from './files.js';
 import { initialProvenance } from './provenance.js';
 import { templateHash } from './template-hash.js';
@@ -465,7 +465,7 @@ export async function scaffoldApp(input: ScaffoldInput): Promise<ScaffoldResult>
     designHash: sha256Hex(JSON.stringify(design)),
     protectedFileHashes,
     templateHash: templateHash(templateDir),
-    sandbox: { mode: 'node-permission-model', note: 'Generated code runs under Node\'s permission model with the file system restricted to the project folder; network access is not restricted.' },
+    sandbox: describeSandbox(),
     ...(input.previousRunId ? { previousRunId: input.previousRunId } : {}),
     ...(design.contractHash ? { contractHash: design.contractHash } : {}),
   });

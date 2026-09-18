@@ -25,6 +25,7 @@ import type { Settings } from '../config.js';
 import { DEFAULT_WALK_IGNORE, listFiles, sha256File } from './files.js';
 import { initialProvenance } from './provenance.js';
 import { computeProtectedFileHashes, stageTemplate, tryNodeModulesFastPath } from './scaffold.js';
+import { describeSandbox } from '../pipeline/process.js';
 import { templateHash } from './template-hash.js';
 
 /** Files an upgrade never writes or removes: the app's own secrets, data, certificate and packages. */
@@ -196,7 +197,7 @@ export async function upgradeApp(input: UpgradeInput): Promise<TemplateUpgrade> 
         designProfileHash: input.designProfileHash,
         designHash: input.designHash,
         protectedFileHashes: {},
-        sandbox: { mode: 'node-permission-model', note: "Generated code runs under Node's permission model with the file system restricted to the project folder; network access is not restricted." },
+        sandbox: describeSandbox(),
       });
     const generatedFiles = [...hashesOf(appDir)].map(([path, sha256]) => {
       const previous = oldEntries.get(path);

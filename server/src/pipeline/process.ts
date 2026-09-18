@@ -14,11 +14,12 @@
  *  - A pid file is written for the lifetime of the child so a later start can sweep processes an earlier crash left.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { detectNetworkFence } from './net-fence.js';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 
-export type SandboxMode = 'node-permission-model' | 'none';
+export type SandboxMode = 'node-permission-model+loopback-only' | 'node-permission-model' | 'none';
 
 export interface PermissionSpec {
   /** Directories/files the child may read (the cwd and node_modules of the app belong here). */
@@ -30,6 +31,11 @@ export interface PermissionSpec {
   allowWorker?: boolean;
   /** Grant network access (default true: the app under test must listen; Node has no per-host filter). */
   allowNet?: boolean;
+  /**
+   * 'loopback-only' (default): the OS network fence (pipeline/net-fence.ts) keeps the process to 127.0.0.1, so
+   * nothing leaves the computer. 'any': no fence, for an app that genuinely has to reach outside hosts.
+   */
+  network?: 'loopback-only' | 'any';
 }
 
 export interface SpawnSandboxedOptions {
@@ -93,6 +99,8 @@ export const DEFAULT_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 export const TRUNCATED_MARKER = '\n[truncated]\n';
 
 export const SANDBOX_NOTE: Record<SandboxMode, string> = {
+  'node-permission-model+loopback-only':
+    "Generated code runs with the user's OS privileges under Node's permission model (file system restricted to the project folder) and behind the operating system's network fence: it can talk to this computer only, nothing outside.",
   'node-permission-model':
     "Generated code runs with the user's OS privileges under Node's permission model (file system restricted to the project folder); network access is not restricted.",
   none: "Generated code ran with the user's OS privileges and no file-system restriction because this Node version does not support the permission model; network access is not restricted.",
@@ -129,6 +137,12 @@ export function detectPermissionSupport(): boolean {
 /** Tests only: forget the cached detection result. */
 export function resetPermissionDetection(value?: boolean): void {
   permissionSupport = value;
+}
+
+/** What a build's provenance says about how generated code was run on this computer. */
+export function describeSandbox(): { mode: SandboxMode; note: string } {
+  const mode: SandboxMode = !detectPermissionSupport() ? 'none' : detectNetworkFence().kind === 'none' ? 'node-permission-model' : 'node-permission-model+loopback-only';
+  return { mode, note: SANDBOX_NOTE[mode] };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -531,6 +545,7 @@ export function spawnSandboxed(opts: SpawnSandboxedOptions): SandboxedProcess {
   if (opts.cmd === 'node') {
     let sandboxMode: SandboxMode = 'none';
     let args = [...opts.args];
+    let file = process.execPath;
     if (opts.permission) {
       for (const dir of opts.permission.write) mkdirSync(dir, { recursive: true });
       if (detectPermissionSupport()) {
@@ -541,8 +556,19 @@ export function spawnSandboxed(opts: SpawnSandboxedOptions): SandboxedProcess {
           'This version of Node does not support the permission model, so the generated app ran without file-system restrictions.',
         );
       }
+      // The network fence: loopback only, unless the caller says the app must reach outside hosts.
+      const wantsOutside = opts.permission.network === 'any' || (opts.env?.['OUTBOUND_ALLOWED_HOSTS'] ?? '') !== '';
+      if (!wantsOutside) {
+        const fence = detectNetworkFence();
+        if (fence.kind !== 'none') {
+          ({ file, args } = fence.wrap(file, args));
+          if (sandboxMode === 'node-permission-model') sandboxMode = 'node-permission-model+loopback-only';
+        } else {
+          warnings.push('No network fence is available on this computer, so the generated app ran with network access.');
+        }
+      }
     }
-    return spawnCommand(process.execPath, args, { ...opts, sandboxMode, warnings, envKind: 'node' });
+    return spawnCommand(file, args, { ...opts, sandboxMode, warnings, envKind: 'node' });
   }
 
   const npm = resolveNpm();

@@ -63,8 +63,9 @@ whatever you touch before changing it.
 - The generation agent is fenced (allow-listed paths, validated tool inputs, screened tool output). The second
   opinion and the follow-up questions may only change answers from their allow-lists, and only toward the safer
   side. Keep it that way.
-- Generated code runs under Node's permission model (file system limited to the project folder). It does not
-  restrict the network yet — containerising is planned.
+- Generated code runs under Node's permission model (file system limited to the project folder) and behind the
+  OS network fence (`pipeline/net-fence.ts`: loopback only on macOS via sandbox-exec, Linux via a network
+  namespace). A child that must reach outside hosts needs `network: 'any'`; the reports say which applied.
 - Every new question in the wizard needs: the `shared/src/profile.ts` field, the wizard-copy entry, the fixtures
   that build profiles (`tests/fixtures/**`), and the id lists in `wizard-copy.test.ts`.
 - Uploaded apps (`origin.kind === 'uploaded'`) are only ever scanned, never run.

@@ -934,3 +934,15 @@ runs, and no plan approval is needed. The Build page offers "Build without AI (f
 is configured (in preview mode every build is already without AI) and "Check again without AI (free)" for built
 ones. The results page leads the Reports section with the one-page summary: verdict, headline, "can I use it", the
 first three top actions, and buttons to open `overview.html` or save it as PDF.
+
+## Network fence for generated code (added 2026-09-18)
+
+Every `node` process SecureVibe starts for a generated app (tests, the runtime scan, the preview, the scaffold's
+scripts) runs behind an operating-system network fence in addition to Node's permission model
+(`pipeline/net-fence.ts`, applied in `spawnSandboxed`): macOS `sandbox-exec` with a Seatbelt profile that denies
+all networking except loopback and unix sockets; Linux `unshare -rn` with only `lo` up. The fence is probed once
+per process (a tiny node run behind it must succeed) and, when present, the run's `sandboxMode` and the provenance
+`sandbox` record read `node-permission-model+loopback-only`; when absent the reports say network access was not
+restricted. `PermissionSpec.network: 'any'`, or a non-empty `OUTBOUND_ALLOWED_HOSTS` in the child's environment,
+skips the fence for an app that genuinely has to reach outside hosts (previews clear that variable, so previews are
+fenced). `npm` and external scanners are never fenced.
