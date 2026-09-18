@@ -117,6 +117,32 @@ export function BuildPage() {
     }
   }, [run, id, navigate, reload]);
 
+  // Browser notification when the build ends while this tab is in the background (the desktop notification from
+  // Settings covers the case where the browser is closed). Permission is asked only when the owner clicks the button.
+  const lastStatus = useRef<PipelineRun['status'] | null>(null);
+  const [browserNotify, setBrowserNotify] = useState<NotificationPermission | 'unsupported'>(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
+  useEffect(() => {
+    const previous = lastStatus.current;
+    lastStatus.current = run?.status ?? null;
+    if (!run || previous !== 'running' || run.status === 'running') return;
+    if (browserNotify !== 'granted' || !document.hidden) return;
+    const what = run.mode === 'verify-only' ? 'check' : 'build';
+    const body = run.status === 'succeeded' ? `The ${what} finished. Open SecureVibe to see the results.` : run.status === 'failed' ? `The ${what} did not finish.` : `The ${what} was ${run.status}.`;
+    try {
+      new Notification(`SecureVibe: ${project?.name ?? 'your app'}`, { body });
+    } catch {
+      // notifications blocked by the browser: nothing to do
+    }
+  }, [run, browserNotify, project?.name]);
+  async function askBrowserNotify() {
+    if (typeof Notification === 'undefined') return;
+    try {
+      setBrowserNotify(await Notification.requestPermission());
+    } catch {
+      setBrowserNotify('denied');
+    }
+  }
+
   const uploaded = project?.origin?.kind === 'uploaded';
   // Writing with AI needs an approved plan for the current design; builds without AI and check-only runs do not.
   const needsPlan = !uploaded && !fixFindingIds && status?.llm.previewMode !== true;
@@ -376,6 +402,11 @@ export function BuildPage() {
               Elapsed: {minutes}m {secondsPart}s
             </span>
             {run.llmUsage && <span className="sv-muted">AI spend so far: {usd(run.llmUsage.estimatedCostUsd)}</span>}
+            {browserNotify === 'default' && (
+              <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void askBrowserNotify()}>
+                Notify me in the browser when it is done
+              </button>
+            )}{' '}
             <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void cancel()}>
               Cancel
             </button>

@@ -32,6 +32,8 @@ export const SettingsSchema = z.object({
    * say. Slower answers are fine; the spending limit still applies on top.
    */
   saveCredits: z.boolean().default(true),
+  /** A desktop notification when a build or check ends (the build runs for minutes, usually unattended). */
+  notifyOnFinish: z.boolean().default(true),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

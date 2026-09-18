@@ -913,3 +913,13 @@ problems with who can fix them, the human checks answered, what must happen befo
 from, the pack's contents), `app/` (the same exclusions as `app.zip`: no `.env`, data, packages or first-login
 file; `.env.example` included), `reports/` (that run's report folder) and `human-checks.json` (attestations and
 the human code review). Uploaded apps get no pack. The results page offers both zips above the reports table.
+
+## Build-finished notifications (added 2026-09-18)
+
+`settings.notifyOnFinish` (default true; Settings → "Tell me when a build finishes"). When a run ends, the process
+that ran it (the build worker, or the server for the in-process fallback) calls `notifyRunFinished`
+(`server/src/notify.ts`), which shows one system notification through the platform's own tool — macOS `osascript
+display notification`, Linux `notify-send`; nothing on other platforms — with a plain-language line from
+`finishMessage` (verdict, count of serious open problems, or why it stopped). Failures to notify are swallowed.
+The Build page additionally offers a browser notification (Web Notifications API, permission requested only on
+click) that fires when the run ends while the tab is hidden.

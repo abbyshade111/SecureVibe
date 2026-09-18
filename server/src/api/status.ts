@@ -56,6 +56,7 @@ export function statusRouter(deps: ApiDeps): Router {
         storeFullPrompts: settings.storeFullPrompts,
         aiEnabled: settings.aiEnabled,
         saveCredits: settings.saveCredits,
+        notifyOnFinish: settings.notifyOnFinish,
         effectiveModel: effectiveAiSettings(settings).model,
       },
     };

@@ -98,6 +98,28 @@ export function SettingsPage() {
       <AiKeys services={status.aiServices} onChanged={() => void refresh()} />
 
       <Card>
+        <h2>Tell me when a build finishes</h2>
+        <p className="sv-help">
+          A build takes several minutes and keeps running even if you close this page. When it ends, SecureVibe shows a
+          notification on this computer saying how it went. Nothing is sent anywhere.
+        </p>
+        <label className="sv-checkbox-row">
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Desktop notification when a build finishes"
+            aria-checked={status.settings.notifyOnFinish}
+            checked={status.settings.notifyOnFinish}
+            disabled={saving}
+            onChange={(e) => void save({ notifyOnFinish: e.target.checked })}
+          />
+          <span>
+            <strong>{status.settings.notifyOnFinish ? 'Notifications are on' : 'Notifications are off'}</strong>
+          </span>
+        </label>
+      </Card>
+
+      <Card>
         <h2>Save credits</h2>
         <p className="sv-help">
           On: builds use {status.settings.saveCredits ? status.settings.effectiveModel : 'Claude Sonnet 5'}, which costs about

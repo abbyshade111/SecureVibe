@@ -17,6 +17,7 @@ import { cancelRun, startRun } from '../pipeline/runner.js';
 import { UPLOADED_EXCLUDED_CHECKS, UPLOADED_IGNORE, UPLOADED_SKIPPED_STAGES, uploadedManifest } from '../api/uploads.js';
 import { ProjectStore } from '../store/index.js';
 import { summaryOf } from '../pipeline/persist.js';
+import { notifyRunFinished } from '../notify.js';
 
 async function main(): Promise<void> {
   const [, , projectId, runId] = process.argv;
@@ -59,6 +60,8 @@ async function main(): Promise<void> {
 
   const finished = await started.execute();
   process.stdout.write(`${new Date().toISOString()} run ${finished.id} ${finished.status}\n`);
+  // The owner is usually elsewhere by now: one system notification says how it ended.
+  notifyRunFinished(config.settings.get(), project, finished);
 }
 
 main().catch((err) => {

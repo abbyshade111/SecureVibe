@@ -67,6 +67,7 @@ export const StatusResponseSchema = z.object({
     storeFullPrompts: z.boolean(),
     aiEnabled: z.boolean(),
     saveCredits: z.boolean(),
+    notifyOnFinish: z.boolean(),
     /** The model builds use right now (Save credits applied). */
     effectiveModel: z.string(),
   }),
@@ -83,6 +84,7 @@ export const UpdateSettingsRequestSchema = z.object({
   storeFullPrompts: z.boolean().optional(),
   aiEnabled: z.boolean().optional(),
   saveCredits: z.boolean().optional(),
+  notifyOnFinish: z.boolean().optional(),
   reset: z.boolean().optional(),
 });
 

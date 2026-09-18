@@ -27,6 +27,7 @@ import { UPLOADED_EXCLUDED_CHECKS, UPLOADED_IGNORE, UPLOADED_SKIPPED_STAGES, upl
 import { isUploadedApp } from '@shared/project.js';
 import { createProvider } from '../integration.js';
 import { SELF_PROJECT_NAME } from '../verification/index.js';
+import { notifyRunFinished } from '../notify.js';
 import type { ApiDeps } from './types.js';
 
 export function runsRouter(deps: ApiDeps): Router {
@@ -115,7 +116,10 @@ export function runsRouter(deps: ApiDeps): Router {
         },
         { store: deps.store, config: deps.config, knowledge: deps.knowledge, frameworks: deps.frameworks, provider, busRegistry: deps.busRegistry },
       );
-      started.execute().catch((e: unknown) => deps.logger.error({ err: e, projectId: project.id, runId: run.id }, 'pipeline run failed unexpectedly'));
+      started
+        .execute()
+        .then((finished) => notifyRunFinished(deps.config.settings.get(), project, finished))
+        .catch((e: unknown) => deps.logger.error({ err: e, projectId: project.id, runId: run.id }, 'pipeline run failed unexpectedly'));
     }
 
     res.status(202).json(StartRunResponseSchema.parse({ run }));
