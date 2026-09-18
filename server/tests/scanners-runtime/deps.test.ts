@@ -43,6 +43,7 @@ function contextFor(appDir: string): ScanContext {
     buildSpec: buildSpecFor(),
     manifest: undefined as never,
     ignore: [],
+    toolCacheDir: join(tmpdir(), 'securevibe-tool-cache-test'),
     knowledge,
     log: () => {},
     abort: new AbortController().signal,

@@ -7,7 +7,7 @@
  * Nothing is downloaded and nothing is installed. The tools run through the same process sandbox as everything
  * else: no shell, an allow-listed environment, a time limit and an output cap.
  */
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import type { Evidence } from '@shared/compliance.js';
@@ -185,6 +185,21 @@ export interface RunExternalOptions {
   nano?: NanoAnalyzerOptions;
 }
 
+/**
+ * Where the optional scanners keep what they download. Each project has its own HOME, so without this trivy fetches
+ * its whole vulnerability database (about 1.3 GB) again for every app: four apps meant five gigabytes of the same
+ * file. One folder for the workspace fixes that, and the tools still write nothing into the app being checked.
+ */
+export function toolCacheEnv(cacheDir: string): Record<string, string> {
+  mkdirSync(cacheDir, { recursive: true });
+  return {
+    TRIVY_CACHE_DIR: join(cacheDir, 'trivy'),
+    // semgrep and osv-scanner follow the usual cache and config variables.
+    XDG_CACHE_HOME: join(cacheDir, 'xdg'),
+    SEMGREP_SETTINGS_FILE: join(cacheDir, 'semgrep', 'settings.yml'),
+  };
+}
+
 function coverageRow(tool: ExternalToolResult, covers: string): ToolCoverage {
   return {
     tool: tool.name,
@@ -240,6 +255,7 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
         timeoutMs: opts.timeoutMs ?? EXTERNAL_TOOL_TIMEOUT_MS,
         maxOutputBytes: 16 * 1024 * 1024,
         abort: ctx.abort,
+        env: toolCacheEnv(ctx.toolCacheDir),
       });
       const text = spec.output === 'file' ? (existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : '') : run.stdout;
       if (run.timedOut) {
