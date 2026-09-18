@@ -264,6 +264,11 @@ export const StartRunRequestSchema = z.object({
    * time, and the compliance report is left as the last full check made it.
    */
   checks: z.array(StageIdSchema).min(1).max(20).optional(),
+  /**
+   * Continue a build that stopped part-way, keeping the code it already wrote. The app is not scaffolded again,
+   * and writing is only paid for again if the earlier run did not finish writing.
+   */
+  resumeFromRunId: z.string().min(1).max(64).optional(),
 });
 export const StartRunResponseSchema = z.object({ run: PipelineRunSchema });
 

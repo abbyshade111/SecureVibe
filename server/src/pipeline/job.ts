@@ -40,7 +40,7 @@ export interface BuildJob {
   withoutAi?: boolean;
   /** The Security page: run only these checks and leave the compliance report alone. */
   checks?: StageId[];
-  /** A build that continues an earlier, unfinished one (see resume.ts). */
+  /** A build that continues an earlier, unfinished one: its code is kept and only the unwritten part is paid for. */
   resumeFromRunId?: string;
   createdAt: string;
 }

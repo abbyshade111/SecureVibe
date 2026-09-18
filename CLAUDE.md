@@ -30,6 +30,8 @@ whatever you touch before changing it.
   template and generates a `.env`; remove `templates/secure-web-app/.env` afterwards if the script left it.
 - Self-assessment (SecureVibe checking itself): `npm run self-assess -- --no-ai` is free; without `--no-ai` it
   spends the owner's Anthropic credit. Never run a paid AI step without the owner asking.
+- The AI review is the only paid check. It is ordered by risk (`reviewOrder`) so a spending stop loses the least,
+  and on a rebuild it carries forward verdicts whose cited file is byte-identical (`pipeline/diff-aware.ts`).
 - Evaluation harness: `npm run eval` builds the golden apps in `evals/golden/` without AI and compares them with
   `evals/baselines/` (`--update` to save new baselines, `--only <name>` for one app, `--ai` costs money). Run it
   through the `eval-no-ai` launcher (ports); it needs to pass before a template or pipeline change is done.
@@ -49,7 +51,8 @@ whatever you touch before changing it.
 ## Money and keys
 
 - AI calls cost the owner real money. "Save credits" (Sonnet 5, low effort, one fix round) is on by default;
-  the spending cap is split 55% writing / 30% review / 15% fixes so a build never passes it.
+  the spending cap is split 55% writing / 30% review / 15% fixes so a build never passes it. The two steps that
+  decide nothing (`classify`, `summarize` — see `SMALL_STEPS`) always run on the cheapest model of their service.
 - The owner's API keys live in `.env` (root) and are written there by Settings → "Your AI service". Never print,
   log, echo or commit a key. Each AI step uses the service Settings gives it (`settings.aiService` plus
   `settings.aiServiceFor` for writing / reviewing / questions): ask for a provider with

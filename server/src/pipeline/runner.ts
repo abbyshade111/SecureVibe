@@ -84,6 +84,11 @@ export interface RunPipelineOptions {
    * are left alone, because a report written from a handful of checks would understate everything not run.
    */
   onlyChecks?: StageId[];
+  /**
+   * Continue a build that stopped part-way (see `resumeDecision`). The code already on disk is kept: the app is
+   * not laid out again, and the agent is paid to write only what the earlier run had not finished writing.
+   */
+  resumeFrom?: PipelineRun;
   /** Requirement ids the AI review leaves out (already verified by automated checks). */
   aiReviewSkip?: Set<string>;
   /** Self-assessment: SecureVibe's own test results, used instead of the generated-app test runner. */
@@ -145,6 +150,28 @@ const CORE_STAGES: { id: StageId; run: (ctx: PipelineCtx) => Promise<StageResult
   { id: 'external', run: runExternalStage },
   { id: 'ai-review', run: runAiReviewStage },
 ];
+
+/**
+ * What a continued build may skip.
+ *
+ * A build that stopped leaves its work on disk: the app folder as the scaffold laid it out, plus whatever the agent
+ * had written. Two things are worth not paying for again. Laying out the app is deterministic, so it is never
+ * repeated; writing the app costs real money, so it is repeated only when the earlier run had not finished it.
+ *
+ * Everything after that is always re-run. Checks are cheap, they are what the report rests on, and a check carried
+ * over from an earlier run would be a claim about code that has since changed.
+ */
+export function resumeDecision(previous: PipelineRun): { skipScaffold: true; skipGenerate: boolean; note: string } {
+  const generate = previous.stages.find((s) => s.id === 'generate');
+  const wroteEverything = generate?.status === 'passed' || generate?.status === 'skipped';
+  return {
+    skipScaffold: true,
+    skipGenerate: wroteEverything,
+    note: wroteEverything
+      ? 'Continued from the earlier build, which had finished writing your app: nothing was written again, and every check was run afresh.'
+      : 'Continued from the earlier build, which stopped while writing your app: the parts it had already written were kept, and the rest was written from there.',
+  };
+}
 
 export interface StartedRun {
   run: PipelineRun;
@@ -246,9 +273,29 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
 
   const execute = async (): Promise<PipelineRun> => {
     try {
+    const resume = opts.resumeFrom ? resumeDecision(opts.resumeFrom) : undefined;
+    if (resume) {
+      run.resumedFrom = opts.resumeFrom!.id;
+      run.resumedNote = resume.note;
+    }
     if (opts.mode === 'verify-only') {
       if (project.design) ctx.design = project.design;
       await push(loadFrozenDesign(ctx));
+    } else if (resume) {
+      // The design was frozen by the run being continued; freezing it again would only rewrite the same documents.
+      if (project.design) ctx.design = project.design;
+      await push(loadFrozenDesign(ctx));
+      await push(skipStage(ctx, 'scaffold', 'Your app was already laid out by the build this one continues, so it was kept as it was.'));
+      if (resume.skipGenerate) {
+        await push(skipStage(ctx, 'generate', 'The build this one continues had finished writing your app, so nothing was written again (and nothing was spent on it).'));
+      } else {
+        const generated = await runGenerate(ctx);
+        await push(generated.result);
+        if (generated.hardStop) {
+          run.failure = generated.hardStop;
+          return finish(ctx, run, deps, 'failed');
+        }
+      }
     } else {
       const freeze = await runDesignFreeze(ctx);
       await push(freeze);

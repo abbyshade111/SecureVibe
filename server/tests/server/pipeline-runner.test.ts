@@ -94,6 +94,50 @@ describe('pipeline runner', () => {
     expect(onDisk?.status).toBe('succeeded');
   });
 
+  it('continues a build that stopped while writing, keeping what it wrote and paying only for the rest', async () => {
+    const project = makeProject();
+    const stopped = {
+      id: 'r_20260918120000_aaaaaa',
+      projectId: project.id,
+      mode: 'full',
+      status: 'failed',
+      startedAt: '2026-09-18T12:00:00.000Z',
+      stages: [{ id: 'generate', status: 'failed', summary: 'stopped part-way', round: 0 }],
+      findings: [],
+      coverage: [],
+    } as never;
+    const run = await startRun(project, { mode: 'full', spendingCapUsd: 15, resumeFrom: stopped }, deps).execute();
+
+    // The app is never laid out twice; the writing is paid for again only because it had not finished.
+    expect(stages.runScaffold).not.toHaveBeenCalled();
+    expect(stages.runGenerate).toHaveBeenCalledTimes(1);
+    expect(run.resumedFrom).toBe('r_20260918120000_aaaaaa');
+    expect(run.stages.find((s) => s.id === 'scaffold')?.status).toBe('skipped');
+    // Checks always run again: a check carried over would describe code that has changed since.
+    expect(stages.runSastStage).toHaveBeenCalledTimes(1);
+    expect(stages.runComplianceStage).toHaveBeenCalledTimes(1);
+  });
+
+  it('pays nothing to write again when the stopped build had finished writing', async () => {
+    const project = makeProject();
+    const stopped = {
+      id: 'r_20260918130000_bbbbbb',
+      projectId: project.id,
+      mode: 'full',
+      status: 'cancelled',
+      startedAt: '2026-09-18T13:00:00.000Z',
+      stages: [{ id: 'generate', status: 'passed', summary: 'written', round: 0 }],
+      findings: [],
+      coverage: [],
+    } as never;
+    const run = await startRun(project, { mode: 'full', spendingCapUsd: 15, resumeFrom: stopped }, deps).execute();
+
+    expect(stages.runGenerate).not.toHaveBeenCalled();
+    expect(run.stages.find((s) => s.id === 'generate')?.status).toBe('skipped');
+    expect(run.stages.find((s) => s.id === 'generate')?.summary).toMatch(/nothing was spent/i);
+    expect(run.resumedNote).toMatch(/finished writing/i);
+  });
+
   it('runs only the checks the owner asked for, and leaves the compliance report alone', async () => {
     const project = makeProject();
     project.design = { ...project.design, profileHash: 'x' } as never;

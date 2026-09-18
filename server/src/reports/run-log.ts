@@ -12,5 +12,7 @@ export function renderRunLog(run: PipelineRun): string {
     if (run.failure.detail) lines.push(run.failure.detail);
   }
   if (run.incomplete) lines.push('', 'This run is marked incomplete: reports were rendered from partial results.');
+  // A continued build wrote part of this app in an earlier run; the report says so rather than implying one sitting.
+  if (run.resumedFrom) lines.push('', `Continued from run ${run.resumedFrom}. ${run.resumedNote ?? ''}`.trimEnd());
   return lines.join('\n') + '\n';
 }
