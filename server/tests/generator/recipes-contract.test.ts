@@ -133,6 +133,9 @@ describe('the recipe library holds to its contract', () => {
               const emitted = testSources.some((src) => src.includes(`test('${requirement.test}'`));
               expect(emitted, `${recipe.id}/${instance.id} claims ${requirement.id} but emits no test named "${requirement.test}"`).toBe(true);
               expect(requirement.proves.length, `${requirement.id} needs a plain-language sentence saying what the test shows`).toBeGreaterThan(20);
+              // The name is emitted inside a single-quoted literal, so a quote or backslash in it would produce a
+              // generated test file that does not parse.
+              expect(requirement.test, 'a test name cannot contain a quote or a backslash').not.toMatch(/['\\]/);
             }
           }
         }

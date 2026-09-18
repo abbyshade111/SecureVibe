@@ -1851,12 +1851,12 @@
     },
     {
       "id": "TPL-DB-02",
-      "title": "Safe database settings, private files, transactions and bounded lists",
-      "description": "The database uses safe settings, its files are readable only by the app's user, related writes happen all-or-nothing, and lists are always limited in size.",
+      "title": "Safe database settings, private files and all-or-nothing writes",
+      "description": "The database uses safe settings, its files are readable only by the app's user, and related writes happen all-or-nothing, so a half-finished change cannot be left behind.",
       "asvs": [
         {
           "id": "V2.3.3",
-          "proves": "Per-user quotas are checked inside a transaction and list queries always carry a LIMIT.",
+          "proves": "A per-person limit is checked inside the same transaction as the write it guards, so either the whole change happens or none of it does.",
           "coverage": "full"
         },
         {
@@ -1881,6 +1881,30 @@
       "files": [
         "src/db/index.ts",
         "src/features/_example/repo.ts"
+      ]
+    },
+    {
+      "id": "TPL-DB-04",
+      "title": "Every list is limited in size",
+      "description": "A page of records is always limited, and asking for a bigger page than allowed is capped or refused, so one call cannot copy the whole table out of the app.",
+      "asvs": [
+        {
+          "id": "V2.4.1",
+          "proves": "Every list query carries a LIMIT from clampLimit(), and a request for an unreasonable number of records is capped or refused.",
+          "coverage": "partial"
+        }
+      ],
+      "aisvs": [],
+      "sbd": [],
+      "principle": "secure-defaults",
+      "checks": [
+        {
+          "type": "test",
+          "name": "V2.4.1"
+        }
+      ],
+      "files": [
+        "src/db/index.ts"
       ]
     },
     {

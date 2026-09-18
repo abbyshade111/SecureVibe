@@ -1071,12 +1071,21 @@ run id and `nextMigrationNumber()` (100 upwards; the runner hands out the number
 **Evidence.** A recipe's `requirements` say which of its own emitted tests speaks to which ASVS/AISVS requirement,
 and nothing more: the evidence is the test result the ordinary `unit-tests` stage collects. Because
 `compliance/evidence.ts` credits a test to a requirement when the test's own name *starts* with the requirement
-id, the emitted test names carry the ids (`V8.2.2 booking: another signed-in person cannot read or change a record
-they do not own`). `tests/generator/recipes-contract.test.ts` holds every recipe to this: each claimed id must
+id, the emitted test names carry the ids, and the rest of each name restates the requirement in the same
+plain-language words the reports use (`V8.2.2 booking: changing the id in the address to a record owned by someone
+else is refused`), so a reader can see what the test claims to show and a name-based screen can recognise it. `tests/generator/recipes-contract.test.ts` holds every recipe to this: each claimed id must
 exist in the framework data, must lead the name of a test the recipe actually emits, and must come with a
 plain-language sentence saying what the test shows. A recipe that claims a requirement it does not test fails the
-suite. `record-type` claims V2.2.1, V2.2.2, V2.4.1, V8.2.1, V8.2.3 and — for records that belong to one person —
-V8.2.2, and — for administrator-only records — V8.3.1.
+suite. `record-type` claims V2.2.1, V2.2.2, V2.3.3, V2.4.1, V8.2.1, V8.2.3 and — for records that belong to one person —
+V8.2.2, and — for administrator-only records — V8.3.1. A name may not contain a quote or a backslash, because it is
+emitted inside a single-quoted literal.
+
+**The bounded-list control.** `TPL-DB-02` used to claim V2.3.3 (transactions) for two different things: the
+transaction around a per-person limit *and* the LIMIT on every list. The LIMIT half is now its own control,
+`TPL-DB-04`, crediting V2.4.1 (anti-automation), and the template's own `db.test.ts` list test moved to V2.4.1 with
+it. V2.3.3 keeps only the transaction claim. Before this, the only test crediting V2.3.3 in a generated app was the
+recipe's mislabelled page-size test, and both of the template's V2.3.3 tests skip when the reference `_example`
+feature is off — which it always is in a generated app.
 
 **Fence.** Recipes are trusted no more than the generation agent: `apply.ts` refuses any instance with a file
 outside the template manifest's `writablePaths`, writes nothing for it, and says so in the run. The contract test

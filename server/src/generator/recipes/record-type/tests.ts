@@ -87,13 +87,13 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   const tests: EmittedTest[] = [];
 
   tests.push({
-    name: `V8.2.1 ${name}: someone who has not signed in cannot add or reach records`,
+    name: `V8.2.1 ${name}: no page or action is available without signing in, and anything not explicitly allowed is refused`,
     requirement: {
       standard: 'asvs',
       id: 'V8.2.1',
       proves: `Calling the ${plan.entity.label.toLowerCase()} interface without signing in is refused${plan.publicRead ? ' for anything that changes data' : ''}.`,
     },
-    code: `  test('V8.2.1 ${name}: someone who has not signed in cannot add or reach records', async () => {
+    code: `  test('V8.2.1 ${name}: no page or action is available without signing in, and anything not explicitly allowed is refused', async () => {
     const res = await app.fetch(API, { jar: new CookieJar() });
     await res.text();
     ${plan.publicRead ? `assert.ok(res.status === 200 || res.status === 401, 'a public list either answers or asks for a sign-in');` : `assert.ok(res.status === 401 || res.status === 403, \`expected a denial, got \${res.status}\`);`}
@@ -104,13 +104,13 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
-    name: `V2.2.1 ${name}: input that does not fit the form is refused`,
+    name: `V2.2.1 ${name}: input is checked against what is expected before the app uses it`,
     requirement: {
       standard: 'asvs',
       id: 'V2.2.1',
       proves: `A value of the wrong kind in a ${plan.entity.label.toLowerCase()} is refused rather than stored.`,
     },
-    code: `  test('V2.2.1 ${name}: input that does not fit the form is refused', async () => {
+    code: `  test('V2.2.1 ${name}: input is checked against what is expected before the app uses it', async () => {
     const jar = await app.login(${signIn});
     const res = await app.json('POST', API, ${invalidPayload}, jar);
     await res.text();
@@ -119,13 +119,13 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
-    name: `V2.2.2 ${name}: the server refuses fields the form does not have`,
+    name: `V2.2.2 ${name}: input checks happen on the server, not only in the browser`,
     requirement: {
       standard: 'asvs',
       id: 'V2.2.2',
       proves: 'The rules are enforced by the server itself: a call made straight to the interface, with no browser involved, cannot set a field that was not meant to be writable.',
     },
-    code: `  test('V2.2.2 ${name}: the server refuses fields the form does not have', async () => {
+    code: `  test('V2.2.2 ${name}: input checks happen on the server, not only in the browser', async () => {
     const jar = await app.login(${signIn});
     // Sent straight to the interface, with no page and no browser checks in the way.
     const unknown = await app.json('POST', API, { ...PAYLOAD_A, notAField: 'x' }, jar);
@@ -161,14 +161,14 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
-    name: `V2.3.3 ${name}: a clashing change is refused and leaves the record exactly as it was`,
+    name: `V2.3.3 ${name}: either all of a change happens or none of it does, leaving no half-finished change behind`,
     requirement: {
       standard: 'asvs',
       id: 'V2.3.3',
       proves:
         'A change based on an out-of-date version of the record is refused whole: nothing is half-applied, and reading the record back afterwards gives exactly what was there before the attempt.',
     },
-    code: `  test('V2.3.3 ${name}: a clashing change is refused and leaves the record exactly as it was', async () => {
+    code: `  test('V2.3.3 ${name}: either all of a change happens or none of it does, leaving no half-finished change behind', async () => {
     const jar = await app.login(${signIn});
     const created = await app.json('POST', API, PAYLOAD_A, jar);
     const first = (await created.json()) as Record<string, unknown> & { id: string; updatedAt: string };
@@ -195,13 +195,13 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
-    name: `V2.4.1 ${name}: the list never returns more than one capped page`,
+    name: `V2.4.1 ${name}: asking for an unreasonable number of records at once cannot copy all the data`,
     requirement: {
       standard: 'asvs',
       id: 'V2.4.1',
       proves: 'Asking for a huge page of records is either refused or capped, so the list cannot be used to pull everything out in one call.',
     },
-    code: `  test('V2.4.1 ${name}: the list never returns more than one capped page', async () => {
+    code: `  test('V2.4.1 ${name}: asking for an unreasonable number of records at once cannot copy all the data', async () => {
     const jar = await app.login(${signIn});
     const res = await app.fetch(\`\${API}?limit=100000\`, { jar, headers: { Accept: 'application/json' } });
     const text = await res.text();
@@ -214,13 +214,13 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
-    name: `V8.2.3 ${name}: each audience sees only the fields meant for it`,
+    name: `V8.2.3 ${name}: people only see the fields they are allowed to see`,
     requirement: {
       standard: 'asvs',
       id: 'V8.2.3',
       proves: 'A reply contains only the fields of the form plus the record’s own details — never a raw database column or another person’s identifier.',
     },
-    code: `  test('V8.2.3 ${name}: each audience sees only the fields meant for it', async () => {
+    code: `  test('V8.2.3 ${name}: people only see the fields they are allowed to see', async () => {
     const jar = await app.login(${signIn});
     const created = await app.json('POST', API, PAYLOAD_A, jar);
     const record = (await created.json()) as Record<string, unknown> & { id: string };
@@ -244,13 +244,13 @@ ${
 
   if (plan.ownerScoped) {
     tests.push({
-      name: `V8.2.2 ${name}: another signed-in person cannot read or change a record they do not own`,
+      name: `V8.2.2 ${name}: changing the id in the address to a record owned by someone else is refused`,
       requirement: {
         standard: 'asvs',
         id: 'V8.2.2',
         proves: `Guessing the address of someone else’s ${plan.entity.label.toLowerCase()} does not open it: reading, changing and deleting are all refused.`,
       },
-      code: `  test('V8.2.2 ${name}: another signed-in person cannot read or change a record they do not own', async () => {
+      code: `  test('V8.2.2 ${name}: changing the id in the address to a record owned by someone else is refused', async () => {
     const owner = await app.login(users.member);
     const created = await app.json('POST', API, PAYLOAD_A, owner);
     const record = (await created.json()) as { id: string; updatedAt: string };
@@ -274,13 +274,13 @@ ${
 
   if (plan.adminOnly) {
     tests.push({
-      name: `V8.3.1 ${name}: a person without the administrator role is refused`,
+      name: `V8.3.1 ${name}: permission checks happen on the server, so the action is refused without the administrator role`,
       requirement: {
         standard: 'asvs',
         id: 'V8.3.1',
         proves: 'The role check happens on the server: a signed-in person without the administrator role is refused even when they call the interface directly.',
       },
-      code: `  test('V8.3.1 ${name}: a person without the administrator role is refused', async () => {
+      code: `  test('V8.3.1 ${name}: permission checks happen on the server, so the action is refused without the administrator role', async () => {
     const member = await app.login(users.member);
     const res = await app.fetch(API, { jar: member });
     await res.text();
@@ -291,13 +291,13 @@ ${
 
   if (sensitive.length > 0) {
     tests.push({
-      name: `V8.2.3 ${name}: sensitive fields are not shown to other people`,
+      name: `V8.2.3 ${name}: sensitive fields are not among the fields other people are shown`,
       requirement: {
         standard: 'asvs',
         id: 'V8.2.3',
         proves: `The sensitive fields of a ${plan.entity.label.toLowerCase()} (${sensitive.map((f) => f.field.label).join(', ')}) appear for the owner and are left out of what other people are shown.`,
       },
-      code: `  test('V8.2.3 ${name}: sensitive fields are not shown to other people', async () => {
+      code: `  test('V8.2.3 ${name}: sensitive fields are not among the fields other people are shown', async () => {
     const owner = await app.login(users.member);
     const created = await app.json('POST', API, PAYLOAD_A, owner);
     const record = (await created.json()) as Record<string, unknown> & { id: string };
