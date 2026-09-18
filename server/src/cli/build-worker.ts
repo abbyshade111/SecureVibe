@@ -33,7 +33,9 @@ async function main(): Promise<void> {
 
   const eventsFile = join(store.runDir(projectId, runId), EVENTS_FILE);
   const busRegistry = new RunBusRegistry(() => fileSink(eventsFile));
-  const provider = job.withoutAi ? createProvider({ forceProvider: 'null' }) : providerFactory(config)();
+  // Without AI every step uses the null provider; otherwise each step gets the service Settings gives it.
+  const providerFor = job.withoutAi ? () => createProvider({ forceProvider: 'null' }) : providerFactory(config);
+  const provider = providerFor();
 
   const started = startRun(
     project,
@@ -48,7 +50,7 @@ async function main(): Promise<void> {
         ? { skipStages: UPLOADED_SKIPPED_STAGES, manifestOverride: uploadedManifest(), extraIgnore: UPLOADED_IGNORE, excludedChecks: UPLOADED_EXCLUDED_CHECKS }
         : {}),
     },
-    { store, config, knowledge: loadKnowledge(), frameworks: loadFrameworks(), provider, busRegistry },
+    { store, config, knowledge: loadKnowledge(), frameworks: loadFrameworks(), provider, providerFor, busRegistry },
   );
 
   const stop = (signal: NodeJS.Signals): void => {

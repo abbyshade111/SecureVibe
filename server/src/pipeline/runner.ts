@@ -44,6 +44,7 @@ import { buildScanContext, type PipelineAccumulator, type PipelineCtx } from './
 import { finalizeFindings } from '../scanners/normalize.js';
 import { humanReviewIsCurrent } from './human-review.js';
 import { finalizeProvenance } from '../generator/provenance.js';
+import type { ProviderFor } from '../llm/active-provider.js';
 import { promptLibraryHash } from '../llm/index.js';
 import { isOpen } from '@shared/findings.js';
 import type { GrantedApproval } from '../api/approvals.js';
@@ -92,6 +93,8 @@ export interface RunPipelineDeps {
   knowledge: Knowledge;
   frameworks: Frameworks;
   provider: LlmProvider;
+  /** Optional: a provider per step, so writing, reviewing and the questions can use different AI services. */
+  providerFor?: ProviderFor;
   busRegistry: RunBusRegistry;
 }
 
@@ -201,6 +204,7 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     knowledge: deps.knowledge,
     frameworks: deps.frameworks,
     provider: deps.provider,
+    providerFor: (purpose) => deps.providerFor?.(purpose) ?? deps.provider,
     bus,
     abort,
     acc: emptyAccumulator(opts.extraEvidence),
@@ -355,8 +359,9 @@ function finalizeRunProvenance(ctx: PipelineCtx): void {
     ...(ctx.acc.correlationIds.length > 0
       ? {
           llm: {
-            provider: ctx.provider.name,
-            requestedModel: ctx.provider.model,
+            // Steps may run on different services; the record names each one that could have been used.
+            provider: [...new Set([ctx.providerFor('generate').name, ctx.providerFor('fix').name, ctx.providerFor('ai-review').name])].filter((n) => n !== 'null').join(', ') || ctx.provider.name,
+            requestedModel: ctx.providerFor('generate').model,
             servedModels: [...new Set(ctx.acc.servedModels)],
             promptHashes: [],
             correlationIds: ctx.acc.correlationIds,

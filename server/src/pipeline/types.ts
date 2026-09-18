@@ -11,7 +11,7 @@ import type { Attestation, Project } from '@shared/project.js';
 import type { DesignProfile } from '@shared/profile.js';
 import type { SecureVibeConfig, Settings } from '../config.js';
 import type { ProjectPaths, ProjectStore } from '../store/index.js';
-import type { AiReviewResult, ComplianceTestResult, DastAuthBootstrap, Frameworks, Knowledge, LlmProvider, ProbeResult, ScanContext } from '../integration.js';
+import type { AiReviewResult, ComplianceTestResult, DastAuthBootstrap, Frameworks, Knowledge, LlmProvider, LlmPurpose, ProbeResult, ScanContext } from '../integration.js';
 import type { RunBus } from './bus.js';
 
 /** Findings/evidence/coverage a stage adds are appended here; nothing is discarded between stages. */
@@ -35,7 +35,10 @@ export interface PipelineCtx {
   appDir: string;
   knowledge: Knowledge;
   frameworks: Frameworks;
+  /** The provider for the default service; `providerFor(purpose)` is what each AI step should use. */
   provider: LlmProvider;
+  /** The provider for one step, which may be a different AI service (Settings → "Which AI service does what"). */
+  providerFor: (purpose: LlmPurpose) => LlmProvider;
   bus: RunBus;
   abort: AbortController;
   acc: PipelineAccumulator;

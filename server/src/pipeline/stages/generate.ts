@@ -26,10 +26,11 @@ export async function runGenerate(ctx: PipelineCtx): Promise<GenerateStageOutcom
   if (!ctx.design || !ctx.manifest) {
     return { result: finishStage(ctx, 'generate', 'failed', 'The application was not ready to be written yet.', started) };
   }
-  if (ctx.provider.name === 'null') {
+  const provider = ctx.providerFor('generate');
+  if (provider.name === 'null') {
     // Preview without AI is a supported way to build, not a failure: the scaffold already wrote a working app.
     const reason =
-      'Skipped because SecureVibe is running without an Anthropic API key. Your app still has pages for every record you described; add a key and rebuild to have Claude write the rest of your features.';
+      'Skipped because SecureVibe is running without an API key for the AI service that writes apps. Your app still has pages for every record you described; add a key in Settings and rebuild to have the rest of your features written for you.';
     return { result: finishStage(ctx, 'generate', 'skipped', reason, started, { skippedReason: reason }) };
   }
 
@@ -39,7 +40,7 @@ export async function runGenerate(ctx: PipelineCtx): Promise<GenerateStageOutcom
   const correlationId = `gen-${ctx.run.id}-${randomUUID().slice(0, 8)}`;
   const budget = { ...DEFAULT_BUDGETS.generate, maxUsd: Math.min(DEFAULT_BUDGETS.generate.maxUsd, stageBudgetUsd(ctx, 'generate')) };
 
-  const outcome = await generateAppFlow(ctx.provider, {
+  const outcome = await generateAppFlow(provider, {
     appDir: ctx.appDir,
     design: ctx.design,
     manifest: ctx.manifest,

@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import type { LlmPurpose } from './llm/types.js';
 import { writeJsonAtomicSync } from './store/atomic.js';
 
 export const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -34,11 +35,56 @@ export const SettingsSchema = z.object({
   saveCredits: z.boolean().default(true),
   /** A desktop notification when a build or check ends (the build runs for minutes, usually unattended). */
   notifyOnFinish: z.boolean().default(true),
-  /** Which AI service builds use (Settings → "Your AI service"); it needs a key for that service. */
+  /** The AI service everything uses unless a step below says otherwise; it needs a key for that service. */
   aiService: z.enum(['anthropic', 'openai', 'google']).default('anthropic'),
+  /**
+   * Which service does which step ('default' = the one above). Three groups, because those are the choices that
+   * make a difference to the owner: what writes the app, what reviews it, and the small questions in between.
+   * A review by a service that did not write the code is an independent check, and the reports say who did what.
+   * The web app always sends all three values together.
+   */
+  aiServiceFor: z
+    .object({
+      write: z.enum(['default', 'anthropic', 'openai', 'google']).default('default'),
+      review: z.enum(['default', 'anthropic', 'openai', 'google']).default('default'),
+      questions: z.enum(['default', 'anthropic', 'openai', 'google']).default('default'),
+    })
+    .default({ write: 'default', review: 'default', questions: 'default' }),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type AiServiceId = Settings['aiService'];
+export type AiStepGroup = keyof Settings['aiServiceFor'];
+
+/** Which group each AI step belongs to. */
+const STEP_GROUP: Record<LlmPurpose, AiStepGroup> = {
+  generate: 'write',
+  fix: 'write',
+  'ai-review': 'review',
+  'quick-infer': 'questions',
+  'peer-review': 'questions',
+  refine: 'questions',
+  plan: 'questions',
+  'threat-model': 'questions',
+  classify: 'questions',
+  summarize: 'questions',
+};
+
+export const STEP_GROUP_LABEL: Record<AiStepGroup, string> = {
+  write: 'Writing your app',
+  review: 'Reviewing the code',
+  questions: 'Questions, plans and second opinions',
+};
+
+export function stepGroupFor(purpose: LlmPurpose): AiStepGroup {
+  return STEP_GROUP[purpose];
+}
+
+/** The service a step uses: its own choice, or the default when it says 'default'. */
+export function serviceForPurpose(settings: Settings, purpose?: LlmPurpose): AiServiceId {
+  if (!purpose) return settings.aiService;
+  const chosen = settings.aiServiceFor[stepGroupFor(purpose)];
+  return chosen === 'default' ? settings.aiService : chosen;
+}
 
 /** The model Save credits uses: about 2.5 times cheaper than Opus 5 for the same tokens. */
 export const SAVE_CREDITS_MODEL = 'claude-sonnet-5';
@@ -52,15 +98,20 @@ export function modelForService(service: AiServiceId, model: string): string {
   return MODEL_PREFIX[service].test(model) ? model : DEFAULT_MODELS[service];
 }
 
-/** The AI settings a build actually uses, with Save credits and the chosen service applied. */
-export function effectiveAiSettings(settings: Settings): Settings {
+/**
+ * The AI settings one step actually uses: its service, a model that belongs to that service, and Save credits
+ * applied. Without a purpose this is the default service, which is what the estimate and the status page show.
+ */
+export function effectiveAiSettings(settings: Settings, purpose?: LlmPurpose): Settings {
+  const service = serviceForPurpose(settings, purpose);
   if (!settings.saveCredits) {
-    const model = modelForService(settings.aiService, settings.model);
-    return model === settings.model ? settings : { ...settings, model };
+    const model = modelForService(service, settings.model);
+    return model === settings.model && service === settings.aiService ? settings : { ...settings, aiService: service, model };
   }
   return {
     ...settings,
-    model: SAVE_CREDITS_MODELS[settings.aiService],
+    aiService: service,
+    model: SAVE_CREDITS_MODELS[service],
     generationEffort: 'low',
     reviewEffort: 'low',
     maxFixRounds: Math.min(settings.maxFixRounds, 1),

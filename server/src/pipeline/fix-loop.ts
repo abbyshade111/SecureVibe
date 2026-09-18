@@ -118,7 +118,8 @@ async function rescan(ctx: PipelineCtx, round: number, previousFindings: Finding
 export async function runFixLoop(ctx: PipelineCtx): Promise<StageResult> {
   const started = startStage(ctx, 'fix');
 
-  if (ctx.provider.name === 'null') {
+  const provider = ctx.providerFor('fix');
+  if (provider.name === 'null') {
     return finishStage(ctx, 'fix', 'skipped', 'AI is not configured, so nothing was fixed automatically.', started, { skippedReason: 'AI is not configured (preview mode)' });
   }
   if (!ctx.design || !ctx.manifest) {
@@ -159,7 +160,7 @@ export async function runFixLoop(ctx: PipelineCtx): Promise<StageResult> {
 
     const usageBeforeRound = ctx.run.llmUsage;
     const correlationId = `fix-${ctx.run.id}-r${round}`;
-    const outcome = await fixFindings(ctx.provider, {
+    const outcome = await fixFindings(provider, {
       appDir: ctx.appDir,
       design: ctx.design,
       manifest: ctx.manifest,

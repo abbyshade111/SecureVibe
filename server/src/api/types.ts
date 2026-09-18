@@ -1,5 +1,5 @@
 /** Dependencies every API route module needs, assembled once in app.ts and threaded through `buildApiRouter`. */
-import type { Frameworks, Knowledge, LlmProvider } from '../integration.js';
+import type { Frameworks, Knowledge, ProviderFor } from '../integration.js';
 import type { SecureVibeConfig } from '../config.js';
 import type { RunBusRegistry } from '../pipeline/bus.js';
 import type { Logger } from '../security/logger.js';
@@ -15,7 +15,7 @@ export interface ApiDeps {
   store: ProjectStore;
   knowledge: Knowledge;
   frameworks: Frameworks;
-  getProvider: () => LlmProvider;
+  getProvider: ProviderFor;
   busRegistry: RunBusRegistry;
   /** Open build approvals; created by `buildApiRouter` when not supplied. */
   approvals: BuildApprovals;

@@ -24,7 +24,7 @@ export function planRouter(deps: ApiDeps): Router {
   router.post('/projects/:id/plan', async (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     if (!project.design) throw validationError('Finish your design before planning the build.');
-    const provider = deps.getProvider();
+    const provider = deps.getProvider('plan');
     if (provider.name === 'null') throw llmUnavailable('Planning the build needs AI. Turn AI on in Settings, or build without AI (the starter app with your records, no plan needed).');
     const profile = project.profile as PartialDesignProfile;
     const outcome = await planBuild(

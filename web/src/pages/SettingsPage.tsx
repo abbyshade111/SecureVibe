@@ -1,10 +1,31 @@
 import { useEffect, useState } from 'react';
+import type { StatusResponse } from '@shared/api.js';
 import { updateSettings } from '../lib/api';
 import { useStatus } from '../hooks/useStatus';
 import { Card, ErrorNotice, LoadingScreen } from '../components/Bits';
 import { AiKeys } from '../components/AiKeys';
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+type AiServiceFor = StatusResponse['settings']['aiServiceFor'];
+type StepGroup = 'write' | 'review' | 'questions';
+type StepService = AiServiceFor['write'];
+
+const STEP_CHOICES: { id: StepGroup; label: string; help: string }[] = [
+  { id: 'write', label: 'Writing your app', help: 'Writes your features and fixes what the checks find. This is where most of the money goes.' },
+  { id: 'review', label: 'Reviewing the code', help: 'Reads the finished code against the security requirements. A service that did not write the code gives an independent opinion.' },
+  { id: 'questions', label: 'Questions, plans and second opinions', help: 'The follow-up questions, the build plan, the second opinion on your answers and the threat model. Short, cheap steps.' },
+];
+
+function serviceLabel(services: StatusResponse['aiServices'], id: string): string {
+  return services.find((s: StatusResponse['aiServices'][number]) => s.service === id)?.label ?? id;
+}
+
+/** True when the review step ends up on a different service than the one writing the app. */
+function independentReview(settings: StatusResponse['settings']): boolean {
+  const resolve = (v: StepService) => (v === 'default' ? settings.aiService : v);
+  return resolve(settings.aiServiceFor.review) !== resolve(settings.aiServiceFor.write);
+}
 
 export function SettingsPage() {
   const { status, loading, error, refresh } = useStatus();
@@ -98,10 +119,12 @@ export function SettingsPage() {
       <AiKeys services={status.aiServices} onChanged={() => void refresh()} />
 
       <Card>
-        <h2>Which AI service builds use</h2>
+        <h2>Which AI service does what</h2>
         <p className="sv-help">
-          Builds, the second opinion and the follow-up questions all use this service. Only services with a key can be
-          chosen; add one under "Your AI service" above. Save credits picks that service's cheaper model.
+          Everything uses the service you pick first. You can then send single steps to another service — for example
+          have one service write your app and a different one review it, so the code is checked by something that did
+          not write it. Only services with a key can be chosen; add one under "Your AI service" above. Save credits
+          picks each service's cheaper model, and the reports record which service did which step.
         </p>
         <div className="sv-option-list">
           {status.aiServices.map((s) => (
@@ -121,6 +144,42 @@ export function SettingsPage() {
             </label>
           ))}
         </div>
+
+        <h3 style={{ marginTop: 20 }}>Steps that can use a different service</h3>
+        {STEP_CHOICES.map((step) => (
+          <div className="sv-field" key={step.id}>
+            <label className="sv-label" htmlFor={`aiServiceFor-${step.id}`}>
+              {step.label}
+            </label>
+            <select
+              id={`aiServiceFor-${step.id}`}
+              className="sv-input"
+              value={status.settings.aiServiceFor[step.id]}
+              disabled={saving}
+              onChange={(e) =>
+                void save({
+                  aiServiceFor: { ...status.settings.aiServiceFor, [step.id]: e.target.value as StepService },
+                })
+              }
+            >
+              <option value="default">Same as above ({serviceLabel(status.aiServices, status.settings.aiService)})</option>
+              {status.aiServices
+                .filter((s) => s.configured)
+                .map((s) => (
+                  <option key={s.service} value={s.service}>
+                    {s.label}
+                  </option>
+                ))}
+            </select>
+            <p className="sv-help">{step.help}</p>
+          </div>
+        ))}
+        {independentReview(status.settings) && (
+          <p className="sv-muted" style={{ marginBottom: 0 }}>
+            Your code will be reviewed by a service that did not write it. That is an independent check, and the
+            reports say so.
+          </p>
+        )}
       </Card>
 
       <Card>

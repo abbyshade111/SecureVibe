@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import express, { type Express, type RequestHandler } from 'express';
 import helmet from 'helmet';
 import rateLimit, { MemoryStore } from 'express-rate-limit';
-import type { Knowledge, LlmProvider } from './integration.js';
+import type { Knowledge, ProviderFor } from './integration.js';
 import type { Frameworks } from './frameworks/index.js';
 import { buildApiRouter } from './api/index.js';
 import type { SecureVibeConfig } from './config.js';
@@ -34,7 +34,7 @@ export interface AppDeps {
   knowledge: Knowledge;
   frameworks: Frameworks;
   /** Built fresh from current settings whenever a route needs one (a settings change takes effect immediately). */
-  getProvider: () => LlmProvider;
+  getProvider: ProviderFor;
   busRegistry: RunBusRegistry;
 }
 

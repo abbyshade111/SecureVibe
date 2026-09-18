@@ -58,6 +58,7 @@ export function statusRouter(deps: ApiDeps): Router {
         saveCredits: settings.saveCredits,
         notifyOnFinish: settings.notifyOnFinish,
         aiService: settings.aiService,
+        aiServiceFor: settings.aiServiceFor,
         effectiveModel: effectiveAiSettings(settings).model,
       },
     };

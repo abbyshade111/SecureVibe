@@ -969,3 +969,18 @@ allow-list, timeout) and use the same strict JSON answer and moderation schemas,
 `features/ai/index.ts` applies unchanged; web search stays Anthropic-only. The scaffold writes `AI_PROVIDER` from
 `settings.aiService`, the matching host into `OUTBOUND_ALLOWED_HOSTS`, and switches `AI_WEB_SEARCH` off for the
 other services. The app never receives SecureVibe's key: the owner adds their own to the app's `.env`.
+
+## Which AI service does which step (added 2026-09-18)
+
+`settings.aiService` is the default service; `settings.aiServiceFor` overrides it per step group —
+`write` (generate, fix), `review` (ai-review) and `questions` (quick-infer, peer-review, refine, plan,
+threat-model, classify, summarize) — each `'default'` or a service id (`server/src/config.ts`: `STEP_GROUP`,
+`stepGroupFor`, `serviceForPurpose`, `effectiveAiSettings(settings, purpose)`, which also resolves the model to
+one belonging to that step's service and applies Save credits). `providerFactory(config)` returns
+`ProviderFor = (purpose?) => LlmProvider`: `ApiDeps.getProvider` and `PipelineCtx.providerFor` are that function,
+so each route and each stage asks for the provider of its own step (a step whose service has no key falls back to
+preview mode for that step alone). The pre-build estimate is priced at the writing step's service; the compliance
+stage's "was any of this assessed by AI" reads the review step's provider; the provenance `llm.provider` lists
+every service that could have run and `requestedModel` is the writing model. Settings → "Which AI service does
+what" sets all three groups (the web app always sends the complete object) and points out when the review runs on
+a service that did not write the code — an independent check.

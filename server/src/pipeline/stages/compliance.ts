@@ -62,15 +62,17 @@ export async function runComplianceStage(ctx: PipelineCtx): Promise<StageResult>
 
   const manifestResults = await evaluateManifestControls(ctx.manifest, manifestCheckCtx);
 
-  const aiRun = ctx.provider.name !== 'null';
+  // "Was any of this assessed by AI?" is about the review step, which is what produces AI evidence.
+  const reviewProvider = ctx.providerFor('ai-review');
+  const aiRun = reviewProvider.name !== 'null';
   // The integrity check compares protected files with the hashes recorded at scaffold time; without it (no
   // protected files, as for SecureVibe itself) nothing was verified.
   const protectedCheck = (ctx.manifest?.protectedPaths.length ?? 0) > 0 ? configResults.find((c) => c.id === 'config.protected-files-unchanged') : undefined;
   const runMeta: RunMeta = {
     runId: ctx.run.id,
     mode: ctx.run.mode,
-    provider: ctx.provider.name,
-    model: ctx.provider.model,
+    provider: reviewProvider.name,
+    model: reviewProvider.model,
     ...(ctx.provenance ? { generatedAt: ctx.provenance.generatedAt } : {}),
     appDir: ctx.appDir,
     stages: ctx.run.stages,

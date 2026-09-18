@@ -9,7 +9,8 @@ import { effectiveAiSettings, type Settings } from '../config.js';
 import { estimateCost } from '../integration.js';
 
 export function estimateForProject(profile: DesignProfile, buildSpec: BuildSpec, raw: Settings, opts: { reviewOnly?: boolean } = {}): CostEstimate {
-  const settings = effectiveAiSettings(raw);
+  // Writing the app is the expensive step, so the estimate is priced at that step's service and model.
+  const settings = effectiveAiSettings(raw, opts.reviewOnly ? 'ai-review' : 'generate');
   return estimateCost(profile, buildSpec, {
     model: settings.model,
     generationEffort: settings.generationEffort,

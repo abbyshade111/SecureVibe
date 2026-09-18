@@ -51,7 +51,9 @@ export function runsRouter(deps: ApiDeps): Router {
 
     // Writing with AI needs the plan the owner approved for this exact design: it is the agent's to-do list and
     // what the result is checked against. Builds without AI write nothing new, so they need no plan.
-    const provider = body.withoutAi ? createProvider({ forceProvider: 'null' }) : deps.getProvider();
+    const providerFor = body.withoutAi ? () => createProvider({ forceProvider: 'null' }) : deps.getProvider;
+    // "Is AI available at all?" is asked of the step that writes the app.
+    const provider = providerFor('generate');
     const plan = mode === 'full' && provider.name !== 'null' ? currentPlan(project) : undefined;
     if (mode === 'full' && provider.name !== 'null' && !plan?.approvedAt) {
       throw validationError('Approve the build plan first: it says which features Claude will write, and the result is checked against it.');
@@ -115,7 +117,7 @@ export function runsRouter(deps: ApiDeps): Router {
             ? { skipStages: UPLOADED_SKIPPED_STAGES, manifestOverride: uploadedManifest(), extraIgnore: UPLOADED_IGNORE, excludedChecks: UPLOADED_EXCLUDED_CHECKS }
             : {}),
         },
-        { store: deps.store, config: deps.config, knowledge: deps.knowledge, frameworks: deps.frameworks, provider, busRegistry: deps.busRegistry },
+        { store: deps.store, config: deps.config, knowledge: deps.knowledge, frameworks: deps.frameworks, provider, providerFor, busRegistry: deps.busRegistry },
       );
       started
         .execute()

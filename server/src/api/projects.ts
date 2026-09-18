@@ -225,7 +225,7 @@ export function projectsRouter(deps: ApiDeps): Router {
   router.post('/projects/:id/quick-infer', async (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     const body = QuickInferRequestSchema.parse(req.body);
-    const provider = deps.getProvider();
+    const provider = deps.getProvider('peer-review');
     if (provider.name === 'null') throw llmUnavailable('Quick mode needs AI to read your description. Use the guided questions instead, or add an Anthropic API key and restart SecureVibe.');
     const outcome = await quickInfer(provider, {
       description: body.description,
@@ -264,7 +264,7 @@ export function projectsRouter(deps: ApiDeps): Router {
   // "Let's check a few things": follow-up questions and suggested features for the answers so far.
   router.post('/projects/:id/refine', async (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
-    const provider = deps.getProvider();
+    const provider = deps.getProvider('refine');
     if (provider.name === 'null') {
       throw llmUnavailable('Follow-up questions need AI. Turn AI on in Settings (or add a key) and try again; you can always carry on without them.');
     }
@@ -319,7 +319,7 @@ export function projectsRouter(deps: ApiDeps): Router {
 
   router.post('/projects/:id/design/peer-review', async (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
-    const provider = deps.getProvider();
+    const provider = deps.getProvider('quick-infer');
     const parsed = DesignProfileSchema.safeParse(project.profile);
     if (!parsed.success || !project.design) throw validationError('Finish your design before asking for a second opinion.');
     if (provider.name === 'null') {

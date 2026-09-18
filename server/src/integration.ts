@@ -44,7 +44,8 @@ export {
   screenText,
   threatModel,
 } from './llm/index.js';
-export type { LlmProvider, ProviderStatus } from './llm/index.js';
+export type { LlmProvider, LlmPurpose, ProviderStatus } from './llm/index.js';
+export type { ProviderFor } from './llm/active-provider.js';
 export { generateApp as generateAppFlow, runAgentTask, failureOptions } from './llm/flows/generate.js';
 export { attributeAttempts } from './llm/flows/fix.js';
 export { createAgentTools, DoneInputSchema } from './llm/tools.js';

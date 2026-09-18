@@ -88,7 +88,8 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   if (!ctx.design) {
     return finishStage(ctx, 'ai-review', 'skipped', 'The design was not available, so nothing could be reviewed.', started, { skippedReason: 'no design' });
   }
-  if (ctx.provider.name === 'null') {
+  const provider = ctx.providerFor('ai-review');
+  if (provider.name === 'null') {
     return finishStage(ctx, 'ai-review', 'skipped', 'AI is not configured, so no AI review was performed. Nothing in this run was assessed by AI.', started, {
       skippedReason: 'AI is not configured (preview mode)',
     });
@@ -106,7 +107,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
     return finishStage(ctx, 'ai-review', 'skipped', reason, started, { skippedReason: 'spending limit reached' });
   }
 
-  const outcome = await aiReview(ctx.provider, {
+  const outcome = await aiReview(provider, {
     appDir: ctx.appDir,
     files,
     requirements,
