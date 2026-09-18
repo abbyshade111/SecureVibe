@@ -285,6 +285,11 @@ export const ProvenanceSchema = z.object({
     z.object({
       path: z.string(),
       sha256: z.string(),
+      /**
+       * Hash of the file's content with the provenance header line (which carries the run id) removed, so an
+       * unchanged file hashes the same across builds. Absent on runs made before this existed.
+       */
+      contentSha256: z.string().optional(),
       origin: GeneratedFileOriginSchema,
       correlationId: z.string().optional(),
       promptHash: z.string().optional(),

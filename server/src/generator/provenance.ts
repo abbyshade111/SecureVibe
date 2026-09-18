@@ -9,7 +9,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { GeneratedFileOrigin, Provenance, RecipeApplication, RunMode } from '@shared/pipeline.js';
-import { listFiles, sha256File } from './files.js';
+import { contentSha256File, listFiles, sha256File } from './files.js';
 
 export interface InitialProvenanceInput {
   runId: string;
@@ -34,7 +34,8 @@ const REPORT_SCHEMA_VERSION = '1.0.0';
 export function initialProvenance(input: InitialProvenanceInput): Provenance {
   const generatedFiles = listFiles(input.appDir).map((f) => {
     const sha256 = sha256File(f.absPath) ?? '';
-    return { path: f.relPath, sha256, origin: 'template' as GeneratedFileOrigin };
+    const contentSha256 = contentSha256File(f.absPath);
+    return { path: f.relPath, sha256, ...(contentSha256 ? { contentSha256 } : {}), origin: 'template' as GeneratedFileOrigin };
   });
   return {
     reportSchemaVersion: REPORT_SCHEMA_VERSION,
@@ -81,9 +82,11 @@ export function markGeneratedFiles(
       byPath.delete(rel);
       continue;
     }
+    const contentSha256 = contentSha256File(abs);
     byPath.set(rel, {
       path: rel,
       sha256,
+      ...(contentSha256 ? { contentSha256 } : {}),
       origin,
       ...(opts.correlationId ? { correlationId: opts.correlationId } : {}),
       ...(opts.promptHash ? { promptHash: opts.promptHash } : {}),

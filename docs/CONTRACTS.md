@@ -1083,6 +1083,12 @@ outside the template manifest's `writablePaths`, writes nothing for it, and says
 also checks that the generator's glob matcher (`generator/files.ts`) and the agent's (`llm/tools.ts`) agree on
 those path lists, so the two fences cannot drift apart.
 
+**Content hash.** Every `generatedFiles` entry also carries `contentSha256` (`contentSha256File` in
+`generator/files.ts`): the file's hash with the provenance header line removed. The header carries the run id, so
+two builds of an unchanged file never share a `sha256`; they do share this, which is what lets a diff-aware rebuild
+tell "byte-for-byte the file the earlier check read" from "written again with a new run id". It is written wherever
+a file entry is (scaffold, recipes, the agent's files, an upgrade) and is absent on runs made before it existed.
+
 **Identity.** `securevibe.provenance.json` gains `recipes: RecipeApplication[]` (what each application built, its
 files, its requirement mapping and its notes) and, on every file a recipe wrote, `recipe: { id, version,
 instance }`. `generator/upgrade.ts` carries those entries across an update, so the version diff and a later build

@@ -22,7 +22,7 @@ import { ProvenanceSchema, type GeneratedFileOrigin, type Provenance } from '@sh
 import type { DesignProfile } from '@shared/profile.js';
 import type { TemplateUpgrade } from '@shared/project.js';
 import type { Settings } from '../config.js';
-import { DEFAULT_WALK_IGNORE, listFiles, sha256File } from './files.js';
+import { contentSha256File, DEFAULT_WALK_IGNORE, listFiles, sha256File } from './files.js';
 import { initialProvenance } from './provenance.js';
 import { computeProtectedFileHashes, stageTemplate, tryNodeModulesFastPath } from './scaffold.js';
 import { describeSandbox } from '../pipeline/process.js';
@@ -206,7 +206,14 @@ export async function upgradeApp(input: UpgradeInput): Promise<TemplateUpgrade> 
       const origin: GeneratedFileOrigin = changed.has(path) ? 'template' : (previous?.origin ?? 'template');
       // A file a recipe wrote keeps saying which recipe wrote it: an update never rewrites those files, so the
       // record stays true and the version diff can still name their source.
-      return { path, sha256, origin, ...(origin !== 'template' && previous?.recipe ? { recipe: previous.recipe } : {}) };
+      const contentSha256 = contentSha256File(join(appDir, path));
+      return {
+        path,
+        sha256,
+        ...(contentSha256 ? { contentSha256 } : {}),
+        origin,
+        ...(origin !== 'template' && previous?.recipe ? { recipe: previous.recipe } : {}),
+      };
     });
     const provenance: Provenance = {
       ...base,

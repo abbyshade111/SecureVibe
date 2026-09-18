@@ -12,7 +12,7 @@
  * It runs against every golden profile, so a new recipe is held to all of them, and it needs no ports, no
  * template copy and no model call.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -20,7 +20,7 @@ import { TemplateManifestSchema } from '@shared/knowledge.js';
 import { REPO_ROOT } from '../../src/config.js';
 import { testMatchesRequirement } from '../../src/compliance/evidence.js';
 import { deriveDesign, loadFrameworks, loadKnowledge } from '../../src/integration.js';
-import { matchesAnyGlob } from '../../src/generator/files.js';
+import { contentSha256File, matchesAnyGlob, sha256 } from '../../src/generator/files.js';
 import { matchesAny } from '../../src/llm/tools.js';
 import { applyRecipes } from '../../src/generator/recipes/apply.js';
 import { RECIPES } from '../../src/generator/recipes/registry.js';
@@ -155,6 +155,34 @@ describe('the recipe library holds to its contract', () => {
       });
     });
   }
+
+  it('hashes a recipe file the same across runs once the run id is out of the way', () => {
+    // A rebuild needs to tell "this file is byte-for-byte what the earlier check read" from "this file was merely
+    // written again". Only the provenance header differs between two builds of an unchanged file, so `sha256`
+    // cannot answer that and `contentSha256` can.
+    const dir = mkdtempSync(join(tmpdir(), 'securevibe-recipe-hash-'));
+    try {
+      const recipe = RECIPES.find((r) => r.id === 'record-type')!;
+      const written: string[] = [];
+      for (const runId of ['r_20260101000000_first', 'r_20260202000000_second']) {
+        const ctx = { ...contextFor('clinicBookings'), runId };
+        const instance = recipe.plan(ctx)[0]!;
+        const file = recipe.emit(instance, ctx).files.find((f) => f.path.endsWith('repo.ts'))!;
+        const path = join(dir, `${runId}.ts`);
+        writeFileSync(path, file.contents, 'utf8');
+        written.push(path);
+      }
+      const [first, second] = written as [string, string];
+      expect(readFileSync(first, 'utf8')).not.toEqual(readFileSync(second, 'utf8'));
+      expect(sha256(readFileSync(first))).not.toEqual(sha256(readFileSync(second)));
+      expect(contentSha256File(first)).toEqual(contentSha256File(second));
+      // And it still notices a real change.
+      writeFileSync(second, `${readFileSync(second, 'utf8')}\n// an edit\n`, 'utf8');
+      expect(contentSha256File(first)).not.toEqual(contentSha256File(second));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   it('refuses to write a recipe that strays outside the files the agent may change', async () => {
     // The fence is the point: a recipe is not trusted more than the generation agent is. A recipe that tries to
