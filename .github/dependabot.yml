@@ -1,8 +1,6 @@
-# Watches the things this app depends on and opens a pull request when one of them needs updating.
-#
-# Two lists are watched. The packages the app itself uses, and the ready-made steps the security workflow uses,
-# which are code from other people too. The security workflow runs on every one of those pull requests, so an
-# update that breaks the app or weakens it shows up before you merge it.
+# Keeps SecureVibe's own packages and workflow steps up to date, the same way the generated apps keep theirs.
+# The workflow steps are pinned to commit fingerprints; these updates move the fingerprint and the version comment
+# together, so pinning never means falling behind on security fixes.
 
 version: 2
 updates:
@@ -17,13 +15,26 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 30
-    # Security fixes arrive as their own pull requests whatever this grouping says.
     groups:
       all-packages:
         patterns: ['*']
 
-  # The workflow pins each step to an exact fingerprint; these updates move the fingerprint and the version comment
-  # together, so pinning never means falling behind on security fixes.
+  # The app template has its own lockfile: its packages end up inside every app SecureVibe builds.
+  - package-ecosystem: npm
+    directory: /templates/secure-web-app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait before proposing a newly published version: a compromised release is usually found within days. This is
+    # the same idea as min-release-age in .npmrc, applied to what Dependabot offers. Security fixes still arrive as
+    # their own pull requests.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      all-packages:
+        patterns: ['*']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

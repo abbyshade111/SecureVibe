@@ -112,6 +112,17 @@ describe('the checks that keep running after the app is handed over', () => {
     }
   });
 
+  test('V15.1.1 a newly published version waits before it is proposed', () => {
+    const dependabot = readFileSync(join(templateRoot, '.github', 'dependabot.yml'), 'utf8');
+    const ecosystems = [...dependabot.matchAll(/^ {2}- package-ecosystem:/gm)];
+    const cooldowns = [...dependabot.matchAll(/^ {4}cooldown:/gm)];
+    // A package that was taken over is usually found within days, so nothing is adopted the day it appears.
+    assert.equal(cooldowns.length, ecosystems.length, 'every list Dependabot watches needs a cooldown');
+    for (const days of dependabot.matchAll(/default-days: (\d+)/g)) {
+      assert.ok(Number(days[1]) >= 7, `a cooldown of ${days[1]} days is too short`);
+    }
+  });
+
   test('MT-04 the workflow itself may not write to the repository', () => {
     // The top-level permissions, before any job asks for more.
     assert.match(workflow, /^permissions:\n {2}contents: read$/m, 'the workflow must start with read-only access');

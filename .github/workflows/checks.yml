@@ -1,0 +1,97 @@
+# SecureVibe's own checks. The apps it builds have had a workflow like this since the container work; this is the
+# same treatment for SecureVibe itself, which is the thing every generated app inherits from.
+#
+# Every step below is pinned to an exact commit fingerprint rather than a version name, for the same reason the
+# generated apps are: a version name can be moved to point at different code, a fingerprint cannot. The comment
+# beside each one says which release it is.
+
+name: Checks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  schedule:
+    # Mondays, 05:00 UTC: packages can become unsafe while nothing changes here.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Types, tests and the app template's own suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '26'
+          cache: npm
+
+      # .npmrc sets ignore-scripts, so no package runs code of its own while being installed. esbuild is the one
+      # tool that genuinely needs its install script (tsx and vite both use it), and it is rebuilt on its own.
+      - name: Install exactly the packages in the lockfile
+        run: npm ci
+
+      - name: Set up the one build tool that needs it
+        run: npm run rebuild-tools
+
+      - name: Check the types
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run SecureVibe's own tests
+        run: npm test
+
+      # The template every app is built from ships its own security suite; it must pass with every feature on.
+      - name: Run the app template's security suite
+        working-directory: templates/secure-web-app
+        run: |
+          node -e "require('fs').writeFileSync('securevibe.features.json', JSON.stringify({auth:true,adminMfa:true,userMfa:true,uploads:true,ai:true,aiActions:true,aiModeration:true,aiHistory:true,email:true,scheduler:true,publicApi:true,payments:true,fieldEncryption:true,retentionJobs:true,lanBinding:false,tlsMode:'off',example:true}))"
+          node --experimental-strip-types --test tests/security/*.test.ts
+
+  packages:
+    name: Packages and bill of materials
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '26'
+          cache: npm
+
+      - name: Install exactly the packages in the lockfile
+        run: npm ci
+
+      - name: Check the packages for known problems
+        run: npm audit --audit-level=high
+
+      - name: Write the bill of materials
+        run: npm sbom --sbom-format cyclonedx --sbom-type application > sbom.cdx.json
+
+      - name: Keep the bill of materials with this run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bill-of-materials
+          path: sbom.cdx.json
+          retention-days: 90
+
+  dependency-review:
+    name: New or changed packages in a pull request
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Says what a pull request adds or upgrades, and fails it when a package with a known serious problem, or an
+      # unacceptable licence, would come in with it.
+      - name: Review what this pull request would install
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high

@@ -19,7 +19,8 @@
     "lint": "npm run lint -w server",
     "self-assess": "npm run self-assess -w server",
     "eval": "npm run eval -w server --",
-    "verify": "npm run verify -w server --"
+    "verify": "npm run verify -w server --",
+    "rebuild-tools": "npm rebuild esbuild --foreground-scripts"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
