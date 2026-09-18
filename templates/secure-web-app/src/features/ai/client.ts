@@ -19,6 +19,7 @@ import { isHostAllowed } from '../../lib/http-client.ts';
 import { logger } from '../../lib/logger.ts';
 import { emit } from '../../security/events.ts';
 import { MODERATION_PROMPT, SYSTEM_PROMPT } from './prompt.ts';
+import { googleClient, hasGoogleKey, hasOpenAiKey, openAiClient } from './providers.ts';
 
 /** The shape the model must answer with. Anything else is refused by the output stage. */
 export const AnswerSchema = z.object({
@@ -77,7 +78,7 @@ export interface CompletionResult {
 }
 
 export interface AiClient {
-  readonly provider: 'anthropic' | 'mock' | 'unconfigured';
+  readonly provider: 'anthropic' | 'openai' | 'google' | 'mock' | 'unconfigured';
   readonly model: string;
   complete(request: CompletionRequest): Promise<CompletionResult>;
   /** Moderation classifier. `stage` says whether the text is a question or an answer. */
@@ -167,7 +168,7 @@ function textOf(message: { content: unknown[] }): string {
  * The SDK makes its own HTTPS calls, so the app's egress rule is applied to them here: a host that is not on
  * OUTBOUND_ALLOWED_HOSTS is refused before the request leaves, and the refusal is logged like any other.
  */
-function guardedFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+export function guardedFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
   const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
   const host = url.hostname.toLowerCase();
   if (!isHostAllowed(host, url.port, url.protocol)) {
@@ -346,7 +347,7 @@ function unconfiguredClient(): AiClient {
     Promise.reject(
       new AiUnavailableError(
         'not-configured',
-        'The assistant is not set up yet: no API key is configured for it. Add ANTHROPIC_API_KEY to the .env file and restart the app.',
+        'The assistant is not set up yet: no API key is configured for it. Add ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_API_KEY with AI_PROVIDER) to the .env file and restart the app.',
       ),
     );
   return {
@@ -374,6 +375,10 @@ export function aiClient(): AiClient {
   const requested = (process.env.AI_PROVIDER ?? '').trim().toLowerCase();
   if (requested === 'mock') {
     installed = mockClient();
+  } else if (requested === 'openai' || (requested === '' && !apiKey() && hasOpenAiKey())) {
+    installed = openAiClient();
+  } else if (requested === 'google' || (requested === '' && !apiKey() && !hasOpenAiKey() && hasGoogleKey())) {
+    installed = googleClient();
   } else if (apiKey()) {
     installed = anthropicClient();
   } else if (config.testMode) {

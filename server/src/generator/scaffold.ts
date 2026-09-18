@@ -50,9 +50,11 @@ export function manifestFeatureFlags(buildSpec: BuildSpec, profile: DesignProfil
   };
 }
 
-function outboundHostsFor(buildSpec: BuildSpec): string[] {
+const AI_SERVICE_HOSTS: Record<string, string> = { anthropic: 'api.anthropic.com', openai: 'api.openai.com', google: 'generativelanguage.googleapis.com' };
+
+function outboundHostsFor(buildSpec: BuildSpec, aiService: string): string[] {
   const hosts = new Set<string>();
-  if (buildSpec.features.ai) hosts.add('api.anthropic.com');
+  if (buildSpec.features.ai) hosts.add(AI_SERVICE_HOSTS[aiService] ?? AI_SERVICE_HOSTS['anthropic']!);
   return [...hosts];
 }
 
@@ -120,11 +122,14 @@ async function writeEnvFile(appDir: string, profile: DesignProfile, buildSpec: B
     ADMIN_EMAIL: profile.deployment.owner.contactEmail,
     AI_ENABLED: buildSpec.features.ai ? '1' : '0',
     AI_MODEL: settings.model,
+    // The app talks to the same service SecureVibe was set to use; it still needs its own key in this file.
+    AI_PROVIDER: settings.aiService === 'anthropic' ? '' : settings.aiService,
     // Looking things up on the web happens at the AI provider, so no extra outbound host is needed.
-    AI_WEB_SEARCH: buildSpec.features.aiWebSearch ? '1' : '0',
-    AI_WEB_SEARCH_DOMAINS: buildSpec.features.aiWebSearch ? profile.capabilities.aiAssistant.webSearchSites.join(',') : '',
+    // Web search is the Anthropic tool: an app on another service does without it (its prompt says so).
+    AI_WEB_SEARCH: buildSpec.features.aiWebSearch && settings.aiService === 'anthropic' ? '1' : '0',
+    AI_WEB_SEARCH_DOMAINS: buildSpec.features.aiWebSearch && settings.aiService === 'anthropic' ? profile.capabilities.aiAssistant.webSearchSites.join(',') : '',
     AI_MODERATION: buildSpec.features.aiModeration ? '1' : '0',
-    OUTBOUND_ALLOWED_HOSTS: outboundHostsFor(buildSpec).join(','),
+    OUTBOUND_ALLOWED_HOSTS: outboundHostsFor(buildSpec, settings.aiService).join(','),
     RETENTION_MONTHS: profile.data.retention === 'auto-delete-after-period' && profile.data.retentionMonths ? String(profile.data.retentionMonths) : '',
     EXAMPLE_FEATURE: '0',
   };
@@ -177,7 +182,7 @@ const AppDesignSubsetSchema = z.object({
 });
 export type AppDesignSubset = z.infer<typeof AppDesignSubsetSchema>;
 
-function designSubsetFor(profile: DesignProfile, buildSpec: BuildSpec): AppDesignSubset {
+function designSubsetFor(profile: DesignProfile, buildSpec: BuildSpec, aiService: string): AppDesignSubset {
   return AppDesignSubsetSchema.parse({
     appName: profile.app.name,
     dataCategories: profile.data.categories,
@@ -185,7 +190,7 @@ function designSubsetFor(profile: DesignProfile, buildSpec: BuildSpec): AppDesig
     retention: { policy: profile.data.retention, ...(profile.data.retentionMonths ? { months: profile.data.retentionMonths } : {}) },
     region: profile.data.region,
     sessionPolicy: buildSpec.sessionPolicy,
-    outboundHosts: outboundHostsFor(buildSpec),
+    outboundHosts: outboundHostsFor(buildSpec, aiService),
     businessImpact: profile.deployment.businessImpact,
   });
 }
@@ -408,7 +413,7 @@ export async function stageTemplate(input: StageTemplateInput): Promise<StagedTe
   const removedFeaturePaths = await removeDisabledFeatures(targetDir, manifest, featureFlags);
 
   await writeFile(join(targetDir, 'securevibe.features.json'), `${JSON.stringify(featureFlags, null, 2)}\n`);
-  await writeFile(join(targetDir, 'securevibe.design.json'), `${JSON.stringify(designSubsetFor(profile, buildSpec), null, 2)}\n`);
+  await writeFile(join(targetDir, 'securevibe.design.json'), `${JSON.stringify(designSubsetFor(profile, buildSpec, settings.aiService), null, 2)}\n`);
 
   const warnings = await writeEnvFile(targetDir, profile, buildSpec, settings);
   if (buildSpec.features.tlsMode === 'selfsigned') {

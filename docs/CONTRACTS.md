@@ -959,3 +959,13 @@ model's own output replayed statelessly; Gemini function calls get SecureVibe-ma
 maps the model to the chosen service (`modelForService`; Save credits uses `gpt-5-mini` / `gemini-2.5-flash`).
 Rates for these models are in `MODEL_RATES`; the spending cap applies as for Anthropic. Provenance and the audit log
 record the provider name. Not available for these services: Anthropic's server-side fallback and web search.
+
+## Generated apps on OpenAI or Google (added 2026-09-18)
+
+The template's assistant runs on Anthropic, OpenAI or Google (`src/features/ai/providers.ts`): `AI_PROVIDER`
+(empty = whichever key is present, Anthropic first; `openai`; `google`; `mock` for tests) with `OPENAI_API_KEY`
+or `GOOGLE_API_KEY`, and an `AI_MODEL` of that service. Both go through the app's guarded fetch (outbound
+allow-list, timeout) and use the same strict JSON answer and moderation schemas, so every guard-rail in
+`features/ai/index.ts` applies unchanged; web search stays Anthropic-only. The scaffold writes `AI_PROVIDER` from
+`settings.aiService`, the matching host into `OUTBOUND_ALLOWED_HOSTS`, and switches `AI_WEB_SEARCH` off for the
+other services. The app never receives SecureVibe's key: the owner adds their own to the app's `.env`.
