@@ -1,0 +1,52 @@
+<section class="card narrow">
+  <h1>API keys</h1>
+  <p class="hint">An API key lets a program act as you when calling this app's JSON API. Send it as
+    <code>Authorization: Bearer &lt;key&gt;</code> — never in the address of a request. Anyone who has a key can
+    do anything you can do through the API, so treat it like a password and revoke it if it might have leaked.</p>
+
+  <% if (created) { %>
+    <div class="notice">
+      <p><strong>Your new key — copy it now, it will not be shown again:</strong></p>
+      <p class="secret" data-copy-list><%= created.fullKey %></p>
+      <p class="actions"><button type="button" class="button button-secondary" data-copy-all>Copy key</button></p>
+    </div>
+  <% } %>
+
+  <h2>Create a key</h2>
+  <form method="post" action="/account/api-keys" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="label">Label (optional, so you remember what this key is for)</label>
+      <input id="label" name="label" type="text" maxlength="80" placeholder="e.g. reporting script">
+    </div>
+    <button type="submit" class="button">Create key</button>
+  </form>
+
+  <h2 class="spaced">Your keys</h2>
+  <% if (keys.length === 0) { %>
+    <p class="muted">You have no API keys yet.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Prefix</th><th>Label</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% for (const k of keys) { %>
+          <tr>
+            <td><code>sk_<%= k.prefix %>_…</code></td>
+            <td><%= k.name || '—' %></td>
+            <td><%= formatDate(k.createdAt) %></td>
+            <td><%= k.lastUsedAt ? formatDate(k.lastUsedAt) : 'Never' %></td>
+            <td><span class="tag <%= k.revoked ? 'tag-blocked' : 'tag-success' %>"><%= k.revoked ? 'Revoked' : 'Active' %></span></td>
+            <td>
+              <% if (!k.revoked) { %>
+                <form class="inline-form" method="post" action="/account/api-keys/<%= k.id %>/revoke">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="button button-danger button-small">Revoke</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</section>

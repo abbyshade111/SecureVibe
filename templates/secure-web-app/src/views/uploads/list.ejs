@@ -1,0 +1,39 @@
+<section class="card">
+  <h1>Your files</h1>
+  <p class="hint">
+    Accepted types: <%= allowedTypes.join(', ') %>. Largest file: <%= Math.round(maxBytes / 1024 / 1024 * 10) / 10 %> MB.
+    Total storage: <%= Math.round(quotaBytes / 1024 / 1024) %> MB.
+  </p>
+
+  <form method="post" action="/uploads" enctype="multipart/form-data" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="file">Choose a file</label>
+      <input id="file" name="file" type="file" required>
+    </div>
+    <button type="submit" class="button">Upload</button>
+  </form>
+
+  <h2 class="spaced">Uploaded so far</h2>
+  <% if (uploads.length === 0) { %>
+    <p class="muted">You have not uploaded any files yet.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th></tr></thead>
+      <tbody>
+        <% for (const u of uploads) { %>
+          <tr>
+            <td><a href="/uploads/<%= u.id %>"><%= u.originalName %></a></td>
+            <td><span class="tag"><%= u.mime %></span></td>
+            <td><%= Math.max(1, Math.round(u.size / 1024)) %> KB</td>
+            <td><%= formatDate(u.createdAt) %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+  <p class="pager">
+    <% if (page > 1) { %><a href="/uploads?page=<%= page - 1 %>">Previous</a><% } %>
+    <% if (hasMore) { %><a href="/uploads?page=<%= page + 1 %>">Next</a><% } %>
+  </p>
+</section>

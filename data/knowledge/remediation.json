@@ -1,0 +1,4893 @@
+[
+ {
+  "ruleId": "sast.eval-usage",
+  "title": "Code is run from text with eval()",
+  "severity": "high",
+  "cwe": [
+   "CWE-95"
+  ],
+  "description": "The code calls eval(), which turns a piece of text into running program code at runtime.",
+  "impact": "If any part of that text can be influenced by a user, they can run their own commands inside your app and read or change anything it can reach.",
+  "remediation": {
+   "summary": "Remove eval() and express the logic directly in code.",
+   "steps": [
+    "Find what the text passed to eval() is meant to do.",
+    "Rewrite it as ordinary functions, a lookup table or JSON.parse for data.",
+    "Delete the eval() call."
+   ],
+   "example": "// Before\nconst result = eval(req.valid.body.expression);\n// After: parse data, never code\nconst parsed = JSON.parse(req.valid.body.data);\nconst validated = ExpressionSchema.parse(parsed);",
+   "references": [
+    "https://cwe.mitre.org/data/definitions/95.html",
+    "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search the app for 'eval(' and confirm there are no matches; re-run the static scan.",
+  "asvs": [
+   "V1.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.new-function",
+  "title": "Code is built from text with new Function()",
+  "severity": "high",
+  "cwe": [
+   "CWE-95"
+  ],
+  "description": "The code uses new Function(...), which compiles text into a function at runtime, the same risk as eval().",
+  "impact": "Text that reaches that call can become arbitrary code running with the app's full permissions.",
+  "remediation": {
+   "summary": "Replace new Function() with a normal function or a data lookup.",
+   "steps": [
+    "Identify the text being compiled.",
+    "Write the behaviour as a regular function or map of allowed operations.",
+    "Remove the new Function() call."
+   ],
+   "example": "// Before\nconst fn = new Function('row', body);\n// After\nconst formatters = { upper: (s: string) => s.toUpperCase(), lower: (s: string) => s.toLowerCase() };\nconst fn = formatters[FormatterSchema.parse(name)];",
+   "references": [
+    "https://cwe.mitre.org/data/definitions/95.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'new Function' and confirm no matches; re-run the static scan.",
+  "asvs": [
+   "V1.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.vm-module",
+  "title": "The vm module runs dynamic code",
+  "severity": "high",
+  "cwe": [
+   "CWE-94"
+  ],
+  "description": "The code imports node:vm to run scripts at runtime. The vm module is not a security sandbox.",
+  "impact": "A script that reaches vm can escape and run with the app's full permissions.",
+  "remediation": {
+   "summary": "Remove the vm usage; implement the behaviour in ordinary code.",
+   "steps": [
+    "Identify why dynamic scripts are run.",
+    "Replace with fixed functions selected by validated input.",
+    "Remove the import of node:vm."
+   ],
+   "example": "// Before\nimport vm from 'node:vm';\nvm.runInNewContext(userScript);\n// After: no dynamic code; select a fixed handler\nconst handler = handlers[ActionSchema.parse(req.valid.body.action)];",
+   "references": [
+    "https://nodejs.org/api/vm.html",
+    "https://cwe.mitre.org/data/definitions/94.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for \"node:vm\" and 'vm' imports and confirm no matches.",
+  "asvs": [
+   "V1.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.child-process-exec",
+  "title": "The app runs operating system commands",
+  "severity": "high",
+  "cwe": [
+   "CWE-78"
+  ],
+  "description": "The code uses child_process (exec, spawn, execSync) to run commands on the computer.",
+  "impact": "Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this.",
+  "remediation": {
+   "summary": "Remove the system command and use a Node.js library or built-in function instead.",
+   "steps": [
+    "Identify what the command does (for example resizing an image or listing files).",
+    "Replace it with node:fs or another allowed built-in module.",
+    "Remove the child_process import."
+   ],
+   "example": "// Before\nexecSync(`ls ${dir}`);\n// After\nimport { readdir } from 'node:fs/promises';\nconst entries = await readdir(config.dataDir);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'child_process' and confirm there are no matches.",
+  "asvs": [
+   "V1.2.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.child-process-user-input",
+  "title": "User input reaches an operating system command",
+  "severity": "critical",
+  "cwe": [
+   "CWE-78"
+  ],
+  "description": "A value that came from a request is used inside a system command.",
+  "impact": "Anyone who can send that request can run arbitrary commands on the computer running the app: read files, install software, delete data.",
+  "remediation": {
+   "summary": "Never pass user input to a shell. Remove the command entirely or use a library.",
+   "steps": [
+    "Remove the child_process call.",
+    "Implement the operation with a Node.js built-in or allowed library.",
+    "If a command is unavoidable, use execFile with a fixed program and an allow-listed argument set, never a shell string."
+   ],
+   "example": "// Before\nexec(`convert ${req.valid.body.file} out.png`);\n// After: no shell; operate on a validated internal id\nconst upload = await uploads.getOwned(req.user, req.valid.params.id);\nawait processImage(upload.path);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/78.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'child_process' and confirm no matches; the static scan reports nothing.",
+  "asvs": [
+   "V1.2.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.sql-string-concat",
+  "title": "Database query built by joining text",
+  "severity": "critical",
+  "cwe": [
+   "CWE-89"
+  ],
+  "description": "A SQL statement is assembled by adding user-provided text into the query string instead of using placeholders.",
+  "impact": "A user can type special characters that change the query (SQL injection) to read, change or delete any data in the database, including other people's records and password hashes.",
+  "remediation": {
+   "summary": "Use placeholders (?) with the db helpers and pass values separately.",
+   "steps": [
+    "Find the query that uses + or a template string with a variable.",
+    "Replace each variable in the SQL text with ? and pass the values as the params array.",
+    "Keep column and table names fixed in code; never take them from input."
+   ],
+   "example": "// Before\nconst rows = db.all(`SELECT * FROM notes WHERE title = '${title}'`);\n// After\nconst rows = db.all('SELECT id, title, body FROM notes WHERE title = ? AND owner_id = ? LIMIT 100', [title, req.user.id]);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/89.html"
+   ]
+  },
+  "howToConfirmFixed": "Re-run the static scan; the dast.input.sql-smoke probe passes; a test sends ' OR 1=1-- and gets no extra rows.",
+  "asvs": [
+   "V1.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.db-raw-outside-wrapper",
+  "title": "Database accessed outside the db helpers",
+  "severity": "medium",
+  "cwe": [
+   "CWE-89"
+  ],
+  "description": "Code opens or queries the SQLite database directly instead of going through src/db/index.ts.",
+  "impact": "The helpers enforce parameterised queries, transactions and file permissions. Bypassing them makes injection and inconsistent data more likely and hides the access from the security checks.",
+  "remediation": {
+   "summary": "Route every query through db.q / db.get / db.all / db.run / withTransaction.",
+   "steps": [
+    "Remove the direct node:sqlite import.",
+    "Import the helpers from src/db/index.ts.",
+    "Rewrite the query with ? placeholders."
+   ],
+   "example": "// Before\nimport { DatabaseSync } from 'node:sqlite';\nconst raw = new DatabaseSync('data/app.db');\n// After\nimport { get } from '../../db/index.ts';\nconst note = get('SELECT id, title FROM notes WHERE id = ? AND owner_id = ?', [id, req.user.id]);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'node:sqlite' outside src/db and confirm no matches.",
+  "asvs": [
+   "V1.2.4",
+   "V2.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.ejs-unescaped-output",
+  "title": "Unescaped output in a page template",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A template uses <%- ... %>, which inserts a value into the page without making it safe, and the value is not the nonce or CSRF token.",
+  "impact": "If the value contains text a user typed, that text can include a script that runs in every visitor's browser (cross-site scripting), stealing sessions or performing actions as them.",
+  "remediation": {
+   "summary": "Use <%= %> so EJS escapes the value.",
+   "steps": [
+    "Change <%- value %> to <%= value %>.",
+    "If you truly need HTML, build it from fixed strings in code and wrap with safeHtml(), never from user data."
+   ],
+   "example": "<!-- Before -->\n<p><%- note.body %></p>\n<!-- After -->\n<p><%= note.body %></p>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/79.html"
+   ]
+  },
+  "howToConfirmFixed": "The static scan reports no <%- usage; dast.xss.stored-smoke and dast.xss.reflected-smoke pass.",
+  "asvs": [
+   "V1.2.1",
+   "V1.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.inline-script-in-view",
+  "title": "Inline script without the CSP nonce",
+  "severity": "medium",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A template contains a <script> tag without nonce=\"<%= nonce %>\".",
+  "impact": "The browser will block the script under the app's Content Security Policy, so the feature breaks; and if someone relaxes the policy to make it work, injected scripts would run too.",
+  "remediation": {
+   "summary": "Move the script into public/js/features/ and load it with the nonce.",
+   "steps": [
+    "Create public/js/features/<name>.js with the script contents.",
+    "Reference it from the template with <script nonce=\"<%= nonce %>\" src=\"/js/features/<name>.js\"></script>.",
+    "Remove the inline script."
+   ],
+   "example": "<!-- After -->\n<script nonce=\"<%= nonce %>\" src=\"/js/features/booking.js\"></script>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The page works with no CSP errors in the browser console; the static scan reports nothing.",
+  "asvs": [
+   "V3.4.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.inline-event-handler",
+  "title": "Inline event handler attribute",
+  "severity": "medium",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "An element uses an attribute like onclick=\"...\" to run code.",
+  "impact": "Inline handlers are blocked by the Content Security Policy and encourage mixing data with code, which leads to script injection.",
+  "remediation": {
+   "summary": "Attach handlers from a script file with addEventListener.",
+   "steps": [
+    "Give the element an id or data attribute.",
+    "In public/js/features/<name>.js, select it and call addEventListener.",
+    "Remove the on* attribute."
+   ],
+   "example": "// public/js/features/notes.js\ndocument.querySelector('[data-action=\"delete\"]').addEventListener('click', onDelete);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search templates for 'on[a-z]+=' and confirm no matches.",
+  "asvs": [
+   "V3.4.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.innerhtml-assignment",
+  "title": "HTML set from data with innerHTML",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "Browser code assigns a value to element.innerHTML.",
+  "impact": "If the value contains user-provided text, a script inside it runs in the visitor's browser.",
+  "remediation": {
+   "summary": "Use textContent for text, or build elements with createElement.",
+   "steps": [
+    "Replace innerHTML = value with textContent = value for plain text.",
+    "For structured content, create elements with document.createElement and set their textContent."
+   ],
+   "example": "// Before\nel.innerHTML = note.body;\n// After\nel.textContent = note.body;",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search public/js for innerHTML and confirm no matches.",
+  "asvs": [
+   "V3.2.2",
+   "V1.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.document-write",
+  "title": "document.write used",
+  "severity": "medium",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "Browser code calls document.write, which injects raw HTML into the page.",
+  "impact": "Any user-controlled text written this way can run as script.",
+  "remediation": {
+   "summary": "Replace document.write with DOM methods that set text.",
+   "steps": [
+    "Create the element with document.createElement.",
+    "Set its textContent and append it."
+   ],
+   "example": "const p = document.createElement('p');\np.textContent = message;\ncontainer.append(p);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search public/js for document.write and confirm no matches.",
+  "asvs": [
+   "V3.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.dangerously-set-inner-html",
+  "title": "React dangerouslySetInnerHTML used",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A React component renders raw HTML with dangerouslySetInnerHTML.",
+  "impact": "User text rendered this way can contain scripts that run in other users' browsers.",
+  "remediation": {
+   "summary": "Render text as children instead of raw HTML.",
+   "steps": [
+    "Replace dangerouslySetInnerHTML={{__html: value}} with {value} as element content.",
+    "If HTML is essential, sanitise it with a maintained library first."
+   ],
+   "example": "// Before\n<div dangerouslySetInnerHTML={{ __html: body }} />\n// After\n<div>{body}</div>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for dangerouslySetInnerHTML and confirm no matches.",
+  "asvs": [
+   "V3.2.2",
+   "V1.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.href-from-data",
+  "title": "Link address taken from data without a protocol check",
+  "severity": "medium",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "An href is set from a stored or user-provided value without checking it starts with http:// or https://.",
+  "impact": "A value like javascript:... runs code when clicked.",
+  "remediation": {
+   "summary": "Only allow http and https links; otherwise render plain text.",
+   "steps": [
+    "Parse the value with new URL() and check protocol is http: or https:.",
+    "Fall back to showing the text without a link."
+   ],
+   "example": "function safeHref(value: string): string | null {\n  try { const u = new URL(value); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null; } catch { return null; }\n}",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A stored value of javascript:alert(1) renders as text, not a link.",
+  "asvs": [
+   "V1.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.postmessage-no-origin-check",
+  "title": "postMessage listener does not check the sender",
+  "severity": "medium",
+  "cwe": [
+   "CWE-346"
+  ],
+  "description": "A 'message' event listener processes data without checking event.origin.",
+  "impact": "Any website open in the same browser can send messages that the app will act on.",
+  "remediation": {
+   "summary": "Check event.origin against the app's own origin before using the data.",
+   "steps": [
+    "Compare event.origin === window.location.origin.",
+    "Validate the message shape before acting on it."
+   ],
+   "example": "window.addEventListener('message', (event) => {\n  if (event.origin !== window.location.origin) return;\n  handle(event.data);\n});",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The listener returns early for foreign origins; a test posts from a different origin and nothing happens.",
+  "asvs": [
+   "V3.5.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.weak-hash-security-context",
+  "title": "Weak hash (MD5/SHA-1) used for a security value",
+  "severity": "medium",
+  "cwe": [
+   "CWE-328"
+  ],
+  "description": "MD5 or SHA-1 is used on something named like a token, password or session.",
+  "impact": "These hashes are broken; attackers can find collisions or reverse short values, weakening the protection the hash was meant to give.",
+  "remediation": {
+   "summary": "Use SHA-256 (or HMAC-SHA256 with a key) for tokens; use the password helpers for passwords.",
+   "steps": [
+    "Replace createHash('md5'|'sha1') with createHash('sha256') or createHmac('sha256', config.tokenHmacKey).",
+    "For passwords, use hashPassword/verifyPassword from src/security/password.ts."
+   ],
+   "example": "import { createHmac } from 'node:crypto';\nconst tokenHash = createHmac('sha256', config.tokenHmacKey).update(token).digest('hex');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for md5 and sha1 and confirm no matches in security code.",
+  "asvs": [
+   "V11.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.math-random-security",
+  "title": "Math.random used for a security value",
+  "severity": "high",
+  "cwe": [
+   "CWE-338"
+  ],
+  "description": "Math.random() generates a token, id, code or password.",
+  "impact": "Math.random is predictable. Tokens made from it can be guessed, letting attackers take over sessions or reset links.",
+  "remediation": {
+   "summary": "Use crypto.randomBytes or crypto.randomUUID.",
+   "steps": [
+    "Replace Math.random with randomBytes(32).toString('base64url') for tokens.",
+    "Use randomInt for numeric codes."
+   ],
+   "example": "import { randomBytes } from 'node:crypto';\nconst token = randomBytes(32).toString('base64url');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#secure-random-number-generation"
+   ]
+  },
+  "howToConfirmFixed": "Search for Math.random and confirm it is only used for non-security purposes such as animations.",
+  "asvs": [
+   "V11.5.1",
+   "V7.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.crypto-createcipher",
+  "title": "Deprecated createCipher used",
+  "severity": "high",
+  "cwe": [
+   "CWE-327"
+  ],
+  "description": "The code uses crypto.createCipher / createDecipher, which derive keys weakly and use no random IV.",
+  "impact": "Encrypted data can be attacked because the same input always produces the same output and the key derivation is weak.",
+  "remediation": {
+   "summary": "Use the template's encryptField/decryptField (AES-256-GCM) instead.",
+   "steps": [
+    "Remove createCipher calls.",
+    "Mark the field as sensitive in the entity definition so the CRUD layer encrypts it, or call encryptField(table, column, rowId, value) directly."
+   ],
+   "example": "import { encryptField, decryptField } from '../../db/field-crypto.ts';\nconst stored = encryptField('patients', 'diagnosis', row.id, diagnosis);",
+   "references": [
+    "https://nodejs.org/api/crypto.html",
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for createCipher( and confirm no matches; tests named V11.3.2 pass.",
+  "asvs": [
+   "V11.3.2",
+   "V11.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "DM-02"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.hardcoded-secret",
+  "title": "Secret written directly in the code",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A password, API key or signing secret appears as a literal string in a source file.",
+  "impact": "Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code.",
+  "remediation": {
+   "summary": "Move the secret to the environment and read it through config.",
+   "steps": [
+    "Delete the literal from the code.",
+    "Add a variable to .env (and a placeholder to .env.example).",
+    "Read it via the typed config object.",
+    "Rotate the exposed secret, since it must be considered leaked."
+   ],
+   "example": "// Before\nconst apiKey = 'sk-live-abc123';\n// After\nimport { config } from '../../config.ts';\nconst apiKey = config.paymentsApiKey; // from .env",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan and static scan report nothing; the old secret has been revoked.",
+  "asvs": [
+   "V13.3.1",
+   "V13.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.tls-reject-unauthorized-false",
+  "title": "Certificate checking disabled",
+  "severity": "critical",
+  "cwe": [
+   "CWE-295"
+  ],
+  "description": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections.",
+  "impact": "Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it.",
+  "remediation": {
+   "summary": "Remove the override and use outboundFetch, which validates certificates.",
+   "steps": [
+    "Delete rejectUnauthorized: false and any NODE_TLS_REJECT_UNAUTHORIZED assignment.",
+    "If a self-signed internal service is unavoidable, add its CA certificate via NODE_EXTRA_CA_CERTS instead."
+   ],
+   "example": "import { outboundFetch } from '../../lib/http-client.ts';\nconst res = await outboundFetch('https://api.example.com/v1/items', { method: 'GET' });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for rejectUnauthorized and NODE_TLS_REJECT_UNAUTHORIZED and confirm no matches.",
+  "asvs": [
+   "V12.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.cors-wildcard-credentials",
+  "title": "CORS allows any site with credentials",
+  "severity": "high",
+  "cwe": [
+   "CWE-942"
+  ],
+  "description": "Cross-origin sharing is configured with origin '*' (or reflected) together with credentials allowed.",
+  "impact": "Any website can make your visitors' browsers call the app with their session and read the responses.",
+  "remediation": {
+   "summary": "Remove the CORS configuration; the app does not need cross-origin access.",
+   "steps": [
+    "Delete the CORS middleware or headers.",
+    "If another site genuinely needs access, use a fixed allow-list of origins and never combine '*' with credentials."
+   ],
+   "example": "// The template sets no CORS headers. Remove:\n// res.setHeader('Access-Control-Allow-Origin', '*');\n// res.setHeader('Access-Control-Allow-Credentials', 'true');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing"
+   ]
+  },
+  "howToConfirmFixed": "dast.cors.origin-not-reflected passes; no Access-Control-Allow-Origin header appears.",
+  "asvs": [
+   "V3.4.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.cors-any-origin",
+  "title": "CORS allows any site",
+  "severity": "medium",
+  "cwe": [
+   "CWE-942"
+  ],
+  "description": "Cross-origin sharing is configured with origin '*'.",
+  "impact": "Other websites can read responses from your app in a visitor's browser, which may expose data that should stay private.",
+  "remediation": {
+   "summary": "Remove the CORS configuration or restrict it to a fixed list of origins.",
+   "steps": [
+    "Delete the wildcard CORS header.",
+    "If needed, compare the Origin header to a fixed allow-list and echo only exact matches."
+   ],
+   "example": "// Remove: res.setHeader('Access-Control-Allow-Origin', '*');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing"
+   ]
+  },
+  "howToConfirmFixed": "No Access-Control-Allow-Origin header appears in responses.",
+  "asvs": [
+   "V3.4.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.cookie-missing-httponly",
+  "title": "Cookie set without HttpOnly",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1004"
+  ],
+  "description": "A cookie is set without the HttpOnly flag.",
+  "impact": "Page scripts can read the cookie; if a script injection ever happens, the cookie (possibly a session) can be stolen.",
+  "remediation": {
+   "summary": "Set httpOnly: true on every cookie, or use the session helpers.",
+   "steps": [
+    "Add httpOnly: true, sameSite: 'strict', secure (in TLS modes) to res.cookie options.",
+    "Prefer storing state in the session rather than extra cookies."
+   ],
+   "example": "res.cookie('prefs', value, { httpOnly: true, sameSite: 'strict', secure: config.tlsMode !== 'off', path: '/' });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#cookies"
+   ]
+  },
+  "howToConfirmFixed": "dast.cookie.session-attributes passes and every Set-Cookie header shows HttpOnly.",
+  "asvs": [
+   "V3.3.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.cookie-missing-samesite",
+  "title": "Cookie set without SameSite",
+  "severity": "low",
+  "cwe": [
+   "CWE-1275"
+  ],
+  "description": "A cookie is set without a SameSite attribute.",
+  "impact": "Browsers may send the cookie on requests started by other sites, which helps cross-site request forgery.",
+  "remediation": {
+   "summary": "Set sameSite: 'strict' (or 'lax') on the cookie.",
+   "steps": [
+    "Add sameSite: 'strict' to the res.cookie options."
+   ],
+   "example": "res.cookie('prefs', value, { httpOnly: true, sameSite: 'strict', path: '/' });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#samesite-attribute"
+   ]
+  },
+  "howToConfirmFixed": "Every Set-Cookie header includes SameSite.",
+  "asvs": [
+   "V3.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.helmet-disabled-csp",
+  "title": "Content Security Policy disabled",
+  "severity": "high",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "helmet is configured with contentSecurityPolicy: false or the CSP directives were relaxed with 'unsafe-inline' or 'unsafe-eval'.",
+  "impact": "The browser will run injected scripts, removing the last line of defence against cross-site scripting.",
+  "remediation": {
+   "summary": "Restore the template's nonce-based policy from src/security/headers.ts.",
+   "steps": [
+    "Remove the contentSecurityPolicy: false option or the unsafe directives.",
+    "Move inline scripts to public/js/features/ and load them with the nonce."
+   ],
+   "example": "app.use(helmet({ contentSecurityPolicy: { directives: buildCspDirectives } }));",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.headers.csp passes with the exact policy.",
+  "asvs": [
+   "V3.4.3",
+   "V3.4.6"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.unsafe-regex",
+  "title": "Regular expression can run extremely slowly",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1333"
+  ],
+  "description": "A regular expression has nested repetition (for example (a+)+) that can take exponential time on crafted input.",
+  "impact": "A short specially crafted input can make the server freeze for seconds or minutes, blocking everyone else (denial of service).",
+  "remediation": {
+   "summary": "Simplify the pattern and cap the input length.",
+   "steps": [
+    "Rewrite the pattern without nested quantifiers or overlapping alternatives.",
+    "Validate input length with the zod schema before matching.",
+    "Consider a simple string check instead of a regex."
+   ],
+   "example": "// Before\nconst re = /^(\\w+\\s?)+$/;\n// After\nconst re = /^[\\w ]{1,200}$/;",
+   "references": [
+    "https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS"
+   ]
+  },
+  "howToConfirmFixed": "The static scan reports nothing and a long input of repeated characters responds instantly.",
+  "asvs": [
+   "V1.2.9",
+   "V15.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.regex-from-user-input",
+  "title": "Regular expression built from user input",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1333",
+   "CWE-20"
+  ],
+  "description": "new RegExp() is built from a value that came from a request.",
+  "impact": "A user can supply a pattern that runs for a very long time (denial of service) or matches more than intended.",
+  "remediation": {
+   "summary": "Escape the input or replace the regex with a plain string comparison.",
+   "steps": [
+    "Use String.prototype.includes or startsWith for searches.",
+    "If a pattern is needed, escape special characters first and cap the length."
+   ],
+   "example": "const term = req.valid.query.q; // validated max length\nconst rows = db.all('SELECT id, title FROM notes WHERE owner_id = ? AND title LIKE ? LIMIT 50', [req.user.id, `%${term.replace(/[%_]/g, '')}%`]);",
+   "references": [
+    "https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS"
+   ]
+  },
+  "howToConfirmFixed": "No RegExp is built from request data.",
+  "asvs": [
+   "V1.2.9"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.path-join-user-input",
+  "title": "File path built from user input",
+  "severity": "high",
+  "cwe": [
+   "CWE-22"
+  ],
+  "description": "path.join or path.resolve is called with a value from a request.",
+  "impact": "A value like ../../.env lets a user read or write files outside the intended folder, including secrets.",
+  "remediation": {
+   "summary": "Look files up by internal id and never use user text in a path.",
+   "steps": [
+    "Store files under random ids (the uploads module does this).",
+    "Resolve the path from the database record, not from the request.",
+    "If a name must be used, allow only [a-z0-9-] and verify the resolved path starts with the base directory."
+   ],
+   "example": "const upload = await uploads.getOwned(req.user, req.valid.params.id);\nconst filePath = path.join(config.dataDir, 'uploads', upload.id); // id is a uuid from the DB",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/22.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.input.path-traversal-smoke passes; the static scan reports nothing.",
+  "asvs": [
+   "V5.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.fs-user-path",
+  "title": "File read or written at a user-controlled path",
+  "severity": "high",
+  "cwe": [
+   "CWE-22",
+   "CWE-73"
+  ],
+  "description": "A node:fs call receives a path that includes request data.",
+  "impact": "Users can read or overwrite arbitrary files the app can access, such as the database or .env.",
+  "remediation": {
+   "summary": "Only access files through the uploads module or fixed paths.",
+   "steps": [
+    "Remove direct fs access from feature code.",
+    "Use the uploads feature (store/get/delete) which validates ownership and uses generated names."
+   ],
+   "example": "// Before\nfs.readFileSync(path.join('data', req.valid.query.file));\n// After\nconst file = await uploads.getOwned(req.user, req.valid.params.id);",
+   "references": [
+    "https://cwe.mitre.org/data/definitions/22.html"
+   ]
+  },
+  "howToConfirmFixed": "Search feature code for node:fs and confirm no matches outside src/lib and src/features/uploads.",
+  "asvs": [
+   "V5.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.open-redirect",
+  "title": "Redirect target taken from the request",
+  "severity": "high",
+  "cwe": [
+   "CWE-601"
+  ],
+  "description": "res.redirect is called with a value from req.query, req.body or req.params.",
+  "impact": "A link to your app can bounce users to a look-alike site that steals their password, and the link looks trustworthy because it starts with your address.",
+  "remediation": {
+   "summary": "Use safeRedirect with an allow-list of local paths.",
+   "steps": [
+    "Replace res.redirect(target) with safeRedirect(res, target, ['/dashboard', '/notes']).",
+    "Default to a fixed path when the target is not allowed."
+   ],
+   "example": "import { safeRedirect } from '../../security/redirect.ts';\nsafeRedirect(res, req.valid.query.next, ['/', '/notes']);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.redirect.open-redirect-blocked passes.",
+  "asvs": [
+   "V3.7.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.res-raw-db-row",
+  "title": "Whole database row sent to the client",
+  "severity": "medium",
+  "cwe": [
+   "CWE-213"
+  ],
+  "description": "res.json or res.render receives a raw database row instead of a shaped DTO.",
+  "impact": "Internal or private columns (owner ids, hashes, encrypted blobs, notes meant for admins) leak to users who should not see them.",
+  "remediation": {
+   "summary": "Pass rows through the entity's toPublicDto / toOwnerDto / toAdminDto.",
+   "steps": [
+    "Define the DTO functions in the feature module using pick() from src/lib/dto.ts.",
+    "Choose the DTO by the requester's role.",
+    "Return the DTO, never the row."
+   ],
+   "example": "import { pick } from '../../lib/dto.ts';\nexport const toOwnerDto = (row: NoteRow) => pick(row, ['id', 'title', 'body', 'updatedAt']);\nres.json({ note: toOwnerDto(row) });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "API responses contain only DTO fields; tests named V15.3.1 pass.",
+  "asvs": [
+   "V15.3.1",
+   "V8.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.req-body-unvalidated",
+  "title": "Request body used without validation",
+  "severity": "medium",
+  "cwe": [
+   "CWE-20"
+  ],
+  "description": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema.",
+  "impact": "Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection.",
+  "remediation": {
+   "summary": "Declare a strict zod body schema in defineRoute and read req.valid.body.",
+   "steps": [
+    "Add schema: { body: z.object({...}).strict() } to the route spec.",
+    "Replace req.body with req.valid.body."
+   ],
+   "example": "defineRoute(router, { method: 'POST', path: '/notes', auth: 'user', schema: { body: z.object({ title: z.string().min(1).max(120), body: z.string().max(4000) }).strict() } }, async (req, res) => {\n  const { title, body } = req.valid.body;\n});",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for req.body in feature code and confirm no matches; dast.input.unknown-field passes.",
+  "asvs": [
+   "V2.2.1",
+   "V15.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AS-05"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.route-outside-registry",
+  "title": "Route registered without defineRoute",
+  "severity": "high",
+  "cwe": [
+   "CWE-862"
+  ],
+  "description": "A route is added with app.get / router.post directly instead of defineRoute.",
+  "impact": "The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone.",
+  "remediation": {
+   "summary": "Register every route through defineRoute with an explicit auth value.",
+   "steps": [
+    "Replace router.<method>(path, handler) with defineRoute(router, { method, path, auth, schema }, handler).",
+    "Add the route to routes.manifest.json."
+   ],
+   "example": "defineRoute(router, { method: 'GET', path: '/notes/:id', auth: 'user', owner: { entity: 'note', param: 'id' }, schema: { params: IdParams } }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The startup check assertAllRoutesRegistered passes; dast.authz.unregistered-route passes.",
+  "asvs": [
+   "V8.2.1",
+   "V8.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.missing-authz-declaration",
+  "title": "Route has no authorization declaration",
+  "severity": "high",
+  "cwe": [
+   "CWE-862"
+  ],
+  "description": "A defineRoute call has no auth value.",
+  "impact": "Without an explicit rule the route's access is undefined; it may be open to anyone including signed-out visitors.",
+  "remediation": {
+   "summary": "Set auth to 'public', 'user' or 'role:<name>' deliberately.",
+   "steps": [
+    "Decide who should use the route.",
+    "Add auth (and owner for per-record access).",
+    "Write a test that anonymous and wrong-role users are denied."
+   ],
+   "example": "defineRoute(router, { method: 'DELETE', path: '/api/notes/:id', auth: 'user', owner: { entity: 'note', param: 'id' } }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.authz.anonymous-denied and dast.authz.wrong-role-denied pass for the route.",
+  "asvs": [
+   "V8.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.fetch-outside-http-client",
+  "title": "fetch() used outside the HTTP client",
+  "severity": "medium",
+  "cwe": [
+   "CWE-918"
+  ],
+  "description": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts.",
+  "impact": "The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery).",
+  "remediation": {
+   "summary": "Use outboundFetch and add the host to OUTBOUND_ALLOWED_HOSTS.",
+   "steps": [
+    "Import outboundFetch.",
+    "Add the destination host to OUTBOUND_ALLOWED_HOSTS in .env and .env.example.",
+    "Never build the URL from user input."
+   ],
+   "example": "import { outboundFetch } from '../../lib/http-client.ts';\nconst res = await outboundFetch('https://api.weather.example/today?city=' + encodeURIComponent(city));",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'fetch(' outside src/lib/http-client.ts and confirm no matches.",
+  "asvs": [
+   "V1.3.6",
+   "V13.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AS-01"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.http-request-outside-client",
+  "title": "node:http/https request outside the HTTP client",
+  "severity": "medium",
+  "cwe": [
+   "CWE-918"
+  ],
+  "description": "Code uses http.request or https.get directly.",
+  "impact": "Same as direct fetch: the allow-list, timeout and size limits are bypassed.",
+  "remediation": {
+   "summary": "Replace with outboundFetch.",
+   "steps": [
+    "Remove the node:http/https import.",
+    "Use outboundFetch with the allow-listed host."
+   ],
+   "example": "const res = await outboundFetch('https://api.example.com/v1/status');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'node:http' and 'node:https' outside src/lib and src/server.ts and confirm no matches.",
+  "asvs": [
+   "V1.3.6",
+   "V13.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AS-01"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.mailer-header-user-input",
+  "title": "User input in an email header",
+  "severity": "high",
+  "cwe": [
+   "CWE-93"
+  ],
+  "description": "A value from a request is placed in an email subject, To, From or other header without sanitisation.",
+  "impact": "Line breaks in the value can add extra recipients or headers, turning your app into a spam relay or leaking messages.",
+  "remediation": {
+   "summary": "Use the mailer's sendMail with validated fields; it strips header line breaks.",
+   "steps": [
+    "Validate the address with z.string().email() and the subject with a max length.",
+    "Pass values to mailer.sendMail rather than composing headers by hand."
+   ],
+   "example": "await mailer.sendMail({ to: req.valid.body.email, template: 'booking-confirmed', data: { name } });",
+   "references": [
+    "https://cwe.mitre.org/data/definitions/93.html"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V1.3.11 pass; a subject containing a newline is rejected.",
+  "asvs": [
+   "V1.3.11"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.object-assign-user-input",
+  "title": "Request data copied wholesale into a record",
+  "severity": "medium",
+  "cwe": [
+   "CWE-915"
+  ],
+  "description": "Object.assign or a spread copies req.body (or a whole request object) into a database row or model.",
+  "impact": "Users can set fields they should not control, such as owner id, role or price (mass assignment).",
+  "remediation": {
+   "summary": "Copy only the fields the action allows, from the validated body.",
+   "steps": [
+    "Use a strict zod schema so unknown fields are rejected.",
+    "Assign fields explicitly: { title, body } = req.valid.body."
+   ],
+   "example": "const { title, body } = req.valid.body;\ndb.run('UPDATE notes SET title = ?, body = ?, updated_at = ? WHERE id = ? AND owner_id = ?', [title, body, now(), id, req.user.id]);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request with an extra field such as ownerId is rejected with 400.",
+  "asvs": [
+   "V15.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.proto-pollution-merge",
+  "title": "Deep merge of untrusted data",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1321"
+  ],
+  "description": "A recursive merge or a lookup by user-provided key touches __proto__ or constructor.",
+  "impact": "Crafted input can change the behaviour of every object in the app (prototype pollution), which can bypass checks or crash the app.",
+  "remediation": {
+   "summary": "Use Map for dynamic keys and never merge untrusted objects recursively.",
+   "steps": [
+    "Validate input with a strict schema (rejects __proto__).",
+    "Replace dynamic-key objects with Map or Object.create(null).",
+    "Remove the deep merge."
+   ],
+   "example": "const settings = new Map<string, string>();\nsettings.set(req.valid.body.key, req.valid.body.value);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.input.proto-pollution passes.",
+  "asvs": [
+   "V15.3.6"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.log-sensitive-field",
+  "title": "Sensitive value written to the log",
+  "severity": "medium",
+  "cwe": [
+   "CWE-532"
+  ],
+  "description": "A log call includes a password, token, secret, or a field marked sensitive.",
+  "impact": "Logs are often copied and kept for a long time; a secret in a log is a secret leaked to everyone who can read logs.",
+  "remediation": {
+   "summary": "Log identifiers and outcomes, never the sensitive value.",
+   "steps": [
+    "Remove the sensitive field from the log call.",
+    "Use events.emit with the catalogued fields; the logger redacts known keys, but do not rely on it."
+   ],
+   "example": "// Before\nlogger.info({ password: req.valid.body.password }, 'login');\n// After\nevents.emit('auth.login.failure', { reason: 'bad-credentials', userId });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V16.2.5 pass; a search of app.log for the value finds nothing.",
+  "asvs": [
+   "V16.2.5"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.console-log",
+  "title": "console.log used instead of the logger",
+  "severity": "low",
+  "cwe": [
+   "CWE-532"
+  ],
+  "description": "Code writes to console.log instead of the structured logger.",
+  "impact": "Console output is unstructured, bypasses redaction and is easy to lose, so incidents are harder to investigate and secrets may slip out.",
+  "remediation": {
+   "summary": "Use logger from src/lib/logger.ts.",
+   "steps": [
+    "Replace console.log with logger.info / logger.warn / logger.error.",
+    "Pass structured fields, not concatenated strings."
+   ],
+   "example": "import { logger } from '../../lib/logger.ts';\nlogger.info({ noteId: id }, 'note created');",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for console. in src and confirm no matches.",
+  "asvs": [
+   "V16.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.default-secret-fallback",
+  "title": "Secret falls back to a built-in default",
+  "severity": "high",
+  "cwe": [
+   "CWE-798",
+   "CWE-1188"
+  ],
+  "description": "Code reads process.env.SOMETHING || 'literal', so a missing environment value silently becomes a known constant.",
+  "impact": "If the variable is ever unset, the app runs with a secret anyone can read in the code, which is as bad as no secret.",
+  "remediation": {
+   "summary": "Read secrets only through config, which refuses to start when they are missing.",
+   "steps": [
+    "Delete the fallback literal.",
+    "Add the variable to the config schema in src/config.ts (protected file: ask for it in the design if new) or read an existing config field."
+   ],
+   "example": "// Before\nconst key = process.env.WEBHOOK_SECRET || 'dev-secret';\n// After\nimport { config } from '../../config.ts';\nconst key = config.webhookSecret; // startup fails if missing",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for 'process.env' outside src/config.ts and confirm no fallbacks with ||.",
+  "asvs": [
+   "V13.2.3",
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.express-static-dotfiles-allow",
+  "title": "Static file serving allows dotfiles",
+  "severity": "medium",
+  "cwe": [
+   "CWE-538"
+  ],
+  "description": "express.static is configured with dotfiles: 'allow'.",
+  "impact": "Hidden files such as .env or .git inside the public folder would be served to anyone.",
+  "remediation": {
+   "summary": "Use dotfiles: 'deny' (the template default).",
+   "steps": [
+    "Change the option to dotfiles: 'deny'.",
+    "Keep secrets out of the public folder entirely."
+   ],
+   "example": "app.use(express.static('public', { dotfiles: 'deny', index: false }));",
+   "references": [
+    "https://expressjs.com/en/4x/api.html#express.static"
+   ]
+  },
+  "howToConfirmFixed": "dast.leak.dotfiles passes.",
+  "asvs": [
+   "V13.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.trust-proxy-true",
+  "title": "trust proxy set to true",
+  "severity": "medium",
+  "cwe": [
+   "CWE-348"
+  ],
+  "description": "app.set('trust proxy', true) trusts every X-Forwarded-* header.",
+  "impact": "Any visitor can claim any IP address, defeating rate limits, lockouts and audit logs.",
+  "remediation": {
+   "summary": "Set trust proxy to the exact number of proxies via TRUST_PROXY_HOPS.",
+   "steps": [
+    "Remove the hard-coded true.",
+    "Set TRUST_PROXY_HOPS in .env to the number of proxies (0 when none)."
+   ],
+   "example": "app.set('trust proxy', config.trustProxyHops); // from TRUST_PROXY_HOPS",
+   "references": [
+    "https://expressjs.com/en/guide/behind-proxies.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.rate.xff-spoof-ignored passes and config.trust-proxy-hops passes.",
+  "asvs": [
+   "V4.1.3",
+   "V15.3.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.multiple-writes-no-transaction",
+  "title": "Several database writes without a transaction",
+  "severity": "low",
+  "cwe": [
+   "CWE-362"
+  ],
+  "description": "A handler performs two or more writes without withTransaction.",
+  "impact": "If the second write fails, the first stays, leaving inconsistent data (for example a booking without its payment record).",
+  "remediation": {
+   "summary": "Wrap related writes in withTransaction.",
+   "steps": [
+    "Import withTransaction from src/db/index.ts.",
+    "Move all writes inside the callback so they succeed or fail together."
+   ],
+   "example": "import { withTransaction, run } from '../../db/index.ts';\nwithTransaction(() => {\n  run('INSERT INTO bookings (...) VALUES (...)', params1);\n  run('UPDATE slots SET taken = 1 WHERE id = ? AND taken = 0', [slotId]);\n});",
+   "references": [
+    "https://www.sqlite.org/lang_transaction.html"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V2.3.3 pass; the static scan reports nothing.",
+  "asvs": [
+   "V2.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "DM-03"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.timing-unsafe-compare",
+  "title": "Secret compared with ===",
+  "severity": "medium",
+  "cwe": [
+   "CWE-208"
+  ],
+  "description": "A token, hash or secret is compared with === or ==, which stops at the first different character.",
+  "impact": "By measuring response times an attacker can guess a secret one character at a time.",
+  "remediation": {
+   "summary": "Use crypto.timingSafeEqual on equal-length buffers.",
+   "steps": [
+    "Hash both values (or ensure equal length) and compare with timingSafeEqual.",
+    "For passwords use verifyPassword; for tokens compare HMACs."
+   ],
+   "example": "import { timingSafeEqual, createHmac } from 'node:crypto';\nconst a = createHmac('sha256', config.tokenHmacKey).update(provided).digest();\nconst b = Buffer.from(storedHash, 'hex');\nconst ok = a.length === b.length && timingSafeEqual(a, b);",
+   "references": [
+    "https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b"
+   ]
+  },
+  "howToConfirmFixed": "No === comparisons remain on values named token/secret/hash.",
+  "asvs": [
+   "V6.4.3",
+   "V11.5.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.jwt-none-alg",
+  "title": "JWT accepts the 'none' algorithm",
+  "severity": "critical",
+  "cwe": [
+   "CWE-347"
+  ],
+  "description": "A JSON Web Token library is used with algorithm 'none' or without an algorithm allow-list.",
+  "impact": "Anyone can forge a token that the app accepts as a signed-in user or administrator.",
+  "remediation": {
+   "summary": "Do not use JWTs in this app; use the session store or API keys.",
+   "steps": [
+    "Remove the JWT library usage (it is not in allowedImports).",
+    "Use the built-in session for users and the apikeys feature for machine access."
+   ],
+   "example": "// Use sessions: req.user is populated by the session middleware\nif (!req.user) return forbid(res);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for jsonwebtoken/jose and confirm no matches.",
+  "asvs": [
+   "V9.1.2",
+   "V9.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.secret-question-field",
+  "title": "Secret question or password hint field",
+  "severity": "medium",
+  "cwe": [
+   "CWE-640"
+  ],
+  "description": "A form or table has a field for a password hint or security question.",
+  "impact": "Answers to questions like 'mother's maiden name' are easy to find, giving attackers a way around the password.",
+  "remediation": {
+   "summary": "Remove hints and secret questions; use the email reset flow and MFA recovery codes.",
+   "steps": [
+    "Delete the field from the form, schema and migration.",
+    "Rely on the built-in password reset and recovery codes."
+   ],
+   "example": "// Remove: securityQuestion, securityAnswer, passwordHint fields",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Choosing_and_Using_Security_Questions_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V6.4.2 pass; the fields no longer exist.",
+  "asvs": [
+   "V6.4.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "sast.password-composition-rule",
+  "title": "Password composition rule added",
+  "severity": "low",
+  "cwe": [
+   "CWE-521"
+  ],
+  "description": "Code requires uppercase, digits or symbols in passwords.",
+  "impact": "Composition rules push people toward predictable patterns (Password1!) and block long passphrases; length and a common-password check protect better.",
+  "remediation": {
+   "summary": "Remove the composition rule and keep the template policy (12+ characters, common-password check).",
+   "steps": [
+    "Delete the character-class check.",
+    "Use validatePassword from src/security/password.ts."
+   ],
+   "example": "import { validatePassword } from '../../security/password.ts';\nconst problem = validatePassword(candidate, { email, name, appName: config.appName });",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#implement-proper-password-strength-controls"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V6.2.5 pass.",
+  "asvs": [
+   "V6.2.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.xml-external-entities",
+  "title": "XML parser allows external entities",
+  "severity": "high",
+  "cwe": [
+   "CWE-611"
+  ],
+  "description": "An XML parser is used with external entity resolution enabled (or an XML library is used at all in this app).",
+  "impact": "A crafted XML file can make the server read local files (like .env) or contact internal services.",
+  "remediation": {
+   "summary": "Avoid XML; if unavoidable, disable external entities and DTDs.",
+   "steps": [
+    "Prefer JSON input validated with zod.",
+    "If XML is required, configure the parser with entity processing off."
+   ],
+   "example": "// Prefer JSON:\nschema: { body: ImportSchema.strict() }",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "No XML parser is imported, or entity resolution is explicitly disabled.",
+  "asvs": [
+   "V1.5.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.deserialize-untrusted",
+  "title": "Untrusted data deserialised into objects",
+  "severity": "critical",
+  "cwe": [
+   "CWE-502"
+  ],
+  "description": "A library such as node-serialize or a custom unserialize turns request data into live objects.",
+  "impact": "Serialized payloads can contain code that runs when unpacked, giving full control of the app.",
+  "remediation": {
+   "summary": "Accept JSON only and validate it with zod.",
+   "steps": [
+    "Remove the deserialisation library.",
+    "Use JSON.parse (Express does this for application/json) followed by a strict schema."
+   ],
+   "example": "const data = ImportSchema.strict().parse(req.valid.body);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search for serialize/unserialize libraries and confirm no matches.",
+  "asvs": [
+   "V1.5.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "sast.ai-output-rendered-unescaped",
+  "title": "AI answer inserted into a page without escaping",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "Text from the AI assistant is rendered with <%- %> , innerHTML or a Markdown-to-HTML converter.",
+  "impact": "A manipulated AI answer (for example through injected instructions in a record) could contain a script that runs in users' browsers.",
+  "remediation": {
+   "summary": "Render AI answers as escaped plain text.",
+   "steps": [
+    "Use <%= answer %> in the template (line breaks can be preserved with CSS white-space: pre-wrap).",
+    "Do not convert Markdown to HTML."
+   ],
+   "example": "<div class=\"ai-answer\" style=\"white-space: pre-wrap\"><%= answer %></div>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.ai.output-escaped passes.",
+  "asvs": [
+   "V1.2.1"
+  ],
+  "aisvs": [
+   "C7.3.3"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.ai-api-key-in-prompt",
+  "title": "API key or secret included in an AI prompt",
+  "severity": "critical",
+  "cwe": [
+   "CWE-200"
+  ],
+  "description": "A prompt string or tool input contains a config secret or process.env value.",
+  "impact": "The secret leaves your computer inside the model request and could be echoed back to a user or logged by the provider.",
+  "remediation": {
+   "summary": "Keep secrets out of prompts; the SDK reads the key from the environment itself.",
+   "steps": [
+    "Remove the secret from the prompt or tool parameters.",
+    "Let the Anthropic client use ANTHROPIC_API_KEY from config internally."
+   ],
+   "example": "const client = new Anthropic({ apiKey: config.anthropicApiKey }); // never in messages\nconst messages = [{ role: 'user', content: wrapUntrusted(userText) }];",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Search src/features/ai for process.env and config secrets inside strings and confirm no matches.",
+  "asvs": [
+   "V13.3.2"
+  ],
+  "aisvs": [
+   "C9.5.4"
+  ],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "sast.disallowed-import",
+  "title": "Package imported that is not on the allow-list",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "Generated code imports a package outside express, zod, ejs, pino, node:* and the template's own modules.",
+  "impact": "Unreviewed packages can carry vulnerabilities or malicious code, and the app's locked dependency set no longer describes what runs.",
+  "remediation": {
+   "summary": "Remove the import and use an allowed module or template helper.",
+   "steps": [
+    "Find the functionality the package provided.",
+    "Replace with a Node.js built-in (node:crypto, node:fs, node:path) or a template helper.",
+    "Delete the import."
+   ],
+   "example": "// Before\nimport { v4 as uuid } from 'uuid';\n// After\nimport { randomUUID } from 'node:crypto';\nconst id = randomUUID();",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Typecheck and the static scan both pass; package.json is unchanged.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.sensitive-in-get-param",
+  "title": "Sensitive value sent in a URL parameter",
+  "severity": "medium",
+  "cwe": [
+   "CWE-598"
+  ],
+  "description": "A route reads a sensitive field (password, token, card number, health data) from the query string or path.",
+  "impact": "URLs are stored in browser history, server logs and referrer headers, so the value leaks widely.",
+  "remediation": {
+   "summary": "Move sensitive values to the request body of a POST route.",
+   "steps": [
+    "Change the route method to POST with a body schema.",
+    "Update the form or fetch call to send the value in the body."
+   ],
+   "example": "defineRoute(router, { method: 'POST', path: '/api/search', auth: 'user', schema: { body: z.object({ nationalId: z.string().max(20) }).strict() } }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Tests named V14.2.1 pass; no sensitive names appear in query schemas.",
+  "asvs": [
+   "V14.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "DM-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.protected-file-modified",
+  "title": "Protected security file was changed",
+  "severity": "high",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "A file the generator must not touch (security, auth, config, tests/security, manifest) no longer matches its recorded hash.",
+  "impact": "A security control may have been weakened or removed, and the compliance evidence for the template controls is no longer valid.",
+  "remediation": {
+   "summary": "Restore the file from the template and make the change in a writable location instead.",
+   "steps": [
+    "Compare the file with the template version and restore it.",
+    "If a change is genuinely needed, treat it as a manual, reviewed edit and re-run the full verification."
+   ],
+   "example": "// Restore from templates/secure-web-app/<path> and re-run verification",
+   "references": [
+    "https://owasp.org/www-project-secure-by-design-framework/"
+   ]
+  },
+  "howToConfirmFixed": "config.protected-files-unchanged passes.",
+  "asvs": [
+   "V15.2.3"
+  ],
+  "aisvs": [
+   "AC.4.4"
+  ],
+  "sbd": [
+   "MT-03"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "sast.todo-security",
+  "title": "Unfinished security note in the code",
+  "severity": "info",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "A TODO or FIXME comment mentions auth, permission, security or validation.",
+  "impact": "It usually marks a check that was never finished; the protection it describes may not exist.",
+  "remediation": {
+   "summary": "Finish or remove the item and record the decision.",
+   "steps": [
+    "Read the comment and implement the missing check, or remove it if already done.",
+    "Add a test for the behaviour."
+   ],
+   "example": "// TODO: check owner -> replace with owner: { entity: 'note', param: 'id' } in the route spec",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The comment is gone and a test covers the behaviour.",
+  "asvs": [],
+  "aisvs": [],
+  "sbd": [
+   "MT-03"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.env-example-present",
+  "title": ".env.example is missing",
+  "severity": "low",
+  "cwe": [
+   "CWE-1188"
+  ],
+  "description": "The app folder has no .env.example file listing the settings it needs.",
+  "impact": "Whoever sets the app up next will not know which settings exist and may leave a security setting at an unsafe value.",
+  "remediation": {
+   "summary": "Restore .env.example from the template with placeholder values only.",
+   "steps": [
+    "Copy templates/secure-web-app/.env.example into the app folder.",
+    "Never put real secrets into .env.example."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The file exists and contains only placeholders.",
+  "asvs": [
+   "V13.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.gitignore-covers-env",
+  "title": ".gitignore does not exclude .env",
+  "severity": "high",
+  "cwe": [
+   "CWE-540"
+  ],
+  "description": "The .gitignore file does not list .env (and .env.*), so secrets could be committed to version control.",
+  "impact": "Once a secret is in a repository it is effectively public to everyone with access, including any backup or hosting service.",
+  "remediation": {
+   "summary": "Add .env and .env.* to .gitignore and rotate secrets if they were ever committed.",
+   "steps": [
+    "Add the lines .env and .env.* to .gitignore.",
+    "If .env was already committed, remove it from history and run npm run setup to generate new secrets."
+   ],
+   "example": ".env\n.env.*\n!.env.example\ndata/",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "git check-ignore .env reports the file is ignored.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.secrets-strength",
+  "title": "A secret in .env is weak or a placeholder",
+  "severity": "critical",
+  "cwe": [
+   "CWE-521",
+   "CWE-1392"
+  ],
+  "description": "SESSION_SECRET, FIELD_KEYS or TOKEN_HMAC_KEY is shorter than 32 bytes or equals the .env.example placeholder.",
+  "impact": "Sessions, reset tokens, API keys and encrypted fields all rely on these values. A weak or known value lets an attacker forge sessions or decrypt data.",
+  "remediation": {
+   "summary": "Generate strong secrets with the setup script.",
+   "steps": [
+    "Run npm run setup (or node scripts/gen-secrets.ts) in the app folder.",
+    "Restart the app; it refuses to start with weak secrets.",
+    "If the app already ran with the weak value, sign everyone out."
+   ],
+   "example": "npm run setup",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.secrets-strength passes on the next run.",
+  "asvs": [
+   "V13.2.3",
+   "V11.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.no-default-admin",
+  "title": "Default administrator credential present",
+  "severity": "high",
+  "cwe": [
+   "CWE-1392"
+  ],
+  "description": "An ADMIN_PASSWORD-style variable exists, or FIRST-LOGIN.txt still holds an unused one-time password.",
+  "impact": "A known or written-down administrator password is the first thing an attacker tries.",
+  "remediation": {
+   "summary": "Remove fixed admin passwords; sign in once with the one-time password and delete FIRST-LOGIN.txt.",
+   "steps": [
+    "Delete ADMIN_PASSWORD or similar variables from .env.",
+    "Sign in as the bootstrap admin, change the password when prompted, and delete FIRST-LOGIN.txt."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "FIRST-LOGIN.txt is absent and no ADMIN_PASSWORD variable exists.",
+  "asvs": [
+   "V6.3.2",
+   "V6.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.node-engine-pinned",
+  "title": "Node.js version not pinned",
+  "severity": "low",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "package.json has no engines.node requirement.",
+  "impact": "Running on an old Node.js version silently loses security fixes and built-in features the app relies on (such as node:sqlite).",
+  "remediation": {
+   "summary": "Set engines.node to >=22.13.0.",
+   "steps": [
+    "Restore the engines field in package.json from the template."
+   ],
+   "example": "\"engines\": { \"node\": \">=22.13.0\" }",
+   "references": [
+    "https://nodejs.org/en/about/previous-releases"
+   ]
+  },
+  "howToConfirmFixed": "package.json contains the engines field.",
+  "asvs": [
+   "V15.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.lockfile-present",
+  "title": "package-lock.json is missing",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "There is no lockfile, so npm may install different package versions than the ones that were tested.",
+  "impact": "Untested or compromised versions can be installed without anyone noticing.",
+  "remediation": {
+   "summary": "Restore the tested package-lock.json from the template.",
+   "steps": [
+    "Copy package-lock.json from templates/secure-web-app.",
+    "Install with npm ci --ignore-scripts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "package-lock.json exists and npm ci succeeds.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.ignore-scripts",
+  "title": "npm install scripts are allowed",
+  "severity": "medium",
+  "cwe": [
+   "CWE-829"
+  ],
+  "description": ".npmrc does not set ignore-scripts=true.",
+  "impact": "Packages can run arbitrary code on your computer during install, a common supply-chain attack path.",
+  "remediation": {
+   "summary": "Add ignore-scripts=true to .npmrc.",
+   "steps": [
+    "Restore .npmrc from the template (ignore-scripts=true, fund=false, audit=false)."
+   ],
+   "example": "ignore-scripts=true\nfund=false\naudit=false",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": ".npmrc contains ignore-scripts=true.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.no-debug-flags",
+  "title": "Debug settings enabled",
+  "severity": "medium",
+  "cwe": [
+   "CWE-489"
+  ],
+  "description": "NODE_ENV is development, or a start script uses --inspect.",
+  "impact": "Debug modes show detailed errors and can expose a debugging port that gives full control of the process.",
+  "remediation": {
+   "summary": "Run in production mode without inspector flags.",
+   "steps": [
+    "Set NODE_ENV=production (or remove it) in .env.",
+    "Remove --inspect from any start command."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.no-debug-flags passes; error pages show no stack traces.",
+  "asvs": [
+   "V13.4.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.example-feature-disabled",
+  "title": "Example feature enabled in production",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1188"
+  ],
+  "description": "EXAMPLE_FEATURE=1 mounts the reference 'notes' feature in a production configuration.",
+  "impact": "Extra functionality nobody uses is still attack surface and clutters your data.",
+  "remediation": {
+   "summary": "Set EXAMPLE_FEATURE=0 or remove it from .env.",
+   "steps": [
+    "Edit .env and remove EXAMPLE_FEATURE.",
+    "Restart the app."
+   ],
+   "references": [
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+   ]
+  },
+  "howToConfirmFixed": "The /notes example routes return 404.",
+  "asvs": [
+   "V15.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.test-mode-not-in-env",
+  "title": "Test mode enabled in .env",
+  "severity": "critical",
+  "cwe": [
+   "CWE-489"
+  ],
+  "description": "SECUREVIBE_TEST_MODE=1 is present in .env.",
+  "impact": "Test mode seeds known accounts with a known password and exposes helper endpoints. In production that is a ready-made back door.",
+  "remediation": {
+   "summary": "Remove SECUREVIBE_TEST_MODE from .env and restart.",
+   "steps": [
+    "Delete the SECUREVIBE_TEST_MODE line from .env.",
+    "Restart the app and confirm /__securevibe/routes returns 404.",
+    "Delete any seeded @test.local accounts from Admin > Users."
+   ],
+   "references": [
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+   ]
+  },
+  "howToConfirmFixed": "dast.leak.test-endpoints-absent passes; no @test.local users exist.",
+  "asvs": [
+   "V15.2.3",
+   "V6.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "config.tls-mode-consistent",
+  "title": "TLS settings are inconsistent",
+  "severity": "high",
+  "cwe": [
+   "CWE-319"
+  ],
+  "description": "TLS_MODE=proxy but TRUST_PROXY_HOPS is 0, or TLS_MODE=selfsigned but no certificates exist in certs/.",
+  "impact": "Secure cookies and HSTS may be set wrongly, or the app may fail to start, or think requests are HTTPS when they are not.",
+  "remediation": {
+   "summary": "Match TLS_MODE to your setup.",
+   "steps": [
+    "Behind a reverse proxy: TLS_MODE=proxy and TRUST_PROXY_HOPS=1 (or the number of proxies).",
+    "Self-signed on the LAN: run npm run gen-cert and set TLS_MODE=selfsigned.",
+    "No TLS (this computer only): TLS_MODE=off."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.tls-mode-consistent passes and the app starts.",
+  "asvs": [
+   "V12.1.1",
+   "V3.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.trust-proxy-hops",
+  "title": "Proxy trust setting is wrong",
+  "severity": "medium",
+  "cwe": [
+   "CWE-348"
+  ],
+  "description": "TRUST_PROXY_HOPS does not match the deployment (non-zero with no proxy, or zero behind a proxy).",
+  "impact": "Either visitors can spoof their IP address (too trusting) or every visitor looks like the proxy (rate limits hit everyone at once).",
+  "remediation": {
+   "summary": "Set TRUST_PROXY_HOPS to the exact number of proxies in front of the app.",
+   "steps": [
+    "Count the proxies (reverse proxy, load balancer) between the internet and the app.",
+    "Set that number in .env and restart."
+   ],
+   "references": [
+    "https://expressjs.com/en/guide/behind-proxies.html"
+   ]
+  },
+  "howToConfirmFixed": "dast.rate.xff-spoof-ignored passes and logged IPs are correct.",
+  "asvs": [
+   "V4.1.3",
+   "V15.3.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.session-policy",
+  "title": "Session timeouts are too long",
+  "severity": "medium",
+  "cwe": [
+   "CWE-613"
+  ],
+  "description": "SESSION_IDLE_MINUTES, SESSION_ABSOLUTE_HOURS or SESSION_MAX_CONCURRENT exceed the values documented for the app's level (30/12/5, or 15/8/5 at Level 2).",
+  "impact": "A session left open on a shared or stolen device stays usable for much longer.",
+  "remediation": {
+   "summary": "Restore the documented values in .env.",
+   "steps": [
+    "Set SESSION_IDLE_MINUTES and SESSION_ABSOLUTE_HOURS to the documented values.",
+    "Update docs/sessions.md by running npm run docs:build."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-expiration"
+   ]
+  },
+  "howToConfirmFixed": "config.session-policy passes and docs/sessions.md matches .env.",
+  "asvs": [
+   "V7.3.1",
+   "V7.3.2",
+   "V7.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.protected-files-unchanged",
+  "title": "Protected files differ from the template",
+  "severity": "high",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "One or more protected files (security modules, config, security tests, manifest, package files) do not match the hashes recorded at scaffold time.",
+  "impact": "A control may have been weakened, and the compliance report can no longer credit template controls for those files.",
+  "remediation": {
+   "summary": "Restore the changed files from the template or review the change deliberately.",
+   "steps": [
+    "Open the security report to see which files changed.",
+    "Restore each from templates/secure-web-app unless you made the change on purpose.",
+    "Re-run verification."
+   ],
+   "references": [
+    "https://owasp.org/www-project-secure-by-design-framework/"
+   ]
+  },
+  "howToConfirmFixed": "config.protected-files-unchanged passes.",
+  "asvs": [
+   "V15.2.3"
+  ],
+  "aisvs": [
+   "AC.4.4"
+  ],
+  "sbd": [
+   "MT-03"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.provenance-present",
+  "title": "Provenance record is missing",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "securevibe.provenance.json is missing or unreadable.",
+  "impact": "You cannot tell which files were AI-generated, by which model and in which run, which breaks the audit trail.",
+  "remediation": {
+   "summary": "Re-run the build so SecureVibe writes provenance, or restore the file from the run folder.",
+   "steps": [
+    "Open pipeline/<runId>/ and restore securevibe.provenance.json into the app folder.",
+    "Do not edit it by hand."
+   ],
+   "references": [
+    "https://owasp.org/www-project-ai-security-verification-standard/"
+   ]
+  },
+  "howToConfirmFixed": "The file exists and config.provenance-present passes.",
+  "asvs": [],
+  "aisvs": [
+   "AC.10.1",
+   "AC.7.1"
+  ],
+  "sbd": [
+   "MT-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.bind-loopback-default",
+  "title": "App listens on all network interfaces",
+  "severity": "medium",
+  "cwe": [
+   "CWE-668"
+  ],
+  "description": "BIND_LAN=1 is set, so the app accepts connections from other computers on the network.",
+  "impact": "Anyone on the same network (office Wi-Fi, café) can reach the app. That is fine if intended, but then TLS should be on.",
+  "remediation": {
+   "summary": "Keep BIND_LAN=0 unless others on your network need access; if they do, enable TLS.",
+   "steps": [
+    "If only you use the app, remove BIND_LAN from .env.",
+    "If your team needs it, keep BIND_LAN=1 and set TLS_MODE=selfsigned (npm run gen-cert) or put it behind a TLS proxy."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.bind-loopback-default passes, or TLS is enabled with BIND_LAN.",
+  "asvs": [
+   "V12.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AS-01",
+   "AC-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "config.security-md-present",
+  "title": "docs/SECURITY.md is missing",
+  "severity": "low",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "The security policy document (contact, disclosure, anti-automation settings) is missing.",
+  "impact": "People who find a problem do not know whom to tell, and the documented controls required by the standard are absent.",
+  "remediation": {
+   "summary": "Regenerate the document.",
+   "steps": [
+    "Run npm run docs:build in the app folder."
+   ],
+   "example": "npm run docs:build",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "docs/SECURITY.md exists and names a contact email.",
+  "asvs": [
+   "V6.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-06"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.readme-run-instructions",
+  "title": "README lacks run instructions",
+  "severity": "info",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "README.md does not describe how to set up and run the app safely (npm ci, npm run setup, npm start).",
+  "impact": "Someone may skip the setup step that generates secrets and creates the first administrator.",
+  "remediation": {
+   "summary": "Restore the run instructions section in README.md.",
+   "steps": [
+    "Add the steps: npm ci --ignore-scripts, npm run setup, npm start, first login from FIRST-LOGIN.txt."
+   ],
+   "references": [
+    "https://owasp.org/www-project-secure-by-design-framework/",
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "README.md contains the setup and start commands.",
+  "asvs": [],
+  "aisvs": [],
+  "sbd": [
+   "MT-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "config.package-json-unmodified",
+  "title": "package.json was modified",
+  "severity": "high",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "package.json differs from the tested template version (new dependencies or changed scripts).",
+  "impact": "New packages were not reviewed or locked; changed scripts may disable checks or enable debug flags.",
+  "remediation": {
+   "summary": "Restore package.json from the template and implement the feature with allowed modules.",
+   "steps": [
+    "Compare with templates/secure-web-app/package.json and restore it.",
+    "Replace any new package usage with Node.js built-ins.",
+    "Run npm ci --ignore-scripts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.package-json-unmodified passes.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [
+   "AC.13.3"
+  ],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "secrets.anthropic-key",
+  "title": "Anthropic API key found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798",
+   "CWE-540"
+  ],
+  "description": "A string starting with sk-ant- (an Anthropic API key) appears in a source or text file.",
+  "impact": "Anyone with the file can use the key to make paid AI requests on your account and read any data sent to the model.",
+  "remediation": {
+   "summary": "Revoke the key in the Anthropic console, create a new one, and keep it only in .env.",
+   "steps": [
+    "Revoke the exposed key at the provider's console.",
+    "Create a new key and set ANTHROPIC_API_KEY in .env only.",
+    "Delete the key from the file and any copies or backups."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing and the old key no longer works.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [
+   "C9.5.4"
+  ],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.aws-access-key",
+  "title": "AWS access key ID found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A string like AKIA... (an Amazon Web Services access key id) appears in a file.",
+  "impact": "Combined with its secret it grants access to your cloud account; keys in files are routinely harvested by attackers.",
+  "remediation": {
+   "summary": "Deactivate the key in the AWS console and move credentials out of the code.",
+   "steps": [
+    "Deactivate and delete the key in AWS IAM.",
+    "Create a new key if still needed and load it from .env or an instance role.",
+    "Remove the value from the file."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing and the key is inactive in IAM.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.aws-secret-key",
+  "title": "AWS secret access key found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A 40-character AWS secret access key is assigned in a file.",
+  "impact": "Gives full use of the paired access key, that is, access to your cloud account.",
+  "remediation": {
+   "summary": "Rotate the key in AWS and remove it from the file.",
+   "steps": [
+    "Deactivate the key pair in AWS IAM.",
+    "Create new credentials and load them from .env.",
+    "Remove the value from the file."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.github-token",
+  "title": "GitHub token found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A GitHub personal access token (ghp_, gho_, github_pat_) appears in a file.",
+  "impact": "Grants access to your repositories, possibly with write permission.",
+  "remediation": {
+   "summary": "Revoke the token on GitHub and move it to .env if still needed.",
+   "steps": [
+    "Revoke it under GitHub Settings > Developer settings.",
+    "Create a new token with the minimum scopes.",
+    "Remove the value from the file."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing and the token is revoked.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.slack-token",
+  "title": "Slack token found in a file",
+  "severity": "high",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A Slack token (xoxb-, xoxp-, xapp-) appears in a file.",
+  "impact": "Lets an attacker read or post messages in your Slack workspace as your app or user.",
+  "remediation": {
+   "summary": "Revoke the token in Slack and move it to .env.",
+   "steps": [
+    "Revoke it in the Slack app settings.",
+    "Issue a new token and store it in .env only."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.stripe-key",
+  "title": "Stripe key found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A Stripe key (sk_live_, sk_test_, rk_live_) appears in a file.",
+  "impact": "A live secret key allows charges and refunds on your Stripe account.",
+  "remediation": {
+   "summary": "Roll the key in the Stripe dashboard and keep the new one in .env.",
+   "steps": [
+    "Roll the key in Stripe > Developers > API keys.",
+    "Store the new key in .env as STRIPE_SECRET_KEY.",
+    "Remove the value from the file."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing and the old key is rolled.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05",
+   "AC-06"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.google-api-key",
+  "title": "Google API key found in a file",
+  "severity": "high",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A Google API key (AIza...) appears in a file.",
+  "impact": "Can run up charges on your Google Cloud account and access the APIs it is enabled for.",
+  "remediation": {
+   "summary": "Regenerate the key in Google Cloud and restrict it.",
+   "steps": [
+    "Regenerate the key in Google Cloud Console and add API and referrer restrictions.",
+    "Store it in .env only."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "secrets.private-key-block",
+  "title": "Private key found in a file",
+  "severity": "critical",
+  "cwe": [
+   "CWE-321"
+  ],
+  "description": "A '-----BEGIN ... PRIVATE KEY-----' block appears in a file other than the certs/ folder.",
+  "impact": "A private key lets an attacker impersonate your server or decrypt traffic.",
+  "remediation": {
+   "summary": "Move the key to certs/ with strict permissions (or the platform's secret store) and rotate it.",
+   "steps": [
+    "Remove the key from the file.",
+    "Generate a new key and certificate (npm run gen-cert or your certificate provider).",
+    "Keep private keys only in certs/ (mode 600) or a secret store."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing outside certs/.",
+  "asvs": [
+   "V11.1.1",
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "secrets.jwt",
+  "title": "JSON Web Token found in a file",
+  "severity": "medium",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A string shaped like a JWT (eyJ...) appears in a file.",
+  "impact": "It may be a valid access token for a service; whoever has it can act as its owner until it expires.",
+  "remediation": {
+   "summary": "Remove the token, revoke it if possible, and never store tokens in files.",
+   "steps": [
+    "Delete the token from the file.",
+    "Revoke or let it expire at the issuing service.",
+    "If tests need a token, generate one at test time."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "secrets.high-entropy-assignment",
+  "title": "Random-looking value assigned to a secret-like name",
+  "severity": "medium",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A long, random-looking string is assigned to a variable named like key, secret, token or password.",
+  "impact": "It is probably a real credential written into the code, where anyone with the code can read it.",
+  "remediation": {
+   "summary": "Move the value to .env and read it through config; rotate it if it was real.",
+   "steps": [
+    "Confirm whether the value is a real secret.",
+    "Move it to .env and read it via config.",
+    "Rotate the credential at its provider."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing, or the finding is marked false-positive with a reason.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "secrets.password-assignment",
+  "title": "Password written in a file",
+  "severity": "high",
+  "cwe": [
+   "CWE-259"
+  ],
+  "description": "A variable named password (or similar) is assigned a literal value.",
+  "impact": "The password is visible to anyone with the code and cannot be changed without editing it.",
+  "remediation": {
+   "summary": "Remove the literal and read the value from .env, or generate it at runtime.",
+   "steps": [
+    "Delete the literal.",
+    "If it is an account password, change the account's password.",
+    "Use config for any service credential."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1",
+   "V13.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "secrets.connection-string-password",
+  "title": "Connection string contains a password",
+  "severity": "high",
+  "cwe": [
+   "CWE-798"
+  ],
+  "description": "A database or service URL of the form scheme://user:password@host appears in a file.",
+  "impact": "Exposes the credentials for that service to anyone with the file.",
+  "remediation": {
+   "summary": "Move the connection string to .env and rotate the password.",
+   "steps": [
+    "Remove the URL from the file.",
+    "Store it in .env and read it via config.",
+    "Change the service password."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The secrets scan reports nothing.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "secrets.env-file-committed",
+  "title": ".env is inside a git repository",
+  "severity": "high",
+  "cwe": [
+   "CWE-540"
+  ],
+  "description": "A .env file sits next to a .git folder and is not ignored, so it may be committed.",
+  "impact": "Every secret in .env becomes part of the repository history, readable by anyone with access and hard to remove.",
+  "remediation": {
+   "summary": "Ignore .env, remove it from history if committed, and regenerate secrets.",
+   "steps": [
+    "Add .env to .gitignore.",
+    "Run git rm --cached .env if it was committed, and purge history if the repository is shared.",
+    "Run npm run setup to generate new secrets."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "git ls-files does not list .env.",
+  "asvs": [
+   "V13.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-05"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "deps.vulnerability",
+  "title": "Known vulnerability in a dependency",
+  "severity": "high",
+  "cwe": [
+   "CWE-1395"
+  ],
+  "description": "npm audit reports a published security advisory for a package the app uses.",
+  "impact": "Attackers scan for known vulnerable versions; the impact depends on the advisory and is shown with the finding.",
+  "remediation": {
+   "summary": "Update the package to the fixed version within the documented deadline.",
+   "steps": [
+    "Read the advisory and the fixed version in the finding.",
+    "In the template repository, update package.json and package-lock.json, run the tests, and rebuild the app.",
+    "If no fix exists, check whether the vulnerable function is used and record an accepted risk with an expiry date."
+   ],
+   "example": "npm audit --json\nnpm update <package> --ignore-scripts",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "npm audit no longer lists the advisory.",
+  "asvs": [
+   "V15.2.1",
+   "V15.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "deps.lockfile-missing",
+  "title": "No lockfile for dependencies",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "package-lock.json is missing, so installed versions are not pinned.",
+  "impact": "Each install may pull newer, untested or compromised versions.",
+  "remediation": {
+   "summary": "Restore the tested lockfile from the template.",
+   "steps": [
+    "Copy package-lock.json from templates/secure-web-app.",
+    "Install with npm ci --ignore-scripts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "package-lock.json exists and matches the template.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "deps.install-scripts-present",
+  "title": "Dependency runs install scripts",
+  "severity": "low",
+  "cwe": [
+   "CWE-829"
+  ],
+  "description": "A package in the lockfile declares an install script (hasInstallScript).",
+  "impact": "Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected.",
+  "remediation": {
+   "summary": "Keep ignore-scripts=true and prefer packages without install scripts.",
+   "steps": [
+    "Confirm .npmrc has ignore-scripts=true.",
+    "If the package needs its script, replace it with an alternative that does not."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "config.ignore-scripts passes; the package is removed or accepted with a note.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "deps.deprecated-package",
+  "title": "Deprecated dependency",
+  "severity": "low",
+  "cwe": [
+   "CWE-1104"
+  ],
+  "description": "A package in use is marked deprecated by its maintainers.",
+  "impact": "It will not receive security fixes; problems found later will stay unpatched.",
+  "remediation": {
+   "summary": "Replace it with a maintained alternative.",
+   "steps": [
+    "Read the deprecation message for the recommended replacement.",
+    "Update the template dependency set and rebuild."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The deprecated package no longer appears in package-lock.json.",
+  "asvs": [
+   "V15.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "deps.license-copyleft",
+  "title": "Copyleft licence in a dependency",
+  "severity": "info",
+  "cwe": [],
+  "description": "A dependency uses a copyleft licence (for example GPL) that may impose obligations if you distribute the app.",
+  "impact": "Not a security issue, but distributing the app may require releasing your source code under the same licence.",
+  "remediation": {
+   "summary": "Check the licence obligations or replace the package.",
+   "steps": [
+    "Read the licence in the SBOM entry.",
+    "If you plan to distribute the app, ask a licensing adviser or choose an MIT/Apache alternative."
+   ],
+   "references": [
+    "https://opensource.org/licenses"
+   ]
+  },
+  "howToConfirmFixed": "A recorded decision or the package replaced.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "deps.sbom-generated",
+  "title": "Software bill of materials not generated",
+  "severity": "low",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "The CycloneDX SBOM could not be produced (tool unavailable or lockfile unreadable).",
+  "impact": "You have no inventory of the components in the app, which makes responding to new vulnerabilities slower.",
+  "remediation": {
+   "summary": "Restore the lockfile and re-run the dependency scan.",
+   "steps": [
+    "Confirm package-lock.json exists and is valid JSON.",
+    "Re-run verification; SecureVibe falls back to building the SBOM from the lockfile."
+   ],
+   "references": [
+    "https://cyclonedx.org/"
+   ]
+  },
+  "howToConfirmFixed": "reports/<run>/sbom.cdx.json exists.",
+  "asvs": [
+   "V15.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.headers.csp",
+  "title": "Content Security Policy missing or weakened",
+  "severity": "high",
+  "cwe": [
+   "CWE-693",
+   "CWE-79"
+  ],
+  "description": "A page response did not carry the expected Content-Security-Policy header (nonce-based script-src, object-src 'none', base-uri 'none', frame-ancestors 'none').",
+  "impact": "Without this policy the browser will run any script that gets injected into a page, so a single escaping mistake becomes account takeover.",
+  "remediation": {
+   "summary": "Restore the template's CSP in src/security/headers.ts and remove any code that overrides it.",
+   "steps": [
+    "Check that helmet is registered in src/app.ts with the buildCspDirectives policy.",
+    "Remove any res.setHeader('Content-Security-Policy', ...) overrides in feature code.",
+    "Move inline scripts to public/js/features/ with the nonce."
+   ],
+   "example": "<script nonce=\"<%= nonce %>\" src=\"/js/features/booking.js\"></script>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Re-run verification; the probe passes when the header matches the exact policy.",
+  "asvs": [
+   "V3.4.3",
+   "V3.4.6"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.headers.hsts",
+  "title": "HSTS header missing in TLS mode",
+  "severity": "medium",
+  "cwe": [
+   "CWE-319"
+  ],
+  "description": "With TLS_MODE set to selfsigned or proxy, responses lack Strict-Transport-Security with max-age of at least one year and includeSubDomains.",
+  "impact": "Browsers may still try plain HTTP first, letting someone on the network intercept the first request.",
+  "remediation": {
+   "summary": "Ensure TLS_MODE is set correctly so headers.ts adds HSTS.",
+   "steps": [
+    "Set TLS_MODE=proxy (behind a TLS proxy) or selfsigned.",
+    "Restart and confirm the header appears.",
+    "Behind a proxy, make sure it forwards X-Forwarded-Proto: https and TRUST_PROXY_HOPS is set."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "curl -I https://<host>/ shows Strict-Transport-Security: max-age=31536000; includeSubDomains.",
+  "asvs": [
+   "V3.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.headers.nosniff",
+  "title": "X-Content-Type-Options header missing",
+  "severity": "medium",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "A response lacked X-Content-Type-Options: nosniff.",
+  "impact": "Browsers may guess a file's type and run an uploaded file or API response as script.",
+  "remediation": {
+   "summary": "Restore helmet's default headers in src/app.ts.",
+   "steps": [
+    "Confirm helmet() is registered before routes and not disabled for the route.",
+    "Remove code that deletes or overrides the header."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Every response includes X-Content-Type-Options: nosniff.",
+  "asvs": [
+   "V3.4.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.headers.referrer-policy",
+  "title": "Referrer-Policy header missing",
+  "severity": "low",
+  "cwe": [
+   "CWE-200"
+  ],
+  "description": "A response lacked Referrer-Policy: strict-origin-when-cross-origin.",
+  "impact": "When users follow links to other sites, the full address of the page they were on (which may include ids) is sent to that site.",
+  "remediation": {
+   "summary": "Restore helmet's referrer policy in src/app.ts.",
+   "steps": [
+    "Confirm helmet is registered with the template options.",
+    "Remove any override of Referrer-Policy."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Every response includes the Referrer-Policy header.",
+  "asvs": [
+   "V3.4.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.headers.content-type-charset",
+  "title": "Content-Type without charset",
+  "severity": "low",
+  "cwe": [
+   "CWE-116"
+  ],
+  "description": "A response with a body did not declare charset=utf-8 in its Content-Type header.",
+  "impact": "Browsers may guess the character encoding, which in rare cases lets crafted text be interpreted as script.",
+  "remediation": {
+   "summary": "Set the Content-Type with charset on every response.",
+   "steps": [
+    "Use res.json / res.render (which set charset) instead of res.send with a manual type.",
+    "If setting Content-Type by hand, include ; charset=utf-8."
+   ],
+   "example": "res.type('text/plain; charset=utf-8').send(text);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Every response's Content-Type ends with charset=utf-8.",
+  "asvs": [
+   "V4.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.cors.origin-not-reflected",
+  "title": "Origin header is reflected in CORS response",
+  "severity": "high",
+  "cwe": [
+   "CWE-942"
+  ],
+  "description": "A request with a foreign Origin header received an Access-Control-Allow-Origin echoing it (or *).",
+  "impact": "Other websites can read responses from your app in your users' browsers, including private data.",
+  "remediation": {
+   "summary": "Remove CORS handling; the app serves its own pages and needs none.",
+   "steps": [
+    "Delete any CORS middleware or Access-Control-* headers from the code.",
+    "If another site must call the API, use API keys and a fixed origin allow-list."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing"
+   ]
+  },
+  "howToConfirmFixed": "A request with Origin: https://evil.example gets no Access-Control-Allow-Origin header.",
+  "asvs": [
+   "V3.4.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.cache.no-store-authenticated",
+  "title": "Signed-in pages are cacheable",
+  "severity": "medium",
+  "cwe": [
+   "CWE-525"
+  ],
+  "description": "A response to a signed-in user lacked Cache-Control: no-store, private.",
+  "impact": "Shared computers and proxies may keep copies of private pages that the next person can open.",
+  "remediation": {
+   "summary": "Restore the cache-control middleware for authenticated responses.",
+   "steps": [
+    "Confirm the headers middleware in src/security/headers.ts runs for authenticated routes.",
+    "Remove feature code that sets a public Cache-Control."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#web-content-caching"
+   ]
+  },
+  "howToConfirmFixed": "Signed-in responses carry Cache-Control: no-store, private.",
+  "asvs": [
+   "V14.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.cookie.session-attributes",
+  "title": "Session cookie missing HttpOnly or SameSite=Strict",
+  "severity": "high",
+  "cwe": [
+   "CWE-1004",
+   "CWE-1275"
+  ],
+  "description": "The session cookie was set without HttpOnly, without SameSite=Strict, or with a path other than /.",
+  "impact": "Scripts could read the session, or other websites could make the browser send it, enabling session theft and cross-site request forgery.",
+  "remediation": {
+   "summary": "Restore the session cookie options in src/security/session.ts.",
+   "steps": [
+    "Confirm the cookie is set with httpOnly: true, sameSite: 'strict', path: '/'.",
+    "Remove any code that sets the session cookie elsewhere."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#cookies"
+   ]
+  },
+  "howToConfirmFixed": "The Set-Cookie header on login shows HttpOnly; SameSite=Strict; Path=/.",
+  "asvs": [
+   "V3.3.2",
+   "V3.3.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.cookie.secure-host-prefix",
+  "title": "Session cookie not Secure / not __Host- in TLS mode",
+  "severity": "high",
+  "cwe": [
+   "CWE-614"
+  ],
+  "description": "In a TLS mode the session cookie lacked the Secure attribute or the __Host- name prefix.",
+  "impact": "The cookie could be sent over plain HTTP or overwritten by another site on the same domain.",
+  "remediation": {
+   "summary": "Set TLS_MODE correctly so the session module names the cookie __Host-sid with Secure.",
+   "steps": [
+    "Set TLS_MODE=proxy or selfsigned and TRUST_PROXY_HOPS as needed.",
+    "Confirm the proxy sends X-Forwarded-Proto: https."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#cookies"
+   ]
+  },
+  "howToConfirmFixed": "Set-Cookie shows __Host-sid=...; Secure.",
+  "asvs": [
+   "V3.3.1",
+   "V3.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.tls.min-version",
+  "title": "Old TLS version accepted",
+  "severity": "medium",
+  "cwe": [
+   "CWE-326"
+  ],
+  "description": "In selfsigned TLS mode the server accepted TLS 1.0 or 1.1.",
+  "impact": "Old TLS versions have known weaknesses that let attackers on the network decrypt traffic.",
+  "remediation": {
+   "summary": "Restore minVersion: 'TLSv1.2' in src/server.ts TLS options.",
+   "steps": [
+    "Check the https.createServer options include minVersion 'TLSv1.2'.",
+    "Behind a proxy, configure the proxy's minimum TLS version instead."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "openssl s_client -tls1_1 fails to connect.",
+  "asvs": [
+   "V12.1.1",
+   "V12.1.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-01"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.csrf.missing-token-rejected",
+  "title": "State-changing request accepted without CSRF token",
+  "severity": "high",
+  "cwe": [
+   "CWE-352"
+  ],
+  "description": "A POST/PUT/PATCH/DELETE request with a valid session but no CSRF token was accepted.",
+  "impact": "Another website can make a signed-in user's browser perform actions in your app without them knowing.",
+  "remediation": {
+   "summary": "Ensure the route uses the default csrf: true and the form includes the token.",
+   "steps": [
+    "Remove csrf: false from the route unless it is an API-key route.",
+    "Include <input type=\"hidden\" name=\"_csrf\" value=\"<%= csrfToken %>\"> in the form.",
+    "Confirm the csrf middleware is registered in src/app.ts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request without the token gets 403.",
+  "asvs": [
+   "V3.5.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.csrf.cross-origin-rejected",
+  "title": "Cross-origin request accepted",
+  "severity": "high",
+  "cwe": [
+   "CWE-352"
+  ],
+  "description": "A state-changing request with Origin or Sec-Fetch-Site indicating another site was accepted.",
+  "impact": "Other websites can trigger actions in your app on behalf of signed-in users.",
+  "remediation": {
+   "summary": "Restore the Origin / Sec-Fetch-Site check in src/security/csrf.ts and do not bypass it per route.",
+   "steps": [
+    "Remove any code that skips the csrf middleware.",
+    "Confirm the csrf module compares Origin with the app's own origin."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request with Origin: https://evil.example gets 403.",
+  "asvs": [
+   "V3.5.1",
+   "V3.5.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.csrf.get-does-not-mutate",
+  "title": "A GET request changes data",
+  "severity": "high",
+  "cwe": [
+   "CWE-352",
+   "CWE-650"
+  ],
+  "description": "A route registered as GET created, changed or deleted data.",
+  "impact": "A simple link or image tag on any site can trigger the change for a signed-in user, bypassing CSRF protection entirely.",
+  "remediation": {
+   "summary": "Change the route to POST (or DELETE/PUT) and submit it from a form or fetch with the CSRF token.",
+   "steps": [
+    "Change method in the defineRoute spec.",
+    "Replace the link with a form that POSTs.",
+    "Update routes.manifest.json."
+   ],
+   "example": "defineRoute(router, { method: 'POST', path: '/notes/:id/delete', auth: 'user', owner: { entity: 'note', param: 'id' } }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The probe passes: no GET route mutates state.",
+  "asvs": [
+   "V3.5.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.session.logout-clear-site-data",
+  "title": "Logout does not clear browser data",
+  "severity": "low",
+  "cwe": [
+   "CWE-613"
+  ],
+  "description": "The logout response lacked Clear-Site-Data: \"cookies\", \"storage\".",
+  "impact": "Leftover cookies or storage may remain on a shared computer after sign-out.",
+  "remediation": {
+   "summary": "Restore the logout handler in src/features/auth to send Clear-Site-Data.",
+   "steps": [
+    "Confirm the logout handler calls the headers helper that sets Clear-Site-Data."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The logout response includes Clear-Site-Data.",
+  "asvs": [
+   "V14.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.leak.dotfiles",
+  "title": "Hidden files are served",
+  "severity": "high",
+  "cwe": [
+   "CWE-538"
+  ],
+  "description": "A request for /.env, /.git/config or another dotfile returned content.",
+  "impact": "Secrets or source history can be downloaded by anyone.",
+  "remediation": {
+   "summary": "Serve static files with dotfiles: 'deny' and keep secrets outside public/.",
+   "steps": [
+    "Restore express.static options in src/app.ts (dotfiles: 'deny').",
+    "Move any dotfiles out of public/."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Requests for /.env and /.git/config return 404.",
+  "asvs": [
+   "V13.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.leak.directory-listing",
+  "title": "Directory listing exposed",
+  "severity": "medium",
+  "cwe": [
+   "CWE-548"
+  ],
+  "description": "Requesting a folder path returned a list of files.",
+  "impact": "Attackers learn the names of every file, including ones you did not intend to publish.",
+  "remediation": {
+   "summary": "Disable directory indexes in the static middleware.",
+   "steps": [
+    "Restore express.static with index: false and no serve-index middleware."
+   ],
+   "references": [
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+   ]
+  },
+  "howToConfirmFixed": "Requesting /css/ returns 404.",
+  "asvs": [
+   "V13.4.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.leak.trace",
+  "title": "HTTP TRACE is supported",
+  "severity": "low",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "A TRACE request was not refused with 405.",
+  "impact": "TRACE echoes request headers and can be abused to read cookies in some setups.",
+  "remediation": {
+   "summary": "Restore the TRACE rejection in src/app.ts.",
+   "steps": [
+    "Confirm the method filter that returns 405 for TRACE is registered before routes."
+   ],
+   "references": [
+    "https://owasp.org/www-community/attacks/Cross_Site_Tracing"
+   ]
+  },
+  "howToConfirmFixed": "curl -X TRACE returns 405.",
+  "asvs": [
+   "V13.4.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.leak.health-minimal",
+  "title": "Health endpoint reveals internal details",
+  "severity": "low",
+  "cwe": [
+   "CWE-200"
+  ],
+  "description": "/healthz or /readyz returned more than a status word (versions, hostnames, database paths), or /readyz answered a non-loopback request.",
+  "impact": "Attackers learn about your setup for free, and a public readiness probe can be used to map your infrastructure.",
+  "remediation": {
+   "summary": "Return only {\"status\":\"ok\"} from /healthz and keep /readyz loopback-only.",
+   "steps": [
+    "Restore the health handlers in src/server.ts.",
+    "Do not add extra fields to the health response."
+   ],
+   "references": [
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+   ]
+  },
+  "howToConfirmFixed": "/healthz returns exactly {\"status\":\"ok\"}.",
+  "asvs": [
+   "V13.4.5"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.leak.test-endpoints-absent",
+  "title": "Test-mode endpoints reachable in production",
+  "severity": "critical",
+  "cwe": [
+   "CWE-489"
+  ],
+  "description": "In production mode, /__securevibe/routes or another test helper endpoint responded instead of returning 404.",
+  "impact": "Test mode seeds known accounts and exposes internal routes; in production this is a back door.",
+  "remediation": {
+   "summary": "Ensure test mode only activates with NODE_ENV=test and SECUREVIBE_TEST_MODE=1 and that .env does not set them.",
+   "steps": [
+    "Remove SECUREVIBE_TEST_MODE from .env.",
+    "Restore src/config.ts and src/app.ts from the template if modified.",
+    "Delete seeded @test.local accounts."
+   ],
+   "references": [
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+   ]
+  },
+  "howToConfirmFixed": "/__securevibe/routes returns 404 in production mode.",
+  "asvs": [
+   "V15.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.health.healthz",
+  "title": "Health endpoint not working",
+  "severity": "low",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "/healthz did not return 200 with {\"status\":\"ok\"}.",
+  "impact": "Monitoring tools cannot tell whether the app is up, delaying detection of outages.",
+  "remediation": {
+   "summary": "Restore the /healthz handler in src/server.ts.",
+   "steps": [
+    "Confirm the handler is registered and not blocked by auth or rate limits."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/200.html"
+   ]
+  },
+  "howToConfirmFixed": "/healthz returns 200 with {\"status\":\"ok\"}.",
+  "asvs": [],
+  "aisvs": [],
+  "sbd": [
+   "RR-06"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.health.readyz",
+  "title": "Readiness endpoint not working or exposed",
+  "severity": "low",
+  "cwe": [
+   "CWE-1059"
+  ],
+  "description": "/readyz did not return {\"status\":\"ready\"} from loopback, or answered a non-loopback request without BIND_LAN.",
+  "impact": "Operators cannot tell whether the app can serve traffic, or internal readiness details are exposed to the network.",
+  "remediation": {
+   "summary": "Restore the /readyz handler with its loopback check.",
+   "steps": [
+    "Confirm the handler checks the database connection and restricts to 127.0.0.1 unless BIND_LAN=1."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/200.html"
+   ]
+  },
+  "howToConfirmFixed": "/readyz returns {\"status\":\"ready\"} locally and 404/403 remotely.",
+  "asvs": [
+   "V13.4.5"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-06"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.errors.no-stack-trace",
+  "title": "Error response contains technical details",
+  "severity": "medium",
+  "cwe": [
+   "CWE-209"
+  ],
+  "description": "An error response contained a stack trace, file path, SQL text or secret-looking value.",
+  "impact": "Technical details help attackers find weaknesses and may leak data directly.",
+  "remediation": {
+   "summary": "Restore the generic error handler in src/app.ts and never send err.message to clients.",
+   "steps": [
+    "Confirm the final error handler returns the uniform error model.",
+    "Remove res.send(err) or res.json(err) from feature code; log with logger.error instead."
+   ],
+   "example": "} catch (err) {\n  logger.error({ err, reqId: req.id }, 'booking failed');\n  res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong. Please try again.' } });\n}",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Error responses contain only the generic message.",
+  "asvs": [
+   "V16.5.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.errors.404-generic",
+  "title": "Not-found page leaks details",
+  "severity": "low",
+  "cwe": [
+   "CWE-209"
+  ],
+  "description": "The 404 response echoed the requested path unescaped or revealed framework details.",
+  "impact": "Echoing the path can enable reflected script injection; framework details help attackers.",
+  "remediation": {
+   "summary": "Restore the template's 404 handler and page.",
+   "steps": [
+    "Confirm the 404 handler renders views/errors/404.ejs without the raw path."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request for /<script>x</script> returns a plain 404 page.",
+  "asvs": [
+   "V16.5.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.errors.500-generic",
+  "title": "Server error page leaks details",
+  "severity": "medium",
+  "cwe": [
+   "CWE-209"
+  ],
+  "description": "A forced server error returned a stack trace or Express default error page.",
+  "impact": "Internal structure and possibly data are exposed to anyone who can trigger an error.",
+  "remediation": {
+   "summary": "Restore the template's error handler and ensure NODE_ENV is production.",
+   "steps": [
+    "Confirm the error handler in src/app.ts is the last middleware.",
+    "Set NODE_ENV=production."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A forced error returns the generic error page with a request id only.",
+  "asvs": [
+   "V16.5.1",
+   "V16.5.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.errors.method-not-allowed",
+  "title": "Wrong HTTP method not rejected cleanly",
+  "severity": "low",
+  "cwe": [
+   "CWE-749"
+  ],
+  "description": "Sending an unsupported method to a route produced a 500 or unexpected behaviour instead of 404/405.",
+  "impact": "Unexpected methods may reach code paths that were never meant to be reachable.",
+  "remediation": {
+   "summary": "Register routes with explicit methods and let the router return 404/405 for others.",
+   "steps": [
+    "Do not use router.all or app.use for feature handlers.",
+    "Confirm each defineRoute has a single method."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+    "https://cwe.mitre.org/data/definitions/650.html"
+   ]
+  },
+  "howToConfirmFixed": "Unsupported methods return 404 or 405.",
+  "asvs": [
+   "V16.5.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.input.oversized-body",
+  "title": "Oversized request body accepted",
+  "severity": "medium",
+  "cwe": [
+   "CWE-400"
+  ],
+  "description": "A request body larger than the configured limit was not rejected with 413.",
+  "impact": "Large bodies consume memory and can be used to slow or crash the app.",
+  "remediation": {
+   "summary": "Restore the body limits in src/app.ts.",
+   "steps": [
+    "Confirm express.json({ limit }) and express.urlencoded({ limit }) use the template limits.",
+    "Do not add a route-level parser with a larger limit."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A 2 MB JSON body to an API route returns 413.",
+  "asvs": [
+   "V15.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.input.duplicate-param",
+  "title": "Duplicate parameters accepted",
+  "severity": "low",
+  "cwe": [
+   "CWE-235"
+  ],
+  "description": "A request with the same parameter twice was processed instead of rejected.",
+  "impact": "Parameter pollution can confuse validation and lead to the wrong value being used.",
+  "remediation": {
+   "summary": "Keep the 'simple' query parser and strict schemas that reject arrays for scalars.",
+   "steps": [
+    "Confirm app.set('query parser', 'simple') in src/app.ts.",
+    "Use validateQuery helpers that reject arrays where a string is expected."
+   ],
+   "references": [
+    "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/04-Testing_for_HTTP_Parameter_Pollution"
+   ]
+  },
+  "howToConfirmFixed": "A request with ?id=1&id=2 returns 400.",
+  "asvs": [
+   "V15.3.7"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.input.proto-pollution",
+  "title": "__proto__ in input not rejected",
+  "severity": "medium",
+  "cwe": [
+   "CWE-1321"
+  ],
+  "description": "A JSON body containing __proto__ or constructor.prototype keys was accepted.",
+  "impact": "Crafted input may alter the behaviour of all objects in the process, bypassing checks or crashing the app.",
+  "remediation": {
+   "summary": "Use strict zod schemas (unknown keys rejected) and the template's prototype-pollution guard in src/app.ts.",
+   "steps": [
+    "Confirm the JSON body guard middleware is registered.",
+    "Mark every body schema .strict()."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A body with {\"__proto__\":{\"x\":1}} returns 400.",
+  "asvs": [
+   "V15.3.6"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.input.unknown-field",
+  "title": "Unknown field accepted",
+  "severity": "medium",
+  "cwe": [
+   "CWE-915"
+  ],
+  "description": "A request with an extra, undeclared field was accepted instead of rejected with 400.",
+  "impact": "Users may set fields they should not control (mass assignment), such as role or owner.",
+  "remediation": {
+   "summary": "Declare a strict schema for the route.",
+   "steps": [
+    "Add .strict() to the body schema in the defineRoute spec.",
+    "Read only req.valid.body."
+   ],
+   "example": "schema: { body: z.object({ title: z.string().max(120) }).strict() }",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A body with an extra field returns 400 with code validation_error.",
+  "asvs": [
+   "V2.2.1",
+   "V15.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AS-05"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.input.type-confusion",
+  "title": "Wrong-typed input accepted",
+  "severity": "medium",
+  "cwe": [
+   "CWE-843"
+  ],
+  "description": "A request that sent an array or object where a string or number was expected was processed.",
+  "impact": "Code that assumes a type may behave unpredictably, skipping checks or crashing.",
+  "remediation": {
+   "summary": "Use the typed zod schema for every parameter and reject arrays for scalars.",
+   "steps": [
+    "Declare z.string() / z.number().int() with limits for each field.",
+    "Use the validate helpers from src/security/validate.ts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request with name[]=x returns 400.",
+  "asvs": [
+   "V15.3.5",
+   "V2.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.input.sql-smoke",
+  "title": "SQL-style input caused a server error",
+  "severity": "high",
+  "cwe": [
+   "CWE-89"
+  ],
+  "description": "Sending ' or \" OR 1=1-- in a string parameter produced a 500 error, which suggests the value reached a query unsafely.",
+  "impact": "A crafted value may be able to read or change other data (SQL injection).",
+  "remediation": {
+   "summary": "Use db helpers with ? placeholders for the affected route and add input limits.",
+   "steps": [
+    "Find the route from the finding and locate its query.",
+    "Replace string concatenation with parameters.",
+    "Add a max length to the schema."
+   ],
+   "example": "db.all('SELECT id, name FROM customers WHERE name LIKE ? AND owner_id = ? LIMIT 50', [`%${q}%`, req.user.id]);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The same input now returns 200 or 400, never 500, and the static scan is clean.",
+  "asvs": [
+   "V1.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.input.path-traversal-smoke",
+  "title": "Path traversal input not rejected",
+  "severity": "high",
+  "cwe": [
+   "CWE-22"
+  ],
+  "description": "A path parameter containing ../ was not rejected with 400 or 404.",
+  "impact": "The value may reach the file system and read or write files outside the intended folder.",
+  "remediation": {
+   "summary": "Validate path parameters as ids and never use them in file paths.",
+   "steps": [
+    "Use an id schema (uuid or integer) for :param values.",
+    "Look files up by database id; see the uploads module."
+   ],
+   "example": "schema: { params: z.object({ id: z.string().uuid() }).strict() }",
+   "references": [
+    "https://cwe.mitre.org/data/definitions/22.html"
+   ]
+  },
+  "howToConfirmFixed": "A request with ../ in the path returns 400 or 404.",
+  "asvs": [
+   "V5.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.session.cookie-not-in-url",
+  "title": "Session id appears in a URL",
+  "severity": "high",
+  "cwe": [
+   "CWE-598"
+  ],
+  "description": "A session identifier was found in a redirect location, link or query string.",
+  "impact": "URLs are logged and shared; a session id in a URL lets whoever sees it take over the session.",
+  "remediation": {
+   "summary": "Keep the session only in the cookie; never add it to links or redirects.",
+   "steps": [
+    "Search for sid or session in URL-building code and remove it.",
+    "Rely on the cookie set by src/security/session.ts."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "No response or page contains the session id outside Set-Cookie.",
+  "asvs": [
+   "V3.3.4",
+   "V14.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.session.id-format",
+  "title": "Session id too short or predictable",
+  "severity": "high",
+  "cwe": [
+   "CWE-330"
+  ],
+  "description": "The session cookie value is shorter than 43 base64url characters (32 random bytes) or not random.",
+  "impact": "Short or predictable ids can be guessed, letting an attacker hijack sessions.",
+  "remediation": {
+   "summary": "Restore session id generation with crypto.randomBytes(32) in src/security/session.ts.",
+   "steps": [
+    "Confirm randomBytes(32).toString('base64url') is used.",
+    "Remove any custom session cookie code."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-id-properties"
+   ]
+  },
+  "howToConfirmFixed": "The session cookie is 43 characters of base64url and differs each login.",
+  "asvs": [
+   "V7.2.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.session.rotated-on-login",
+  "title": "Session id not changed at login",
+  "severity": "high",
+  "cwe": [
+   "CWE-384"
+  ],
+  "description": "The session cookie value before and after signing in was the same.",
+  "impact": "An attacker who planted a session id in a victim's browser (session fixation) shares the victim's signed-in session.",
+  "remediation": {
+   "summary": "Call session.regenerate on successful login and MFA verification.",
+   "steps": [
+    "Confirm the login handler calls the session module's rotate/regenerate function.",
+    "Do not reuse the anonymous session after authentication."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#renew-the-session-id-after-any-privilege-level-change"
+   ]
+  },
+  "howToConfirmFixed": "The cookie value changes on login.",
+  "asvs": [
+   "V7.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.session.reuse-after-logout-denied",
+  "title": "Session still valid after logout",
+  "severity": "high",
+  "cwe": [
+   "CWE-613"
+  ],
+  "description": "A request using the old session cookie after logout was treated as signed in.",
+  "impact": "Anyone who copied the cookie can keep using the account after the user signed out.",
+  "remediation": {
+   "summary": "Invalidate the session row on logout in src/features/auth.",
+   "steps": [
+    "Confirm logout calls the session store's revoke for the current id.",
+    "Confirm the middleware checks revoked_at and expires_at."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-expiration"
+   ]
+  },
+  "howToConfirmFixed": "A request with the old cookie after logout is treated as anonymous.",
+  "asvs": [
+   "V7.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.session.logout-visible",
+  "title": "No visible logout on a signed-in page",
+  "severity": "low",
+  "cwe": [
+   "CWE-613"
+  ],
+  "description": "An authenticated page did not contain the logout form from the base layout.",
+  "impact": "Users on shared computers may not sign out, leaving their session open.",
+  "remediation": {
+   "summary": "Render generated pages with the base layout that includes the logout form.",
+   "steps": [
+    "Use layouts/base.ejs for every page.",
+    "Do not remove the logout partial."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Every signed-in page shows the logout button.",
+  "asvs": [
+   "V7.4.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.authz.anonymous-denied",
+  "title": "Protected route reachable without signing in",
+  "severity": "critical",
+  "cwe": [
+   "CWE-306"
+  ],
+  "description": "A route declared as requiring sign-in responded to an anonymous request with data or success.",
+  "impact": "Anyone on the network can read or change data without an account.",
+  "remediation": {
+   "summary": "Ensure the route is registered with defineRoute and auth 'user' or 'role:<name>', and that requireAuth is not bypassed.",
+   "steps": [
+    "Check the route's auth value in the defineRoute spec and routes.manifest.json.",
+    "Remove any early response before the auth middleware runs."
+   ],
+   "example": "defineRoute(router, { method: 'GET', path: '/api/invoices', auth: 'user' }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "An anonymous request returns 401 (API) or redirects to sign-in (page).",
+  "asvs": [
+   "V8.2.1",
+   "V8.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.authz.wrong-role-denied",
+  "title": "Route reachable by the wrong role",
+  "severity": "high",
+  "cwe": [
+   "CWE-285"
+  ],
+  "description": "A route restricted to a role (for example admin) responded successfully to a user with another role.",
+  "impact": "Staff or customers can use administrator functions such as managing users or exporting data.",
+  "remediation": {
+   "summary": "Set auth: 'role:admin' (or the correct roles list) on the route.",
+   "steps": [
+    "Fix the auth/roles value in the defineRoute spec.",
+    "Add a test that the wrong role gets 403."
+   ],
+   "example": "defineRoute(router, { method: 'POST', path: '/admin/reports', auth: 'role:admin' }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request from the wrong role returns 403.",
+  "asvs": [
+   "V8.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.authz.non-owner-denied",
+  "title": "Another user's record is accessible",
+  "severity": "high",
+  "cwe": [
+   "CWE-639"
+  ],
+  "description": "A signed-in user could read or change a record owned by a different user by using its id.",
+  "impact": "Customers can see each other's data (insecure direct object reference), a common and serious privacy breach.",
+  "remediation": {
+   "summary": "Add the owner declaration to the route so requireOwner checks the record's owner.",
+   "steps": [
+    "Add owner: { entity: '<name>', param: 'id' } to the defineRoute spec.",
+    "Include owner_id = ? in the query as a second line of defence."
+   ],
+   "example": "defineRoute(router, { method: 'GET', path: '/api/orders/:id', auth: 'user', owner: { entity: 'order', param: 'id' } }, handler);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A request for another user's record returns 403 or 404.",
+  "asvs": [
+   "V8.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.authz.unregistered-route",
+  "title": "Live route missing from routes.manifest.json",
+  "severity": "high",
+  "cwe": [
+   "CWE-862"
+  ],
+  "description": "The running app serves a route that is not listed in routes.manifest.json, so its authorization policy is unknown.",
+  "impact": "The route was not checked for who may use it; it may be open to anyone.",
+  "remediation": {
+   "summary": "Register the route with defineRoute (with auth) and regenerate the manifest.",
+   "steps": [
+    "Find the route in the code and convert it to defineRoute.",
+    "Run npm run routes:export to refresh routes.manifest.json."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Every live route appears in the manifest with an auth value.",
+  "asvs": [
+   "V8.2.1",
+   "V8.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03",
+   "AS-05"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.auth.weak-password-rejected",
+  "title": "Weak password accepted",
+  "severity": "high",
+  "cwe": [
+   "CWE-521"
+  ],
+  "description": "Registration or password change accepted a password shorter than 12 characters or one from the common-password list.",
+  "impact": "Accounts protected by weak passwords are easy to break into by guessing.",
+  "remediation": {
+   "summary": "Use validatePassword from src/security/password.ts in every password-setting flow.",
+   "steps": [
+    "Confirm the register, reset and change-password handlers call validatePassword.",
+    "Do not add a separate password form that bypasses it."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#implement-proper-password-strength-controls"
+   ]
+  },
+  "howToConfirmFixed": "'password1234' and an 11-character password are refused.",
+  "asvs": [
+   "V6.2.1",
+   "V6.2.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.auth.password-field-type",
+  "title": "Password field not masked",
+  "severity": "low",
+  "cwe": [
+   "CWE-549"
+  ],
+  "description": "A password input does not use type=\"password\" or blocks paste.",
+  "impact": "Passwords are visible on screen and password managers cannot fill them, pushing people to weaker passwords.",
+  "remediation": {
+   "summary": "Use <input type=\"password\" autocomplete=\"current-password\"> without onpaste blocking.",
+   "steps": [
+    "Fix the input type in the template.",
+    "Remove any script that blocks paste."
+   ],
+   "example": "<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required>",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The field masks input and paste works.",
+  "asvs": [
+   "V6.2.6",
+   "V6.2.7"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.auth.login-rate-limited",
+  "title": "Login not rate limited",
+  "severity": "high",
+  "cwe": [
+   "CWE-307"
+  ],
+  "description": "More than the allowed number of failed logins (5 per account / 20 per IP in 15 minutes) were accepted without a 429 or lock.",
+  "impact": "Attackers can try thousands of passwords per minute until one works.",
+  "remediation": {
+   "summary": "Ensure the login route uses rateLimit: 'login' and the limiter is registered.",
+   "steps": [
+    "Confirm the login defineRoute spec has rateLimit: 'login'.",
+    "Confirm RATE_LIMIT_* overrides in .env are not set to huge values."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#protect-against-automated-attacks"
+   ]
+  },
+  "howToConfirmFixed": "The sixth failed login for an account returns 429 with Retry-After.",
+  "asvs": [
+   "V6.3.1",
+   "V2.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.auth.uniform-unknown-user",
+  "title": "Login reveals whether an account exists",
+  "severity": "medium",
+  "cwe": [
+   "CWE-204"
+  ],
+  "description": "Login responses for an unknown email and a wrong password differed in message, status or timing.",
+  "impact": "Attackers can build a list of valid accounts to target.",
+  "remediation": {
+   "summary": "Return the same message and do the dummy password verification for unknown users.",
+   "steps": [
+    "Restore the login handler's constant-time path (verify against a dummy hash when the user is not found).",
+    "Use a single message: 'Email or password is incorrect'."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#authentication-and-error-messages"
+   ]
+  },
+  "howToConfirmFixed": "Both cases return the same status, body and similar timing.",
+  "asvs": [
+   "V6.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.auth.reset-uniform-response",
+  "title": "Password reset reveals whether an account exists",
+  "severity": "medium",
+  "cwe": [
+   "CWE-204"
+  ],
+  "description": "The forgot-password response differed for known and unknown email addresses.",
+  "impact": "Attackers can confirm which email addresses have accounts.",
+  "remediation": {
+   "summary": "Always respond 'If that address is registered, we sent a link.'",
+   "steps": [
+    "Restore the forgot-password handler so both paths return the same page and status.",
+    "Send the email only when the account exists, without changing the response."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Both cases return identical responses.",
+  "asvs": [
+   "V6.4.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.auth.mfa-rate-limited",
+  "title": "Authenticator code not rate limited",
+  "severity": "high",
+  "cwe": [
+   "CWE-307"
+  ],
+  "description": "More than 5 wrong authenticator codes in 15 minutes were accepted without a 429.",
+  "impact": "A six-digit code has only a million possibilities; without limits it can be brute-forced in minutes.",
+  "remediation": {
+   "summary": "Ensure the MFA verify route uses rateLimit: 'mfa'.",
+   "steps": [
+    "Check the defineRoute spec for the MFA step.",
+    "Confirm the limiter is keyed by account."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The sixth wrong code returns 429.",
+  "asvs": [
+   "V6.6.3"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.auth.admin-mfa-enforced",
+  "title": "Administrator can sign in without MFA",
+  "severity": "high",
+  "cwe": [
+   "CWE-308"
+  ],
+  "description": "An administrator account completed sign-in without the authenticator step, or could reach admin pages before enrolling.",
+  "impact": "A stolen admin password alone gives full control of the app and its data.",
+  "remediation": {
+   "summary": "Set ADMIN_MFA_REQUIRED=1 and ensure the login flow enforces enrolment.",
+   "steps": [
+    "Check ADMIN_MFA_REQUIRED in .env.",
+    "Restore the MFA gate in src/features/auth if modified."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Admin login requires a valid TOTP code before any admin page loads.",
+  "asvs": [
+   "V6.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-02"
+  ],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.rate.registration-limited",
+  "title": "Registration not rate limited",
+  "severity": "medium",
+  "cwe": [
+   "CWE-799"
+  ],
+  "description": "More than 3 registrations per hour from one address were accepted.",
+  "impact": "Scripts can create thousands of junk accounts, filling the database and enabling abuse.",
+  "remediation": {
+   "summary": "Ensure the registration route uses rateLimit: 'registration'.",
+   "steps": [
+    "Check the defineRoute spec for the register route."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The fourth registration in an hour returns 429.",
+  "asvs": [
+   "V2.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.rate.reset-limited",
+  "title": "Password reset not rate limited",
+  "severity": "medium",
+  "cwe": [
+   "CWE-799"
+  ],
+  "description": "More than the allowed reset requests (3 per hour per account, 10 per IP) were accepted.",
+  "impact": "Attackers can flood a user with reset emails or probe accounts at scale.",
+  "remediation": {
+   "summary": "Ensure the forgot-password route uses rateLimit: 'reset'.",
+   "steps": [
+    "Check the defineRoute spec for the reset route."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The fourth reset request for an account in an hour returns 429.",
+  "asvs": [
+   "V2.4.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.rate.xff-spoof-ignored",
+  "title": "Rate limit bypassed with a fake IP header",
+  "severity": "medium",
+  "cwe": [
+   "CWE-348"
+  ],
+  "description": "Changing the X-Forwarded-For header reset the rate limit, meaning the app trusts client-supplied IP headers.",
+  "impact": "Attackers can dodge every IP-based limit by changing one header.",
+  "remediation": {
+   "summary": "Set TRUST_PROXY_HOPS to the real number of proxies (0 when none).",
+   "steps": [
+    "Fix TRUST_PROXY_HOPS in .env.",
+    "Do not set trust proxy to true in code."
+   ],
+   "references": [
+    "https://expressjs.com/en/guide/behind-proxies.html"
+   ]
+  },
+  "howToConfirmFixed": "Requests with different X-Forwarded-For values share one limit.",
+  "asvs": [
+   "V4.1.3",
+   "V15.3.4"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.redirect.open-redirect-blocked",
+  "title": "Redirect to an outside site allowed",
+  "severity": "medium",
+  "cwe": [
+   "CWE-601"
+  ],
+  "description": "A redirect parameter pointing to another domain was followed.",
+  "impact": "Links to your app can be used to send people to phishing sites that look legitimate.",
+  "remediation": {
+   "summary": "Use safeRedirect with an allow-list of local paths.",
+   "steps": [
+    "Replace res.redirect(target) with safeRedirect(res, target, allowList).",
+    "Default to '/' when the target is not allowed."
+   ],
+   "example": "safeRedirect(res, req.valid.query.next, ['/', '/dashboard']);",
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "?next=https://evil.example redirects to a local path.",
+  "asvs": [
+   "V3.7.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "trivial"
+ },
+ {
+  "ruleId": "dast.xss.reflected-smoke",
+  "title": "Input reflected into a page unescaped",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A test value with HTML characters sent in a request appeared in the response without escaping.",
+  "impact": "A crafted link can run script in a visitor's browser (reflected cross-site scripting).",
+  "remediation": {
+   "summary": "Render values with <%= %> and never with <%- %>.",
+   "steps": [
+    "Find the template for the route in the finding.",
+    "Change <%- to <%= for the value, or set textContent in client script."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The probe passes: the marker appears escaped (&lt;) in the response.",
+  "asvs": [
+   "V1.2.1",
+   "V3.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-network-exposure"
+ },
+ {
+  "ruleId": "dast.xss.stored-smoke",
+  "title": "Stored input rendered unescaped",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A record created with an HTML payload was displayed without escaping when read back.",
+  "impact": "One user can plant a script that runs for every user who views the record (stored cross-site scripting), stealing sessions or performing actions.",
+  "remediation": {
+   "summary": "Render the field with <%= %> in the template.",
+   "steps": [
+    "Locate the view for the entity named in the finding.",
+    "Replace <%- field %> with <%= field %>.",
+    "If rich formatting is needed, store plain text and format with CSS."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The probe passes: the stored payload appears escaped.",
+  "asvs": [
+   "V1.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.log.login-failure-logged",
+  "title": "Failed login not logged",
+  "severity": "medium",
+  "cwe": [
+   "CWE-778"
+  ],
+  "description": "After a failed login no auth.login.failure event appeared in the security events.",
+  "impact": "Password-guessing attacks go unnoticed and cannot be investigated afterwards.",
+  "remediation": {
+   "summary": "Restore events.emit('auth.login.failure', ...) in the login handler.",
+   "steps": [
+    "Check src/features/auth/login for the emit call on each failure path."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A failed login produces an auth.login.failure entry in the audit log.",
+  "asvs": [
+   "V16.3.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.log.authz-denial-logged",
+  "title": "Access denial not logged",
+  "severity": "medium",
+  "cwe": [
+   "CWE-778"
+  ],
+  "description": "A denied request (wrong role or non-owner) produced no authz.denied event.",
+  "impact": "Attempts to reach other people's data are invisible to you.",
+  "remediation": {
+   "summary": "Use requireRole/requireOwner from src/security/authz.ts, which emit the event; do not hand-roll checks.",
+   "steps": [
+    "Replace custom permission checks with the registry's auth/owner declarations."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A denied request produces an authz.denied entry.",
+  "asvs": [
+   "V16.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-01",
+   "MT-04"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.log.validation-rejected-logged",
+  "title": "Rejected input not logged",
+  "severity": "low",
+  "cwe": [
+   "CWE-778"
+  ],
+  "description": "A request rejected by validation produced no validation.rejected event.",
+  "impact": "Probing attempts (many malformed requests) cannot be spotted.",
+  "remediation": {
+   "summary": "Use the registry's schema validation, which emits validation.rejected; avoid manual res.status(400) without the event.",
+   "steps": [
+    "Declare schemas in defineRoute instead of validating by hand."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A malformed request produces a validation.rejected entry.",
+  "asvs": [
+   "V16.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "MT-01"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.api.json-content-type",
+  "title": "API route returns the wrong content type",
+  "severity": "low",
+  "cwe": [
+   "CWE-116"
+  ],
+  "description": "An /api route responded without Content-Type: application/json; charset=utf-8.",
+  "impact": "Browsers might interpret the response as HTML, which can enable script injection through API responses.",
+  "remediation": {
+   "summary": "Use res.json() for every API response.",
+   "steps": [
+    "Replace res.send(string) with res.json(object) in API handlers."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#send-safe-response-content-types"
+   ]
+  },
+  "howToConfirmFixed": "All /api responses have the JSON content type.",
+  "asvs": [
+   "V4.1.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.api.idempotency-key",
+  "title": "Idempotency-Key not honoured",
+  "severity": "low",
+  "cwe": [
+   "CWE-799"
+  ],
+  "description": "Repeating a JSON API mutation with the same Idempotency-Key created a second record.",
+  "impact": "Network retries can double-book, double-charge or duplicate data.",
+  "remediation": {
+   "summary": "Set idempotent: true on JSON API mutation routes.",
+   "steps": [
+    "Add idempotent: true to the defineRoute spec.",
+    "Add a unique constraint for natural keys in the migration."
+   ],
+   "example": "defineRoute(router, { method: 'POST', path: '/api/bookings', auth: 'user', idempotent: true, schema: { body: BookingSchema } }, handler);",
+   "references": [
+    "https://owasp.org/www-project-secure-by-design-framework/"
+   ]
+  },
+  "howToConfirmFixed": "A repeated request with the same key returns the stored response and creates nothing new.",
+  "asvs": [
+   "V2.3.3"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-05",
+   "DM-03"
+  ],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.apikey.query-string-rejected",
+  "title": "API key accepted in the URL",
+  "severity": "medium",
+  "cwe": [
+   "CWE-598"
+  ],
+  "description": "An API key passed as a query parameter was accepted instead of rejected with 400.",
+  "impact": "Keys in URLs end up in logs, browser history and referrers, where they can be stolen.",
+  "remediation": {
+   "summary": "Accept keys only in the Authorization: Bearer header.",
+   "steps": [
+    "Restore the apikeys middleware from the template, which rejects query-string keys."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#api-keys"
+   ]
+  },
+  "howToConfirmFixed": "?api_key=... returns 400.",
+  "asvs": [
+   "V14.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.upload.oversize-413",
+  "title": "Oversized upload accepted",
+  "severity": "medium",
+  "cwe": [
+   "CWE-400"
+  ],
+  "description": "A file larger than UPLOAD_MAX_BYTES was accepted instead of aborted with 413.",
+  "impact": "Huge uploads can fill the disk or exhaust memory, taking the app down.",
+  "remediation": {
+   "summary": "Use the uploads module with its busboy limits; do not add a custom upload handler.",
+   "steps": [
+    "Route uploads through src/features/uploads.",
+    "Check UPLOAD_MAX_BYTES in .env."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "An upload over the limit returns 413.",
+  "asvs": [
+   "V5.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.type-mismatch-415",
+  "title": "Upload with mismatched type accepted",
+  "severity": "high",
+  "cwe": [
+   "CWE-434"
+  ],
+  "description": "A file whose contents did not match its extension or declared type was accepted instead of rejected with 415.",
+  "impact": "Disguised files (for example HTML named .png) can be stored and later served or executed in a harmful context.",
+  "remediation": {
+   "summary": "Use the uploads module, which checks magic bytes, extension and declared type.",
+   "steps": [
+    "Route uploads through src/features/uploads.",
+    "Keep UPLOAD_ALLOWED_TYPES to the types you need."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "A text file renamed .png returns 415.",
+  "asvs": [
+   "V5.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.svg-refused",
+  "title": "SVG upload accepted",
+  "severity": "high",
+  "cwe": [
+   "CWE-79",
+   "CWE-434"
+  ],
+  "description": "The upload page accepted an .svg image file. SVG files are really small programs: they can contain scripts that run in the browser of whoever opens them.",
+  "impact": "SVG files can contain scripts; when viewed they run in the user's browser.",
+  "remediation": {
+   "summary": "Remove image/svg+xml from UPLOAD_ALLOWED_TYPES and keep the uploads module's hard block.",
+   "steps": [
+    "Check UPLOAD_ALLOWED_TYPES in .env.",
+    "Do not modify the deny-list in the uploads module."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "An SVG upload returns 415.",
+  "asvs": [
+   "V1.3.4",
+   "V5.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.not-served-from-public",
+  "title": "Uploaded file served from the public folder",
+  "severity": "high",
+  "cwe": [
+   "CWE-434"
+  ],
+  "description": "An uploaded file was reachable at a static URL under public/ rather than through the download route.",
+  "impact": "Files bypass ownership checks and download headers; a disguised file may run as part of your site.",
+  "remediation": {
+   "summary": "Store uploads under DATA_DIR/uploads and serve them only via the download route.",
+   "steps": [
+    "Confirm DATA_DIR is outside public/.",
+    "Remove any code that copies uploads into public/."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Uploaded files are not reachable under /public paths.",
+  "asvs": [
+   "V5.3.1",
+   "V5.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.download-headers",
+  "title": "Download response missing safety headers",
+  "severity": "medium",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "A file download lacked Content-Disposition: attachment, X-Content-Type-Options: nosniff, Content-Security-Policy: sandbox or Cache-Control: private, no-store.",
+  "impact": "The browser may render the file as part of your site, allowing scripts in files to run.",
+  "remediation": {
+   "summary": "Serve downloads through the uploads module's download handler.",
+   "steps": [
+    "Do not write a custom download route; use the uploads feature's route.",
+    "If a custom route is needed, set all four headers as in src/features/uploads."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Download responses include all four headers.",
+  "asvs": [
+   "V5.4.1",
+   "V5.4.2",
+   "V3.2.1"
+  ],
+  "aisvs": [],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.non-owner-denied",
+  "title": "Another user's file can be downloaded",
+  "severity": "high",
+  "cwe": [
+   "CWE-639"
+  ],
+  "description": "A signed-in user downloaded a file owned by a different user.",
+  "impact": "Private documents leak between customers.",
+  "remediation": {
+   "summary": "Use the uploads download route, which enforces owner/admin, or add the owner declaration to any custom route.",
+   "steps": [
+    "Add owner: { entity: 'upload', param: 'id' } to the route spec."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "Downloading another user's file returns 403 or 404.",
+  "asvs": [
+   "V8.2.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "AC-03"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.upload.quota-enforced",
+  "title": "Upload quota not enforced",
+  "severity": "low",
+  "cwe": [
+   "CWE-770"
+  ],
+  "description": "A user exceeded the per-user upload quota (count or bytes) without being refused.",
+  "impact": "One user can fill the disk for everyone.",
+  "remediation": {
+   "summary": "Keep the quota check in the uploads module and set UPLOAD_USER_QUOTA_BYTES.",
+   "steps": [
+    "Check UPLOAD_USER_QUOTA_BYTES in .env.",
+    "Do not bypass the uploads module."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "An upload beyond the quota returns 413 or 429.",
+  "asvs": [
+   "V2.3.2"
+  ],
+  "aisvs": [],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.control-chars-rejected",
+  "title": "Assistant accepts control characters",
+  "severity": "medium",
+  "cwe": [
+   "CWE-20"
+  ],
+  "description": "A message containing control characters was accepted by the AI endpoint instead of rejected.",
+  "impact": "Invisible characters can hide instructions that steer the AI.",
+  "remediation": {
+   "summary": "Restore the normalisation and allow-list step in src/features/ai.",
+   "steps": [
+    "Confirm the input pipeline strips Cc/Cf/Co/Cs characters and rejects leftovers.",
+    "Do not add a second AI endpoint that skips the pipeline."
+   ],
+   "references": [
+    "https://owasp.org/www-project-ai-security-verification-standard/"
+   ]
+  },
+  "howToConfirmFixed": "A message with \\u0007 returns 422.",
+  "asvs": [],
+  "aisvs": [
+   "C2.1.1",
+   "C2.1.5"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.oversized-input-422",
+  "title": "Assistant accepts oversized input",
+  "severity": "medium",
+  "cwe": [
+   "CWE-400"
+  ],
+  "description": "A message longer than AI_MAX_INPUT_CHARS was accepted (or truncated) instead of rejected with 422.",
+  "impact": "Long inputs can push the safety instructions out of the model's context and run up costs.",
+  "remediation": {
+   "summary": "Restore the length check in src/features/ai and set AI_MAX_INPUT_CHARS.",
+   "steps": [
+    "Check AI_MAX_INPUT_CHARS in .env.",
+    "Confirm the pipeline rejects rather than truncates."
+   ],
+   "references": [
+    "https://owasp.org/www-project-ai-security-verification-standard/"
+   ]
+  },
+  "howToConfirmFixed": "A 9,000-character message returns 422.",
+  "asvs": [],
+  "aisvs": [
+   "C2.1.4"
+  ],
+  "sbd": [
+   "RR-07"
+  ],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.injection-blocked-and-logged",
+  "title": "Injection phrase not blocked or not logged",
+  "severity": "high",
+  "cwe": [
+   "CWE-77"
+  ],
+  "description": "A known prompt-injection phrase was passed to the model, or no ai.input.rejected event was recorded.",
+  "impact": "Users (or text in records) can override the assistant's rules, exposing data or producing harmful output.",
+  "remediation": {
+   "summary": "Restore the screening step using injection-patterns.json and its event emission.",
+   "steps": [
+    "Confirm the screening function runs on user text and on record data.",
+    "Confirm events.emit('ai.input.rejected', ...) is called on high-precision matches."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "'Ignore all previous instructions' is refused and logged.",
+  "asvs": [],
+  "aisvs": [
+   "C2.1.3",
+   "C12.2.1"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.output-escaped",
+  "title": "Assistant answer rendered as HTML",
+  "severity": "high",
+  "cwe": [
+   "CWE-79"
+  ],
+  "description": "An answer containing HTML was rendered without escaping.",
+  "impact": "A manipulated answer can run script in the user's browser.",
+  "remediation": {
+   "summary": "Render answers with <%= %> only; no Markdown conversion.",
+   "steps": [
+    "Fix the assistant view template.",
+    "Remove any markdown or innerHTML rendering in public/js."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "HTML in an answer is shown as text.",
+  "asvs": [
+   "V1.2.1"
+  ],
+  "aisvs": [
+   "C7.3.3"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.killswitch-503",
+  "title": "Assistant still answers when switched off",
+  "severity": "medium",
+  "cwe": [
+   "CWE-693"
+  ],
+  "description": "With AI_ENABLED=0 or the admin toggle off, the assistant still responded.",
+  "impact": "You cannot stop the assistant quickly if it misbehaves or costs spike.",
+  "remediation": {
+   "summary": "Restore the per-request kill-switch check in src/features/ai.",
+   "steps": [
+    "Confirm the handler checks config.aiEnabled and the settings.ai_enabled flag before calling the model."
+   ],
+   "references": [
+    "https://owasp.org/www-project-ai-security-verification-standard/"
+   ]
+  },
+  "howToConfirmFixed": "With the switch off, the endpoint returns 503 with a plain message.",
+  "asvs": [],
+  "aisvs": [
+   "C9.6.1",
+   "C9.1.3"
+  ],
+  "sbd": [],
+  "exploitability": "theoretical"
+ },
+ {
+  "ruleId": "dast.ai.prompt-not-in-response",
+  "title": "Assistant reveals its instructions",
+  "severity": "medium",
+  "cwe": [
+   "CWE-200"
+  ],
+  "description": "Asked to repeat its instructions, the assistant's answer overlapped the system prompt by 12 or more consecutive tokens and was not blocked.",
+  "impact": "Attackers learn the exact rules and can craft ways around them.",
+  "remediation": {
+   "summary": "Restore the n-gram overlap filter in the output stage.",
+   "steps": [
+    "Confirm the output filter compares the answer against the system prompt and blocks on overlap.",
+    "Confirm events.emit('ai.output.rejected', { reason: 'system-prompt-disclosure' }) is called."
+   ],
+   "references": [
+    "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html"
+   ]
+  },
+  "howToConfirmFixed": "The probe passes and an ai.output.rejected event appears when disclosure is attempted.",
+  "asvs": [],
+  "aisvs": [
+   "C7.3.2"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ },
+ {
+  "ruleId": "dast.ai.action-requires-confirmation",
+  "title": "Assistant action executed without confirmation",
+  "severity": "high",
+  "cwe": [
+   "CWE-862"
+  ],
+  "description": "A mutating tool proposed by the assistant was executed without the user confirming it through POST /ai/confirm/:proposalId.",
+  "impact": "The AI can change or delete data on its own, possibly based on injected instructions.",
+  "remediation": {
+   "summary": "Route all mutating tools through the proposal and confirmation flow.",
+   "steps": [
+    "Mark the tool as mutating in tools.ts so it returns a proposal.",
+    "Never call repository write functions directly from the model response handler."
+   ],
+   "references": [
+    "https://owasp.org/www-project-ai-security-verification-standard/"
+   ]
+  },
+  "howToConfirmFixed": "A proposed change does not happen until confirmed; the probe passes.",
+  "asvs": [],
+  "aisvs": [
+   "C9.2.1",
+   "C9.3.5"
+  ],
+  "sbd": [],
+  "exploitability": "requires-auth"
+ }
+]

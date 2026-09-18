@@ -1,0 +1,11 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Generic API Key",
+    "File": "src/features/ai/prompt.ts",
+    "StartLine": 12,
+    "Match": "REDACTED",
+    "Secret": "REDACTED",
+    "Entropy": 4.71
+  }
+]

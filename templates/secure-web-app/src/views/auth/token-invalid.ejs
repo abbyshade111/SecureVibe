@@ -1,0 +1,10 @@
+<section class="card narrow">
+  <h1>This link is no longer valid</h1>
+  <% if (kind === 'invite') { %>
+    <p>Invitation links work for 7 days and can only be used once. Ask the person who invited you to send a new one.</p>
+  <% } else { %>
+    <p>Password reset links work for 15 minutes and can only be used once. You can request a new one below.</p>
+    <p><a class="button" href="/forgot-password">Request a new link</a></p>
+  <% } %>
+  <p class="muted"><a href="/login">Back to sign in</a></p>
+</section>

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+workspace/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+web/dist/
+.claude/
+# evaluation harness: results are per-machine records, baselines are shared
+evals/results/

@@ -1,0 +1,17 @@
+<section class="card narrow">
+  <h1>Publish "<%= note.title %>" — step 2 of 2</h1>
+  <% if (!state) { %>
+    <p>Your choices from step 1 are no longer available (they are kept only for your current sign-in).</p>
+    <p><a class="button" href="/notes/<%= note.id %>/publish">Start at step 1</a></p>
+  <% } else { %>
+    <dl class="details">
+      <dt>Publishing note</dt><dd><%= state.publishNote || '—' %></dd>
+      <dt>Let people know</dt><dd><%= state.notify ? 'yes' : 'no' %></dd>
+    </dl>
+    <form method="post" action="/notes/<%= note.id %>/publish/confirm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="button">Publish now</button>
+      <a class="button button-secondary" href="/notes/<%= note.id %>/publish">Back</a>
+    </form>
+  <% } %>
+</section>

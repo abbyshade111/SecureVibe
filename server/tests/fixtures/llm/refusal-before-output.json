@@ -1,0 +1,16 @@
+{
+  "scenario": "refusal-before-output",
+  "description": "The model declines on the first turn, before any tool call. Nothing may be written and the run must stop with a plain-language explanation.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_refusal_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "refusal",
+      "stop_details": { "type": "refusal", "category": "cyber", "explanation": "The request was declined by a safety classifier." },
+      "content": [],
+      "usage": { "input_tokens": 11000, "output_tokens": 20, "cache_creation_input_tokens": 9000 }
+    }
+  ]
+}

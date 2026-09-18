@@ -1,0 +1,25 @@
+<section class="card">
+  <h1>Notes</h1>
+  <p class="actions"><a class="button" href="/notes/new">New note</a></p>
+  <% if (notes.length === 0) { %>
+    <p class="muted">You have no notes yet.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Title</th><th>Status</th><th>Updated</th></tr></thead>
+      <tbody>
+        <% for (const n of notes) { %>
+          <tr>
+            <td><a href="/notes/<%= n.id %>"><%= n.title %></a></td>
+            <td><span class="tag"><%= n.status %></span></td>
+            <td><%= formatDate(n.updatedAt) %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+  <p class="pager">
+    <% if (page > 1) { %><a href="/notes?page=<%= page - 1 %>">Previous</a><% } %>
+    <% if (hasMore) { %><a href="/notes?page=<%= page + 1 %>">Next</a><% } %>
+  </p>
+  <p class="hint">You can keep up to <%= quota %> notes.</p>
+</section>

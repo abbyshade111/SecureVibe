@@ -1,0 +1,433 @@
+[
+  {
+    "id": "salon-booking",
+    "title": "Booking site for a salon",
+    "description": "Customers book a service and a time slot online. Staff see their day, confirm or cancel bookings, and customers get an email reminder the day before.",
+    "profile": {
+      "app": {
+        "name": "Bella's Salon Bookings",
+        "tagline": "Online booking for a hair and beauty salon",
+        "description": "Customers choose a service (cut, colour, manicure), pick a stylist and a free time slot, and book it online. They can see their upcoming bookings and cancel up to 24 hours before. Staff sign in to see the day's schedule, mark appointments as done or no-show, and add short notes. The owner manages services, prices, opening hours and staff accounts. A reminder email goes out the day before each appointment.",
+        "category": "booking",
+        "entities": [
+          {
+            "name": "service",
+            "label": "Service",
+            "pluralLabel": "Services",
+            "description": "Something the salon offers, with a price and a duration.",
+            "fields": [
+              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
+              { "name": "description", "label": "Description", "type": "longtext", "required": false, "sensitive": false },
+              { "name": "price", "label": "Price", "type": "money", "required": true, "sensitive": false },
+              { "name": "duration-minutes", "label": "Duration (minutes)", "type": "number", "required": true, "sensitive": false },
+              { "name": "active", "label": "Currently offered", "type": "boolean", "required": false, "sensitive": false }
+            ],
+            "access": "public-read"
+          },
+          {
+            "name": "appointment",
+            "label": "Appointment",
+            "pluralLabel": "Appointments",
+            "description": "A booked slot for one customer with one stylist.",
+            "fields": [
+              { "name": "service", "label": "Service", "type": "text", "required": true, "sensitive": false },
+              { "name": "stylist", "label": "Stylist", "type": "text", "required": true, "sensitive": false },
+              { "name": "starts-at", "label": "Date and time", "type": "datetime", "required": true, "sensitive": false },
+              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["Pending", "Confirmed", "Done", "No-show", "Cancelled"], "sensitive": false },
+              { "name": "notes", "label": "Notes for staff", "type": "longtext", "required": false, "sensitive": false, "description": "Allergies or preferences the customer mentions. Treated as personal information." }
+            ],
+            "access": "owner-only"
+          },
+          {
+            "name": "stylist",
+            "label": "Stylist",
+            "pluralLabel": "Stylists",
+            "description": "A member of staff customers can book.",
+            "fields": [
+              { "name": "display-name", "label": "Name shown to customers", "type": "text", "required": true, "sensitive": false },
+              { "name": "works-monday", "label": "Works Mondays", "type": "boolean", "required": false, "sensitive": false },
+              { "name": "works-saturday", "label": "Works Saturdays", "type": "boolean", "required": false, "sensitive": false }
+            ],
+            "access": "public-read"
+          }
+        ],
+        "keyFeatures": [
+          "Customers book a service and a time slot",
+          "Customers see and cancel their upcoming bookings",
+          "Staff see the day's schedule and mark appointments done",
+          "Owner manages services, prices and opening hours",
+          "Reminder email the day before an appointment"
+        ]
+      },
+      "users": {
+        "audience": "customers",
+        "requiresSignIn": true,
+        "roles": [
+          { "name": "owner", "label": "Owner", "description": "Manages services, staff accounts, settings and the audit log.", "isAdmin": true },
+          { "name": "staff", "label": "Staff", "description": "Sees the schedule and updates appointment status.", "isAdmin": false },
+          { "name": "customer", "label": "Customer", "description": "Books and manages their own appointments.", "isAdmin": false }
+        ],
+        "expectedUserCount": "21-500",
+        "registration": "open",
+        "adminMfa": true
+      },
+      "data": {
+        "categories": ["contact", "credentials", "other-personal"],
+        "aboutOtherPeople": false,
+        "retention": "auto-delete-after-period",
+        "retentionMonths": 24,
+        "region": "eu-uk"
+      },
+      "capabilities": {
+        "fileUploads": false,
+        "uploadKinds": [],
+        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "email": true,
+        "externalApis": [],
+        "scheduledJobs": true,
+        "publicApi": false,
+        "payments": false
+      },
+      "deployment": {
+        "target": "internet-later",
+        "owner": { "name": "Bella Moreno", "contactEmail": "bella@example.com" },
+        "businessImpact": "normal"
+      },
+      "meta": {
+        "mode": "guided",
+        "inferredFields": [],
+        "notSureFields": [],
+        "startedFromExample": "salon-booking",
+        "confirmed": false
+      }
+    }
+  },
+  {
+    "id": "shop-inventory",
+    "title": "Inventory tracker for a shop",
+    "description": "Staff record stock coming in and going out, see what is running low, and the owner gets a weekly low-stock email. Runs on the shop's own network.",
+    "profile": {
+      "app": {
+        "name": "Corner Shop Stock",
+        "tagline": "Know what is on the shelves and what to reorder",
+        "description": "The shop keeps a list of products with the quantity in stock, the cost price and the supplier. Staff record deliveries (stock in) and sales or waste (stock out) from the till computer or a tablet in the storeroom. The owner sets a reorder level for each product and sees a list of everything below it. Every Monday morning the app emails the owner a low-stock list. Supplier contact details are kept so reorders are quick.",
+        "category": "inventory",
+        "entities": [
+          {
+            "name": "product",
+            "label": "Product",
+            "pluralLabel": "Products",
+            "description": "An item the shop sells.",
+            "fields": [
+              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
+              { "name": "barcode", "label": "Barcode", "type": "text", "required": false, "sensitive": false },
+              { "name": "quantity", "label": "Quantity in stock", "type": "number", "required": true, "sensitive": false },
+              { "name": "reorder-level", "label": "Reorder when below", "type": "number", "required": true, "sensitive": false },
+              { "name": "cost-price", "label": "Cost price", "type": "money", "required": true, "sensitive": true, "description": "What the shop pays. Confidential." },
+              { "name": "sale-price", "label": "Sale price", "type": "money", "required": true, "sensitive": false },
+              { "name": "supplier", "label": "Supplier", "type": "text", "required": false, "sensitive": false }
+            ],
+            "access": "all-signed-in"
+          },
+          {
+            "name": "stock-movement",
+            "label": "Stock movement",
+            "pluralLabel": "Stock movements",
+            "description": "A delivery, sale, or write-off that changes the quantity of a product.",
+            "fields": [
+              { "name": "product", "label": "Product", "type": "text", "required": true, "sensitive": false },
+              { "name": "kind", "label": "Kind", "type": "choice", "required": true, "choices": ["Delivery", "Sale", "Waste", "Correction"], "sensitive": false },
+              { "name": "quantity", "label": "Quantity", "type": "number", "required": true, "sensitive": false },
+              { "name": "happened-at", "label": "Date and time", "type": "datetime", "required": true, "sensitive": false },
+              { "name": "note", "label": "Note", "type": "text", "required": false, "sensitive": false }
+            ],
+            "access": "all-signed-in"
+          },
+          {
+            "name": "supplier",
+            "label": "Supplier",
+            "pluralLabel": "Suppliers",
+            "description": "A company the shop buys from.",
+            "fields": [
+              { "name": "company", "label": "Company", "type": "text", "required": true, "sensitive": false },
+              { "name": "contact-name", "label": "Contact person", "type": "text", "required": false, "sensitive": false },
+              { "name": "email", "label": "Email", "type": "email", "required": false, "sensitive": false },
+              { "name": "phone", "label": "Phone", "type": "phone", "required": false, "sensitive": false },
+              { "name": "account-terms", "label": "Payment terms", "type": "text", "required": false, "sensitive": true }
+            ],
+            "access": "admin-only"
+          }
+        ],
+        "keyFeatures": [
+          "Record deliveries and sales to keep quantities right",
+          "See everything below its reorder level",
+          "Weekly low-stock email to the owner every Monday",
+          "Owner-only supplier list with contact details",
+          "History of every stock movement"
+        ]
+      },
+      "users": {
+        "audience": "my-team",
+        "requiresSignIn": true,
+        "roles": [
+          { "name": "owner", "label": "Owner", "description": "Manages products, suppliers, staff accounts and settings.", "isAdmin": true },
+          { "name": "staff", "label": "Staff", "description": "Records stock movements and looks up products.", "isAdmin": false }
+        ],
+        "expectedUserCount": "2-20",
+        "registration": "admin-created",
+        "adminMfa": true
+      },
+      "data": {
+        "categories": ["contact", "credentials", "business-confidential"],
+        "aboutOtherPeople": true,
+        "retention": "keep-until-deleted",
+        "region": "us"
+      },
+      "capabilities": {
+        "fileUploads": false,
+        "uploadKinds": [],
+        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "email": true,
+        "externalApis": [],
+        "scheduledJobs": true,
+        "publicApi": false,
+        "payments": false
+      },
+      "deployment": {
+        "target": "local-network",
+        "owner": { "name": "Sam Okafor", "contactEmail": "sam@example.com" },
+        "businessImpact": "normal"
+      },
+      "meta": {
+        "mode": "guided",
+        "inferredFields": [],
+        "notSureFields": [],
+        "startedFromExample": "shop-inventory",
+        "confirmed": false
+      }
+    }
+  },
+  {
+    "id": "customer-portal",
+    "title": "Customer portal with documents",
+    "description": "Clients of an accounting practice sign in to see their invoices, upload receipts and statements, and exchange messages with their accountant. Goes on the internet.",
+    "profile": {
+      "app": {
+        "name": "Ledger Lane Client Portal",
+        "tagline": "A private place for each client to share documents with their accountant",
+        "description": "Each client of the accounting practice has a private area. They can see the invoices the practice has sent them and whether they are paid, upload PDF receipts and bank statements, and send short messages to their accountant. Accountants see only the clients assigned to them, download the uploaded documents, and reply to messages. The owner manages staff and client accounts and can see everything. Documents are kept for six years and then removed automatically.",
+        "category": "crm",
+        "entities": [
+          {
+            "name": "client-company",
+            "label": "Client company",
+            "pluralLabel": "Client companies",
+            "description": "A business the practice works for.",
+            "fields": [
+              { "name": "name", "label": "Company name", "type": "text", "required": true, "sensitive": false },
+              { "name": "tax-number", "label": "Tax number", "type": "text", "required": false, "sensitive": true },
+              { "name": "contact-email", "label": "Contact email", "type": "email", "required": true, "sensitive": false },
+              { "name": "assigned-accountant", "label": "Assigned accountant", "type": "text", "required": true, "sensitive": false }
+            ],
+            "access": "owner-only"
+          },
+          {
+            "name": "invoice",
+            "label": "Invoice",
+            "pluralLabel": "Invoices",
+            "description": "An invoice the practice sent to a client.",
+            "fields": [
+              { "name": "number", "label": "Invoice number", "type": "text", "required": true, "sensitive": false },
+              { "name": "issued-on", "label": "Issued on", "type": "date", "required": true, "sensitive": false },
+              { "name": "due-on", "label": "Due on", "type": "date", "required": true, "sensitive": false },
+              { "name": "amount", "label": "Amount", "type": "money", "required": true, "sensitive": true },
+              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["Draft", "Sent", "Paid", "Overdue"], "sensitive": false },
+              { "name": "pdf", "label": "Invoice PDF", "type": "file", "required": false, "sensitive": true }
+            ],
+            "access": "owner-only"
+          },
+          {
+            "name": "document",
+            "label": "Document",
+            "pluralLabel": "Documents",
+            "description": "A receipt, statement or other file a client uploads.",
+            "fields": [
+              { "name": "title", "label": "Title", "type": "text", "required": true, "sensitive": false },
+              { "name": "kind", "label": "Kind", "type": "choice", "required": true, "choices": ["Receipt", "Bank statement", "Contract", "Other"], "sensitive": false },
+              { "name": "file", "label": "File", "type": "file", "required": true, "sensitive": true },
+              { "name": "period", "label": "Period it covers", "type": "text", "required": false, "sensitive": false }
+            ],
+            "access": "owner-only"
+          },
+          {
+            "name": "message",
+            "label": "Message",
+            "pluralLabel": "Messages",
+            "description": "A short message between a client and their accountant.",
+            "fields": [
+              { "name": "body", "label": "Message", "type": "longtext", "required": true, "sensitive": false },
+              { "name": "sent-at", "label": "Sent at", "type": "datetime", "required": true, "sensitive": false },
+              { "name": "read", "label": "Read", "type": "boolean", "required": false, "sensitive": false }
+            ],
+            "access": "owner-only"
+          }
+        ],
+        "keyFeatures": [
+          "Clients see their invoices and payment status",
+          "Clients upload PDF receipts and bank statements",
+          "Accountants see only their assigned clients",
+          "Messages between client and accountant",
+          "Documents removed automatically after six years"
+        ]
+      },
+      "users": {
+        "audience": "customers",
+        "requiresSignIn": true,
+        "roles": [
+          { "name": "owner", "label": "Practice owner", "description": "Manages all accounts and sees every client.", "isAdmin": true },
+          { "name": "accountant", "label": "Accountant", "description": "Works with assigned clients only.", "isAdmin": false },
+          { "name": "client", "label": "Client", "description": "Sees only their own company's invoices, documents and messages.", "isAdmin": false }
+        ],
+        "expectedUserCount": "21-500",
+        "registration": "invite-only",
+        "adminMfa": true
+      },
+      "data": {
+        "categories": ["contact", "financial", "government-id", "credentials", "files", "business-confidential"],
+        "aboutOtherPeople": true,
+        "retention": "auto-delete-after-period",
+        "retentionMonths": 72,
+        "region": "eu-uk"
+      },
+      "capabilities": {
+        "fileUploads": true,
+        "uploadKinds": ["documents", "images"],
+        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "email": true,
+        "externalApis": [],
+        "scheduledJobs": false,
+        "publicApi": false,
+        "payments": false
+      },
+      "deployment": {
+        "target": "internet-later",
+        "owner": { "name": "Priya Nair", "contactEmail": "priya@example.com" },
+        "businessImpact": "high"
+      },
+      "meta": {
+        "mode": "guided",
+        "inferredFields": [],
+        "notSureFields": [],
+        "startedFromExample": "customer-portal",
+        "confirmed": false
+      }
+    }
+  },
+  {
+    "id": "team-tasks-ai",
+    "title": "Team task tracker with an AI assistant",
+    "description": "A small team tracks projects and tasks. An AI assistant answers questions like 'what is overdue this week?' and drafts status updates from the tasks a person can see.",
+    "profile": {
+      "app": {
+        "name": "Brightwork Tasks",
+        "tagline": "Projects, tasks and a helper that keeps the team up to date",
+        "description": "The team creates projects and adds tasks with an owner, a due date, a priority and a status. Everyone sees all projects; people update the tasks assigned to them and leave comments. A built-in assistant answers questions about the tasks the signed-in person can see (for example 'what is overdue this week?') and drafts a short weekly status update that the person can copy and edit. The assistant cannot change any task. The owner manages accounts and can archive projects.",
+        "category": "tracker",
+        "entities": [
+          {
+            "name": "project",
+            "label": "Project",
+            "pluralLabel": "Projects",
+            "description": "A piece of work with several tasks.",
+            "fields": [
+              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
+              { "name": "goal", "label": "Goal", "type": "longtext", "required": false, "sensitive": false },
+              { "name": "client", "label": "Client", "type": "text", "required": false, "sensitive": false },
+              { "name": "budget", "label": "Budget", "type": "money", "required": false, "sensitive": true },
+              { "name": "archived", "label": "Archived", "type": "boolean", "required": false, "sensitive": false }
+            ],
+            "access": "all-signed-in"
+          },
+          {
+            "name": "task",
+            "label": "Task",
+            "pluralLabel": "Tasks",
+            "description": "One thing to do inside a project.",
+            "fields": [
+              { "name": "title", "label": "Title", "type": "text", "required": true, "sensitive": false },
+              { "name": "details", "label": "Details", "type": "longtext", "required": false, "sensitive": false },
+              { "name": "assignee", "label": "Assigned to", "type": "text", "required": false, "sensitive": false },
+              { "name": "due-on", "label": "Due on", "type": "date", "required": false, "sensitive": false },
+              { "name": "priority", "label": "Priority", "type": "choice", "required": true, "choices": ["Low", "Normal", "High", "Urgent"], "sensitive": false },
+              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["To do", "In progress", "Blocked", "Done"], "sensitive": false }
+            ],
+            "access": "all-signed-in"
+          },
+          {
+            "name": "comment",
+            "label": "Comment",
+            "pluralLabel": "Comments",
+            "description": "A note on a task.",
+            "fields": [
+              { "name": "body", "label": "Comment", "type": "longtext", "required": true, "sensitive": false },
+              { "name": "posted-at", "label": "Posted at", "type": "datetime", "required": true, "sensitive": false }
+            ],
+            "access": "all-signed-in"
+          }
+        ],
+        "keyFeatures": [
+          "Create projects and tasks with owners, due dates and priorities",
+          "Board and list views filtered by person or status",
+          "Comments on tasks",
+          "Ask the assistant what is overdue or blocked",
+          "Assistant drafts a weekly status update to copy and edit"
+        ]
+      },
+      "users": {
+        "audience": "my-team",
+        "requiresSignIn": true,
+        "roles": [
+          { "name": "owner", "label": "Owner", "description": "Manages accounts, archives projects and can switch the assistant off.", "isAdmin": true },
+          { "name": "member", "label": "Team member", "description": "Works on projects and tasks.", "isAdmin": false }
+        ],
+        "expectedUserCount": "2-20",
+        "registration": "invite-only",
+        "adminMfa": true
+      },
+      "data": {
+        "categories": ["contact", "credentials", "business-confidential"],
+        "aboutOtherPeople": false,
+        "retention": "keep-until-deleted",
+        "region": "unsure"
+      },
+      "capabilities": {
+        "fileUploads": false,
+        "uploadKinds": [],
+        "aiAssistant": {
+          "enabled": true,
+          "purpose": "Answer questions about the projects and tasks the signed-in person can see, and draft short status updates from them.",
+          "dataItCanSee": "all-records",
+          "canTakeActions": false,
+          "storesHistory": true
+        },
+        "email": true,
+        "externalApis": [],
+        "scheduledJobs": false,
+        "publicApi": false,
+        "payments": false
+      },
+      "deployment": {
+        "target": "local-network",
+        "owner": { "name": "Jordan Lee", "contactEmail": "jordan@example.com" },
+        "businessImpact": "normal"
+      },
+      "meta": {
+        "mode": "guided",
+        "inferredFields": [],
+        "notSureFields": [],
+        "startedFromExample": "team-tasks-ai",
+        "confirmed": false
+      }
+    }
+  }
+]

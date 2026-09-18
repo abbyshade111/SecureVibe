@@ -1,0 +1,634 @@
+{
+  "_comment": "How each OWASP Secure by Design checklist control is answered from the design profile (CONTRACTS §7). Outcomes are ordered: the first matching 'when' wins. severityIfNo comes from data/frameworks/sbd-checklist-0.5.0.json. deploymentTimeStatus is the answer assuming the app is later put on the internet. Evidence pointers: template:<TPL id>, design:<pattern id | architecture | adrs | threat-model>, doc:<file>, attestation:<id>.",
+  "rules": [
+    {
+      "id": "AS-01",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app has four clearly separated zones: the browser (not trusted), the app itself (trusted; listens only on this computer unless told otherwise), the data (trusted; database and files protected by file permissions) and outside providers (reached only through an allow-list of permitted addresses). Everything that crosses a zone boundary goes through the app's own checks.",
+          "evidence": ["template:TPL-TRUSTZONES-01", "design:PAT-TRUST-ZONES", "design:architecture"],
+          "deploymentTimeStatus": "yes",
+          "deploymentNote": "The same zones apply once the app is online, but the app must then sit behind a TLS (HTTPS) proxy so the browser-to-app boundary is encrypted (see AC-01).",
+          "note": "Your app is built in separate compartments, so a problem in one part (for example a bad request from a browser) cannot reach your data directly."
+        }
+      ]
+    },
+    {
+      "id": "AS-02",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app is a single program with one address. There are no other services that need to find or address each other.",
+          "note": "This control is for systems made of many services. Your app is one program, so there is nothing to do."
+        }
+      ]
+    },
+    {
+      "id": "AS-03",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "One program owns its one database. Each feature (accounts, admin, uploads, the assistant, your own records) is a separate module that talks to the database through the same shared helpers, with no circular dependencies between modules.",
+          "evidence": ["design:architecture"],
+          "note": "Your app is organised so that each feature is self-contained and easy to check."
+        }
+      ]
+    },
+    {
+      "id": "AS-04",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There are no chains of services calling each other; every request is handled by the single app, with short timeouts on any outbound call.",
+          "note": "This control is about long chains of services waiting on each other. Your app has none."
+        }
+      ]
+    },
+    {
+      "id": "AS-05",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "Every route is declared in a central registry with its input rules, and a machine-readable description of the API (docs/openapi.json and docs/api.md) is generated from it. Changes to the API are visible in that file.",
+          "evidence": ["template:TPL-CONTRACT-01", "design:PAT-CONTRACT-FIRST-VALIDATION"],
+          "note": "Your app comes with an up-to-date description of every page and API route it offers."
+        }
+      ]
+    },
+    {
+      "id": "AS-06",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app does not use a message queue or event bus, so there is no messaging durability to design.",
+          "note": "This control is for systems that pass messages between services. Your app does not."
+        }
+      ]
+    },
+    {
+      "id": "AS-07",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app checks all of its settings when it starts and refuses to start with a clear message if anything is missing or unsafe, instead of running half-working. Automatic scaling does not apply to an app that runs on one computer (that part of the control is not applicable).",
+          "evidence": ["template:TPL-SECRETS-01"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "If the app is later hosted online, ask the hosting provider about running more than one copy and restarting it automatically.",
+          "note": "If a setting is wrong, the app tells you at start-up instead of failing later in a confusing way."
+        }
+      ]
+    },
+    {
+      "id": "AS-08",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app is new and does not connect to any older (legacy) system.",
+          "note": "This control is about connecting to old systems. Your app does not."
+        }
+      ]
+    },
+    {
+      "id": "DM-01",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "personal-data",
+          "status": "yes",
+          "justification": "The information the app handles is classified by type in docs/data-protection.md, with you named as the owner and a protection level for each type. Fields marked sensitive get extra protection (encryption, redaction in logs).",
+          "evidence": ["doc:docs/data-protection.md", "template:TPL-DATA-01", "design:PAT-DATA-CLASSIFICATION"],
+          "note": "Your app has a written list of what information it stores and how each kind is protected."
+        },
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app stores only business or internal data, no information about people. docs/data-protection.md records this classification and names you as the owner.",
+          "evidence": ["doc:docs/data-protection.md", "template:TPL-DATA-01"],
+          "note": "Your app stores no personal information, and the report says so in writing."
+        }
+      ]
+    },
+    {
+      "id": "DM-02",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "internet-later",
+          "status": "no",
+          "justification": "Fields marked sensitive are encrypted in the database (AES-256-GCM with versioned keys and a rotation command), but the app is not yet behind HTTPS. Until it runs behind a TLS proxy, traffic between people's browsers and the app could be read on the network. The encryption key is kept on the same computer as the database, which is a known limitation.",
+          "evidence": ["template:TPL-CRYPTO-01", "design:PAT-FIELD-ENCRYPTION", "doc:docs/deployment.md"],
+          "actions": [
+            { "text": "Put the app behind a TLS (HTTPS) reverse proxy with a trusted certificate before anyone reaches it over the internet. docs/deployment.md explains how.", "owner": "hosting-provider", "dueBy": "before internet deployment" },
+            { "text": "Move the field-encryption key out of the .env file into a secret manager offered by the hosting provider.", "owner": "hosting-provider", "dueBy": "before internet deployment" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'yes' once the app runs behind a TLS proxy and the encryption key is stored separately from the database.",
+          "note": "Your data is encrypted where it is stored. Before the app goes online it must also be reached only over HTTPS; this is the most important step in the deployment guide."
+        },
+        {
+          "when": "local-network",
+          "status": "yes",
+          "justification": "On your local network the app runs in self-signed TLS mode, so traffic between browsers and the app is encrypted. Fields marked sensitive are encrypted in the database (AES-256-GCM with versioned keys and a rotation command). Limitation: the encryption key is kept on the same computer as the database.",
+          "evidence": ["template:TPL-TLS-01", "template:TPL-CRYPTO-01", "design:PAT-FIELD-ENCRYPTION"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "Browsers warn about the app's own certificate the first time; docs/deployment.md explains how to trust it. Before going on the internet, switch to a publicly trusted certificate behind a TLS proxy.",
+          "note": "Traffic on your network is encrypted and sensitive fields are encrypted where they are stored."
+        },
+        {
+          "when": "sensitive-data",
+          "status": "yes",
+          "justification": "Fields marked sensitive are encrypted in the database (AES-256-GCM with versioned keys and a rotation command). The app runs on this computer only, so traffic never crosses a network and encryption in transit is not needed yet. Limitation: the encryption key is kept in the .env file on the same computer as the database.",
+          "evidence": ["template:TPL-CRYPTO-01", "template:TPL-CRYPTO-03", "design:PAT-FIELD-ENCRYPTION"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "Before the app is reached over a network it must run in a TLS mode (behind an HTTPS proxy); see docs/deployment.md.",
+          "note": "Sensitive information is encrypted where it is stored, and the app never sends it over a network while it stays on this computer."
+        },
+        {
+          "when": "personal-data",
+          "status": "yes",
+          "justification": "Fields marked sensitive are encrypted in the database (AES-256-GCM with versioned keys and a rotation command). The app runs on this computer only, so traffic never crosses a network and encryption in transit is not needed yet. Limitation: the encryption key is kept in the .env file on the same computer as the database.",
+          "evidence": ["template:TPL-CRYPTO-01", "template:TPL-CRYPTO-03", "design:PAT-FIELD-ENCRYPTION"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "Before the app is reached over a network it must run in a TLS mode (behind an HTTPS proxy); see docs/deployment.md.",
+          "note": "Information about people is encrypted where it is stored, and the app never sends it over a network while it stays on this computer."
+        },
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app runs on this computer only, so traffic never crosses a network, and it stores no personal or sensitive information that would need encrypting at rest. Database files are protected by file permissions.",
+          "evidence": ["template:TPL-DB-02"],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "If the app is ever reached over a network it must run behind a TLS (HTTPS) proxy; see docs/deployment.md.",
+          "note": "Your app stays on this computer and stores nothing sensitive, so encryption is not needed yet."
+        }
+      ]
+    },
+    {
+      "id": "DM-03",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "API requests that change data honour an Idempotency-Key header (a repeated request returns the stored answer instead of acting twice), and the database has unique constraints that prevent duplicate records.",
+          "evidence": ["template:TPL-IDEMPOTENCY-01", "design:PAT-IDEMPOTENT-MUTATIONS"],
+          "note": "If a request is accidentally sent twice (for example after a network hiccup), the app does not create two records."
+        }
+      ]
+    },
+    {
+      "id": "DM-04",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is a single database, and multi-step changes run inside one database transaction that either fully succeeds or is rolled back. No cross-service transactions exist.",
+          "evidence": ["template:TPL-DB-02"],
+          "note": "This control is for changes spread across several services. Your app uses one database with all-or-nothing updates."
+        }
+      ]
+    },
+    {
+      "id": "DM-05",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "personal-data",
+          "status": "yes",
+          "justification": "docs/data-retention.md states how long each type of information is kept. People can export or delete their own data from their account page, administrators can delete accounts, and when a retention period is set a background job deletes or pseudonymises old records. The app only asks for the fields you defined.",
+          "evidence": ["doc:docs/data-retention.md", "template:TPL-DATA-01", "design:PAT-RETENTION"],
+          "note": "There is a written rule for how long information is kept, and a way to delete it."
+        },
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app stores only the business data you defined and no information about people. docs/data-retention.md records what is kept and that nothing needs a deletion schedule.",
+          "evidence": ["doc:docs/data-retention.md", "template:TPL-DATA-01"],
+          "note": "Your app keeps only the information you asked for."
+        }
+      ]
+    },
+    {
+      "id": "DM-06",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is one database and every read sees the latest write, so there is no staleness or conflict handling to design. Records carry an updated_at value that prevents two people silently overwriting each other's edit.",
+          "note": "This control is for systems where data can be out of date in different places. Your app has one source of truth."
+        }
+      ]
+    },
+    {
+      "id": "RR-01",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "Errors are handled centrally: people see a short, generic message and the details go to the log, never to the browser. Outbound calls to other services retry a limited number of times with increasing, randomised delays.",
+          "evidence": ["template:TPL-ERRORS-01", "template:TPL-OUTBOUND-01", "design:PAT-FAIL-SECURE-ERRORS"],
+          "note": "When something goes wrong, your app fails safely and does not reveal internal details."
+        }
+      ]
+    },
+    {
+      "id": "RR-02",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "external-apis",
+          "status": "yes",
+          "justification": "Calls to other services go through one outbound client with a circuit breaker: after repeated failures the app stops calling the service for a while and shows a friendly 'temporarily unavailable' message instead of hanging.",
+          "evidence": ["template:TPL-OUTBOUND-01", "design:PAT-EGRESS-ALLOWLIST"],
+          "note": "If a service your app depends on is down, your app keeps working for everything else."
+        },
+        {
+          "when": "ai",
+          "status": "yes",
+          "justification": "Calls to the AI provider go through one outbound client with a circuit breaker: after repeated failures the app pauses the assistant for a while and shows a friendly message instead of hanging. The rest of the app keeps working.",
+          "evidence": ["template:TPL-OUTBOUND-01", "template:TPL-AI-07", "design:PAT-EGRESS-ALLOWLIST"],
+          "note": "If the AI provider is down, the assistant pauses but the rest of your app keeps working."
+        },
+        {
+          "when": "email",
+          "status": "yes",
+          "justification": "Email is sent through the outbound client with a circuit breaker; if the mail server is unreachable the app records the failure and continues instead of hanging.",
+          "evidence": ["template:TPL-OUTBOUND-01", "design:PAT-EGRESS-ALLOWLIST"],
+          "note": "If email cannot be sent, your app notes it and keeps working."
+        },
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app does not depend on any outside service, so there is nothing to protect with a circuit breaker.",
+          "note": "This control protects apps that depend on other services. Yours does not."
+        }
+      ]
+    },
+    {
+      "id": "RR-03",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "scheduler",
+          "status": "yes",
+          "justification": "Scheduled jobs are declared in code, recorded in a jobs table with a lock so the same job never runs twice at once, and documented as 'at least once' (a job may be retried after a crash, so each job is written to be safe to repeat).",
+          "evidence": ["template:TPL-SCHED-01", "design:PAT-SCHEDULED-JOBS-LOCKED"],
+          "note": "Background tasks cannot overlap or run wild."
+        },
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app has no background jobs or message queues, so there are no asynchronous semantics to define.",
+          "note": "This control is for background processing. Your app does everything while you wait."
+        }
+      ]
+    },
+    {
+      "id": "RR-04",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is no shared gateway or message bus between services; the app is a single program.",
+          "note": "This control is for shared infrastructure between many services. Your app has none."
+        }
+      ]
+    },
+    {
+      "id": "RR-05",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "API requests that change data honour an Idempotency-Key header, and edits check the record's updated_at value so two people cannot silently overwrite each other's change.",
+          "evidence": ["template:TPL-IDEMPOTENCY-01", "design:PAT-IDEMPOTENT-MUTATIONS"],
+          "note": "Repeated or overlapping edits are handled safely."
+        }
+      ]
+    },
+    {
+      "id": "RR-06",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "Every incoming request and every outbound call has a timeout, and the app offers /healthz and /readyz endpoints so it can be checked automatically. Failover to a second location is not applicable to an app on one computer.",
+          "evidence": ["template:TPL-RESILIENCE-01", "template:TPL-OUTBOUND-01", "design:PAT-TIMEOUTS-HEALTH"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "When hosting online, ask the provider to monitor /healthz and to run the app in more than one place if downtime would be costly.",
+          "note": "Your app never waits forever on anything, and it can tell a monitoring tool whether it is healthy."
+        }
+      ]
+    },
+    {
+      "id": "RR-07",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "Rate limits are enforced by the app itself on sign-in, registration, password reset, the assistant, uploads and all other routes, and each person has quotas for the records and files they create. Automatic scaling does not apply to an app on one computer.",
+          "evidence": ["template:TPL-RATE-01", "template:TPL-AUTH-05", "design:PAT-RATE-LIMITS"],
+          "deploymentTimeStatus": "yes",
+          "deploymentNote": "When hosting online, keep the app's limits and add the provider's own protection against floods of traffic if available.",
+          "note": "Nobody can flood your app with requests or fill it with unlimited data."
+        }
+      ]
+    },
+    {
+      "id": "RR-08",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is no caching layer or content delivery network. Basic performance guardrails are still in place: request size limits, timeouts and a maximum number of rows per list.",
+          "evidence": ["template:TPL-BODY-01", "template:TPL-DB-02"],
+          "note": "This control is for large systems with caches. Your app has simple built-in limits instead."
+        }
+      ]
+    },
+    {
+      "id": "AC-01",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "local-only",
+          "status": "n-a",
+          "justification": "The app listens only on this computer's loopback address, so its traffic never travels over a network and there is no connection to encrypt. Service identity checks between services do not apply to a single program.",
+          "evidence": ["template:TPL-TRUSTZONES-01"],
+          "actions": [
+            { "text": "If you ever want to reach the app from another computer, first run it in a TLS mode (behind an HTTPS proxy or with a certificate) as described in docs/deployment.md.", "owner": "developer", "dueBy": "before network or internet deployment" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'no' the moment the app is reached over a network without TLS; run it behind an HTTPS proxy first.",
+          "note": "While the app stays on this computer, nothing travels over a network that could be intercepted."
+        },
+        {
+          "when": "local-network",
+          "status": "yes",
+          "justification": "On the local network the app runs in self-signed TLS mode, so all traffic between browsers and the app is encrypted with TLS 1.2 or newer. Service identity checks between services do not apply to a single program.",
+          "evidence": ["template:TPL-TLS-01", "template:TPL-HEADERS-03", "template:TPL-COOKIE-02", "design:PAT-TLS-PROXY"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "Before going on the internet, replace the self-signed certificate with a publicly trusted one behind a TLS proxy.",
+          "note": "Traffic on your network is encrypted. Browsers will ask you to trust the app's own certificate once."
+        },
+        {
+          "when": "internet-later",
+          "status": "no",
+          "justification": "The app is prepared for HTTPS (it sends HSTS and Secure cookies in proxy mode) but the TLS proxy itself is not part of what SecureVibe generates. Until it is in place, traffic could be read on the network.",
+          "evidence": ["template:TPL-HEADERS-03", "template:TPL-COOKIE-02", "doc:docs/deployment.md"],
+          "actions": [
+            { "text": "Put the app behind a TLS (HTTPS) reverse proxy with a trusted certificate before exposing it to the internet; set TLS_MODE=proxy and TRUST_PROXY_HOPS=1 as described in docs/deployment.md.", "owner": "hosting-provider", "dueBy": "before internet deployment" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'yes' once the app runs behind a TLS proxy with a publicly trusted certificate.",
+          "note": "Before your app goes online, it must be placed behind HTTPS. This is the first step in the deployment guide."
+        }
+      ]
+    },
+    {
+      "id": "AC-02",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "auth",
+          "status": "no",
+          "justification": "The app keeps its own accounts instead of using a central sign-in system (identity provider). The most important parts of this control are still in place: administrators must use two-factor authentication with an authenticator app, sessions expire after inactivity and after a fixed time, and every user may turn on two-factor authentication.",
+          "evidence": ["template:TPL-MFA-04", "template:TPL-MFA-01", "template:TPL-SESSION-03", "design:PAT-ADMIN-MFA"],
+          "actions": [
+            { "text": "If your organisation has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams.", "owner": "developer", "dueBy": "before multi-team use" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Stays 'no' until the app is connected to a central sign-in system; admin two-factor authentication remains in place either way.",
+          "note": "Your app has its own accounts with strong protection for administrators. Connecting it to a company-wide sign-in system is a later improvement, not a requirement to start using it."
+        },
+        {
+          "when": "no-auth",
+          "status": "n-a",
+          "justification": "The app has no accounts and is used by one person on this computer, so there is no sign-in to centralise and no privileged path to protect with multi-factor authentication.",
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "If the app is ever shared with other people, add sign-in first (change the 'Who will use it?' answer and rebuild).",
+          "note": "Your app has no sign-in because only you use it on this computer."
+        }
+      ]
+    },
+    {
+      "id": "AC-03",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "auth",
+          "status": "yes",
+          "justification": "Every route declares who may use it (public, any signed-in person, or specific roles) in the central registry; anything not declared is refused. Records that belong to a person can only be opened by that person or an administrator. Each role gets only the access it needs.",
+          "evidence": ["template:TPL-AUTHZ-01", "template:TPL-AUTHZ-02", "template:TPL-AUTHZ-03", "design:PAT-LEAST-PRIVILEGE-ROLES", "design:PAT-DENY-BY-DEFAULT-ROUTES"],
+          "note": "People can only see and do what their role allows, and this is checked on every request."
+        },
+        {
+          "when": "no-auth",
+          "status": "n-a",
+          "justification": "The app has no accounts or roles, so there is no role-based access to govern. All routes are declared public on purpose in the registry.",
+          "evidence": ["template:TPL-AUTHZ-01"],
+          "note": "Your app has no sign-in, so there are no roles to manage."
+        }
+      ]
+    },
+    {
+      "id": "AC-04",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is no API gateway or service mesh; the app is a single program. As a compensating control, authorisation is centralised in the app's route registry rather than scattered across the code.",
+          "evidence": ["template:TPL-AUTHZ-01"],
+          "note": "This control is for systems with many services behind a gateway. Your app centralises access rules in one place instead."
+        }
+      ]
+    },
+    {
+      "id": "AC-05",
+      "severityIfNo": "high",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "no",
+          "justification": "Secrets (session key, encryption keys, API keys) are generated strong by SecureVibe, kept in a .env file with strict file permissions, never written into code or logs, and the app refuses to start with weak or placeholder values. However there is no dedicated secret manager and keys do not rotate automatically; the field-encryption key can be rotated with a command.",
+          "evidence": ["template:TPL-SECRETS-01", "template:TPL-CRYPTO-01", "design:PAT-SECRETS-FROM-ENV"],
+          "actions": [
+            { "text": "When the app is hosted online, move its secrets from the .env file into the hosting provider's secret manager and set up regular key rotation.", "owner": "hosting-provider", "dueBy": "before internet deployment" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'yes' once secrets live in a secret manager with automatic rotation.",
+          "note": "Your app's secret keys are strong and stored safely on this computer. A secret manager is a hosting feature to add when the app goes online."
+        }
+      ]
+    },
+    {
+      "id": "AC-06",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "personal-data",
+          "status": "yes",
+          "justification": "docs/data-protection.md lists the rules that are likely to apply to the information the app handles (for example GDPR, CCPA or HIPAA, depending on your region and the kinds of data) and shows which app features support each one: data classification, export and deletion, retention, encryption and audit logging. This is guidance, not legal advice.",
+          "evidence": ["doc:docs/data-protection.md", "template:TPL-DATA-01", "design:PAT-DATA-CLASSIFICATION"],
+          "note": "The report points out which privacy rules probably apply to you and how the app helps you follow them. Check with an adviser if you are unsure."
+        },
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "The app handles no personal, financial or health information, so no specific privacy or financial regulation has been identified as applying to it.",
+          "note": "No special regulations were identified for the kind of information your app stores."
+        }
+      ]
+    },
+    {
+      "id": "AC-07",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "n-a",
+          "justification": "There is no CI/CD pipeline, source-hosting app or chat-ops tooling connected to the app; it is built and run on this computer.",
+          "note": "If you later add automation tools (for example an online code repository with automatic builds), give each tool only the access it needs and review that access regularly."
+        }
+      ]
+    },
+    {
+      "id": "MT-01",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app writes structured (JSON) logs with a request id on every line, so one request can be followed end to end. Sign-ins, denied access, administrator actions and unexpected errors are all recorded. Centralised log collection does not apply on a single computer.",
+          "evidence": ["template:TPL-LOG-01", "template:TPL-LOG-03", "design:PAT-OBSERVABILITY-EVENTS"],
+          "deploymentTimeStatus": "deferred",
+          "deploymentNote": "When hosting online, send the logs to a central log service so they survive if the server is compromised.",
+          "note": "Your app keeps a clear record of what happened and who did it."
+        }
+      ]
+    },
+    {
+      "id": "MT-02",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "no",
+          "justification": "The app exposes health endpoints and logs, but there are no dashboards, service-level objectives or alerts. On a single computer this is acceptable; it becomes important once the app is hosted for others.",
+          "evidence": ["template:TPL-RESILIENCE-01"],
+          "actions": [
+            { "text": "When the app is hosted online, add uptime monitoring on /healthz and an alert for repeated errors or failed sign-ins.", "owner": "hosting-provider", "dueBy": "before internet deployment" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'yes' once monitoring and alerts are in place at the hosting provider.",
+          "note": "Nothing watches your app automatically yet. That is fine on your own computer; add monitoring when it goes online."
+        }
+      ]
+    },
+    {
+      "id": "MT-03",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The app ships with a security test suite whose tests are named after the OWASP ASVS requirements they check, plus negative tests (things that must be refused) derived from the threat model, such as anonymous access, wrong role, bad input and ownership violations.",
+          "evidence": ["template:TPL-TESTS-01", "design:threat-model"],
+          "note": "Your app comes with automatic tests that prove its protections work, and you can run them again any time."
+        }
+      ]
+    },
+    {
+      "id": "MT-04",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "The design controls can be checked automatically: the tests and the runtime scan verify denied access for anonymous and wrong-role users, ownership checks, CSRF protection, rate limits and security headers on the running app.",
+          "evidence": ["template:TPL-TESTS-01", "template:TPL-AUTHZ-01", "template:TPL-RATE-01"],
+          "note": "The protections in the design are not just on paper: SecureVibe tests them on the running app."
+        }
+      ]
+    },
+    {
+      "id": "MT-05",
+      "severityIfNo": "low",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "A machine-readable API description (docs/openapi.json), the design decisions (docs/adr) and the operating documents (SECURITY.md, deployment, incident response, data retention) are generated from the design and the code, so they stay current.",
+          "evidence": ["template:TPL-CONTRACT-01", "design:adrs", "doc:docs/SECURITY.md"],
+          "note": "Your app's documentation is generated from the real code, so it does not go stale."
+        }
+      ]
+    },
+    {
+      "id": "MT-06",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "attested",
+          "status": "yes",
+          "justification": "A written incident response plan (docs/incident-response.md) names who does what, how to communicate and how to preserve evidence, and the owner has recorded that they read and rehearsed it.",
+          "evidence": ["doc:docs/incident-response.md", "template:TPL-IR-01", "attestation:incident-plan-rehearsed", "design:PAT-IR-PLAN"],
+          "note": "You have a plan for a security incident and have walked through it."
+        },
+        {
+          "when": "always",
+          "status": "no",
+          "justification": "A written incident response plan exists (docs/incident-response.md) with roles, contact details and steps for evidence handling, but it has not yet been rehearsed. The control asks for both a plan and a rehearsal.",
+          "evidence": ["doc:docs/incident-response.md", "template:TPL-IR-01", "design:PAT-IR-PLAN"],
+          "actions": [
+            { "text": "Read docs/incident-response.md and walk through one scenario (for example 'a staff password was leaked') with the people named in it, then record the rehearsal date on the results page.", "owner": "owner", "dueBy": "before the app is used for real work" }
+          ],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "Becomes 'yes' as soon as the rehearsal is recorded.",
+          "note": "You have a written plan for what to do if something goes wrong. Spend twenty minutes walking through it, then tick it off on the results page."
+        }
+      ]
+    },
+    {
+      "id": "MT-07",
+      "severityIfNo": "medium",
+      "outcomes": [
+        {
+          "when": "always",
+          "status": "yes",
+          "justification": "Security events go to an append-only audit table where each row is chained to the previous one with a hash, so tampering can be detected with the audit:verify command. The retention setting keeps at least 400 days by default (more than the required 12 months) and recent entries are searchable in the admin area. On a single computer the log lives with the app, so it is tamper-evident but not stored separately.",
+          "evidence": ["template:TPL-LOG-05", "design:PAT-AUDIT-CHAIN"],
+          "deploymentTimeStatus": "no",
+          "deploymentNote": "When hosting online, also ship the audit log to a separate log service; until then the log could be deleted by someone who controls the server.",
+          "note": "Your app keeps a tamper-evident record of security events for over a year."
+        }
+      ]
+    }
+  ]
+}

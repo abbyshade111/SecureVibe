@@ -1,0 +1,47 @@
+{
+  "scenario": "over-budget",
+  "description": "The model keeps looking around and never finishes. The execution budget must stop the run and keep what was written.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_loop_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "tool_use",
+      "content": [{ "type": "tool_use", "id": "tu_loop_1", "name": "list_files", "input": { "dir": "src" } }],
+      "usage": { "input_tokens": 12000, "output_tokens": 200, "cache_creation_input_tokens": 9000 }
+    },
+    {
+      "id": "msg_loop_2",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "tool_use",
+      "content": [{ "type": "tool_use", "id": "tu_loop_2", "name": "list_files", "input": { "dir": "src/features" } }],
+      "usage": { "input_tokens": 600, "output_tokens": 200, "cache_read_input_tokens": 9000 }
+    },
+    {
+      "id": "msg_loop_3",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "tool_use",
+      "content": [{ "type": "tool_use", "id": "tu_loop_3", "name": "list_files", "input": { "dir": "tests" } }],
+      "usage": { "input_tokens": 600, "output_tokens": 200, "cache_read_input_tokens": 9000 }
+    },
+    {
+      "id": "msg_loop_4",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "tool_use",
+      "content": [{ "type": "tool_use", "id": "tu_loop_4", "name": "list_files", "input": { "dir": "src/views" } }],
+      "usage": { "input_tokens": 600, "output_tokens": 200, "cache_read_input_tokens": 9000 }
+    },
+    {
+      "id": "msg_loop_5",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "tool_use",
+      "content": [{ "type": "tool_use", "id": "tu_loop_5", "name": "list_files", "input": { "dir": "src/db" } }],
+      "usage": { "input_tokens": 600, "output_tokens": 200, "cache_read_input_tokens": 9000 }
+    }
+  ]
+}

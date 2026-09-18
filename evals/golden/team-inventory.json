@@ -1,0 +1,144 @@
+{
+  "app": {
+    "name": "Shop Stock",
+    "tagline": "Know what is on the shelves",
+    "description": "Staff record stock levels, suppliers and deliveries for our two shops.",
+    "category": "inventory",
+    "entities": [
+      {
+        "name": "item",
+        "label": "Item",
+        "pluralLabel": "Items",
+        "fields": [
+          {
+            "name": "name",
+            "label": "Name",
+            "type": "text",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "quantity",
+            "label": "Quantity",
+            "type": "number",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "photo",
+            "label": "Photo",
+            "type": "file",
+            "required": false,
+            "sensitive": false
+          },
+          {
+            "name": "cost",
+            "label": "Unit cost",
+            "type": "money",
+            "required": false,
+            "sensitive": false
+          }
+        ],
+        "access": "all-signed-in"
+      },
+      {
+        "name": "supplier",
+        "label": "Supplier",
+        "fields": [
+          {
+            "name": "company",
+            "label": "Company",
+            "type": "text",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "contact-email",
+            "label": "Contact email",
+            "type": "email",
+            "required": false,
+            "sensitive": false
+          },
+          {
+            "name": "phone",
+            "label": "Phone",
+            "type": "phone",
+            "required": false,
+            "sensitive": false
+          }
+        ],
+        "access": "admin-only"
+      }
+    ],
+    "keyFeatures": [
+      "Low-stock warnings",
+      "Delivery log per supplier"
+    ]
+  },
+  "users": {
+    "audience": "my-team",
+    "requiresSignIn": true,
+    "roles": [
+      {
+        "name": "manager",
+        "label": "Manager",
+        "isAdmin": true
+      },
+      {
+        "name": "staff",
+        "label": "Shop staff",
+        "description": "Updates stock levels.",
+        "isAdmin": false
+      }
+    ],
+    "expectedUserCount": "2-20",
+    "registration": "invite-only",
+    "adminMfa": true
+  },
+  "data": {
+    "categories": [
+      "contact",
+      "business-confidential",
+      "files"
+    ],
+    "aboutOtherPeople": true,
+    "retention": "keep-until-deleted",
+    "region": "eu-uk"
+  },
+  "capabilities": {
+    "fileUploads": true,
+    "uploadKinds": [
+      "images"
+    ],
+    "aiAssistant": {
+      "enabled": false,
+      "purpose": "",
+      "dataItCanSee": "nothing",
+      "canTakeActions": false,
+      "storesHistory": false,
+      "canSearchWeb": false,
+      "webSearchSites": []
+    },
+    "email": false,
+    "externalApis": [],
+    "scheduledJobs": false,
+    "publicApi": false,
+    "payments": false
+  },
+  "deployment": {
+    "target": "local-network",
+    "owner": {
+      "name": "Priya Nair",
+      "contactEmail": "priya@example.com"
+    },
+    "businessImpact": "normal"
+  },
+  "meta": {
+    "mode": "guided",
+    "inferredFields": [],
+    "notSureFields": [
+      "users.adminMfa"
+    ],
+    "confirmed": true
+  }
+}

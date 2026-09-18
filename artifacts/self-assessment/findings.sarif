@@ -1,0 +1,5727 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SecureVibe",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/owasp/secure-by-design",
+          "rules": [
+            {
+              "id": "sast.hardcoded-secret",
+              "name": "Secret written directly in the code",
+              "shortDescription": {
+                "text": "Secret written directly in the code"
+              },
+              "fullDescription": {
+                "text": "A password, API key or signing secret appears as a literal string in a source file."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-798"
+                ],
+                "security-severity": "9.5"
+              }
+            },
+            {
+              "id": "sast.route-outside-registry",
+              "name": "Route registered without defineRoute",
+              "shortDescription": {
+                "text": "Route registered without defineRoute"
+              },
+              "fullDescription": {
+                "text": "A route is added with app.get / router.post directly instead of defineRoute."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-862"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "sast.fs-user-path",
+              "name": "File read or written at a user-controlled path",
+              "shortDescription": {
+                "text": "File read or written at a user-controlled path"
+              },
+              "fullDescription": {
+                "text": "A node:fs call receives a path that includes request data."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-22",
+                  "CWE-73"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "sast.path-join-user-input",
+              "name": "File path built from user input",
+              "shortDescription": {
+                "text": "File path built from user input"
+              },
+              "fullDescription": {
+                "text": "path.join or path.resolve is called with a value from a request."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-22"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "sast.child-process-exec",
+              "name": "The app runs operating system commands",
+              "shortDescription": {
+                "text": "The app runs operating system commands"
+              },
+              "fullDescription": {
+                "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-78"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "config.protected-files-unchanged",
+              "name": "Protected files differ from the template",
+              "shortDescription": {
+                "text": "Protected files differ from the template"
+              },
+              "fullDescription": {
+                "text": "One or more protected files (security modules, config, security tests, manifest, package files) do not match the hashes recorded at scaffold time."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-693"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "config.secrets-strength",
+              "name": "A secret in .env is weak or a placeholder",
+              "shortDescription": {
+                "text": "A secret in .env is weak or a placeholder"
+              },
+              "fullDescription": {
+                "text": "SESSION_SECRET, FIELD_KEYS or TOKEN_HMAC_KEY is shorter than 32 bytes or equals the .env.example placeholder."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-521",
+                  "CWE-1392"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "config.package-json-unmodified",
+              "name": "package.json was modified",
+              "shortDescription": {
+                "text": "package.json was modified"
+              },
+              "fullDescription": {
+                "text": "package.json differs from the tested template version (new dependencies or changed scripts)."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1104"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "sast.helmet-disabled-csp",
+              "name": "Content Security Policy disabled",
+              "shortDescription": {
+                "text": "Content Security Policy disabled"
+              },
+              "fullDescription": {
+                "text": "helmet is configured with contentSecurityPolicy: false or the CSP directives were relaxed with 'unsafe-inline' or 'unsafe-eval'."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-693"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "sast.tls-reject-unauthorized-false",
+              "name": "Certificate checking disabled",
+              "shortDescription": {
+                "text": "Certificate checking disabled"
+              },
+              "fullDescription": {
+                "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-295"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "secrets.password-assignment",
+              "name": "Password written in a file",
+              "shortDescription": {
+                "text": "Password written in a file"
+              },
+              "fullDescription": {
+                "text": "A variable named password (or similar) is assigned a literal value."
+              },
+              "properties": {
+                "tags": [
+                  "secrets",
+                  "CWE-259"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "config.provenance-present",
+              "name": "Provenance record is missing",
+              "shortDescription": {
+                "text": "Provenance record is missing"
+              },
+              "fullDescription": {
+                "text": "securevibe.provenance.json is missing or unreadable."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "dast.input.proto-pollution",
+              "name": "__proto__ in input not rejected",
+              "shortDescription": {
+                "text": "__proto__ in input not rejected"
+              },
+              "fullDescription": {
+                "text": "A JSON body containing __proto__ or constructor.prototype keys was accepted."
+              },
+              "properties": {
+                "tags": [
+                  "dast",
+                  "CWE-1321"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "sast.req-body-unvalidated",
+              "name": "Request body used without validation",
+              "shortDescription": {
+                "text": "Request body used without validation"
+              },
+              "fullDescription": {
+                "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-20"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "sast.fetch-outside-http-client",
+              "name": "fetch() used outside the HTTP client",
+              "shortDescription": {
+                "text": "fetch() used outside the HTTP client"
+              },
+              "fullDescription": {
+                "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-918"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "sast.timing-unsafe-compare",
+              "name": "Secret compared with ===",
+              "shortDescription": {
+                "text": "Secret compared with ==="
+              },
+              "fullDescription": {
+                "text": "A token, hash or secret is compared with === or ==, which stops at the first different character."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-208"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "sast.inline-script-in-view",
+              "name": "Inline script without the CSP nonce",
+              "shortDescription": {
+                "text": "Inline script without the CSP nonce"
+              },
+              "fullDescription": {
+                "text": "A template contains a <script> tag without nonce=\"<%= nonce %>\"."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-79"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "sast.href-from-data",
+              "name": "Link address taken from data without a protocol check",
+              "shortDescription": {
+                "text": "Link address taken from data without a protocol check"
+              },
+              "fullDescription": {
+                "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://."
+              },
+              "properties": {
+                "tags": [
+                  "sast",
+                  "CWE-79"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "secrets.high-entropy-assignment",
+              "name": "Random-looking value assigned to a secret-like name",
+              "shortDescription": {
+                "text": "Random-looking value assigned to a secret-like name"
+              },
+              "fullDescription": {
+                "text": "A long, random-looking string is assigned to a variable named like key, secret, token or password."
+              },
+              "properties": {
+                "tags": [
+                  "secrets",
+                  "CWE-798"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "dast.errors.404-generic",
+              "name": "Not-found page leaks details",
+              "shortDescription": {
+                "text": "Not-found page leaks details"
+              },
+              "fullDescription": {
+                "text": "The 404 response echoed the requested path unescaped or revealed framework details."
+              },
+              "properties": {
+                "tags": [
+                  "dast",
+                  "CWE-209"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "dast.session.logout-visible",
+              "name": "No visible logout on a signed-in page",
+              "shortDescription": {
+                "text": "No visible logout on a signed-in page"
+              },
+              "fullDescription": {
+                "text": "An authenticated page did not contain the logout form from the base layout."
+              },
+              "properties": {
+                "tags": [
+                  "dast",
+                  "CWE-613"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "deps.deprecated-package",
+              "name": "Deprecated dependency",
+              "shortDescription": {
+                "text": "Deprecated dependency"
+              },
+              "fullDescription": {
+                "text": "A package in use is marked deprecated by its maintainers."
+              },
+              "properties": {
+                "tags": [
+                  "deps",
+                  "CWE-1104"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+              "name": "Semgrep: bypass-tls-verification",
+              "shortDescription": {
+                "text": "Semgrep: bypass-tls-verification"
+              },
+              "fullDescription": {
+                "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used."
+              },
+              "properties": {
+                "tags": [
+                  "external",
+                  "CWE-319"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "lint.security/detect-unsafe-regex",
+              "name": "A regular expression can take exponential time to match",
+              "shortDescription": {
+                "text": "A regular expression can take exponential time to match"
+              },
+              "fullDescription": {
+                "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input."
+              },
+              "properties": {
+                "tags": [
+                  "lint",
+                  "CWE-1333"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "deps.install-scripts-present",
+              "name": "Dependency runs install scripts",
+              "shortDescription": {
+                "text": "Dependency runs install scripts"
+              },
+              "fullDescription": {
+                "text": "A package in the lockfile declares an install script (hasInstallScript)."
+              },
+              "properties": {
+                "tags": [
+                  "deps",
+                  "CWE-829"
+                ],
+                "security-severity": "0.5"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "sast.hardcoded-secret",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/input.ts"
+                },
+                "region": {
+                  "startLine": 115,
+                  "startColumn": 104
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "8a16c6f5b867dc78f469d7f5674e564f897c4c0ff0ed4d3cc25b3e9b8927d20b"
+          },
+          "properties": {
+            "severity": "critical",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.hardcoded-secret",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/log.ts"
+                },
+                "region": {
+                  "startLine": 83,
+                  "startColumn": 103
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ed32a41aa832f69b3c399e8352b83007178b0c88f1e19014ba7c75c6132f0d83"
+          },
+          "properties": {
+            "severity": "critical",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.hardcoded-secret",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/xss.ts"
+                },
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 109
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4f942efaf95367b611f93815cc2c564cd17a845592a839d45bb00491064ab6d1"
+          },
+          "properties": {
+            "severity": "critical",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7b85ed3ec9ef87cb9c98eafcbf321be6a7880d74f78b8a68d6b1e684520376b8"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 72,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b0551f00ab8e4b1cbae3738212ebfc739cca533d6bbe52b9e88cf295bb370380"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 79,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "db0751edab4f343690e395bdc4671b09a5b7764de1ad731893a2401914901f7b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 83,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "f9a025319de7904f6047083976b210bcefd4864a7b1f7cc924e1d4c0dffa179f"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 92,
+                  "startColumn": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "39637867ef4a10d72d80237b75885c2838902f2cf1e4f11b65d9e583bbe923a3"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 102,
+                  "startColumn": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "3f1bf17a672cbecd2216e39ee8be93adf9e069c016284822064525cfb34ff1b8"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 102,
+                  "startColumn": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "bddcd0fc12537d23c524d18c67b598619b1a5bc32f3b2a55a02cfdc731df3ac5"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 117,
+                  "startColumn": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "554f6f15330263c5b2f079d02536419d8190e7fe5b203d2598081d4ec737fa13"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 122,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4c784d7c7c2da026101c95ccb65f3e8bd45369c36151b577f69335638c9e6050"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 129,
+                  "startColumn": 21
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4bcaafbcef67bdd032493023c0c5656d463fb21be76032a23442f6edf53bff58"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 138,
+                  "startColumn": 44
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "bdf44a4dcaef9082e19e852bbddf9f148fb3f7b7e039db3e494ed86c98f01aff"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 140,
+                  "startColumn": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "514c6d0d11627df7c024a7c85251989f7f4ff95a7e6798a53eadf40806987f03"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/examples.ts"
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "81374dc25219e26e59758ae1c1ac6f9c1a19732b445e8e5ebea22dd4f10e2a1a"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/frameworks.ts"
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5c31fdcfa06a1658c0ee3e1bec4f393bff5b6b470fdb6a59ea996fec3866fd5e"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/knowledge.ts"
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b11e5505ebbbab5091e466c85c4978596dede4407e235d686a05ac7275b45c72"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/knowledge.ts"
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e3024f07ee5230d41cb5441a8472f0b3ebce323eeddaa181db9005f5d90bc6be"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/metrics.ts"
+                },
+                "region": {
+                  "startLine": 247,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "91ba4b1c813bf96bf92b06db39af7f1289d345d247bbe8125437eefafa63430d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 62,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "91d2763f9b9579b1f41a2c6bd0c88929e91860ceb6a2a60852b022fa0bc7780c"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 82,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "76525accd54890cb2c531b4424c30bcd920c87c848dccd4ee50e5fba6a69cbd4"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 86,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e3d09f281988517251e091af27ddc9e2d0e1ed97ffba0a9e87166fadad466b4d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 92,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "bd89e6033c510b353093a3234170811e3d34af262e5918fd3aac7cde1bd4223b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 104,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "2f578d861c7ffabd08184da9b716c3d614feb46c81f9471df0690499d7e8943e"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 111,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "0a7723ed409b69de9e228511707ddece88b92ae48f0d4252d9293db03655a167"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 118,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "8989f30e7cb984afc4f4864376bb546779cc8ac67c3e5e19a0551cab246bd3b5"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 134,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6cc2d39c55bc8fb1b6e3156a7cd0e58fe16387e5aeb84e3f0d24f8ead17647a6"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 153,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e4d09c6461d45ee2a47fb6b5a2306a603893e507318b6d00bbfcf497223f9786"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 173,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "806e0270187032c2c8649abc1aa36dec71de8e5174f2bae54890ae36be30d02d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 239,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d7234f62ae1472e3986b104902ead35f8f186cadd81d275f326a68f5ac69606a"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 256,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "90186c442c505a7c15f08b76510b66150d8df3c1f700a17c961068a2f0c3d0cd"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 294,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e17b6d2f7c2ee996ac85f02be4afee75466fc1845f4721b1dd677260a5456f2f"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 312,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d0d1b78441b9f7579062232df6ff4cb3d6476892c0af2a47bb620fb1b99b9e3c"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 342,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c7f09e8b585cf7e09797323e4200949bd6cf883253bd9306ff8a116a14359792"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 353,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6fea0d38094a474cc0b7a52d4361253d59b016e5f02a28ad11fa85773b603e8d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 373,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e056e9998a31d61365e3f1fb9f9bca9e0892eeebb686e3e0f04c6d649edd76d7"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 380,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "17c4b453625922969db91e6744d53579a8a32466c34b2cdbf5cd8b40ad4ce709"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 386,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ddce6db9cb6f8983dbd017e35d59e829dae5830afa41f17480da26f8f691235b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 403,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "06632845c8ecbe32fdc3c1f6bd43e204ae947695f5a1b376101c0fc531c5099c"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 450,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "973e2fe47324f0700dadcdb6e1ea8d69814a1914dc1b0f4fc774ab3e99a08435"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 463,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "55d845d9c015b07a5bd7cbd9cfeb4c3f78d7d91a15cf76e3c0dc035043b3538d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 468,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5286666e6cb6e2c5c20f38daba177cf0af7fcf3a6daa97ea0add0180e237d88f"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 486,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d92b10d51d6bd19c25bfdb7820e52654bc05d91b85a8b5c08261d4ff7332d8ea"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 492,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7452a82f273b9aae115517b0696dbe3f46f60bcc3480672721a80cffbaf6d65d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 495,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "dff6361a60e2291d8578987f27d34d117c2367976669d02fa6ee06ff1ccfd6fd"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 505,
+                  "startColumn": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "db77b1d66f542360821d4fe12042a0e6b27a832315aaac1a21cb3904da7503aa"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 505,
+                  "startColumn": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "490934f4387eaf709907a794cefcc1c25e51f2f5b57551d45549a863669d1393"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 506,
+                  "startColumn": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "486154a4e166d3a1bfbec270d01c88905d726f25970bdcaac5c5d16dd25079c7"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 506,
+                  "startColumn": 29
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "46f9d5049f69a3bc3e84cee71bd24278b1432de90f4852bc7619afad39c4faae"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 507,
+                  "startColumn": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a793415691e36bcfc184a1d84b7b3232caee033f468b326822572e52deaa6a59"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "9d76f3fa884486bb070903e6114c9fab9a790c323d00d7074e801032db2001ba"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 82,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e04194e1536278e97ac0334fbcf529e85e086fbe081c355be429ced8396a30a5"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 88,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "49f5c1f6686829e67e00f358ee3d683b309bcada457db9b40e5b64a96deeeeca"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 94,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5f64c352a3df05055d582fae26422828e4efebb3bccaa8e05ed86c96fb5c1b6d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/status.ts"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "aa90009a1d842a230fb47129988fc0d484b90c041260732028c899cc331145fd"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/status.ts"
+                },
+                "region": {
+                  "startLine": 62,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c733c013c54a0cf9e5019fe7759c471c0224d626a81a1bff118309c6ab04d0ec"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 165,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e1f5b317d103f6a89715f20969f53833949bfc035975dfaabb50df266991d5ae"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 174,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ff0b3efc99eed7bbb5294539cb41e2e81876902a7be163f64402eebb4626dffb"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 198,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "28f2941e14543eec2d9240908522554a829c89863dda69b1095ea89faf9f8ffb"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 199,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "f9f33a25561ddf652662c99abfabf8a32283a50d5e67c7ebf72be25a1027758b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 206,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "18eb789f26860dc2c0721d63931fdc6106f3c32fb0fb05e5acbdd958c62dce9b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 231,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "da8cbe8b0242fbddf600c7533091e346cbd0564a44ddb0ffc0a43e5ea33b9318"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 199,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d0bda5fccd0b4d1a4728b88e560cbd292090cd21682bd2f88ae8f0a858bd8cc8"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 221,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "931e59cc5e7a5c7d0f5038688d5b2d59d67c1bd070a0b13fdd75ea871135a4dd"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 229,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a1219460262d1f907382375702ecef9a2f88ccf045a8e241ea2180155f3c1c65"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 260,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "671566b3bd6eeddf619a2881858def9a6445be8e038449dbf3d270739ed53d4f"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/cli/self-assess.ts"
+                },
+                "region": {
+                  "startLine": 89,
+                  "startColumn": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "412c70fd39c87c17382fdfc3eda8ea50b987219c1354fb631a981621ddb7a8fe"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/main.ts"
+                },
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 32
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ec49fd1b60ce307995dfcd368f1e9f1bf26cc4c2f866e81f603230bb90131c66"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/main.ts"
+                },
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 36
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "43fe83c09981ed900490f71492b4aad0a04984c77be9b32fe3829a82a8cba15b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/main.ts"
+                },
+                "region": {
+                  "startLine": 55,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c9516c1cd93da527c4a8539787304bc2461b451566b1a35749412882cbedd3d7"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/process.ts"
+                },
+                "region": {
+                  "startLine": 120,
+                  "startColumn": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "057015f29d7c76b3c30aff400a7c1b9e92c88d568998c961e0c846293b0f281a"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/process.ts"
+                },
+                "region": {
+                  "startLine": 240,
+                  "startColumn": 15
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "dfffe48ccbecfe04e6ef8616c2e9dd777c9672d1bc11d682cf66239df1cd84f0"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/process.ts"
+                },
+                "region": {
+                  "startLine": 270,
+                  "startColumn": 13
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "272c0536ff49481fd34d5466b3dca19d0eba7fb616d0581efafca6be7f79aef2"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/process.ts"
+                },
+                "region": {
+                  "startLine": 373,
+                  "startColumn": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "37ef1d358b94ea8803fb52877abf0a3051e7d4ffd4f9a33ad631204fece72ebf"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "config.protected-files-unchanged",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "One or more protected files (security modules, config, security tests, manifest, package files) do not match the hashes recorded at scaffold time. A control may have been weakened, and the compliance report can no longer credit template controls for those files."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "unknown"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "9796c5fb71dd4e9618833066fb734cff51d513b649caf44fbfcacaa266aea3b5"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "config",
+            "status": "false-positive",
+            "asvs": [
+              "V15.2.3"
+            ],
+            "aisvs": [
+              "AC.4.4"
+            ],
+            "sbd": [
+              "MT-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "config.secrets-strength",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "SESSION_SECRET, FIELD_KEYS or TOKEN_HMAC_KEY is shorter than 32 bytes or equals the .env.example placeholder. Sessions, reset tokens, API keys and encrypted fields all rely on these values. A weak or known value lets an attacker forge sessions or decrypt data."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".env"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "8ff379879bb1df17cf232314e82844229babdd871e26b33c801b862c948cbf87"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "config",
+            "status": "false-positive",
+            "asvs": [
+              "V13.2.3",
+              "V11.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "config.package-json-unmodified",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "package.json differs from the tested template version (new dependencies or changed scripts). New packages were not reviewed or locked; changed scripts may disable checks or enable debug flags."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "76215e6a20e7f4641febe337534badfe3759ecbef13b27c372f40abf270c1141"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "config",
+            "status": "false-positive",
+            "asvs": [
+              "V15.1.2"
+            ],
+            "aisvs": [
+              "AC.13.3"
+            ],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.helmet-disabled-csp",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "helmet is configured with contentSecurityPolicy: false or the CSP directives were relaxed with 'unsafe-inline' or 'unsafe-eval'. The browser will run injected scripts, removing the last line of defence against cross-site scripting."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 133,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "57280a3ec7c4aac91b7af292be88d314ecbd2e2e0e310cfcd73f1f494705cf81"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V3.4.3",
+              "V3.4.6"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.tls-reject-unauthorized-false",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/harness.ts"
+                },
+                "region": {
+                  "startLine": 153,
+                  "startColumn": 83
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "782e36e0bbb6d96d86f3dd37ea32de879dd98cf0cdb85c3e2cc405bd3ac49506"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V12.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.tls-reject-unauthorized-false",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/http.ts"
+                },
+                "region": {
+                  "startLine": 244,
+                  "startColumn": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "0b52340bf6dd9f5165e6b3782eb9213f51c4b3eb5cf8f4b47fea0d1ce8334be8"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V12.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.tls-reject-unauthorized-false",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/headers.ts"
+                },
+                "region": {
+                  "startLine": 312,
+                  "startColumn": 77
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "34596a674af9a5a48e379bb91b36ccba785c108fbbda1aeb95c7c80fd7652645"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V12.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "secrets.password-assignment",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/input.ts"
+                },
+                "region": {
+                  "startLine": 115,
+                  "startColumn": 115
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "85097d2d9c7b1d5792bfe000b20bccbb367957145a55e00c55186c99e66ad3db"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "medium",
+            "source": "secrets",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "secrets.password-assignment",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/log.ts"
+                },
+                "region": {
+                  "startLine": 83,
+                  "startColumn": 114
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "617919c141d363e2f2da934fef38dbec559beaf33a68ac632f044a54e75aef10"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "medium",
+            "source": "secrets",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "secrets.password-assignment",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/xss.ts"
+                },
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 120
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b77ad3fa185528060acc4829d0a3f1c402c391d9c44c302bf8155cc1d5bf3a96"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P2",
+            "confidence": "medium",
+            "source": "secrets",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1",
+              "V13.2.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "config.provenance-present",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "securevibe.provenance.json is missing or unreadable. You cannot tell which files were AI-generated, by which model and in which run, which breaks the audit trail."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "securevibe.provenance.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "8a7c896bf8468d31231a0197d165131e6c7e0e357c8db64d5e108c65ce9bd4c8"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "false-positive",
+            "asvs": [],
+            "aisvs": [
+              "AC.10.1",
+              "AC.7.1"
+            ],
+            "sbd": [
+              "MT-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "dast.input.proto-pollution",
+          "ruleIndex": 12,
+          "level": "warning",
+          "message": {
+            "text": "A JSON body containing __proto__ or constructor.prototype keys was accepted. Crafted input may alter the behaviour of all objects in the process, bypassing checks or crashing the app."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "GET /login?__proto__[polluted]=1"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c8a2516141357aa1911ff2e49451964be0b45d671a4e2fa9acf4d0f6680cd8af"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "dast",
+            "status": "false-positive",
+            "asvs": [
+              "V15.3.6",
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 40
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7311b723b0733dbb3110453eeaedf77501a4535de32f03173d2afb28f2b3fbe1"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 74,
+                  "startColumn": 55
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7d1a104372b3724df5e3087461c52db9a7f0cee22944a906b6f53c504847acb2"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 80,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "48317ddeee000746562fb146a674d344fa8fd7f7d06276010ba75cb0a75939ba"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 84,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "afcc322aa12811f35a823cda89d9d4e3f801231a6b9af5a82222db2740806726"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/metrics.ts"
+                },
+                "region": {
+                  "startLine": 248,
+                  "startColumn": 27
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "312412708d87d7db6b8470784f16d85bda8fe01bc6d69f16991b53f7249186fb"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/preflight.ts"
+                },
+                "region": {
+                  "startLine": 59,
+                  "startColumn": 25
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6e10451a684e4e4cc44b5cd538048e0c90a23a64e5ecb5d56e513718873a166e"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.6",
+              "V13.2.4"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 87,
+                  "startColumn": 36
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ec3773c7856723af4527bb35554c2f1d45553ecb5f612a7f65f23fbfc2db8011"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 105,
+                  "startColumn": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "98b53d52c28ded0a2ee9f1845555df3c8fe3ee83c1b4f7a644cb843416686753"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 119,
+                  "startColumn": 40
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b1f57c91607e825e4049101fd046e53bbf03e354ed5dbc758b6384ef13961c5b"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.timing-unsafe-compare",
+          "ruleIndex": 15,
+          "level": "warning",
+          "message": {
+            "text": "A token, hash or secret is compared with === or ==, which stops at the first different character. By measuring response times an attacker can guess a secret one character at a time."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 126,
+                  "startColumn": 48
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "21429e0fa5d0794e22f378ea2fc6b4c5e271e53a02dc9aae04adaff66143b6ff"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V6.4.3",
+              "V11.5.1"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 358,
+                  "startColumn": 56
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d1f8abfb9e3905d11196846d802d6ee8de7dc8ead8be9e68f4d5a459f86ebb1a"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 381,
+                  "startColumn": 50
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "eea79c33f1b1d73bcb6a5f7f0b9cd57a3d7fadb0c8a0a456c2b46e9142914eb2"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 21,
+                  "startColumn": 40
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "35af5f9bc172e3a3c114ae356b7a4d6ecc81b58043e2ecce0f5739343dc9b2c9"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 83,
+                  "startColumn": 36
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "37a8aa19924940bf5e109e325658c804f8edbd1b99d3445b4772a8580526cec4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 89,
+                  "startColumn": 33
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6cd3a1267078b2206da35c438942e433514ac33af089d7a76053de37ffec00a7"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 95,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7a1a1be6cacafea3f6bdbf7f6abe0c83b90e03541d81e86974ef64bae2e90fa7"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 166,
+                  "startColumn": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c73f5f8f16f57d5e8edf8792d9b556ee11abd05ecb72b1545b212e239142ea1c"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 181,
+                  "startColumn": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "883dfb48685cfdd530b6b1de7d6af21e2f8163f2c4d7ad1f75bb13420cc832a4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/uploads.ts"
+                },
+                "region": {
+                  "startLine": 232,
+                  "startColumn": 40
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "9fcefca1344ff616dacee81d1bd5f47792f773336753c1ba3197a52c0ba7fce0"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 200,
+                  "startColumn": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "526e5634ec32684f601546e04c14f100b2d15f909025f9d16dada9ee7f69fde4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.inline-script-in-view",
+          "ruleIndex": 16,
+          "level": "warning",
+          "message": {
+            "text": "A template contains a <script> tag without nonce=\"<%= nonce %>\". The browser will block the script under the app's Content Security Policy, so the feature breaks; and if someone relaxes the policy to make it work, injected scripts would run too."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/index.html"
+                },
+                "region": {
+                  "startLine": 17,
+                  "startColumn": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "cf181b54b785da1828fccc9e8d181c175964e7230ffe98694f684a8f82e093b6"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V3.4.3"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 17,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/components/AppPreview.tsx"
+                },
+                "region": {
+                  "startLine": 73,
+                  "startColumn": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d13867797fe62652ecf56deaf141d22b8919c1e90fa2693c54417a93ce58fe8c"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/lib/api.ts"
+                },
+                "region": {
+                  "startLine": 67,
+                  "startColumn": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b26acb8f2b9d19241e1f88386846b0c47892040b334b31ac4a25e0237fa5b6ca"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.6",
+              "V13.2.4"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/lib/api.ts"
+                },
+                "region": {
+                  "startLine": 95,
+                  "startColumn": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "1a1299d3bae42011d5fd046ef1cd79bd3a886fe9cb00793e3d1a7825fefb31c4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.6",
+              "V13.2.4"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/lib/api.ts"
+                },
+                "region": {
+                  "startLine": 123,
+                  "startColumn": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "73344e4ba794d9b142114e1cd8d43b20ba80e66713a2b3f57d16c4e01c8a684f"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.6",
+              "V13.2.4"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/lib/api.ts"
+                },
+                "region": {
+                  "startLine": 207,
+                  "startColumn": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "f529dec6745ec78d929689df836713a5ba7511788e2e6c3b8d7743fcf8aa0ed8"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.6",
+              "V13.2.4"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 17,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 475,
+                  "startColumn": 70
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "efa38e0690493afbb9ff84b98c62fe9b4000f4d1c270a1c31ad098c5d0fe102b"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 17,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 478,
+                  "startColumn": 70
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "67b602270627e7ea47f6340d4b75ac3d320c1cfaa601530c17e9e0d74c6b592a"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "secrets.high-entropy-assignment",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "A long, random-looking string is assigned to a variable named like key, secret, token or password. It is probably a real credential written into the code, where anyone with the code can read it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/log.ts"
+                },
+                "region": {
+                  "startLine": 83,
+                  "startColumn": 114
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "2e35ded19945e66feec5c1fc358044629f64e62eceabb083a807202477d4f93b"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "secrets",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "secrets.high-entropy-assignment",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "A long, random-looking string is assigned to a variable named like key, secret, token or password. It is probably a real credential written into the code, where anyone with the code can read it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/xss.ts"
+                },
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 120
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4c03f7d604d54454d3cfd4c9e982dad626b76aad78ca33ada39eb8d6df2ee691"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "secrets",
+            "status": "false-positive",
+            "asvs": [
+              "V13.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "dast.errors.404-generic",
+          "ruleIndex": 19,
+          "level": "note",
+          "message": {
+            "text": "The 404 response echoed the requested path unescaped or revealed framework details. Echoing the path can enable reflected script injection; framework details help attackers."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "GET /no-such-page-svprobe-1789666023538"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ed2aa57f7af19bcec77c61c646edcd53bdc6d4fe94940fe53e16c3ba5302da19"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "dast",
+            "status": "false-positive",
+            "asvs": [
+              "V16.5.1"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "dast.session.logout-visible",
+          "ruleIndex": 20,
+          "level": "note",
+          "message": {
+            "text": "An authenticated page did not contain the logout form from the base layout. Users on shared computers may not sign out, leaving their session open."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "GET /"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "137cff315420c7ebf44ea1d7bc6a040fba378e4253cf7c4d00e27bbfa06eb6d3"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "dast",
+            "status": "false-positive",
+            "asvs": [
+              "V7.4.4"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "deps.deprecated-package",
+          "ruleIndex": 21,
+          "level": "note",
+          "message": {
+            "text": "A package in use is marked deprecated by its maintainers. It will not receive security fixes; problems found later will stay unpatched."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a1cd26db0c449702fd9ab214da4d84416d982c761de4692bc9e47609138f9f20"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "deps",
+            "status": "accepted",
+            "asvs": [
+              "V15.2.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "deps.deprecated-package",
+          "ruleIndex": 21,
+          "level": "note",
+          "message": {
+            "text": "A package in use is marked deprecated by its maintainers. It will not receive security fixes; problems found later will stay unpatched."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7c555de3475f6f11b3660b5ddde0007a6ffbb5345e6ac836f4965df06bae78b9"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "deps",
+            "status": "accepted",
+            "asvs": [
+              "V15.2.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+          "ruleIndex": 22,
+          "level": "note",
+          "message": {
+            "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/harness.ts"
+                },
+                "region": {
+                  "startLine": 153
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c27d34fee282187253e1bae37ba66ccafc89180d15618d7739ca5eccd8e86adb"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "external",
+            "status": "accepted",
+            "asvs": [],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+          "ruleIndex": 22,
+          "level": "note",
+          "message": {
+            "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/http.ts"
+                },
+                "region": {
+                  "startLine": 237
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "2a55d44494d6880678752c3de55421d8f3dda6bb196f5378cdbb8aaa7aff47a5"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "external",
+            "status": "accepted",
+            "asvs": [],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+          "ruleIndex": 22,
+          "level": "note",
+          "message": {
+            "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/dast/probes/headers.ts"
+                },
+                "region": {
+                  "startLine": 312
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "98730a35dbaaaf11a886e31f14639182831ad9c84f3ec9ac6dbb9cc2e6b95c2d"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "external",
+            "status": "accepted",
+            "asvs": [],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/frameworks/load.ts"
+                },
+                "region": {
+                  "startLine": 307,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "619f6b17bb9a669743f72a9da479210709c401b71807d65f2692ff85fe1f353c"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/frameworks/load.ts"
+                },
+                "region": {
+                  "startLine": 308,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4648debdf17369a4345ec1c379cc328abb3cd08323df8f3a0c6fb03cf1378a1e"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/frameworks/load.ts"
+                },
+                "region": {
+                  "startLine": 309,
+                  "startColumn": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "df2dd574b80e693308986d510e281856b30f1ac39c764b7e1dd325598af61dfa"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/external/index.ts"
+                },
+                "region": {
+                  "startLine": 51,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "357830eb4369279b13e1b3c63efb9169d6654413f7a7bd9f62cfbf8a4d2472ee"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/sast/rules/base.ts"
+                },
+                "region": {
+                  "startLine": 63,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a9b8e77d6ab5f00cedef43cc16572109fd2091b602065cff4f84bb5f8eb4cc96"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/sast/rules/database.ts"
+                },
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "053c23570e4f667bdca805613746bc2b20bfe7ad846dd3f56dc76590570f351d"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/sast/rules/input.ts"
+                },
+                "region": {
+                  "startLine": 287,
+                  "startColumn": 44
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ecd126af3b5cb6bcdce47f03f8686c8eb236c52f8d5a803c442bdd8a851a5c00"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/secrets/index.ts"
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "75e500128f49d9fa6781204a7473a21b430da569184c01a2eab28d301fbed89a"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/secrets/rules.ts"
+                },
+                "region": {
+                  "startLine": 102,
+                  "startColumn": 21
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "36251b79a0616f17f8e794c639f8746184b723265ace55274f099aafa6fe86b9"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/tests-runner/tap.ts"
+                },
+                "region": {
+                  "startLine": 38,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7a4033d4d8f502e77aeac794b37748963fec20d7d13d0e8c570170cd921aad4d"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/tests-runner/tap.ts"
+                },
+                "region": {
+                  "startLine": 127,
+                  "startColumn": 87
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4e12db47025552cac2b99a82a4042e3b35795d6516298ac82cf3386f995fd11d"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/tests-runner/tap.ts"
+                },
+                "region": {
+                  "startLine": 176,
+                  "startColumn": 38
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "35b6890929086c3bdaa8f23993a91788ff16322887d171d1d610a9184978ffb3"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/security/middleware.ts"
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 13
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a75be4dada52ac2ed65dc348e88b2c61c2e93b6c485d1333a053c7d865d1f531"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/vite.config.ts"
+                },
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 27
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "62d9893f7a0a84521da0b963696eeaca29d2fc988d6e5a35cce85a0d417cd6c1"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "deps.install-scripts-present",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "995c75fd046fafc294779c5f7cc68dd1c1cc7ecc448c8afef757ad9a8c4c66e4"
+          },
+          "properties": {
+            "severity": "info",
+            "priority": "P4",
+            "confidence": "high",
+            "source": "deps",
+            "status": "open",
+            "asvs": [
+              "V15.1.2"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "deps.install-scripts-present",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c75bc8acc4a49880aa1a83245501ec8d4bbcb4daed19e2d2c3a9e0478e992c4c"
+          },
+          "properties": {
+            "severity": "info",
+            "priority": "P4",
+            "confidence": "high",
+            "source": "deps",
+            "status": "open",
+            "asvs": [
+              "V15.1.2"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        },
+        {
+          "ruleId": "deps.install-scripts-present",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "851723576c4635c487aae00f0366dbcb6a8cfcd5b66ff893481f7d30d0cb688c"
+          },
+          "properties": {
+            "severity": "info",
+            "priority": "P4",
+            "confidence": "high",
+            "source": "deps",
+            "status": "open",
+            "asvs": [
+              "V15.1.2"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "RR-01"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

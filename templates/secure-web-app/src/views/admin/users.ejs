@@ -1,0 +1,25 @@
+<section class="card">
+  <h1>Accounts</h1>
+  <p class="actions"><a class="button" href="/admin/users/new">Invite someone</a></p>
+  <table class="table">
+    <thead>
+      <tr><th>Email address</th><th>Name</th><th>Role</th><th>Status</th><th>One-time codes</th><th>Last sign-in</th></tr>
+    </thead>
+    <tbody>
+      <% for (const u of users) { %>
+        <tr>
+          <td><a href="/admin/users/<%= u.id %>"><%= u.email %></a></td>
+          <td><%= u.name || '—' %></td>
+          <td><%= u.role %></td>
+          <td><%= u.status %><%= u.credentialUpdateRequired ? ' (temporary password)' : '' %></td>
+          <td><%= u.mfaEnrolled ? 'on' : 'off' %></td>
+          <td><%= formatDate(u.lastLoginAt) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+  <p class="pager">
+    <% if (page > 1) { %><a href="/admin/users?page=<%= page - 1 %>">Previous</a><% } %>
+    <% if (hasMore) { %><a href="/admin/users?page=<%= page + 1 %>">Next</a><% } %>
+  </p>
+</section>

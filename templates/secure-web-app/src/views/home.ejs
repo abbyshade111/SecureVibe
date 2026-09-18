@@ -1,0 +1,17 @@
+<section class="hero">
+  <h1><%= appName %></h1>
+  <% if (user) { %>
+    <p>Welcome back<%= user.name ? ', ' + user.name : '' %>.</p>
+    <p class="actions">
+      <% navItems.forEach(function (item, i) { %><a class="button<%= i === 0 ? '' : ' button-secondary' %>" href="<%= item.href %>"><%= item.label %></a><% }); %>
+      <a class="button button-secondary" href="/account">Your account</a>
+      <% if (user.isAdmin) { %><a class="button button-secondary" href="/admin">Administration</a><% } %>
+    </p>
+  <% } else { %>
+    <p>Please sign in to continue.</p>
+    <p class="actions">
+      <a class="button" href="/login">Sign in</a>
+      <% if (registrationOpen) { %><a class="button button-secondary" href="/register">Create an account</a><% } %>
+    </p>
+  <% } %>
+</section>

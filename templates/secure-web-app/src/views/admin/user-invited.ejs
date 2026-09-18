@@ -1,0 +1,9 @@
+<section class="card narrow">
+  <h1>Invitation ready</h1>
+  <p>An account for <strong><%= account.email %></strong> (<%= account.role %>) was created. Send this link to the person. It works once and for 7 days:</p>
+  <p><code class="secret" data-copy><%= inviteLink %></code></p>
+  <p class="actions">
+    <a class="button" href="/admin/users/<%= account.id %>">Open the account</a>
+    <a class="button button-secondary" href="/admin/users">Back to accounts</a>
+  </p>
+</section>

@@ -1,0 +1,20 @@
+{
+  "scenario": "ai-review",
+  "description": "One chapter of the AI review. Four assessments: one with a citation that matches the file, one cited at the wrong line, one quoting code that is not there at all, and one not-applicable. Two findings, one with a good citation and one with a bad one.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_review_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"assessments\":[{\"requirementId\":\"V8.2.1\",\"status\":\"pass\",\"confidence\":\"high\",\"rationale\":\"The notes route is registered with an explicit auth value of 'user', so anonymous visitors are refused by the registry before the handler runs.\",\"citations\":[{\"file\":\"src/features/notes/routes.ts\",\"line\":5,\"snippet\":\"auth: 'user'\"}]},{\"requirementId\":\"V2.2.1\",\"status\":\"pass\",\"confidence\":\"medium\",\"rationale\":\"The route declares strict schemas.\",\"citations\":[{\"file\":\"src/features/notes/routes.ts\",\"line\":40,\"snippet\":\"auth: 'user'\"}]},{\"requirementId\":\"V16.2.1\",\"status\":\"pass\",\"confidence\":\"high\",\"rationale\":\"Every request is logged with a correlation id.\",\"citations\":[{\"file\":\"src/features/notes/routes.ts\",\"line\":3,\"snippet\":\"logger.info({ reqId }, 'notes listed')\"}]},{\"requirementId\":\"V11.3.1\",\"status\":\"not-applicable\",\"confidence\":\"high\",\"rationale\":\"This feature stores no sensitive fields, so there is nothing to encrypt.\",\"citations\":[]}],\"findings\":[{\"title\":\"The notes list is not limited to the person who owns the notes\",\"severity\":\"high\",\"confidence\":\"medium\",\"cwe\":[\"CWE-639\"],\"file\":\"src/features/notes/routes.ts\",\"line\":5,\"snippet\":\"path: '/notes'\",\"description\":\"Anyone who is signed in can see every note, not only their own.\",\"impact\":\"One customer could read another customer's notes.\",\"evidence\":\"The route has no owner declaration.\",\"remediationSummary\":\"Declare the owner on the route so the registry checks it.\",\"remediationSteps\":[\"Add owner: { entity: 'note', param: 'id', ownerField: 'owner_id' } to the route definition.\"],\"requirementIds\":[\"V8.2.2\"]},{\"title\":\"A password is written to the log\",\"severity\":\"critical\",\"confidence\":\"high\",\"cwe\":[\"CWE-532\"],\"file\":\"src/features/notes/routes.ts\",\"line\":9,\"snippet\":\"logger.info({ password })\",\"description\":\"The code writes a password into the log file.\",\"impact\":\"Anyone who can read the log can sign in as that person.\",\"evidence\":\"A logging call includes the password field.\",\"remediationSummary\":\"Never log passwords.\",\"remediationSteps\":[\"Remove the password from the logging call.\"],\"requirementIds\":[\"V16.2.5\"]}]}"
+        }
+      ],
+      "usage": { "input_tokens": 26000, "output_tokens": 1500, "cache_read_input_tokens": 12000 }
+    }
+  ]
+}

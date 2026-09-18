@@ -1,0 +1,32 @@
+<section class="card">
+  <h1>Scheduled jobs</h1>
+  <p class="hint">
+    Jobs are declared in code only — nothing here can be added, removed or rescheduled from this page, or from
+    any user input. <%= retentionMonths ? `Data retention is set to ${retentionMonths} month(s).` : 'Automatic data retention is not configured (RETENTION_MONTHS is unset).' %>
+  </p>
+  <table class="table">
+    <thead><tr><th>Job</th><th>Last run</th><th>Duration</th><th>Runs</th><th>Status</th></tr></thead>
+    <tbody>
+      <% for (const j of jobs) { %>
+        <tr>
+          <td><%= j.name %></td>
+          <td><%= j.last_run_at ? formatDate(j.last_run_at) : 'Never yet' %></td>
+          <td><%= j.last_duration_ms !== null ? `${j.last_duration_ms} ms` : '—' %></td>
+          <td><%= j.run_count %></td>
+          <td>
+            <% if (j.last_error) { %>
+              <span class="tag tag-failure">Failed</span>
+            <% } else if (j.last_run_at) { %>
+              <span class="tag tag-success">OK</span>
+            <% } else { %>
+              <span class="tag">Pending</span>
+            <% } %>
+          </td>
+        </tr>
+        <% if (j.last_error) { %>
+          <tr><td colspan="5"><p class="field-error"><%= j.last_error %></p></td></tr>
+        <% } %>
+      <% } %>
+    </tbody>
+  </table>
+</section>

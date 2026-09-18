@@ -1,0 +1,23 @@
+<section class="card narrow">
+  <h1>Confirm it is you</h1>
+  <p>This change affects how you sign in, so please enter your password<%= mfa ? ' and the current code from your authenticator app' : '' %>.</p>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/account/reauth" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="next" value="<%= next %>">
+    <div class="field">
+      <label for="password">Your password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <% if (errors.password) { %><p class="field-error"><%= errors.password %></p><% } %>
+    </div>
+    <% if (mfa) { %>
+      <div class="field">
+        <label for="code">Code from your authenticator app</label>
+        <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required>
+        <% if (errors.code) { %><p class="field-error"><%= errors.code %></p><% } %>
+      </div>
+    <% } %>
+    <button type="submit" class="button">Confirm</button>
+    <a class="button button-secondary" href="/account">Cancel</a>
+  </form>
+</section>

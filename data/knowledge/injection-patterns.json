@@ -1,0 +1,303 @@
+{
+  "description": "Prompt-injection screening ruleset. highPrecision matches are blocked (ai.input.rejected); medium matches are flagged and logged (ai.input.flagged) but allowed. Patterns are JavaScript regex sources applied to NFKC-normalised text; use flags 'i' unless case matters. The key `high` duplicates `highPrecision` for the server loader; keep both identical.",
+  "highPrecision": [
+    {
+      "id": "inj.ignore-previous-instructions",
+      "pattern": "\\bignore\\s+(?:all\\s+|any\\s+|the\\s+|your\\s+|my\\s+)?(?:previous|prior|above|earlier|preceding|initial|original|system)\\s+(?:instructions?|prompts?|rules?|guidance|directions?|messages?|context)\\b",
+      "flags": "i",
+      "description": "Asks the model to ignore earlier instructions."
+    },
+    {
+      "id": "inj.disregard-prior",
+      "pattern": "\\bdisregard\\s+(?:all\\s+|any\\s+|the\\s+|your\\s+)?(?:previous|prior|above|earlier|preceding|initial|original|system)\\b",
+      "flags": "i",
+      "description": "Asks the model to disregard earlier instructions."
+    },
+    {
+      "id": "inj.forget-previous",
+      "pattern": "\\bforget\\s+(?:all\\s+|everything\\s+)?(?:about\\s+)?(?:your|the|all|any)\\s+(?:previous|prior|earlier|above|system)\\s+(?:instructions?|rules?|prompts?|guidance)\\b",
+      "flags": "i",
+      "description": "Asks the model to forget its instructions."
+    },
+    {
+      "id": "inj.override-rules",
+      "pattern": "\\b(?:override|bypass|disable|turn\\s+off|remove|ignore)\\s+(?:all\\s+|any\\s+)?(?:your\\s+(?:own\\s+)?(?:safety\\s+|security\\s+|content\\s+|ethical\\s+)?|(?:the\\s+)?(?:safety|security|content|ethical)\\s+)(?:rules|restrictions|filters|guidelines|guardrails|safeguards|instructions|policies|programming)\\b",
+      "flags": "i",
+      "description": "Asks the model to switch off its own rules or safety filters."
+    },
+    {
+      "id": "inj.reveal-system-prompt",
+      "pattern": "\\b(?:reveal|print|show|repeat|output|display|leak|dump|tell\\s+me|what\\s+is|what's|give\\s+me)\\s+(?:me\\s+)?(?:your|the|its)\\s+(?:hidden\\s+|secret\\s+|full\\s+|entire\\s+|original\\s+|initial\\s+)?(?:system\\s+prompt|system\\s+message|system\\s+instructions|developer\\s+message|developer\\s+prompt|hidden\\s+instructions|secret\\s+instructions|initial\\s+prompt)\\b",
+      "flags": "i",
+      "description": "Asks the model to disclose its system prompt."
+    },
+    {
+      "id": "inj.developer-mode",
+      "pattern": "\\b(?:enter|enable|activate|switch\\s+to|turn\\s+on|unlock|engage)\\s+(?:the\\s+)?(?:developer|dev|god|debug|admin|unrestricted|jailbreak|sudo)\\s+mode\\b",
+      "flags": "i",
+      "description": "Classic 'developer mode' jailbreak."
+    },
+    {
+      "id": "inj.you-are-now-unrestricted",
+      "pattern": "\\byou\\s+are\\s+now\\s+(?:a\\s+|an\\s+|the\\s+|in\\s+)?(?:unrestricted|unfiltered|uncensored|jailbroken|evil|rogue|free\\s+from|no\\s+longer\\s+bound|dan\\b|developer\\s+mode|god\\s+mode)",
+      "flags": "i",
+      "description": "Persona swap to an unrestricted model."
+    },
+    {
+      "id": "inj.act-as-unrestricted",
+      "pattern": "\\b(?:act|behave|respond|answer|pretend)\\s+(?:as|like)\\s+(?:if\\s+you\\s+(?:were|are)\\s+)?(?:a\\s+|an\\s+)?(?:unrestricted|unfiltered|uncensored|jailbroken|evil|rogue)\\s+(?:ai|model|assistant|chatbot|version)\\b",
+      "flags": "i",
+      "description": "Persona swap to an unrestricted model."
+    },
+    {
+      "id": "inj.do-anything-now",
+      "pattern": "\\bdo\\s+anything\\s+now\\b|\\bDAN\\s+mode\\b|\\bas\\s+DAN\\b",
+      "flags": "i",
+      "description": "The 'DAN' jailbreak."
+    },
+    {
+      "id": "inj.chatml-token",
+      "pattern": "<\\|(?:im_start|im_end|system|user|assistant|endoftext|start_header_id|end_header_id|eot_id)\\|>",
+      "flags": "i",
+      "description": "Reserved chat-template tokens."
+    },
+    {
+      "id": "inj.llama-inst-token",
+      "pattern": "\\[/?INST\\]|<<SYS>>|<</SYS>>",
+      "flags": "",
+      "description": "Reserved Llama instruction tokens."
+    },
+    {
+      "id": "inj.begin-system-block",
+      "pattern": "\\b(?:BEGIN|END)\\s+(?:SYSTEM|SYSTEM\\s+PROMPT|SYSTEM\\s+MESSAGE|INSTRUCTIONS)\\b|^\\s*#{1,6}\\s*system\\s*(?:prompt|message)?\\s*:|^\\s*system\\s*:\\s*you\\s+are\\b",
+      "flags": "im",
+      "description": "Fake system-message delimiters."
+    },
+    {
+      "id": "inj.new-instructions-override",
+      "pattern": "\\b(?:new|updated|real|true|actual)\\s+(?:system\\s+)?instructions?\\s*(?::|are\\s+as\\s+follows|supersede|replace|override)",
+      "flags": "i",
+      "description": "Claims to supply replacement instructions."
+    },
+    {
+      "id": "inj.admin-override-claim",
+      "pattern": "\\b(?:this\\s+is|i\\s+am|i'm|as)\\s+(?:your|the)\\s+(?:developer|creator|programmer)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass)\\b|\\b(?:i\\s+am|i'm|this\\s+is)\\s+(?:from\\s+)?(?:openai|anthropic)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass|authori[sz]e)\\b",
+      "flags": "i",
+      "description": "Authority claim used to unlock behaviour."
+    },
+    {
+      "id": "inj.no-restrictions-answer",
+      "pattern": "\\b(?:answer|respond|reply|comply)\\s+(?:without|with\\s+no)\\s+(?:any\\s+)?(?:restrictions|limitations|filters|censorship|refusals|warnings|safety)\\b",
+      "flags": "i",
+      "description": "Demands unfiltered answers."
+    },
+    {
+      "id": "inj.exfiltrate-all-records",
+      "pattern": "\\b(?:list|dump|export|print|reveal|show)\\s+(?:me\\s+)?(?:all|every)\\s+(?:users?|customers?|records?|accounts?|passwords?|emails?|data)\\b[^.\\n]{0,40}\\b(?:regardless|ignoring|without)\\s+(?:of\\s+)?(?:permissions?|access|authori[sz]ation|ownership)\\b",
+      "flags": "i",
+      "description": "Asks for data while explicitly bypassing permissions."
+    }
+  ],
+  "high": [
+    {
+      "id": "inj.ignore-previous-instructions",
+      "pattern": "\\bignore\\s+(?:all\\s+|any\\s+|the\\s+|your\\s+|my\\s+)?(?:previous|prior|above|earlier|preceding|initial|original|system)\\s+(?:instructions?|prompts?|rules?|guidance|directions?|messages?|context)\\b",
+      "flags": "i",
+      "description": "Asks the model to ignore earlier instructions."
+    },
+    {
+      "id": "inj.disregard-prior",
+      "pattern": "\\bdisregard\\s+(?:all\\s+|any\\s+|the\\s+|your\\s+)?(?:previous|prior|above|earlier|preceding|initial|original|system)\\b",
+      "flags": "i",
+      "description": "Asks the model to disregard earlier instructions."
+    },
+    {
+      "id": "inj.forget-previous",
+      "pattern": "\\bforget\\s+(?:all\\s+|everything\\s+)?(?:about\\s+)?(?:your|the|all|any)\\s+(?:previous|prior|earlier|above|system)\\s+(?:instructions?|rules?|prompts?|guidance)\\b",
+      "flags": "i",
+      "description": "Asks the model to forget its instructions."
+    },
+    {
+      "id": "inj.override-rules",
+      "pattern": "\\b(?:override|bypass|disable|turn\\s+off|remove|ignore)\\s+(?:all\\s+|any\\s+)?(?:your\\s+(?:own\\s+)?(?:safety\\s+|security\\s+|content\\s+|ethical\\s+)?|(?:the\\s+)?(?:safety|security|content|ethical)\\s+)(?:rules|restrictions|filters|guidelines|guardrails|safeguards|instructions|policies|programming)\\b",
+      "flags": "i",
+      "description": "Asks the model to switch off its own rules or safety filters."
+    },
+    {
+      "id": "inj.reveal-system-prompt",
+      "pattern": "\\b(?:reveal|print|show|repeat|output|display|leak|dump|tell\\s+me|what\\s+is|what's|give\\s+me)\\s+(?:me\\s+)?(?:your|the|its)\\s+(?:hidden\\s+|secret\\s+|full\\s+|entire\\s+|original\\s+|initial\\s+)?(?:system\\s+prompt|system\\s+message|system\\s+instructions|developer\\s+message|developer\\s+prompt|hidden\\s+instructions|secret\\s+instructions|initial\\s+prompt)\\b",
+      "flags": "i",
+      "description": "Asks the model to disclose its system prompt."
+    },
+    {
+      "id": "inj.developer-mode",
+      "pattern": "\\b(?:enter|enable|activate|switch\\s+to|turn\\s+on|unlock|engage)\\s+(?:the\\s+)?(?:developer|dev|god|debug|admin|unrestricted|jailbreak|sudo)\\s+mode\\b",
+      "flags": "i",
+      "description": "Classic 'developer mode' jailbreak."
+    },
+    {
+      "id": "inj.you-are-now-unrestricted",
+      "pattern": "\\byou\\s+are\\s+now\\s+(?:a\\s+|an\\s+|the\\s+|in\\s+)?(?:unrestricted|unfiltered|uncensored|jailbroken|evil|rogue|free\\s+from|no\\s+longer\\s+bound|dan\\b|developer\\s+mode|god\\s+mode)",
+      "flags": "i",
+      "description": "Persona swap to an unrestricted model."
+    },
+    {
+      "id": "inj.act-as-unrestricted",
+      "pattern": "\\b(?:act|behave|respond|answer|pretend)\\s+(?:as|like)\\s+(?:if\\s+you\\s+(?:were|are)\\s+)?(?:a\\s+|an\\s+)?(?:unrestricted|unfiltered|uncensored|jailbroken|evil|rogue)\\s+(?:ai|model|assistant|chatbot|version)\\b",
+      "flags": "i",
+      "description": "Persona swap to an unrestricted model."
+    },
+    {
+      "id": "inj.do-anything-now",
+      "pattern": "\\bdo\\s+anything\\s+now\\b|\\bDAN\\s+mode\\b|\\bas\\s+DAN\\b",
+      "flags": "i",
+      "description": "The 'DAN' jailbreak."
+    },
+    {
+      "id": "inj.chatml-token",
+      "pattern": "<\\|(?:im_start|im_end|system|user|assistant|endoftext|start_header_id|end_header_id|eot_id)\\|>",
+      "flags": "i",
+      "description": "Reserved chat-template tokens."
+    },
+    {
+      "id": "inj.llama-inst-token",
+      "pattern": "\\[/?INST\\]|<<SYS>>|<</SYS>>",
+      "flags": "",
+      "description": "Reserved Llama instruction tokens."
+    },
+    {
+      "id": "inj.begin-system-block",
+      "pattern": "\\b(?:BEGIN|END)\\s+(?:SYSTEM|SYSTEM\\s+PROMPT|SYSTEM\\s+MESSAGE|INSTRUCTIONS)\\b|^\\s*#{1,6}\\s*system\\s*(?:prompt|message)?\\s*:|^\\s*system\\s*:\\s*you\\s+are\\b",
+      "flags": "im",
+      "description": "Fake system-message delimiters."
+    },
+    {
+      "id": "inj.new-instructions-override",
+      "pattern": "\\b(?:new|updated|real|true|actual)\\s+(?:system\\s+)?instructions?\\s*(?::|are\\s+as\\s+follows|supersede|replace|override)",
+      "flags": "i",
+      "description": "Claims to supply replacement instructions."
+    },
+    {
+      "id": "inj.admin-override-claim",
+      "pattern": "\\b(?:this\\s+is|i\\s+am|i'm|as)\\s+(?:your|the)\\s+(?:developer|creator|programmer)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass)\\b|\\b(?:i\\s+am|i'm|this\\s+is)\\s+(?:from\\s+)?(?:openai|anthropic)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass|authori[sz]e)\\b",
+      "flags": "i",
+      "description": "Authority claim used to unlock behaviour."
+    },
+    {
+      "id": "inj.no-restrictions-answer",
+      "pattern": "\\b(?:answer|respond|reply|comply)\\s+(?:without|with\\s+no)\\s+(?:any\\s+)?(?:restrictions|limitations|filters|censorship|refusals|warnings|safety)\\b",
+      "flags": "i",
+      "description": "Demands unfiltered answers."
+    },
+    {
+      "id": "inj.exfiltrate-all-records",
+      "pattern": "\\b(?:list|dump|export|print|reveal|show)\\s+(?:me\\s+)?(?:all|every)\\s+(?:users?|customers?|records?|accounts?|passwords?|emails?|data)\\b[^.\\n]{0,40}\\b(?:regardless|ignoring|without)\\s+(?:of\\s+)?(?:permissions?|access|authori[sz]ation|ownership)\\b",
+      "flags": "i",
+      "description": "Asks for data while explicitly bypassing permissions."
+    }
+  ],
+  "medium": [
+    {
+      "id": "inj.m.system-prompt-mention",
+      "pattern": "\\bsystem\\s+prompt\\b",
+      "flags": "i",
+      "description": "Mentions the system prompt."
+    },
+    {
+      "id": "inj.m.developer-mode-mention",
+      "pattern": "\\bdeveloper\\s+mode\\b",
+      "flags": "i",
+      "description": "Mentions developer mode."
+    },
+    {
+      "id": "inj.m.you-are-now",
+      "pattern": "\\byou\\s+are\\s+now\\s+(?:a|an|the|in|my|no\\s+longer)\\b",
+      "flags": "i",
+      "description": "Persona instruction phrasing."
+    },
+    {
+      "id": "inj.m.from-now-on",
+      "pattern": "\\bfrom\\s+now\\s+on\\s+(?:you|your)\\b",
+      "flags": "i",
+      "description": "Attempts a lasting behaviour change."
+    },
+    {
+      "id": "inj.m.pretend-you-are",
+      "pattern": "\\bpretend\\s+(?:that\\s+)?you\\s+(?:are|were|have)\\b",
+      "flags": "i",
+      "description": "Role-play framing often used for jailbreaks."
+    },
+    {
+      "id": "inj.m.jailbreak",
+      "pattern": "\\bjailbreak(?:ed|ing)?\\b",
+      "flags": "i",
+      "description": "Mentions jailbreaking."
+    },
+    {
+      "id": "inj.m.your-instructions",
+      "pattern": "\\b(?:what|which)\\s+(?:are|were)\\s+your\\s+(?:instructions|rules|guidelines)\\b|\\bprint\\s+your\\s+(?:instructions|rules|prompt)\\b",
+      "flags": "i",
+      "description": "Probes for the model's instructions."
+    },
+    {
+      "id": "inj.m.rules-do-not-apply",
+      "pattern": "\\b(?:rules|restrictions|guidelines|policies)\\s+(?:do\\s+not|don't|no\\s+longer)\\s+apply\\b",
+      "flags": "i",
+      "description": "Claims rules no longer apply."
+    },
+    {
+      "id": "inj.m.hypothetical-bypass",
+      "pattern": "\\bhypothetically\\b[^.\\n]{0,40}\\b(?:you\\s+(?:could|can|would)|no\\s+rules|without\\s+rules)\\b",
+      "flags": "i",
+      "description": "Hypothetical framing to bypass rules."
+    },
+    {
+      "id": "inj.m.confidential-instructions",
+      "pattern": "\\b(?:confidential|hidden|secret)\\s+(?:instructions|prompt|configuration)\\b",
+      "flags": "i",
+      "description": "Refers to hidden instructions."
+    },
+    {
+      "id": "inj.m.base64-hint",
+      "pattern": "\\b(?:decode|execute|run|follow)\\s+(?:this|the\\s+following)\\s+(?:base64|encoded|hex)\\b",
+      "flags": "i",
+      "description": "Asks to act on encoded content."
+    },
+    {
+      "id": "inj.m.markdown-image-exfil",
+      "pattern": "!\\[[^\\]]*\\]\\(https?://[^)]+\\)",
+      "flags": "i",
+      "description": "Markdown image link, a known data-exfiltration channel."
+    },
+    {
+      "id": "inj.m.stop-being",
+      "pattern": "\\bstop\\s+being\\s+(?:an?\\s+)?(?:ai|assistant|helpful|safe|careful)\\b",
+      "flags": "i",
+      "description": "Asks the model to drop its role."
+    },
+    {
+      "id": "inj.m.human-or-ai-probe",
+      "pattern": "\\bare\\s+you\\s+(?:really\\s+)?(?:an?\\s+)?(?:ai|bot|language\\s+model)\\b[^.\\n]{0,30}\\b(?:ignore|prove|bypass)\\b",
+      "flags": "i",
+      "description": "Identity probe paired with a bypass request."
+    },
+    {
+      "id": "inj.m.obey-me-instead",
+      "pattern": "\\bobey\\s+(me|my\\s+(instructions|orders|commands|rules))\\b",
+      "flags": "i",
+      "description": "Asks the assistant to obey the writer rather than its own instructions."
+    },
+    {
+      "id": "inj.m.instead-of-your-developer",
+      "pattern": "\\binstead\\s+of\\s+(your|the)\\s+(developer|operator|system|owner|instructions|rules)\\b",
+      "flags": "i",
+      "description": "Asks the assistant to follow the writer in place of its operator."
+    },
+    {
+      "id": "inj.m.respond-only-with",
+      "pattern": "\\brespond\\s+only\\s+with\\s+the\\s+word\\b",
+      "flags": "i",
+      "description": "Tries to force a fixed reply, a common probe for instruction override."
+    }
+  ]
+}

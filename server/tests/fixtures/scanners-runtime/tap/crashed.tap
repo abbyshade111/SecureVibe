@@ -1,0 +1,4 @@
+TAP version 13
+# Error: Cannot find module '/app/src/app.ts'
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1475:15)
+# Node.js v26.0.0

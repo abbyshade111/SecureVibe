@@ -1,0 +1,41 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "left-pad": {
+      "name": "left-pad",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1088948,
+          "name": "left-pad",
+          "dependency": "left-pad",
+          "title": "Regular expression denial of service in left-pad",
+          "url": "https://github.com/advisories/GHSA-abcd-1234-efgh",
+          "severity": "high",
+          "cwe": ["CWE-1333"],
+          "cvss": { "score": 7.5, "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H" },
+          "range": "<1.3.1"
+        }
+      ],
+      "effects": ["sharp-like"],
+      "range": "<1.3.1",
+      "nodes": ["node_modules/left-pad"],
+      "fixAvailable": { "name": "left-pad", "version": "1.3.1", "isSemVerMajor": false }
+    },
+    "sharp-like": {
+      "name": "sharp-like",
+      "severity": "high",
+      "isDirect": true,
+      "via": ["left-pad"],
+      "effects": [],
+      "range": "*",
+      "nodes": ["node_modules/sharp-like"],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 2, "critical": 0, "total": 2 },
+    "dependencies": { "prod": 4, "dev": 1, "total": 5 }
+  }
+}

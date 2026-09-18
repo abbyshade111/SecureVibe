@@ -1,0 +1,31 @@
+{
+  "reportSchemaVersion": "1.0.0",
+  "tool": "SecureVibe 0.1.0",
+  "securevibeVersion": "0.1.0",
+  "templateVersion": "unknown",
+  "frameworkVersions": {
+    "asvs": "5.0.0",
+    "aisvs": "1.0",
+    "sbd": "0.5.0 (Draft, August 2025)"
+  },
+  "toolVersions": {},
+  "runId": "r_20260917172649_xnk3d4",
+  "projectId": "p_lwph5z7zqd",
+  "generatedAt": "2026-09-17T17:26:49.795Z",
+  "mode": "verify-only",
+  "humanInvolvement": {
+    "summary": "Not recorded for this run.",
+    "peerReviewDecisions": [],
+    "attestations": 0,
+    "humanCodeReview": false
+  },
+  "designProfileHash": "527641b61562889172e20e36b21cc76d0c5d84c72703ada97a0905b13092eacf",
+  "designHash": "527641b61562889172e20e36b21cc76d0c5d84c72703ada97a0905b13092eacf",
+  "codeTreeHash": "",
+  "generatedFiles": [],
+  "protectedFileHashes": {},
+  "sandbox": {
+    "mode": "node-permission-model",
+    "note": "Generated code runs under Node's permission model restricted to the project folder; network access is not restricted."
+  }
+}

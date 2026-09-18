@@ -1,0 +1,19 @@
+<section class="card narrow">
+  <h1>Enter your one-time code</h1>
+  <p>Open the authenticator app on your phone and type the 6-digit code it shows for <%= appName %>.</p>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/login/mfa" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="code">Code from your app (or a recovery code)</label>
+      <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+      <% if (errors.code) { %><p class="field-error"><%= errors.code %></p><% } %>
+    </div>
+    <button type="submit" class="button">Continue</button>
+  </form>
+  <p class="muted">Lost your phone? Use one of the recovery codes you saved when you set up one-time codes.</p>
+  <form method="post" action="/logout" class="inline-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="link-button">Cancel and sign out</button>
+  </form>
+</section>

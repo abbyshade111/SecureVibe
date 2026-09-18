@@ -1,0 +1,59 @@
+<h1>Your account</h1>
+<div class="grid">
+  <section class="card">
+    <h2>Your details</h2>
+    <dl class="details">
+      <dt>Name</dt><dd><%= account.name || '—' %></dd>
+      <dt>Email address</dt><dd><%= account.email %></dd>
+      <dt>Role</dt><dd><%= account.role %></dd>
+      <dt>Member since</dt><dd><%= formatDate(account.createdAt) %></dd>
+      <dt>Last sign-in</dt><dd><%= formatDate(account.lastLoginAt) %></dd>
+    </dl>
+    <p class="actions">
+      <a class="button button-secondary" href="/account/profile">Change name</a>
+      <a class="button button-secondary" href="/account/email">Change email address</a>
+      <a class="button button-secondary" href="/account/password">Change password</a>
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>One-time codes</h2>
+    <% if (account.mfaEnrolled) { %>
+      <p>One-time codes are switched on. You have <%= recoveryCodesLeft %> unused recovery code<%= recoveryCodesLeft === 1 ? '' : 's' %>.</p>
+      <p class="muted">
+        Recovery codes were shown once when you switched one-time codes on, to keep in a password manager or on paper.
+        If you lose your phone, sign in with your email and password as usual and type a recovery code where the app asks
+        for the 6-digit code. Each code works once. If you have none left, or cannot find them, turn one-time codes off
+        here and set them up again to get a new set.
+      </p>
+      <% if (canDisableMfa) { %>
+        <form method="post" action="/account/mfa/disable" data-confirm="Turn off one-time codes? Your account will be easier to break into.">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="button button-danger">Turn off one-time codes</button>
+        </form>
+      <% } else { %>
+        <p class="muted">Administrators must keep one-time codes switched on.</p>
+      <% } %>
+    <% } else if (userMfaAvailable) { %>
+      <p>Add a second step to sign-in: a 6-digit code from an authenticator app on your phone. This stops someone who learns your password from getting in.</p>
+      <a class="button" href="/account/mfa/enrol">Set up one-time codes</a>
+    <% } else { %>
+      <p class="muted">One-time codes are not available for this account.</p>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>Where you are signed in</h2>
+    <p>See every device that is signed in to your account and sign out the ones you do not recognise.</p>
+    <a class="button button-secondary" href="/account/sessions">Manage devices</a>
+  </section>
+
+  <section class="card">
+    <h2>Your data</h2>
+    <p>Download a copy of everything this app stores about you, or delete your account.</p>
+    <p class="actions">
+      <a class="button button-secondary" href="/account/export">Download my data</a>
+      <a class="button button-danger" href="/account/delete">Delete my account</a>
+    </p>
+  </section>
+</div>

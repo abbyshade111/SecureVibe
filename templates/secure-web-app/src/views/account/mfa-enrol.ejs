@@ -1,0 +1,27 @@
+<section class="card narrow">
+  <h1>Set up one-time codes</h1>
+  <% if (setup) { %>
+    <ol class="steps">
+      <li>Install an authenticator app on your phone if you do not have one (for example Google Authenticator, Microsoft Authenticator, Aegis or 1Password).</li>
+      <li>In the app, choose "add account" and either open this link on your phone or type the key below.</li>
+      <li>Enter the 6-digit code the app shows to finish.</li>
+    </ol>
+    <p><a class="button button-secondary" href="<%= setup.otpauth %>">Open in authenticator app</a></p>
+    <p>Key to type in manually:</p>
+    <p><code class="secret" data-copy><%= setup.base32 %></code></p>
+    <p class="hint">Account name: <%= user.email %> · Type: time based · Digits: 6 · Refreshes every 30 seconds.</p>
+  <% } else { %>
+    <p class="notice">The setup code was not accepted. <a href="/account/mfa/enrol">Start the setup again</a> to get a fresh key, then enter the newest code from your app.</p>
+  <% } %>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/account/mfa/confirm" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="code">6-digit code from your app</label>
+      <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required>
+      <% if (errors.code) { %><p class="field-error"><%= errors.code %></p><% } %>
+    </div>
+    <button type="submit" class="button">Finish setup</button>
+    <a class="button button-secondary" href="/account">Cancel</a>
+  </form>
+</section>

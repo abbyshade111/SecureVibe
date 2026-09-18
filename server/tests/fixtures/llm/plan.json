@@ -1,0 +1,25 @@
+{
+ "scenario": "plan",
+ "description": "A build plan for a single-owner research app: two real features plus one whose page path and record name are malformed (they must be dropped, the feature kept).",
+ "model": "claude-opus-5",
+ "turns": [
+  {
+   "id": "msg_plan_1",
+   "role": "assistant",
+   "model": "claude-opus-5",
+   "stop_reason": "end_turn",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"summary\": \"Two features on top of the template: research topics with private notes, and an assistant that answers questions from the web. The description also asked to email results; the design has email switched off, so that is left out.\", \"features\": [{\"title\": \"Keep research topics\", \"whatItDoes\": \"Add a question you are researching, keep private notes on it and mark it resolved.\", \"pages\": [\"/research\", \"/research/new\", \"/research/:id\"], \"records\": [\"research_topics\"], \"tests\": [\"RS-01 denies anonymous visitors\", \"RS-02 rejects invalid input\", \"RS-03 one person cannot see another's topics\"]}, {\"title\": \"Ask the assistant\", \"whatItDoes\": \"Type a health question and get an answer with the sources it used.\", \"pages\": [\"/ai\"], \"records\": [], \"tests\": [\"AS-01 the answer lists its sources\"]}, {\"title\": \"Export a topic\", \"whatItDoes\": \"Download a topic and its notes as a file.\", \"pages\": [\"research export page\"], \"records\": [\"Research Export!\"], \"tests\": []}], \"estimatedSteps\": 24}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 4000,
+    "output_tokens": 600,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+   }
+  }
+ ]
+}

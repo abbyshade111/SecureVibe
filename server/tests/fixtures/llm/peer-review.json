@@ -1,0 +1,20 @@
+{
+  "scenario": "peer-review",
+  "description": "The second opinion on a design. One suggestion is an allowed control change, one asks for a change that would weaken the design (and must be turned into advice), one is a clarification for the owner and one is plain advice.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_pr_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"summary\":\"The design covers the basics well. Two things are worth changing and one question only the owner can answer.\",\"suggestions\":[{\"kind\":\"control\",\"title\":\"Delete customer details after a set time\",\"detail\":\"You keep customer names and phone numbers for repairs. Deleting them automatically after a period means a break-in later cannot expose years of old records.\",\"severity\":\"medium\",\"affectsControls\":[\"DM-05\"],\"question\":\"\",\"options\":[],\"setting\":\"data.retention\",\"value\":\"auto-delete-after-period\"},{\"kind\":\"control\",\"title\":\"Let anyone sign up so customers can check their own repairs\",\"detail\":\"Opening registration would let customers follow their repair themselves.\",\"severity\":\"low\",\"affectsControls\":[\"AC-03\"],\"question\":\"\",\"options\":[],\"setting\":\"users.registration\",\"value\":\"open\"},{\"kind\":\"clarification\",\"title\":\"Do you keep records about anyone under 16?\",\"detail\":\"Children's information has extra rules in most countries, and it changes what the app has to do.\",\"severity\":\"high\",\"affectsControls\":[\"DM-01\"],\"question\":\"Do any of your customers' records describe someone under 16?\",\"options\":[{\"label\":\"Yes, some records are about children\",\"setting\":\"data.categories.add\",\"value\":\"children\"},{\"label\":\"No, only adults\",\"setting\":\"\",\"value\":\"\"}],\"setting\":\"\",\"value\":\"\"},{\"kind\":\"advice\",\"title\":\"Write down who to call if something goes wrong\",\"detail\":\"The incident plan is generated for you, but it is worth reading once and adding the phone number of whoever helps you with computers.\",\"severity\":\"low\",\"affectsControls\":[\"MT-06\"],\"question\":\"\",\"options\":[],\"setting\":\"\",\"value\":\"\"}]}"
+        }
+      ],
+      "usage": { "input_tokens": 9000, "output_tokens": 800, "cache_creation_input_tokens": 3000 }
+    }
+  ]
+}

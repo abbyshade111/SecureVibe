@@ -1,0 +1,26 @@
+<h1>Administration</h1>
+<div class="grid">
+  <section class="card">
+    <h2>Accounts</h2>
+    <p><%= stats.users %> account<%= stats.users === 1 ? '' : 's' %>, <%= stats.admins %> administrator<%= stats.admins === 1 ? '' : 's' %>.</p>
+    <p class="actions">
+      <a class="button" href="/admin/users">Manage accounts</a>
+      <a class="button button-secondary" href="/admin/users/new">Invite someone</a>
+    </p>
+  </section>
+  <section class="card">
+    <h2>Security events</h2>
+    <p><%= stats.events %> events recorded. Every sign-in, denied request and administrative action is logged and chained so tampering shows up.</p>
+    <p class="actions">
+      <a class="button" href="/admin/audit">View events</a>
+      <a class="button button-secondary" href="/admin/audit/verify">Check the log</a>
+    </p>
+  </section>
+  <section class="card">
+    <h2>Settings</h2>
+    <% if (aiEnabled !== null) { %>
+      <p>AI assistant: <strong><%= aiEnabled ? 'on' : 'off' %></strong>.</p>
+    <% } %>
+    <p><a class="button button-secondary" href="/admin/settings">Open settings</a></p>
+  </section>
+</div>

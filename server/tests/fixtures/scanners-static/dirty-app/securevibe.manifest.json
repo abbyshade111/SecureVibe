@@ -1,0 +1,19 @@
+{
+  "name": "dirty-app-fixture",
+  "version": "0.0.0",
+  "description": "Fixture app used by the static scanner tests; deliberately insecure.",
+  "stack": ["node", "express", "sqlite"],
+  "engines": { "node": ">=22.13.0" },
+  "features": [],
+  "protectedPaths": ["src/security/headers.ts"],
+  "writablePaths": ["src/**"],
+  "allowedImports": ["express", "cors", "helmet", "zod", "ejs", "pino", "js-yaml", "node:*", "./*", "../*"],
+  "controls": [],
+  "conventions": [],
+  "testMode": {
+    "envFlag": "SECUREVIBE_TEST_MODE",
+    "readyLinePrefix": "{\"securevibe\":\"listening\"",
+    "routesEndpoint": "/__securevibe/routes",
+    "seededUsers": []
+  }
+}

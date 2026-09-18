@@ -1,0 +1,7 @@
+{
+  "name": "securevibe-app-tests",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "description": "Entry used by `node --experimental-strip-types --test --test-reporter=tap tests/`: index.ts imports every test file so the whole suite runs in one process. Individual files can still be run with a glob (tests/**/*.test.ts)."
+}

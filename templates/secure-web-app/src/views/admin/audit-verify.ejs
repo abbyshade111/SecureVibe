@@ -1,0 +1,10 @@
+<section class="card narrow">
+  <h1>Event log check</h1>
+  <% if (result.ok) { %>
+    <p class="flash flash-success">All <%= result.checkedRows %> events are intact. Every entry still links to the one before it, so nothing was edited or removed.</p>
+  <% } else { %>
+    <p class="flash flash-error">The log is not intact. The chain breaks at entry <%= result.brokenAtSeq %> after <%= result.checkedRows %> good entries. <%= result.reason %></p>
+    <p>Treat this as a security incident: someone with access to the database changed or removed log entries. Follow the steps in docs/incident-response.md.</p>
+  <% } %>
+  <p class="muted"><a href="/admin/audit">Back to events</a></p>
+</section>

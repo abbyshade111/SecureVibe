@@ -1,0 +1,146 @@
+{
+  "app": {
+    "name": "Maker Market",
+    "description": "Local makers list handmade goods, buyers order them, and the shop owner ships them.",
+    "category": "marketplace",
+    "entities": [
+      {
+        "name": "listing",
+        "label": "Listing",
+        "pluralLabel": "Listings",
+        "fields": [
+          {
+            "name": "title",
+            "label": "Title",
+            "type": "text",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "price",
+            "label": "Price",
+            "type": "money",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "photo",
+            "label": "Photo",
+            "type": "file",
+            "required": false,
+            "sensitive": false
+          }
+        ],
+        "access": "public-read"
+      },
+      {
+        "name": "order",
+        "label": "Order",
+        "fields": [
+          {
+            "name": "total",
+            "label": "Total",
+            "type": "money",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "shipping-address",
+            "label": "Shipping address",
+            "type": "longtext",
+            "required": true,
+            "sensitive": false
+          }
+        ],
+        "access": "owner-only"
+      }
+    ],
+    "keyFeatures": [
+      "Search listings",
+      "Checkout with card",
+      "Order status emails",
+      "Nightly sales summary"
+    ]
+  },
+  "users": {
+    "audience": "public",
+    "requiresSignIn": true,
+    "roles": [
+      {
+        "name": "admin",
+        "label": "Administrator",
+        "isAdmin": true
+      },
+      {
+        "name": "maker",
+        "label": "Maker",
+        "isAdmin": false
+      },
+      {
+        "name": "buyer",
+        "label": "Buyer",
+        "isAdmin": false
+      }
+    ],
+    "expectedUserCount": "500+",
+    "registration": "open",
+    "adminMfa": true
+  },
+  "data": {
+    "categories": [
+      "contact",
+      "financial",
+      "payment-card",
+      "location"
+    ],
+    "aboutOtherPeople": true,
+    "retention": "keep-until-deleted",
+    "region": "us"
+  },
+  "capabilities": {
+    "fileUploads": true,
+    "uploadKinds": [
+      "images"
+    ],
+    "aiAssistant": {
+      "enabled": true,
+      "purpose": "answer buyer questions and draft listing descriptions",
+      "dataItCanSee": "all-records",
+      "canTakeActions": true,
+      "storesHistory": true,
+      "canSearchWeb": false,
+      "webSearchSites": []
+    },
+    "email": true,
+    "externalApis": [
+      {
+        "name": "Shipping rates API",
+        "purpose": "quote shipping costs",
+        "sendsPersonalData": true
+      }
+    ],
+    "scheduledJobs": true,
+    "publicApi": true,
+    "payments": true
+  },
+  "deployment": {
+    "target": "internet-later",
+    "owner": {
+      "name": "Jordan Blake",
+      "contactEmail": "jordan@example.com"
+    },
+    "businessImpact": "high"
+  },
+  "meta": {
+    "mode": "quick",
+    "inferredFields": [
+      "users.roles",
+      "capabilities.scheduledJobs",
+      "app.entities"
+    ],
+    "notSureFields": [
+      "deployment.businessImpact"
+    ],
+    "confirmed": false
+  }
+}

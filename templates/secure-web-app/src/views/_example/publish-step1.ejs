@@ -1,0 +1,18 @@
+<section class="card narrow">
+  <h1>Publish "<%= note.title %>" — step 1 of 2</h1>
+  <p>Add an optional note about this publication. You will confirm on the next page.</p>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/notes/<%= note.id %>/publish" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="publishNote">Publishing note (optional)</label>
+      <input id="publishNote" name="publishNote" type="text" maxlength="200" value="<%= values.publishNote || '' %>">
+      <% if (errors.publishNote) { %><p class="field-error"><%= errors.publishNote %></p><% } %>
+    </div>
+    <div class="field field-checkbox">
+      <label><input type="checkbox" name="notify" value="1" <%= values.notify ? 'checked' : '' %>> Let people know</label>
+    </div>
+    <button type="submit" class="button">Continue</button>
+    <a class="button button-secondary" href="/notes/<%= note.id %>">Cancel</a>
+  </form>
+</section>

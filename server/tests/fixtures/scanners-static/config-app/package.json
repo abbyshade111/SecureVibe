@@ -1,0 +1,8 @@
+{
+  "name": "config-app-bad-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node --inspect server.js"
+  }
+}

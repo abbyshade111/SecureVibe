@@ -1,0 +1,144 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { useProject } from '../hooks/useProject';
+import { Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
+import { formatDate } from '../lib/format';
+import { planUpload, runUpload, type UploadPlan } from '../lib/upload';
+
+function size(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function UploadPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { project, loading, error, reload } = useProject(id);
+  const [plan, setPlan] = useState<UploadPlan | null>(null);
+  const [done, setDone] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Folder picking is not part of the HTML standard attributes React knows about.
+  useEffect(() => {
+    inputRef.current?.setAttribute('webkitdirectory', '');
+    inputRef.current?.setAttribute('directory', '');
+  }, [project]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  if (loading) return <LoadingScreen label="Loading…" />;
+  if (error || !project || !id) return <ErrorNotice message={error ?? 'Could not load this app.'} />;
+
+  if (project.origin?.kind !== 'uploaded') {
+    return <ErrorNotice title="Not an uploaded app" message='Only apps added with "Check an app you already have" on My apps take uploads.' />;
+  }
+  const previous = project.origin?.upload;
+  const hasAnswers = project.wizardStep > 0 || project.design !== undefined;
+  const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/wizard/about`;
+
+  async function start() {
+    if (!plan || plan.problem || !id) return;
+    setUploading(true);
+    setUploadError(null);
+    setDone(0);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      await runUpload(id, plan, setDone, controller.signal);
+      await reload();
+      navigate(nextStep);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'The upload did not finish.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const skippedByReason = new Map<string, number>();
+  for (const s of plan?.skipped ?? []) skippedByReason.set(s.reason, (skippedByReason.get(s.reason) ?? 0) + 1);
+
+  return (
+    <div className="sv-stack">
+      <h1>{previous ? 'Upload a new version' : 'Upload your app'}</h1>
+      <Card>
+        <p>
+          Choose the folder that holds your app&apos;s code. SecureVibe copies it into its own workspace on this computer
+          and checks the copy; your folder is not changed.
+        </p>
+        <ul className="sv-muted">
+          <li>
+            Left out on purpose: installed packages (<code className="sv-code">node_modules</code>), build output, version
+            history, and secrets files such as <code className="sv-code">.env</code> and private keys.
+          </li>
+          <li>SecureVibe scans the code; it never runs your app or its tests.</li>
+          <li>Up to 5,000 files and 50 MB (without the left-out parts).</li>
+        </ul>
+        {previous && (
+          <p className="sv-faint">
+            Current version: {previous.files} files, uploaded {formatDate(previous.uploadedAt)}. A new upload replaces it; the old copy
+            is kept.
+          </p>
+        )}
+
+        <div className="sv-field">
+          <label className="sv-label" htmlFor="appFolder">
+            Your app&apos;s folder
+          </label>
+          <input
+            ref={inputRef}
+            id="appFolder"
+            type="file"
+            multiple
+            disabled={uploading}
+            onChange={(e) => {
+              setUploadError(null);
+              setPlan(e.target.files && e.target.files.length > 0 ? planUpload(e.target.files) : null);
+            }}
+          />
+        </div>
+
+        {plan && (
+          <div className={plan.problem ? 'sv-banner sv-banner-warn' : 'sv-banner'}>
+            {plan.problem ? (
+              <p style={{ marginBottom: 0 }}>{plan.problem}</p>
+            ) : (
+              <p style={{ marginBottom: 0 }}>
+                <strong>{plan.folderName || 'Folder'}:</strong> {plan.files.length} files ({size(plan.bytes)}) will be uploaded.
+              </p>
+            )}
+            {skippedByReason.size > 0 && (
+              <p className="sv-faint" style={{ marginBottom: 0 }}>
+                Left out: {[...skippedByReason.entries()].map(([reason, n]) => `${n} × ${reason}`).join(', ')}.
+              </p>
+            )}
+          </div>
+        )}
+
+        {uploading && plan && (
+          <ProgressBar percent={Math.round((done / plan.files.length) * 100)} label={`${done} of ${plan.files.length} files uploaded`} />
+        )}
+        {uploadError && <ErrorNotice message={uploadError} />}
+
+        <div className="sv-row" style={{ flexWrap: 'wrap', marginTop: 12 }}>
+          <button type="button" className="sv-btn" disabled={!plan || !!plan.problem || uploading} onClick={() => void start()}>
+            {uploading ? 'Uploading…' : 'Upload and continue'}
+          </button>
+          {uploading ? (
+            <button type="button" className="sv-btn sv-btn-secondary" onClick={() => abortRef.current?.abort()}>
+              Cancel
+            </button>
+          ) : (
+            previous && (
+              <Link className="sv-btn sv-btn-secondary" to={hasAnswers ? nextStep : `/projects/${id}/wizard/about`}>
+                Keep the current version
+              </Link>
+            )
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,15 @@
+{
+  "name": "securevibe-deps-fixture",
+  "version": "1.2.3",
+  "private": true,
+  "type": "module",
+  "description": "Fixture app for the dependency scanner: a small hand-written lockfile with the cases the checks look for.",
+  "dependencies": {
+    "left-pad": "1.3.0",
+    "sharp-like": "0.32.0",
+    "copyleft-lib": "2.0.0"
+  },
+  "devDependencies": {
+    "tiny-test-helper": "4.0.1"
+  }
+}

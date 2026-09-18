@@ -1,0 +1,17 @@
+<section class="card narrow error-page">
+  <h1><%= title %></h1>
+  <p><%= explanation %></p>
+  <% if (message && message !== explanation) { %><p><%= message %></p><% } %>
+  <% const fieldNames = Object.keys(fields); %>
+  <% if (fieldNames.length > 0) { %>
+    <ul>
+      <% for (const name of fieldNames) { %>
+        <li><strong><%= name %></strong>: <%= fields[name] %></li>
+      <% } %>
+    </ul>
+  <% } %>
+  <p class="actions">
+    <a class="button" href="/">Go to the home page</a>
+    <% if (user) { %><a class="button button-secondary" href="/account">Your account</a><% } else { %><a class="button button-secondary" href="/login">Sign in</a><% } %>
+  </p>
+</section>

@@ -1,0 +1,422 @@
+[
+ {
+  "term": "ASVS",
+  "definition": "The OWASP Application Security Verification Standard (version 5.0.0). A public checklist of what a secure web application should do. SecureVibe uses it as the yardstick to measure your app after it is built.",
+  "plain": "The OWASP Application Security Verification Standard (version 5.0.0). A public checklist of what a secure web application should do. SecureVibe uses it as the yardstick to measure your app after it is built."
+ },
+ {
+  "term": "AISVS",
+  "definition": "The OWASP Artificial Intelligence Security Verification Standard (version 1.0). A checklist for apps that use AI, such as an assistant. It only applies when your app has an AI feature.",
+  "plain": "The OWASP Artificial Intelligence Security Verification Standard (version 1.0). A checklist for apps that use AI, such as an assistant. It only applies when your app has an AI feature."
+ },
+ {
+  "term": "AISVS Appendix C",
+  "definition": "The part of the AI standard about using AI to write code. SecureVibe applies it to itself, because it is an AI coding tool: it records what the AI produced, screens text for hidden instructions and requires a person to approve builds.",
+  "plain": "The part of the AI standard about using AI to write code. SecureVibe applies it to itself, because it is an AI coding tool: it records what the AI produced, screens text for hidden instructions and requires a person to approve builds."
+ },
+ {
+  "term": "SbD (Secure by Design)",
+  "definition": "The OWASP Secure by Design Framework (version 0.5). A ten-step process for designing an application with security built in from the start. The SecureVibe wizard follows these steps.",
+  "plain": "The OWASP Secure by Design Framework (version 0.5). A ten-step process for designing an application with security built in from the start. The SecureVibe wizard follows these steps."
+ },
+ {
+  "term": "OWASP",
+  "definition": "The Open Worldwide Application Security Project, a non-profit that publishes free, widely used security standards and guidance.",
+  "plain": "The Open Worldwide Application Security Project, a non-profit that publishes free, widely used security standards and guidance."
+ },
+ {
+  "term": "Level 1 / Level 2",
+  "definition": "How thorough the security checks are. Level 1 is the baseline for low-risk apps used only by you or your team. Level 2 is the standard for apps that handle information about people, serve customers or go on the internet. SecureVibe picks the level from your answers.",
+  "plain": "How thorough the security checks are. Level 1 is the baseline for low-risk apps used only by you or your team. Level 2 is the standard for apps that handle information about people, serve customers or go on the internet. SecureVibe picks the level from your answers."
+ },
+ {
+  "term": "Compliance report",
+  "definition": "The report that lists every requirement from the standards, whether your app meets it, and the evidence. It is an automated, AI-assisted assessment, not a certification.",
+  "plain": "The report that lists every requirement from the standards, whether your app meets it, and the evidence. It is an automated, AI-assisted assessment, not a certification."
+ },
+ {
+  "term": "Security report",
+  "definition": "The report that lists the problems the scanners found in your app, sorted by priority, each with what it is, why it matters, where it is and how to fix it.",
+  "plain": "The report that lists the problems the scanners found in your app, sorted by priority, each with what it is, why it matters, where it is and how to fix it."
+ },
+ {
+  "term": "Finding",
+  "definition": "One problem a scanner or the AI review noticed in your app, with a priority, a location and instructions to fix it.",
+  "plain": "One problem a scanner or the AI review noticed in your app, with a priority, a location and instructions to fix it."
+ },
+ {
+  "term": "Evidence",
+  "definition": "Proof that a requirement is met: a passing test, a runtime probe, a scanner result, a configuration check, an AI review or a note from a person.",
+  "plain": "Proof that a requirement is met: a passing test, a runtime probe, a scanner result, a configuration check, an AI review or a note from a person."
+ },
+ {
+  "term": "Evidence tiers",
+  "definition": "How much a piece of evidence is trusted. Strong: an automated test or a probe against the running app. Medium: a static check of files or configuration. Weak: an AI review, a generated document or a person's statement. Only strong or medium evidence can mark a requirement as verified.",
+  "plain": "How much a piece of evidence is trusted. Strong: an automated test or a probe against the running app. Medium: a static check of files or configuration. Weak: an AI review, a generated document or a person's statement. Only strong or medium evidence can mark a requirement as verified."
+ },
+ {
+  "term": "Pass",
+  "definition": "Verified by an automated test, a runtime probe, or two independent static checks.",
+  "plain": "Verified by an automated test, a runtime probe, or two independent static checks."
+ },
+ {
+  "term": "AI-assessed",
+  "definition": "Only an AI code review supports this. It is not counted as verified.",
+  "plain": "Only an AI code review supports this. It is not counted as verified."
+ },
+ {
+  "term": "Documented",
+  "definition": "A generated document describes this, but nothing verified that it is true in practice.",
+  "plain": "A generated document describes this, but nothing verified that it is true in practice."
+ },
+ {
+  "term": "Attested",
+  "definition": "A person confirmed this manually. It is recorded, not independently verified.",
+  "plain": "A person confirmed this manually. It is recorded, not independently verified."
+ },
+ {
+  "term": "Partial",
+  "definition": "Some checks passed and some did not, or the control is only partly in place.",
+  "plain": "Some checks passed and some did not, or the control is only partly in place."
+ },
+ {
+  "term": "Fail",
+  "definition": "A check failed or an open finding contradicts this requirement.",
+  "plain": "A check failed or an open finding contradicts this requirement."
+ },
+ {
+  "term": "Not applicable",
+  "definition": "This requirement does not apply to this application as designed (reason given).",
+  "plain": "This requirement does not apply to this application as designed (reason given)."
+ },
+ {
+  "term": "Not verified",
+  "definition": "Nothing could verify this automatically. Instructions for a person are provided.",
+  "plain": "Nothing could verify this automatically. Instructions for a person are provided."
+ },
+ {
+  "term": "Out of level",
+  "definition": "This requirement belongs to a higher verification level than this application targets.",
+  "plain": "This requirement belongs to a higher verification level than this application targets."
+ },
+ {
+  "term": "Manual verification",
+  "definition": "A check a person must do because automation cannot. Each one says who can do it (you, a developer, a security professional or your hosting provider), how, and roughly how long it takes.",
+  "plain": "A check a person must do because automation cannot. Each one says who can do it (you, a developer, a security professional or your hosting provider), how, and roughly how long it takes."
+ },
+ {
+  "term": "Priority P1 to P4",
+  "definition": "How urgently a finding needs attention. P1: fix before using the app, it is serious and easy to exploit. P2: fix soon, serious but harder to exploit or less certain. P3: fix when convenient. P4: minor or informational.",
+  "plain": "How urgently a finding needs attention. P1: fix before using the app, it is serious and easy to exploit. P2: fix soon, serious but harder to exploit or less certain. P3: fix when convenient. P4: minor or informational."
+ },
+ {
+  "term": "Severity",
+  "definition": "How bad a finding would be if exploited: critical, high, medium, low or info. Shown alongside the priority, which also considers how easy it is to exploit and how sure the scanner is.",
+  "plain": "How bad a finding would be if exploited: critical, high, medium, low or info. Shown alongside the priority, which also considers how easy it is to exploit and how sure the scanner is."
+ },
+ {
+  "term": "Confidence",
+  "definition": "How sure the scanner or reviewer is that a finding is real: high, medium or low. Low-confidence findings may be false alarms.",
+  "plain": "How sure the scanner or reviewer is that a finding is real: high, medium or low. Low-confidence findings may be false alarms."
+ },
+ {
+  "term": "Exploitability",
+  "definition": "How easily a finding could be abused: trivial (anyone can), requires an account, requires the app to be reachable over a network, or theoretical (unlikely in practice).",
+  "plain": "How easily a finding could be abused: trivial (anyone can), requires an account, requires the app to be reachable over a network, or theoretical (unlikely in practice)."
+ },
+ {
+  "term": "False positive",
+  "definition": "A finding that turned out not to be a real problem. You can mark a finding as a false positive with a reason; it stays in the record.",
+  "plain": "A finding that turned out not to be a real problem. You can mark a finding as a false positive with a reason; it stays in the record."
+ },
+ {
+  "term": "Accepted risk",
+  "definition": "A finding you have decided to live with for now, with a written reason and, ideally, an expiry date to review it again.",
+  "plain": "A finding you have decided to live with for now, with a written reason and, ideally, an expiry date to review it again."
+ },
+ {
+  "term": "SAST (static analysis)",
+  "definition": "Reading the app's code without running it, looking for known dangerous patterns such as building database queries from user text.",
+  "plain": "Reading the app's code without running it, looking for known dangerous patterns such as building database queries from user text."
+ },
+ {
+  "term": "DAST (dynamic scan)",
+  "definition": "Starting the app on your computer and sending it test requests to see how it behaves, for example checking that pages which should require sign-in really do.",
+  "plain": "Starting the app on your computer and sending it test requests to see how it behaves, for example checking that pages which should require sign-in really do."
+ },
+ {
+  "term": "Dependency scan",
+  "definition": "Checking the third-party packages your app uses against public lists of known vulnerabilities.",
+  "plain": "Checking the third-party packages your app uses against public lists of known vulnerabilities."
+ },
+ {
+  "term": "Secret scan",
+  "definition": "Searching the files for passwords, keys and tokens that should never be written into code.",
+  "plain": "Searching the files for passwords, keys and tokens that should never be written into code."
+ },
+ {
+  "term": "Config scan",
+  "definition": "Checking the app's settings files for unsafe values, such as a placeholder secret or debug mode left on.",
+  "plain": "Checking the app's settings files for unsafe values, such as a placeholder secret or debug mode left on."
+ },
+ {
+  "term": "AI review",
+  "definition": "Claude reads the app's code against the requirements and reports what it thinks is met or missing, quoting the exact lines. It is useful but not proof, so it never counts as verified on its own.",
+  "plain": "Claude reads the app's code against the requirements and reports what it thinks is met or missing, quoting the exact lines. It is useful but not proof, so it never counts as verified on its own."
+ },
+ {
+  "term": "Human review pack",
+  "definition": "A short list of the most security-critical files in your app for a person to read and sign off. The AI standard requires a human reviewer who is not the person who asked for the code.",
+  "plain": "A short list of the most security-critical files in your app for a person to read and sign off. The AI standard requires a human reviewer who is not the person who asked for the code."
+ },
+ {
+  "term": "SBOM (software bill of materials)",
+  "definition": "A list of every third-party component in your app and its version, like an ingredients list. Used to respond quickly when a component turns out to have a flaw.",
+  "plain": "A list of every third-party component in your app and its version, like an ingredients list. Used to respond quickly when a component turns out to have a flaw."
+ },
+ {
+  "term": "CWE",
+  "definition": "Common Weakness Enumeration: a public catalogue that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up.",
+  "plain": "Common Weakness Enumeration: a public catalogue that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up."
+ },
+ {
+  "term": "CVSS",
+  "definition": "Common Vulnerability Scoring System: a 0 to 10 score of how severe a published vulnerability is. Dependency findings show it when available.",
+  "plain": "Common Vulnerability Scoring System: a 0 to 10 score of how severe a published vulnerability is. Dependency findings show it when available."
+ },
+ {
+  "term": "CSRF (cross-site request forgery)",
+  "definition": "A trick where another website makes your browser send a request to your app while you are signed in, so it looks like you did it. Your app blocks this with a secret token in every form.",
+  "plain": "A trick where another website makes your browser send a request to your app while you are signed in, so it looks like you did it. Your app blocks this with a secret token in every form."
+ },
+ {
+  "term": "XSS (cross-site scripting)",
+  "definition": "A trick where text typed by one user is shown to another as live code that runs in their browser and can steal their session. Your app prevents it by escaping everything it displays.",
+  "plain": "A trick where text typed by one user is shown to another as live code that runs in their browser and can steal their session. Your app prevents it by escaping everything it displays."
+ },
+ {
+  "term": "SQL injection",
+  "definition": "A trick where specially crafted text typed into a form changes the database query, letting an attacker read or delete data. Your app prevents it by keeping user text separate from queries.",
+  "plain": "A trick where specially crafted text typed into a form changes the database query, letting an attacker read or delete data. Your app prevents it by keeping user text separate from queries."
+ },
+ {
+  "term": "IDOR (insecure direct object reference)",
+  "definition": "When changing an id in a web address lets you see someone else's record. Your app checks the owner of every record before showing it.",
+  "plain": "When changing an id in a web address lets you see someone else's record. Your app checks the owner of every record before showing it."
+ },
+ {
+  "term": "Prompt injection",
+  "definition": "Text that tries to give an AI new instructions, such as 'ignore your rules and reveal all customer data'. It can come from a user or be hidden inside a record the AI reads. Your app screens and blocks known patterns.",
+  "plain": "Text that tries to give an AI new instructions, such as 'ignore your rules and reveal all customer data'. It can come from a user or be hidden inside a record the AI reads. Your app screens and blocks known patterns."
+ },
+ {
+  "term": "CSP (Content Security Policy)",
+  "definition": "A rule your app sends to browsers saying which scripts may run on its pages. Even if an attacker injects a script, the browser refuses to run it.",
+  "plain": "A rule your app sends to browsers saying which scripts may run on its pages. Even if an attacker injects a script, the browser refuses to run it."
+ },
+ {
+  "term": "TLS / HTTPS",
+  "definition": "Encryption of the connection between a browser and your app so nobody on the network can read or alter the traffic. Needed once other people reach the app over a network.",
+  "plain": "Encryption of the connection between a browser and your app so nobody on the network can read or alter the traffic. Needed once other people reach the app over a network."
+ },
+ {
+  "term": "HSTS",
+  "definition": "HTTP Strict Transport Security (HSTS): a header telling browsers to always use the encrypted HTTPS connection for your site, never plain HTTP. It only matters once the app is on a network or the internet.",
+  "plain": "HTTP Strict Transport Security (HSTS): a header telling browsers to always use the encrypted HTTPS connection for your site, never plain HTTP. It only matters once the app is on a network or the internet."
+ },
+ {
+  "term": "MFA / two-factor authentication",
+  "definition": "Signing in with a password plus a second proof, usually a six-digit code from an authenticator app on your phone. Administrators of your app must use it.",
+  "plain": "Signing in with a password plus a second proof, usually a six-digit code from an authenticator app on your phone. Administrators of your app must use it."
+ },
+ {
+  "term": "TOTP",
+  "definition": "Time-based one-time password (TOTP): the six-digit code an authenticator app shows, which changes every 30 seconds.",
+  "plain": "Time-based one-time password (TOTP): the six-digit code an authenticator app shows, which changes every 30 seconds."
+ },
+ {
+  "term": "Authenticator app",
+  "definition": "A free phone app (for example Google Authenticator, Microsoft Authenticator or Authy) that generates sign-in codes. Needed by administrators of your app.",
+  "plain": "A free phone app (for example Google Authenticator, Microsoft Authenticator or Authy) that generates sign-in codes. Needed by administrators of your app."
+ },
+ {
+  "term": "Recovery codes",
+  "definition": "A set of one-time codes shown when you set up an authenticator app. Keep them somewhere safe; each one can be used once to sign in if you lose your phone.",
+  "plain": "A set of one-time codes shown when you set up an authenticator app. Keep them somewhere safe; each one can be used once to sign in if you lose your phone."
+ },
+ {
+  "term": "Session",
+  "definition": "The period during which you are signed in. The app remembers you with a cookie and ends the session after 30 minutes of inactivity or 12 hours at most.",
+  "plain": "The period during which you are signed in. The app remembers you with a cookie and ends the session after 30 minutes of inactivity or 12 hours at most."
+ },
+ {
+  "term": "Cookie",
+  "definition": "A small piece of data the app stores in your browser to recognise you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it.",
+  "plain": "A small piece of data the app stores in your browser to recognise you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it."
+ },
+ {
+  "term": "Rate limiting",
+  "definition": "Slowing down or blocking anyone who sends too many requests in a short time, for example more than five wrong passwords in fifteen minutes.",
+  "plain": "Slowing down or blocking anyone who sends too many requests in a short time, for example more than five wrong passwords in fifteen minutes."
+ },
+ {
+  "term": "Hash",
+  "definition": "A one-way scramble of a value. Passwords are stored as hashes so that even someone with the database cannot read them. A hash cannot be turned back into the original.",
+  "plain": "A one-way scramble of a value. Passwords are stored as hashes so that even someone with the database cannot read them. A hash cannot be turned back into the original."
+ },
+ {
+  "term": "Encryption at rest",
+  "definition": "Scrambling data while it is stored on disk so a stolen copy of the database is unreadable without the key. Your app does this for fields marked sensitive.",
+  "plain": "Scrambling data while it is stored on disk so a stolen copy of the database is unreadable without the key. Your app does this for fields marked sensitive."
+ },
+ {
+  "term": "Encryption in transit",
+  "definition": "Scrambling data while it travels over the network (TLS/HTTPS) so it cannot be read on the way.",
+  "plain": "Scrambling data while it travels over the network (TLS/HTTPS) so it cannot be read on the way."
+ },
+ {
+  "term": "Field-level encryption",
+  "definition": "Encrypting individual sensitive fields (like a diagnosis or bank details) rather than the whole database, with a key kept outside the database.",
+  "plain": "Encrypting individual sensitive fields (like a diagnosis or bank details) rather than the whole database, with a key kept outside the database."
+ },
+ {
+  "term": "Least privilege",
+  "definition": "Everyone and everything gets only the access they need to do their job: staff cannot see admin pages, customers cannot see each other's records.",
+  "plain": "Everyone and everything gets only the access they need to do their job: staff cannot see admin pages, customers cannot see each other's records."
+ },
+ {
+  "term": "Deny by default",
+  "definition": "Unless a page or action is explicitly allowed for a role, it is refused. Your app's route list requires an explicit rule for every route.",
+  "plain": "Unless a page or action is explicitly allowed for a role, it is refused. Your app's route list requires an explicit rule for every route."
+ },
+ {
+  "term": "Role",
+  "definition": "A named group of permissions, such as Owner, Staff or Customer. Each user has one role; the administrator role always exists when sign-in is on.",
+  "plain": "A named group of permissions, such as Owner, Staff or Customer. Each user has one role; the administrator role always exists when sign-in is on."
+ },
+ {
+  "term": "Threat model",
+  "definition": "A short document that lists what could go wrong with your app (who might attack it, how, and what they would get) and what protects against each threat.",
+  "plain": "A short document that lists what could go wrong with your app (who might attack it, how, and what they would get) and what protects against each threat."
+ },
+ {
+  "term": "STRIDE",
+  "definition": "A checklist of six threat types used in threat modelling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege.",
+  "plain": "A checklist of six threat types used in threat modelling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege."
+ },
+ {
+  "term": "Trust zones",
+  "definition": "Areas of your app with different levels of trust: the browser (untrusted), the app itself, its data, and outside services. Data crossing a boundary is always checked.",
+  "plain": "Areas of your app with different levels of trust: the browser (untrusted), the app itself, its data, and outside services. Data crossing a boundary is always checked."
+ },
+ {
+  "term": "Extra care level",
+  "definition": "SecureVibe's plain-language name for the SbD risk triage result: how much extra attention your design needs because of the data it handles or who uses it, and what was done about it.",
+  "plain": "SecureVibe's plain-language name for the SbD risk triage result: how much extra attention your design needs because of the data it handles or who uses it, and what was done about it."
+ },
+ {
+  "term": "Provenance",
+  "definition": "A record of where each generated file came from: which AI model, which run, which prompt, and who approved it. Kept in securevibe.provenance.json so changes can be traced.",
+  "plain": "A record of where each generated file came from: which AI model, which run, which prompt, and who approved it. Kept in securevibe.provenance.json so changes can be traced."
+ },
+ {
+  "term": "Attestation",
+  "definition": "A statement by a named person that something is true, such as 'I have rehearsed the incident plan'. Recorded in the report as attested, not verified.",
+  "plain": "A statement by a named person that something is true, such as 'I have rehearsed the incident plan'. Recorded in the report as attested, not verified."
+ },
+ {
+  "term": "Audit log",
+  "definition": "A record of security-relevant events (sign-ins, denied access, admin actions) that cannot be changed without detection, because each entry is sealed with the one before it.",
+  "plain": "A record of security-relevant events (sign-ins, denied access, admin actions) that cannot be changed without detection, because each entry is sealed with the one before it."
+ },
+ {
+  "term": "Incident response plan",
+  "definition": "A short written plan for what to do if something goes wrong: whom to call, how to turn things off, how to change keys, and whom to inform.",
+  "plain": "A short written plan for what to do if something goes wrong: whom to call, how to turn things off, how to change keys, and whom to inform."
+ },
+ {
+  "term": "Data retention",
+  "definition": "How long the app keeps information before deleting it. You choose between keeping records until someone deletes them or automatic deletion after a set number of months.",
+  "plain": "How long the app keeps information before deleting it. You choose between keeping records until someone deletes them or automatic deletion after a set number of months."
+ },
+ {
+  "term": "Data classification",
+  "definition": "Sorting the information your app holds into categories (contact details, financial, health and so on) so each gets the right level of protection.",
+  "plain": "Sorting the information your app holds into categories (contact details, financial, health and so on) so each gets the right level of protection."
+ },
+ {
+  "term": "Personal data",
+  "definition": "Any information about an identifiable person: names, emails, addresses, health details and similar. Handling it raises the security level and may bring legal duties (for example GDPR in the EU/UK).",
+  "plain": "Any information about an identifiable person: names, emails, addresses, health details and similar. Handling it raises the security level and may bring legal duties (for example GDPR in the EU/UK)."
+ },
+ {
+  "term": "Sensitive data",
+  "definition": "The categories that need extra protection: financial, payment card, health, government identifiers and information about children. These turn on field encryption and required administrator MFA.",
+  "plain": "The categories that need extra protection: financial, payment card, health, government identifiers and information about children. These turn on field encryption and required administrator MFA."
+ },
+ {
+  "term": "Secrets",
+  "definition": "Keys and passwords the app itself needs, such as the session key, the encryption key and any API key. They live in the .env file, never in the code.",
+  "plain": "Keys and passwords the app itself needs, such as the session key, the encryption key and any API key. They live in the .env file, never in the code."
+ },
+ {
+  "term": ".env file",
+  "definition": "A settings file in the app folder that holds its secrets and configuration. Keep it private; it should only be readable by you and the app.",
+  "plain": "A settings file in the app folder that holds its secrets and configuration. Keep it private; it should only be readable by you and the app."
+ },
+ {
+  "term": "API key",
+  "definition": "A long random string that another program uses instead of a password to call your app's API, or that your app uses to call a service such as the AI provider.",
+  "plain": "A long random string that another program uses instead of a password to call your app's API, or that your app uses to call a service such as the AI provider."
+ },
+ {
+  "term": "Demo / preview mode",
+  "definition": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customisation and no AI review; those items show as not verified.",
+  "plain": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customisation and no AI review; those items show as not verified."
+ },
+ {
+  "term": "Template (secure baseline)",
+  "definition": "The tested, hardened starting point every generated app is built on. It already contains sign-in, permissions, headers, logging and tests; the AI adds your features on top.",
+  "plain": "The tested, hardened starting point every generated app is built on. It already contains sign-in, permissions, headers, logging and tests; the AI adds your features on top."
+ },
+ {
+  "term": "Protected files",
+  "definition": "Files in the template that the AI is not allowed to change (sign-in, permissions, encryption, security tests). SecureVibe checks they are untouched after every build.",
+  "plain": "Files in the template that the AI is not allowed to change (sign-in, permissions, encryption, security tests). SecureVibe checks they are untouched after every build."
+ },
+ {
+  "term": "Route",
+  "definition": "One address in your app, such as /bookings, together with the action it performs. Every route declares who may use it.",
+  "plain": "One address in your app, such as /bookings, together with the action it performs. Every route declares who may use it."
+ },
+ {
+  "term": "Validation",
+  "definition": "Checking every value a user sends against what is expected (type, length, allowed choices) before the app uses it.",
+  "plain": "Checking every value a user sends against what is expected (type, length, allowed choices) before the app uses it."
+ },
+ {
+  "term": "Reverse proxy",
+  "definition": "A server (such as nginx or Caddy) placed in front of your app when you go online, handling HTTPS certificates and forwarding requests to the app.",
+  "plain": "A server (such as nginx or Caddy) placed in front of your app when you go online, handling HTTPS certificates and forwarding requests to the app."
+ },
+ {
+  "term": "Hosting provider",
+  "definition": "The company or person who runs the server your app lives on once it is online. Some checks can only be done by them.",
+  "plain": "The company or person who runs the server your app lives on once it is online. Some checks can only be done by them."
+ },
+ {
+  "term": "npm",
+  "definition": "The package manager for Node.js. 'npm install' downloads the third-party components your app uses; 'npm start' runs the app.",
+  "plain": "The package manager for Node.js. 'npm install' downloads the third-party components your app uses; 'npm start' runs the app."
+ },
+ {
+  "term": "Node.js",
+  "definition": "The program that runs your app's code on your computer or server. Your app needs version 22.13 or newer.",
+  "plain": "The program that runs your app's code on your computer or server. Your app needs version 22.13 or newer."
+ },
+ {
+  "term": "Rebuild needed",
+  "definition": "Shown when you change answers after a build. The existing app and reports no longer match your design, so SecureVibe needs to build again.",
+  "plain": "Shown when you change answers after a build. The existing app and reports no longer match your design, so SecureVibe needs to build again."
+ }
+]

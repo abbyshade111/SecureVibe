@@ -1,0 +1,15 @@
+<section class="card narrow">
+  <h1>Reset your password</h1>
+  <p>Enter your email address. If it belongs to an account, we will send a link that lets you choose a new password. The link works for 15 minutes.</p>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/forgot-password" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="username" required value="<%= values.email || '' %>">
+      <% if (errors.email) { %><p class="field-error"><%= errors.email %></p><% } %>
+    </div>
+    <button type="submit" class="button">Send me a reset link</button>
+  </form>
+  <p class="muted"><a href="/login">Back to sign in</a></p>
+</section>

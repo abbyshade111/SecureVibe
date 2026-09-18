@@ -1,0 +1,91 @@
+<section class="card">
+  <h1><%= account.email %></h1>
+  <dl class="details">
+    <dt>Name</dt><dd><%= account.name || '—' %></dd>
+    <dt>Role</dt><dd><%= account.role %></dd>
+    <dt>Status</dt><dd><%= account.status %></dd>
+    <dt>One-time codes</dt><dd><%= account.mfaEnrolled ? 'on' : 'off' %></dd>
+    <dt>Temporary password</dt><dd><%= account.credentialUpdateRequired ? 'yes, must be changed at next sign-in' : 'no' %></dd>
+    <dt>Failed sign-ins</dt><dd><%= account.failedLogins %><%= account.lockUntil ? ' (temporarily locked until ' + formatDate(account.lockUntil) + ')' : '' %></dd>
+    <dt>Signed-in devices</dt><dd><%= activeSessions %></dd>
+    <dt>Created</dt><dd><%= formatDate(account.createdAt) %></dd>
+    <dt>Last sign-in</dt><dd><%= formatDate(account.lastLoginAt) %></dd>
+  </dl>
+</section>
+
+<% if (isSelf) { %>
+  <p class="notice">This is your own account. Use <a href="/account">your account page</a> to change it.</p>
+<% } else { %>
+<div class="grid">
+  <section class="card">
+    <h2>Role</h2>
+    <form method="post" action="/admin/users/<%= account.id %>/role">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          <% for (const r of roles) { %>
+            <option value="<%= r.name %>" <%= r.name === account.role ? 'selected' : '' %>><%= r.label %></option>
+          <% } %>
+        </select>
+      </div>
+      <button type="submit" class="button button-secondary">Change role</button>
+    </form>
+    <p class="hint">The person is signed out everywhere so the new role takes effect.</p>
+  </section>
+
+  <section class="card">
+    <h2>Access</h2>
+    <% if (account.status === 'active') { %>
+      <form method="post" action="/admin/users/<%= account.id %>/disable" data-confirm="Disable this account and sign it out everywhere?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field">
+          <label for="disable-reason">Reason (optional, kept in the log)</label>
+          <input id="disable-reason" name="reason" type="text" maxlength="200">
+        </div>
+        <button type="submit" class="button button-danger">Disable account</button>
+      </form>
+    <% } else { %>
+      <form method="post" action="/admin/users/<%= account.id %>/enable">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="button">Re-enable account</button>
+      </form>
+    <% } %>
+    <form method="post" action="/admin/users/<%= account.id %>/sessions/revoke" class="spaced">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="button button-secondary">Sign out everywhere</button>
+    </form>
+    <form method="post" action="/admin/users/<%= account.id %>/invite" class="spaced">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="button button-secondary">Send a new invitation link</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>One-time codes</h2>
+    <% if (account.mfaEnrolled) { %>
+      <p>Remove one-time codes when the person has lost their phone and their recovery codes. Check who you are talking to first; this is a favourite trick of attackers.</p>
+      <form method="post" action="/admin/users/<%= account.id %>/mfa-reset" data-confirm="Remove one-time codes from this account?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field">
+          <label for="mfa-reason">Reason (required, kept in the log)</label>
+          <input id="mfa-reason" name="reason" type="text" required minlength="3" maxlength="200">
+        </div>
+        <button type="submit" class="button button-danger">Remove one-time codes</button>
+      </form>
+    <% } else { %>
+      <p class="muted">Not set up for this account.</p>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>Delete</h2>
+    <p>Deletes the account and its records. The security log keeps a reference without the person's name or email address.</p>
+    <form method="post" action="/admin/users/<%= account.id %>/delete" data-confirm="Delete this account and its records for good?">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="button button-danger">Delete account</button>
+    </form>
+  </section>
+</div>
+<% } %>
+<p class="muted"><a href="/admin/users">Back to accounts</a></p>

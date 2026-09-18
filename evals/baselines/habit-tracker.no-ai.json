@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "case": "habit-tracker",
+  "mode": "no-ai",
+  "runId": "r_20260918021016_nljxyn",
+  "status": "succeeded",
+  "durationMs": 266317,
+  "stages": {
+    "design-freeze": "passed",
+    "scaffold": "passed",
+    "generate": "skipped",
+    "install": "skipped",
+    "typecheck": "passed",
+    "lint": "passed",
+    "unit-tests": "passed",
+    "sast": "passed",
+    "secrets": "passed",
+    "deps": "passed",
+    "config": "warning",
+    "dast": "passed",
+    "external": "passed",
+    "ai-review": "skipped",
+    "fix": "skipped",
+    "compliance": "passed",
+    "reports": "passed"
+  },
+  "openFindings": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 1
+  },
+  "asvs": {
+    "pass": 17,
+    "applicable": 25,
+    "verifiedPassPercent": 68,
+    "aiAssessed": 0,
+    "fail": 0
+  },
+  "tests": {
+    "total": 163,
+    "passed": 105,
+    "failed": 0
+  },
+  "costUsd": 0
+}

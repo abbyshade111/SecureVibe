@@ -1,0 +1,1753 @@
+{
+  "version": "1.0",
+  "description": "Plain-language copy for every wizard screen. Question ids are DesignProfile paths. `whatThisChanges` on a question maps an answer value to consequence sentences; the top-level `whatThisChanges` maps design-engine condition ids to the same kind of sentences (used by the summary and reports). All text is written for a small-business owner.",
+  "common": {
+    "notSureLabel": "Not sure",
+    "notSureExplanation": "If you pick Not sure, we choose the safer answer for you and write it down as an assumption. You can change it later.",
+    "recommendedBadge": "Recommended",
+    "whyWeAskLabel": "Why we ask",
+    "whatThisChangesLabel": "What this changes",
+    "assumptionPrefix": "We assumed",
+    "authenticatorNotice": "Some answers turn on two-step sign-in for administrators. That means the person who manages the app will need a free authenticator app on their phone (for example Google Authenticator or Microsoft Authenticator). We tell you exactly when this applies.",
+    "freeTextNotice": "Anything you type here is checked for text that tries to give the AI instructions (for example 'ignore your previous instructions'). If we find some, we tell you why and ask you to reword it.",
+    "scopeNotice": "SecureVibe builds web apps that run on your own computer first: pages you open in a browser, a small database, optional sign-in, file uploads, an AI assistant, email notifications and connections to other online services. It does not build phone apps or social-media logins in this version."
+  },
+  "steps": [
+    {
+      "id": "about",
+      "title": "What are you building?",
+      "intro": "Tell us about the app in your own words. There are no wrong answers here; we only need enough to understand what it does.",
+      "sbdStep": 1,
+      "estimatedMinutes": 3
+    },
+    {
+      "id": "users",
+      "title": "Who will use it?",
+      "intro": "Who uses the app decides how carefully we protect sign-in and who can see what.",
+      "sbdStep": 1,
+      "estimatedMinutes": 2
+    },
+    {
+      "id": "data",
+      "title": "What information will it handle?",
+      "intro": "The kind of information you keep decides how strongly we protect it and which rules may apply to you.",
+      "sbdStep": 1,
+      "estimatedMinutes": 2
+    },
+    {
+      "id": "features",
+      "title": "Features & connections",
+      "intro": "Extra features are useful, but each one is another door we need to lock. Turn on only what you need; you can add more later.",
+      "sbdStep": 1,
+      "estimatedMinutes": 3
+    },
+    {
+      "id": "deployment",
+      "title": "Where will it run?",
+      "intro": "Where the app runs decides how exposed it is. An app on your own computer faces fewer threats than one on the internet.",
+      "sbdStep": 1,
+      "estimatedMinutes": 1
+    },
+    {
+      "id": "summary",
+      "title": "Here's what we'll build",
+      "intro": "A plain summary of your app and the protections it will have. Check the assumptions we made, then approve the build.",
+      "sbdStep": 8,
+      "estimatedMinutes": 2
+    },
+    {
+      "id": "build",
+      "title": "Build",
+      "intro": "We write the app, install it, test it and check it against the OWASP security standards. This usually takes a few minutes.",
+      "sbdStep": 9,
+      "estimatedMinutes": 10
+    },
+    {
+      "id": "results",
+      "title": "Results",
+      "intro": "How to run your app, what we found, what was fixed for you, and what still needs a person.",
+      "sbdStep": 10,
+      "estimatedMinutes": 5
+    }
+  ],
+  "questions": [
+    {
+      "id": "app.name",
+      "step": "about",
+      "inputType": "text",
+      "required": true,
+      "title": "Name your app",
+      "question": "What should we call your app?",
+      "helpText": "A short, friendly name. It appears at the top of every page and in the reports.",
+      "whyWeAsk": "The name goes into page titles, the reports and the security documents so everything is clearly about your app. It is also added to the list of words your app will not accept inside a password, because attackers guess those first.",
+      "placeholder": "Bella's Salon Bookings",
+      "example": "Bella's Salon Bookings",
+      "maxLength": 60,
+      "notSure": {
+        "available": false
+      },
+      "whatThisChanges": {}
+    },
+    {
+      "id": "app.tagline",
+      "step": "about",
+      "inputType": "text",
+      "required": false,
+      "title": "One-line summary",
+      "question": "In one line, what does it do?",
+      "helpText": "Optional. Something like 'Online booking for a hair salon'.",
+      "whyWeAsk": "It becomes the first line of the design document and the reports, so a reader knows what the app is at a glance.",
+      "placeholder": "Online booking for a hair salon",
+      "maxLength": 120,
+      "notSure": {
+        "available": false
+      },
+      "whatThisChanges": {}
+    },
+    {
+      "id": "app.description",
+      "step": "about",
+      "inputType": "longtext",
+      "required": true,
+      "title": "Describe your app",
+      "question": "What should your app do, in your own words?",
+      "helpText": "Three to six sentences are plenty. Say who uses it, what they do in it, and what information it keeps. Write as if you were explaining it to a new employee.",
+      "whyWeAsk": "This description guides the AI that writes your app. The security decisions are never taken from this text; they come from the answers you give on the next screens.",
+      "placeholder": "Customers pick a service and a time slot online. Staff see their day's appointments and can mark them done. I want reminders sent by email the day before.",
+      "example": "Customers pick a service and a time slot online. Staff see their day's appointments and can mark them done. I want reminders sent by email the day before.",
+      "maxLength": 4000,
+      "screenedForInjection": true,
+      "notSure": {
+        "available": false
+      },
+      "whatThisChanges": {
+        "*": [
+          "The AI uses this text to write the pages and features. Security settings still come only from your answers to the other questions."
+        ]
+      }
+    },
+    {
+      "id": "app.category",
+      "step": "about",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "Type of app",
+      "question": "Which of these is closest to your app?",
+      "helpText": "Pick the nearest match. It only helps us suggest sensible starting points.",
+      "whyWeAsk": "The category lets us suggest the kinds of records and roles apps like yours usually need, so you have less to type.",
+      "options": [
+        {
+          "value": "tracker",
+          "label": "Tracker",
+          "description": "Tasks, issues, habits or anything with a status you follow over time."
+        },
+        {
+          "value": "booking",
+          "label": "Booking or appointments",
+          "description": "People reserve a time, a table, a room or a service."
+        },
+        {
+          "value": "inventory",
+          "label": "Inventory or assets",
+          "description": "Stock levels, equipment, tools or supplies."
+        },
+        {
+          "value": "content",
+          "label": "Content or knowledge",
+          "description": "Articles, a wiki, documentation or a simple website you edit."
+        },
+        {
+          "value": "dashboard",
+          "label": "Dashboard or reports",
+          "description": "Numbers and charts over data you already have."
+        },
+        {
+          "value": "intake-form",
+          "label": "Forms or applications",
+          "description": "People fill in a form; you review the submissions."
+        },
+        {
+          "value": "crm",
+          "label": "Customers and contacts",
+          "description": "Customer records, notes, follow-ups and deals."
+        },
+        {
+          "value": "ai-assistant",
+          "label": "AI assistant",
+          "description": "A chat-style helper that answers questions about your business or your data."
+        },
+        {
+          "value": "marketplace",
+          "label": "Marketplace or listings",
+          "description": "Sellers post listings; buyers browse and respond."
+        },
+        {
+          "value": "internal-tool",
+          "label": "Internal tool",
+          "description": "Something only your team uses to get work done."
+        },
+        {
+          "value": "other",
+          "label": "Something else",
+          "description": "None of the above fits well."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "other",
+        "behaviour": "We will treat it as a general app (\"Something else\") and note it. Nothing about security depends on this answer."
+      },
+      "whatThisChanges": {
+        "*": [
+          "We suggest the records and kinds of users that apps like yours usually need. You can change every suggestion."
+        ],
+        "ai-assistant": [
+          "Because the app is built around an AI assistant, we will turn the assistant feature on and ask a few questions about what it may see and do."
+        ],
+        "marketplace": [
+          "Marketplaces usually have two kinds of users (sellers and buyers). We will suggest those roles."
+        ],
+        "intake-form": [
+          "Forms are often filled in by people without an account. We will ask whether the form is public and protect it against automated spam."
+        ]
+      }
+    },
+    {
+      "id": "app.entities",
+      "step": "about",
+      "inputType": "entities",
+      "required": false,
+      "title": "What it keeps track of",
+      "question": "What kinds of things will your app keep track of?",
+      "helpText": "For example: Appointment, Customer, Product. For each one, list the details you want to store (name, date, price...). You can start with one and add more later.",
+      "whyWeAsk": "Each kind of record becomes a table in the database with its own pages. We also use this list to decide which details need extra protection and who may see them.",
+      "placeholder": "Appointment",
+      "example": "Appointment: customer name, service, date and time, notes. Customer: name, phone, email.",
+      "maxEntities": 20,
+      "maxFieldsPerEntity": 40,
+      "notSure": {
+        "available": true,
+        "behaviour": "We will suggest typical records for your type of app and mark them as assumptions for you to confirm on the summary screen."
+      },
+      "whatThisChanges": {
+        "*": [
+          "Every record gets its own pages (list, view, add, edit) with checks that only allowed people can use them.",
+          "Every detail you list is checked for the right type and length before it is saved."
+        ]
+      },
+      "sub": {
+        "field": {
+          "title": "Details of a record",
+          "nameLabel": "Detail name",
+          "namePlaceholder": "customer name",
+          "typeLabel": "What kind of value is it?",
+          "types": [
+            {
+              "value": "text",
+              "label": "Short text",
+              "description": "A name, a title, a short note."
+            },
+            {
+              "value": "longtext",
+              "label": "Long text",
+              "description": "Paragraphs, descriptions, comments."
+            },
+            {
+              "value": "number",
+              "label": "Number",
+              "description": "Quantities, counts, scores."
+            },
+            {
+              "value": "money",
+              "label": "Money amount",
+              "description": "Prices, totals, balances (stored precisely, never rounded)."
+            },
+            {
+              "value": "date",
+              "label": "Date",
+              "description": "A calendar day."
+            },
+            {
+              "value": "datetime",
+              "label": "Date and time",
+              "description": "A day and a time."
+            },
+            {
+              "value": "boolean",
+              "label": "Yes / No",
+              "description": "A checkbox."
+            },
+            {
+              "value": "email",
+              "label": "Email address",
+              "description": "Checked to look like a real address."
+            },
+            {
+              "value": "url",
+              "label": "Web address",
+              "description": "Only http and https links are accepted."
+            },
+            {
+              "value": "phone",
+              "label": "Phone number",
+              "description": "Digits, spaces and + only."
+            },
+            {
+              "value": "choice",
+              "label": "One of a list",
+              "description": "You give the allowed options (for example: Pending, Confirmed, Done)."
+            },
+            {
+              "value": "file",
+              "label": "Attached file",
+              "description": "An uploaded document or image. Turns on the file-upload feature."
+            }
+          ],
+          "requiredLabel": "Must be filled in",
+          "sensitiveLabel": "This is sensitive",
+          "sensitiveHelp": "Tick this for details you would not want printed on a notice board: health notes, ID numbers, bank details, salaries.",
+          "sensitiveWhatThisChanges": [
+            "Sensitive details are encrypted in the database, so someone who copies the database file cannot read them.",
+            "They are hidden from log files and error messages.",
+            "Administrators will need an authenticator app to sign in."
+          ]
+        },
+        "access": {
+          "title": "Who can see these records?",
+          "options": [
+            {
+              "value": "all-signed-in",
+              "label": "Everyone who is signed in",
+              "description": "Any signed-in person can see and edit them (for example a shared task list).",
+              "recommended": false
+            },
+            {
+              "value": "owner-only",
+              "label": "Only the person who created it (and administrators)",
+              "description": "People only see their own records, like their own bookings.",
+              "recommended": true
+            },
+            {
+              "value": "admin-only",
+              "label": "Only administrators",
+              "description": "Regular users never see these."
+            },
+            {
+              "value": "public-read",
+              "label": "Anyone can view, only signed-in people can edit",
+              "description": "Like a public price list or opening hours."
+            }
+          ],
+          "notSure": {
+            "choosesValue": "owner-only",
+            "behaviour": "We will choose 'only the person who created it' because it shows the least to each person, and note it."
+          },
+          "whatThisChanges": {
+            "all-signed-in": [
+              "Anyone with an account can see and change these records. Sign-in will be required to reach them."
+            ],
+            "owner-only": [
+              "Every page checks that the record belongs to the signed-in person before showing it. We test this by trying to open other people's records."
+            ],
+            "admin-only": [
+              "Only administrator accounts can reach these pages. Everyone else gets a 'not allowed' answer."
+            ],
+            "public-read": [
+              "Viewing needs no account. Adding or changing still requires sign-in and is protected against forged requests."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "app.keyFeatures",
+      "step": "about",
+      "inputType": "list",
+      "required": false,
+      "title": "Key features",
+      "question": "What are the main things people should be able to do?",
+      "helpText": "One short line each. For example: 'Book an appointment', 'See today's schedule', 'Export the month to a spreadsheet'.",
+      "whyWeAsk": "This is the to-do list for the AI that builds your app. Clear features lead to a cleaner app with fewer surprises.",
+      "placeholder": "Book an appointment",
+      "example": "Book an appointment; Cancel a booking; See today's schedule",
+      "maxItems": 30,
+      "maxLength": 200,
+      "screenedForInjection": true,
+      "notSure": {
+        "available": true,
+        "behaviour": "We will build the standard pages for each record (list, add, edit, delete) and note it as an assumption that no extra features were requested."
+      },
+      "whatThisChanges": {
+        "*": [
+          "Each feature is built following the same safety rules: sign-in checks, input checks and protection against forged requests."
+        ]
+      }
+    },
+    {
+      "id": "users.audience",
+      "step": "users",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "Who will use it",
+      "question": "Who will use this app?",
+      "helpText": "Think about the widest group of people who will ever open it.",
+      "whyWeAsk": "The more people who can reach the app, the more likely someone will try to misuse it. This answer sets how strict sign-in and the anti-abuse limits are, and which security level we test against.",
+      "options": [
+        {
+          "value": "just-me",
+          "label": "Only me",
+          "description": "You are the only person who will ever open it."
+        },
+        {
+          "value": "my-team",
+          "label": "Me and my team",
+          "description": "People who work with you. You know each of them."
+        },
+        {
+          "value": "customers",
+          "label": "My customers or clients",
+          "description": "People you do business with. You do not know all of them personally.",
+          "recommended": false
+        },
+        {
+          "value": "public",
+          "label": "Anyone on the internet",
+          "description": "Strangers can find and use it."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "customers",
+        "behaviour": "We will assume your customers will use it (the safer choice), which turns on sign-in, roles and the standard security level, and note it."
+      },
+      "whatThisChanges": {
+        "just-me": [
+          "No accounts for other people. Sign-in is still available if you want it.",
+          "The app is tested against the baseline security level unless other answers raise it."
+        ],
+        "my-team": [
+          "Everyone gets their own account; there are no shared passwords.",
+          "You will get an administrator account that can add and remove team members.",
+          "Attempts to guess passwords are slowed down and logged."
+        ],
+        "customers": [
+          "Customers sign in with their own accounts and only see their own records.",
+          "We test the app against the standard security level (OWASP ASVS Level 2).",
+          "Sign-up, sign-in and password reset are protected against automated abuse."
+        ],
+        "public": [
+          "We treat every visitor as a potential attacker: strict limits on requests, sign-ups and failed sign-ins.",
+          "We test the app against the standard security level (OWASP ASVS Level 2).",
+          "A 'Going online safely' checklist is added to your results."
+        ]
+      }
+    },
+    {
+      "id": "users.requiresSignIn",
+      "step": "users",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Sign-in",
+      "question": "Should people have to sign in to use it?",
+      "helpText": "When more than one person uses the app, sign-in is always on and this is already answered for you. If it is only you, you can choose.",
+      "whyWeAsk": "Sign-in is how the app knows who is doing what. Without it, anyone who can reach the app can see and change everything.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes, require sign-in",
+          "description": "Each person has an account with a password.",
+          "recommended": true
+        },
+        {
+          "value": false,
+          "label": "No sign-in",
+          "description": "Anyone who can open the app can use all of it."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": true,
+        "behaviour": "We will require sign-in (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Accounts with passwords of at least 12 characters; common passwords are refused.",
+          "Sessions end after 30 minutes of inactivity and after 12 hours at most (15 minutes and 8 hours at the standard level).",
+          "Every sign-in, failed sign-in and password change is recorded in the audit log."
+        ],
+        "false": [
+          "No accounts. Anyone who can reach the app can use everything in it, so it should only run on your own computer.",
+          "The app still protects itself against forged requests, bad input and oversized uploads."
+        ]
+      }
+    },
+    {
+      "id": "users.roles",
+      "step": "users",
+      "inputType": "roles",
+      "required": false,
+      "title": "Kinds of users",
+      "question": "What kinds of users are there, and what may each kind do?",
+      "helpText": "Start from a template or add your own. Exactly one kind is the administrator, who manages accounts and settings. Keep it simple: most apps need two or three kinds.",
+      "whyWeAsk": "Every page in your app checks the user's kind before doing anything. Separate kinds mean a customer can never reach staff pages, even by guessing an address.",
+      "templates": [
+        {
+          "name": "owner",
+          "label": "Owner",
+          "description": "Manages accounts, settings and the audit log. Sees everything.",
+          "isAdmin": true
+        },
+        {
+          "name": "staff",
+          "label": "Staff",
+          "description": "Does the day-to-day work: sees and updates records but cannot manage accounts.",
+          "isAdmin": false
+        },
+        {
+          "name": "customer",
+          "label": "Customers",
+          "description": "Sees and manages only their own records.",
+          "isAdmin": false
+        }
+      ],
+      "maxRoles": 8,
+      "notSure": {
+        "available": true,
+        "behaviour": "We will create an Owner (administrator) role plus Staff, and add Customers when customers use the app, and note it."
+      },
+      "whatThisChanges": {
+        "*": [
+          "Each kind of user gets the least access needed for their job. Pages for other kinds answer 'not allowed'.",
+          "We test every page as an anonymous visitor and as the wrong kind of user to prove the checks work.",
+          "The administrator kind will need an authenticator app for two-step sign-in."
+        ]
+      }
+    },
+    {
+      "id": "users.expectedUserCount",
+      "step": "users",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "How many people",
+      "question": "Roughly how many people will have an account?",
+      "helpText": "A rough guess is fine.",
+      "whyWeAsk": "It tells us whether the administrator can add accounts by hand or whether people need to sign up themselves, and how strict the limits on requests should be.",
+      "options": [
+        {
+          "value": "1",
+          "label": "Just one",
+          "description": "Only you."
+        },
+        {
+          "value": "2-20",
+          "label": "2 to 20",
+          "description": "A small team or a handful of clients.",
+          "recommended": false
+        },
+        {
+          "value": "21-500",
+          "label": "21 to 500",
+          "description": "A larger team or a customer base."
+        },
+        {
+          "value": "500+",
+          "label": "More than 500",
+          "description": "A large or growing audience."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "21-500",
+        "behaviour": "We will plan for 21 to 500 accounts, which turns on the stricter limits, and note it."
+      },
+      "whatThisChanges": {
+        "1": [
+          "The administrator is the only account. Account creation by others is off."
+        ],
+        "2-20": [
+          "The administrator creates accounts or sends invitations. There is no open sign-up page unless you ask for one."
+        ],
+        "21-500": [
+          "We suggest invitations or open sign-up with email confirmation, plus limits on how many accounts can be created per hour."
+        ],
+        "500+": [
+          "Open sign-up with email confirmation and strict limits per visitor. We recommend adding monitoring when you go online."
+        ]
+      }
+    },
+    {
+      "id": "users.registration",
+      "step": "users",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "How accounts are created",
+      "question": "How should people get an account?",
+      "helpText": "You can change this later. The administrator can always create accounts by hand.",
+      "whyWeAsk": "Open sign-up is convenient but attracts bots and fake accounts. Invitations or administrator-created accounts keep control with you.",
+      "options": [
+        {
+          "value": "admin-created",
+          "label": "I create the accounts",
+          "description": "The administrator adds each person and gives them a first password to change.",
+          "recommended": true
+        },
+        {
+          "value": "invite-only",
+          "label": "By invitation",
+          "description": "The administrator sends an email invitation; the person sets their own password."
+        },
+        {
+          "value": "open",
+          "label": "Anyone can sign up",
+          "description": "A public sign-up page with email confirmation."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "admin-created",
+        "behaviour": "We will let the administrator create accounts (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "admin-created": [
+          "No public sign-up page. New people get a one-time password they must change at first sign-in."
+        ],
+        "invite-only": [
+          "Invitation emails with a single-use link that expires. This turns on the email feature.",
+          "Only invited addresses can create an account."
+        ],
+        "open": [
+          "A sign-up page limited to 3 new accounts per hour from the same place, protected against bots, with email confirmation. This turns on the email feature."
+        ]
+      }
+    },
+    {
+      "id": "users.adminMfa",
+      "step": "users",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Two-step sign-in for administrators",
+      "question": "Should administrators need a second step to sign in?",
+      "helpText": "The second step is a 6-digit code from a free authenticator app on a phone (for example Google Authenticator or Microsoft Authenticator). It takes about two minutes to set up. If your app handles sensitive information, this is always on.",
+      "whyWeAsk": "The administrator account can see and change everything. A stolen or guessed administrator password is the worst case; the second step stops it from being enough.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes (recommended)",
+          "description": "Administrators enter a code from their phone as well as their password.",
+          "recommended": true
+        },
+        {
+          "value": false,
+          "label": "No, password only",
+          "description": "Not available when the app handles sensitive information."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": true,
+        "behaviour": "We will turn two-step sign-in on for administrators (the safer choice) and note it. You will need an authenticator app."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Administrators must set up an authenticator app at their first sign-in.",
+          "Ten one-time recovery codes are shown once, in case the phone is lost.",
+          "Regular users can also turn on two-step sign-in for themselves."
+        ],
+        "false": [
+          "Administrators sign in with a password only. We still refuse weak passwords and slow down guessing.",
+          "If you later add sensitive information, two-step sign-in turns on automatically."
+        ]
+      }
+    },
+    {
+      "id": "data.categories",
+      "step": "data",
+      "inputType": "multi-choice",
+      "required": true,
+      "title": "Kinds of information",
+      "question": "Which kinds of information will the app keep?",
+      "helpText": "Tick everything that applies, even if it is only a small part of the app. The examples show what each one means.",
+      "whyWeAsk": "Some information can harm people if it leaks: money details, health notes, ID numbers, anything about children. Those kinds turn on encryption in the database, two-step sign-in for administrators, and the standard security level.",
+      "options": [
+        {
+          "value": "contact",
+          "label": "Contact details",
+          "description": "Names, email addresses, phone numbers, postal addresses."
+        },
+        {
+          "value": "financial",
+          "label": "Financial information",
+          "description": "Bank account numbers, invoices, salaries, balances, what someone owes."
+        },
+        {
+          "value": "payment-card",
+          "label": "Payment card details",
+          "description": "Card numbers or expiry dates. We never store these; payments go through a provider's checkout page."
+        },
+        {
+          "value": "health",
+          "label": "Health information",
+          "description": "Medical conditions, allergies, treatments, disability, wellbeing notes."
+        },
+        {
+          "value": "government-id",
+          "label": "Government ID numbers",
+          "description": "Passport numbers, national ID, tax or social-security numbers, driving licence numbers."
+        },
+        {
+          "value": "credentials",
+          "label": "Passwords or secrets of users",
+          "description": "Always included when sign-in is on. Also tick it if users store other passwords or keys in the app."
+        },
+        {
+          "value": "children",
+          "label": "Information about children",
+          "description": "Anything about people under 16: pupils, junior members, young patients."
+        },
+        {
+          "value": "location",
+          "label": "Precise location",
+          "description": "GPS positions, home addresses linked to times, movement history."
+        },
+        {
+          "value": "files",
+          "label": "Uploaded files",
+          "description": "Documents, photos, scans or spreadsheets people upload."
+        },
+        {
+          "value": "business-confidential",
+          "label": "Confidential business information",
+          "description": "Pricing, plans, supplier terms, internal reports. Not about people."
+        },
+        {
+          "value": "other-personal",
+          "label": "Other personal information",
+          "description": "Anything else about identifiable people: notes, preferences, bookings, orders."
+        }
+      ],
+      "sensitiveValues": [
+        "financial",
+        "payment-card",
+        "health",
+        "government-id",
+        "children"
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": [
+          "contact",
+          "other-personal"
+        ],
+        "behaviour": "We will assume the app holds contact details and other personal information (the safer choice), which turns on the standard security level and a data-protection document, and note it."
+      },
+      "whatThisChanges": {
+        "contact": [
+          "Contact details count as personal information: the app gets a data-protection document and a way to export or delete a person's data.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ],
+        "financial": [
+          "Financial details are encrypted in the database and hidden from logs.",
+          "Administrators will need an authenticator app to sign in.",
+          "A threat model is written for the flows that touch money."
+        ],
+        "payment-card": [
+          "Card numbers are never stored or typed into your app. Payment happens on a provider's page (for example Stripe or PayPal) and your app only records that it succeeded.",
+          "The payments feature is turned on with a setup guide for the provider.",
+          "Administrators will need an authenticator app to sign in."
+        ],
+        "health": [
+          "Health records are encrypted in the database and hidden from logs and error messages.",
+          "Administrators will need an authenticator app to sign in.",
+          "The data-protection document lists which health rules may apply in your region (for example HIPAA in the US)."
+        ],
+        "government-id": [
+          "ID numbers are encrypted in the database and shown only partly on screen.",
+          "Administrators will need an authenticator app to sign in."
+        ],
+        "credentials": [
+          "Passwords are never stored as-is; only a slow, salted hash is kept.",
+          "Any other secrets users keep in the app are encrypted."
+        ],
+        "children": [
+          "Information about children is treated as sensitive: encrypted, hidden from logs, and covered by extra rules in the data-protection document.",
+          "Administrators will need an authenticator app to sign in.",
+          "A threat model is written for the parts of the app that handle it."
+        ],
+        "location": [
+          "Location data is treated as personal information and kept only as long as your retention setting allows."
+        ],
+        "files": [
+          "The file-upload feature is turned on: files are checked for their real type, size-limited, stored outside the web folder and only downloadable by their owner."
+        ],
+        "business-confidential": [
+          "Confidential business records are marked as such in the design; access is limited to the kinds of users you choose."
+        ],
+        "other-personal": [
+          "Personal information means the app gets a data-protection document, a retention setting and a way to export or delete a person's data.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ]
+      }
+    },
+    {
+      "id": "data.aboutOtherPeople",
+      "step": "data",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Information about other people",
+      "question": "Does the app store information about people other than its users?",
+      "helpText": "For example: customers who never log in, patients, pupils, suppliers' staff, job applicants.",
+      "whyWeAsk": "People who are described in the app but never use it cannot check their own data. Privacy rules give them rights (to see, correct or delete it), so the app needs a way for you to honour those.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "The app holds details about people who do not have an account."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "Only the people who sign in are described in it."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": true,
+        "behaviour": "We will assume the app holds information about other people (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "true": [
+          "The administrator gets pages to find, export and delete everything stored about one person.",
+          "The data-protection document explains the rights those people have and how to respond to a request."
+        ],
+        "false": [
+          "Each user can export or delete their own data from their account page."
+        ]
+      }
+    },
+    {
+      "id": "data.retention",
+      "step": "data",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "How long to keep information",
+      "question": "How long should personal information be kept?",
+      "helpText": "Keeping data forever is the riskiest option: the more you hold, the more can leak. Many businesses keep records for a fixed period after the last contact.",
+      "whyWeAsk": "Privacy rules expect you to keep personal data only as long as you need it. A written retention rule, applied automatically, is the easiest way to show that.",
+      "options": [
+        {
+          "value": "keep-until-deleted",
+          "label": "Keep it until someone deletes it",
+          "description": "Records stay until a user or administrator removes them."
+        },
+        {
+          "value": "auto-delete-after-period",
+          "label": "Delete it automatically after a period",
+          "description": "Old records are removed (or anonymised) on a schedule you set.",
+          "recommended": true
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "auto-delete-after-period",
+        "behaviour": "We will delete personal information automatically after 24 months (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "keep-until-deleted": [
+          "Records stay until deleted by hand. Users and administrators get delete buttons, and the data-retention document says so."
+        ],
+        "auto-delete-after-period": [
+          "A scheduled job removes or anonymises personal records after the period you choose, and writes what it did to the audit log.",
+          "The data-retention document states the period."
+        ]
+      }
+    },
+    {
+      "id": "data.retentionMonths",
+      "step": "data",
+      "inputType": "number",
+      "required": false,
+      "showWhen": {
+        "path": "data.retention",
+        "equals": "auto-delete-after-period"
+      },
+      "title": "Retention period",
+      "question": "After how many months should old personal records be removed?",
+      "helpText": "Count from the last time the record was used. Common choices: 12, 24 or 36 months. Tax rules in many countries require keeping invoices longer; the app keeps those separately if you mark them as financial.",
+      "whyWeAsk": "The number goes into the automatic clean-up job and into your data-retention document.",
+      "placeholder": "24",
+      "example": "24",
+      "min": 1,
+      "max": 120,
+      "notSure": {
+        "available": true,
+        "choosesValue": 24,
+        "behaviour": "We will use 24 months and note it."
+      },
+      "whatThisChanges": {
+        "*": [
+          "Records untouched for this many months are removed or anonymised by the scheduled clean-up job."
+        ]
+      }
+    },
+    {
+      "id": "data.region",
+      "step": "data",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "Where your users are",
+      "question": "Where are most of the people whose information you keep?",
+      "helpText": "This only affects which privacy rules we mention in the documents. It does not change how the app is built.",
+      "whyWeAsk": "Privacy laws differ by region (for example GDPR in the EU and UK, HIPAA for health data in the US). We mention the ones likely to apply so you can check with an adviser.",
+      "options": [
+        {
+          "value": "eu-uk",
+          "label": "European Union or United Kingdom",
+          "description": "GDPR and UK GDPR are likely to apply."
+        },
+        {
+          "value": "us",
+          "label": "United States",
+          "description": "State privacy laws and, for health data, HIPAA may apply."
+        },
+        {
+          "value": "other",
+          "label": "Somewhere else",
+          "description": "We mention the general principles that most privacy laws share."
+        },
+        {
+          "value": "unsure",
+          "label": "Not sure / several regions",
+          "description": "We mention GDPR as the strictest common case."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "unsure",
+        "behaviour": "We will write the documents assuming the strictest common rules (GDPR) apply and note it."
+      },
+      "whatThisChanges": {
+        "eu-uk": [
+          "The data-protection document mentions GDPR rights (access, correction, deletion, portability) and the 72-hour breach notification rule."
+        ],
+        "us": [
+          "The data-protection document mentions state privacy laws and, when health data is involved, HIPAA safeguards."
+        ],
+        "other": [
+          "The data-protection document explains the general principles: collect the minimum, keep it only as long as needed, let people see and delete their data."
+        ],
+        "unsure": [
+          "The data-protection document follows GDPR as the strictest common case."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.fileUploads",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "File uploads",
+      "question": "Will people upload files (photos, documents, spreadsheets)?",
+      "helpText": "Uploads are handy but they are a common way to attack an app, so we add several checks when this is on.",
+      "whyWeAsk": "Uploaded files can hide harmful content. When uploads are on, the app checks each file's real type, limits its size, stores it outside the web folder and only lets its owner download it.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "People can attach files to records."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "No uploads. You can add them later.",
+          "recommended": true
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave uploads off (fewer doors to lock) and note it. You can turn them on later."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Each file is checked by its real content, not just its name; web pages, scripts and zip files are refused.",
+          "Files are limited to 10 MB each and 200 MB per person, and stored under random names outside the web folder.",
+          "Downloads are only allowed for the file's owner (and administrators) and are sent as attachments so they never run in the browser."
+        ],
+        "false": [
+          "No upload pages. Sign-in and the other protections are unchanged."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.uploadKinds",
+      "step": "features",
+      "inputType": "multi-choice",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.fileUploads",
+        "equals": true
+      },
+      "title": "Kinds of files",
+      "question": "What kinds of files will people upload?",
+      "helpText": "Tick all that apply. Only these kinds will be accepted; everything else is refused.",
+      "whyWeAsk": "Allowing only the kinds you need is the single best protection against harmful uploads.",
+      "options": [
+        {
+          "value": "images",
+          "label": "Images",
+          "description": "PNG, JPEG, GIF and WebP photos or pictures."
+        },
+        {
+          "value": "documents",
+          "label": "Documents",
+          "description": "PDF files."
+        },
+        {
+          "value": "spreadsheets",
+          "label": "Spreadsheets",
+          "description": "CSV and Excel files (opened as data, never run)."
+        },
+        {
+          "value": "other",
+          "label": "Other",
+          "description": "Tell us in the description. Web pages, scripts, SVG and zip files are never allowed."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": [
+          "images",
+          "documents"
+        ],
+        "behaviour": "We will accept images and PDF documents only and note it."
+      },
+      "whatThisChanges": {
+        "images": [
+          "Only real PNG, JPEG, GIF and WebP files are accepted; the app reads the file's first bytes to be sure."
+        ],
+        "documents": [
+          "Only real PDF files are accepted, and they are downloaded as attachments so they never open inside your app's pages."
+        ],
+        "spreadsheets": [
+          "CSV and Excel files are accepted for download only; the app never runs formulas or macros from them."
+        ],
+        "other": [
+          "Extra kinds are added to the allow-list only if they are safe to store; web pages, scripts, SVG and zip files stay refused."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.enabled",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "AI assistant",
+      "question": "Do you want an AI assistant inside the app?",
+      "helpText": "A chat box where people can ask questions in plain language, powered by Claude. It needs an Anthropic API key and costs a small amount per message.",
+      "whyWeAsk": "An assistant that reads your data is a new way in for attackers: people can try to trick it into revealing or changing things. When it is on, we add the OWASP AI security controls and test them.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "Add a chat assistant."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "No assistant. You can add one later.",
+          "recommended": true
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave the assistant off (fewer doors to lock) and note it."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Every message is cleaned and checked for 'ignore your instructions' tricks before it reaches the AI; suspicious ones are blocked and logged.",
+          "The assistant only ever sees data the signed-in person is allowed to see.",
+          "Each person gets a daily limit, and an administrator can switch the assistant off instantly.",
+          "The app is tested against the OWASP AI security standard (AISVS) as well as the web standard.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ],
+        "false": [
+          "No AI feature and no AI-related costs. The AI security standard does not apply."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.purpose",
+      "step": "features",
+      "inputType": "text",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.enabled",
+        "equals": true
+      },
+      "title": "What the assistant is for",
+      "question": "What should the assistant help with?",
+      "helpText": "One or two sentences. For example: 'Help staff draft replies to customer questions' or 'Answer questions about stock levels'.",
+      "whyWeAsk": "The assistant is told to stay on this purpose and to refuse anything else. A narrow purpose is much harder to misuse.",
+      "placeholder": "Help staff draft replies to customer questions",
+      "example": "Help staff draft replies to customer questions",
+      "maxLength": 500,
+      "screenedForInjection": true,
+      "notSure": {
+        "available": true,
+        "behaviour": "We will limit the assistant to answering questions about the records the person can already see, and note it."
+      },
+      "whatThisChanges": {
+        "*": [
+          "The assistant's fixed instructions include this purpose, and it is told to refuse requests outside it."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.dataItCanSee",
+      "step": "features",
+      "inputType": "single-choice",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.enabled",
+        "equals": true
+      },
+      "title": "What the assistant may read",
+      "question": "Which of your app's records may the assistant read when answering?",
+      "helpText": "Whatever you choose, the assistant never sees more than the signed-in person is allowed to see.",
+      "whyWeAsk": "The less the assistant can read, the less it can be tricked into revealing. Records sent to the AI also leave your computer and go to the AI provider.",
+      "options": [
+        {
+          "value": "nothing",
+          "label": "Nothing from the app",
+          "description": "It only answers general questions from what the person types.",
+          "recommended": true
+        },
+        {
+          "value": "users-own-records",
+          "label": "The person's own records",
+          "description": "It can look at records that belong to the signed-in person."
+        },
+        {
+          "value": "all-records",
+          "label": "Everything the person can see",
+          "description": "It can look at any record the signed-in person's role allows."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "nothing",
+        "behaviour": "We will let the assistant read nothing from the app (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "nothing": [
+          "No records are sent to the AI provider. The assistant works from the conversation only."
+        ],
+        "users-own-records": [
+          "Records are fetched with the person's own permissions and wrapped as untrusted data so text inside a record cannot give the AI instructions.",
+          "Sensitive fields are removed before anything is sent to the AI provider."
+        ],
+        "all-records": [
+          "Records are fetched with the person's own permissions and wrapped as untrusted data; sensitive fields are removed first.",
+          "The assistant's answers are filtered so they cannot mention records the person is not allowed to see."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.canTakeActions",
+      "step": "features",
+      "inputType": "boolean",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.enabled",
+        "equals": true
+      },
+      "title": "Can the assistant change things?",
+      "question": "May the assistant create or change records, or only answer questions?",
+      "helpText": "For example, 'book Mrs Jones for Tuesday at 3' would create an appointment. Every change still needs the person to click Confirm.",
+      "whyWeAsk": "An assistant that can change data can be tricked into changing the wrong thing. When this is on, every action goes through a confirmation step and the same permission checks as a normal page.",
+      "options": [
+        {
+          "value": false,
+          "label": "Only answer questions",
+          "description": "It can never change data.",
+          "recommended": true
+        },
+        {
+          "value": true,
+          "label": "It may propose changes",
+          "description": "It suggests a change; the person confirms before anything happens."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will let the assistant only answer questions (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "false": [
+          "The assistant has no way to change data, whatever anyone types into it."
+        ],
+        "true": [
+          "The assistant can only use a short fixed list of actions, each checked for valid input.",
+          "A proposed change is shown to the person and happens only after they confirm it; the app, not the AI, performs it with the person's permissions.",
+          "Every proposal and confirmation is written to the audit log."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.storesHistory",
+      "step": "features",
+      "inputType": "boolean",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.enabled",
+        "equals": true
+      },
+      "title": "Remembering conversations",
+      "question": "Should the assistant remember past conversations between visits?",
+      "helpText": "With memory on, a person can pick up where they left off. With it off, each visit starts fresh.",
+      "whyWeAsk": "Stored conversations are personal data and can contain sensitive text. When memory is on, each person's history is kept separately and can be cleared.",
+      "options": [
+        {
+          "value": false,
+          "label": "No, start fresh each time",
+          "description": "Nothing is kept after the page is closed.",
+          "recommended": true
+        },
+        {
+          "value": true,
+          "label": "Yes, keep history",
+          "description": "Past messages are stored for the person who wrote them."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will not keep conversation history (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "false": [
+          "No conversation is stored. Only a record of when the assistant was used (without the text) goes to the audit log."
+        ],
+        "true": [
+          "History is stored per person, is never shared between people, and has a 'Clear my history' button.",
+          "Stored conversations follow the same retention rule as other personal information."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.canSearchWeb",
+      "step": "features",
+      "inputType": "boolean",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.enabled",
+        "equals": true
+      },
+      "title": "Looking things up on the web",
+      "question": "Should the assistant be able to look things up on the web to answer?",
+      "helpText": "With this on, the assistant can search the web when the answer is not in your own records, and each answer lists the pages it used. Searching happens at the AI provider, so your app still contacts nothing but that provider. Each search costs a little extra on your AI bill and answers take longer.",
+      "whyWeAsk": "Anything fetched from the web is text written by strangers. Your app treats it as information to read, never as instructions, and shows the sources so a person can judge them. It is also a privacy question: the question you type is sent to the AI provider, which passes a search query on.",
+      "options": [
+        {
+          "value": false,
+          "label": "No, only my own records",
+          "description": "The assistant answers from what the app holds and says so when it cannot.",
+          "recommended": true
+        },
+        {
+          "value": true,
+          "label": "Yes, it may search the web",
+          "description": "Answers can draw on current web pages and list their addresses."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will keep the assistant offline (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "false": [
+          "The assistant only uses your own records, and tells the person when it does not know."
+        ],
+        "true": [
+          "The assistant may search the web, and every answer that used a search ends with the pages it used.",
+          "Sources come from the search results themselves, never from text the model wrote, so they cannot be invented.",
+          "You can limit which sites results may come from in the app's .env file (AI_WEB_SEARCH_DOMAINS), which is worth doing for subjects where only trustworthy sources will do."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.aiAssistant.webSearchSites",
+      "step": "features",
+      "inputType": "list",
+      "required": false,
+      "showWhen": {
+        "path": "capabilities.aiAssistant.canSearchWeb",
+        "equals": true
+      },
+      "title": "Which sites may the search use?",
+      "question": "Should the search be limited to sites you trust, and if so which ones?",
+      "helpText": "One site address per line, without http:// \u2014 for example who.int or health.harvard.edu. Subdomains are included, so nih.gov also covers pubmed.ncbi.nlm.nih.gov. Leave this empty to let the search use the whole web.",
+      "whyWeAsk": "A short list of sources you trust is the simplest way to keep answers grounded in material you would accept. It cannot be expressed as \"all universities\", so name the sites that matter to you.",
+      "placeholder": "who.int",
+      "example": "nih.gov; medlineplus.gov; cochranelibrary.com; bmj.com",
+      "maxItems": 40,
+      "maxLength": 253,
+      "notSure": {
+        "available": true,
+        "behaviour": "We will let the search use the whole web and note it as an assumption, so answers show where each claim came from and you can judge the source."
+      },
+      "whatThisChanges": {
+        "*": [
+          "The search may only return results from the sites you list; nothing else can be cited.",
+          "You can change the list later in the app's .env file (AI_WEB_SEARCH_DOMAINS) without rebuilding.",
+          "An empty list means the whole web, and each answer still shows the pages it used."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.email",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Email notifications",
+      "question": "Should the app send emails (reminders, confirmations, invitations)?",
+      "helpText": "While the app runs on your computer, emails are written to a folder so you can see them. To really send them you connect an email service later.",
+      "whyWeAsk": "Email is how password resets and invitations reach people. It is also a way attackers try to send spam through your app, so we limit and sanitise what it sends.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "The app can send emails to users."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "No emails. Password reset is then done by the administrator.",
+          "recommended": false
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave email off and note it. Password resets will be done by the administrator."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Email addresses and subjects are checked so nobody can add hidden recipients or extra headers.",
+          "Emails are sent only to addresses stored in the app, from templates saved on disk, and each send is logged.",
+          "Password-reset links expire after 15 minutes and work once."
+        ],
+        "false": [
+          "No outgoing email. Invitations and password resets are handled by the administrator in the app."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.externalApis",
+      "step": "features",
+      "inputType": "external-apis",
+      "required": false,
+      "title": "Other online services",
+      "question": "Does the app need to talk to other online services?",
+      "helpText": "For example a calendar, a shipping company, a weather service or an accounting tool. For each one, say what it is for and whether it will receive people's personal details.",
+      "whyWeAsk": "Every outside connection is a place where data leaves your app. We only allow the app to contact the services you list here and nothing else, and we note which ones receive personal data.",
+      "fields": {
+        "name": {
+          "label": "Service name",
+          "placeholder": "Google Calendar"
+        },
+        "purpose": {
+          "label": "What it is for",
+          "placeholder": "Put confirmed appointments in the staff calendar"
+        },
+        "sendsPersonalData": {
+          "label": "It will receive people's personal details (names, emails...)",
+          "help": "Tick this if the service will see anything about identifiable people."
+        }
+      },
+      "maxItems": 10,
+      "notSure": {
+        "available": true,
+        "choosesValue": [],
+        "behaviour": "We will not connect to any outside service (the safer choice) and note it. You can add connections later."
+      },
+      "whatThisChanges": {
+        "*": [
+          "The app can only contact the services you list; every other outside address is blocked.",
+          "Each connection has a time limit and stops automatically if the service keeps failing.",
+          "Secret keys for these services live in the settings file, never in the code."
+        ],
+        "sendsPersonalData": [
+          "Services that receive personal details are listed in the data-protection document so you can tell people where their data goes."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.scheduledJobs",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Scheduled tasks",
+      "question": "Should the app do things on a schedule (nightly reminders, weekly reports)?",
+      "helpText": "Automatic clean-up of old data (from the retention setting) is added by itself and does not need this.",
+      "whyWeAsk": "Scheduled tasks run without a person watching. We make sure they cannot run twice at once, cannot be started by users, and record what they did.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "The app runs tasks at set times."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "Nothing runs on a schedule.",
+          "recommended": false
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave scheduled tasks off and note it."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Tasks are declared in code with fixed schedules that users cannot change.",
+          "A lock stops the same task running twice at once, and each run is logged."
+        ],
+        "false": [
+          "No scheduled tasks, other than the automatic data clean-up if you chose a retention period."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.publicApi",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Access for other software",
+      "question": "Will other software need to read or write your app's data directly (without a person signing in)?",
+      "helpText": "For example a script that imports orders every night, or another app that reads your stock levels. If you are not sure, the answer is probably No.",
+      "whyWeAsk": "Software access uses long-lived keys instead of passwords. Keys need their own rules: they can be revoked, are limited in what they can do, and are never typed into web addresses.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "Other software will connect with an API key."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "Only people use the app.",
+          "recommended": true
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave software access off (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "true": [
+          "Each person can create and revoke API keys from their account page; keys are stored hashed like passwords.",
+          "Keys only work on the data pages, are limited to 120 requests per minute, and are refused if placed in a web address."
+        ],
+        "false": [
+          "No API keys. Every request must come from a signed-in person in a browser."
+        ]
+      }
+    },
+    {
+      "id": "capabilities.payments",
+      "step": "features",
+      "inputType": "boolean",
+      "required": true,
+      "title": "Payments",
+      "question": "Will people pay for something inside the app?",
+      "helpText": "Your app will never handle card numbers. Payment happens on a provider's page (for example Stripe or PayPal) and your app records the result. You will need an account with a provider to finish this part.",
+      "whyWeAsk": "Handling card numbers yourself brings strict rules (PCI DSS) and serious risk. Letting a payment provider handle them keeps you out of that entirely.",
+      "options": [
+        {
+          "value": true,
+          "label": "Yes",
+          "description": "Add a checkout step handled by a payment provider."
+        },
+        {
+          "value": false,
+          "label": "No",
+          "description": "No payments in the app.",
+          "recommended": false
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": false,
+        "behaviour": "We will leave payments off and note it. You can add them later."
+      },
+      "whatThisChanges": {
+        "true": [
+          "A checkout page that sends people to the provider and records the outcome; card details never touch your app.",
+          "A setup guide for the provider is included in the results.",
+          "Payment amounts are stored precisely and every payment event is in the audit log.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ],
+        "false": [
+          "No checkout. Money amounts you store (prices, invoices) are still protected as financial information if you ticked that."
+        ]
+      }
+    },
+    {
+      "id": "deployment.target",
+      "step": "deployment",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "Where it will run",
+      "question": "Where will this app run?",
+      "helpText": "Choose the most exposed place it will ever run, even if that is later.",
+      "whyWeAsk": "On your own computer the app is reachable only by you. On a shop or office network anyone on that network can reach it. On the internet anyone in the world can. Each step up needs stronger protection, especially encryption of the connection (HTTPS).",
+      "options": [
+        {
+          "value": "local-only",
+          "label": "Only on this computer",
+          "description": "You open it in your browser on the same machine. Nobody else can reach it.",
+          "recommended": true
+        },
+        {
+          "value": "local-network",
+          "label": "On computers in my shop or office network",
+          "description": "Colleagues open it from other computers on the same Wi-Fi or office network."
+        },
+        {
+          "value": "internet-later",
+          "label": "On the internet for customers",
+          "description": "It will be put on a server so people can reach it from anywhere. We prepare it now and give you a checklist for going online."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "internet-later",
+        "behaviour": "We will prepare the app as if it will go on the internet (the safer choice) and note it."
+      },
+      "whatThisChanges": {
+        "local-only": [
+          "The app only listens on this computer; other machines cannot connect to it.",
+          "No HTTPS certificate is needed. If you later put it on a network, rebuild with the new answer."
+        ],
+        "local-network": [
+          "The app listens on your network and uses an encrypted connection (HTTPS) with a certificate it creates for you; browsers will ask you to trust it once.",
+          "Sign-in cookies are marked secure so they only travel over the encrypted connection.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ],
+        "internet-later": [
+          "The app is set up to sit behind a web server that provides HTTPS; the deployment guide explains how.",
+          "Strict limits on requests, sign-ups and failed sign-ins are turned on.",
+          "A 'Going online safely' checklist is added to your results, and some checks are marked as 'verify at deployment time'.",
+          "The app is tested against the standard security level (OWASP ASVS Level 2)."
+        ]
+      }
+    },
+    {
+      "id": "deployment.owner.name",
+      "step": "deployment",
+      "inputType": "text",
+      "required": true,
+      "title": "Who is responsible",
+      "question": "Who is responsible for this app?",
+      "helpText": "Usually you. This name goes into the security documents as the person to contact.",
+      "whyWeAsk": "Every app needs a named person who decides what to do when something goes wrong. The incident plan and the security contact file use this name.",
+      "placeholder": "Bella Moreno",
+      "example": "Bella Moreno",
+      "maxLength": 80,
+      "notSure": {
+        "available": false
+      },
+      "whatThisChanges": {
+        "*": [
+          "This name appears in the incident-response plan, the SECURITY file and the reports as the responsible person."
+        ]
+      }
+    },
+    {
+      "id": "deployment.owner.contactEmail",
+      "step": "deployment",
+      "inputType": "email",
+      "required": true,
+      "title": "Contact email",
+      "question": "Which email address should people use to report a security problem?",
+      "helpText": "It is written into the app's SECURITY file so someone who finds a problem knows where to send it. It is not used for anything else.",
+      "whyWeAsk": "A clear way to report problems is one of the basic OWASP requirements. Without it, a helpful person who finds a flaw has no way to tell you.",
+      "placeholder": "bella@example.com",
+      "example": "bella@example.com",
+      "maxLength": 120,
+      "notSure": {
+        "available": false
+      },
+      "whatThisChanges": {
+        "*": [
+          "This address goes into the SECURITY file and the incident-response plan. It is never shown to users inside the app."
+        ]
+      }
+    },
+    {
+      "id": "deployment.businessImpact",
+      "step": "deployment",
+      "inputType": "single-choice",
+      "required": true,
+      "title": "How much you depend on it",
+      "question": "If this app were down for a day, or its data leaked, what would happen?",
+      "helpText": "Be honest; this is not a test. It decides how much extra care we take.",
+      "whyWeAsk": "The more your business depends on the app, the more it is worth protecting. A high answer turns on the standard security level, a written threat model and stricter checks.",
+      "options": [
+        {
+          "value": "low",
+          "label": "Not much",
+          "description": "Mildly annoying. I could work around it with paper or a spreadsheet."
+        },
+        {
+          "value": "normal",
+          "label": "It would hurt",
+          "description": "I would lose some time, money or customer trust, but I would recover.",
+          "recommended": false
+        },
+        {
+          "value": "high",
+          "label": "It would be serious",
+          "description": "I could lose customers, break a legal duty, or face real financial harm."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "high",
+        "behaviour": "We will treat the app as important to your business (the safer choice), which turns on the extra-care checks, and note it."
+      },
+      "whatThisChanges": {
+        "low": [
+          "Standard protections. Findings that only matter when the app is on the internet are shown with lower priority."
+        ],
+        "normal": [
+          "Standard protections. A checklist item that is missing counts a little more in the design review."
+        ],
+        "high": [
+          "The app is tested against the standard security level (OWASP ASVS Level 2).",
+          "A written threat model is produced and you are asked to read and acknowledge it.",
+          "Missing checklist items are rated more severely, and we recommend monitoring and backups before you rely on it."
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "headline": "Here's what we'll build",
+    "sections": {
+      "app": "Your app",
+      "protections": "How it will be protected",
+      "assumptions": "Things we assumed (please check)",
+      "extraCare": "Extra care level",
+      "authenticator": "You will need an authenticator app",
+      "technical": "Technical details for your developer"
+    },
+    "extraCareLevels": {
+      "low": {
+        "label": "Standard care",
+        "text": "Your answers do not point to unusual risks. We apply the full baseline protections."
+      },
+      "normal": {
+        "label": "Standard care with a threat model",
+        "text": "Some answers (personal data, outside users or going online) mean we also write a threat model and check the riskier flows."
+      },
+      "high": {
+        "label": "Extra care",
+        "text": "Your app handles sensitive information or matters a lot to your business. We write a threat model, ask you to acknowledge it, and test against the standard level. No independent security expert has reviewed it; the report says so."
+      }
+    },
+    "approveButton": "Build my app",
+    "approveNote": "Building uses the AI service and costs money (an estimate is shown first). Nothing is built until you click the button.",
+    "quickModeNote": "Because you used Quick mode, the answers marked 'We assumed' were guessed from your description. Please check them; the guesses can only make the app safer, never less safe."
+  },
+  "whatThisChanges": {
+    "always": [
+      "Every page sends strict browser security headers, so scripts from other sites cannot run inside your app.",
+      "Every form and every input is checked on the server before anything is saved.",
+      "Error messages never reveal how the app works inside.",
+      "Secret keys are generated for you and kept in a settings file, never in the code."
+    ],
+    "auth": [
+      "Each person has their own account. Passwords must be at least 12 characters and common ones are refused.",
+      "Sessions end after inactivity, and signing out ends them on the server too.",
+      "Every page checks who is signed in and what they may do; we test this by trying each page as the wrong person."
+    ],
+    "no-auth": [
+      "There are no accounts. Anyone who can reach the app can use it, so it should only run on your own computer."
+    ],
+    "level2": [
+      "The app is tested against the standard security level (OWASP ASVS Level 2) rather than the baseline."
+    ],
+    "personal-data": [
+      "A data-protection document lists what personal information you keep, why, and for how long.",
+      "People can have their data exported or deleted."
+    ],
+    "sensitive-data": [
+      "Sensitive details are encrypted in the database and hidden from logs and error messages.",
+      "A threat model is written for the parts of the app that handle them."
+    ],
+    "field-encryption": [
+      "Fields you marked sensitive are stored encrypted with a key kept outside the database, and can be re-encrypted with a new key."
+    ],
+    "admin-mfa": [
+      "Administrators must use an authenticator app for two-step sign-in."
+    ],
+    "user-mfa": [
+      "Every user can turn on two-step sign-in from their account page."
+    ],
+    "uploads": [
+      "Uploaded files are checked by their real content, limited in size, stored under random names outside the web folder, and only downloadable by their owner."
+    ],
+    "ai": [
+      "Messages to the AI assistant are cleaned and screened for 'ignore your instructions' tricks; suspicious ones are blocked and logged.",
+      "The assistant only sees what the signed-in person may see, has a daily limit per person, and can be switched off instantly by an administrator."
+    ],
+    "ai-actions": [
+      "The assistant can only propose changes from a fixed list, and nothing happens until the person confirms."
+    ],
+    "ai-history": [
+      "Conversation history is kept per person, never shared, and can be cleared by the person."
+    ],
+    "ai-moderation": [
+      "Because outside people can talk to the assistant, messages and answers pass through a content filter."
+    ],
+    "email": [
+      "Outgoing emails use fixed templates and sanitised addresses so nobody can add hidden recipients."
+    ],
+    "external-apis": [
+      "The app may only contact the outside services you listed; every other address is blocked."
+    ],
+    "public-api": [
+      "Other software connects with revocable API keys that are stored hashed and limited to 120 requests per minute."
+    ],
+    "payments": [
+      "Card details never touch your app; a payment provider's page handles them."
+    ],
+    "scheduler": [
+      "Scheduled tasks have fixed schedules, cannot run twice at once, and log what they did."
+    ],
+    "retention": [
+      "A scheduled job removes or anonymises personal records after the period you chose."
+    ],
+    "local-only": [
+      "The app only listens on this computer; nobody else can connect to it."
+    ],
+    "lan": [
+      "The app listens on your network over an encrypted connection (HTTPS) with a certificate it creates for you."
+    ],
+    "internet": [
+      "The app is prepared to sit behind a web server that provides HTTPS, with strict request limits and a 'Going online safely' checklist."
+    ],
+    "public-audience": [
+      "Every visitor is treated as a potential attacker: sign-ups, sign-ins and password resets are strictly limited."
+    ],
+    "high-impact": [
+      "Because the app matters a lot to your business, a threat model is written and missing checklist items are rated more severely."
+    ]
+  }
+}

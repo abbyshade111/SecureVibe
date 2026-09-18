@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "Clinic Bookings",
+    "description": "Patients book appointments and leave notes for the practitioner; staff manage the calendar.",
+    "category": "booking",
+    "entities": [
+      {
+        "name": "appointment",
+        "label": "Appointment",
+        "pluralLabel": "Appointments",
+        "fields": [
+          {
+            "name": "starts-at",
+            "label": "Starts at",
+            "type": "datetime",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "reason",
+            "label": "Reason for visit",
+            "type": "longtext",
+            "required": false,
+            "sensitive": true
+          },
+          {
+            "name": "status",
+            "label": "Status",
+            "type": "choice",
+            "required": false,
+            "choices": [
+              "booked",
+              "done",
+              "cancelled"
+            ],
+            "sensitive": false
+          }
+        ],
+        "access": "owner-only"
+      }
+    ],
+    "keyFeatures": [
+      "Book, move or cancel an appointment",
+      "Reminder email the day before",
+      "Staff calendar view"
+    ]
+  },
+  "users": {
+    "audience": "customers",
+    "requiresSignIn": true,
+    "roles": [
+      {
+        "name": "admin",
+        "label": "Administrator",
+        "isAdmin": true
+      },
+      {
+        "name": "practitioner",
+        "label": "Practitioner",
+        "isAdmin": false
+      },
+      {
+        "name": "patient",
+        "label": "Patient",
+        "isAdmin": false
+      }
+    ],
+    "expectedUserCount": "21-500",
+    "registration": "open",
+    "adminMfa": true
+  },
+  "data": {
+    "categories": [
+      "contact",
+      "health"
+    ],
+    "aboutOtherPeople": true,
+    "retention": "auto-delete-after-period",
+    "retentionMonths": 24,
+    "region": "eu-uk"
+  },
+  "capabilities": {
+    "fileUploads": false,
+    "uploadKinds": [],
+    "aiAssistant": {
+      "enabled": true,
+      "purpose": "help patients find a suitable appointment slot",
+      "dataItCanSee": "users-own-records",
+      "canTakeActions": false,
+      "storesHistory": false,
+      "canSearchWeb": false,
+      "webSearchSites": []
+    },
+    "email": true,
+    "externalApis": [],
+    "scheduledJobs": false,
+    "publicApi": false,
+    "payments": false
+  },
+  "deployment": {
+    "target": "internet-later",
+    "owner": {
+      "name": "Dr Lee Okafor",
+      "contactEmail": "lee@example.com"
+    },
+    "businessImpact": "high"
+  },
+  "meta": {
+    "mode": "guided",
+    "inferredFields": [],
+    "notSureFields": [
+      "data.retention"
+    ],
+    "confirmed": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "version": "1.90.0",
+  "results": [
+    {
+      "check_id": "javascript.express.security.audit.express-cookie-session-no-httponly",
+      "path": "src/features/notes/index.ts",
+      "start": { "line": 42, "col": 5 },
+      "end": { "line": 42, "col": 60 },
+      "extra": {
+        "message": "Cookie is created without the httpOnly flag.",
+        "severity": "WARNING",
+        "lines": "res.cookie('prefs', value)",
+        "metadata": {
+          "cwe": ["CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"],
+          "owasp": ["A05:2021 - Security Misconfiguration"],
+          "references": ["https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"]
+        }
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.audit.code-string-concat",
+      "path": "/absolute/app/src/db/reports.ts",
+      "start": { "line": 7, "col": 1 },
+      "extra": { "message": "Query built by string concatenation.", "severity": "ERROR", "lines": "db.all('SELECT * FROM x WHERE id = ' + id)", "metadata": {} }
+    }
+  ],
+  "errors": []
+}

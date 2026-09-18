@@ -1,0 +1,26 @@
+{
+  "scenario": "fallback-served",
+  "description": "The requested model declined and the server-side fallback answered instead. The served model and its own rates must be recorded, and the report must be able to say which model actually answered.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_fb_1",
+      "role": "assistant",
+      "model": "claude-sonnet-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"scope\":\"The bike repair tracker running on the owner's computer.\",\"assets\":[\"Customer contact details\",\"Repair job records\"],\"entryPoints\":[\"The sign-in page\",\"The repair job pages\"],\"trustBoundaries\":[\"Between the browser and the application\"],\"summary\":\"Two realistic risks, both already covered by the built-in protections.\",\"threats\":[{\"stride\":\"spoofing\",\"target\":\"browser\",\"description\":\"Someone who is not a mechanic tries to open the repair job pages by guessing the address.\",\"likelihood\":\"medium\",\"impact\":\"medium\",\"riskLevel\":\"medium\",\"residualRisk\":\"low\",\"status\":\"mitigated\",\"mitigations\":[{\"control\":\"PAT-DENY-BY-DEFAULT-ROUTES\",\"description\":\"Every page requires sign-in unless it is explicitly public.\",\"requirementIds\":[\"V8.2.1\"]}],\"actionItems\":[]},{\"stride\":\"information-disclosure\",\"target\":\"flow-browser-app\",\"description\":\"Someone on the same network reads the traffic between the browser and the application.\",\"likelihood\":\"low\",\"impact\":\"high\",\"riskLevel\":\"medium\",\"residualRisk\":\"low\",\"status\":\"mitigated\",\"mitigations\":[{\"control\":\"PAT-TRUST-ZONES\",\"description\":\"The application only listens on this computer, so there is no network traffic to read.\",\"requirementIds\":[]}],\"actionItems\":[]}]}"
+        }
+      ],
+      "usage": {
+        "input_tokens": 8000,
+        "output_tokens": 900,
+        "cache_read_input_tokens": 4000,
+        "cache_creation_input_tokens": 0,
+        "iterations": [{ "type": "fallback_message", "model": "claude-sonnet-5" }]
+      }
+    }
+  ]
+}

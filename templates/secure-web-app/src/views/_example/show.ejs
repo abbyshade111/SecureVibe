@@ -1,0 +1,19 @@
+<section class="card">
+  <h1><%= note.title %></h1>
+  <p class="muted">
+    <span class="tag"><%= note.status %></span>
+    · Created <%= formatDate(note.createdAt) %> · Updated <%= formatDate(note.updatedAt) %>
+    <% if (note.publishedAt) { %> · Published <%= formatDate(note.publishedAt) %><% } %>
+  </p>
+  <div class="prose"><%= note.body %></div>
+  <% if (note.publishNote) { %><p class="hint">Publishing note: <%= note.publishNote %></p><% } %>
+  <p class="actions">
+    <a class="button button-secondary" href="/notes/<%= note.id %>/edit">Edit</a>
+    <% if (note.status !== 'published') { %><a class="button" href="/notes/<%= note.id %>/publish">Publish</a><% } %>
+  </p>
+  <form method="post" action="/notes/<%= note.id %>/delete" data-confirm="Delete this note?">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="button button-danger button-small">Delete</button>
+  </form>
+  <p class="muted"><a href="/notes">Back to notes</a></p>
+</section>

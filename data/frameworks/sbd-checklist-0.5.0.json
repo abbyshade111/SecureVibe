@@ -1,0 +1,333 @@
+{
+ "framework": "OWASP Secure by Design Framework",
+ "version": "0.5.0 (Draft, August 2025)",
+ "source": "https://github.com/OWASP/www-project-secure-by-design-framework",
+ "license": "CC BY-SA 4.0",
+ "checklistDomains": [
+  {
+   "id": "A",
+   "name": "Architecture & Service Design",
+   "controls": [
+    {
+     "id": "AS-01",
+     "statement": "Trust zones (logical network \"Spaces\") are enforced; cross-zone traffic flows only via governed integration layers (gateway/bus).",
+     "critical": true,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "AS-02",
+     "statement": "Service addressing & discovery are unified and consistent across environments; intra-zone shortcuts are not used externally.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "AS-03",
+     "statement": "Service boundaries are clear; no circular dependencies; services are right-sized; each service owns its data.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "AS-04",
+     "statement": "Architecture avoids long synchronous chains; event-driven or queued handoffs are used where appropriate.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "AS-05",
+     "statement": "API/event contracts are defined and versioned; consumers are notified before breaking changes take effect.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "AS-06",
+     "statement": "Messaging has durability (persistence/replication/retention) with a defined DLQ strategy and triage.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "AS-07",
+     "statement": "Startup resilience: services handle missing dependencies; autoscaling defined with minimum replicas.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "AS-08",
+     "statement": "Legacy integrations are isolated behind an anti-corruption layer; migration path is defined.",
+     "critical": false,
+     "severityIfNo": "low"
+    }
+   ]
+  },
+  {
+   "id": "B",
+   "name": "Data Management & Protection",
+   "controls": [
+    {
+     "id": "DM-01",
+     "statement": "Data are classified with named owners; controls are proportional to classification.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "DM-02",
+     "statement": "Encryption in transit (TLS/mTLS) and at rest with managed keys and rotation is designed in.",
+     "critical": true,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "DM-03",
+     "statement": "Handlers and workflows are idempotent; duplicate detection/suppression is in place where needed.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "DM-04",
+     "statement": "Cross-service transactions use Sagas/compensations; 2PC is avoided; prefer intra-service ACID first.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "DM-05",
+     "statement": "Retention/deletion policies exist per data class; minimization is applied to collection/storage.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "DM-06",
+     "statement": "Consistency model is documented; UX handles staleness/conflicts; event-sourcing considered where appropriate.",
+     "critical": false,
+     "severityIfNo": "low"
+    }
+   ]
+  },
+  {
+   "id": "C",
+   "name": "Reliability & Resilience",
+   "controls": [
+    {
+     "id": "RR-01",
+     "statement": "Retries use exponential backoff + jitter; default exception handling and safe error models exist.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "RR-02",
+     "statement": "Circuit breakers/bulkheads protect dependencies; non-critical features have fallback/degraded modes.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "RR-03",
+     "statement": "Asynchronous semantics are defined: ordering, delivery guarantees, ack/visibility timeouts; DLQs are monitored.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "RR-04",
+     "statement": "Shared integration layers (gateway/bus) are high-availability and contain errors to prevent cross-zone failure propagation.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "RR-05",
+     "statement": "All mutating endpoints enforce an Idempotency-Key; concurrency controls (locks/optimistic concurrency) are in place.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "RR-06",
+     "statement": "Timeouts on all calls; health probes; explicit failover/multi-AZ strategies for critical paths.",
+     "critical": true,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "RR-07",
+     "statement": "Quotas and autoscaling are defined; rate-limits enforced at edges; minimum capacity documented.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "RR-08",
+     "statement": "Caching/CDN/back-pressure patterns are applied where appropriate; performance guardrails are defined.",
+     "critical": false,
+     "severityIfNo": "low"
+    }
+   ]
+  },
+  {
+   "id": "D",
+   "name": "Access Control & Secure Communication",
+   "controls": [
+    {
+     "id": "AC-01",
+     "statement": "All communications use TLS/mTLS; service identity is verified (e.g., mesh-issued certs).",
+     "critical": true,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "AC-02",
+     "statement": "Central IdP (OIDC/OAuth2) is used; MFA enforced on privileged/admin paths; tokens are short-lived.",
+     "critical": true,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "AC-03",
+     "statement": "RBAC/ABAC governs APIs and publish/consume on messaging; least privilege is applied.",
+     "critical": false,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "AC-04",
+     "statement": "Authorization is centralized at gateway/mesh via policy-as-code; shared integration services are governed.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "AC-05",
+     "statement": "Secrets are stored in a secret manager; keys/certs rotate automatically; no secrets in code/logs.",
+     "critical": false,
+     "severityIfNo": "high"
+    },
+    {
+     "id": "AC-06",
+     "statement": "Applicable regulatory controls (e.g., privacy/financial) are identified with evidence of design alignment.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "AC-07",
+     "statement": "Least privilege extends to CI/CD, VCS apps, chat-ops, and third-party tooling; periodic reviews are scheduled.",
+     "critical": false,
+     "severityIfNo": "low"
+    }
+   ]
+  },
+  {
+   "id": "E",
+   "name": "Monitoring, Testing & Incident Readiness",
+   "controls": [
+    {
+     "id": "MT-01",
+     "statement": "Structured centralized logs with correlation/trace IDs; administrative access is logged.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "MT-02",
+     "statement": "Metrics/SLOs and dashboards cover service health and event-flow anomalies; alerts are actionable.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "MT-03",
+     "statement": "ASVS-aligned security tests and negative tests from threat-modeling are planned in the test strategy.",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "MT-04",
+     "statement": "SbD controls are verifiable in test (isolation, mTLS, authZ denials, rate-limit behavior).",
+     "critical": false,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "MT-05",
+     "statement": "OpenAPI/AsyncAPI and event catalogs are published; ADRs/runbooks are current.",
+     "critical": false,
+     "severityIfNo": "low"
+    },
+    {
+     "id": "MT-06",
+     "statement": "A documented Incident Response plan (roles, comms, evidence handling) exists and is rehearsed.",
+     "critical": true,
+     "severityIfNo": "medium"
+    },
+    {
+     "id": "MT-07",
+     "statement": "Audit log retention \u226512 months with tamper-evidence and a searchable hot window is defined.",
+     "critical": true,
+     "severityIfNo": "medium"
+    }
+   ]
+  }
+ ],
+ "scoring": {
+  "yes": 0,
+  "n-a": 0,
+  "no": {
+   "low": 1,
+   "medium": 2,
+   "high": 4
+  },
+  "escalateWhen": "any critical control is No, or total score >= 6, or any escalation trigger applies (sensitive/regulated data, new external exposure, novel technology, Tier-1 impact)",
+  "threshold": 6
+ },
+ "processSteps": [
+  "Capture Security Requirements (Planning)",
+  "Draft High-Level Architecture (Design)",
+  "Apply SbD Principles & Patterns",
+  "Complete the SbD Review Checklist",
+  "Internal Peer Review",
+  "Risk Triage",
+  "Optional Threat Modeling & AppSec Review",
+  "Finalize Design Artifacts",
+  "Handoff to Development",
+  "Design-Drift Watch"
+ ],
+ "principles": [
+  {
+   "id": "least-privilege",
+   "name": "Least Privilege"
+  },
+  {
+   "id": "defense-in-depth",
+   "name": "Defense in Depth"
+  },
+  {
+   "id": "secure-defaults",
+   "name": "Secure Defaults"
+  },
+  {
+   "id": "zero-trust-explicit-boundaries",
+   "name": "Zero-Trust & Explicit Boundaries"
+  },
+  {
+   "id": "fail-secure-graceful-degradation",
+   "name": "Fail Secure / Graceful Degradation"
+  },
+  {
+   "id": "simplicity-minimized-attack-surface",
+   "name": "Simplicity & Minimized Attack Surface"
+  },
+  {
+   "id": "observability-by-design",
+   "name": "Observability by Design"
+  },
+  {
+   "id": "contract-first-versioned-interfaces",
+   "name": "Contract-First & Versioned Interfaces"
+  },
+  {
+   "id": "automation-repeatability",
+   "name": "Automation & Repeatability"
+  }
+ ],
+ "escalationTriggers": [
+  {
+   "id": "sensitive-data",
+   "name": "Sensitive or Regulated Data"
+  },
+  {
+   "id": "external-exposure",
+   "name": "New External Exposure"
+  },
+  {
+   "id": "novel-technology",
+   "name": "Novel Technologies or Patterns"
+  },
+  {
+   "id": "tier-1-impact",
+   "name": "High-Business-Impact Services (Tier-1)"
+  }
+ ]
+}

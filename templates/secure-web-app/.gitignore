@@ -1,0 +1,21 @@
+# Secrets and local state — never commit these
+.env
+.env.*
+!.env.example
+FIRST-LOGIN.txt
+certs/
+
+# Runtime data (database, uploads, logs, outbox)
+data/*
+!data/common-passwords.txt
+!data/injection-patterns.json
+!data/.gitkeep
+
+# Dependencies
+node_modules/
+
+# Editor / OS noise
+.DS_Store
+*.log
+.vscode/
+.idea/

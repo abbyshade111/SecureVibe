@@ -1,0 +1,36 @@
+<section class="card">
+  <h1>API keys</h1>
+  <p class="hint">Every API key issued across all accounts. Only the lookup prefix is ever stored — the secret
+    itself cannot be recovered, only revoked.</p>
+  <% if (keys.length === 0) { %>
+    <p class="muted">No API keys have been created yet.</p>
+  <% } else { %>
+    <table class="table table-dense">
+      <thead><tr><th>Prefix</th><th>Owner</th><th>Label</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% for (const k of keys) { %>
+          <tr>
+            <td><code>sk_<%= k.prefix %>_…</code></td>
+            <td><code><%= k.userId %></code></td>
+            <td><%= k.name || '—' %></td>
+            <td><%= formatDate(k.createdAt) %></td>
+            <td><%= k.lastUsedAt ? formatDate(k.lastUsedAt) : 'Never' %></td>
+            <td><span class="tag <%= k.revoked ? 'tag-blocked' : 'tag-success' %>"><%= k.revoked ? 'Revoked' : 'Active' %></span></td>
+            <td>
+              <% if (!k.revoked) { %>
+                <form class="inline-form" method="post" action="/admin/api-keys/<%= k.id %>/revoke">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="button button-danger button-small">Revoke</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+    <p class="pager">
+      <% if (page > 1) { %><a href="/admin/api-keys?page=<%= page - 1 %>">Previous</a><% } %>
+      <% if (hasMore) { %><a href="/admin/api-keys?page=<%= page + 1 %>">Next</a><% } %>
+    </p>
+  <% } %>
+</section>

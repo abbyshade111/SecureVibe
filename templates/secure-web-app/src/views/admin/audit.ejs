@@ -1,0 +1,37 @@
+<section class="card">
+  <h1>Security events</h1>
+  <p><%= total %> events recorded. <a href="/admin/audit/verify">Check that the log has not been tampered with</a>.</p>
+  <form method="get" action="/admin/audit" class="filters">
+    <label for="event">Event</label>
+    <select id="event" name="event">
+      <option value="">All events</option>
+      <% for (const name of eventNames) { %>
+        <option value="<%= name %>" <%= name === filters.event ? 'selected' : '' %>><%= name %></option>
+      <% } %>
+    </select>
+    <label for="userId">User id</label>
+    <input id="userId" name="userId" type="text" value="<%= filters.userId %>">
+    <button type="submit" class="button button-secondary button-small">Filter</button>
+  </form>
+  <table class="table table-dense">
+    <thead>
+      <tr><th>When (UTC)</th><th>Event</th><th>Outcome</th><th>User</th><th>Route</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+      <% for (const r of rows) { %>
+        <tr>
+          <td><%= r.ts %></td>
+          <td><%= r.event %></td>
+          <td><span class="tag tag-<%= r.outcome %>"><%= r.outcome %></span></td>
+          <td><%= r.userId || '—' %></td>
+          <td><%= r.route || '—' %></td>
+          <td><code><%= JSON.stringify(r.fields) %></code></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+  <p class="pager">
+    <% if (page > 1) { %><a href="/admin/audit?page=<%= page - 1 %>&event=<%= encodeURIComponent(filters.event) %>&userId=<%= encodeURIComponent(filters.userId) %>">Previous</a><% } %>
+    <% if (hasMore) { %><a href="/admin/audit?page=<%= page + 1 %>&event=<%= encodeURIComponent(filters.event) %>&userId=<%= encodeURIComponent(filters.userId) %>">Next</a><% } %>
+  </p>
+</section>

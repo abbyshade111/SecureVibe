@@ -1,0 +1,7 @@
+{
+  "name": "securevibe-failing-tests-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Fixture app whose security tests fail, so the test runner's finding path can be checked."
+}

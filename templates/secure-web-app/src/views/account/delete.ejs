@@ -1,0 +1,19 @@
+<section class="card narrow">
+  <h1>Delete your account</h1>
+  <% if (lastAdmin) { %>
+    <p class="notice">You are the only administrator. Make someone else an administrator before deleting your account.</p>
+  <% } else { %>
+    <p>This removes your account and the records that belong to you. It cannot be undone. Records that other people share with you are kept for them.</p>
+    <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+    <form method="post" action="/account/delete" data-confirm="Delete your account for good?" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="password">Enter your password to confirm</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <% if (errors.password) { %><p class="field-error"><%= errors.password %></p><% } %>
+      </div>
+      <button type="submit" class="button button-danger">Delete my account</button>
+      <a class="button button-secondary" href="/account">Keep my account</a>
+    </form>
+  <% } %>
+</section>

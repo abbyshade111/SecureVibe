@@ -1,0 +1,94 @@
+{
+  "app": {
+    "name": "Habit Log",
+    "description": "A simple page where I tick off daily habits and see streaks.",
+    "category": "tracker",
+    "entities": [
+      {
+        "name": "habit",
+        "label": "Habit",
+        "pluralLabel": "Habits",
+        "fields": [
+          {
+            "name": "title",
+            "label": "Title",
+            "type": "text",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "frequency",
+            "label": "Frequency",
+            "type": "choice",
+            "required": false,
+            "choices": [
+              "daily",
+              "weekly"
+            ],
+            "sensitive": false
+          },
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "longtext",
+            "required": false,
+            "sensitive": false
+          }
+        ],
+        "access": "all-signed-in"
+      }
+    ],
+    "keyFeatures": [
+      "Tick off a habit for today",
+      "See the current streak per habit"
+    ]
+  },
+  "users": {
+    "audience": "just-me",
+    "requiresSignIn": false,
+    "roles": [],
+    "expectedUserCount": "1",
+    "registration": "admin-created",
+    "adminMfa": false
+  },
+  "data": {
+    "categories": [
+      "business-confidential"
+    ],
+    "aboutOtherPeople": false,
+    "retention": "keep-until-deleted",
+    "region": "unsure"
+  },
+  "capabilities": {
+    "fileUploads": false,
+    "uploadKinds": [],
+    "aiAssistant": {
+      "enabled": false,
+      "purpose": "",
+      "dataItCanSee": "nothing",
+      "canTakeActions": false,
+      "storesHistory": false,
+      "canSearchWeb": false,
+      "webSearchSites": []
+    },
+    "email": false,
+    "externalApis": [],
+    "scheduledJobs": false,
+    "publicApi": false,
+    "payments": false
+  },
+  "deployment": {
+    "target": "local-only",
+    "owner": {
+      "name": "Sam Rivera",
+      "contactEmail": "sam@example.com"
+    },
+    "businessImpact": "low"
+  },
+  "meta": {
+    "mode": "guided",
+    "inferredFields": [],
+    "notSureFields": [],
+    "confirmed": true
+  }
+}

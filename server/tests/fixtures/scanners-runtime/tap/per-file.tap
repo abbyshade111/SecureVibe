@@ -1,0 +1,71 @@
+TAP version 13
+# Subtest: tests/security/headers.test.ts
+    # Subtest: V3.4.3 sends a nonce-based content security policy
+    ok 1 - V3.4.3 sends a nonce-based content security policy
+      ---
+      duration_ms: 12.5
+      type: 'test'
+      location: '/app/tests/security/headers.test.ts:9:1'
+      ...
+    # Subtest: V3.4.4 sends X-Content-Type-Options
+    not ok 2 - V3.4.4 sends X-Content-Type-Options
+      ---
+      duration_ms: 3.25
+      type: 'test'
+      location: '/app/tests/security/headers.test.ts:18:1'
+      failureType: 'testCodeFailure'
+      error: 'Expected values to be strictly equal'
+      code: 'ERR_ASSERTION'
+      expected: 'nosniff'
+      actual: 'undefined'
+      ...
+    1..2
+not ok 1 - tests/security/headers.test.ts
+  ---
+  duration_ms: 140.75
+  type: 'suite'
+  ...
+# Subtest: tests/security/session.test.ts
+    # Subtest: V7.2 session identifiers
+        # Subtest: V7.2.4 issues a new identifier on sign-in
+        ok 1 - V7.2.4 issues a new identifier on sign-in
+          ---
+          duration_ms: 8
+          type: 'test'
+          location: '/app/tests/security/session.test.ts:11:3'
+          ...
+        # Subtest: rejects a reused identifier
+        ok 2 - rejects a reused identifier
+          ---
+          duration_ms: 4
+          type: 'test'
+          location: '/app/tests/security/session.test.ts:20:3'
+          ...
+        1..2
+    ok 1 - V7.2 session identifiers
+      ---
+      duration_ms: 15
+      type: 'suite'
+      ...
+    # Subtest: V7.4.4 shows a sign-out control
+    ok 2 - V7.4.4 shows a sign-out control # SKIP needs a browser
+      ---
+      duration_ms: 0.1
+      type: 'test'
+      location: '/app/tests/security/session.test.ts:31:1'
+      ...
+    1..2
+ok 2 - tests/security/session.test.ts
+  ---
+  duration_ms: 60
+  type: 'suite'
+  ...
+1..2
+# tests 4
+# suites 3
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 214.5

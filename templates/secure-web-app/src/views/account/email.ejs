@@ -1,0 +1,15 @@
+<section class="card narrow">
+  <h1>Change your email address</h1>
+  <p>Your email address is how you sign in and where password reset links are sent, so we will ask you to confirm your password first.</p>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/account/email" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="email">New email address</label>
+      <input id="email" name="email" type="email" autocomplete="email" required value="<%= values.email || '' %>">
+      <% if (errors.email) { %><p class="field-error"><%= errors.email %></p><% } %>
+    </div>
+    <button type="submit" class="button">Change email address</button>
+    <a class="button button-secondary" href="/account">Cancel</a>
+  </form>
+</section>

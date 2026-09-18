@@ -1,0 +1,48 @@
+{
+  "name": "@securevibe/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "self-assess": "tsx src/cli/self-assess.ts",
+    "eval": "tsx src/cli/eval.ts",
+    "verify": "tsx src/cli/verify.ts",
+    "doctor": "tsx src/cli/doctor.ts",
+    "smoke:api": "tsx src/cli/smoke-api.ts",
+    "reports:rerender": "tsx src/cli/rerender-reports.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
+    "@cyclonedx/cyclonedx-npm": "^6.0.1",
+    "archiver": "^8.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-security": "^4.0.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "marked": "^18.0.0",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^8.0.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.3",
+    "@types/supertest": "^7.2.0",
+    "supertest": "^7.2.0",
+    "vitest": "^5.0.1"
+  }
+}

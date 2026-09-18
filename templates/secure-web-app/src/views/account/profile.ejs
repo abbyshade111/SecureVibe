@@ -1,0 +1,15 @@
+<section class="card narrow">
+  <h1>Your details</h1>
+  <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
+  <form method="post" action="/account/profile" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" autocomplete="name" value="<%= values.name || '' %>">
+      <% if (errors.name) { %><p class="field-error"><%= errors.name %></p><% } %>
+    </div>
+    <p class="muted">Email address: <%= account.email %> · <a href="/account/email">change</a></p>
+    <button type="submit" class="button">Save</button>
+    <a class="button button-secondary" href="/account">Cancel</a>
+  </form>
+</section>

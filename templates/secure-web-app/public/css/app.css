@@ -1,0 +1,132 @@
+/* Base styles for the generated app. No third-party fonts or assets: everything is served from this app. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c2430;
+  --muted: #5b6673;
+  --border: #d9dee5;
+  --accent: #1f5eff;
+  --accent-dark: #1746c0;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --success: #067647;
+  --success-bg: #e6f4ec;
+  --info-bg: #eaf1ff;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-dark); }
+
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--surface); padding: 0.5rem 1rem; }
+.skip-link:focus { left: 0.5rem; top: 0.5rem; z-index: 10; }
+
+.site-header { background: var(--surface); border-bottom: 1px solid var(--border); }
+.nav { max-width: 64rem; margin: 0 auto; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.brand { font-weight: 700; text-decoration: none; color: var(--text); font-size: 1.1rem; }
+.nav-links { list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; flex: 1; }
+.nav-links a { text-decoration: none; }
+.logout-form { display: flex; align-items: center; gap: 0.75rem; margin: 0; }
+.signed-in-as { color: var(--muted); font-size: 0.9rem; }
+
+.container { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.site-footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 1rem; }
+
+h1 { font-size: 1.6rem; margin: 0 0 1rem; }
+h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+.narrow { max-width: 36rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1.25rem; }
+.hero { text-align: center; padding: 2rem 0; }
+
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+.field-checkbox label { font-weight: 400; }
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px solid rgba(31, 94, 255, 0.35); outline-offset: 1px; }
+.hint { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0 0; }
+.muted { color: var(--muted); }
+.field-error { color: var(--danger); font-size: 0.9rem; margin: 0.25rem 0 0; }
+.form-error { background: var(--danger-bg); color: var(--danger); padding: 0.6rem 0.8rem; border-radius: var(--radius); }
+.notice { background: var(--info-bg); padding: 0.6rem 0.8rem; border-radius: var(--radius); }
+
+.button {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+.button:hover { background: var(--accent-dark); color: #fff; }
+.button-secondary { background: var(--surface); color: var(--accent); }
+.button-secondary:hover { background: var(--info-bg); color: var(--accent-dark); }
+.button-danger { background: var(--danger); border-color: var(--danger); }
+.button-danger:hover { background: #8f1c13; }
+.button-small { padding: 0.3rem 0.6rem; font-size: 0.9rem; }
+.link-button { background: none; border: none; color: var(--accent); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+.inline-form { display: inline; margin: 0; }
+.spaced { margin-top: 0.75rem; }
+.actions { margin: 0.5rem 0; }
+
+.flash { padding: 0.7rem 0.9rem; border-radius: var(--radius); margin-bottom: 1rem; }
+.flash-success { background: var(--success-bg); color: var(--success); }
+.flash-error { background: var(--danger-bg); color: var(--danger); }
+.flash-info { background: var(--info-bg); }
+
+.table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+.table th, .table td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.table th { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.table-dense td, .table-dense th { font-size: 0.85rem; padding: 0.35rem 0.5rem; }
+.table code { font-size: 0.8rem; word-break: break-all; }
+
+.details { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 1rem; }
+.details dt { color: var(--muted); }
+.details dd { margin: 0; }
+
+.tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--info-bg); font-size: 0.8rem; }
+.tag-failure, .tag-blocked { background: var(--danger-bg); color: var(--danger); }
+.tag-success { background: var(--success-bg); color: var(--success); }
+
+.secret { display: inline-block; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px dashed var(--border); border-radius: var(--radius); font-size: 1.05rem; letter-spacing: 0.08em; word-break: break-all; }
+.recovery-codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(8rem, 1fr)); gap: 0.5rem; margin: 1rem 0; }
+.recovery-codes code { display: block; padding: 0.4rem 0.6rem; background: var(--bg); border-radius: var(--radius); font-size: 1.05rem; letter-spacing: 0.1em; }
+.steps li { margin-bottom: 0.4rem; }
+
+.filters { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.filters input, .filters select { width: auto; }
+.pager a { margin-right: 1rem; }
+.prose { white-space: pre-wrap; margin: 1rem 0; }
+.error-page { margin-top: 2rem; }
+
+@media (max-width: 40rem) {
+  .nav { gap: 0.75rem; }
+  .details { grid-template-columns: 1fr; }
+  .details dt { margin-top: 0.4rem; }
+}

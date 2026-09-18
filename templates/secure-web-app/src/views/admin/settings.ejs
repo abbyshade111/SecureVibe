@@ -1,0 +1,26 @@
+<section class="card">
+  <h1>Settings</h1>
+  <dl class="details">
+    <dt>How people join</dt><dd><%= registrationMode === 'open' ? 'Anyone can create an account' : registrationMode === 'invite-only' ? 'By invitation link only' : 'Administrators create accounts' %></dd>
+    <dt>Sign-in expires</dt><dd>After <%= sessionPolicy.idle %> minutes without activity, and always after <%= sessionPolicy.absolute %> hours</dd>
+    <dt>Devices per account</dt><dd>At most <%= sessionPolicy.max %> signed in at once</dd>
+  </dl>
+  <p class="hint">These values come from the app's configuration file (.env) and cannot be changed from here.</p>
+</section>
+
+<% if (aiFeature) { %>
+<section class="card">
+  <h2>AI assistant</h2>
+  <% if (!aiEnvEnabled) { %>
+    <p>The assistant is switched off in the configuration (AI_ENABLED=0). Change the configuration and restart the app to use it.</p>
+  <% } else { %>
+    <p>The assistant is currently <strong><%= aiEnabled ? 'on' : 'off' %></strong>. Switching it off stops every AI request immediately; the change is recorded in the security log.</p>
+    <p class="actions"><a class="button button-secondary" href="/admin/ai">Assistant usage and flagged questions</a></p>
+    <form method="post" action="/admin/ai/kill-switch">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="enabled" value="<%= aiEnabled ? 'false' : 'true' %>">
+      <button type="submit" class="button <%= aiEnabled ? 'button-danger' : '' %>"><%= aiEnabled ? 'Switch the assistant off' : 'Switch the assistant on' %></button>
+    </form>
+  <% } %>
+</section>
+<% } %>

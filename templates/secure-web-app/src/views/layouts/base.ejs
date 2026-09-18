@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title><%= title ? title + ' · ' : '' %><%= appName %></title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script nonce="<%= nonce %>" src="/js/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <% if (previewMode) { %>
+      <p class="flash flash-info" role="status">Preview: this copy signs you in automatically and its data is thrown away. Your real app asks for a password.</p>
+    <% } %>
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="/"><%= appName %></a>
+      <ul class="nav-links">
+        <% if (user) { %>
+          <% navItems.forEach(function (item) { %><li><a href="<%= item.href %>" title="<%= item.summary %>"><%= item.label %></a></li><% }); %>
+          <li><a href="/account">Your account</a></li>
+          <% if (user.isAdmin) { %><li><a href="/admin">Administration</a></li><% } %>
+        <% } else { %>
+          <li><a href="/login">Sign in</a></li>
+          <% if (registrationOpen) { %><li><a href="/register">Create an account</a></li><% } %>
+        <% } %>
+      </ul>
+      <% if (user) { %>
+        <form class="logout-form" method="post" action="/logout">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <span class="signed-in-as">Signed in as <%= user.name || user.email %></span>
+          <button type="submit" class="button button-secondary">Sign out</button>
+        </form>
+      <% } %>
+    </nav>
+  </header>
+  <main id="main" class="container">
+    <% for (const item of flash) { %>
+      <div class="flash flash-<%= item.type %>" role="status"><%= item.message %></div>
+    <% } %>
+<%= bodyMarker %>
+  </main>
+  <footer class="site-footer">
+    <p><%= appName %> · built on a secure baseline · <a href="/account/export">Download your data</a></p>
+  </footer>
+</body>
+</html>

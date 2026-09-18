@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SecureVibe — overview</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --border: #d8dee4; --panel: #f6f8fa;
+  --accent: #0b5fff; --good: #0a7a3d; --warn: #8a5a00; --bad: #b3261e; --link: #0b57d0;
+  font-size: 16px;
+}
+a { color: var(--link); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; }
+.skip-link { position: absolute; left: -999px; top: 0; }
+.skip-link:focus { left: 8px; top: 8px; background: var(--accent); color: #fff; padding: 8px 12px; border-radius: 6px; z-index: 10; }
+.page { max-width: 980px; margin: 0 auto; padding: 24px 20px 80px; }
+header.report-header { border-bottom: 3px solid var(--border); padding-bottom: 16px; margin-bottom: 20px; }
+header.report-header h1 { margin: 0 0 4px; font-size: 1.7rem; }
+header.report-header p.subtitle { margin: 0; color: var(--muted); }
+header.report-header p.generated { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+.banner { border-radius: 8px; padding: 12px 16px; margin: 0 0 14px; font-weight: 600; }
+.banner-ai-disclaimer { background: #fff4e5; border: 1px solid #e0a300; color: #6b4a00; }
+.banner-preview { background: #eef2ff; border: 1px solid #6a7bd6; color: #2c3a8f; }
+.banner-note { background: var(--panel); border: 1px solid var(--border); color: var(--fg); font-weight: 400; }
+nav.toc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; }
+nav.toc h2 { margin: 0 0 8px; font-size: 1rem; }
+nav.toc ol { margin: 0; padding-left: 20px; }
+nav.toc li { margin: 2px 0; }
+.filter-toggle { margin: 0 6px 0 2px; }
+.filter-label { display: inline-block; margin: 0 0 18px; padding: 10px 14px; border: 1px dashed var(--border); border-radius: 8px; background: var(--panel); font-size: 0.92rem; cursor: pointer; }
+section.chapter { margin-bottom: 22px; }
+section.chapter > h2 { border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+details { border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; padding: 4px 14px; background: #fff; }
+details > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+details[open] > summary { border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.92rem; }
+th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+.badge { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 0.85rem; }
+.status-pass, .rating-good, .sbd-yes { background: #e7f6ec; border-color: var(--good); }
+.status-fail, .rating-at-risk, .sbd-no { background: #fbe9e7; border-color: var(--bad); }
+.status-partial, .rating-needs-attention, .status-not-verified { background: #fff6df; border-color: var(--warn); }
+.status-ai-assessed, .status-documented, .status-attested { background: #eef2ff; border-color: #6a7bd6; }
+.status-not-applicable, .status-out-of-level, .sbd-n-a { background: var(--panel); }
+.priority-P1 { background: #fbe9e7; border-color: var(--bad); }
+.priority-P2 { background: #fff1e0; border-color: #c96a00; }
+.priority-P3 { background: #fff6df; border-color: var(--warn); }
+.priority-P4 { background: var(--panel); }
+.critical-flag { color: var(--bad); font-weight: 700; }
+.muted { color: var(--muted); }
+.scorecard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 18px; }
+.scorecard .cell { border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; }
+.scorecard .cell .n { font-size: 1.4rem; font-weight: 700; display: block; }
+.finding-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 12px 0; }
+.finding-card h4 { margin: 0 0 6px; }
+.finding-card dl { display: grid; grid-template-columns: 160px 1fr; gap: 4px 10px; margin: 8px 0; }
+.finding-card dt { font-weight: 600; color: var(--muted); }
+.finding-card dd { margin: 0; }
+.adr { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin: 12px 0; background: var(--panel); scroll-margin-top: 12px; }
+.adr h3 { margin: 0 0 4px; }
+.adr h4, .adr h5 { margin: 12px 0 4px; }
+h3.adr-group { margin-top: 22px; }
+code, pre { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88rem; }
+pre { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow-x: auto; white-space: pre-wrap; }
+footer.report-footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+.hideable.default-hidden { display: none; }
+#filter-all:checked ~ main tr.hideable.default-hidden { display: table-row; }
+#filter-all:checked ~ main li.hideable.default-hidden { display: list-item; }
+#filter-all:checked ~ main .hideable.default-hidden:not(tr):not(li) { display: block; }
+@media screen and (prefers-color-scheme: dark) {
+  :root { --bg: #0f1115; --fg: #e7e9ec; --muted: #a2acb8; --border: #30353d; --panel: #171a20; --link: #8ab4f8; --good: #5cc98a; --warn: #e0b04d; --bad: #f28b82; }
+  details, .finding-card { background: #12151a; }
+  th { background: #1b1f26; }
+  .status-pass, .rating-good, .sbd-yes { background: #12301f; }
+  .status-fail, .rating-at-risk, .sbd-no, .priority-P1 { background: #3a1714; }
+  .status-partial, .rating-needs-attention, .status-not-verified, .priority-P3 { background: #33280f; }
+  .priority-P2 { background: #3a2410; }
+  .status-ai-assessed, .status-documented, .status-attested { background: #1c2340; }
+  .banner-ai-disclaimer { background: #33280f; border-color: #e0a300; color: #f5d78e; }
+  .banner-preview { background: #1c2340; border-color: #6a7bd6; color: #c3cbf5; }
+}
+@media print {
+  /* Saved as PDF: always light, everything expanded, no on-screen controls. */
+  :root { --bg: #ffffff; --fg: #1a1d21; --muted: #4a525c; --border: #c9d1d9; --panel: #f6f8fa; --link: #0b57d0; }
+  body { font-size: 11pt; }
+  .page { max-width: none; padding: 0; }
+  .filter-bar, .skip-link, .filter-toggle, .filter-label { display: none; }
+  .adr, .finding-card, tr { break-inside: avoid; }
+  section.chapter > h2 { break-after: avoid; }
+  a[href^="#"]::after { content: ""; }
+  details { border: none; padding: 0; }
+  details > summary { display: none; }
+  details > *:not(summary) { display: block !important; }
+}
+@media (max-width: 640px) {
+  .scorecard { grid-template-columns: repeat(2, 1fr); }
+  .finding-card dl { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="page">
+<header class="report-header">
+  <h1>SecureVibe — overview</h1>
+  <p class="subtitle">32 of 161 applicable Level 2 ASVS requirements verified passing; 0 of 63 applicable AISVS requirements verified passing.</p>
+  <p class="generated">Generated by SecureVibe on 2026-09-17. Automated and AI-assisted assessment — not a certification.</p>
+</header>
+<div class="banner banner-ai-disclaimer" role="note">This code was generated by an AI and has not been reviewed by a qualified human engineer.</div>
+<input type="checkbox" id="filter-all" class="filter-toggle" />
+<label for="filter-all" class="filter-label">Show everything, including items not applicable to this app</label>
+<nav class="toc" aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#what-you-built">What you built and how it was assessed</a></li>
+<li><a href="#can-i-use-it">Can I use it?</a></li>
+<li><a href="#top-actions">Top actions</a></li>
+<li><a href="#scorecards">Scorecards</a></li>
+<li><a href="#not-checked">What was not checked and why</a></li>
+<li><a href="#recheck">How to re-check</a></li></ol></nav>
+<main id="main">
+<section id="what-you-built" class="chapter"><h2>What you built and how it was assessed</h2><p>SecureVibe is a local tool for one person that runs on this computer only and listens on 127.0.0.1. It has no accounts: a browser gets a session only by opening the private startup link SecureVibe prints, and every request is checked for its host, its origin and a security token. Designs, generated applications and reports stay on this computer; only what is needed to design, write and review code is sent to the Anthropic API, and only when a key is configured. Code it generates runs under Node&#39;s permission model, limited to that project&#39;s folder, with time limits and a minimal environment. A threat model lists 22 ways things could go wrong, and 1 of them needs an action from the owner.</p><p>SecureVibe checked this application with automated tests, runtime probes against the running app, static code analysis, dependency and secret scanning, and configuration checks. No AI code review ran for this build (no AI key configured, or preview mode); requirements that would need it are shown as &quot;Not verified&quot;. Generated code runs with the user&#39;s OS privileges under Node&#39;s permission model (file system restricted to the project folder); network access is not restricted. No independent human security review was performed unless it is recorded in the human sign-off section below. This is an automated and AI-assisted assessment. It is not a certification and does not replace a professional security review.</p></section>
+<section id="can-i-use-it" class="chapter"><h2>Can I use it?</h2><p><strong><span class="badge rating-at-risk">🔴 At risk</span></strong> — 32 of 161 applicable Level 2 ASVS requirements verified passing; 0 of 63 applicable AISVS requirements verified passing.</p><p class="muted">Yes, on this computer. The &quot;At risk&quot; rating is because 2 critical Secure by Design controls (AC-02, MT-06) are not met yet. The matching actions below say what to do and when.</p></section>
+<section id="top-actions" class="chapter"><h2>Top actions (at most 5)</h2><table><thead><tr><th>Priority</th><th>Action</th><th>Who</th><th>Effort</th></tr></thead><tbody><tr><td>high</td><td>AC-02: If your organisation has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams.</td><td>developer</td><td></td></tr>
+<tr><td>high</td><td>AC-05: When the app is hosted online, move its secrets from the .env file into the hosting provider&#39;s secret manager and set up regular key rotation.</td><td>hosting-provider</td><td></td></tr>
+<tr><td>high</td><td>MT-06: Read docs/incident-response.md and walk through one scenario (for example &#39;a staff password was leaked&#39;) with the people named in it, then record the rehearsal date on the results page.</td><td>owner</td><td></td></tr>
+<tr><td>high</td><td>V11.2.2: Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available.</td><td>developer</td><td>hour</td></tr>
+<tr><td>medium</td><td>C9.5.4: Verify that secrets and credentials required by an agent at runtime are not exposed within the model&#39;s observable context, including the context window, system prompts, or tool call parameters.</td><td>developer</td><td>minutes</td></tr></tbody></table></section>
+<section id="scorecards" class="chapter"><h2>Scorecards</h2><h3>ASVS 5.0.0 — Level 2 <span class="badge rating-needs-attention">🟡 Needs attention</span></h3><div class="scorecard" role="group" aria-label="OWASP Application Security Verification Standard scorecard">
+<div class="cell"><span class="n">32</span>Verified pass</div>
+<div class="cell"><span class="n">116</span>AI-assessed / documented / attested</div>
+<div class="cell"><span class="n">4</span>Not verified</div>
+<div class="cell"><span class="n">1</span>Fail</div>
+</div><h3>AISVS 1.0 <span class="badge rating-needs-attention">🟡 Needs attention</span></h3><div class="scorecard" role="group" aria-label="OWASP Artificial Intelligence Security Verification Standard scorecard">
+<div class="cell"><span class="n">0</span>Verified pass</div>
+<div class="cell"><span class="n">62</span>AI-assessed / documented / attested</div>
+<div class="cell"><span class="n">0</span>Not verified</div>
+<div class="cell"><span class="n">0</span>Fail</div>
+</div></section>
+<section id="not-checked" class="chapter"><h2>What was not checked and why</h2><ul><li>Generated code and its tests run under Node&#39;s permission model restricted to the project folder; network access is not restricted.</li>
+<li>Some checks were skipped this run: design-freeze (verify-only run (the design on file was used)); install (node_modules fast path); ai-review (AI is not configured (preview mode)).</li>
+<li>No independent, professional application-security review of this code has been performed.</li></ul><table><thead><tr><th>Requirement</th><th>Who can check it</th><th>Effort</th></tr></thead><tbody><tr><td>V1.1.1</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.1.2</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.2.2</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.2.3</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.2.5</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V1.2.9</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.3.1</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V1.3.2</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V1.3.3</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.3.5</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V1.3.6</td><td>developer</td><td>hour</td></tr>
+<tr><td>V1.3.7</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V1.5.2</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V2.1.1</td><td>owner</td><td>minutes</td></tr>
+<tr><td>V2.1.2</td><td>developer</td><td>hour</td></tr>
+<tr><td>V2.1.3</td><td>owner</td><td>minutes</td></tr>
+<tr><td>V2.2.1</td><td>developer</td><td>hour</td></tr>
+<tr><td>V2.2.2</td><td>developer</td><td>minutes</td></tr>
+<tr><td>V2.2.3</td><td>owner</td><td>minutes</td></tr>
+<tr><td>V2.3.1</td><td>owner</td><td>minutes</td></tr></tbody></table></section>
+<section id="recheck" class="chapter"><h2>How to re-check</h2><p>Open the full reports for every detail and exact commands.</p><ul><li>Compliance report — <a href="compliance-report.html"><code>compliance-report.html</code></a></li>
+<li>Security report — <a href="security-report.html"><code>security-report.html</code></a> (section 11 has the exact commands to re-run every check)</li></ul></section>
+</main>
+
+<footer class="report-footer">
+  SecureVibe — local-first, AI-assisted secure app builder.
+</footer>
+</div>
+</body>
+</html>

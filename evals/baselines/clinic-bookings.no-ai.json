@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "case": "clinic-bookings",
+  "mode": "no-ai",
+  "runId": "r_20260918023014_ocdwqh",
+  "status": "succeeded",
+  "durationMs": 270143,
+  "stages": {
+    "design-freeze": "passed",
+    "scaffold": "passed",
+    "generate": "skipped",
+    "install": "skipped",
+    "typecheck": "passed",
+    "lint": "passed",
+    "unit-tests": "passed",
+    "sast": "passed",
+    "secrets": "passed",
+    "deps": "passed",
+    "config": "warning",
+    "dast": "passed",
+    "external": "passed",
+    "ai-review": "skipped",
+    "fix": "skipped",
+    "compliance": "passed",
+    "reports": "passed"
+  },
+  "openFindings": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 1,
+    "info": 0
+  },
+  "asvs": {
+    "pass": 102,
+    "applicable": 169,
+    "verifiedPassPercent": 60.4,
+    "aiAssessed": 0,
+    "fail": 0
+  },
+  "aisvs": {
+    "pass": 20,
+    "applicable": 48,
+    "verifiedPassPercent": 41.7,
+    "aiAssessed": 0,
+    "fail": 2
+  },
+  "tests": {
+    "total": 165,
+    "passed": 143,
+    "failed": 0
+  },
+  "costUsd": 0
+}

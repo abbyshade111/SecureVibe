@@ -1,0 +1,20 @@
+{
+  "scenario": "classify",
+  "description": "The moderation classifier scoring an ordinary description of a business application.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_classify_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"violence\":0.01,\"selfHarm\":0,\"hate\":0,\"sexual\":0,\"isAppDescription\":true,\"note\":\"An ordinary description of a repair-tracking application for a bike shop.\"}"
+        }
+      ],
+      "usage": { "input_tokens": 800, "output_tokens": 90, "cache_creation_input_tokens": 400 }
+    }
+  ]
+}

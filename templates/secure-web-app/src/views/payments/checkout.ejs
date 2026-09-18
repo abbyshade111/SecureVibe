@@ -1,0 +1,12 @@
+<section class="card narrow">
+  <h1>Checkout</h1>
+  <p>This app never asks for or stores a card number, expiry date or security code. Payment is handled entirely
+    by a payment provider's own secure, hosted checkout page — this app only sends you there and later hears back
+    from the provider that payment succeeded.</p>
+  <% if (checkoutLink) { %>
+    <p class="actions"><a class="button" href="<%= checkoutLink %>" rel="noopener">Continue to secure checkout</a></p>
+  <% } else { %>
+    <p class="notice">A checkout link has not been configured yet. See <code>docs/payments.md</code> for how to
+      create one with Stripe or Square and connect it here — no card-handling code is required.</p>
+  <% } %>
+</section>

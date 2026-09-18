@@ -1,0 +1,78 @@
+<section class="card">
+  <h1>Assistant</h1>
+
+  <% if (!enabled) { %>
+    <p class="flash flash-info" role="status"><%= offMessage %></p>
+  <% } else { %>
+    <p class="hint">The assistant can read your own records to answer your question. It cannot see anybody else's records, and it cannot change anything on its own.</p>
+  <% } %>
+
+  <% if (notice) { %>
+    <p class="flash flash-<%= noticeType %>" role="status"><%= notice %></p>
+  <% } %>
+
+  <% if (keepsHistory && conversation.length > 0) { %>
+    <ol class="chat">
+      <% for (const item of conversation) { %>
+        <li class="chat-turn chat-<%= item.role %>">
+          <p class="chat-who"><%= item.role === 'user' ? 'You' : 'Assistant' %> · <%= formatDate(item.at) %></p>
+          <p class="chat-text"><%= item.text %></p>
+        </li>
+      <% } %>
+    </ol>
+  <% } else if (answer) { %>
+    <div class="chat">
+      <% if (question) { %>
+        <p class="chat-who">You</p>
+        <p class="chat-text"><%= question %></p>
+      <% } %>
+      <p class="chat-who">Assistant</p>
+      <p class="chat-text"><%= answer %></p>
+    </div>
+  <% } %>
+
+  <% if (enabled) { %>
+    <form method="post" action="/ai">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="message">Your question</label>
+      <textarea id="message" name="message" rows="4" maxlength="<%= maxChars %>" required></textarea>
+      <p class="hint">Up to <%= maxChars %> characters. Please write in plain words — messages with hidden or encoded text are refused.</p>
+      <button type="submit" class="button">Ask</button>
+    </form>
+  <% } %>
+
+  <% if (keepsHistory) { %>
+    <form method="post" action="/ai/reset" class="inline-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="button button-secondary">Clear what the assistant remembers</button>
+    </form>
+    <p class="hint">Your conversation is stored for you only. Nobody else can see it, and clearing it removes it.</p>
+  <% } %>
+</section>
+
+<% if (canPropose && proposals.length > 0) { %>
+  <section class="card">
+    <h2>Suggested changes</h2>
+    <p>The assistant has suggested the changes below. Nothing has happened yet — a change is only made when you confirm it.</p>
+    <ul class="proposals">
+      <% for (const proposal of proposals) { %>
+        <li>
+          <p><%= proposal.summary %></p>
+          <p class="muted"><%= formatDate(proposal.createdAt) %></p>
+          <form method="post" action="/ai/confirm/<%= proposal.id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="button">Yes, do this</button>
+          </form>
+        </li>
+      <% } %>
+    </ul>
+  </section>
+<% } %>
+
+<section class="card">
+  <h2>Your assistant use today</h2>
+  <dl class="details">
+    <dt>Tokens used today</dt><dd><%= tokensToday %><%= dailyBudget > 0 ? ' of ' + dailyBudget : '' %></dd>
+    <dt>What it may read</dt><dd><%= dataScope === 'nothing' ? 'Nothing from the app — it answers from your question alone' : 'Only records that belong to you' %></dd>
+  </dl>
+</section>

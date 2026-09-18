@@ -1,0 +1,20 @@
+{
+  "scenario": "quick-infer",
+  "description": "Quick mode inference for a bike repair shop. The answer contains three settings that would weaken the design (no sign-in, open registration, an assistant that can act) and one field with no supporting quote, so the flow has something to reject and something to ask about.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_qi_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"name\":\"Wheelhouse Repairs\",\"tagline\":\"Track bike repairs from drop-off to collection\",\"summary\":\"A small bike repair shop tracking repair jobs, customers and prices, with an email when a bike is ready.\",\"category\":\"tracker\",\"entities\":[{\"name\":\"repair-job\",\"label\":\"Repair job\",\"pluralLabel\":\"Repair jobs\",\"description\":\"One bike repair for one customer.\",\"access\":\"all-signed-in\",\"fields\":[{\"name\":\"customer-name\",\"label\":\"Customer name\",\"type\":\"text\",\"required\":true,\"sensitive\":false,\"description\":\"Who the bike belongs to.\"},{\"name\":\"phone\",\"label\":\"Phone number\",\"type\":\"phone\",\"required\":false,\"sensitive\":false,\"description\":\"How to reach the customer.\"},{\"name\":\"work-needed\",\"label\":\"Work needed\",\"type\":\"longtext\",\"required\":true,\"sensitive\":false,\"description\":\"What has to be done.\"},{\"name\":\"price\",\"label\":\"Price\",\"type\":\"money\",\"required\":false,\"sensitive\":false,\"description\":\"What the repair costs.\"}]}],\"keyFeatures\":[\"List repair jobs by status\",\"Record what work is needed and the price\",\"Email the customer when the bike is ready\"],\"roles\":[{\"name\":\"admin\",\"label\":\"Owner\",\"description\":\"Runs the shop and manages accounts.\",\"isAdmin\":true},{\"name\":\"mechanic\",\"label\":\"Mechanic\",\"description\":\"Updates repair jobs.\",\"isAdmin\":false}],\"requiresSignIn\":false,\"expectedUserCount\":\"2-20\",\"registration\":\"open\",\"adminMfa\":true,\"fileUploads\":false,\"email\":true,\"scheduledJobs\":false,\"publicApi\":false,\"payments\":false,\"externalApis\":[],\"aiAssistant\":{\"enabled\":true,\"purpose\":\"Draft the message that tells a customer their bike is ready.\",\"dataItCanSee\":\"all-records\",\"canTakeActions\":true,\"storesHistory\":true},\"dataCategories\":[\"contact\"],\"aboutOtherPeople\":true,\"businessImpact\":\"low\",\"ownerName\":\"\",\"evidence\":[{\"field\":\"app.entities\",\"quote\":\"keep track of repair jobs for each customer\"},{\"field\":\"app.keyFeatures\",\"quote\":\"what work is needed and the price\"},{\"field\":\"users.roles\",\"quote\":\"My two mechanics should be able to update jobs\"},{\"field\":\"capabilities.email\",\"quote\":\"get an email when their bike is ready\"},{\"field\":\"data.categories\",\"quote\":\"the customer's phone number and address\"},{\"field\":\"data.aboutOtherPeople\",\"quote\":\"repair jobs for each customer\"},{\"field\":\"capabilities.aiAssistant.enabled\",\"quote\":\"I run a small bike repair shop\"},{\"field\":\"app.category\",\"quote\":\"keep track of repair jobs\"},{\"field\":\"users.expectedUserCount\",\"quote\":\"My two mechanics\"}]}"
+        }
+      ],
+      "usage": { "input_tokens": 3000, "output_tokens": 1200, "cache_creation_input_tokens": 1500 }
+    }
+  ]
+}

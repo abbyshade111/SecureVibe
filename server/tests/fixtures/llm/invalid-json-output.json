@@ -1,0 +1,20 @@
+{
+  "scenario": "invalid-json-output",
+  "description": "The model answers with prose instead of the structured output it was asked for. The result must be rejected, not half-parsed.",
+  "model": "claude-opus-5",
+  "turns": [
+    {
+      "id": "msg_bad_1",
+      "role": "assistant",
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sure! Here is the plan for your application: it should have customers, invoices and a dashboard. {\"name\": \"broken"
+        }
+      ],
+      "usage": { "input_tokens": 3000, "output_tokens": 60, "cache_creation_input_tokens": 1500 }
+    }
+  ]
+}

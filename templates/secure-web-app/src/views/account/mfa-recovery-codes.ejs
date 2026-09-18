@@ -1,0 +1,14 @@
+<section class="card narrow">
+  <h1>Your recovery codes</h1>
+  <p class="notice">One-time codes are now switched on. Save these recovery codes somewhere safe, such as a password manager or a printed note. They are shown only once.</p>
+  <p>If you lose your phone, each recovery code lets you sign in one time instead of a code from the app.</p>
+  <ul class="recovery-codes" data-copy-list>
+    <% for (const code of codes) { %>
+      <li><code><%= code %></code></li>
+    <% } %>
+  </ul>
+  <p class="actions">
+    <button type="button" class="button button-secondary" data-copy-all>Copy all codes</button>
+    <a class="button" href="/account">I have saved them</a>
+  </p>
+</section>

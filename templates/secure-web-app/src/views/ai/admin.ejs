@@ -1,0 +1,71 @@
+<section class="card">
+  <h1>AI assistant</h1>
+  <p>The assistant is <strong><%= enabled ? 'on' : 'off' %></strong><%= envEnabled ? '' : ' (switched off in the configuration file, AI_ENABLED=0)' %>.</p>
+  <% if (envEnabled) { %>
+    <form method="post" action="/admin/ai/kill-switch">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="enabled" value="<%= enabled ? 'false' : 'true' %>">
+      <button type="submit" class="button <%= enabled ? 'button-danger' : '' %>"><%= enabled ? 'Switch the assistant off' : 'Switch the assistant on' %></button>
+    </form>
+    <p class="hint">Switching it off stops every AI request straight away. The change is recorded in the security event log.</p>
+  <% } %>
+  <dl class="details">
+    <dt>Model</dt><dd><%= model %> (<%= provider %>)</dd>
+    <dt>Daily allowance per person</dt><dd><%= dailyBudget %> tokens</dd>
+    <dt>What it may read</dt><dd><%= dataScope === 'nothing' ? 'Nothing from the app' : 'Only the records that belong to the person asking' %></dd>
+    <dt>Keeps a conversation</dt><dd><%= keepsHistory ? 'Yes, per person, and each person can clear theirs' : 'No' %></dd>
+    <dt>Can suggest changes</dt><dd><%= canPropose ? 'Yes — every change is confirmed by a person first' : 'No' %></dd>
+    <dt>Content moderation</dt><dd><%= moderation ? 'On, for questions and answers' : 'Off' %></dd>
+  </dl>
+</section>
+
+<section class="card">
+  <h2>Use today</h2>
+  <dl class="details">
+    <dt>Requests</dt><dd><%= totals.requests %></dd>
+    <dt>People</dt><dd><%= totals.people %></dd>
+    <dt>Tokens in</dt><dd><%= totals.inputTokens %></dd>
+    <dt>Tokens out</dt><dd><%= totals.outputTokens %></dd>
+    <dt>Recorded interactions (all time)</dt><dd><%= interactions %></dd>
+    <dt>Of those, with a flagged question</dt><dd><%= flagged %></dd>
+  </dl>
+  <% if (byUser.length === 0) { %>
+    <p class="muted">Nobody has used the assistant today.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Person</th><th>Requests</th><th>Tokens</th></tr></thead>
+      <tbody>
+        <% for (const row of byUser) { %>
+          <tr>
+            <td><%= row.email || 'deleted account' %></td>
+            <td><%= row.requests %></td>
+            <td><%= row.totalTokens %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<section class="card">
+  <h2>Questions the screening refused or flagged</h2>
+  <p class="hint">Only the rule that matched is kept here — never the text somebody wrote.</p>
+  <% if (recentFlags.length === 0) { %>
+    <p class="muted">Nothing has been refused or flagged.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>When</th><th>What happened</th><th>Rule</th><th>Account</th></tr></thead>
+      <tbody>
+        <% for (const flag of recentFlags) { %>
+          <tr>
+            <td><%= formatDate(flag.ts) %></td>
+            <td><%= flag.event === 'ai.input.rejected' ? 'Refused' : 'Flagged and allowed' %></td>
+            <td><%= flag.rule %></td>
+            <td><%= flag.userId || '—' %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+  <p class="actions"><a class="button button-secondary" href="/admin/audit?event=ai.input.rejected">See these in the event log</a></p>
+</section>

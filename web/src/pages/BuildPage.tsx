@@ -1,0 +1,460 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import {
+  STAGE_DESCRIPTIONS,
+  STAGE_IDS,
+  type CostEstimate,
+  type PipelineRun,
+  type StageId,
+} from '@shared/pipeline.js';
+import { useProject } from '../hooks/useProject';
+import { useStatus } from '../hooks/useStatus';
+import { approvePlan, cancelRun, createPlan, getEstimate, getRun, runEventsUrl, startRun } from '../lib/api';
+import { Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
+import { usd, usdRange, minutesRange } from '../lib/format';
+
+const STAGE_STATUS_ICON: Record<string, string> = {
+  pending: '○',
+  running: '◐',
+  passed: '✓',
+  failed: '✕',
+  skipped: '–',
+  warning: '▲',
+};
+
+const FAILURE_ACTION_LABEL: Record<string, string> = {
+  retry: 'Try again',
+  'ask-claude-to-fix': 'Ask Claude to fix this and try again',
+  'save-for-developer': 'Save details for a developer',
+  'change-answers': 'Go back and change my answers',
+  'add-api-key': 'Add an API key',
+};
+
+export function BuildPage() {
+  const { id } = useParams<{ id: string }>();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { project, loading, error, reload } = useProject(id);
+  const { status } = useStatus();
+
+  const [estimate, setEstimate] = useState<CostEstimate | null>(null);
+  const [approvalCode, setApprovalCode] = useState<string | null>(null);
+  const [cap, setCap] = useState<number>(10);
+  const [approved, setApproved] = useState(false);
+  const [run, setRun] = useState<PipelineRun | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const esRef = useRef<EventSource | null>(null);
+  const fixFindingIds = useMemo(() => {
+    const raw = params.get('fix');
+    return raw ? raw.split(',').filter(Boolean) : undefined;
+  }, [params]);
+
+  const loadEstimate = useCallback(
+    (keepCap = false) => {
+      if (!id) return;
+      getEstimate(id)
+        .then((r) => {
+          setEstimate(r.estimate);
+          setApprovalCode(r.approvalCode);
+          if (!keepCap) setCap(r.estimate.spendingCapUsd);
+        })
+        .catch(() => undefined);
+    },
+    [id],
+  );
+
+  useEffect(() => loadEstimate(), [loadEstimate]);
+
+  useEffect(() => {
+    if (status) setCap((c) => c || status.settings.defaultSpendingCapUsd);
+  }, [status]);
+
+  // Reconnect to an already-running run on load/reload.
+  useEffect(() => {
+    if (!project?.lastRunId || run) return;
+    getRun(project.lastRunId)
+      .then((r) => {
+        if (r.status === 'running') setRun(r);
+      })
+      .catch(() => undefined);
+  }, [project, run]);
+
+  useEffect(() => {
+    if (!run || run.status !== 'running') {
+      esRef.current?.close();
+      esRef.current = null;
+      return;
+    }
+    const es = new EventSource(runEventsUrl(run.id));
+    esRef.current = es;
+    es.addEventListener('progress', () => {
+      getRun(run.id)
+        .then(setRun)
+        .catch(() => undefined);
+    });
+    es.onerror = () => {
+      // The browser retries automatically; also poll once as a fallback.
+      getRun(run.id)
+        .then(setRun)
+        .catch(() => undefined);
+    };
+    return () => es.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id, run?.status]);
+
+  useEffect(() => {
+    if (!run || run.status !== 'running') return;
+    const started = new Date(run.startedAt).getTime();
+    const timer = setInterval(() => setElapsedMs(Date.now() - started), 1000);
+    return () => clearInterval(timer);
+  }, [run]);
+
+  useEffect(() => {
+    if (run?.status === 'succeeded') {
+      void reload();
+      navigate(`/projects/${id}/results`);
+    }
+  }, [run, id, navigate, reload]);
+
+  const uploaded = project?.origin?.kind === 'uploaded';
+  // Writing with AI needs an approved plan for the current design; builds without AI and check-only runs do not.
+  const needsPlan = !uploaded && !fixFindingIds && status?.llm.previewMode !== true;
+  const plan = project?.buildPlan && project.buildPlan.designHash === project.design?.profileHash ? project.buildPlan : undefined;
+  const [planning, setPlanning] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [chosenFeatures, setChosenFeatures] = useState<Record<string, boolean>>({});
+
+  async function preparePlan() {
+    if (!id) return;
+    setPlanning(true);
+    setPlanError(null);
+    try {
+      await createPlan(id);
+      setChosenFeatures({});
+      setEditingPlan(false);
+      await reload();
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : 'Could not prepare the plan.');
+    } finally {
+      setPlanning(false);
+    }
+  }
+
+  async function approveThePlan() {
+    if (!id || !plan) return;
+    setPlanning(true);
+    setPlanError(null);
+    try {
+      await approvePlan(id, plan.features.filter((f) => chosenFeatures[f.id] ?? f.wanted).map((f) => f.id));
+      setEditingPlan(false);
+      await reload();
+      // The approval code was issued for the page as it was; the estimate is fetched again with the plan in place.
+      loadEstimate(true);
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : 'Could not save the plan.');
+    } finally {
+      setPlanning(false);
+    }
+  }
+
+  async function begin(withoutAi = false) {
+    if (!id || !approvalCode) return;
+    setStartError(null);
+    try {
+      // A free re-check runs every automated check on the app as it is: no AI, nothing changes.
+      const res = await startRun(id, {
+        mode: uploaded || withoutAi ? 'verify-only' : 'full',
+        approved: true,
+        approvalCode,
+        spendingCapUsd: cap,
+        ...(withoutAi ? { withoutAi: true } : {}),
+        ...(fixFindingIds && !uploaded && !withoutAi ? { fixFindingIds } : {}),
+      });
+      setRun(res.run);
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : 'Could not start the build.');
+      // An approval works once: show the (possibly updated) estimate again and ask for a fresh approval.
+      setApproved(false);
+      setApprovalCode(null);
+      loadEstimate(true);
+    }
+  }
+
+  async function cancel() {
+    if (!run) return;
+    try {
+      await cancelRun(run.id);
+    } catch {
+      /* the SSE stream will reflect the final state */
+    }
+  }
+
+  if (loading) return <LoadingScreen label="Loading…" />;
+  if (error || !project) return <ErrorNotice message={error ?? 'Could not load this app.'} />;
+
+  if (!run) {
+    return (
+      <div className="sv-stack">
+        <h1>{uploaded ? 'Check my app' : fixFindingIds ? 'Ask Claude to fix this' : 'Build my app'}</h1>
+        {needsPlan && (
+          <Card>
+            <h2>The plan</h2>
+            {!plan && (
+              <>
+                <p>
+                  Before Claude writes anything, it lists the features it intends to build — what each lets you do,
+                  which pages and records it adds, and the tests that will prove it. You approve the list, or leave
+                  features out, and after the build each feature is checked against what actually exists.
+                </p>
+                <p className="sv-muted">Preparing the plan costs a few cents and takes under a minute.</p>
+                {planError && <ErrorNotice message={planError} />}
+                <button type="button" className="sv-btn" disabled={planning} onClick={() => void preparePlan()}>
+                  {planning ? 'Preparing the plan…' : 'Prepare the plan'}
+                </button>
+              </>
+            )}
+            {plan && (
+              <>
+                <p>{plan.summary}</p>
+                {plan.approvedAt && !editingPlan ? (
+                  <>
+                    <ul>
+                      {plan.features.map((f) => (
+                        <li key={f.id} className={f.wanted ? '' : 'sv-faint'}>
+                          <strong>{f.title}</strong>
+                          {f.wanted ? '' : ' — left out'}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="sv-faint">
+                      Approved {new Date(plan.approvedAt).toLocaleString()}
+                      {plan.estimatedSteps ? ` · about ${plan.estimatedSteps} working steps` : ''}.
+                    </p>
+                    <div className="sv-row" style={{ flexWrap: 'wrap' }}>
+                      <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => setEditingPlan(true)}>
+                        Change what to build
+                      </button>
+                      <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={planning} onClick={() => void preparePlan()}>
+                        {planning ? 'Preparing…' : 'Ask for a new plan'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="sv-muted">Untick anything you do not want built.</p>
+                    {plan.features.map((f) => (
+                      <label key={f.id} className="sv-checkbox-row" style={{ alignItems: 'flex-start', marginBottom: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={chosenFeatures[f.id] ?? f.wanted}
+                          onChange={(e) => setChosenFeatures((prev) => ({ ...prev, [f.id]: e.target.checked }))}
+                        />
+                        <span>
+                          <strong>{f.title}</strong>
+                          <br />
+                          <span className="sv-muted">{f.whatItDoes}</span>
+                          {(f.pages.length > 0 || f.records.length > 0) && (
+                            <>
+                              <br />
+                              <span className="sv-faint">
+                                {f.pages.length > 0 ? `Pages: ${f.pages.join(', ')}` : ''}
+                                {f.pages.length > 0 && f.records.length > 0 ? ' · ' : ''}
+                                {f.records.length > 0 ? `Records: ${f.records.join(', ')}` : ''}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                    {planError && <ErrorNotice message={planError} />}
+                    <div className="sv-row" style={{ flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="sv-btn"
+                        disabled={planning || !plan.features.some((f) => chosenFeatures[f.id] ?? f.wanted)}
+                        onClick={() => void approveThePlan()}
+                      >
+                        {planning ? 'Saving…' : 'Approve this plan'}
+                      </button>
+                      <button type="button" className="sv-btn sv-btn-secondary" disabled={planning} onClick={() => void preparePlan()}>
+                        Ask for a new plan
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </Card>
+        )}
+        <Card>
+          <h2>What this will do</h2>
+          <p>
+            {uploaded
+              ? 'We scan the code you uploaded for security problems, leaked secrets and vulnerable packages, and check it against the OWASP security standards. Your app is not run. This usually takes a few minutes.'
+              : 'We write the app, install it, test it and check it against the OWASP security standards. This usually takes a few minutes.'}
+          </p>
+          {estimate && (
+            <p>
+              <strong>Estimated time:</strong> {minutesRange(estimate.minutesLow, estimate.minutesHigh)}.{' '}
+              <strong>Estimated AI cost:</strong> {usdRange(estimate.usdLow, estimate.usdHigh)}.
+            </p>
+          )}
+          {estimate?.note && <p className="sv-faint">{estimate.note}</p>}
+
+          <div className="sv-field">
+            <label className="sv-label" htmlFor="cap">
+              Stop if the AI cost passes (US dollars)
+            </label>
+            <p className="sv-help">SecureVibe stops the build before going over this amount.</p>
+            <input
+              id="cap"
+              type="number"
+              min={1}
+              max={500}
+              className="sv-input"
+              value={cap}
+              onChange={(e) => setCap(Number(e.target.value))}
+            />
+          </div>
+
+          <label className="sv-checkbox-row">
+            <input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} />
+            <span>I understand this will write code and run checks on my computer.</span>
+          </label>
+
+          {startError && <ErrorNotice message={startError} />}
+          {status?.llm.previewMode && (
+            <div className="sv-banner sv-banner-warn">
+              <p style={{ marginBottom: 0 }}>
+                {status.llm.switchedOff ? 'AI is switched off.' : 'No AI is configured.'} Your app still gets pages for every
+                record you described, built from the hardened starting application, but Claude will not write your other
+                features or review the code, and nothing is spent. The reports say exactly which parts were skipped.
+                {status.llm.switchedOff === 'setting' && (
+                  <>
+                    {' '}
+                    <Link to="/settings">Turn AI on in Settings</Link> to have Claude write the rest.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
+          {needsPlan && !plan?.approvedAt && <p className="sv-faint">Approve the plan above first.</p>}
+          <button type="button" className="sv-btn" disabled={!approved || !approvalCode || (needsPlan && !plan?.approvedAt)} onClick={() => void begin()}>
+            {uploaded ? 'Check my app' : fixFindingIds ? 'Fix and rebuild' : 'Build my app'}
+          </button>
+          {!uploaded && project.status === 'built' && (
+            <p className="sv-muted" style={{ marginTop: 12 }}>
+              Or run every automated check on the app as it is, without AI and without changing it (free, a few minutes):{' '}
+              <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={!approved || !approvalCode} onClick={() => void begin(true)}>
+                Check again without AI (free)
+              </button>
+            </p>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  const stagesById = new Map(run.stages.map((s) => [s.id, s]));
+  const seconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const secondsPart = seconds % 60;
+  const stagesDone = run.stages.filter((s) => s.status !== 'pending' && s.status !== 'running').length;
+  const percent = (stagesDone / STAGE_IDS.length) * 100;
+
+  return (
+    <div className="sv-stack">
+      <h1>{uploaded ? 'Checking your app' : 'Building your app'}</h1>
+      {run.status === 'running' && (
+        <Card>
+          <ProgressBar percent={percent} label="Build progress" />
+          <div className="sv-row-between" style={{ marginTop: 12 }}>
+            <span className="sv-muted">
+              Elapsed: {minutes}m {secondsPart}s
+            </span>
+            {run.llmUsage && <span className="sv-muted">AI spend so far: {usd(run.llmUsage.estimatedCostUsd)}</span>}
+            <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void cancel()}>
+              Cancel
+            </button>
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {STAGE_IDS.map((sid: StageId) => {
+            const desc = STAGE_DESCRIPTIONS[sid];
+            const s = stagesById.get(sid);
+            const statusKey = s?.status ?? 'pending';
+            return (
+              <li key={sid} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-border)' }}>
+                <div className="sv-row">
+                  <span aria-hidden="true">{STAGE_STATUS_ICON[statusKey]}</span>
+                  <strong>{desc.title}</strong>
+                  <span className="sv-faint">{statusKey}</span>
+                </div>
+                {statusKey === 'running' && <p className="sv-muted" style={{ margin: '4px 0 0 26px' }}>{desc.running}</p>}
+                {statusKey === 'pending' && <p className="sv-faint" style={{ margin: '4px 0 0 26px' }}>{desc.why}</p>}
+                {s?.summary && statusKey !== 'pending' && statusKey !== 'running' && (
+                  <p className="sv-muted" style={{ margin: '4px 0 0 26px' }}>
+                    {s.summary}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+
+      {run.status === 'failed' && run.failure && (
+        <div className="sv-banner sv-banner-bad">
+          <h3>Something went wrong</h3>
+          <p>{run.failure.message}</p>
+          {run.failure.detail && (
+            <details className="sv-details">
+              <summary>Technical detail</summary>
+              <pre className="sv-pre">{run.failure.detail}</pre>
+            </details>
+          )}
+          <div className="sv-row">
+            {run.failure.options.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                className="sv-btn sv-btn-secondary"
+                onClick={() => {
+                  if (opt === 'change-answers') navigate(`/projects/${id}/wizard/about`);
+                  else if (opt === 'add-api-key') navigate('/');
+                  else if (opt === 'save-for-developer') navigate(`/projects/${id}/results`);
+                  else {
+                    setRun(null);
+                  }
+                }}
+              >
+                {FAILURE_ACTION_LABEL[opt] ?? opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {run.status === 'cancelled' && (
+        <div className="sv-banner sv-banner-warn">
+          <p style={{ marginBottom: 0 }}>The build was cancelled.</p>
+        </div>
+      )}
+
+      {run.status === 'interrupted' && (
+        <div className="sv-banner sv-banner-warn">
+          <p>SecureVibe stopped unexpectedly before this build finished (for example, it was closed or restarted).</p>
+          <button type="button" className="sv-btn sv-btn-secondary" onClick={() => setRun(null)}>
+            Try again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
