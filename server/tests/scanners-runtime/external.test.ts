@@ -4,7 +4,7 @@
  *
  * A fake tool on PATH stands in for the real ones so the test runs the same way on every machine.
  */
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,7 @@ import {
   parseVersion,
   runExternal,
   toFinding,
+  toolCacheEnv,
   type ExternalDetails,
 } from '../../src/scanners/external/index.js';
 import type { ScanContext } from '../../src/scanners/types.js';
@@ -57,6 +58,7 @@ function contextFor(appDir = projectDir): ScanContext {
     buildSpec: buildSpecFor(),
     manifest: undefined as never,
     ignore: [],
+    toolCacheDir: join(tmpdir(), 'securevibe-tool-cache-test'),
     knowledge: undefined as never,
     log: () => {},
     abort: new AbortController().signal,
@@ -165,13 +167,28 @@ describe('runExternal', () => {
     const details = result.details as ExternalDetails;
     expect(result.status).toBe('skipped');
     expect(result.findings).toEqual([]);
-    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner']);
-    expect(details.tools.every((t) => !t.installed && t.reason === 'skipped: not installed')).toBe(true);
-    expect(externalCoverageRows(result)).toHaveLength(4);
+    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner', 'nano-analyzer']);
+    const onPath = details.tools.filter((t) => t.name !== 'nano-analyzer');
+    expect(onPath.every((t) => !t.installed && t.reason === 'skipped: not installed')).toBe(true);
+    // The opt-in AI scanner is skipped for a different reason: it was never switched on, which is not the same
+    // thing as missing, and the coverage table has to say which of the two it was.
+    expect(details.tools.at(-1)).toMatchObject({ name: 'nano-analyzer', ran: false, findingCount: 0 });
+    expect(details.tools.at(-1)!.reason).toMatch(/not switched on in Settings/);
+    expect(externalCoverageRows(result)).toHaveLength(5);
     expect(externalCoverageRows(result).every((row) => row.ran === false && row.covers)).toBe(true);
     expect(result.coverage.reason).toMatch(/not installed/);
     expect(result.summary).toMatch(/No extra security scanners are installed/);
   }, 60_000);
+
+  it('gives the scanners one cache folder for the whole workspace, not one per project', async () => {
+    const cacheDir = mkdtempSync(join(tmpdir(), 'sv-tool-cache-'));
+    const env = toolCacheEnv(cacheDir);
+    // trivy's database is over a gigabyte; without this it is downloaded again into every project's own HOME.
+    expect(env['TRIVY_CACHE_DIR']).toBe(join(cacheDir, 'trivy'));
+    expect(env['XDG_CACHE_HOME']).toBe(join(cacheDir, 'xdg'));
+    expect(existsSync(cacheDir)).toBe(true);
+    rmSync(cacheDir, { recursive: true, force: true });
+  });
 
   it('runs a tool that is installed and maps what it reports', async () => {
     fakeTool('semgrep', 'semgrep 1.90.0\n', fixture('semgrep.json'));

@@ -9,7 +9,10 @@ import { createHash } from 'node:crypto';
 import { relative, isAbsolute } from 'node:path';
 import type { Finding, Severity } from '@shared/findings.js';
 
-export type ExternalToolName = 'semgrep' | 'gitleaks' | 'trivy' | 'osv-scanner';
+export type ExternalToolName = 'semgrep' | 'gitleaks' | 'trivy' | 'osv-scanner' | 'nano-analyzer';
+
+/** Tools whose findings are one program's opinion rather than a rule that matched: never more than a suggestion. */
+export const OPINION_TOOLS: ReadonlySet<ExternalToolName> = new Set<ExternalToolName>(['nano-analyzer']);
 
 export interface ExternalFindingSeed {
   tool: ExternalToolName;
@@ -296,7 +299,14 @@ export const PARSERS: Record<ExternalToolName, (text: string, appDir: string) =>
   gitleaks: parseGitleaks,
   trivy: parseTrivy,
   'osv-scanner': parseOsvScanner,
+  // nano-analyzer writes a folder of documents rather than one JSON file; see nano-analyzer.ts.
+  'nano-analyzer': () => [],
 };
+
+/** critical/high from an AI scanner become medium; lower levels stay as they are. */
+function cappedOpinionSeverity(severity: Severity): Severity {
+  return severity === 'critical' || severity === 'high' ? 'medium' : severity;
+}
 
 let counter = 0;
 
@@ -315,27 +325,42 @@ export function toFinding(seed: ExternalFindingSeed, version?: string): Finding 
     sourcesReporting: ['external'],
     ruleId,
     title: seed.title,
-    severity: seed.severity,
+    // An unconfirmed opinion never counts as critical or high: those levels stop a build, and nothing here was
+    // proved. The level the tool itself gave stays in severityBase and in the text, so nothing is hidden.
+    severity: OPINION_TOOLS.has(seed.tool) ? cappedOpinionSeverity(seed.severity) : seed.severity,
     severityBase: seed.severity,
     priority: 'P3',
     exploitability: 'requires-network-exposure',
-    // These tools are not tuned to the template's conventions, so their findings need a human look.
-    confidence: 'medium',
+    // These tools are not tuned to the template's conventions, so their findings need a human look. An AI scanner's
+    // findings are weaker still: nothing matched a rule and nothing was run, so they are always low confidence.
+    confidence: OPINION_TOOLS.has(seed.tool) ? 'low' : 'medium',
     cwe: seed.cwe,
     location: seed.file ? { file: seed.file, line: seed.line, snippet: seed.snippet } : undefined,
     description: seed.description,
-    impact: `Reported by ${seed.tool}, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app.`,
+    impact: OPINION_TOOLS.has(seed.tool)
+      ? `Suggested by ${seed.tool}, an experimental AI scanner you switched on. It read the code and formed an opinion: it did not run anything and nothing here is proof. It is known to report things that are not real, and it was built for a different kind of software, so a developer has to confirm this before you act on it. No part of your compliance report rests on it.`
+      : `Reported by ${seed.tool}, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app.`,
     evidence: seed.evidence,
     remediation: {
-      summary: `Read the ${seed.tool} rule "${seed.ruleId}" and apply its guidance, or record why it does not apply.`,
-      steps: [
-        `Open the file shown above${seed.line ? ` at line ${seed.line}` : ''}.`,
-        `Look up the ${seed.tool} rule "${seed.ruleId}" for what it checks.`,
-        'Fix it, or mark it as "not a problem" with a reason on the results page.',
-      ],
+      summary: OPINION_TOOLS.has(seed.tool)
+        ? 'Have a developer check whether this is real before changing anything, then fix it or record why it is not a problem.'
+        : `Read the ${seed.tool} rule "${seed.ruleId}" and apply its guidance, or record why it does not apply.`,
+      steps: OPINION_TOOLS.has(seed.tool)
+        ? [
+            `Open ${seed.file ?? 'the file shown above'} and read what the scanner says it found.`,
+            'Decide whether it is real. These suggestions are often wrong, so this step is the whole point.',
+            'Fix it if it is real, or mark it as "not a problem" with a reason on the results page.',
+          ]
+        : [
+            `Open the file shown above${seed.line ? ` at line ${seed.line}` : ''}.`,
+            `Look up the ${seed.tool} rule "${seed.ruleId}" for what it checks.`,
+            'Fix it, or mark it as "not a problem" with a reason on the results page.',
+          ],
       references: seed.references,
     },
-    verification: { howToConfirmFixed: `Run ${seed.tool} again; this rule no longer matches.`, rerunCommand: `${seed.tool} (installed separately)` },
+    verification: OPINION_TOOLS.has(seed.tool)
+      ? { howToConfirmFixed: `Have a developer read the file and say whether this is real; if it is, fix it and run ${seed.tool} again.`, rerunCommand: `${seed.tool} (installed separately)` }
+      : { howToConfirmFixed: `Run ${seed.tool} again; this rule no longer matches.`, rerunCommand: `${seed.tool} (installed separately)` },
     mappings: { asvs: [], aisvs: [], sbd: [] },
     status: 'open',
     whoCanFix: 'developer',

@@ -20,6 +20,7 @@ import {
   getRunInstructions,
   refreshReports,
   startRun,
+  setAppearance,
   submitHumanReview,
   type ReportRun,
   upgradeTemplate,
@@ -36,6 +37,9 @@ function FindingCard({
   canShowCode,
   onFix,
   onAccept,
+  selected,
+  onSelect,
+  appDir,
 }: {
   finding: Finding;
   projectId: string;
@@ -43,6 +47,11 @@ function FindingCard({
   canShowCode: boolean;
   onFix?: () => void;
   onAccept?: (reason: string) => Promise<void>;
+  /** When given, the finding can be ticked and fixed together with the others. */
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
+  /** The folder the app is in, so the file can be shown as a full path a developer can open. */
+  appDir?: string;
 }) {
   const [showCode, setShowCode] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -53,7 +62,14 @@ function FindingCard({
   return (
     <div className="sv-finding">
       <div className="sv-row-between">
-        <strong>{finding.title}</strong>
+        {onSelect ? (
+          <label className="sv-checkbox-row" style={{ margin: 0 }}>
+            <input type="checkbox" checked={selected ?? false} onChange={(e) => onSelect(e.target.checked)} aria-label={`Include "${finding.title}" in the fixes`} />
+            <strong>{finding.title}</strong>
+          </label>
+        ) : (
+          <strong>{finding.title}</strong>
+        )}
         <Badge tone={severityTone}>{finding.severity}</Badge>
       </div>
       <p className="sv-muted">{finding.description}</p>
@@ -87,7 +103,7 @@ function FindingCard({
         <div className="sv-row">
           {onFix && (
             <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={onFix}>
-              Ask Claude to fix this
+              Ask AI to fix this one
             </button>
           )}
           {onAccept && !accepting && (
@@ -156,6 +172,14 @@ function reportRunLabel(r: ReportRun): string {
   return `${RUN_KIND[r.mode] ?? 'Run'} on ${when} — ${RUN_STATUS[r.status] ?? r.status}`;
 }
 
+
+const THEMES = [
+  { id: 'calm', label: 'Calm' },
+  { id: 'warm', label: 'Warm' },
+  { id: 'forest', label: 'Forest' },
+  { id: 'contrast', label: 'High contrast' },
+] as const;
+
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -170,6 +194,27 @@ export function ResultsPage() {
   const [reviewerName, setReviewerName] = useState('');
   const [showRebuild, setShowRebuild] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [selectedFixes, setSelectedFixes] = useState<string[]>([]);
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [themeMessage, setThemeMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const currentTheme = project?.profile?.app?.theme ?? 'calm';
+
+  // Colour only: no rebuild, no checks, no approval — the app reads the new value the next time it starts.
+  async function chooseTheme(theme: string) {
+    if (!id) return;
+    setSavingTheme(true);
+    setThemeMessage(null);
+    try {
+      const result = await setAppearance(id, theme);
+      setThemeMessage({ ok: true, text: result.message });
+      await reload();
+    } catch (e) {
+      setThemeMessage({ ok: false, text: e instanceof Error ? e.message : 'Could not change how your app looks.' });
+    } finally {
+      setSavingTheme(false);
+    }
+  }
+
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
   // Update the app to the latest template (no AI, nothing rewritten), then run the free re-check so the results
@@ -229,7 +274,7 @@ export function ResultsPage() {
       .catch(() => setReportRuns([]));
   }, [id, project?.lastRunId]);
 
-  // Arriving from the "Reports" button on My apps: bring the reports into view once they are on the page.
+  // Arriving at #reports (a link into the documents section): bring the reports into view once they are on the page.
   const location = useLocation();
   useEffect(() => {
     if (location.hash !== '#reports' || reportRuns.length === 0 || !run) return;
@@ -253,8 +298,10 @@ export function ResultsPage() {
     setFindings(r.findings);
   }
 
-  async function askClaudeToFix(findingId: string) {
-    navigate(`/projects/${id}/build?fix=${encodeURIComponent(findingId)}`);
+  /** Sends one or more findings to a fix run; the Build page shows the estimate and asks for approval first. */
+  function askAiToFix(findingIds: string[]) {
+    if (findingIds.length === 0) return;
+    navigate(`/projects/${id}/build?fix=${encodeURIComponent(findingIds.join(','))}`);
   }
 
   async function acceptFinding(findingId: string, reason: string) {
@@ -403,6 +450,9 @@ export function ResultsPage() {
         </a>
         <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${id}/verify`}>
           Walk through the human checks
+        </Link>
+        <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${id}/security`}>
+          Security checks
         </Link>
       </div>
 
@@ -561,6 +611,29 @@ export function ResultsPage() {
 
       <Card>
         <h2>What we found</h2>
+        {!uploaded && openFindings.length > 0 && (
+          <div className="sv-card" style={{ margin: '0 0 16px', background: 'var(--color-bg-subtle)' }}>
+            <p style={{ marginTop: 0 }}>
+              <strong>Have the AI fix the code</strong> — tick the problems you want it to work on, or send them all.
+              This rebuilds your app with those problems on the AI's list, then runs every check again, so you can see
+              what was really fixed. You approve the cost first, this version is kept, and anything the AI cannot fix
+              safely stays on this list.
+            </p>
+            <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <button type="button" className="sv-btn" disabled={selectedFixes.length === 0} onClick={() => askAiToFix(selectedFixes)}>
+                {selectedFixes.length === 0 ? 'Fix the ticked problems' : `Fix the ${selectedFixes.length} ticked problem(s)`}
+              </button>
+              <button type="button" className="sv-btn sv-btn-secondary" onClick={() => askAiToFix(openFindings.map((f) => f.id))}>
+                Fix all {openFindings.length}
+              </button>
+              {selectedFixes.length > 0 && (
+                <button type="button" className="sv-btn-link" onClick={() => setSelectedFixes([])}>
+                  Clear the ticks
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {fixed.length === 0 && nothingToDo.length === 0 && needsOwner.length === 0 && needsDeveloper.length === 0 && (
           <p className="sv-muted">Nothing to report yet.</p>
         )}
@@ -596,7 +669,7 @@ export function ResultsPage() {
         {needsDeveloper.length > 0 && (
           <div className="sv-finding-group">
             <div className="sv-finding-group-header">
-              <span>Needs a developer</span>
+              <span>Usually needs a developer</span>
               <Badge tone="bad">{needsDeveloper.length}</Badge>
             </div>
             {needsDeveloper.map((f) => (
@@ -617,9 +690,32 @@ export function ResultsPage() {
         )}
       </Card>
 
+      <Card>
+        <h2>How your app looks</h2>
+        <p className="sv-help">
+          The colours only. Changing this does not rebuild your app, costs nothing, and cannot affect how your app
+          protects your data: every look is tested to stay readable, in ordinary and in dark mode.
+        </p>
+        <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          {THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              className={`sv-btn sv-btn-sm ${currentTheme === theme.id ? '' : 'sv-btn-secondary'}`}
+              disabled={savingTheme}
+              onClick={() => void chooseTheme(theme.id)}
+            >
+              {theme.label}
+              {currentTheme === theme.id ? ' ✓' : ''}
+            </button>
+          ))}
+        </div>
+        {themeMessage && <p className={themeMessage.ok ? 'sv-muted' : 'sv-error-text'}>{themeMessage.text}</p>}
+      </Card>
+
       {reportRuns.length > 0 && (
         <Card id="reports">
-          <h2>Reports</h2>
+          <h2>Reports you can download</h2>
           {compliance && (
             <div className="sv-card" style={{ margin: '0 0 16px', background: 'var(--color-bg-subtle)' }}>
               <h3 style={{ marginTop: 0 }}>

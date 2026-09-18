@@ -37,6 +37,7 @@ export function summaryOf(run: PipelineRun): RunSummary {
     startedAt: run.startedAt,
     ...(run.finishedAt ? { finishedAt: run.finishedAt } : {}),
     status: run.status,
+    ...(run.partial ? { partial: true } : {}),
     findingCounts,
     ...(run.compliance ? { complianceRating: run.compliance.overall.rating } : {}),
   };

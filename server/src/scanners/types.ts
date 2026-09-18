@@ -23,6 +23,12 @@ export interface ScanContext {
   provenance?: Provenance;
   /** Extra ignore patterns (gitignore-style globs, relative to appDir) on top of the built-in ones. */
   ignore: string[];
+  /**
+   * One cache folder for the optional external scanners, shared by every project. Each project otherwise gets its
+   * own HOME, and trivy downloads its 1.3 GB vulnerability database into each of them; pointing the tools here
+   * downloads it once for the whole workspace.
+   */
+  toolCacheDir: string;
   knowledge: Knowledge;
   log(msg: string): void;
   abort: AbortSignal;

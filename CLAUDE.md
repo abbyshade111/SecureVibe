@@ -62,7 +62,9 @@ whatever you touch before changing it.
 ## Rules that hold everywhere
 
 - Evidence tiers are honest: AI review alone is "ai-assessed", never "pass". A "not sure" human answer adds no
-  evidence. Do not make a check look stronger than it is.
+  evidence. Do not make a check look stronger than it is. A checker that knows which requirements it verifies says
+  so in `Evidence.requirementIds`; automating a manual check means producing real evidence for it, never lowering
+  the bar for what counts as verified.
 - The generation agent is fenced (allow-listed paths, validated tool inputs, screened tool output). The second
   opinion and the follow-up questions may only change answers from their allow-lists, and only toward the safer
   side. Keep it that way.

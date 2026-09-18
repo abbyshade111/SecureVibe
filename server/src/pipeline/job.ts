@@ -15,7 +15,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { BuildPlan } from '@shared/project.js';
-import type { RunMode } from '@shared/pipeline.js';
+import type { RunMode, StageId } from '@shared/pipeline.js';
 import type { GrantedApproval } from '../api/approvals.js';
 import type { ProjectStore } from '../store/index.js';
 import { isRunActive } from './runner.js';
@@ -38,6 +38,8 @@ export interface BuildJob {
   uploaded?: boolean;
   /** Run without any AI call (a free re-check) even when a key is configured. */
   withoutAi?: boolean;
+  /** The Security page: run only these checks and leave the compliance report alone. */
+  checks?: StageId[];
   /** A build that continues an earlier, unfinished one (see resume.ts). */
   resumeFromRunId?: string;
   createdAt: string;

@@ -94,6 +94,28 @@ describe('pipeline runner', () => {
     expect(onDisk?.status).toBe('succeeded');
   });
 
+  it('runs only the checks the owner asked for, and leaves the compliance report alone', async () => {
+    const project = makeProject();
+    project.design = { ...project.design, profileHash: 'x' } as never;
+    const run = await startRun(project, { mode: 'verify-only', spendingCapUsd: 15, onlyChecks: ['sast', 'deps'] }, deps).execute();
+
+    expect(stages.runSastStage).toHaveBeenCalledTimes(1);
+    expect(stages.runDepsStage).toHaveBeenCalledTimes(1);
+    // Packages are installed anyway: the checks cannot read a project that was never set up.
+    expect(stages.runInstall).toHaveBeenCalledTimes(1);
+    expect(stages.runDastStage).not.toHaveBeenCalled();
+    expect(stages.runConfigStage).not.toHaveBeenCalled();
+    // The verdict and the reports are left as the last full check made them, and the run says it was partial.
+    expect(stages.runComplianceStage).not.toHaveBeenCalled();
+    expect(stages.runReportsStage).not.toHaveBeenCalled();
+    expect(run.partial).toBe(true);
+    expect(run.partialChecks).toEqual(['sast', 'deps']);
+    const dast = run.stages.find((s) => s.id === 'dast');
+    expect(dast?.status).toBe('skipped');
+    expect(dast?.summary).toMatch(/asked for some of the checks only/i);
+    expect(run.stages.find((s) => s.id === 'compliance')?.summary).toMatch(/left as your last full check made it/i);
+  });
+
   it('skips design-freeze/scaffold/generate/fix in verify-only mode and uses the frozen design', async () => {
     const project = makeProject();
     project.design = { ...project.design, profileHash: 'x' } as never; // presence is all loadFrozenDesign needs

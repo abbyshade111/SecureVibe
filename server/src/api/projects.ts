@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  AppearanceRequestSchema,
+  AppearanceResponseSchema,
   AttestationRequestSchema,
   CreateProjectRequestSchema,
   DeriveDesignResponseSchema,
@@ -24,6 +26,7 @@ import {
   RefineResponseSchema,
   type RunInstructions,
   type VerificationResponse,
+  DocumentResponseSchema,
   VerificationResponseSchema,
 } from '@shared/api.js';
 import { DesignProfileSchema, PartialDesignProfileSchema, type DesignProfile, type PartialDesignProfile } from '@shared/profile.js';
@@ -32,6 +35,9 @@ import { isOpen, type Finding } from '@shared/findings.js';
 import { applyPeerReviewPatch, deriveDesign, peerReview, profileHash, quickInfer } from '../integration.js';
 import { answerFieldAllowed, refineProfile } from '../llm/flows/refine.js';
 import { applyRefinement } from '../design/refine-apply.js';
+import { documentsFor, readDocument, DocumentNotAvailable } from '../verification/documents.js';
+import { AppearanceError, setAppTheme } from '../generator/appearance.js';
+import { PathConfinementError } from '../store/paths.js';
 import { SELF_PROJECT_NAME, loadComplianceInputs, refreshReportsWithAnswers, RefreshUnavailableError, reviewIsCurrent, reviewScope, reviewTree } from '../verification/index.js';
 import { effectiveAiSettings } from '../config.js';
 import { PreviewError } from '../preview/index.js';
@@ -202,6 +208,39 @@ export function projectsRouter(deps: ApiDeps): Router {
       delete p.archivedAt;
     });
     res.json({ project: saved });
+  });
+
+  /**
+   * Change how the app looks. Colour only, so nothing is generated and nothing is checked again: the answer is
+   * saved with the design (a later rebuild keeps it) and written into the built app's settings file, where the app
+   * picks it up the next time it starts.
+   */
+  router.put('/projects/:id/appearance', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const body = AppearanceRequestSchema.parse(req.body);
+    const appDir = deps.store.paths(project.id).appDir;
+    let applied = false;
+    if (existsSync(join(appDir, '.env'))) {
+      try {
+        setAppTheme(appDir, body.theme);
+        applied = true;
+      } catch (err) {
+        if (!(err instanceof AppearanceError)) throw err;
+        throw validationError(err.message);
+      }
+    }
+    deps.store.update(project.id, (p) => {
+      p.profile = { ...p.profile, app: { ...p.profile?.app, theme: body.theme } };
+    });
+    res.json(
+      AppearanceResponseSchema.parse({
+        theme: body.theme,
+        applied,
+        message: applied
+          ? 'Your app has the new look. Start it again (or reload its page if it is already running) to see it.'
+          : 'Saved. Your app will be built with this look.',
+      }),
+    );
   });
 
   router.put('/projects/:id/profile', (req, res) => {
@@ -548,6 +587,13 @@ export function projectsRouter(deps: ApiDeps): Router {
     res.json({ project: saved });
   });
 
+  /** Where a document named by a check may live: the app, the project's own folder, or SecureVibe itself. */
+  const documentRoots = (projectId: string) => ({
+    appDir: deps.store.paths(projectId).appDir,
+    projectDir: deps.store.paths(projectId).dir,
+    repoRoot: deps.config.paths.repoRoot,
+  });
+
   router.get('/projects/:id/verification', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     const run = project.lastRunId ? deps.store.readRun(project.id, project.lastRunId) : undefined;
@@ -586,6 +632,8 @@ export function projectsRouter(deps: ApiDeps): Router {
           ...(m.manual.whatCountsAsEvidence ? { whatCountsAsEvidence: m.manual.whatCountsAsEvidence } : {}),
           estimatedEffort: m.manual.estimatedEffort,
           ...(answer ? { answer } : {}),
+          // The files this check names, so the wizard can put them in front of the person.
+          documents: documentsFor([m.manual.question, ...m.manual.steps, m.manual.whatCountsAsEvidence], documentRoots(project.id)),
         };
       }),
       canRefresh: loadComplianceInputs(deps.store, project.id, run.id) !== undefined,
@@ -593,6 +641,21 @@ export function projectsRouter(deps: ApiDeps): Router {
       selfAssessment: project.name === SELF_PROJECT_NAME,
     };
     res.json(VerificationResponseSchema.parse(body));
+  });
+
+  // One document a human check refers to, so the wizard can show it without the person going looking for it.
+  router.get('/projects/:id/document', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const path = typeof req.query['path'] === 'string' ? req.query['path'] : '';
+    if (!path || path.length > 512 || path.includes('\0')) throw validationError('Which document?');
+    try {
+      const doc = readDocument(path, documentRoots(project.id));
+      res.json(DocumentResponseSchema.parse({ path, where: doc.where, text: doc.text }));
+    } catch (err) {
+      if (err instanceof DocumentNotAvailable) throw notFound(err.message);
+      if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
+      throw err;
+    }
   });
 
   router.post('/projects/:id/reports/refresh', async (req, res) => {

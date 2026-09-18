@@ -8,15 +8,19 @@ import type { Finding } from '@shared/findings.js';
 import { buildEvidence, buildFinding, countBySeverityText, statusFromFindings } from '../sast/findings.js';
 import type { ScanContext, ScanResult, Scanner } from '../types.js';
 import { CONFIG_CHECKS } from './checks.js';
+import { DOC_CHECKS } from './docs-checks.js';
+
+/** Everything the config stage runs: the app's settings, then the documents that describe them. */
+export const ALL_CONFIG_CHECKS = [...CONFIG_CHECKS, ...DOC_CHECKS];
 
 export const CONFIG_TOOL = { name: 'securevibe-config', version: '1.0.0' };
 
 export const runConfig: Scanner = async (ctx) => {
-  ctx.log('Checking configuration: environment files, secrets, TLS settings, protected files…');
+  ctx.log('Checking configuration and documentation: environment files, secrets, TLS settings, protected files, and whether the generated documents still match the app…');
   const findings: Finding[] = [];
   const evidence: Evidence[] = [];
 
-  for (const check of CONFIG_CHECKS) {
+  for (const check of ALL_CONFIG_CHECKS) {
     if (ctx.abort.aborted) break;
     let outcome;
     try {
@@ -37,6 +41,8 @@ export const runConfig: Scanner = async (ctx) => {
         capturedAt: new Date().toISOString(),
         location: outcome.file ? { file: outcome.file, line: outcome.line } : undefined,
         producedBy: 'rules',
+        // What this check verifies, so the compliance evaluation can credit those requirements directly.
+        requirementIds: [...check.meta.asvs, ...check.meta.aisvs],
       }),
     );
     if (!outcome.passed) {
@@ -67,8 +73,8 @@ export const runConfig: Scanner = async (ctx) => {
   const passedCount = evidence.filter((e) => e.passed).length;
   const summary =
     findings.length === 0
-      ? `All ${CONFIG_CHECKS.length} configuration checks passed.`
-      : `${passedCount} of ${CONFIG_CHECKS.length} configuration checks passed; ${findings.length} did not (${countBySeverityText(findings)}).`;
+      ? `All ${ALL_CONFIG_CHECKS.length} configuration and documentation checks passed.`
+      : `${passedCount} of ${ALL_CONFIG_CHECKS.length} configuration and documentation checks passed; ${findings.length} did not (${countBySeverityText(findings)}).`;
   ctx.log(summary);
 
   const result: ScanResult = {
