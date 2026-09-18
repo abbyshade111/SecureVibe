@@ -4,6 +4,7 @@ import type { VerificationItem, VerificationResponse } from '@shared/api.js';
 import { createAttestation, getEstimate, getVerification, refreshReports, startRun, submitHumanReview } from '../lib/api';
 import { Badge, Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
 import { formatDate } from '../lib/format';
+import { useScrollToTop } from '../hooks/useScrollToTop';
 
 type StepId = 'start' | 'code' | 'owner' | 'developer' | 'specialist' | 'finish';
 type Answer = 'yes' | 'no' | 'not-sure';
@@ -79,6 +80,8 @@ function ItemStep({
   const [index, setIndex] = useState(0);
   const [note, setNote] = useState('');
   const [link, setLink] = useState('');
+  // Each check starts at the top of the page, not where the last one ended.
+  useScrollToTop(index);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

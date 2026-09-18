@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router';
+import { useScrollToTop } from '../../hooks/useScrollToTop';
 import type { WizardQuestion } from '../../lib/wizardCopyTypes';
 import { useProject } from '../../hooks/useProject';
 import { useWizardCopy } from '../../hooks/useWizardCopy';
@@ -52,6 +53,9 @@ export function WizardPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  // A new question (or a new step) starts at the top of the page, not where the last one ended.
+  useScrollToTop(`${step}:${qIndex}`);
 
   if (loading || copyLoading) return <LoadingScreen label="Loading your app…" />;
   if (error || !project) return <ErrorNotice message={error ?? 'Could not load this app.'} />;
