@@ -165,9 +165,14 @@ describe('runExternal', () => {
     const details = result.details as ExternalDetails;
     expect(result.status).toBe('skipped');
     expect(result.findings).toEqual([]);
-    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner']);
-    expect(details.tools.every((t) => !t.installed && t.reason === 'skipped: not installed')).toBe(true);
-    expect(externalCoverageRows(result)).toHaveLength(4);
+    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner', 'nano-analyzer']);
+    const onPath = details.tools.filter((t) => t.name !== 'nano-analyzer');
+    expect(onPath.every((t) => !t.installed && t.reason === 'skipped: not installed')).toBe(true);
+    // The opt-in AI scanner is skipped for a different reason: it was never switched on, which is not the same
+    // thing as missing, and the coverage table has to say which of the two it was.
+    expect(details.tools.at(-1)).toMatchObject({ name: 'nano-analyzer', ran: false, findingCount: 0 });
+    expect(details.tools.at(-1)!.reason).toMatch(/not switched on in Settings/);
+    expect(externalCoverageRows(result)).toHaveLength(5);
     expect(externalCoverageRows(result).every((row) => row.ran === false && row.covers)).toBe(true);
     expect(result.coverage.reason).toMatch(/not installed/);
     expect(result.summary).toMatch(/No extra security scanners are installed/);

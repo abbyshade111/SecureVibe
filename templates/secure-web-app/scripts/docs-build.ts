@@ -18,6 +18,7 @@ import { closeDb, openDb } from '../src/db/index.ts';
 import { runMigrations } from '../src/db/migrate.ts';
 import { listEntities } from '../src/security/authz.ts';
 import { SECURITY_EVENTS } from '../src/security/events.ts';
+import { MAX_LENGTH, MIN_LENGTH } from '../src/security/password.ts';
 import { presetDefinitions, type PresetDefinition, type RateLimitPreset } from '../src/security/rate-limit.ts';
 import { routeSchemasAsJson, summariseRoutes, type RouteSummary } from '../src/security/routes.ts';
 import { SESSION_COOKIE } from '../src/security/session.ts';
@@ -196,6 +197,19 @@ function genSecurityMd(): string {
       '',
       table(['Limit', 'Applies to', 'Allowed', 'Per', 'Grows after repeated failures'], rows),
       '',
+      '## Passwords',
+      '',
+      `A password must be at least ${MIN_LENGTH} characters long (a short sentence works well) and at most ${MAX_LENGTH}.`,
+      '',
+      'These words cannot be used as a password, or inside one, because they are the first thing an attacker tries:',
+      '',
+      `- Any password on the list of commonly used passwords that ships with this app.`,
+      `- The name of this app (“${config.appName}”), and any word of four letters or more in it.`,
+      '- The person\'s own name, and any word of four letters or more in it.',
+      '- The part of the person\'s email address before the @ sign.',
+      '',
+      'Nothing else is banned: no forced mixture of capitals, digits and symbols, and no expiry date, because those rules push people towards worse passwords.',
+      '',
       '## Two-factor authentication',
       '',
       `Administrators ${config.ADMIN_MFA_REQUIRED ? 'must' : 'may'} set up a one-time code app before using the app. ${config.USER_MFA_AVAILABLE ? 'Every user may turn on one-time codes for their own account.' : 'One-time codes are only available to administrators.'}`,
@@ -319,6 +333,21 @@ function genUploadsMd(): string {
 // docs/data-protection.md — V14.1.1 (doc), V14.1.2 (doc), DM-01, DM-05
 // ---------------------------------------------------------------------------------------------------------------
 
+/** The kinds of information a person chose in the wizard, written out for a reader rather than as code words. */
+const CATEGORY_WORDS: Record<string, string> = {
+  contact: 'contact details — names, email addresses, phone numbers, postal addresses',
+  financial: 'financial information — bank details, salaries, invoices, balances',
+  'payment-card': 'payment card details — never stored here; payment happens at the provider',
+  health: 'health information — medical, wellbeing or disability details',
+  'government-id': 'government id numbers — passport, national id, tax numbers',
+  credentials: 'credentials — the passwords and one-time code secrets of the people who sign in',
+  children: 'information about children under 16',
+  location: 'location — where somebody is or has been',
+  files: 'files people upload — documents and images',
+  'business-confidential': 'business-confidential information — internal data, pricing, plans',
+  'other-personal': 'other personal information about identifiable people',
+};
+
 function genDataProtectionMd(): string {
   const categories = config.design.profile?.data?.categories ?? [];
   const entities = listEntities();
@@ -331,7 +360,9 @@ function genDataProtectionMd(): string {
     [
       [
         '## Data this app is designed to hold',
-        categories.length > 0 ? categories.map((c) => `- ${c}`).join('\n') : 'No data categories were specified at design time; treat any personal information you add as sensitive by default.',
+        categories.length > 0
+          ? categories.map((c) => `- ${CATEGORY_WORDS[c] ?? c.replace(/-/g, ' ')}`).join('\n')
+          : 'No data categories were specified at design time; treat any personal information you add as sensitive by default.',
       ].join('\n\n'),
       [
         '## Protections that apply to every record',

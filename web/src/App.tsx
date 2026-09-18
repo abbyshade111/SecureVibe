@@ -8,6 +8,7 @@ import { ResultsPage } from './pages/ResultsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { VerifyPage } from './pages/VerifyPage';
+import SecurityPage from './pages/SecurityPage';
 import { UploadPage } from './pages/UploadPage';
 import { RefinePage } from './pages/RefinePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -29,6 +30,7 @@ export function App() {
         <Route path="/projects/:id/build" element={<BuildPage />} />
         <Route path="/projects/:id/results" element={<ResultsPage />} />
         <Route path="/projects/:id/verify" element={<VerifyPage />} />
+        <Route path="/projects/:id/security" element={<SecurityPage />} />
         <Route path="/projects/:id/upload" element={<UploadPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/settings" element={<SettingsPage />} />

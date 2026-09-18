@@ -131,12 +131,21 @@ interface FieldPhrase {
   value: (p: DesignProfile) => string;
 }
 
+/** Plain words for the look that was chosen; the colours are all a theme changes. */
+const THEME_PHRASES: Record<DesignProfile['app']['theme'], string> = {
+  calm: 'the calm look (quiet greys and blue)',
+  warm: 'the warm look (cream and amber)',
+  forest: 'the forest look (greens)',
+  contrast: 'the high-contrast look (black on white)',
+};
+
 const yesNo = (v: boolean, yes: string, no: string) => (v ? yes : no);
 
 const FIELD_PHRASES: Record<string, FieldPhrase> = {
   'app.category': { question: 'what kind of app it is', value: (p) => CATEGORY_PHRASES[p.app.category] },
   'app.entities': { question: 'which records it keeps', value: (p) => listWords(p.app.entities.map((e) => e.pluralLabel ?? e.label)) || 'no records yet' },
   'app.keyFeatures': { question: 'which features it needs', value: (p) => listWords(p.app.keyFeatures) || 'no extra features' },
+  'app.theme': { question: 'how it should look', value: (p) => THEME_PHRASES[p.app.theme] },
   'users.audience': { question: 'who will use it', value: (p) => audiencePhrase(p) },
   'users.requiresSignIn': { question: 'whether people should sign in', value: (p) => yesNo(p.users.requiresSignIn, 'people must sign in', 'no sign-in') },
   'users.roles': { question: 'which roles exist', value: (p) => listWords(p.users.roles.map((r) => r.label)) || 'administrator only' },

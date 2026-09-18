@@ -1,18 +1,184 @@
-/* Base styles for the generated app. No third-party fonts or assets: everything is served from this app. */
-:root {
+/*
+ * Base styles for the generated app. No third-party fonts or assets: everything is served from this app.
+ *
+ * Colours are chosen, never typed in by hand elsewhere: every colour in this file is one of the tokens below, so a
+ * theme can change the whole look by redefining them. Each theme is checked by tests/security/theme-contrast.test.ts
+ * against the WCAG AA contrast ratios (4.5:1 for text, 3:1 for the edge of a form field), in both the light and the
+ * dark version, so choosing a look can never make the app hard to read. Themes change colour only: no theme can
+ * hide a control, change a message or turn off a security feature.
+ *
+ * The theme is picked in SecureVibe and written to APP_THEME; the layout puts it on <html data-theme="...">, after
+ * the app has checked it against the list of known names.
+ */
+
+/* calm — the default: grey-blue, quiet. */
+:root,
+html[data-theme='calm'] {
   --bg: #f6f7f9;
   --surface: #ffffff;
   --text: #1c2430;
-  --muted: #5b6673;
+  --muted: #57616e;
   --border: #d9dee5;
-  --accent: #1f5eff;
-  --accent-dark: #1746c0;
+  --border-strong: #767f8c;
+  --accent: #1450e0;
+  --accent-dark: #0e3aa8;
+  --accent-contrast: #ffffff;
   --danger: #b42318;
+  --danger-dark: #8f1c13;
+  --danger-contrast: #ffffff;
   --danger-bg: #fdecea;
-  --success: #067647;
+  --success: #066b41;
   --success-bg: #e6f4ec;
   --info-bg: #eaf1ff;
   --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  html[data-theme='calm'] {
+    --bg: #12151a;
+    --surface: #1b2027;
+    --text: #e8ecf1;
+    --muted: #a8b2bf;
+    --border: #2f3843;
+    --border-strong: #68737f;
+    --accent: #8fb3ff;
+    --accent-dark: #b6ccff;
+    --accent-contrast: #0b1020;
+    --danger: #ff9d94;
+    --danger-dark: #ffc2bb;
+    --danger-contrast: #2b0b08;
+    --danger-bg: #3a1c19;
+    --success: #7ddaa8;
+    --success-bg: #12301f;
+    --info-bg: #1b2740;
+  }
+}
+
+/* warm — amber and clay. */
+html[data-theme='warm'] {
+  --bg: #fbf7f2;
+  --surface: #ffffff;
+  --text: #2b2018;
+  --muted: #6b5a4a;
+  --border: #e7dbcb;
+  --border-strong: #8a7660;
+  --accent: #a8541a;
+  --accent-dark: #7d3d12;
+  --accent-contrast: #ffffff;
+  --danger: #b42318;
+  --danger-dark: #8f1c13;
+  --danger-contrast: #ffffff;
+  --danger-bg: #fdecea;
+  --success: #066b41;
+  --success-bg: #e6f4ec;
+  --info-bg: #f6ecdd;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme='warm'] {
+    --bg: #17120d;
+    --surface: #211a13;
+    --text: #f2e9df;
+    --muted: #c0ad98;
+    --border: #3a2f24;
+    --border-strong: #7c6a56;
+    --accent: #f0a463;
+    --accent-dark: #ffc79a;
+    --accent-contrast: #1a1008;
+    --danger: #ff9d94;
+    --danger-dark: #ffc2bb;
+    --danger-contrast: #2b0b08;
+    --danger-bg: #3a1c19;
+    --success: #7ddaa8;
+    --success-bg: #12301f;
+    --info-bg: #33261a;
+  }
+}
+
+/* forest — green, low key. */
+html[data-theme='forest'] {
+  --bg: #f4f8f4;
+  --surface: #ffffff;
+  --text: #16251c;
+  --muted: #4f6157;
+  --border: #d5e2d8;
+  --border-strong: #6f8478;
+  --accent: #136a3a;
+  --accent-dark: #0d4c29;
+  --accent-contrast: #ffffff;
+  --danger: #b42318;
+  --danger-dark: #8f1c13;
+  --danger-contrast: #ffffff;
+  --danger-bg: #fdecea;
+  --success: #066b41;
+  --success-bg: #e3f2e8;
+  --info-bg: #e6f1ea;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme='forest'] {
+    --bg: #0f1613;
+    --surface: #18211c;
+    --text: #e6efe8;
+    --muted: #a3b6aa;
+    --border: #28352d;
+    --border-strong: #607264;
+    --accent: #6fd59a;
+    --accent-dark: #9fe8bd;
+    --accent-contrast: #07140d;
+    --danger: #ff9d94;
+    --danger-dark: #ffc2bb;
+    --danger-contrast: #2b0b08;
+    --danger-bg: #3a1c19;
+    --success: #7ddaa8;
+    --success-bg: #12301f;
+    --info-bg: #172b21;
+  }
+}
+
+/* contrast — black on white, heavier edges, for anyone who finds the others hard to read. */
+html[data-theme='contrast'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --text: #000000;
+  --muted: #3b3b3b;
+  --border: #767676;
+  --border-strong: #000000;
+  --accent: #0b3ea8;
+  --accent-dark: #052a77;
+  --accent-contrast: #ffffff;
+  --danger: #a00000;
+  --danger-dark: #7a0000;
+  --danger-contrast: #ffffff;
+  --danger-bg: #ffe9e9;
+  --success: #00553a;
+  --success-bg: #e4f4ee;
+  --info-bg: #eef2fb;
+  --radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme='contrast'] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --text: #ffffff;
+    --muted: #d0d0d0;
+    --border: #a0a0a0;
+    --border-strong: #ffffff;
+    --accent: #9ecbff;
+    --accent-dark: #cde3ff;
+    --accent-contrast: #000000;
+    --danger: #ff8f8f;
+    --danger-dark: #ffbcbc;
+    --danger-contrast: #000000;
+    --danger-bg: #2a0d0d;
+    --success: #79e3b6;
+    --success-bg: #0c2a1e;
+    --info-bg: #101c2e;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -59,12 +225,12 @@ input[type="text"], input[type="email"], input[type="password"], select, textare
   width: 100%;
   padding: 0.55rem 0.7rem;
   font: inherit;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
 }
-input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px solid rgba(31, 94, 255, 0.35); outline-offset: 1px; }
+input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
 .hint { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0 0; }
 .muted { color: var(--muted); }
 .field-error { color: var(--danger); font-size: 0.9rem; margin: 0.25rem 0 0; }
@@ -76,7 +242,7 @@ input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px 
   padding: 0.55rem 1rem;
   font: inherit;
   font-weight: 600;
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
@@ -84,11 +250,11 @@ input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px 
   text-decoration: none;
   margin: 0.25rem 0.5rem 0.25rem 0;
 }
-.button:hover { background: var(--accent-dark); color: #fff; }
+.button:hover { background: var(--accent-dark); color: var(--accent-contrast); }
 .button-secondary { background: var(--surface); color: var(--accent); }
 .button-secondary:hover { background: var(--info-bg); color: var(--accent-dark); }
-.button-danger { background: var(--danger); border-color: var(--danger); }
-.button-danger:hover { background: #8f1c13; }
+.button-danger { background: var(--danger); border-color: var(--danger); color: var(--danger-contrast); }
+.button-danger:hover { background: var(--danger-dark); border-color: var(--danger-dark); color: var(--danger-contrast); }
 .button-small { padding: 0.3rem 0.6rem; font-size: 0.9rem; }
 .link-button { background: none; border: none; color: var(--accent); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .inline-form { display: inline; margin: 0; }
@@ -98,7 +264,7 @@ input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px 
 .flash { padding: 0.7rem 0.9rem; border-radius: var(--radius); margin-bottom: 1rem; }
 .flash-success { background: var(--success-bg); color: var(--success); }
 .flash-error { background: var(--danger-bg); color: var(--danger); }
-.flash-info { background: var(--info-bg); }
+.flash-info { background: var(--info-bg); color: var(--text); }
 
 .table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
 .table th, .table td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -110,7 +276,7 @@ input:focus, select:focus, textarea:focus, button:focus, a:focus { outline: 3px 
 .details dt { color: var(--muted); }
 .details dd { margin: 0; }
 
-.tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--info-bg); font-size: 0.8rem; }
+.tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--info-bg); color: var(--text); font-size: 0.8rem; }
 .tag-failure, .tag-blocked { background: var(--danger-bg); color: var(--danger); }
 .tag-success { background: var(--success-bg); color: var(--success); }
 

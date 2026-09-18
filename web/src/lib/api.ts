@@ -30,7 +30,7 @@ import type {
   VersionDiff,
   FileDiffResponse,
 } from '@shared/api.js';
-import type { MetricsResponse, VerificationResponse } from '@shared/api.js';
+import type { AppearanceResponse, ChecksResponse, DocumentResponse, MetricsResponse, VerificationResponse } from '@shared/api.js';
 import type { Project, Attestation } from '@shared/project.js';
 import type { PipelineRun, ArtifactRef } from '@shared/pipeline.js';
 import type { WizardCopy } from './wizardCopyTypes';
@@ -265,6 +265,14 @@ export function startRun(
   return j(`/projects/${id}/runs`, { method: 'POST', body: JSON.stringify(body) });
 }
 
+export function setAppearance(id: string, theme: string): Promise<AppearanceResponse> {
+  return j<AppearanceResponse>(`/projects/${id}/appearance`, { method: 'PUT', body: JSON.stringify({ theme }) });
+}
+
+export function getChecks(id: string): Promise<ChecksResponse> {
+  return j<ChecksResponse>(`/projects/${id}/checks`);
+}
+
 export async function getRun(runId: string): Promise<PipelineRun> {
   const { run } = await j<{ run: PipelineRun }>(`/runs/${runId}`);
   return run;
@@ -364,6 +372,10 @@ export function finishUpload(id: string): Promise<Project> {
 
 export function getVerification(id: string): Promise<VerificationResponse> {
   return j<VerificationResponse>(`/projects/${id}/verification`);
+}
+
+export function getDocument(id: string, path: string): Promise<DocumentResponse> {
+  return j(`/projects/${id}/document?path=${encodeURIComponent(path)}`);
 }
 
 export function getVersions(id: string): Promise<AppVersion[]> {

@@ -2,9 +2,9 @@
   "version": 1,
   "case": "habit-tracker",
   "mode": "no-ai",
-  "runId": "r_20260918021016_nljxyn",
+  "runId": "r_20260918191304_rw6zwd",
   "status": "succeeded",
-  "durationMs": 266317,
+  "durationMs": 246707,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -28,19 +28,19 @@
     "critical": 0,
     "high": 0,
     "medium": 0,
-    "low": 0,
+    "low": 1,
     "info": 1
   },
   "asvs": {
-    "pass": 17,
+    "pass": 20,
     "applicable": 25,
-    "verifiedPassPercent": 68,
+    "verifiedPassPercent": 80,
     "aiAssessed": 0,
     "fail": 0
   },
   "tests": {
-    "total": 163,
-    "passed": 105,
+    "total": 172,
+    "passed": 110,
     "failed": 0
   },
   "costUsd": 0

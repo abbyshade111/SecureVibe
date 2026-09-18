@@ -79,6 +79,11 @@ export interface RunPipelineOptions {
   excludedChecks?: string[];
   /** Steps not to run, with the reason shown in the results (uploaded apps: nothing that runs their code). */
   skipStages?: Partial<Record<StageId, string>>;
+  /**
+   * The Security page's "run this check again": only these checks run, and the compliance verdict and the reports
+   * are left alone, because a report written from a handful of checks would understate everything not run.
+   */
+  onlyChecks?: StageId[];
   /** Requirement ids the AI review leaves out (already verified by automated checks). */
   aiReviewSkip?: Set<string>;
   /** Self-assessment: SecureVibe's own test results, used instead of the generated-app test runner. */
@@ -264,9 +269,12 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     if (!ctx.manifest) ctx.manifest = loadManifestFromAppDir(appDir);
 
     let crashedAt: StageId | undefined;
+    // A partial run still installs packages: the checks that follow cannot run without them.
+    const onlyChecks = opts.onlyChecks?.length ? new Set<StageId>([...opts.onlyChecks, 'install']) : undefined;
     for (const stage of CORE_STAGES) {
       if (abort.signal.aborted) break;
-      const skipReason = opts.skipStages?.[stage.id];
+      const notAskedFor = onlyChecks && !onlyChecks.has(stage.id) ? 'You asked for some of the checks only, so this one was not run this time. Its last result is the one from your last full check.' : undefined;
+      const skipReason = opts.skipStages?.[stage.id] ?? notAskedFor;
       if (skipReason) {
         await push(skipStage(ctx, stage.id, skipReason));
         continue;
@@ -300,8 +308,18 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     }
 
     finalizeRunProvenance(ctx);
-    await push(await runComplianceStage(ctx));
-    await push(await runReportsStage(ctx));
+    if (onlyChecks) {
+      // Only some checks ran, so there is nothing honest to say about compliance as a whole: the verdict and the
+      // reports on file stay as the last full check left them.
+      run.partial = true;
+      run.partialChecks = opts.onlyChecks!;
+      const reason = 'Only some checks were run, so the compliance report was left as your last full check made it.';
+      await push(skipStage(ctx, 'compliance', reason));
+      await push(skipStage(ctx, 'reports', reason));
+    } else {
+      await push(await runComplianceStage(ctx));
+      await push(await runReportsStage(ctx));
+    }
 
       const finalStatus = abort.signal.aborted ? 'cancelled' : run.failure || crashedAt ? 'failed' : 'succeeded';
       return finish(ctx, run, deps, finalStatus);

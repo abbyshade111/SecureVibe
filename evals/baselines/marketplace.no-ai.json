@@ -2,9 +2,9 @@
   "version": 1,
   "case": "marketplace",
   "mode": "no-ai",
-  "runId": "r_20260918023444_wk2ogz",
+  "runId": "r_20260918191711_ekuxvb",
   "status": "succeeded",
-  "durationMs": 268184,
+  "durationMs": 270352,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -28,15 +28,15 @@
     "critical": 0,
     "high": 0,
     "medium": 0,
-    "low": 1,
+    "low": 2,
     "info": 0
   },
   "asvs": {
-    "pass": 111,
+    "pass": 120,
     "applicable": 182,
-    "verifiedPassPercent": 61,
+    "verifiedPassPercent": 65.9,
     "aiAssessed": 0,
-    "fail": 0
+    "fail": 2
   },
   "aisvs": {
     "pass": 22,
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 169,
-    "passed": 156,
+    "total": 178,
+    "passed": 165,
     "failed": 0
   },
   "costUsd": 0

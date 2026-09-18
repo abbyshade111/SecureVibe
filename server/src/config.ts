@@ -43,6 +43,21 @@ export const SettingsSchema = z.object({
    * A review by a service that did not write the code is an independent check, and the reports say who did what.
    * The web app always sends all three values together.
    */
+  /**
+   * nano-analyzer: an experimental AI scanner (https://github.com/weareaisle/nano-analyzer) that reads the app's
+   * code and suggests what to look at. Off, because switching it on sends your code to OpenAI (or OpenRouter) and
+   * spends money on your own key there. Its suggestions are never evidence; see scanners/external/nano-analyzer.ts.
+   */
+  nanoAnalyzer: z
+    .object({
+      enabled: z.boolean().default(false),
+      /** The full path of the nano-analyzer folder you downloaded, or of its scan.py. */
+      scriptPath: z.string().default(''),
+      model: z.string().min(1).default('gpt-5.4-nano'),
+      /** Only suggestions this share of the tool's own triage rounds agreed on are shown (0.7 = 70%). */
+      minConfidence: z.number().min(0).max(1).default(0.7),
+    })
+    .default({ enabled: false, scriptPath: '', model: 'gpt-5.4-nano', minConfidence: 0.7 }),
   aiServiceFor: z
     .object({
       write: z.enum(['default', 'anthropic', 'openai', 'google']).default('default'),
@@ -183,7 +198,7 @@ export function readVersion(repoRoot: string = REPO_ROOT): string {
  * Reads KEY=value lines from <repo>/.env into process.env for keys that are not already set. Only the keys SecureVibe
  * itself understands are imported, so a stray .env cannot change the environment of child processes.
  */
-export const DOTENV_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'SECUREVIBE_AI', 'SECUREVIBE_HOME', 'SECUREVIBE_PORT', 'SECUREVIBE_OPEN_BROWSER', 'SECUREVIBE_LOG_LEVEL'] as const;
+export const DOTENV_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'OPENROUTER_API_KEY', 'SECUREVIBE_AI', 'SECUREVIBE_HOME', 'SECUREVIBE_PORT', 'SECUREVIBE_OPEN_BROWSER', 'SECUREVIBE_LOG_LEVEL'] as const;
 
 export function loadDotEnv(repoRoot: string = REPO_ROOT, env: NodeJS.ProcessEnv = process.env): string[] {
   const file = join(repoRoot, '.env');

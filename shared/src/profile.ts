@@ -12,6 +12,14 @@ import { z } from 'zod';
 export const AudienceSchema = z.enum(['just-me', 'my-team', 'customers', 'public']);
 export type Audience = z.infer<typeof AudienceSchema>;
 
+/**
+ * The look of the generated app. Colour only: each name matches a set of colour values in the template's stylesheet,
+ * every one of which is checked against the WCAG AA contrast ratios by the template's own tests. A theme can never
+ * hide a control, change a message or weaken a security setting, so this answer has no security consequences.
+ */
+export const ThemeSchema = z.enum(['calm', 'warm', 'forest', 'contrast']);
+export type Theme = z.infer<typeof ThemeSchema>;
+
 export const AppCategorySchema = z.enum([
   'tracker', // e.g. task/issue/habit tracker
   'booking', // appointments, reservations
@@ -171,6 +179,8 @@ export const AppSectionSchema = z.object({
   tagline: z.string().max(120).optional(),
   description: z.string().min(1).max(4000),
   category: AppCategorySchema,
+  /** The colour scheme the app is built with. Defaulted so designs saved before themes existed still load. */
+  theme: ThemeSchema.default('calm'),
   entities: z.array(EntitySpecSchema).max(20).default([]),
   keyFeatures: z.array(z.string().min(1).max(200)).max(30).default([]),
 });

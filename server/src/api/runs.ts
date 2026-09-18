@@ -3,7 +3,7 @@
  * `POST /api/runs/:id/cancel`.
  */
 import { Router } from 'express';
-import { StartRunRequestSchema, StartRunResponseSchema } from '@shared/api.js';
+import { ChecksResponseSchema, StartRunRequestSchema, StartRunResponseSchema, type CheckStatus, type ChecksResponse } from '@shared/api.js';
 import {
   cancelRun,
   EVENTS_FILE,
@@ -19,6 +19,7 @@ import {
   writeJob,
 } from '../pipeline/index.js';
 import { join } from 'node:path';
+import { RERUNNABLE_CHECKS, STAGE_DESCRIPTIONS, type PipelineRun, type StageId } from '@shared/pipeline.js';
 import { forbidden, notFound, validationError } from '../security/errors.js';
 import type { SessionRecord } from '../security/token.js';
 import { APPROVAL_REFUSAL_TEXT } from './approvals.js';
@@ -45,6 +46,10 @@ export function runsRouter(deps: ApiDeps): Router {
     // features) — free, and the way to see the whole process before spending anything; a re-check re-runs the checks.
     // An uploaded app is only ever checked: nothing is generated or fixed, and nothing runs its code.
     const mode = uploaded ? 'verify-only' : body.mode;
+
+    // "Run this check again" from the Security page: only these checks, and only ones that cost nothing.
+    const checks = body.checks?.length ? body.checks.filter((c) => (RERUNNABLE_CHECKS as readonly string[]).includes(c)) : undefined;
+    if (body.checks?.length && !checks?.length) throw validationError('Those are not checks that can be run on their own.');
 
     const settings = deps.config.settings.get();
     const spendingCapUsd = body.spendingCapUsd ?? project.spendingCapUsd ?? settings.defaultSpendingCapUsd;
@@ -86,6 +91,7 @@ export function runsRouter(deps: ApiDeps): Router {
       spendingCapUsd,
       ...(body.fixFindingIds && !uploaded ? { fixFindingIds: body.fixFindingIds } : {}),
       ...(plan?.approvedAt ? { plan } : {}),
+      ...(checks ? { onlyChecks: checks } : {}),
     };
     // The run record exists before anything runs, so the page has an id to follow. The work itself happens in a
     // separate worker process (pipeline/job.ts): a restart of SecureVibe no longer ends a build.
@@ -100,6 +106,7 @@ export function runsRouter(deps: ApiDeps): Router {
       ...(plan?.approvedAt ? { plan } : {}),
       ...(uploaded ? { uploaded: true } : {}),
       ...(body.withoutAi ? { withoutAi: true } : {}),
+      ...(checks ? { checks } : {}),
       createdAt: new Date().toISOString(),
     });
     try {
@@ -126,6 +133,59 @@ export function runsRouter(deps: ApiDeps): Router {
     }
 
     res.status(202).json(StartRunResponseSchema.parse({ run }));
+  });
+
+  /**
+   * The Security page: what each check said, and when. A check that was not part of the last run keeps the result
+   * of the last run that did include it, so re-running one check never makes the others look like they vanished.
+   */
+  router.get('/projects/:id/checks', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const runIds = deps.store.listRunIds(project.id).slice(-MAX_RUNS_SEARCHED).reverse();
+    const found = new Map<StageId, CheckStatus>();
+    let lastFullCheck: ChecksResponse['lastFullCheck'];
+    let running = false;
+
+    for (const runId of runIds) {
+      const run = deps.store.readRun(project.id, runId);
+      if (!run) continue;
+      if (run.status === 'running') running = true;
+      for (const check of RERUNNABLE_CHECKS) {
+        if (found.has(check)) continue;
+        const stage = run.stages.find((s) => s.id === check);
+        // A stage that was skipped says nothing about the app, so an older run that really ran it is the truth.
+        if (!stage || stage.status === 'skipped' || stage.status === 'running') continue;
+        found.set(check, {
+          id: check,
+          title: STAGE_DESCRIPTIONS[check].title,
+          covers: STAGE_DESCRIPTIONS[check].why,
+          status: stage.status === 'passed' || stage.status === 'failed' || stage.status === 'warning' ? stage.status : 'skipped',
+          summary: stage.summary,
+          ...(stage.finishedAt ? { ranAt: stage.finishedAt } : {}),
+          runId: run.id,
+          findingCounts: countsFor(run, check),
+        });
+      }
+      if (!lastFullCheck && !run.partial && run.status !== 'running') {
+        lastFullCheck = { runId: run.id, ...(run.finishedAt ? { finishedAt: run.finishedAt } : {}), status: run.status };
+      }
+    }
+
+    const body: ChecksResponse = {
+      checks: RERUNNABLE_CHECKS.map(
+        (check) =>
+          found.get(check) ?? {
+            id: check,
+            title: STAGE_DESCRIPTIONS[check].title,
+            covers: STAGE_DESCRIPTIONS[check].why,
+            status: 'never-run' as const,
+            summary: 'This check has not run for your app yet.',
+          },
+      ),
+      ...(lastFullCheck ? { lastFullCheck } : {}),
+      running,
+    };
+    res.json(ChecksResponseSchema.parse(body));
   });
 
   router.get('/runs/:id', (req, res) => {
@@ -210,3 +270,19 @@ export function runsRouter(deps: ApiDeps): Router {
 
   return router;
 }
+
+/** How many open problems one check found in a run, by severity (the Security page shows them next to the check). */
+function countsFor(run: PipelineRun, check: StageId): Record<string, number> | undefined {
+  // The app's own test suite is the `unit-tests` step; its findings are recorded as `tests`.
+  const sources: string[] = check === 'unit-tests' ? ['tests'] : [check];
+  const counts: Record<string, number> = {};
+  for (const finding of run.findings) {
+    if (!sources.includes(finding.source)) continue;
+    if (finding.status !== 'open' && finding.status !== 'fix-attempted') continue;
+    counts[finding.severity] = (counts[finding.severity] ?? 0) + 1;
+  }
+  return Object.keys(counts).length ? counts : undefined;
+}
+
+/** Runs read to answer "when did this check last run": enough for a few partial runs in a row. */
+const MAX_RUNS_SEARCHED = 10;

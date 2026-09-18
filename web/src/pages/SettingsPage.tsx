@@ -205,6 +205,73 @@ export function SettingsPage() {
       </Card>
 
       <Card>
+        <h2>Extra AI scanner (experimental)</h2>
+        <p className="sv-help">
+          nano-analyzer is a free program by other people that reads your code with an AI service and says what it
+          thinks could be a security problem. It is off, and switching it on is a real decision: your code is sent to
+          OpenAI, and the reading is paid for from your own key there, not from your Claude credit. Its authors call it
+          a research prototype built for a different kind of software, so much of what it says will be wrong.
+        </p>
+        <p className="sv-help">
+          SecureVibe treats anything it says as a suggestion to look at, never as proof: those items cannot fail a
+          build and nothing in your compliance report rests on them. Download it from{' '}
+          <a href="https://github.com/weareaisle/nano-analyzer" target="_blank" rel="noreferrer noopener">
+            github.com/weareaisle/nano-analyzer
+          </a>{' '}
+          and put the folder's full path below. It needs Python 3 on this computer.
+        </p>
+        <label className="sv-checkbox-row">
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Use the experimental AI scanner"
+            aria-checked={status.settings.nanoAnalyzer.enabled}
+            checked={status.settings.nanoAnalyzer.enabled}
+            disabled={saving}
+            onChange={(e) => void save({ nanoAnalyzer: { ...status.settings.nanoAnalyzer, enabled: e.target.checked } })}
+          />
+          <span>
+            <strong>{status.settings.nanoAnalyzer.enabled ? 'The extra AI scanner is on' : 'The extra AI scanner is off'}</strong>
+          </span>
+        </label>
+        {status.settings.nanoAnalyzer.enabled && (
+          <>
+            <div className="sv-field">
+              <label htmlFor="nano-path">Where you put the nano-analyzer folder</label>
+              <input
+                id="nano-path"
+                type="text"
+                defaultValue={status.settings.nanoAnalyzer.scriptPath}
+                placeholder="/Users/you/nano-analyzer"
+                disabled={saving}
+                onBlur={(e) => void save({ nanoAnalyzer: { ...status.settings.nanoAnalyzer, scriptPath: e.target.value.trim() } })}
+              />
+              <p className="sv-help">The full path of the folder, or of its scan.py file.</p>
+            </div>
+            <div className="sv-field">
+              <label htmlFor="nano-model">Which model it should use</label>
+              <input
+                id="nano-model"
+                type="text"
+                defaultValue={status.settings.nanoAnalyzer.model}
+                disabled={saving}
+                onBlur={(e) => void save({ nanoAnalyzer: { ...status.settings.nanoAnalyzer, model: e.target.value.trim() || 'gpt-5.4-nano' } })}
+              />
+              <p className="sv-help">
+                The tool's own default is gpt-5.4-nano. A name with a slash in it is sent through OpenRouter instead,
+                which needs an OpenRouter key.
+              </p>
+            </div>
+            <p className={status.settings.nanoAnalyzer.keyPresent ? 'sv-muted' : 'sv-error-text'} style={{ marginBottom: 0 }}>
+              {status.settings.nanoAnalyzer.keyPresent
+                ? 'A key for that service is set, so the scanner will run with your next check.'
+                : 'No key for that service is set yet, so the scanner will be skipped and the report will say so. Add it above under "Your AI service".'}
+            </p>
+          </>
+        )}
+      </Card>
+
+      <Card>
         <h2>Save credits</h2>
         <p className="sv-help">
           On: builds use {status.settings.saveCredits ? status.settings.effectiveModel : 'Claude Sonnet 5'}, which costs about

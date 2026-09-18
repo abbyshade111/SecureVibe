@@ -61,6 +61,12 @@ export const EvidenceSchema = z.object({
     .optional(),
   /** Who produced it: "rules", "claude-opus-5", "owner:<name>", a tool name... */
   producedBy: z.string().optional(),
+  /**
+   * Requirements this piece of evidence speaks to. A checker that already knows which requirements it verifies
+   * (the configuration checks, for one) says so here, so the evaluation can credit them without the requirement
+   * id having to appear in `ref`.
+   */
+  requirementIds: z.array(z.string()).optional(),
 });
 export type Evidence = z.infer<typeof EvidenceSchema>;
 

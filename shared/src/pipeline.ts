@@ -24,6 +24,13 @@ export const STAGE_IDS = [
   'compliance',
   'reports',
 ] as const;
+/**
+ * The checks the owner can run again on their own from the Security page. They cost nothing and need no AI: the
+ * steps that write code, spend money or decide compliance are not in the list, because running one of those alone
+ * would either cost money without being asked or produce a verdict from a fraction of the evidence.
+ */
+export const RERUNNABLE_CHECKS = ['typecheck', 'lint', 'unit-tests', 'sast', 'secrets', 'deps', 'config', 'dast', 'external'] as const;
+
 export const StageIdSchema = z.enum(STAGE_IDS);
 export type StageId = z.infer<typeof StageIdSchema>;
 
@@ -290,6 +297,13 @@ export const PipelineRunSchema = z.object({
   stages: z.array(StageResultSchema),
   findings: z.array(FindingSchema).default([]),
   compliance: ComplianceResultSchema.optional(),
+  /**
+   * True when the owner asked for only some of the checks (the Security page). Such a run produces no compliance
+   * verdict and no reports: the ones on file still come from the last full check, and the page says so.
+   */
+  partial: z.boolean().optional(),
+  /** The checks a partial run was asked for, in the order they ran. */
+  partialChecks: z.array(StageIdSchema).optional(),
   coverage: z.array(ToolCoverageSchema).default([]),
   llmUsage: LlmUsageSchema.optional(),
   spendingCapUsd: z.number().optional(),
@@ -334,6 +348,7 @@ export const RunSummarySchema = PipelineRunSchema.pick({
   startedAt: true,
   finishedAt: true,
   status: true,
+  partial: true,
 }).extend({
   findingCounts: z.record(z.string(), z.number()).optional(),
   complianceRating: z.string().optional(),

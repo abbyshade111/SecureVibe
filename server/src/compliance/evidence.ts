@@ -21,7 +21,7 @@ export interface RequirementEvidenceCtx {
   testResults: TestResult[];
   probeResults: ProbeResultLike[];
   findings: Finding[];
-  /** Extra scanner/config evidence keyed loosely by requirement id inside `ref` (see EvaluateInput.evidence). */
+  /** Extra scanner/config evidence: `requirementIds`, or the requirement id inside `ref` (see EvaluateInput.evidence). */
   extraEvidence: Evidence[];
   aiReview?: AiReviewResult;
   attestations: Attestation[];
@@ -147,7 +147,8 @@ function probeEvidence(id: string, ctx: RequirementEvidenceCtx): Evidence[] {
 
 /** Extra scanner/config evidence handed to the engine directly, matched by scanning its `ref` for the id. */
 function extraEvidenceFor(id: string, ctx: RequirementEvidenceCtx, partialCoverage: Set<string>): Evidence[] {
-  const matches = ctx.extraEvidence.filter((e) => refMentionsRequirement(e.ref, id));
+  // Either the evidence names this requirement outright, or its ref mentions it (older producers).
+  const matches = ctx.extraEvidence.filter((e) => e.requirementIds?.includes(id) || refMentionsRequirement(e.ref, id));
   // Extra template-control evidence from other producers may already record partial coverage in its summary;
   // nothing else to do here — it is not double-counted against the manifest's own controls (different refs).
   return matches;

@@ -46,6 +46,7 @@ async function main(): Promise<void> {
       ...(job.approval ? { approval: job.approval } : {}),
       ...(job.fixFindingIds ? { fixFindingIds: job.fixFindingIds } : {}),
       ...(job.plan ? { plan: job.plan } : {}),
+      ...(job.checks?.length ? { onlyChecks: job.checks } : {}),
       ...(job.uploaded
         ? { skipStages: UPLOADED_SKIPPED_STAGES, manifestOverride: uploadedManifest(), extraIgnore: UPLOADED_IGNORE, excludedChecks: UPLOADED_EXCLUDED_CHECKS }
         : {}),

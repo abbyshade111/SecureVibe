@@ -110,6 +110,8 @@ async function writeEnvFile(appDir: string, profile: DesignProfile, buildSpec: B
   const base = existsSync(exampleFile) ? await readFile(exampleFile, 'utf8') : '';
   const overrides: Record<string, string> = {
     APP_NAME: profile.app.name,
+    // The chosen look. Colour only: the template checks the name against its own list before rendering it.
+    APP_THEME: profile.app.theme,
     TLS_MODE: buildSpec.features.tlsMode,
     BIND_LAN: buildSpec.features.lanBinding ? '1' : '0',
     TRUST_PROXY_HOPS: buildSpec.features.tlsMode === 'proxy' ? '1' : '0',
@@ -170,7 +172,43 @@ async function removeDisabledFeatures(appDir: string, manifest: TemplateManifest
 // securevibe.design.json (subset used by docs:build)
 // ---------------------------------------------------------------------------------------------------------------
 
+/**
+ * The shape the template reads (`DesignFileSchema` in the template's `src/config.ts`): the app's own documentation
+ * generator takes the data categories, the retention period, the roles and the rest from `profile`. The flat fields
+ * beside it are SecureVibe's older summary, kept because reports and older apps still read them.
+ */
+const DesignProfileSubsetSchema = z.object({
+  app: z.object({
+    name: z.string(),
+    tagline: z.string().optional(),
+    description: z.string().optional(),
+    category: z.string(),
+    theme: z.string(),
+    entities: z.array(z.looseObject({ name: z.string() })),
+  }),
+  users: z.object({
+    audience: z.string(),
+    requiresSignIn: z.boolean(),
+    roles: z.array(z.looseObject({ name: z.string() })),
+    registration: z.enum(['invite-only', 'admin-created', 'open']),
+    adminMfa: z.boolean(),
+  }),
+  data: z.object({
+    categories: z.array(z.string()),
+    aboutOtherPeople: z.boolean(),
+    retention: z.enum(['keep-until-deleted', 'auto-delete-after-period']),
+    retentionMonths: z.number().optional(),
+    region: z.string(),
+  }),
+  deployment: z.object({
+    target: z.string(),
+    owner: z.object({ name: z.string(), contactEmail: z.string() }),
+    businessImpact: z.string(),
+  }),
+});
+
 const AppDesignSubsetSchema = z.object({
+  profile: DesignProfileSubsetSchema,
   appName: z.string(),
   dataCategories: z.array(z.string()),
   owner: z.object({ name: z.string(), contactEmail: z.string() }),
@@ -184,6 +222,35 @@ export type AppDesignSubset = z.infer<typeof AppDesignSubsetSchema>;
 
 function designSubsetFor(profile: DesignProfile, buildSpec: BuildSpec, aiService: string): AppDesignSubset {
   return AppDesignSubsetSchema.parse({
+    profile: {
+      app: {
+        name: profile.app.name,
+        ...(profile.app.tagline ? { tagline: profile.app.tagline } : {}),
+        description: profile.app.description,
+        category: profile.app.category,
+        theme: profile.app.theme,
+        entities: profile.app.entities,
+      },
+      users: {
+        audience: profile.users.audience,
+        requiresSignIn: profile.users.requiresSignIn,
+        roles: profile.users.roles,
+        registration: profile.users.registration,
+        adminMfa: profile.users.adminMfa,
+      },
+      data: {
+        categories: profile.data.categories,
+        aboutOtherPeople: profile.data.aboutOtherPeople,
+        retention: profile.data.retention,
+        ...(profile.data.retentionMonths ? { retentionMonths: profile.data.retentionMonths } : {}),
+        region: profile.data.region,
+      },
+      deployment: {
+        target: profile.deployment.target,
+        owner: profile.deployment.owner,
+        businessImpact: profile.deployment.businessImpact,
+      },
+    },
     appName: profile.app.name,
     dataCategories: profile.data.categories,
     owner: profile.deployment.owner,

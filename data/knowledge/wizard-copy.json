@@ -384,6 +384,50 @@
       }
     },
     {
+      "id": "app.theme",
+      "step": "about",
+      "inputType": "single-choice",
+      "required": false,
+      "title": "How it should look",
+      "question": "Which look would you like for your app?",
+      "helpText": "Just the colours. You can change your mind later and build again.",
+      "whyWeAsk": "People use an app more happily when it looks the way they want. Each of these is only a set of colours, so none of them changes what your app does or how it protects your data.",
+      "options": [
+        {
+          "value": "calm",
+          "label": "Calm (default)",
+          "description": "Quiet greys with a blue for links and buttons."
+        },
+        {
+          "value": "warm",
+          "label": "Warm",
+          "description": "Soft cream and amber, with a clay orange for links and buttons."
+        },
+        {
+          "value": "forest",
+          "label": "Forest",
+          "description": "Pale green with a deep green for links and buttons."
+        },
+        {
+          "value": "contrast",
+          "label": "High contrast",
+          "description": "Black on white with heavier outlines, for anyone who finds the others hard to read."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "calm",
+        "behaviour": "We will use the calm look and note it. You can build again with a different one at any time."
+      },
+      "whatThisChanges": {
+        "*": [
+          "Only the colours of your app's pages change.",
+          "Every look is tested to stay readable: the text, links and buttons keep enough contrast against their background, in light and in dark mode, so the choice cannot make your app harder to use.",
+          "Nothing about security depends on this answer."
+        ]
+      }
+    },
+    {
       "id": "users.audience",
       "step": "users",
       "inputType": "single-choice",
@@ -1289,7 +1333,7 @@
       },
       "title": "Which sites may the search use?",
       "question": "Should the search be limited to sites you trust, and if so which ones?",
-      "helpText": "One site address per line, without http:// \u2014 for example who.int or health.harvard.edu. Subdomains are included, so nih.gov also covers pubmed.ncbi.nlm.nih.gov. Leave this empty to let the search use the whole web.",
+      "helpText": "One site address per line, without http:// — for example who.int or health.harvard.edu. Subdomains are included, so nih.gov also covers pubmed.ncbi.nlm.nih.gov. Leave this empty to let the search use the whole web.",
       "whyWeAsk": "A short list of sources you trust is the simplest way to keep answers grounded in material you would accept. It cannot be expressed as \"all universities\", so name the sites that matter to you.",
       "placeholder": "who.int",
       "example": "nih.gov; medlineplus.gov; cochranelibrary.com; bmj.com",

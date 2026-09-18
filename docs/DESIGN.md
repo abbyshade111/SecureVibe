@@ -178,6 +178,7 @@ src/security/              password hashing (Node built-in; argon2id when availa
 src/features/auth/         register/login/logout/password change/reset(token, timing-safe), lockout/backoff, audit events
 src/features/admin/        user management, audit log viewer, data export/delete (retention policy)
 src/features/_example/     reference feature (CRUD "notes") demonstrating every convention; Claude mirrors it
+public/css/app.css         every colour is a token; four themes (calm, warm, forest, high contrast), each with a dark version, selected by <html data-theme>
 src/features/uploads/      (toggle) validated uploads: allow-list types via magic bytes, size limits, random names, stored outside web root, served with Content-Disposition
 src/features/ai/           (toggle) Claude-backed assistant with AISVS controls (see §5)
 src/lib/logger.ts          pino structured logs, correlation ids, PII redaction, security event helper
@@ -219,7 +220,7 @@ so if Claude (or the user) removes a control, the report shows it.
 | `deps` | `npm audit --json`, lockfile presence/integrity, unpinned ranges, deprecated packages, license inventory, optional OSV batch query; CycloneDX SBOM | network-dependent parts degrade gracefully with a clear "skipped: offline" |
 | `config` | `.env.example` present, `.gitignore` covers secrets, strong secret length enforced, node engine pinned, no debug flags, headers config, cookie flags | |
 | `dast` | start app on 127.0.0.1:random with a throw-away DB; probes: security headers, cookie flags, CSRF enforcement, authz denials for each protected route, rate limiting on login, error leakage, directory listing / dotfile exposure, CORS reflection, method handling, open redirect, injection smoke tests, oversized body rejection, health endpoint, AI endpoint guard-rails (when enabled) | all probes mapped to ASVS requirements |
-| `external` | semgrep / gitleaks / trivy / osv-scanner if found on PATH | optional, clearly labelled |
+| `external` | semgrep / gitleaks / trivy / osv-scanner if found on PATH; plus **nano-analyzer** when the owner switched it on in Settings | optional, clearly labelled. nano-analyzer is an LLM scanner that costs the owner money on their own OpenAI/OpenRouter key and sends the code there, so it never runs by itself: its suggestions are recorded at low confidence, capped below the levels that stop a build, and produce no compliance evidence |
 | `ai-review` | Claude reviews the code against the applicable requirement subset and the findings so far; returns structured `RequirementAssessment[]` and additional `Finding[]` with file:line citations that are verified to exist | skipped in Demo mode → *Not verified* |
 | `fix` | Claude fixes open high/critical findings (max 2 rounds), then stages `typecheck`…`dast` rerun | every fix is recorded in the report as "found → fixed" |
 | `compliance` | evaluate SbD checklist, ASVS, AISVS | §8 |
@@ -227,6 +228,13 @@ so if Claude (or the user) removes a control, the report shows it.
 
 Progress is streamed to the UI (SSE) with a plain-language sentence per stage ("Checking that every page which
 should require sign-in actually does…").
+
+**Running the checks again.** The Security page (`/projects/:id/security`, `GET /projects/:id/checks`) lists every
+check with the last run that actually made it, and runs them again on demand: everything (an ordinary free
+`verify-only` run) or one check on its own (`checks: [...]`, limited to `RERUNNABLE_CHECKS`; `install` always runs
+with it). A one-check run is marked `partial`, and `compliance` and `reports` are skipped, because a verdict drawn
+from a fraction of the evidence would understate everything that was not run: the report on file stays the one the
+last full check produced, and both the page and the run say so.
 
 ### 7.1 Finding schema
 
