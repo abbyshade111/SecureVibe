@@ -59,7 +59,12 @@ export function sha256File(absPath: string): string | undefined {
   }
 }
 
-/** Converts one glob (`*` within a segment, `**` any depth) into an anchored regular expression. */
+/**
+ * Converts one glob (`*` within a segment, `**` any depth, `?` one character) into an anchored regular
+ * expression. This must stay in step with the agent's own matcher (`matchesGlob` in llm/tools.ts): both read the
+ * same path lists out of the template manifest, and `recipes-contract.test.ts` checks that they agree — a
+ * disagreement means the fence a recipe is held to is not the fence the agent is held to.
+ */
 export function globToRegex(glob: string): RegExp {
   let out = '';
   for (let i = 0; i < glob.length; i++) {
@@ -72,7 +77,8 @@ export function globToRegex(glob: string): RegExp {
       } else {
         out += '[^/]*';
       }
-    } else if ('\\^$.|+()[]{}?'.includes(ch)) out += `\\${ch}`;
+    } else if (ch === '?') out += '[^/]';
+    else if ('\\^$.|+()[]{}'.includes(ch)) out += `\\${ch}`;
     else out += ch;
   }
   return new RegExp(`^${out}$`);

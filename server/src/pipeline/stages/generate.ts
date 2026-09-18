@@ -34,7 +34,7 @@ export async function runGenerate(ctx: PipelineCtx): Promise<GenerateStageOutcom
     return { result: finishStage(ctx, 'generate', 'skipped', reason, started, { skippedReason: reason }) };
   }
 
-  const brief = buildGenerationBrief(ctx.design, ctx.manifest, ctx.plan);
+  const brief = buildGenerationBrief(ctx.design, ctx.manifest, ctx.plan, ctx.provenance?.recipes ?? []);
   // Usage events carry this step's running total; anything spent earlier in the build is added to it.
   const usageBefore = ctx.run.llmUsage;
   const correlationId = `gen-${ctx.run.id}-${randomUUID().slice(0, 8)}`;

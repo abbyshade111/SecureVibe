@@ -8,7 +8,7 @@
  *     human-involvement summary are filled in from what the whole run observed.
  */
 import { createHash } from 'node:crypto';
-import type { GeneratedFileOrigin, Provenance, RunMode } from '@shared/pipeline.js';
+import type { GeneratedFileOrigin, Provenance, RecipeApplication, RunMode } from '@shared/pipeline.js';
 import { listFiles, sha256File } from './files.js';
 
 export interface InitialProvenanceInput {
@@ -54,6 +54,7 @@ export function initialProvenance(input: InitialProvenanceInput): Provenance {
     ...(input.contractHash ? { contractHash: input.contractHash } : {}),
     codeTreeHash: '',
     generatedFiles,
+    recipes: [],
     protectedFileHashes: input.protectedFileHashes,
     ...(input.templateHash ? { templateHash: input.templateHash } : {}),
     sandbox: input.sandbox,
@@ -90,6 +91,27 @@ export function markGeneratedFiles(
     });
   }
   return { ...provenance, generatedFiles: [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path)) };
+}
+
+/**
+ * Records what the recipe library built (generator/recipes): the applications themselves, and, on every file a
+ * recipe wrote, which recipe and which version of it produced the file. That is what lets a later build, a
+ * template upgrade and the version diff say where a file came from without guessing from its contents.
+ */
+export function recordRecipes(provenance: Provenance, appDir: string, applications: RecipeApplication[]): Provenance {
+  const byPath = new Map<string, { id: string; version: string; instance: string }>();
+  for (const app of applications) {
+    for (const path of app.files) byPath.set(path, { id: app.recipeId, version: app.recipeVersion, instance: app.instance });
+  }
+  const withRecipes = markGeneratedFiles(provenance, appDir, [...byPath.keys()], 'expanded');
+  return {
+    ...withRecipes,
+    recipes: [...provenance.recipes.filter((r) => !applications.some((a) => a.recipeId === r.recipeId && a.instance === r.instance)), ...applications],
+    generatedFiles: withRecipes.generatedFiles.map((f) => {
+      const recipe = byPath.get(f.path);
+      return recipe ? { ...f, recipe } : f;
+    }),
+  };
 }
 
 export interface FinalizeProvenanceInput {

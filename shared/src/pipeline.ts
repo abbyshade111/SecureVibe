@@ -206,6 +206,44 @@ export type RunMode = z.infer<typeof RunModeSchema>;
 export const GeneratedFileOriginSchema = z.enum(['template', 'expanded', 'ai-generated', 'ai-fixed', 'user']);
 export type GeneratedFileOrigin = z.infer<typeof GeneratedFileOriginSchema>;
 
+/**
+ * One application of a generation recipe (server/src/generator/recipes): a named, tested way to add one kind of
+ * thing to the application. Recorded so a later build, a template upgrade or the version diff can say which
+ * recipe produced which files, and so the reports can name the requirements the recipe's own tests speak to.
+ */
+export const RecipeApplicationSchema = z.object({
+  /** Stable recipe id, never reused (e.g. "record-type"). */
+  recipeId: z.string(),
+  /** Bumped whenever the code a recipe emits changes; a build with an older version can be told apart. */
+  recipeVersion: z.string(),
+  /** Which thing the recipe built, stable within the project (e.g. the record type's name). */
+  instance: z.string(),
+  /** Plain-language title of the recipe, for the owner. */
+  title: z.string(),
+  /** Plain-language description of what this application added, for the owner. */
+  description: z.string(),
+  /** Paths (relative to the app folder) the recipe wrote. */
+  files: z.array(z.string()),
+  /**
+   * The requirements the recipe's own emitted tests speak to. This is a claim about which test covers what —
+   * the evidence is the test result itself, collected by the normal test runner. A recipe that says nothing
+   * passes nothing.
+   */
+  requirements: z.array(
+    z.object({
+      standard: z.enum(['asvs', 'aisvs']),
+      id: z.string(),
+      /** The emitted test whose name starts with `id`, so the compliance engine credits it. */
+      test: z.string(),
+      /** Plain language: what that test actually shows. */
+      proves: z.string(),
+    }),
+  ),
+  /** Anything the recipe left out, and why (shown to the owner). */
+  notes: z.array(z.string()).default([]),
+});
+export type RecipeApplication = z.infer<typeof RecipeApplicationSchema>;
+
 /** Written to <app>/securevibe.provenance.json and embedded in every report (AISVS Appendix C AC.7.1 / AC.10.1). */
 export const ProvenanceSchema = z.object({
   reportSchemaVersion: z.string(),
@@ -251,12 +289,16 @@ export const ProvenanceSchema = z.object({
       correlationId: z.string().optional(),
       promptHash: z.string().optional(),
       fixRound: z.number().int().optional(),
+      /** Set on files a recipe wrote: which recipe, which version of it, and which thing it was building. */
+      recipe: z.object({ id: z.string(), version: z.string(), instance: z.string() }).optional(),
     }),
   ),
   /** sha256 of protected security files captured at scaffold time; re-verified at compliance time. */
   protectedFileHashes: z.record(z.string(), z.string()),
   /** Hash of the template's files at scaffold time: a newer template means an update is available. */
   templateHash: z.string().optional(),
+  /** The recipes that were applied to build this app, in the order they ran. */
+  recipes: z.array(RecipeApplicationSchema).default([]),
   sandbox: z.object({
     mode: z.string(), // "node-permission-model" | "none"
     note: z.string(), // plain-language limits ("does not restrict network access")

@@ -1,5 +1,5 @@
 /**
- * Field-type mapping for the CRUD expander: how each `EntityField` type becomes a SQLite column, a zod rule,
+ * Field-type mapping for the record-type recipe: how each `EntityField` type becomes a SQLite column, a zod rule,
  * a form control and a display value. Everything here is deterministic — no model call is involved.
  */
 import type { EntityField, EntitySpec } from '@shared/profile.js';

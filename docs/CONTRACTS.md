@@ -32,7 +32,7 @@ securevibe/
     frameworks/                     loaders, id validation, applicability engine, plain-language lookup
     design/                         SbD engine (requirements, architecture, patterns, checklist, triage, threat model, ADRs, contract, build spec, summary)
     llm/                            providers (anthropic, null, scripted), prompt library (hash-pinned), structured outputs, agent loop, review, fix, quick-infer, peer-review, threat-model, budgets, audit log, redaction, screening
-    generator/                      scaffold (template copy + toggles + secrets + admin bootstrap), CRUD expander, brief builder, provenance
+    generator/                      scaffold (template copy + toggles + secrets + admin bootstrap), recipe library (recipes/), brief builder, provenance
     scanners/                       sast (TS AST rules), lint (eslint), secrets, deps (+sbom), config, dast (harness + probes), tests runner, external, normalize/dedupe/priority
     compliance/                     evidence collection, requirement evaluation, sbd evaluation, traceability, summaries, recommendations
     reports/                        overview, compliance, security, design doc, going-online checklist, sarif, html/md renderers, glossary
@@ -1051,3 +1051,41 @@ against the app, the project folder and the SecureVibe folder in that order, and
 (`.md`/`.json` only, ≤512 KB, path-confined); `.env` and `FIRST-LOGIN.txt` are listed with `openable: false` and
 never served, whatever a check's wording says. The human-checks wizard shows a "Read docs/x.md" button per
 document and opens it in place.
+
+## The recipe library (added 2026-09-18)
+
+`server/src/generator/recipes/` is a library of named, tested **recipes**: each one is a way to add one kind of
+thing to a generated application, written deterministically from the design profile. The scaffold stage applies
+the whole library (`applyRecipes`) right after the template is copied, so a build without AI already produces a
+working app, and the generation agent extends what the recipes wrote instead of re-deriving the same patterns on
+every build. Recipe 1 is `record-type` (a record type with list, add, edit and delete — formerly the CRUD
+expander); uploads, summary pages and scheduled jobs follow as further recipes.
+
+`types.ts` is the contract. A recipe carries `id` (stable, never reused), `version` (bumped when the emitted code
+changes), a plain-language `title` and `summary`, `plan(ctx)` — one instance per thing to build, from the profile
+— and `emit(instance, ctx)`, a pure function returning the files, the routes, a registration block for
+`src/features/index.ts`, plain-language `notes` about anything left out, a `description` of what this instance
+adds, and `requirements`. `RecipeContext` gives a recipe the design, the profile, the settled feature toggles, the
+run id and `nextMigrationNumber()` (100 upwards; the runner hands out the numbers so two recipes cannot clash).
+
+**Evidence.** A recipe's `requirements` say which of its own emitted tests speaks to which ASVS/AISVS requirement,
+and nothing more: the evidence is the test result the ordinary `unit-tests` stage collects. Because
+`compliance/evidence.ts` credits a test to a requirement when the test's own name *starts* with the requirement
+id, the emitted test names carry the ids (`V8.2.2 booking: another signed-in person cannot read or change a record
+they do not own`). `tests/generator/recipes-contract.test.ts` holds every recipe to this: each claimed id must
+exist in the framework data, must lead the name of a test the recipe actually emits, and must come with a
+plain-language sentence saying what the test shows. A recipe that claims a requirement it does not test fails the
+suite. `record-type` claims V2.2.1, V2.2.2, V2.4.1, V8.2.1, V8.2.3 and — for records that belong to one person —
+V8.2.2, and — for administrator-only records — V8.3.1.
+
+**Fence.** Recipes are trusted no more than the generation agent: `apply.ts` refuses any instance with a file
+outside the template manifest's `writablePaths`, writes nothing for it, and says so in the run. The contract test
+also checks that the generator's glob matcher (`generator/files.ts`) and the agent's (`llm/tools.ts`) agree on
+those path lists, so the two fences cannot drift apart.
+
+**Identity.** `securevibe.provenance.json` gains `recipes: RecipeApplication[]` (what each application built, its
+files, its requirement mapping and its notes) and, on every file a recipe wrote, `recipe: { id, version,
+instance }`. `generator/upgrade.ts` carries those entries across an update, so the version diff and a later build
+can still say which recipe produced which file. The scaffold stage's details list the applications with their
+requirement ids, and `buildGenerationBrief` tells the agent what is already built, which files to read and which
+tests not to weaken.

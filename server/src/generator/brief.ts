@@ -5,9 +5,38 @@
  */
 import type { DesignArtifacts } from '@shared/design.js';
 import type { TemplateManifest } from '@shared/knowledge.js';
+import type { RecipeApplication } from '@shared/pipeline.js';
 import type { BuildPlan } from '@shared/project.js';
 
-export function buildGenerationBrief(design: DesignArtifacts, manifest: TemplateManifest, plan?: BuildPlan): string {
+/**
+ * What the recipe library already wrote, so the agent extends it rather than writing it again. This is where the
+ * saving comes from: the model does not have to re-derive a record type's routes, schemas, views and tests, and
+ * it is told plainly which files are already finished and which requirements their tests already cover.
+ */
+function recipeSection(recipes: RecipeApplication[]): string {
+  const lines = [
+    '',
+    '## Already built for you, before you started — extend it, do not write it again',
+    'SecureVibe applied its standard building blocks to the scaffold. Each one is complete and has its own passing',
+    'tests. Read these files before you write anything, follow their shape, and change them only where the plan',
+    'asks for something they do not already do.',
+    '',
+  ];
+  for (const r of recipes) {
+    lines.push(`### ${r.title} — ${r.instance}`);
+    lines.push(r.description);
+    lines.push(`Files: ${r.files.join(', ')}`);
+    const ids = [...new Set(r.requirements.map((q) => q.id))];
+    if (ids.length > 0) {
+      lines.push(`Its tests already cover ${ids.join(', ')}. Do not delete or weaken those tests; if you change the feature, keep them passing.`);
+    }
+    for (const note of r.notes) lines.push(`Left out: ${note}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+export function buildGenerationBrief(design: DesignArtifacts, manifest: TemplateManifest, plan?: BuildPlan, recipes: RecipeApplication[] = []): string {
   const parts = [design.buildSpec.brief];
   const wanted = plan?.features.filter((f) => f.wanted) ?? [];
   if (plan && wanted.length > 0) {
@@ -29,6 +58,7 @@ export function buildGenerationBrief(design: DesignArtifacts, manifest: Template
       ].join('\n'),
     );
   }
+  if (recipes.length > 0) parts.push(recipeSection(recipes));
   const leftOut = plan?.features.filter((f) => !f.wanted) ?? [];
   if (leftOut.length > 0) parts.push(['', '## Left out by the owner — do not build these', ...leftOut.map((f) => `- ${f.title}`)].join('\n'));
   if (manifest.conventions.length > 0) {

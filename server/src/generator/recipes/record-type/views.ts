@@ -1,5 +1,5 @@
 /**
- * EJS view emitters for the CRUD expander. Output is always escaped with `<%= %>`; the only unescaped values in
+ * EJS view emitters for the record-type recipe. Output is always escaped with `<%= %>`; the only unescaped values in
  * the template's layouts are the CSP nonce and the CSRF field, never record data.
  */
 import type { EntityPlan, FieldPlan } from './fields.js';
