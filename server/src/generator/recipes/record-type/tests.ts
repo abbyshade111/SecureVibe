@@ -161,6 +161,40 @@ export function recordTypeTests(plan: EntityPlan): EmittedTest[] {
   });
 
   tests.push({
+    name: `V2.3.3 ${name}: a clashing change is refused and leaves the record exactly as it was`,
+    requirement: {
+      standard: 'asvs',
+      id: 'V2.3.3',
+      proves:
+        'A change based on an out-of-date version of the record is refused whole: nothing is half-applied, and reading the record back afterwards gives exactly what was there before the attempt.',
+    },
+    code: `  test('V2.3.3 ${name}: a clashing change is refused and leaves the record exactly as it was', async () => {
+    const jar = await app.login(${signIn});
+    const created = await app.json('POST', API, PAYLOAD_A, jar);
+    const first = (await created.json()) as Record<string, unknown> & { id: string; updatedAt: string };
+    assert.equal(created.status, 201);
+
+    // One change goes through, which makes the version the browser first saw out of date.
+    const updated = await app.json('PATCH', \`\${API}/\${first.id}\`, { ...PAYLOAD_B, updatedAt: first.updatedAt }, jar);
+    await updated.text();
+    assert.equal(updated.status, 200, 'the first change must be saved');
+    // Read through the same route the check below uses, so the two are compared like with like.
+    const before = await app.fetch(\`\${API}/\${first.id}\`, { jar, headers: { Accept: 'application/json' } });
+    const settled = (await before.json()) as Record<string, unknown>;
+
+    // A second change built on the stale version must be refused, not merged.
+    const stale = await app.json('PATCH', \`\${API}/\${first.id}\`, { ...PAYLOAD_A, updatedAt: first.updatedAt }, jar);
+    await stale.text();
+    assert.ok([400, 409, 412, 422].includes(stale.status), \`a change based on an out-of-date version must be refused, got \${stale.status}\`);
+
+    // And nothing of it may have landed: the record is what the successful change left behind.
+    const after = await app.fetch(\`\${API}/\${first.id}\`, { jar, headers: { Accept: 'application/json' } });
+    assert.equal(after.status, 200, 'the record must still be readable');
+    assert.deepEqual(await after.json(), settled, 'the refused change must have left the record untouched');
+  });`,
+  });
+
+  tests.push({
     name: `V2.4.1 ${name}: the list never returns more than one capped page`,
     requirement: {
       standard: 'asvs',
