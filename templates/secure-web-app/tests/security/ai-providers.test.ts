@@ -90,7 +90,7 @@ describe('assistant on other services', () => {
     assert.match(error.message, /not allowed to contact api\.openai\.com/);
   });
 
-  test('a refused key is reported without the key and marks the assistant unavailable', async (t) => {
+  test('V7.4.1 a refused key is reported without the key and marks the assistant unavailable', async (t) => {
     if (!aiEnabled) return t.skip(skipReason('ai'));
     const out = await drive({ AI_PROVIDER: 'openai', OPENAI_API_KEY: 'sk-test-openai', AI_MODEL: 'gpt-5-mini', OUTBOUND_ALLOWED_HOSTS: 'api.openai.com' }, 'openai', { error: { message: 'Incorrect API key: sk-test-openai' } }, 401);
     const error = out['error'] as { reason: string; message: string };
