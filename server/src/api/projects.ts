@@ -20,6 +20,7 @@ import {
   PeerReviewResponseSchema,
   QuickInferRequestSchema,
   RunInstructionsSchema,
+  AppFileResponseSchema,
   SaveProfileRequestSchema,
   RefineDecisionsRequestSchema,
   RefineResponseSchema,
@@ -45,9 +46,9 @@ import type { SessionRecord } from '../security/token.js';
 import { runIsLive } from '../pipeline/job.js';
 import { templateOutdated } from '../generator/template-hash.js';
 import { upgradeApp } from '../generator/upgrade.js';
-import { diffVersions, fileDiff, listVersions, VersionNotFoundError } from '../versions/index.js';
+import { diffVersions, fileDiff, listVersions, readAppFile, VersionNotFoundError } from '../versions/index.js';
 import { conflict, forbidden, llmUnavailable, notFound, validationError } from '../security/errors.js';
-import { toListItem } from '../store/index.js';
+import { PathConfinementError, safeRelative, toListItem } from '../store/index.js';
 import { createHash } from 'node:crypto';
 import type { ApiDeps } from './types.js';
 
@@ -697,6 +698,23 @@ export function projectsRouter(deps: ApiDeps): Router {
     const project = deps.store.mustGet(req.params['id']!);
     if (deps.previews.stop(project.id)) deps.logger.info({ event: 'preview.stopped', projectId: project.id }, 'app preview stopped');
     res.json({ preview: deps.previews.info(project.id) });
+  });
+
+  // One file of the generated app, so "show me this code" on a finding opens the code in SecureVibe itself.
+  router.get('/projects/:id/app/file', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const version = versionParam(req.query['version'], 'current');
+    const raw = typeof req.query['path'] === 'string' ? req.query['path'] : '';
+    if (!raw || raw.length > 512) throw validationError('Which file?');
+    const path = safeRelative(raw);
+    if (!path) throw validationError('That is not a file in your app.');
+    try {
+      res.json(AppFileResponseSchema.parse(readAppFile(deps.store, project.id, version, path)));
+    } catch (err) {
+      if (err instanceof VersionNotFoundError) throw notFound('That file is not in your app.');
+      if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
+      throw err;
+    }
   });
 
   router.get('/projects/:id/app/run-instructions', (req, res) => {

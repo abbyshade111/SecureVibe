@@ -10,7 +10,7 @@
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AppVersion, DiffFile, FileDiffResponse, VersionDiff } from '@shared/api.js';
+import type { AppFileResponse, AppVersion, DiffFile, FileDiffResponse, VersionDiff } from '@shared/api.js';
 import { isOpen, type Finding } from '@shared/findings.js';
 import type { PipelineRun } from '@shared/pipeline.js';
 import { DEFAULT_WALK_IGNORE, listFiles, sha256File } from '../generator/files.js';
@@ -207,4 +207,43 @@ export function fileDiff(store: ProjectStore, projectId: string, fromId: string,
   if (ta.tooLarge || tb.tooLarge) return { path: relPath, kind, unified: 'This file is too large to compare line by line.\n', truncated: true };
   const d = unifiedDiff(ta.text ?? '', tb.text ?? '', relPath);
   return { path: relPath, kind, unified: d.text, truncated: d.truncated };
+}
+
+/** Above this many lines only the beginning of a file is sent; the viewer says so and offers the whole file. */
+const MAX_VIEW_LINES = 3000;
+
+/**
+ * One file of the generated app, for the "show me this code" link on a finding (docs/CONTRACTS.md "Reading the
+ * app's code").
+ *
+ * Read-only and confined to that version's folder by `confinePath`. The same rules as the diff apply: settings
+ * files are never sent (they hold secrets), binaries and very large files are described instead of shown. Unlike
+ * the diff, which only ever compares the app's own root files, this checks the file's own name as well, so a
+ * `.env` in a sub-folder is held back too.
+ */
+export function readAppFile(store: ProjectStore, projectId: string, versionId: string, relPath: string): AppFileResponse {
+  const dir = versionDir(store, projectId, versionId);
+  const base = { path: relPath, version: versionId, appDir: dir, text: '', lineCount: 0, truncated: false };
+  if (SECRET_FILES.test(relPath) || SECRET_FILES.test(relPath.split('/').pop() ?? '')) {
+    return { ...base, notShown: 'This file holds passwords and keys, so SecureVibe never shows it. Open it yourself in your app folder if you need to.' };
+  }
+  const file = confinePath(dir, relPath);
+  if (!existsSync(file) || !statSync(file).isFile()) throw new VersionNotFoundError(relPath);
+
+  const origin = (readProvenance(dir)?.generatedFiles ?? []).find((f) => f.path === relPath)?.origin;
+  const withOrigin = { ...base, ...(origin ? { origin } : {}) };
+
+  const read = readText(file);
+  if (read.binary) return { ...withOrigin, notShown: 'This is not a text file (an image, for example), so there is nothing to read here.' };
+  if (read.tooLarge || read.text === undefined) {
+    return { ...withOrigin, notShown: 'This file is too big to show here. Open it in your app folder instead.' };
+  }
+  const lines = read.text.split('\n');
+  const truncated = lines.length > MAX_VIEW_LINES;
+  return {
+    ...withOrigin,
+    text: truncated ? lines.slice(0, MAX_VIEW_LINES).join('\n') : read.text,
+    lineCount: lines.length,
+    truncated,
+  };
 }

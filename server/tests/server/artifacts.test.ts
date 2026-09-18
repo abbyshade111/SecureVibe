@@ -74,4 +74,51 @@ describe('report downloads', () => {
     const bogus = await request(harness.server).get(`/api/projects/${project.id}/reports/..%2F..%2Fsecret/overview.html`).set('Host', '127.0.0.1').set('Cookie', cookie);
     expect(bogus.status).toBe(404);
   });
+  it('offers the scan data for a run as a zip, named after the app and the build', async () => {
+    const project = harness.store.create({ name: 'Scan data test', mode: 'guided' });
+    const runId = newRunId();
+    const dir = harness.store.reportsDir(project.id, runId);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'findings.sarif'), '{"runs":[]}');
+    const run = PipelineRunSchema.parse({
+      id: runId,
+      projectId: project.id,
+      mode: 'full',
+      startedAt: new Date().toISOString(),
+      status: 'succeeded',
+      stages: [{ id: 'sast', status: 'passed', summary: 'Nothing found.', details: { rules: 41 }, round: 0 }],
+      coverage: [{ tool: 'semgrep', ran: false, reason: 'not installed' }],
+      findings: [],
+      artifacts: [{ name: 'findings.sarif', path: `reports/${runId}/findings.sarif`, kind: 'sarif', format: 'sarif', sizeBytes: 11, description: 'x' }],
+    });
+    await harness.store.writeRun(run);
+    harness.store.update(project.id, (p) => {
+      p.lastRunId = runId;
+    });
+
+    const { cookie } = await signIn(harness);
+    const res = await request(harness.server)
+      .get(`/api/projects/${project.id}/artifacts/scan-data.zip`)
+      .set('Host', '127.0.0.1')
+      .set('Cookie', cookie)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/zip');
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="Scan-data-test-scan-data-${runId}.zip"`);
+    // A real zip, and big enough to hold the README and the JSON files rather than an empty archive.
+    expect((res.body as Buffer).subarray(0, 2).toString('latin1')).toBe('PK');
+    expect((res.body as Buffer).length).toBeGreaterThan(400);
+
+    // A project with no run has no scan data to offer, and another project's run is not reachable through this one.
+    const empty = harness.store.create({ name: 'Never built', mode: 'guided' });
+    const none = await request(harness.server).get(`/api/projects/${empty.id}/artifacts/scan-data.zip`).set('Host', '127.0.0.1').set('Cookie', cookie);
+    expect(none.status).toBe(404);
+    const foreign = await request(harness.server).get(`/api/projects/${empty.id}/reports/${runId}/scan-data.zip`).set('Host', '127.0.0.1').set('Cookie', cookie);
+    expect(foreign.status).toBe(404);
+  });
 });

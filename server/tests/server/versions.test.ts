@@ -128,4 +128,47 @@ describe('app versions and diffs', () => {
     const missing = await request(harness.server).get(`/api/projects/${project.id}/diff?from=v9&to=current`).set(headers);
     expect(missing.status).toBe(404);
   });
+  it('shows one file of the app for a finding, and refuses anything outside it', async () => {
+    const { cookie } = await signIn(harness);
+    const headers = { Host: '127.0.0.1', Cookie: cookie };
+    const project = harness.store.create({ name: 'Habits', mode: 'guided', profile: habitTracker });
+    const { appDir } = harness.store.paths(project.id);
+    mkdirSync(join(appDir, 'src'), { recursive: true });
+    writeFileSync(join(appDir, 'src', 'admin.ts'), 'const a = 1;\nconst b = 2;\nconst c = 3;\n');
+    writeFileSync(join(appDir, '.env'), 'SESSION_SECRET=hunter2\n');
+    writeFileSync(join(appDir, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02]));
+    writeFileSync(join(appDir, 'securevibe.provenance.json'), provenance('r1', [{ path: 'src/admin.ts', origin: 'ai-generated' }]));
+
+    const file = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=src/admin.ts`).set(headers);
+    expect(file.status).toBe(200);
+    expect(file.body.text).toContain('const b = 2;');
+    expect(file.body.lineCount).toBe(4);
+    expect(file.body.origin).toBe('ai-generated');
+    expect(file.body.appDir).toBe(appDir);
+    expect(file.body.notShown).toBeUndefined();
+
+    // Settings hold secrets: the contents are never sent, only an explanation.
+    const env = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=.env`).set(headers);
+    expect(env.status).toBe(200);
+    expect(env.body.text).toBe('');
+    expect(env.body.notShown).toContain('passwords and keys');
+    expect(JSON.stringify(env.body)).not.toContain('hunter2');
+
+    // A settings file in a sub-folder is held back as well, not only the one at the root.
+    writeFileSync(join(appDir, 'src', '.env'), 'SESSION_SECRET=hunter3\n');
+    const nested = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=src/.env`).set(headers);
+    expect(nested.body.notShown).toContain('passwords and keys');
+    expect(JSON.stringify(nested.body)).not.toContain('hunter3');
+
+    const binary = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=logo.png`).set(headers);
+    expect(binary.body.notShown).toContain('not a text file');
+
+    for (const path of ['../project.json', '/etc/passwd', 'src/../../project.json']) {
+      const res = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=${encodeURIComponent(path)}`).set(headers);
+      expect(res.status, path).toBeGreaterThanOrEqual(400);
+      expect(res.status, path).toBeLessThan(500);
+    }
+    const missing = await request(harness.server).get(`/api/projects/${project.id}/app/file?path=src/nope.ts`).set(headers);
+    expect(missing.status).toBe(404);
+  });
 });

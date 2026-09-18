@@ -29,6 +29,7 @@ import type {
   AppVersion,
   VersionDiff,
   FileDiffResponse,
+  AppFileResponse,
 } from '@shared/api.js';
 import type { AppearanceResponse, ChecksResponse, DocumentResponse, MetricsResponse, VerificationResponse } from '@shared/api.js';
 import type { Project, Attestation } from '@shared/project.js';
@@ -434,6 +435,11 @@ export function artifactUrl(id: string, name: string, runId?: string): string {
   return runId
     ? `/api/projects/${id}/reports/${encodeURIComponent(runId)}/${encodeURIComponent(name)}`
     : `/api/projects/${id}/artifacts/${encodeURIComponent(name)}`;
+}
+
+/** One file of the generated app, for "show me this code" on a finding. */
+export function getAppFile(id: string, path: string, version = 'current'): Promise<AppFileResponse> {
+  return j<AppFileResponse>(`/projects/${id}/app/file?path=${encodeURIComponent(path)}&version=${encodeURIComponent(version)}`);
 }
 
 export function getRunInstructions(id: string): Promise<RunInstructions> {

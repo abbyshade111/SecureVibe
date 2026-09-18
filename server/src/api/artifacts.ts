@@ -1,6 +1,7 @@
 /**
  * `GET /api/projects/:id/artifacts` (list) and `GET /api/projects/:id/artifacts/:name` (download, confined to the
- * project folder). `app.zip` is not a file on disk — it is built on demand from the generated app with `archiver`.
+ * project folder). `app.zip`, `handoff.zip` and `scan-data.zip` are not files on disk — they are built on demand
+ * with `archiver`: the app itself, the pack to hand to a developer, and the raw scan output for a security reviewer.
  */
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
@@ -9,6 +10,7 @@ import { ZipArchive } from 'archiver';
 import { Router, type Response } from 'express';
 import { REPORT_CSS } from '../reports/page.js';
 import { handoffMarkdown } from '../reports/handoff.js';
+import { buildScanData, scanDataFileName } from '../reports/scan-data.js';
 import { isRunId } from '../store/index.js';
 import { PathConfinementError } from '../store/paths.js';
 import { forbidden, notFound } from '../security/errors.js';
@@ -132,6 +134,35 @@ export function artifactsRouter(deps: ApiDeps): Router {
       archive.glob('**/*', { cwd: appDir, ignore: [...ZIP_EXCLUDE], dot: true }, { prefix: 'app' });
       if (existsSync(join(appDir, '.env.example'))) archive.file(join(appDir, '.env.example'), { name: 'app/.env.example' });
       if (existsSync(reportsDir)) archive.directory(reportsDir, 'reports');
+      void archive.finalize();
+      return;
+    }
+
+    if (name === 'scan-data.zip') {
+      // The raw output of every check, for a security reviewer or a tool. Built on demand from the run record and
+      // the machine-readable report files, so it always matches what the results page shows.
+      const run = runFor(project.id, project.lastRunId, runQuery);
+      if (!run) throw notFound('This project has no finished check to download the scan data from.');
+      const findings = run.findings.map((f) => {
+        const decision = project.findingDecisions.find((d) => d.fingerprint === f.fingerprint);
+        return decision ? { ...f, status: decision.status, ...(decision.triage ? { triage: decision.triage } : {}) } : f;
+      });
+      const bundle = buildScanData({
+        project: { id: project.id, name: project.name },
+        run,
+        findings,
+        reportsDir: deps.store.reportsDir(project.id, run.id),
+        runDir: deps.store.runDir(project.id, run.id),
+        securevibeVersion: deps.config.version,
+      });
+      res.status(200);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${scanDataFileName(project.name, run.id)}"`);
+      const archive = new ZipArchive({ zlib: { level: 9 } });
+      archive.on('error', (err: Error) => res.destroy(err));
+      archive.pipe(res);
+      for (const entry of bundle.entries) archive.append(entry.content, { name: entry.name });
+      for (const file of bundle.files) archive.file(file.absolutePath, { name: file.name });
       void archive.finalize();
       return;
     }

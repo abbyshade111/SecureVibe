@@ -645,6 +645,50 @@ img {
   background: var(--color-bad-bg);
   color: var(--color-bad-text);
 }
+.sv-codeview {
+  margin: 12px 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+.sv-codeview-body {
+  margin: 12px 0 0;
+  max-height: 460px;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) 0;
+}
+.sv-codeview-line {
+  display: flex;
+  white-space: pre;
+}
+.sv-codeview-number {
+  flex: 0 0 auto;
+  width: 4.5em;
+  padding-right: var(--space-3);
+  text-align: right;
+  color: var(--color-text-muted, inherit);
+  opacity: 0.7;
+  user-select: none;
+}
+.sv-codeview-text {
+  flex: 1 1 auto;
+  padding-right: var(--space-3);
+}
+/* The line a finding points at: a colour and a marker, never colour on its own. */
+.sv-codeview-line-focus {
+  background: var(--color-warn-bg);
+  color: var(--color-warn-text);
+}
+.sv-codeview-line-focus .sv-codeview-number::after {
+  content: ' \25b8';
+}
 .sv-diff-hunk {
   color: var(--color-text-muted, inherit);
 }
