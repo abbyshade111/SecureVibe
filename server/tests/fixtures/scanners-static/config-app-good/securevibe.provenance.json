@@ -1,0 +1,31 @@
+{
+  "reportSchemaVersion": "1.0.0",
+  "tool": "SecureVibe fixture",
+  "securevibeVersion": "0.0.0",
+  "templateVersion": "0.1.0",
+  "frameworkVersions": {
+    "asvs": "5.0",
+    "aisvs": "1.0",
+    "sbd": "1.0"
+  },
+  "toolVersions": {},
+  "runId": "r_20260101000000_fixtur",
+  "projectId": "p_fixture0000",
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "mode": "full",
+  "humanInvolvement": {
+    "summary": "fixture",
+    "peerReviewDecisions": [],
+    "attestations": 0,
+    "humanCodeReview": false
+  },
+  "designProfileHash": "fixture",
+  "designHash": "fixture",
+  "codeTreeHash": "",
+  "generatedFiles": [],
+  "protectedFileHashes": {},
+  "sandbox": {
+    "mode": "none",
+    "note": "fixture"
+  }
+}

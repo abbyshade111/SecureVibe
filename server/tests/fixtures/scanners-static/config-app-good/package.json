@@ -1,0 +1,13 @@
+{
+  "name": "config-app-good-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "start": "node src/server.js"
+  }
+}

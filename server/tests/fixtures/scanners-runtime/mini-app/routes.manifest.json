@@ -1,0 +1,159 @@
+[
+  {
+    "method": "GET",
+    "path": "/",
+    "auth": "public",
+    "kind": "page",
+    "summary": "Home"
+  },
+  {
+    "method": "GET",
+    "path": "/login",
+    "auth": "public",
+    "kind": "page",
+    "summary": "Sign-in form"
+  },
+  {
+    "method": "POST",
+    "path": "/login",
+    "auth": "public",
+    "kind": "page",
+    "csrf": true,
+    "rateLimit": "login",
+    "summary": "Sign in"
+  },
+  {
+    "method": "GET",
+    "path": "/login/mfa",
+    "auth": "public",
+    "kind": "page",
+    "summary": "One-time code form"
+  },
+  {
+    "method": "POST",
+    "path": "/login/mfa",
+    "auth": "public",
+    "kind": "page",
+    "csrf": true,
+    "rateLimit": "mfa",
+    "summary": "Check the one-time code"
+  },
+  {
+    "method": "GET",
+    "path": "/forgot-password",
+    "auth": "public",
+    "kind": "page",
+    "summary": "Ask for a password reset"
+  },
+  {
+    "method": "POST",
+    "path": "/forgot-password",
+    "auth": "public",
+    "kind": "page",
+    "csrf": true,
+    "rateLimit": "reset",
+    "summary": "Send a password reset"
+  },
+  {
+    "method": "POST",
+    "path": "/logout",
+    "auth": "user",
+    "kind": "page",
+    "csrf": true,
+    "summary": "Sign out"
+  },
+  {
+    "method": "GET",
+    "path": "/account",
+    "auth": "user",
+    "kind": "page",
+    "summary": "Your account"
+  },
+  {
+    "method": "GET",
+    "path": "/notes",
+    "auth": "user",
+    "kind": "page",
+    "entity": "note",
+    "summary": "Your notes"
+  },
+  {
+    "method": "GET",
+    "path": "/notes/:id",
+    "auth": "user",
+    "kind": "page",
+    "entity": "note",
+    "owner": {
+      "entity": "note",
+      "param": "id",
+      "ownerField": "owner_id"
+    },
+    "summary": "One note"
+  },
+  {
+    "method": "POST",
+    "path": "/notes/:id/delete",
+    "auth": "user",
+    "kind": "page",
+    "csrf": true,
+    "entity": "note",
+    "owner": {
+      "entity": "note",
+      "param": "id",
+      "ownerField": "owner_id"
+    },
+    "summary": "Delete a note"
+  },
+  {
+    "method": "GET",
+    "path": "/admin",
+    "auth": "role:admin",
+    "kind": "page",
+    "summary": "Administration"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notes",
+    "auth": "user",
+    "kind": "api",
+    "entity": "note",
+    "summary": "List notes"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notes",
+    "auth": "user",
+    "kind": "api",
+    "csrf": true,
+    "entity": "note",
+    "idempotent": true,
+    "summary": "Create a note"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notes/:id",
+    "auth": "user",
+    "kind": "api",
+    "entity": "note",
+    "owner": {
+      "entity": "note",
+      "param": "id",
+      "ownerField": "owner_id"
+    },
+    "summary": "Read one note"
+  },
+  {
+    "method": "GET",
+    "path": "/healthz",
+    "auth": "public",
+    "kind": "api",
+    "summary": "Liveness"
+  },
+  {
+    "method": "GET",
+    "path": "/readyz",
+    "auth": "public",
+    "kind": "api",
+    "summary": "Readiness"
+  }
+]
