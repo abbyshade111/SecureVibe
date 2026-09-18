@@ -26,6 +26,12 @@ export const MODEL_RATES: Record<string, ModelRates> = {
   'claude-haiku-4-5': { inputPerMTok: 1, outputPerMTok: 5 },
   'claude-fable-5-1': { inputPerMTok: 10, outputPerMTok: 50 },
   'claude-fable-5': { inputPerMTok: 10, outputPerMTok: 50 },
+  // Other services (list prices when added; a build never passes its spending limit whatever the exact rate).
+  'gpt-5-mini': { inputPerMTok: 0.25, outputPerMTok: 2 },
+  'gpt-5': { inputPerMTok: 1.25, outputPerMTok: 10 },
+  'gpt-4.1': { inputPerMTok: 2, outputPerMTok: 8 },
+  'gemini-2.5-flash': { inputPerMTok: 0.3, outputPerMTok: 2.5 },
+  'gemini-2.5-pro': { inputPerMTok: 1.25, outputPerMTok: 10 },
 };
 
 export const CACHE_READ_FACTOR = 0.1;
@@ -248,9 +254,9 @@ export function estimateCost(profile: DesignProfile, buildSpec: BuildSpec, setti
 
   const shown = (n: number) => `$${Math.min(n, cap).toFixed(2)}`;
   let note = settings.reviewOnly
-    ? `We expect the check to use between ${shown(usdLow)} and ${shown(usdHigh)} of Anthropic API credit with ${settings.model} ` +
+    ? `We expect the check to use between ${shown(usdLow)} and ${shown(usdHigh)} of AI-service credit with ${settings.model} ` +
       `for the AI code review, and take ${minutesLow} to ${minutesHigh} minutes. It never goes past your spending cap of $${cap.toFixed(2)}.`
-    : `We expect the build to use between ${shown(usdLow)} and ${shown(usdHigh)} of Anthropic API credit with ${settings.model} ` +
+    : `We expect the build to use between ${shown(usdLow)} and ${shown(usdHigh)} of AI-service credit with ${settings.model} ` +
       `and take ${minutesLow} to ${minutesHigh} minutes. It never goes past your spending cap of $${cap.toFixed(2)}: ` +
       'writing the app may use up to 55% of it, and the rest is kept for the code review and the fixes.';
   if (usdHigh > cap) {

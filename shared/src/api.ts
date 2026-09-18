@@ -68,6 +68,8 @@ export const StatusResponseSchema = z.object({
     aiEnabled: z.boolean(),
     saveCredits: z.boolean(),
     notifyOnFinish: z.boolean(),
+    /** Which AI service builds use; it needs a key (see aiServices). */
+    aiService: z.enum(['anthropic', 'openai', 'google']),
     /** The model builds use right now (Save credits applied). */
     effectiveModel: z.string(),
   }),
@@ -85,6 +87,7 @@ export const UpdateSettingsRequestSchema = z.object({
   aiEnabled: z.boolean().optional(),
   saveCredits: z.boolean().optional(),
   notifyOnFinish: z.boolean().optional(),
+  aiService: z.enum(['anthropic', 'openai', 'google']).optional(),
   reset: z.boolean().optional(),
 });
 

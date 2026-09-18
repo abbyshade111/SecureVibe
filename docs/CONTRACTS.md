@@ -946,3 +946,16 @@ per process (a tiny node run behind it must succeed) and, when present, the run'
 restricted. `PermissionSpec.network: 'any'`, or a non-empty `OUTBOUND_ALLOWED_HOSTS` in the child's environment,
 skips the fence for an app that genuinely has to reach outside hosts (previews clear that variable, so previews are
 fenced). `npm` and external scanners are never fenced.
+
+## OpenAI and Google providers (added 2026-09-18)
+
+`settings.aiService` ('anthropic' default, 'openai', 'google'; Settings → "Which AI service builds use") picks the
+provider; the service needs a key (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, written by Settings → "Your AI service"),
+otherwise the null provider (preview mode) applies. `llm/openai.ts` talks to the Responses API and `llm/google.ts`
+to Gemini `generateContent`, both over plain HTTPS through `llm/rest.ts` (timeout, abort, status → `LlmError`
+kind, strict JSON schemas). Both implement `structured()` (strict schema output, refusal and truncation checked
+before parsing) and `agentRun()` through the shared agent loop (function tools with strict input schemas, the
+model's own output replayed statelessly; Gemini function calls get SecureVibe-made ids). `effectiveAiSettings`
+maps the model to the chosen service (`modelForService`; Save credits uses `gpt-5-mini` / `gemini-2.5-flash`).
+Rates for these models are in `MODEL_RATES`; the spending cap applies as for Anthropic. Provenance and the audit log
+record the provider name. Not available for these services: Anthropic's server-side fallback and web search.

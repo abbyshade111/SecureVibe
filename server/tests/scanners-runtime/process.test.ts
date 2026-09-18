@@ -164,7 +164,8 @@ describe('the Node permission model', () => {
       projectDir,
       permission: { read: [projectDir], write: [allowed] },
     });
-    expect(result.sandboxMode).toBe('node-permission-model');
+    // With the OS network fence available the mode says so; without it, the permission model alone.
+    expect(['node-permission-model', 'node-permission-model+loopback-only']).toContain(result.sandboxMode);
     expect(result.stdout).toContain('wrote-allowed');
     expect(result.stdout).toContain('forbidden-denied');
     expect(existsSync(join(forbidden, 'bad.txt'))).toBe(false);

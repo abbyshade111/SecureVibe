@@ -128,7 +128,7 @@ export interface RunMeta {
   previousRunId?: string;
   mode: RunMode;
   /** LLM provider that served this run; `null` or 'null' = preview mode (no AI generation, no AI review). */
-  provider: 'anthropic' | 'scripted' | 'null' | null;
+  provider: 'anthropic' | 'openai' | 'google' | 'scripted' | 'null' | null;
   model?: string;
   generatedAt?: string;
   appDir?: string;

@@ -11,6 +11,8 @@
  * `hasCredentials()` only asks whether the variable is set.
  */
 import { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
+import { GoogleProvider, type GoogleProviderOptions } from './google.js';
+import { OpenAiProvider, type OpenAiProviderOptions } from './openai.js';
 import { NullProvider, PREVIEW_EXPLANATION } from './null.js';
 import { ScriptedProvider, type ScriptedOptions } from './scripted.js';
 import type { Effort, LlmProvider, ProviderName } from './types.js';
@@ -26,9 +28,22 @@ export function hasCredentials(env: NodeJS.ProcessEnv = process.env): boolean {
   });
 }
 
+export type AiService = 'anthropic' | 'openai' | 'google';
+const SERVICE_ENV: Record<AiService, readonly string[]> = { anthropic: CREDENTIAL_ENV_VARS, openai: ['OPENAI_API_KEY'], google: ['GOOGLE_API_KEY'] };
+
+/** True when the named service has a credential in the environment (presence only, never the value). */
+export function hasCredentialsFor(service: AiService, env: NodeJS.ProcessEnv = process.env): boolean {
+  return SERVICE_ENV[service].some((name) => {
+    const value = env[name];
+    return typeof value === 'string' && value.trim() !== '';
+  });
+}
+
 /** The settings fields the factory looks at (a subset of SecureVibe's settings plus test-only fields). */
 export interface ProviderSettings {
   model?: string;
+  /** The service builds use (default anthropic); it needs a key, otherwise preview mode. */
+  aiService?: AiService;
   generationEffort?: Effort;
   reviewEffort?: Effort;
   /** Folder of scripted scenario files; when set, the scripted provider is used. */
@@ -41,6 +56,8 @@ export interface CreateProviderOptions {
   env?: NodeJS.ProcessEnv;
   /** Extra options handed to the chosen provider. */
   anthropic?: AnthropicProviderOptions;
+  openai?: OpenAiProviderOptions;
+  google?: GoogleProviderOptions;
   scripted?: Omit<ScriptedOptions, 'dir'> & { dir?: string };
 }
 
@@ -68,12 +85,16 @@ export function createProvider(settings: ProviderSettings = {}, opts: CreateProv
     return new ScriptedProvider({ ...opts.scripted, dir: scriptedDir, model: opts.scripted?.model ?? model });
   }
 
-  if (forced === 'anthropic' || hasCredentials(env)) {
-    return new AnthropicProvider({
-      model,
-      ...(settings.generationEffort ? { defaultEffort: settings.generationEffort } : {}),
-      ...opts.anthropic,
-    });
+  const service: AiService = forced === 'openai' || forced === 'google' || forced === 'anthropic' ? forced : (settings.aiService ?? 'anthropic');
+  const effort = settings.generationEffort ? { defaultEffort: settings.generationEffort } : {};
+  if (service === 'openai' && (forced === 'openai' || hasCredentialsFor('openai', env))) {
+    return new OpenAiProvider({ model, ...effort, ...opts.openai });
+  }
+  if (service === 'google' && (forced === 'google' || hasCredentialsFor('google', env))) {
+    return new GoogleProvider({ model, ...effort, ...opts.google });
+  }
+  if (service === 'anthropic' && (forced === 'anthropic' || hasCredentials(env))) {
+    return new AnthropicProvider({ model, ...effort, ...opts.anthropic });
   }
 
   return new NullProvider(model);
@@ -90,6 +111,10 @@ export function providerStatus(provider: LlmProvider): ProviderStatus {
         previewMode: false,
         message: `Claude is connected and will use the ${provider.model} model.`,
       };
+    case 'openai':
+      return { provider: 'openai', model: provider.model, configured: true, previewMode: false, message: `OpenAI is connected and will use the ${provider.model} model.` };
+    case 'google':
+      return { provider: 'google', model: provider.model, configured: true, previewMode: false, message: `Google Gemini is connected and will use the ${provider.model} model.` };
     case 'scripted':
       return {
         provider: 'scripted',

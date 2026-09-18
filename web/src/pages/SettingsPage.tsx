@@ -98,6 +98,32 @@ export function SettingsPage() {
       <AiKeys services={status.aiServices} onChanged={() => void refresh()} />
 
       <Card>
+        <h2>Which AI service builds use</h2>
+        <p className="sv-help">
+          Builds, the second opinion and the follow-up questions all use this service. Only services with a key can be
+          chosen; add one under "Your AI service" above. Save credits picks that service's cheaper model.
+        </p>
+        <div className="sv-option-list">
+          {status.aiServices.map((s) => (
+            <label className="sv-option" key={s.service} data-checked={status.settings.aiService === s.service}>
+              <input
+                type="radio"
+                name="aiService"
+                value={s.service}
+                checked={status.settings.aiService === s.service}
+                disabled={saving || !s.configured}
+                onChange={() => void save({ aiService: s.service })}
+              />
+              <span className="sv-option-label">
+                {s.label}
+                {s.configured ? '' : ' — add a key first'}
+              </span>
+            </label>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
         <h2>Tell me when a build finishes</h2>
         <p className="sv-help">
           A build takes several minutes and keeps running even if you close this page. When it ends, SecureVibe shows a

@@ -34,18 +34,33 @@ export const SettingsSchema = z.object({
   saveCredits: z.boolean().default(true),
   /** A desktop notification when a build or check ends (the build runs for minutes, usually unattended). */
   notifyOnFinish: z.boolean().default(true),
+  /** Which AI service builds use (Settings → "Your AI service"); it needs a key for that service. */
+  aiService: z.enum(['anthropic', 'openai', 'google']).default('anthropic'),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
+export type AiServiceId = Settings['aiService'];
 
 /** The model Save credits uses: about 2.5 times cheaper than Opus 5 for the same tokens. */
 export const SAVE_CREDITS_MODEL = 'claude-sonnet-5';
+/** The cheaper model of each service for Save credits, and each service's default model. */
+export const SAVE_CREDITS_MODELS: Record<AiServiceId, string> = { anthropic: SAVE_CREDITS_MODEL, openai: 'gpt-5-mini', google: 'gemini-2.5-flash' };
+export const DEFAULT_MODELS: Record<AiServiceId, string> = { anthropic: 'claude-opus-5', openai: 'gpt-5', google: 'gemini-2.5-pro' };
+const MODEL_PREFIX: Record<AiServiceId, RegExp> = { anthropic: /^claude-/, openai: /^(gpt-|o\d)/, google: /^gemini-/ };
 
-/** The AI settings a build actually uses, with Save credits applied. */
+/** A model name belongs to one service; a name from another service falls back to the chosen service's default. */
+export function modelForService(service: AiServiceId, model: string): string {
+  return MODEL_PREFIX[service].test(model) ? model : DEFAULT_MODELS[service];
+}
+
+/** The AI settings a build actually uses, with Save credits and the chosen service applied. */
 export function effectiveAiSettings(settings: Settings): Settings {
-  if (!settings.saveCredits) return settings;
+  if (!settings.saveCredits) {
+    const model = modelForService(settings.aiService, settings.model);
+    return model === settings.model ? settings : { ...settings, model };
+  }
   return {
     ...settings,
-    model: SAVE_CREDITS_MODEL,
+    model: SAVE_CREDITS_MODELS[settings.aiService],
     generationEffort: 'low',
     reviewEffort: 'low',
     maxFixRounds: Math.min(settings.maxFixRounds, 1),

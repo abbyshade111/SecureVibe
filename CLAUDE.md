@@ -51,7 +51,8 @@ whatever you touch before changing it.
 - AI calls cost the owner real money. "Save credits" (Sonnet 5, low effort, one fix round) is on by default;
   the spending cap is split 55% writing / 30% review / 15% fixes so a build never passes it.
 - The owner's API keys live in `.env` (root) and are written there by Settings → "Your AI service". Never print,
-  log, echo or commit a key. `workspace/llm-audit.jsonl` records every call and its cost; the Dashboard reads it.
+  log, echo or commit a key. Builds use the service in `settings.aiService` (Anthropic, OpenAI or Google —
+  `llm/provider.ts`); the OpenAI/Google providers are fetch-based (`llm/rest.ts`) and tested with a fake fetch. `workspace/llm-audit.jsonl` records every call and its cost; the Dashboard reads it.
 - The scripted provider (`server/tests/fixtures/llm/*.json`) replays recorded answers so every AI flow is testable
   for free; add a fixture for any new flow. Tests run against a temporary `SECUREVIBE_HOME` (`tests/setup-home.ts`)
   so they never write into the owner's workspace.

@@ -12,6 +12,7 @@ export function providerFactory(config: Pick<SecureVibeConfig, 'settings' | 'aiD
     return createProvider(
       {
         model: settings.model,
+        aiService: settings.aiService,
         generationEffort: settings.generationEffort,
         reviewEffort: settings.reviewEffort,
         ...(config.aiDisabled || !settings.aiEnabled ? { forceProvider: 'null' as const } : {}),

@@ -8,7 +8,7 @@
 import type { ZodType } from 'zod';
 import type { LlmUsage } from '@shared/pipeline.js';
 
-export type ProviderName = 'anthropic' | 'null' | 'scripted';
+export type ProviderName = 'anthropic' | 'openai' | 'google' | 'null' | 'scripted';
 
 export type LlmPurpose =
   | 'quick-infer'
