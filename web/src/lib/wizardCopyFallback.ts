@@ -103,6 +103,15 @@ export const FALLBACK_WIZARD_COPY: WizardCopy = {
       notSure: { available: true, behaviour: 'We build the standard pages for each record.' }, whatThisChanges: {},
     },
     {
+      id: 'app.theme', step: 'about', inputType: 'single-choice', required: false, title: 'How it should look',
+      question: 'Which look would you like for your app?',
+      whyWeAsk: 'Only the colours change. Every look is tested to stay readable, so the choice cannot make your app harder to use.',
+      options: opts([
+        ['calm', 'Calm (default)'], ['warm', 'Warm'], ['forest', 'Forest'], ['contrast', 'High contrast'],
+      ]),
+      notSure: { available: true, choosesValue: 'calm', behaviour: 'We use the calm look.' }, whatThisChanges: {},
+    },
+    {
       id: 'users.audience', step: 'users', inputType: 'single-choice', required: true, title: 'Who will use it',
       question: 'Who will use this app?', whyWeAsk: 'This sets how strict sign-in and anti-abuse limits are.',
       options: opts([

@@ -105,6 +105,7 @@ const EXPECTED_QUESTION_IDS = [
   'app.category',
   'app.entities',
   'app.keyFeatures',
+  'app.theme',
   'users.audience',
   'users.requiresSignIn',
   'users.roles',

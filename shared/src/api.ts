@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { DesignArtifactsSchema, PeerReviewSchema } from './design.js';
 import { FindingSchema, TriageSchema } from './findings.js';
-import { CostEstimateSchema, PipelineRunSchema, RunModeSchema, ToolCoverageSchema } from './pipeline.js';
+import { CostEstimateSchema, PipelineRunSchema, RunModeSchema, StageIdSchema, ToolCoverageSchema } from './pipeline.js';
 import { DesignProfileSchema, PartialDesignProfileSchema } from './profile.js';
 import { AttestationSchema, BuildPlanSchema, ProjectSchema, RefinementSchema } from './project.js';
 
@@ -76,6 +76,15 @@ export const StatusResponseSchema = z.object({
       review: z.enum(['default', 'anthropic', 'openai', 'google']),
       questions: z.enum(['default', 'anthropic', 'openai', 'google']),
     }),
+    /** The optional experimental AI scanner: off unless the owner switched it on (it costs money). */
+    nanoAnalyzer: z.object({
+      enabled: z.boolean(),
+      scriptPath: z.string(),
+      model: z.string(),
+      minConfidence: z.number(),
+      /** Whether a key for the service it needs is present; false means it will be skipped. */
+      keyPresent: z.boolean(),
+    }),
     /** The model builds use right now (Save credits applied). */
     effectiveModel: z.string(),
   }),
@@ -100,6 +109,15 @@ export const UpdateSettingsRequestSchema = z.object({
       write: z.enum(['default', 'anthropic', 'openai', 'google']),
       review: z.enum(['default', 'anthropic', 'openai', 'google']),
       questions: z.enum(['default', 'anthropic', 'openai', 'google']),
+    })
+    .optional(),
+  /** All four values together, like aiServiceFor above. */
+  nanoAnalyzer: z
+    .object({
+      enabled: z.boolean(),
+      scriptPath: z.string().max(400),
+      model: z.string().min(1).max(80),
+      minConfidence: z.number().min(0).max(1),
     })
     .optional(),
   reset: z.boolean().optional(),
@@ -241,8 +259,55 @@ export const StartRunRequestSchema = z.object({
   fixFindingIds: z.array(z.string()).optional(),
   /** Run without any AI call even when AI is on (a free re-check). */
   withoutAi: z.boolean().optional(),
+  /**
+   * Run only these checks (the Security page's "run this one again"). Everything else is recorded as not run this
+   * time, and the compliance report is left as the last full check made it.
+   */
+  checks: z.array(StageIdSchema).min(1).max(20).optional(),
 });
 export const StartRunResponseSchema = z.object({ run: PipelineRunSchema });
+
+/**
+ * GET /api/projects/:id/checks — the Security page: every check that can be run on its own, with the last time it
+ * actually ran and what it said. A check that was left out of a partial run keeps the result of the run that did
+ * run it, so the page never shows a gap where there is a real result.
+ */
+export const CheckStatusSchema = z.object({
+  id: StageIdSchema,
+  title: z.string(),
+  /** What this check looks at, in plain language. */
+  covers: z.string(),
+  status: z.enum(['passed', 'failed', 'warning', 'skipped', 'never-run']),
+  summary: z.string(),
+  /** When the check last ran, and in which run. */
+  ranAt: z.string().optional(),
+  runId: z.string().optional(),
+  /** Problems this check found in that run, by severity. */
+  findingCounts: z.record(z.string(), z.number()).optional(),
+});
+export const ChecksResponseSchema = z.object({
+  checks: z.array(CheckStatusSchema),
+  /** The last run in which every check ran: the one the compliance report and the reports come from. */
+  lastFullCheck: z.object({ runId: z.string(), finishedAt: z.string().optional(), status: z.string() }).optional(),
+  /** True while a run of this project is going on, so the page offers to watch it instead of starting another. */
+  running: z.boolean(),
+});
+export type CheckStatus = z.infer<typeof CheckStatusSchema>;
+export type ChecksResponse = z.infer<typeof ChecksResponseSchema>;
+
+/**
+ * PUT /api/projects/:id/appearance — change how an app looks without rebuilding it. A theme is colour only, so
+ * nothing is generated, nothing is checked again and no approval is needed.
+ */
+export const AppearanceRequestSchema = z.object({ theme: z.enum(['calm', 'warm', 'forest', 'contrast']) });
+export const AppearanceResponseSchema = z.object({
+  theme: z.enum(['calm', 'warm', 'forest', 'contrast']),
+  /** True when the app is already built, so the change takes effect the next time it starts. */
+  applied: z.boolean(),
+  message: z.string(),
+});
+
+export type AppearanceResponse = z.infer<typeof AppearanceResponseSchema>;
 
 /** GET /api/runs/:id → PipelineRun ; GET /api/runs/:id/events — SSE stream of ProgressEvent (event: "progress"). */
 /** POST /api/runs/:id/cancel */
@@ -380,6 +445,10 @@ export const VerificationItemSchema = z.object({
   whatCountsAsEvidence: z.string().optional(),
   estimatedEffort: z.enum(['minutes', 'hour', 'day']),
   answer: AttestationSchema.optional(),
+  /** Documents this check asks you to read, found on disk. `openable` is false for files that hold secrets. */
+  documents: z
+    .array(z.object({ path: z.string(), where: z.enum(['app', 'project', 'securevibe']), openable: z.boolean() }))
+    .default([]),
 });
 export type VerificationItem = z.infer<typeof VerificationItemSchema>;
 
@@ -463,3 +532,11 @@ export const FileDiffResponseSchema = z.object({
   truncated: z.boolean().default(false),
 });
 export type FileDiffResponse = z.infer<typeof FileDiffResponseSchema>;
+
+/** GET /api/projects/:id/document?path=… — one document a human check refers to. */
+export const DocumentResponseSchema = z.object({
+  path: z.string(),
+  where: z.enum(['app', 'project', 'securevibe']),
+  text: z.string(),
+});
+export type DocumentResponse = z.infer<typeof DocumentResponseSchema>;

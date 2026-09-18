@@ -7,7 +7,7 @@
  * Nothing is downloaded and nothing is installed. The tools run through the same process sandbox as everything
  * else: no shell, an allow-listed environment, a time limit and an output cap.
  */
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import type { Evidence } from '@shared/compliance.js';
@@ -17,8 +17,10 @@ import { removeDir, runCommand } from '../../pipeline/process.js';
 import { DEFAULT_IGNORE, ignorePatternToRegex } from '../sast/files.js';
 import type { ScanContext, ScanResult, ScanStatus } from '../types.js';
 import { PARSERS, toFinding, type ExternalFindingSeed, type ExternalToolName } from './parse.js';
+import { NANO_ANALYZER, NANO_COVERS, runNanoAnalyzer, type NanoAnalyzerOptions } from './nano-analyzer.js';
 
 export * from './parse.js';
+export * from './nano-analyzer.js';
 
 export const EXTERNAL_TOOL_TIMEOUT_MS = 5 * 60_000;
 
@@ -28,6 +30,9 @@ export const EXTERNAL_TOOLS: { name: ExternalToolName; covers: string }[] = [
   { name: 'trivy', covers: 'Extra checks on packages, configuration files and secrets.' },
   { name: 'osv-scanner', covers: 'Extra check of your packages against the Open Source Vulnerabilities database.' },
 ];
+
+/** Listed apart from the tools above: it is never run just because it is installed (see nano-analyzer.ts). */
+export const OPT_IN_TOOLS: { name: ExternalToolName; covers: string }[] = [{ name: NANO_ANALYZER, covers: NANO_COVERS }];
 
 export interface DetectedTool {
   name: ExternalToolName;
@@ -110,7 +115,8 @@ function gitleaksConfig(run: ToolRunContext): string {
   return file;
 }
 
-const RUNS: Record<ExternalToolName, ToolRun> = {
+/** The tools found on PATH and run the same way. nano-analyzer is not one of them: it has its own module. */
+const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER>, ToolRun> = {
   // With metrics off, semgrep needs named rule sets (they are downloaded from the Semgrep registry).
   semgrep: {
     args: (run) => [
@@ -151,7 +157,7 @@ const RUNS: Record<ExternalToolName, ToolRun> = {
 };
 
 /** The command-line arguments SecureVibe passes to a tool (exported for tests). */
-export function externalArgs(name: ExternalToolName, run: ToolRunContext): string[] {
+export function externalArgs(name: Exclude<ExternalToolName, typeof NANO_ANALYZER>, run: ToolRunContext): string[] {
   return RUNS[name].args(run);
 }
 
@@ -175,6 +181,23 @@ export interface RunExternalOptions {
   /** Restrict the run to these tools (tests use it). */
   only?: ExternalToolName[];
   timeoutMs?: number;
+  /** nano-analyzer's settings. Left out, or switched off, means it does not run. */
+  nano?: NanoAnalyzerOptions;
+}
+
+/**
+ * Where the optional scanners keep what they download. Each project has its own HOME, so without this trivy fetches
+ * its whole vulnerability database (about 1.3 GB) again for every app: four apps meant five gigabytes of the same
+ * file. One folder for the workspace fixes that, and the tools still write nothing into the app being checked.
+ */
+export function toolCacheEnv(cacheDir: string): Record<string, string> {
+  mkdirSync(cacheDir, { recursive: true });
+  return {
+    TRIVY_CACHE_DIR: join(cacheDir, 'trivy'),
+    // semgrep and osv-scanner follow the usual cache and config variables.
+    XDG_CACHE_HOME: join(cacheDir, 'xdg'),
+    SEMGREP_SETTINGS_FILE: join(cacheDir, 'semgrep', 'settings.yml'),
+  };
 }
 
 function coverageRow(tool: ExternalToolResult, covers: string): ToolCoverage {
@@ -217,7 +240,7 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
     }
 
     ctx.log(`[external] running ${name}${detected.version ? ` ${detected.version}` : ''}`);
-    const spec = RUNS[name];
+    const spec = RUNS[name as Exclude<ExternalToolName, typeof NANO_ANALYZER>];
     const workDir = mkdtempSync(join(tmpdir(), 'securevibe-external-'));
     const reportFile = join(workDir, `${name}.json`);
     let seeds: ExternalFindingSeed[] = [];
@@ -232,6 +255,7 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
         timeoutMs: opts.timeoutMs ?? EXTERNAL_TOOL_TIMEOUT_MS,
         maxOutputBytes: 16 * 1024 * 1024,
         abort: ctx.abort,
+        env: toolCacheEnv(ctx.toolCacheDir),
       });
       const text = spec.output === 'file' ? (existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : '') : run.stdout;
       if (run.timedOut) {
@@ -267,6 +291,51 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
     };
     tools.push(result);
     coverageRows.push(coverageRow(result, covers));
+  }
+
+  // The opt-in AI scanner, last: it is the slowest and the only one that costs money.
+  if (!opts.only || opts.only.includes(NANO_ANALYZER)) {
+    const started = Date.now();
+    const workDir = mkdtempSync(join(tmpdir(), 'securevibe-nano-'));
+    try {
+      const nano = await runNanoAnalyzer(
+        {
+          appDir: ctx.appDir,
+          ignore: ctx.ignore,
+          projectDir: ctx.projectDir,
+          runId: ctx.runId,
+          workDir,
+          log: ctx.log,
+          abort: ctx.abort,
+          run: async (file, args, env, timeoutMs) => {
+            const result = await runCommand(file, args, {
+              cwd: ctx.appDir,
+              projectDir: ctx.projectDir,
+              runId: ctx.runId,
+              timeoutMs,
+              maxOutputBytes: 16 * 1024 * 1024,
+              abort: ctx.abort,
+              env,
+            });
+            return { code: result.code, timedOut: result.timedOut, stderr: result.stderr };
+          },
+        },
+        opts.nano ?? { enabled: false, scriptPath: '', model: '', minConfidence: 1 },
+      );
+      for (const seed of nano.seeds) findings.push(toFinding(seed));
+      const result: ExternalToolResult = {
+        name: NANO_ANALYZER,
+        installed: nano.ran || !nano.reason?.includes('not switched on'),
+        ran: nano.ran,
+        reason: nano.reason ?? (nano.leftOut ? `read ${nano.filesScanned ?? 0} of your source files; ${nano.leftOut} more were left out to keep the cost down` : undefined),
+        findingCount: nano.seeds.length,
+        durationMs: Date.now() - started,
+      };
+      tools.push(result);
+      coverageRows.push(coverageRow(result, NANO_COVERS));
+    } finally {
+      removeDir(workDir);
+    }
   }
 
   const ranTools = tools.filter((t) => t.ran);

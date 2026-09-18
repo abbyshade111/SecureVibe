@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { THEMES, DEFAULT_THEME, type Theme } from './lib/themes.ts';
 
 export const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -19,6 +20,9 @@ export const PLACEHOLDER_SECRETS = [
   'secret',
   'password',
 ] as const;
+
+/** The looks a person can choose (see lib/themes.ts); re-exported so callers keep one import. */
+export { THEMES, DEFAULT_THEME, type Theme } from './lib/themes.ts';
 
 const bool = z
   .enum(['0', '1', 'true', 'false'])
@@ -136,6 +140,8 @@ const EnvSchema = z.object({
   SECUREVIBE_TEST_PASSWORD: z.string().optional(),
   SECUREVIBE_TEST_TOTP_SEED: z.string().optional(),
   APP_NAME: z.string().max(80).optional(),
+  /** The chosen look. Omitted means the one in securevibe.design.json, and failing that the default. */
+  APP_THEME: z.enum(THEMES).optional(),
   REGISTRATION_MODE: z.enum(['open', 'invite-only', 'admin-created']).optional(),
   ADMIN_EMAIL: z.string().optional(),
   SMTP_URL: z.string().optional(),
@@ -235,6 +241,7 @@ export const DesignFileSchema = z.looseObject({
           tagline: z.string().optional(),
           description: z.string().optional(),
           category: z.string().optional(),
+          theme: z.enum(THEMES).optional(),
           entities: z.array(EntityDesignSchema).default([]),
         })
         .optional(),
@@ -322,6 +329,8 @@ export interface AppConfig extends Omit<z.infer<typeof EnvSchema>, 'SESSION_IDLE
   dataDir: string;
   logFile: string;
   appName: string;
+  /** The look the pages are rendered with; always one of THEMES. */
+  theme: Theme;
   registrationMode: 'open' | 'invite-only' | 'admin-created';
   targetLevel: 1 | 2;
   sessionIdleMinutes: number;
@@ -426,6 +435,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     dataDir,
     logFile,
     appName: e.APP_NAME ?? design.profile?.app?.name ?? 'My App',
+    theme: e.APP_THEME ?? design.profile?.app?.theme ?? DEFAULT_THEME,
     registrationMode: e.REGISTRATION_MODE ?? design.profile?.users?.registration ?? 'admin-created',
     targetLevel,
     sessionIdleMinutes: optionalNumber(e.SESSION_IDLE_MINUTES, 'SESSION_IDLE_MINUTES') ?? sessionDefaults.idle,

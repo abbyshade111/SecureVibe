@@ -2,6 +2,7 @@
  * The context every stage function receives, and the small pieces the stages share (a scanner context factory,
  * the `run_checks` implementation handed to the generation/fix agents).
  */
+import { join } from 'node:path';
 import type { BuildSpec, DesignArtifacts } from '@shared/design.js';
 import type { TemplateManifest } from '@shared/knowledge.js';
 import type { Evidence } from '@shared/compliance.js';
@@ -95,6 +96,7 @@ export function buildScanContext(ctx: PipelineCtx, stage: StageId, extraIgnore: 
     manifest: ctx.manifest,
     ...(ctx.provenance ? { provenance: ctx.provenance } : {}),
     ignore: [...(ctx.extraIgnore ?? []), ...extraIgnore],
+    toolCacheDir: join(ctx.config.paths.home, 'cache', 'tools'),
     knowledge: ctx.knowledge,
     log: (msg: string) => ctx.log(stage, msg),
     abort: ctx.abort.signal,

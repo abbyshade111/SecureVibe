@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { VerificationItem, VerificationResponse } from '@shared/api.js';
-import { createAttestation, getEstimate, getVerification, refreshReports, startRun, submitHumanReview } from '../lib/api';
+import { createAttestation, getDocument, getEstimate, getVerification, refreshReports, startRun, submitHumanReview } from '../lib/api';
 import { Badge, Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
 import { formatDate } from '../lib/format';
 import { useScrollToTop } from '../hooks/useScrollToTop';
@@ -54,13 +54,72 @@ function answerLabel(result: Answer, owner: boolean): string {
 }
 
 /** One requirement at a time, unanswered ones first, quickest first. */
+const WHERE_LABEL: Record<VerificationItem['documents'][number]['where'], string> = {
+  app: 'in your app folder',
+  project: "in your app's design folder",
+  securevibe: 'in the SecureVibe folder',
+};
+
+/** The documents a check tells you to read, opened here so you do not have to go looking for them. */
+function DocumentsToRead({ projectId, documents }: { projectId: string; documents: VerificationItem['documents'] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [text, setText] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  if (documents.length === 0) return null;
+
+  async function show(path: string) {
+    if (open === path) {
+      setOpen(null);
+      return;
+    }
+    setOpen(path);
+    if (text[path] !== undefined) return;
+    setBusy(true);
+    try {
+      const doc = await getDocument(projectId, path);
+      setText((t) => ({ ...t, [path]: doc.text }));
+    } catch (e) {
+      setText((t) => ({ ...t, [path]: e instanceof Error ? e.message : 'That document could not be opened.' }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sv-field">
+      <span className="sv-label">What to read</span>
+      <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {documents.map((d) =>
+          d.openable ? (
+            <button key={d.path} type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={busy} onClick={() => void show(d.path)} aria-expanded={open === d.path}>
+              {open === d.path ? `Hide ${d.path}` : `Read ${d.path}`}
+            </button>
+          ) : (
+            <span key={d.path} className="sv-faint">
+              {d.path} ({WHERE_LABEL[d.where]}) — open it yourself; SecureVibe never shows a file that holds secrets.
+            </span>
+          ),
+        )}
+      </div>
+      {open && (
+        <pre className="sv-diff" style={{ whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', marginTop: 8 }}>
+          {text[open] ?? 'Opening…'}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 function ItemStep({
+  projectId,
   items,
   owner,
   name,
   onAnswer,
   onDone,
 }: {
+  projectId: string;
   items: VerificationItem[];
   owner: boolean;
   name: string;
@@ -194,6 +253,7 @@ function ItemStep({
             <strong>What to write down:</strong> {current.whatCountsAsEvidence}
           </p>
         )}
+        <DocumentsToRead projectId={projectId} documents={current.documents} />
 
         <div className="sv-field">
           <label className="sv-label" htmlFor="verifyNote">
@@ -607,7 +667,7 @@ export function VerifyPage() {
               {step === 'specialist' &&
                 'Checks that need a security professional or your hosting provider. Record their answer here once you have it.'}
             </p>
-            <ItemStep key={step} items={group(step)} owner={step === 'owner'} name={effectiveName} onAnswer={answer} onDone={() => go(nextOf(step))} />
+            <ItemStep key={step} projectId={id!} items={group(step)} owner={step === 'owner'} name={effectiveName} onAnswer={answer} onDone={() => go(nextOf(step))} />
           </>
         )}
 

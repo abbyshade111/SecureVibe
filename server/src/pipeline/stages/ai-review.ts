@@ -40,6 +40,66 @@ function collectFiles(appDir: string, extraIgnore: string[]): ReviewFile[] {
   });
 }
 
+/**
+ * What the review looks at first.
+ *
+ * The review is paid for by the call and stops when the money set aside for it runs out, so the order decides what
+ * gets lost when it does. Three things decide it, in this order:
+ *
+ *  1. A chapter the automated scanners already found something in. There is evidence of trouble there, so a human
+ *     reading of that code is worth more than anywhere else.
+ *  2. How much goes wrong when that chapter is wrong. Somebody getting in as another person (authentication,
+ *     authorization, sessions) or data being read or injected (validation, data protection) comes before how the
+ *     code is arranged or what it writes to a log.
+ *  3. Level 1 requirements before level 2, because the first level is the floor every app is meant to meet.
+ *
+ * Nothing is dropped from the list: this only decides what is reviewed first, so a review that stops early stops on
+ * the least consequential part rather than wherever the alphabet happened to reach.
+ */
+const CHAPTER_RISK: Record<string, number> = {
+  // Somebody getting in, or acting as somebody else.
+  V6: 0, // Authentication
+  V8: 0, // Authorization
+  V7: 1, // Session Management
+  V9: 1, // Self-contained Tokens
+  V10: 1, // OAuth and OIDC
+  // Data going somewhere it should not, or untrusted input being believed.
+  V2: 2, // Validation and Business Logic
+  V14: 2, // Data Protection
+  V1: 3, // Encoding and Sanitization
+  V5: 3, // File Handling
+  V4: 3, // API and Web Service
+  V3: 4, // Web Frontend Security
+  V11: 4, // Cryptography
+  V12: 4, // Secure Communication
+  // How the app is put together and run.
+  V13: 5, // Configuration
+  V15: 6, // Secure Coding and Architecture
+  V16: 6, // Security Logging and Error Handling
+  V17: 7, // WebRTC
+};
+const DEFAULT_CHAPTER_RISK = 5;
+
+/** Chapters the scanners already reported an open problem in, by requirement mapping and by finding source. */
+function chaptersWithFindings(ctx: PipelineCtx): Set<string> {
+  const out = new Set<string>();
+  for (const finding of ctx.acc.findings) {
+    if (finding.status !== 'open' && finding.status !== 'fix-attempted') continue;
+    for (const id of [...(finding.mappings?.asvs ?? []), ...(finding.mappings?.aisvs ?? [])]) {
+      const chapter = /^([A-Z]+\d+)\./.exec(id)?.[1];
+      if (chapter) out.add(chapter);
+    }
+  }
+  return out;
+}
+
+/** The order the batches are reviewed in; lower comes first. */
+export function reviewOrder(batch: RequirementBatch, troubled: Set<string>): [number, number, number] {
+  const risk = CHAPTER_RISK[batch.chapterId] ?? DEFAULT_CHAPTER_RISK;
+  const lowestLevel = Math.min(...batch.requirements.map((r) => r.level ?? 1));
+  return [troubled.has(batch.chapterId) ? 0 : 1, risk, lowestLevel];
+}
+
 function buildBatches(ctx: PipelineCtx): RequirementBatch[] {
   if (!ctx.design) return [];
   const applicability = ctx.design.applicability;
@@ -65,7 +125,13 @@ function buildBatches(ctx: PipelineCtx): RequirementBatch[] {
     batch.requirements.push(req);
     void frameworkStandard;
   }
-  return [...byChapter.values()];
+  // Highest-consequence first, so a review stopped by the spending limit loses the least (see reviewOrder).
+  const troubled = chaptersWithFindings(ctx);
+  return [...byChapter.values()].sort((a, b) => {
+    const [ax, ay, az] = reviewOrder(a, troubled);
+    const [bx, by, bz] = reviewOrder(b, troubled);
+    return ax - bx || ay - by || az - bz || a.chapterId.localeCompare(b.chapterId);
+  });
 }
 
 /** Why some requirements were not reviewed, in one short sentence (spending limit, cut-off or failed calls). */

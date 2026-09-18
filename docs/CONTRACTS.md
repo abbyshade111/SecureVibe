@@ -416,6 +416,7 @@ alongside a `test`/`dast`/`ast`/`config-value`/`doc-generated` check. Feature id
 | TPL-IDEMPOTENCY-01 | Idempotency-Key on JSON API mutations; unique constraints | — | RR-05, DM-03 | test "RR-05", dast.api.idempotency-key |
 | TPL-CONTRACT-01 | docs/api.md + openapi.json from registry | — | AS-05, MT-05 | doc-generated docs/openapi.json |
 | TPL-IR-01 | Incident response plan + security contact + deployment guide | — | MT-06 (partial), AC-06 (partial) | file-exists docs/incident-response.md, doc-generated docs/SECURITY.md |
+| TPL-THEME-01 | Chosen theme changes colour only, from a closed list, and keeps WCAG AA contrast in light and dark | — | UX-01, AS-07 (partial: APP_THEME refused when unknown) | test "UX-01", test "AS-07 unknown theme" |
 | TPL-TESTS-01 | Security test suite present and passing | — | MT-03, MT-04 | test "security suite" (meta: ≥ 1 test per file in tests/security) |
 | TPL-TRUSTZONES-01 | Loopback bind by default; LAN/internet require explicit config; egress allow-list | — | AS-01, AC-01 (partial: loopback) | config.bind-loopback-default, test "AS-01" |
 
@@ -586,6 +587,7 @@ Outcomes (first matching `when` wins); "deploymentTimeStatus" is the status assu
 | DM-04 | always **n-a**: single database; local ACID transactions. |
 | DM-05 | personal-data → **yes** when retention configured (retention months or keep-until-deleted with delete endpoints + docs/data-retention.md); else **yes** (minimal data). |
 | DM-06 | always **n-a**: strongly consistent single DB. |
+| UX-01 | SecureVibe's own requirement, not an external one: a look the owner chooses may change colour only, and every theme keeps the WCAG 2.2 AA contrast ratios (4.5:1 for text, 3:1 for the edge of a form field) in its light and its dark version. Checked by `tests/security/theme.test.ts` straight from the stylesheet. |
 | RR-01 | always **yes**: safe error model; retries with backoff in http-client. |
 | RR-02 | external-apis/ai/email → **yes** (circuit breaker + degraded mode in http-client); else **n-a**. |
 | RR-03 | scheduler → **yes** (jobs table, lock, at-least-once documented); else **n-a**. |
@@ -984,3 +986,39 @@ stage's "was any of this assessed by AI" reads the review step's provider; the p
 every service that could have run and `requestedModel` is the writing model. Settings → "Which AI service does
 what" sets all three groups (the web app always sends the complete object) and points out when the review runs on
 a service that did not write the code — an independent check.
+
+## Evidence that names its requirements, and fixing any finding (added 2026-09-18)
+
+`Evidence.requirementIds` (shared/src/compliance.ts) lets a checker say which requirements its result speaks to,
+instead of the id having to appear in `ref`. The configuration scanner fills it from each check's `asvs`/`aisvs`
+mapping, so the 19 checks that run on every build now credit the requirements they verify (`extraEvidenceFor` in
+`compliance/evidence.ts` matches on either). Tiers are unchanged — configuration evidence stays `medium`, so a
+requirement reaches `pass` only with a second independent medium check or a strong one, and a failing check now
+fails the requirement instead of leaving it silently unverified. On the golden apps this clears six checks the
+owner used to be asked to confirm by hand (V6.1.1, V6.3.2, V6.4.1, V11.2.3, V15.1.2, V15.2.1).
+
+The results page can send any open finding to the AI, not just the ones marked as SecureVibe's to fix: each open
+finding has a tick box, with "Fix the ticked problems" and "Fix all N" above the list (the Build page then shows the
+estimate and asks for approval as for any build, and `fixFindingIds` goes to the fix loop, which accepts explicitly
+requested findings whatever their `whoCanFix`). The group heading reads "Usually needs a developer", because the AI
+may still fix it.
+
+## Documentation checks and the documents a human check names (added 2026-09-18)
+
+`scanners/config/docs-checks.ts` adds seven `docs.*` checks to the `config` stage (`ALL_CONFIG_CHECKS` =
+configuration + documentation): each generated document must exist, carry content, and still match the app —
+validation.md covers every record type, sessions.md states the app's own session times, communications.md lists
+exactly the hosts the app may contact, data-protection.md covers the kinds of information and how long they are
+kept, logging.md says where the log lives and for how long, dependencies.md gives update deadlines, SECURITY.md
+describes the sign-in limits, the banned password words and the administrator's second step. They are `low`
+severity (misleading documentation, not an exploit) and, through `requirementIds`, credit V2.1.1, V2.1.3, V6.1.1,
+V6.1.2, V6.1.3, V7.1.1, V7.1.2, V13.1.1, V14.1.1, V14.1.2, V15.1.1 and V16.1.1. Whether the wording is right for
+the business is still a person's judgement; what a machine can settle (is it there, does it match the app) it now
+settles.
+
+`verification/documents.ts` finds the files a manual check names in its own question and steps, resolves each
+against the app, the project folder and the SecureVibe folder in that order, and returns them on every
+`VerificationItem` as `documents[{ path, where, openable }]`. `GET /projects/:id/document?path=…` serves one
+(`.md`/`.json` only, ≤512 KB, path-confined); `.env` and `FIRST-LOGIN.txt` are listed with `openable: false` and
+never served, whatever a check's wording says. The human-checks wizard shows a "Read docs/x.md" button per
+document and opens it in place.

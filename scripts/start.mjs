@@ -26,6 +26,14 @@ function run(cmd, args, opts = {}) {
   });
 }
 
+// Packages may not run their own install scripts (see .npmrc), so esbuild — which tsx and vite both need — has to
+// be rebuilt once by hand after `npm install`. Saying so here beats a stack trace from deep inside a build tool.
+const esbuildBinary = path.join(root, 'node_modules', 'esbuild', 'bin', 'esbuild');
+if (!existsSync(esbuildBinary)) {
+  console.error('One build tool still needs setting up after installing. Run this once, then start again:\n\n  npm run rebuild-tools\n');
+  process.exit(1);
+}
+
 if (!existsSync(webDist) || process.env.SECUREVIBE_REBUILD_WEB === '1') {
   console.log('Building the SecureVibe web app (first run only)…');
   await run(npmCmd, ['run', 'build', '-w', 'web']);

@@ -12,6 +12,7 @@ import {
   type RequirementBatch,
   type ReviewFile,
 } from '../../src/llm/flows/ai-review.js';
+import { reviewOrder } from '../../src/pipeline/stages/ai-review.js';
 import { NullProvider } from '../../src/llm/null.js';
 import { ScriptedProvider } from '../../src/llm/scripted.js';
 import { FIXTURE_DIR, makeDesign } from './helpers.js';
@@ -226,5 +227,36 @@ describe('review stops on repeated failures', () => {
     });
     expect(calls).toBe(2);
     expect(result.batches.slice(2).every((b) => b.message.includes('two calls in a row failed'))).toBe(true);
+  });
+});
+
+describe('what the review looks at first', () => {
+  const batch = (chapterId: string, level = 1): RequirementBatch => ({
+    chapterId,
+    chapterName: chapterId,
+    standard: 'asvs',
+    requirements: [{ id: `${chapterId}.1.1`, description: 'x', level }],
+  });
+
+  it('puts what goes most wrong first, so a review stopped by the spending limit loses the least', () => {
+    const order = [batch('V16'), batch('V13'), batch('V6'), batch('V2')]
+      .sort((a, b) => {
+        const [ax, ay, az] = reviewOrder(a, new Set());
+        const [bx, by, bz] = reviewOrder(b, new Set());
+        return ax - bx || ay - by || az - bz;
+      })
+      .map((b) => b.chapterId);
+    // Authentication before validation, both before configuration, and logging last.
+    expect(order).toEqual(['V6', 'V2', 'V13', 'V16']);
+  });
+
+  it('goes first to a chapter the scanners already found something in', () => {
+    const troubled = new Set(['V16']);
+    expect(reviewOrder(batch('V16'), troubled)[0]).toBe(0);
+    expect(reviewOrder(batch('V6'), troubled)[0]).toBe(1);
+  });
+
+  it('reads the floor before the next level up', () => {
+    expect(reviewOrder(batch('V6', 1), new Set())[2]).toBeLessThan(reviewOrder(batch('V6', 2), new Set())[2]);
   });
 });

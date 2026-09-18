@@ -227,7 +227,7 @@ export function BuildPage() {
   if (!run) {
     return (
       <div className="sv-stack">
-        <h1>{uploaded ? 'Check my app' : fixFindingIds ? 'Ask Claude to fix this' : 'Build my app'}</h1>
+        <h1>{uploaded ? 'Check my app' : fixFindingIds ? `Ask the AI to fix ${fixFindingIds.length} problem(s)` : 'Build my app'}</h1>
         {needsPlan && (
           <Card>
             <h2>The plan</h2>

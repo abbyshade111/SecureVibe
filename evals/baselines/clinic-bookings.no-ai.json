@@ -2,9 +2,9 @@
   "version": 1,
   "case": "clinic-bookings",
   "mode": "no-ai",
-  "runId": "r_20260918023014_ocdwqh",
+  "runId": "r_20260918211820_fx3yo6",
   "status": "succeeded",
-  "durationMs": 270143,
+  "durationMs": 267825,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -18,7 +18,7 @@
     "deps": "passed",
     "config": "warning",
     "dast": "passed",
-    "external": "passed",
+    "external": "warning",
     "ai-review": "skipped",
     "fix": "skipped",
     "compliance": "passed",
@@ -27,14 +27,14 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
+    "medium": 1,
     "low": 1,
     "info": 0
   },
   "asvs": {
-    "pass": 102,
+    "pass": 115,
     "applicable": 169,
-    "verifiedPassPercent": 60.4,
+    "verifiedPassPercent": 68,
     "aiAssessed": 0,
     "fail": 0
   },
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 165,
-    "passed": 143,
+    "total": 183,
+    "passed": 161,
     "failed": 0
   },
   "costUsd": 0

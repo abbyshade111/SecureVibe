@@ -7,6 +7,7 @@ import { effectiveAiSettings, readVersion } from '../config.js';
 import { AI_SERVICE_INFO, ApiKeyError, keyStatuses, removeApiKey, setApiKey } from '../security/api-keys.js';
 import { validationError } from '../security/errors.js';
 import type { SessionRecord } from '../security/token.js';
+import { nanoOptionsFor } from '../scanners/external/nano-analyzer.js';
 import { runPreflight } from './preflight.js';
 import type { ApiDeps } from './types.js';
 
@@ -59,6 +60,14 @@ export function statusRouter(deps: ApiDeps): Router {
         notifyOnFinish: settings.notifyOnFinish,
         aiService: settings.aiService,
         aiServiceFor: settings.aiServiceFor,
+        nanoAnalyzer: {
+          enabled: settings.nanoAnalyzer.enabled,
+          scriptPath: settings.nanoAnalyzer.scriptPath,
+          model: settings.nanoAnalyzer.model,
+          minConfidence: settings.nanoAnalyzer.minConfidence,
+          // Only whether a key is there; the key itself never leaves the .env file.
+          keyPresent: Boolean(nanoOptionsFor(settings).apiKey),
+        },
         effectiveModel: effectiveAiSettings(settings).model,
       },
     };

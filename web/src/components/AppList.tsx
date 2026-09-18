@@ -114,13 +114,18 @@ export function AppList({ projects, onChanged }: { projects: ProjectListItem[]; 
                 </Link>
               )}
               {!isArchived && p.lastRunId && (
-                <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${p.id}/results#reports`} aria-label={`Reports for ${p.name}`}>
-                  Reports
+                <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${p.id}/results`} aria-label={`Results for ${p.name}`}>
+                  Results
                 </Link>
               )}
               {!isArchived && p.lastRunId && (
                 <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${p.id}/verify`} aria-label={`Human checks for ${p.name}`}>
                   Human checks
+                </Link>
+              )}
+              {!isArchived && p.lastRunId && (
+                <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${p.id}/security`} aria-label={`Security checks for ${p.name}`}>
+                  Security checks
                 </Link>
               )}
               {!isArchived && !isUnfinished(p) && p.status !== 'building' && (

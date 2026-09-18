@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Provenance } from '@shared/pipeline.js';
 import { CONFIG_CHECKS } from '../../src/scanners/config/checks.js';
-import { CONFIG_TOOL, runConfig } from '../../src/scanners/config/index.js';
+import { ALL_CONFIG_CHECKS, CONFIG_TOOL, runConfig } from '../../src/scanners/config/index.js';
 import { fixtureDir, makeScanContext } from './helpers.js';
 
 function fileHash(appDir: string, relPath: string): string {
@@ -80,7 +80,7 @@ describe('config-app-good: every check passes', () => {
     const result = await runConfig(ctx);
     expect(result.findings.map((f) => f.ruleId)).toEqual([]);
     expect(result.status).toBe('passed');
-    expect(result.evidence).toHaveLength(19);
+    expect(result.evidence).toHaveLength(ALL_CONFIG_CHECKS.length);
     expect(result.evidence.every((e) => e.passed)).toBe(true);
     expect(result.evidence.every((e) => e.tool === CONFIG_TOOL.name && e.tier === 'medium' && e.type === 'config')).toBe(true);
   });

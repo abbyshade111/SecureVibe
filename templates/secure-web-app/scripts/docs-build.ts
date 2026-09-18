@@ -18,6 +18,7 @@ import { closeDb, openDb } from '../src/db/index.ts';
 import { runMigrations } from '../src/db/migrate.ts';
 import { listEntities } from '../src/security/authz.ts';
 import { SECURITY_EVENTS } from '../src/security/events.ts';
+import { MAX_LENGTH, MIN_LENGTH } from '../src/security/password.ts';
 import { presetDefinitions, type PresetDefinition, type RateLimitPreset } from '../src/security/rate-limit.ts';
 import { routeSchemasAsJson, summariseRoutes, type RouteSummary } from '../src/security/routes.ts';
 import { SESSION_COOKIE } from '../src/security/session.ts';
@@ -196,6 +197,19 @@ function genSecurityMd(): string {
       '',
       table(['Limit', 'Applies to', 'Allowed', 'Per', 'Grows after repeated failures'], rows),
       '',
+      '## Passwords',
+      '',
+      `A password must be at least ${MIN_LENGTH} characters long (a short sentence works well) and at most ${MAX_LENGTH}.`,
+      '',
+      'These words cannot be used as a password, or inside one, because they are the first thing an attacker tries:',
+      '',
+      `- Any password on the list of commonly used passwords that ships with this app.`,
+      `- The name of this app (“${config.appName}”), and any word of four letters or more in it.`,
+      '- The person\'s own name, and any word of four letters or more in it.',
+      '- The part of the person\'s email address before the @ sign.',
+      '',
+      'Nothing else is banned: no forced mixture of capitals, digits and symbols, and no expiry date, because those rules push people towards worse passwords.',
+      '',
       '## Two-factor authentication',
       '',
       `Administrators ${config.ADMIN_MFA_REQUIRED ? 'must' : 'may'} set up a one-time code app before using the app. ${config.USER_MFA_AVAILABLE ? 'Every user may turn on one-time codes for their own account.' : 'One-time codes are only available to administrators.'}`,
@@ -319,6 +333,21 @@ function genUploadsMd(): string {
 // docs/data-protection.md — V14.1.1 (doc), V14.1.2 (doc), DM-01, DM-05
 // ---------------------------------------------------------------------------------------------------------------
 
+/** The kinds of information a person chose in the wizard, written out for a reader rather than as code words. */
+const CATEGORY_WORDS: Record<string, string> = {
+  contact: 'contact details — names, email addresses, phone numbers, postal addresses',
+  financial: 'financial information — bank details, salaries, invoices, balances',
+  'payment-card': 'payment card details — never stored here; payment happens at the provider',
+  health: 'health information — medical, wellbeing or disability details',
+  'government-id': 'government id numbers — passport, national id, tax numbers',
+  credentials: 'credentials — the passwords and one-time code secrets of the people who sign in',
+  children: 'information about children under 16',
+  location: 'location — where somebody is or has been',
+  files: 'files people upload — documents and images',
+  'business-confidential': 'business-confidential information — internal data, pricing, plans',
+  'other-personal': 'other personal information about identifiable people',
+};
+
 function genDataProtectionMd(): string {
   const categories = config.design.profile?.data?.categories ?? [];
   const entities = listEntities();
@@ -331,7 +360,9 @@ function genDataProtectionMd(): string {
     [
       [
         '## Data this app is designed to hold',
-        categories.length > 0 ? categories.map((c) => `- ${c}`).join('\n') : 'No data categories were specified at design time; treat any personal information you add as sensitive by default.',
+        categories.length > 0
+          ? categories.map((c) => `- ${CATEGORY_WORDS[c] ?? c.replace(/-/g, ' ')}`).join('\n')
+          : 'No data categories were specified at design time; treat any personal information you add as sensitive by default.',
       ].join('\n\n'),
       [
         '## Protections that apply to every record',
@@ -378,6 +409,18 @@ function genDependenciesMd(pkg: PackageJson): string {
       '- `npm install` uses `package-lock.json`; the agent that customises this app is not allowed to add new packages.',
       '- `.npmrc` sets `ignore-scripts=true`, so no package can run its own install scripts (a common supply-chain attack path).',
       '- Run `npm audit` from time to time to check for newly discovered vulnerabilities in these versions.',
+      '',
+      '## What keeps checking, after this app is handed over',
+      '',
+      'If this app lives in a GitHub repository, `.github/workflows/security.yml` runs on every change and once a week even when nothing changes:',
+      '',
+      "- it runs this app's own security tests and `npm audit`;",
+      '- it writes a bill of materials in CycloneDX form — the list of every package and version inside the app — and keeps it with the run;',
+      '- it builds the container and scans it for known problems, in the app and in the operating system underneath it, and fails if anything serious is found.',
+      '',
+      '`.github/dependabot.yml` opens a pull request when a package or a workflow step needs updating, and those checks run on the pull request before you merge it.',
+      '',
+      'Publishing the container image is off until you switch it on (repository variable `PUBLISH_IMAGE=true`). When it is on, every published image is signed by that workflow with no key for anyone to steal, carries its bill of materials, and records how it was built. Whoever runs the image can check all three with `cosign verify` and `gh attestation verify`, and know it came from your repository and holds what it says it holds.',
       '',
       '## Runtime dependencies', '', table(['Package', 'Version range'], deps),
       '',
@@ -549,6 +592,18 @@ function genDeploymentMd(): string {
           ['The internet', 'Put a real reverse proxy (with a certificate from a service like Let’s Encrypt) in front of the app and set `TLS_MODE=proxy` with `TRUST_PROXY_HOPS=1` (or however many proxies sit in front of it)', 'Anyone can reach the app. Do this only once you are ready — see the checklist below.'],
         ],
       ),
+      '',
+      '## Moving this app to another computer',
+      '',
+      'The app is ordinary Node.js: it needs Node 22.13 or newer, its `.env` file and its `data` folder, and nothing else. Copy those three things to another computer, run `npm ci --omit=dev` and then `npm start`, and it runs exactly as it does here.',
+      '',
+      'There is also a container, which is the same thing in one step:',
+      '',
+      '```',
+      'docker compose up --build',
+      '```',
+      '',
+      'The image carries the code only. Your secrets and your records stay outside it: `.env` is read when the container starts and the `data` folder lives next to `compose.yaml`, so an image you copy or publish holds neither. The container publishes the app to this computer only (`127.0.0.1`), runs as an unprivileged user, and cannot write anywhere but its data folder. Letting other people reach it is the same decision as the table above, and the same checklist applies.',
       '',
       '## Before you go on the internet',
       '',

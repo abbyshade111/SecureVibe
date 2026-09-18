@@ -1,0 +1,48 @@
+# Keeps SecureVibe's own packages and workflow steps up to date, the same way the generated apps keep theirs.
+# The workflow steps are pinned to commit fingerprints; these updates move the fingerprint and the version comment
+# together, so pinning never means falling behind on security fixes.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait before proposing a newly published version: a compromised release is usually found within days. This is
+    # the same idea as min-release-age in .npmrc, applied to what Dependabot offers. Security fixes still arrive as
+    # their own pull requests.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      all-packages:
+        patterns: ['*']
+
+  # The app template has its own lockfile: its packages end up inside every app SecureVibe builds.
+  - package-ecosystem: npm
+    directory: /templates/secure-web-app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait before proposing a newly published version: a compromised release is usually found within days. This is
+    # the same idea as min-release-age in .npmrc, applied to what Dependabot offers. Security fixes still arrive as
+    # their own pull requests.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      all-packages:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait before proposing a newly published version: a compromised release is usually found within days. This is
+    # the same idea as min-release-age in .npmrc, applied to what Dependabot offers. Security fixes still arrive as
+    # their own pull requests.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30

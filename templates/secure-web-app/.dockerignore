@@ -1,0 +1,24 @@
+# What is never copied into the container image.
+#
+# The first two lines are the important ones: your secrets and your records stay on the computer they belong to.
+# An image built from this folder can be copied or published without carrying either of them.
+.env
+.env.*
+!.env.example
+FIRST-LOGIN.txt
+data
+certs
+
+# Rebuilt inside the image from package-lock.json, so the host's copy (built for the host's own system) is ignored.
+node_modules
+
+# Not part of the running app.
+.git
+.gitignore
+.github
+.claude
+Dockerfile
+.dockerignore
+compose.yaml
+npm-debug.log*
+.DS_Store
