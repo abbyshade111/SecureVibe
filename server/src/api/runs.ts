@@ -41,7 +41,8 @@ export function runsRouter(deps: ApiDeps): Router {
     if (uploaded && !project.design) throw validationError('Answer the questions about your app before checking it.');
     if (body.mode !== 'verify-only' && !project.design) throw validationError('Finish your design before starting a build.');
     if (project.name === SELF_PROJECT_NAME) throw validationError('SecureVibe checks itself from the command line (npm run self-assess), not from here.');
-    if (body.withoutAi && body.mode !== 'verify-only') throw validationError('Only a re-check can run without AI.');
+    // Without AI, a full build writes the starter app from the answers (pages for every record, no AI-written
+    // features) — free, and the way to see the whole process before spending anything; a re-check re-runs the checks.
     // An uploaded app is only ever checked: nothing is generated or fixed, and nothing runs its code.
     const mode = uploaded ? 'verify-only' : body.mode;
 

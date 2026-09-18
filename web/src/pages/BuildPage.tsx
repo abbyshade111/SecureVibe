@@ -185,13 +185,17 @@ export function BuildPage() {
     }
   }
 
-  async function begin(withoutAi = false) {
+  /**
+   * 'ai': the normal build. 'free-build': the starter app from the answers, without AI (free). 'recheck': every
+   * automated check on the app as it is, without AI and without changing it (free).
+   */
+  async function begin(kind: 'ai' | 'free-build' | 'recheck' = 'ai') {
     if (!id || !approvalCode) return;
     setStartError(null);
     try {
-      // A free re-check runs every automated check on the app as it is: no AI, nothing changes.
+      const withoutAi = kind !== 'ai';
       const res = await startRun(id, {
-        mode: uploaded || withoutAi ? 'verify-only' : 'full',
+        mode: uploaded || kind === 'recheck' ? 'verify-only' : 'full',
         approved: true,
         approvalCode,
         spendingCapUsd: cap,
@@ -374,8 +378,18 @@ export function BuildPage() {
           {!uploaded && project.status === 'built' && (
             <p className="sv-muted" style={{ marginTop: 12 }}>
               Or run every automated check on the app as it is, without AI and without changing it (free, a few minutes):{' '}
-              <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={!approved || !approvalCode} onClick={() => void begin(true)}>
+              <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={!approved || !approvalCode} onClick={() => void begin('recheck')}>
                 Check again without AI (free)
+              </button>
+            </p>
+          )}
+          {!uploaded && !fixFindingIds && status?.llm.previewMode !== true && (
+            <p className="sv-muted" style={{ marginTop: 12 }}>
+              Or build the starter app without AI: pages for every record you described, every security check and every
+              report, but no features written by Claude. Free, about four minutes, and a good way to see the whole process
+              first:{' '}
+              <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" disabled={!approved || !approvalCode} onClick={() => void begin('free-build')}>
+                Build without AI (free)
               </button>
             </p>
           )}

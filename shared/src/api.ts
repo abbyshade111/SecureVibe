@@ -130,6 +130,8 @@ export const ExampleProjectSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
+  /** Small enough to build without AI: the way to see the whole process before spending anything. */
+  free: z.boolean().optional(),
   profile: DesignProfileSchema,
 });
 export type ExampleProject = z.infer<typeof ExampleProjectSchema>;

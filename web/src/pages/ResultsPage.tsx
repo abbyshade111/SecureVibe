@@ -587,6 +587,41 @@ export function ResultsPage() {
       {reportRuns.length > 0 && (
         <Card id="reports">
           <h2>Reports</h2>
+          {compliance && (
+            <div className="sv-card" style={{ margin: '0 0 16px', background: 'var(--color-bg-subtle)' }}>
+              <h3 style={{ marginTop: 0 }}>
+                <Badge tone={RATING_TONE[compliance.overall.rating]}>{compliance.overall.rating.replace('-', ' ')}</Badge> Your one-page summary
+              </h3>
+              <p style={{ margin: '8px 0' }}>{compliance.overall.headline}</p>
+              <p className="sv-muted" style={{ margin: '0 0 8px' }}>{compliance.overall.canIUseIt}</p>
+              {compliance.overall.topActions.length > 0 && (
+                <>
+                  <p style={{ margin: '8px 0 4px' }}>
+                    <strong>What to do first</strong>
+                  </p>
+                  <ol style={{ margin: '0 0 8px' }}>
+                    {compliance.overall.topActions.slice(0, 3).map((a) => (
+                      <li key={a.id}>
+                        {a.title}
+                        {a.effort ? <span className="sv-faint"> — about {a.effort === 'more' ? 'a few days' : `a${a.effort === 'hour' ? 'n' : ''} ${a.effort === 'minutes' ? 'few minutes' : a.effort}`}</span> : null}
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+              <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                <a className="sv-btn sv-btn-sm" href={artifactUrl(id!, 'overview.html', reportRunId)} target="_blank" rel="noreferrer">
+                  Open the one-page summary
+                </a>
+                <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => printReport(artifactUrl(id!, 'overview.html', reportRunId))}>
+                  Save it as PDF
+                </button>
+              </div>
+              <p className="sv-faint" style={{ margin: '8px 0 0' }}>
+                The one page is what to send to someone who asks "is it safe to use?"; the reports below hold every detail behind it.
+              </p>
+            </div>
+          )}
           <div className="sv-field">
             <label className="sv-label" htmlFor="reportRun">
               Reports from

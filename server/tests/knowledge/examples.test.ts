@@ -10,8 +10,8 @@ describe('data/knowledge/examples.json', () => {
   const examples = z.array(ExampleProjectSchema).parse(raw);
   const byId = new Map(examples.map((e) => [e.id, e]));
 
-  it('contains the four example projects with valid DesignProfiles', () => {
-    expect([...byId.keys()].sort()).toEqual(['customer-portal', 'salon-booking', 'shop-inventory', 'team-tasks-ai']);
+  it('contains the example projects with valid DesignProfiles', () => {
+    expect([...byId.keys()].sort()).toEqual(['customer-portal', 'habit-log', 'salon-booking', 'shop-inventory', 'team-tasks-ai']);
     for (const e of examples) {
       const parsed = DesignProfileSchema.safeParse(e.profile);
       expect(parsed.success, `${e.id}: ${parsed.success ? '' : z.prettifyError(parsed.error)}`).toBe(true);
@@ -20,8 +20,17 @@ describe('data/knowledge/examples.json', () => {
     }
   });
 
+  it('the free example is the golden Habit Log: small enough to build without AI', () => {
+    const e = byId.get('habit-log')!;
+    expect(e.free).toBe(true);
+    expect(e.profile.app.name).toBe('Habit Log');
+    expect(e.profile.capabilities.aiAssistant.enabled).toBe(false);
+    expect(e.profile.deployment.target).toBe('local-only');
+  });
+
   it('each example is realistic: several entities with fields, roles with one administrator, features listed', () => {
-    for (const e of examples) {
+    // The free example is deliberately tiny; the realism rules are for the ones people copy as a starting point.
+    for (const e of examples.filter((x) => !x.free)) {
       const p = e.profile;
       expect(p.app.entities.length, `${e.id} entities`).toBeGreaterThanOrEqual(3);
       for (const entity of p.app.entities) expect(entity.fields.length, `${e.id}/${entity.name} fields`).toBeGreaterThanOrEqual(2);

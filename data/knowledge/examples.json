@@ -1,5 +1,106 @@
 [
   {
+    "id": "habit-log",
+    "title": "Habit log — try SecureVibe for free",
+    "description": "A simple private page to tick off daily habits and see streaks. Small enough to build without AI in a few minutes, so you can see the whole process — design, build, checks and reports — before spending anything.",
+    "free": true,
+    "profile": {
+      "app": {
+        "name": "Habit Log",
+        "description": "A simple page where I tick off daily habits and see streaks.",
+        "category": "tracker",
+        "entities": [
+          {
+            "name": "habit",
+            "label": "Habit",
+            "pluralLabel": "Habits",
+            "fields": [
+              {
+                "name": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "frequency",
+                "label": "Frequency",
+                "type": "choice",
+                "required": false,
+                "choices": [
+                  "daily",
+                  "weekly"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "notes",
+                "label": "Notes",
+                "type": "longtext",
+                "required": false,
+                "sensitive": false
+              }
+            ],
+            "access": "all-signed-in"
+          }
+        ],
+        "keyFeatures": [
+          "Tick off a habit for today",
+          "See the current streak per habit"
+        ]
+      },
+      "users": {
+        "audience": "just-me",
+        "requiresSignIn": false,
+        "roles": [],
+        "expectedUserCount": "1",
+        "registration": "admin-created",
+        "adminMfa": false
+      },
+      "data": {
+        "categories": [
+          "business-confidential"
+        ],
+        "aboutOtherPeople": false,
+        "retention": "keep-until-deleted",
+        "region": "unsure"
+      },
+      "capabilities": {
+        "fileUploads": false,
+        "uploadKinds": [],
+        "aiAssistant": {
+          "enabled": false,
+          "purpose": "",
+          "dataItCanSee": "nothing",
+          "canTakeActions": false,
+          "storesHistory": false,
+          "canSearchWeb": false,
+          "webSearchSites": []
+        },
+        "email": false,
+        "externalApis": [],
+        "scheduledJobs": false,
+        "publicApi": false,
+        "payments": false
+      },
+      "deployment": {
+        "target": "local-only",
+        "owner": {
+          "name": "Sam Rivera",
+          "contactEmail": "sam@example.com"
+        },
+        "businessImpact": "low"
+      },
+      "meta": {
+        "mode": "guided",
+        "inferredFields": [],
+        "notSureFields": [],
+        "startedFromExample": "habit-log",
+        "confirmed": false
+      }
+    }
+  },
+  {
     "id": "salon-booking",
     "title": "Booking site for a salon",
     "description": "Customers book a service and a time slot online. Staff see their day, confirm or cancel bookings, and customers get an email reminder the day before.",
@@ -16,11 +117,41 @@
             "pluralLabel": "Services",
             "description": "Something the salon offers, with a price and a duration.",
             "fields": [
-              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
-              { "name": "description", "label": "Description", "type": "longtext", "required": false, "sensitive": false },
-              { "name": "price", "label": "Price", "type": "money", "required": true, "sensitive": false },
-              { "name": "duration-minutes", "label": "Duration (minutes)", "type": "number", "required": true, "sensitive": false },
-              { "name": "active", "label": "Currently offered", "type": "boolean", "required": false, "sensitive": false }
+              {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "description",
+                "label": "Description",
+                "type": "longtext",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "price",
+                "label": "Price",
+                "type": "money",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "duration-minutes",
+                "label": "Duration (minutes)",
+                "type": "number",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "active",
+                "label": "Currently offered",
+                "type": "boolean",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "public-read"
           },
@@ -30,11 +161,49 @@
             "pluralLabel": "Appointments",
             "description": "A booked slot for one customer with one stylist.",
             "fields": [
-              { "name": "service", "label": "Service", "type": "text", "required": true, "sensitive": false },
-              { "name": "stylist", "label": "Stylist", "type": "text", "required": true, "sensitive": false },
-              { "name": "starts-at", "label": "Date and time", "type": "datetime", "required": true, "sensitive": false },
-              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["Pending", "Confirmed", "Done", "No-show", "Cancelled"], "sensitive": false },
-              { "name": "notes", "label": "Notes for staff", "type": "longtext", "required": false, "sensitive": false, "description": "Allergies or preferences the customer mentions. Treated as personal information." }
+              {
+                "name": "service",
+                "label": "Service",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "stylist",
+                "label": "Stylist",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "starts-at",
+                "label": "Date and time",
+                "type": "datetime",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "status",
+                "label": "Status",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "Pending",
+                  "Confirmed",
+                  "Done",
+                  "No-show",
+                  "Cancelled"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "notes",
+                "label": "Notes for staff",
+                "type": "longtext",
+                "required": false,
+                "sensitive": false,
+                "description": "Allergies or preferences the customer mentions. Treated as personal information."
+              }
             ],
             "access": "owner-only"
           },
@@ -44,9 +213,27 @@
             "pluralLabel": "Stylists",
             "description": "A member of staff customers can book.",
             "fields": [
-              { "name": "display-name", "label": "Name shown to customers", "type": "text", "required": true, "sensitive": false },
-              { "name": "works-monday", "label": "Works Mondays", "type": "boolean", "required": false, "sensitive": false },
-              { "name": "works-saturday", "label": "Works Saturdays", "type": "boolean", "required": false, "sensitive": false }
+              {
+                "name": "display-name",
+                "label": "Name shown to customers",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "works-monday",
+                "label": "Works Mondays",
+                "type": "boolean",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "works-saturday",
+                "label": "Works Saturdays",
+                "type": "boolean",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "public-read"
           }
@@ -63,16 +250,35 @@
         "audience": "customers",
         "requiresSignIn": true,
         "roles": [
-          { "name": "owner", "label": "Owner", "description": "Manages services, staff accounts, settings and the audit log.", "isAdmin": true },
-          { "name": "staff", "label": "Staff", "description": "Sees the schedule and updates appointment status.", "isAdmin": false },
-          { "name": "customer", "label": "Customer", "description": "Books and manages their own appointments.", "isAdmin": false }
+          {
+            "name": "owner",
+            "label": "Owner",
+            "description": "Manages services, staff accounts, settings and the audit log.",
+            "isAdmin": true
+          },
+          {
+            "name": "staff",
+            "label": "Staff",
+            "description": "Sees the schedule and updates appointment status.",
+            "isAdmin": false
+          },
+          {
+            "name": "customer",
+            "label": "Customer",
+            "description": "Books and manages their own appointments.",
+            "isAdmin": false
+          }
         ],
         "expectedUserCount": "21-500",
         "registration": "open",
         "adminMfa": true
       },
       "data": {
-        "categories": ["contact", "credentials", "other-personal"],
+        "categories": [
+          "contact",
+          "credentials",
+          "other-personal"
+        ],
         "aboutOtherPeople": false,
         "retention": "auto-delete-after-period",
         "retentionMonths": 24,
@@ -81,7 +287,13 @@
       "capabilities": {
         "fileUploads": false,
         "uploadKinds": [],
-        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "aiAssistant": {
+          "enabled": false,
+          "purpose": "",
+          "dataItCanSee": "nothing",
+          "canTakeActions": false,
+          "storesHistory": false
+        },
         "email": true,
         "externalApis": [],
         "scheduledJobs": true,
@@ -90,7 +302,10 @@
       },
       "deployment": {
         "target": "internet-later",
-        "owner": { "name": "Bella Moreno", "contactEmail": "bella@example.com" },
+        "owner": {
+          "name": "Bella Moreno",
+          "contactEmail": "bella@example.com"
+        },
         "businessImpact": "normal"
       },
       "meta": {
@@ -119,13 +334,56 @@
             "pluralLabel": "Products",
             "description": "An item the shop sells.",
             "fields": [
-              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
-              { "name": "barcode", "label": "Barcode", "type": "text", "required": false, "sensitive": false },
-              { "name": "quantity", "label": "Quantity in stock", "type": "number", "required": true, "sensitive": false },
-              { "name": "reorder-level", "label": "Reorder when below", "type": "number", "required": true, "sensitive": false },
-              { "name": "cost-price", "label": "Cost price", "type": "money", "required": true, "sensitive": true, "description": "What the shop pays. Confidential." },
-              { "name": "sale-price", "label": "Sale price", "type": "money", "required": true, "sensitive": false },
-              { "name": "supplier", "label": "Supplier", "type": "text", "required": false, "sensitive": false }
+              {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "barcode",
+                "label": "Barcode",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "quantity",
+                "label": "Quantity in stock",
+                "type": "number",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "reorder-level",
+                "label": "Reorder when below",
+                "type": "number",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "cost-price",
+                "label": "Cost price",
+                "type": "money",
+                "required": true,
+                "sensitive": true,
+                "description": "What the shop pays. Confidential."
+              },
+              {
+                "name": "sale-price",
+                "label": "Sale price",
+                "type": "money",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "supplier",
+                "label": "Supplier",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "all-signed-in"
           },
@@ -135,11 +393,47 @@
             "pluralLabel": "Stock movements",
             "description": "A delivery, sale, or write-off that changes the quantity of a product.",
             "fields": [
-              { "name": "product", "label": "Product", "type": "text", "required": true, "sensitive": false },
-              { "name": "kind", "label": "Kind", "type": "choice", "required": true, "choices": ["Delivery", "Sale", "Waste", "Correction"], "sensitive": false },
-              { "name": "quantity", "label": "Quantity", "type": "number", "required": true, "sensitive": false },
-              { "name": "happened-at", "label": "Date and time", "type": "datetime", "required": true, "sensitive": false },
-              { "name": "note", "label": "Note", "type": "text", "required": false, "sensitive": false }
+              {
+                "name": "product",
+                "label": "Product",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "kind",
+                "label": "Kind",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "Delivery",
+                  "Sale",
+                  "Waste",
+                  "Correction"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "quantity",
+                "label": "Quantity",
+                "type": "number",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "happened-at",
+                "label": "Date and time",
+                "type": "datetime",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "note",
+                "label": "Note",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "all-signed-in"
           },
@@ -149,11 +443,41 @@
             "pluralLabel": "Suppliers",
             "description": "A company the shop buys from.",
             "fields": [
-              { "name": "company", "label": "Company", "type": "text", "required": true, "sensitive": false },
-              { "name": "contact-name", "label": "Contact person", "type": "text", "required": false, "sensitive": false },
-              { "name": "email", "label": "Email", "type": "email", "required": false, "sensitive": false },
-              { "name": "phone", "label": "Phone", "type": "phone", "required": false, "sensitive": false },
-              { "name": "account-terms", "label": "Payment terms", "type": "text", "required": false, "sensitive": true }
+              {
+                "name": "company",
+                "label": "Company",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "contact-name",
+                "label": "Contact person",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "email",
+                "label": "Email",
+                "type": "email",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "phone",
+                "label": "Phone",
+                "type": "phone",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "account-terms",
+                "label": "Payment terms",
+                "type": "text",
+                "required": false,
+                "sensitive": true
+              }
             ],
             "access": "admin-only"
           }
@@ -170,15 +494,29 @@
         "audience": "my-team",
         "requiresSignIn": true,
         "roles": [
-          { "name": "owner", "label": "Owner", "description": "Manages products, suppliers, staff accounts and settings.", "isAdmin": true },
-          { "name": "staff", "label": "Staff", "description": "Records stock movements and looks up products.", "isAdmin": false }
+          {
+            "name": "owner",
+            "label": "Owner",
+            "description": "Manages products, suppliers, staff accounts and settings.",
+            "isAdmin": true
+          },
+          {
+            "name": "staff",
+            "label": "Staff",
+            "description": "Records stock movements and looks up products.",
+            "isAdmin": false
+          }
         ],
         "expectedUserCount": "2-20",
         "registration": "admin-created",
         "adminMfa": true
       },
       "data": {
-        "categories": ["contact", "credentials", "business-confidential"],
+        "categories": [
+          "contact",
+          "credentials",
+          "business-confidential"
+        ],
         "aboutOtherPeople": true,
         "retention": "keep-until-deleted",
         "region": "us"
@@ -186,7 +524,13 @@
       "capabilities": {
         "fileUploads": false,
         "uploadKinds": [],
-        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "aiAssistant": {
+          "enabled": false,
+          "purpose": "",
+          "dataItCanSee": "nothing",
+          "canTakeActions": false,
+          "storesHistory": false
+        },
         "email": true,
         "externalApis": [],
         "scheduledJobs": true,
@@ -195,7 +539,10 @@
       },
       "deployment": {
         "target": "local-network",
-        "owner": { "name": "Sam Okafor", "contactEmail": "sam@example.com" },
+        "owner": {
+          "name": "Sam Okafor",
+          "contactEmail": "sam@example.com"
+        },
         "businessImpact": "normal"
       },
       "meta": {
@@ -224,10 +571,34 @@
             "pluralLabel": "Client companies",
             "description": "A business the practice works for.",
             "fields": [
-              { "name": "name", "label": "Company name", "type": "text", "required": true, "sensitive": false },
-              { "name": "tax-number", "label": "Tax number", "type": "text", "required": false, "sensitive": true },
-              { "name": "contact-email", "label": "Contact email", "type": "email", "required": true, "sensitive": false },
-              { "name": "assigned-accountant", "label": "Assigned accountant", "type": "text", "required": true, "sensitive": false }
+              {
+                "name": "name",
+                "label": "Company name",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "tax-number",
+                "label": "Tax number",
+                "type": "text",
+                "required": false,
+                "sensitive": true
+              },
+              {
+                "name": "contact-email",
+                "label": "Contact email",
+                "type": "email",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "assigned-accountant",
+                "label": "Assigned accountant",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              }
             ],
             "access": "owner-only"
           },
@@ -237,12 +608,54 @@
             "pluralLabel": "Invoices",
             "description": "An invoice the practice sent to a client.",
             "fields": [
-              { "name": "number", "label": "Invoice number", "type": "text", "required": true, "sensitive": false },
-              { "name": "issued-on", "label": "Issued on", "type": "date", "required": true, "sensitive": false },
-              { "name": "due-on", "label": "Due on", "type": "date", "required": true, "sensitive": false },
-              { "name": "amount", "label": "Amount", "type": "money", "required": true, "sensitive": true },
-              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["Draft", "Sent", "Paid", "Overdue"], "sensitive": false },
-              { "name": "pdf", "label": "Invoice PDF", "type": "file", "required": false, "sensitive": true }
+              {
+                "name": "number",
+                "label": "Invoice number",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "issued-on",
+                "label": "Issued on",
+                "type": "date",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "due-on",
+                "label": "Due on",
+                "type": "date",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "amount",
+                "label": "Amount",
+                "type": "money",
+                "required": true,
+                "sensitive": true
+              },
+              {
+                "name": "status",
+                "label": "Status",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "Draft",
+                  "Sent",
+                  "Paid",
+                  "Overdue"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "pdf",
+                "label": "Invoice PDF",
+                "type": "file",
+                "required": false,
+                "sensitive": true
+              }
             ],
             "access": "owner-only"
           },
@@ -252,10 +665,40 @@
             "pluralLabel": "Documents",
             "description": "A receipt, statement or other file a client uploads.",
             "fields": [
-              { "name": "title", "label": "Title", "type": "text", "required": true, "sensitive": false },
-              { "name": "kind", "label": "Kind", "type": "choice", "required": true, "choices": ["Receipt", "Bank statement", "Contract", "Other"], "sensitive": false },
-              { "name": "file", "label": "File", "type": "file", "required": true, "sensitive": true },
-              { "name": "period", "label": "Period it covers", "type": "text", "required": false, "sensitive": false }
+              {
+                "name": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "kind",
+                "label": "Kind",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "Receipt",
+                  "Bank statement",
+                  "Contract",
+                  "Other"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "file",
+                "label": "File",
+                "type": "file",
+                "required": true,
+                "sensitive": true
+              },
+              {
+                "name": "period",
+                "label": "Period it covers",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "owner-only"
           },
@@ -265,9 +708,27 @@
             "pluralLabel": "Messages",
             "description": "A short message between a client and their accountant.",
             "fields": [
-              { "name": "body", "label": "Message", "type": "longtext", "required": true, "sensitive": false },
-              { "name": "sent-at", "label": "Sent at", "type": "datetime", "required": true, "sensitive": false },
-              { "name": "read", "label": "Read", "type": "boolean", "required": false, "sensitive": false }
+              {
+                "name": "body",
+                "label": "Message",
+                "type": "longtext",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "sent-at",
+                "label": "Sent at",
+                "type": "datetime",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "read",
+                "label": "Read",
+                "type": "boolean",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "owner-only"
           }
@@ -284,16 +745,38 @@
         "audience": "customers",
         "requiresSignIn": true,
         "roles": [
-          { "name": "owner", "label": "Practice owner", "description": "Manages all accounts and sees every client.", "isAdmin": true },
-          { "name": "accountant", "label": "Accountant", "description": "Works with assigned clients only.", "isAdmin": false },
-          { "name": "client", "label": "Client", "description": "Sees only their own company's invoices, documents and messages.", "isAdmin": false }
+          {
+            "name": "owner",
+            "label": "Practice owner",
+            "description": "Manages all accounts and sees every client.",
+            "isAdmin": true
+          },
+          {
+            "name": "accountant",
+            "label": "Accountant",
+            "description": "Works with assigned clients only.",
+            "isAdmin": false
+          },
+          {
+            "name": "client",
+            "label": "Client",
+            "description": "Sees only their own company's invoices, documents and messages.",
+            "isAdmin": false
+          }
         ],
         "expectedUserCount": "21-500",
         "registration": "invite-only",
         "adminMfa": true
       },
       "data": {
-        "categories": ["contact", "financial", "government-id", "credentials", "files", "business-confidential"],
+        "categories": [
+          "contact",
+          "financial",
+          "government-id",
+          "credentials",
+          "files",
+          "business-confidential"
+        ],
         "aboutOtherPeople": true,
         "retention": "auto-delete-after-period",
         "retentionMonths": 72,
@@ -301,8 +784,17 @@
       },
       "capabilities": {
         "fileUploads": true,
-        "uploadKinds": ["documents", "images"],
-        "aiAssistant": { "enabled": false, "purpose": "", "dataItCanSee": "nothing", "canTakeActions": false, "storesHistory": false },
+        "uploadKinds": [
+          "documents",
+          "images"
+        ],
+        "aiAssistant": {
+          "enabled": false,
+          "purpose": "",
+          "dataItCanSee": "nothing",
+          "canTakeActions": false,
+          "storesHistory": false
+        },
         "email": true,
         "externalApis": [],
         "scheduledJobs": false,
@@ -311,7 +803,10 @@
       },
       "deployment": {
         "target": "internet-later",
-        "owner": { "name": "Priya Nair", "contactEmail": "priya@example.com" },
+        "owner": {
+          "name": "Priya Nair",
+          "contactEmail": "priya@example.com"
+        },
         "businessImpact": "high"
       },
       "meta": {
@@ -340,11 +835,41 @@
             "pluralLabel": "Projects",
             "description": "A piece of work with several tasks.",
             "fields": [
-              { "name": "name", "label": "Name", "type": "text", "required": true, "sensitive": false },
-              { "name": "goal", "label": "Goal", "type": "longtext", "required": false, "sensitive": false },
-              { "name": "client", "label": "Client", "type": "text", "required": false, "sensitive": false },
-              { "name": "budget", "label": "Budget", "type": "money", "required": false, "sensitive": true },
-              { "name": "archived", "label": "Archived", "type": "boolean", "required": false, "sensitive": false }
+              {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "goal",
+                "label": "Goal",
+                "type": "longtext",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "client",
+                "label": "Client",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "budget",
+                "label": "Budget",
+                "type": "money",
+                "required": false,
+                "sensitive": true
+              },
+              {
+                "name": "archived",
+                "label": "Archived",
+                "type": "boolean",
+                "required": false,
+                "sensitive": false
+              }
             ],
             "access": "all-signed-in"
           },
@@ -354,12 +879,60 @@
             "pluralLabel": "Tasks",
             "description": "One thing to do inside a project.",
             "fields": [
-              { "name": "title", "label": "Title", "type": "text", "required": true, "sensitive": false },
-              { "name": "details", "label": "Details", "type": "longtext", "required": false, "sensitive": false },
-              { "name": "assignee", "label": "Assigned to", "type": "text", "required": false, "sensitive": false },
-              { "name": "due-on", "label": "Due on", "type": "date", "required": false, "sensitive": false },
-              { "name": "priority", "label": "Priority", "type": "choice", "required": true, "choices": ["Low", "Normal", "High", "Urgent"], "sensitive": false },
-              { "name": "status", "label": "Status", "type": "choice", "required": true, "choices": ["To do", "In progress", "Blocked", "Done"], "sensitive": false }
+              {
+                "name": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "details",
+                "label": "Details",
+                "type": "longtext",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "assignee",
+                "label": "Assigned to",
+                "type": "text",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "due-on",
+                "label": "Due on",
+                "type": "date",
+                "required": false,
+                "sensitive": false
+              },
+              {
+                "name": "priority",
+                "label": "Priority",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "Low",
+                  "Normal",
+                  "High",
+                  "Urgent"
+                ],
+                "sensitive": false
+              },
+              {
+                "name": "status",
+                "label": "Status",
+                "type": "choice",
+                "required": true,
+                "choices": [
+                  "To do",
+                  "In progress",
+                  "Blocked",
+                  "Done"
+                ],
+                "sensitive": false
+              }
             ],
             "access": "all-signed-in"
           },
@@ -369,8 +942,20 @@
             "pluralLabel": "Comments",
             "description": "A note on a task.",
             "fields": [
-              { "name": "body", "label": "Comment", "type": "longtext", "required": true, "sensitive": false },
-              { "name": "posted-at", "label": "Posted at", "type": "datetime", "required": true, "sensitive": false }
+              {
+                "name": "body",
+                "label": "Comment",
+                "type": "longtext",
+                "required": true,
+                "sensitive": false
+              },
+              {
+                "name": "posted-at",
+                "label": "Posted at",
+                "type": "datetime",
+                "required": true,
+                "sensitive": false
+              }
             ],
             "access": "all-signed-in"
           }
@@ -387,15 +972,29 @@
         "audience": "my-team",
         "requiresSignIn": true,
         "roles": [
-          { "name": "owner", "label": "Owner", "description": "Manages accounts, archives projects and can switch the assistant off.", "isAdmin": true },
-          { "name": "member", "label": "Team member", "description": "Works on projects and tasks.", "isAdmin": false }
+          {
+            "name": "owner",
+            "label": "Owner",
+            "description": "Manages accounts, archives projects and can switch the assistant off.",
+            "isAdmin": true
+          },
+          {
+            "name": "member",
+            "label": "Team member",
+            "description": "Works on projects and tasks.",
+            "isAdmin": false
+          }
         ],
         "expectedUserCount": "2-20",
         "registration": "invite-only",
         "adminMfa": true
       },
       "data": {
-        "categories": ["contact", "credentials", "business-confidential"],
+        "categories": [
+          "contact",
+          "credentials",
+          "business-confidential"
+        ],
         "aboutOtherPeople": false,
         "retention": "keep-until-deleted",
         "region": "unsure"
@@ -418,7 +1017,10 @@
       },
       "deployment": {
         "target": "local-network",
-        "owner": { "name": "Jordan Lee", "contactEmail": "jordan@example.com" },
+        "owner": {
+          "name": "Jordan Lee",
+          "contactEmail": "jordan@example.com"
+        },
         "businessImpact": "normal"
       },
       "meta": {

@@ -923,3 +923,14 @@ display notification`, Linux `notify-send`; nothing on other platforms — with 
 `finishMessage` (verdict, count of serious open problems, or why it stopped). Failures to notify are swallowed.
 The Build page additionally offers a browser notification (Web Notifications API, permission requested only on
 click) that fires when the run ends while the tab is hidden.
+
+## Free onboarding example and the one-page landing (added 2026-09-18)
+
+`data/knowledge/examples.json` may mark an example `free: true` (the "Habit log" example, the golden
+`evals/golden/habit-tracker.json` profile): small enough to build without AI in minutes. `POST /projects/:id/runs`
+accepts `withoutAi` with `mode: 'full'` as well as `verify-only`: the worker uses the null provider, the scaffold
+writes the starter app from the answers (pages for every record, no AI-written features), every check and report
+runs, and no plan approval is needed. The Build page offers "Build without AI (free)" for any unbuilt app when a key
+is configured (in preview mode every build is already without AI) and "Check again without AI (free)" for built
+ones. The results page leads the Reports section with the one-page summary: verdict, headline, "can I use it", the
+first three top actions, and buttons to open `overview.html` or save it as PDF.

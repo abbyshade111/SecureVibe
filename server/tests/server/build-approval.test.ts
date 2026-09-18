@@ -126,11 +126,15 @@ describe('starting a build over the API', () => {
     const project = await designedProject(headers);
     const code = async () => (await request(harness.server).get(`/api/projects/${project.id}/estimate`).set(headers)).body.approvalCode as string;
 
-    const full = await request(harness.server).post(`/api/projects/${project.id}/runs`).set(headers).send({ mode: 'full', approved: true, approvalCode: await code(), withoutAi: true });
-    expect(full.status).toBe(400);
     const res = await request(harness.server).post(`/api/projects/${project.id}/runs`).set(headers).send({ mode: 'verify-only', approved: true, approvalCode: await code(), withoutAi: true });
     expect(res.status).toBe(202);
     expect(started.at(-1)!.job).toMatchObject({ withoutAi: true, mode: 'verify-only' });
+
+    // A full build without AI is allowed too (the starter app, free) and needs no approved plan.
+    const free = await request(harness.server).post(`/api/projects/${project.id}/runs`).set(headers).send({ mode: 'full', approved: true, approvalCode: await code(), withoutAi: true });
+    expect(free.status).toBe(202);
+    expect(started.at(-1)!.job).toMatchObject({ withoutAi: true, mode: 'full' });
+    expect(started.at(-1)!.job['plan']).toBeUndefined();
 
     const self = harness.store.create({ name: 'SecureVibe self-assessment', mode: 'quick', profile: habitTracker });
     const refused = await request(harness.server).post(`/api/projects/${self.id}/runs`).set(headers).send({ mode: 'verify-only', approved: true, approvalCode: 'x'.repeat(32), withoutAi: true });

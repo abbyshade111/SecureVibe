@@ -4,7 +4,7 @@ import type { ExampleProject, ProjectListItem } from '@shared/api.js';
 import { createProject, getExamples, listProjects } from '../lib/api';
 import { useStatus } from '../hooks/useStatus';
 import { AppList } from '../components/AppList';
-import { Card, ErrorNotice, LoadingScreen } from '../components/Bits';
+import { Badge, Card, ErrorNotice, LoadingScreen } from '../components/Bits';
 import { formatDate } from '../lib/format';
 
 interface PendingStart {
@@ -272,7 +272,14 @@ export function Home() {
           <div className="sv-grid">
             {examples.map((ex) => (
               <div className="sv-card" style={{ margin: 0 }} key={ex.id}>
-                <h3>{ex.title}</h3>
+                <h3>
+                  {ex.title}
+                  {ex.free && (
+                    <span style={{ marginLeft: 8 }}>
+                      <Badge tone="good">Free</Badge>
+                    </span>
+                  )}
+                </h3>
                 <p className="sv-muted">{ex.description}</p>
                 <button
                   type="button"
