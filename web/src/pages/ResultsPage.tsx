@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { AppPreview } from '../components/AppPreview';
+import { CodeViewer } from '../components/CodeViewer';
 import { VersionDiff } from '../components/VersionDiff';
 import type { Finding } from '@shared/findings.js';
 import type { PipelineRun } from '@shared/pipeline.js';
@@ -31,13 +32,19 @@ const RATING_TONE = { good: 'good', 'needs-attention': 'warn', 'at-risk': 'bad' 
 
 function FindingCard({
   finding,
+  projectId,
+  canShowCode,
   onFix,
   onAccept,
 }: {
   finding: Finding;
+  projectId: string;
+  /** False for an app whose code SecureVibe does not hold (nothing to open). */
+  canShowCode: boolean;
   onFix?: () => void;
   onAccept?: (reason: string) => Promise<void>;
 }) {
+  const [showCode, setShowCode] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [read, setRead] = useState(false);
   const [reason, setReason] = useState('');
@@ -57,7 +64,23 @@ function FindingCard({
         <p className="sv-faint">
           {finding.location.file}
           {finding.location.line ? `:${finding.location.line}` : ''}
+          {canShowCode && (
+            <>
+              {' '}
+              <button type="button" className="sv-link" onClick={() => setShowCode((v) => !v)} aria-expanded={showCode}>
+                {showCode ? 'Hide the code' : 'Show me this code'}
+              </button>
+            </>
+          )}
         </p>
+      )}
+      {showCode && finding.location?.file && (
+        <CodeViewer
+          projectId={projectId}
+          path={finding.location.file}
+          {...(finding.location.line ? { line: finding.location.line } : {})}
+          onClose={() => setShowCode(false)}
+        />
       )}
       <p>{finding.remediation.summary}</p>
       {(onFix || onAccept) && (
@@ -278,6 +301,8 @@ export function ResultsPage() {
   const alreadyAttested = new Set((project.attestations ?? []).map((a) => a.requirementId));
   const reviewFiles = run.provenance ? Object.keys(run.provenance.protectedFileHashes) : [];
   const uploaded = project.origin?.kind === 'uploaded';
+  // The code sits in the app folder either way: SecureVibe wrote it, or the owner uploaded it there.
+  const codeAvailable = uploaded || instructions !== null;
 
   return (
     <div className="sv-stack">
@@ -479,8 +504,14 @@ export function ResultsPage() {
         <Card>
           <h2>Run your app</h2>
           <p className="sv-faint">
-            Your app is in <code className="sv-code">{instructions.appDir}</code>. Open the Terminal app and run each
-            command below, one at a time (copy it, paste it, press Return).
+            Your app is in the folder below. Open the Terminal app and run each command underneath, one at a time (copy
+            it, paste it, press Return).
+          </p>
+          <CopyRow text={instructions.appDir} />
+          <p className="sv-faint">
+            To look at the code itself: copy that folder and paste it into Finder&apos;s <strong>Go → Go to Folder…</strong>{' '}
+            (or open the folder in a code editor). Every finding above also has a <strong>Show me this code</strong> link
+            that opens the exact file and line here, without leaving SecureVibe.
           </p>
           <ol style={{ marginTop: 16 }}>
             {instructions.steps.map((s, i) => (
@@ -540,7 +571,7 @@ export function ResultsPage() {
               <Badge tone="good">{fixed.length}</Badge>
             </div>
             {fixed.map((f) => (
-              <FindingCard key={f.id} finding={f} />
+              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} />
             ))}
           </div>
         )}
@@ -554,6 +585,8 @@ export function ResultsPage() {
               <FindingCard
                 key={f.id}
                 finding={f}
+                projectId={id!}
+                canShowCode={codeAvailable}
                 {...(uploaded ? {} : { onFix: () => void askClaudeToFix(f.id) })}
                 onAccept={(reason) => acceptFinding(f.id, reason)}
               />
@@ -567,7 +600,7 @@ export function ResultsPage() {
               <Badge tone="bad">{needsDeveloper.length}</Badge>
             </div>
             {needsDeveloper.map((f) => (
-              <FindingCard key={f.id} finding={f} onAccept={(reason) => acceptFinding(f.id, reason)} />
+              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} onAccept={(reason) => acceptFinding(f.id, reason)} />
             ))}
           </div>
         )}
@@ -578,7 +611,7 @@ export function ResultsPage() {
               <Badge tone="neutral">{nothingToDo.length}</Badge>
             </div>
             {nothingToDo.map((f) => (
-              <FindingCard key={f.id} finding={f} />
+              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} />
             ))}
           </div>
         )}
@@ -676,6 +709,9 @@ export function ResultsPage() {
                 Download the app only (zip)
               </a>
             )}
+            <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, 'scan-data.zip', reportRunId)} download>
+              Download the scan data (zip)
+            </a>
           </div>
           {!uploaded && (
             <p className="sv-muted">
@@ -684,6 +720,13 @@ export function ResultsPage() {
               open and who can fix it, and what must happen before other people use it.
             </p>
           )}
+          <p className="sv-muted">
+            The scan data is for a security person or their tools: the raw output of every check in this build, as data
+            rather than as a written report — every finding with its exact location, what each scanner reported, which
+            tools ran and which did not and why, the list of packages (CycloneDX), and the findings in SARIF, which code
+            editors and build servers read directly. It holds nothing the reports do not, and no passwords or keys. If you
+            just want to know whether your app is safe to use, the reports above are the ones to read.
+          </p>
           <table className="sv-table">
             <thead>
               <tr>

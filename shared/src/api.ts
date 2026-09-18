@@ -463,3 +463,29 @@ export const FileDiffResponseSchema = z.object({
   truncated: z.boolean().default(false),
 });
 export type FileDiffResponse = z.infer<typeof FileDiffResponseSchema>;
+
+/**
+ * GET /api/projects/:id/app/file?path=&version= → AppFileResponse
+ *
+ * The contents of one file of the generated app, so a finding can be read in place instead of hunting for the file
+ * on disk. Read-only, confined to the app folder, and files that hold secrets are never sent.
+ */
+export const AppFileResponseSchema = z.object({
+  /** Path relative to the app folder, exactly as findings report it. */
+  path: z.string(),
+  /** Which version of the app this came from ("current", "v3", …). */
+  version: z.string(),
+  /** The absolute folder the file lives in, so a person can open it in Finder or an editor. */
+  appDir: z.string(),
+  /** The file's text. Empty when `notShown` explains why there is nothing to show. */
+  text: z.string(),
+  /** Total number of lines in the file (before any truncation). */
+  lineCount: z.number().int(),
+  /** True when only the first part of the file is included. */
+  truncated: z.boolean().default(false),
+  /** Where the file came from: template, expanded, ai-generated, ai-fixed, user. */
+  origin: z.string().optional(),
+  /** Plain-language reason the contents are not shown (secrets, not a text file, too large). */
+  notShown: z.string().optional(),
+});
+export type AppFileResponse = z.infer<typeof AppFileResponseSchema>;

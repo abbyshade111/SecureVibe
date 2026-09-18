@@ -914,6 +914,35 @@ from, the pack's contents), `app/` (the same exclusions as `app.zip`: no `.env`,
 file; `.env.example` included), `reports/` (that run's report folder) and `human-checks.json` (attestations and
 the human code review). Uploaded apps get no pack. The results page offers both zips above the reports table.
 
+## Scan data pack (added 2026-09-18)
+
+`GET /projects/:id/artifacts/scan-data.zip` (`?run=` selects a run; default the latest) streams a zip built on
+demand by `reports/scan-data.ts` — the machine-readable output of one run, for a security reviewer or their
+tools, alongside the written reports. Contents: `README.txt` (what the pack is, how to read it, and that an AI
+review is recorded as `ai-assessed`, never `pass`), `findings.json` (every finding with the owner's decisions
+applied, as `GET /projects/:id/findings` returns them), `tool-coverage.json` (`run.coverage`: which tools ran,
+their versions, and the reason any did not), `run.json` (stages with statuses, timings and skip reasons),
+`scanners/<stage>.json` for each of typecheck, lint, unit-tests, sast, secrets, deps, config, dast, external,
+ai-review and fix (the stage's own `details` under `output`, `null` when it was skipped), the run's already
+machine-readable report files copied from its reports folder (`security-report.json`, `compliance-report.json`,
+`findings.sarif`, `sbom.cdx.json`, `provenance.json`; each included only if it exists) and `dast/probes.json`
+when the DAST stage saved one. Nothing is recomputed and no file that holds secrets is included, so the pack can
+never disagree with the reports or leak a key. The download is offered on the results page beside the hand-off
+pack, for uploaded apps too.
+
+## Reading the app's code (added 2026-09-18)
+
+`GET /projects/:id/app/file?path=<relative>&version=<current|v N>` returns one file of the generated app
+(`readAppFile` in `versions/index.ts`) as `AppFileResponse`: `path`, `version`, `appDir` (the absolute folder, so
+a person can open it in Finder or an editor), `text`, `lineCount`, `truncated` (only the first 3000 lines are
+sent), the file's `origin` from the app's provenance, and `notShown` — a plain-language reason instead of any
+contents. The same rules as the version diff apply: `.env`, `.env.*` and `FIRST-LOGIN.txt` are never shown
+(`notShown` says so), nor are binaries or very large files. The path is validated with `safeRelative` and
+resolved with `confinePath` against that version's folder, so `..`, absolute paths and symlinks out are refused.
+The endpoint is read-only: SecureVibe never writes a file through it. On the results page every finding with a
+`location.file` gets a "Show me this code" link that opens the file at `location.line`, with the line marked and
+twenty lines of context either side; the "Run your app" card offers the app folder as a copyable path.
+
 ## Build-finished notifications (added 2026-09-18)
 
 `settings.notifyOnFinish` (default true; Settings → "Tell me when a build finishes"). When a run ends, the process
