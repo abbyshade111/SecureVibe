@@ -254,6 +254,14 @@ export const RecommendationSchema = z.object({
   detail: z.string(),
   who: z.enum(['owner', 'developer', 'security-professional', 'hosting-provider']),
   effort: z.enum(['minutes', 'hour', 'day', 'more']).optional(),
+  /**
+   * When this has to be done, in the owner's terms — "before internet deployment", "before multi-team use".
+   * Absent means now. An action waiting on something that has not happened must not sit above one that is due
+   * today: an owner running an app on her own computer was told first to connect it to an organisation's central
+   * sign-in system, and second to move its secrets into a hosting provider's secret manager, neither of which
+   * she has.
+   */
+  dueBy: z.string().optional(),
   relatedRequirements: z.array(z.string()).default([]),
   relatedFindings: z.array(z.string()).default([]),
   relatedControls: z.array(z.string()).default([]),

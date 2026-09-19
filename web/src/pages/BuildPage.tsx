@@ -30,6 +30,30 @@ const FAILURE_ACTION_LABEL: Record<string, string> = {
   'add-api-key': 'Add an API key',
 };
 
+/** How many recent lines to keep. Enough to see movement, few enough not to become a wall of text. */
+const ACTIVITY_LINES = 8;
+
+/**
+ * The agent's own words, in the owner's. "Claude is using write_file…" is accurate and means nothing to someone
+ * who is not a programmer; what this line has to carry is that something is happening, and roughly what.
+ */
+const TOOL_WORDS: Record<string, string> = {
+  write_file: 'writing a file',
+  delete_file: 'removing a file',
+  read_file: 'reading a file',
+  list_files: 'looking through the files',
+  run_checks: 'running the checks',
+  run_tests: 'running the tests',
+  search: 'searching the code',
+};
+
+export function plainActivity(message: string): string {
+  const tool = /^Claude is using ([a-z_]+)/.exec(message);
+  if (tool) return `Claude is ${TOOL_WORDS[tool[1] ?? ''] ?? `using ${(tool[1] ?? '').replace(/_/g, ' ')}`}…`;
+  // Check messages arrive tagged with their stage; the tag is for the log, not for a person.
+  return message.replace(/^\[[a-z-]+\]\s*/, '');
+}
+
 export function BuildPage() {
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
@@ -44,6 +68,7 @@ export function BuildPage() {
   const [run, setRun] = useState<PipelineRun | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [activity, setActivity] = useState<{ at: string; text: string }[]>([]);
   const esRef = useRef<EventSource | null>(null);
   const fixFindingIds = useMemo(() => {
     const raw = params.get('fix');
@@ -110,7 +135,19 @@ export function BuildPage() {
     }
     const es = new EventSource(runEventsUrl(run.id));
     esRef.current = es;
-    es.addEventListener('progress', () => {
+    es.addEventListener('progress', (ev) => {
+      // Every message the run sends already arrives here; the page used to throw the contents away and re-read
+      // the run. The stage list only moves every few minutes, so a build that was working looked identical to one
+      // that had stopped — and the owner watching a slow, paid build had nothing to tell them it was still going.
+      try {
+        const payload = JSON.parse((ev as MessageEvent<string>).data) as { type?: string; message?: string; at?: string };
+        if (payload.type === 'log' && payload.message) {
+          const line = { at: payload.at ?? new Date().toISOString(), text: plainActivity(payload.message) };
+          setActivity((lines) => [...lines, line].slice(-ACTIVITY_LINES));
+        }
+      } catch {
+        // A message this page cannot read is not a reason to stop following the run.
+      }
       getRun(run.id)
         .then(setRun)
         .catch(() => undefined);
@@ -454,6 +491,18 @@ export function BuildPage() {
               Cancel
             </button>
           </div>
+          {activity.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <p className="sv-label" style={{ marginBottom: 4 }}>What it is doing right now</p>
+              <ul className="sv-stack" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {activity.map((line, i) => (
+                  <li key={`${line.at}-${i}`} className={i === activity.length - 1 ? 'sv-muted' : 'sv-faint'} style={{ margin: 0 }}>
+                    {line.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       )}
 

@@ -243,6 +243,22 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     expect(clean.overall.canIUseIt).not.toMatch(/urgent/i);
   });
 
+  it('puts what can be done now above what waits for something that has not happened', () => {
+    // An owner running her app on her own computer was told, as her top two actions, to connect it to her
+    // organisation's central sign-in system and to move its secrets into a hosting provider's secret manager.
+    // She has neither an organisation nor a host. Both actions are real and are kept; they are just not what she
+    // does next, and a list read top-down had buried everything she could act on today underneath them.
+    const { input } = buildInput();
+    input.manifestResults = [];
+    const result = evaluateCompliance(input);
+    const waiting = (r: { dueBy?: string }) => Boolean(r.dueBy && r.dueBy.trim() !== '');
+    const order = result.recommendations.map(waiting);
+    const firstWaiting = order.indexOf(true);
+    if (firstWaiting !== -1) {
+      expect(order.slice(firstWaiting).every(Boolean), 'an action due now appears below one that is waiting').toBe(true);
+    }
+  });
+
   it('recommendations are sorted high, then medium, then low priority, and top 5 mirrors overall.topActions', async () => {
     const { input } = buildInput();
     input.manifestResults = [];

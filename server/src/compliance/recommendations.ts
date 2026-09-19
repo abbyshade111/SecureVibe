@@ -58,6 +58,7 @@ function fromSbd(entries: SbdEvaluatedEntry[]): Recommendation[] {
         title: `${e.id}: ${action.text}`,
         detail: e.justification,
         who: ownerFromAction(action.owner),
+        ...(action.dueBy ? { dueBy: action.dueBy } : {}),
         relatedRequirements: [],
         relatedFindings: [],
         relatedControls: [e.id],
@@ -103,6 +104,14 @@ function dedupe(recs: Recommendation[]): Recommendation[] {
   return [...seen.values()];
 }
 
+/**
+ * 1 when the action waits on something that has not happened — hosting the app online, using it across teams.
+ * Those are real and are kept; they are simply not what an owner does next, and the list is read top-down.
+ */
+function waitsForSomething(r: Recommendation): number {
+  return r.dueBy && r.dueBy.trim() !== '' && !/^(now|immediately|today)$/i.test(r.dueBy.trim()) ? 1 : 0;
+}
+
 export function buildRecommendations(results: RequirementResult[], sbdEntries: SbdEvaluatedEntry[], findings: Finding[]): Recommendation[] {
   const combined = dedupe([...fromRequirements(results), ...fromSbd(sbdEntries), ...fromFindings(findings)]);
   // An urgent finding and a merely important one both count as "high", and only the first five actions are shown,
@@ -111,6 +120,16 @@ export function buildRecommendations(results: RequirementResult[], sbdEntries: S
   const urgent = new Set(findings.filter((f) => f.priority === 'P1').map((f) => f.id));
   const blocksUse = (r: Recommendation): number => (r.relatedFindings.some((id) => urgent.has(id)) ? 0 : 1);
   return combined
-    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || blocksUse(a) - blocksUse(b) || a.title.localeCompare(b.title))
+    .sort(
+      (a, b) =>
+        // Anything blocking use, then everything due now, then what is waiting on something that has not
+        // happened yet. Severity alone put "if your organisation has a central sign-in system" and "when the app
+        // is hosted online" at the top of the list for an owner with neither an organisation nor a host, which
+        // buries the things she could actually do today under two she cannot.
+        blocksUse(a) - blocksUse(b) ||
+        waitsForSomething(a) - waitsForSomething(b) ||
+        PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+        a.title.localeCompare(b.title),
+    )
     .map((r, i) => ({ ...r, id: `REC-${String(i + 1).padStart(3, '0')}` }));
 }

@@ -349,7 +349,8 @@ export function ResultsPage() {
                 <strong>{a.title}</strong> — {a.detail}{' '}
                 <span className="sv-faint">
                   ({a.who}
-                  {a.effort ? `, ${a.effort}` : ''})
+                  {a.effort ? `, ${a.effort}` : ''}
+                  {a.dueBy ? `, ${a.dueBy}` : ''})
                 </span>
               </li>
             ))}
