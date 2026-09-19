@@ -2,9 +2,9 @@
   "version": 1,
   "case": "team-inventory",
   "mode": "no-ai",
-  "runId": "r_20260919005641_vtpdp7",
+  "runId": "r_20260919123833_jj62mq",
   "status": "succeeded",
-  "durationMs": 260687,
+  "durationMs": 239704,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -27,20 +27,20 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 6,
+    "medium": 2,
     "low": 2,
     "info": 0
   },
   "asvs": {
-    "pass": 122,
+    "pass": 123,
     "applicable": 178,
-    "verifiedPassPercent": 68.5,
+    "verifiedPassPercent": 69.1,
     "aiAssessed": 0,
     "fail": 2
   },
   "tests": {
-    "total": 188,
-    "passed": 141,
+    "total": 201,
+    "passed": 154,
     "failed": 0
   },
   "costUsd": 0
