@@ -157,6 +157,15 @@ export const ExternalApiSpecSchema = z.object({
   purpose: z.string().max(300),
   /** Whether the app sends personal data to this service (drives data-flow classification). */
   sendsPersonalData: z.boolean().default(false),
+  /**
+   * The address the app will call, host only ("api.example.com"). The agent is told to add it to
+   * OUTBOUND_ALLOWED_HOSTS, and without it there was nothing to add: it guessed a host or left the connection
+   * unbuilt, and an owner was told her app "only talks to the outside services you named" about calls that were
+   * never written. Empty means the owner does not know it yet, which is a thing to tell them, not to invent.
+   */
+  host: z.string().max(253).default(''),
+  /** Whether the owner already has an account and key for it. "no" and "not sure" both leave the call unbuilt. */
+  credentials: z.enum(['have', 'not-yet', 'not-sure']).default('not-sure'),
 });
 export type ExternalApiSpec = z.infer<typeof ExternalApiSpecSchema>;
 

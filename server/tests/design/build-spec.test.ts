@@ -131,6 +131,33 @@ describe('buildSpecFor', () => {
 // across that would be dishonest, and the hash is the only thing standing between us and it. So the hash must move
 // whenever the feature set moves. It does today because featuresFor reads only profile sections the hash covers,
 // but nothing in the type system says so, and a future feature read from profile.meta would break it silently.
+describe('what the agent is told about an outside service', () => {
+  const withApi = (api: Record<string, unknown>) => ({
+    ...marketplace,
+    capabilities: { ...marketplace.capabilities, externalApis: [{ name: 'Weather', purpose: 'show the forecast', sendsPersonalData: false, ...api }] },
+  });
+
+  it('names the exact host to allow when the owner gave one', () => {
+    const brief = buildSpecFor(withApi({ host: 'api.weather.example', credentials: 'have' }) as never).brief;
+    expect(brief).toContain('api.weather.example');
+    expect(brief).toMatch(/add exactly that to OUTBOUND_ALLOWED_HOSTS/i);
+  });
+
+  it('forbids guessing a host when the owner did not give one, and says to report it unbuilt', () => {
+    // An owner was told her app "only talks to the outside services you named" about connections that were never
+    // written: there was no address to allow, so the agent guessed one or skipped the work in silence.
+    const brief = buildSpecFor(withApi({ host: '', credentials: 'have' }) as never).brief;
+    expect(brief).toMatch(/do not guess one and do not call it/i);
+    expect(brief).toMatch(/not set up yet/i);
+  });
+
+  it('says plainly when there is no key yet, rather than building a call that cannot work', () => {
+    const brief = buildSpecFor(withApi({ host: 'api.weather.example', credentials: 'not-yet' }) as never).brief;
+    expect(brief).toMatch(/does not have an account or key/i);
+    expect(brief).toMatch(/fail cleanly/i);
+  });
+});
+
 describe('a change of features is always a change of hash', () => {
   const caps = (overrides: Record<string, unknown>) => ({ ...marketplace, capabilities: { ...marketplace.capabilities, ...overrides } });
 

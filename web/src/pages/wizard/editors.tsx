@@ -395,6 +395,43 @@ export function ExternalApisEditor({
             }}
             aria-label={fields?.purpose.label ?? 'What it is for'}
           />
+          {/* The address and whether a key exists: both decide what can actually be built, and neither can be
+              guessed. Without them the agent invented a host or left the connection unbuilt in silence. */}
+          <input
+            className="sv-input"
+            style={{ marginTop: 8 }}
+            value={item.host ?? ''}
+            placeholder={fields?.host?.placeholder ?? 'api.example.com'}
+            onChange={(e) => {
+              const next = [...items];
+              next[i] = { ...item, host: e.target.value.trim() };
+              onChange(next);
+            }}
+            aria-label={fields?.host?.label ?? 'Its web address'}
+          />
+          <p className="sv-help" style={{ marginTop: 4 }}>
+            {fields?.host?.help ?? 'Just the address, no https:// and no path. Leave it empty if you do not know it yet.'}
+          </p>
+          <label className="sv-label" style={{ marginTop: 8 }} htmlFor={`api-credentials-${i}`}>
+            {fields?.credentials?.label ?? 'Do you have an account and key for it?'}
+          </label>
+          <select
+            id={`api-credentials-${i}`}
+            className="sv-input"
+            value={item.credentials ?? 'not-sure'}
+            onChange={(e) => {
+              const next = [...items];
+              next[i] = { ...item, credentials: e.target.value as typeof item.credentials };
+              onChange(next);
+            }}
+          >
+            <option value="have">Yes, I have an account and key</option>
+            <option value="not-yet">Not yet</option>
+            <option value="not-sure">I am not sure</option>
+          </select>
+          <p className="sv-help" style={{ marginTop: 4 }}>
+            {fields?.credentials?.help ?? 'Without one the connection cannot work, so we build everything else and tell you what is left to do.'}
+          </p>
           <label className="sv-checkbox-row" style={{ marginTop: 8, marginBottom: 0 }}>
             <input
               type="checkbox"
@@ -413,7 +450,7 @@ export function ExternalApisEditor({
         <button
           type="button"
           className="sv-btn sv-btn-secondary"
-          onClick={() => onChange([...items, { name: '', purpose: '', sendsPersonalData: false }])}
+          onClick={() => onChange([...items, { name: '', purpose: '', sendsPersonalData: false, host: '', credentials: 'not-sure' }])}
         >
           + Add a service
         </button>

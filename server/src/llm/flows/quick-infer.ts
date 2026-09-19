@@ -326,7 +326,14 @@ export function applyInference(baseline: DesignProfile, inferred: QuickInferOutp
   if (inferred.publicApi) take('capabilities.publicApi', () => (profile.capabilities.publicApi = true));
   if (inferred.payments) take('capabilities.payments', () => (profile.capabilities.payments = true));
   if (inferred.externalApis.length > 0) {
-    take('capabilities.externalApis', () => (profile.capabilities.externalApis = inferred.externalApis.slice(0, 10)));
+    // The model may name a service from the description, but it does not know the owner's account or the address
+    // they will use: those two are asked, never guessed. An invented host would be added to the allow-list and an
+    // invented "they have a key" would have the agent build a call that cannot work.
+    take(
+      'capabilities.externalApis',
+      () =>
+        (profile.capabilities.externalApis = inferred.externalApis.slice(0, 10).map((api) => ({ ...api, host: '', credentials: 'not-sure' as const }))),
+    );
   }
 
   if (inferred.aiAssistant.enabled) {

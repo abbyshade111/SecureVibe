@@ -199,8 +199,19 @@ function featuresToBuild(profile: DesignProfile, f: ProfileFacts): string[] {
   }
   if (caps.externalApis.length) {
     for (const api of caps.externalApis) {
+      // The host and whether a key exists are told to the agent plainly, because both decide what it can build.
+      // Without a host there is nothing to put in OUTBOUND_ALLOWED_HOSTS, and the agent used to guess one or
+      // quietly leave the connection unbuilt — while the reports told the owner her app only talks to the
+      // services she named. An unbuildable connection must be left unbuilt *and said*, not invented.
+      const reach = api.host
+        ? `Its host is ${api.host}: add exactly that to OUTBOUND_ALLOWED_HOSTS in .env.example, with a comment.`
+        : 'The owner did not give its address, so there is no host to allow: do not guess one and do not call it. Build everything else and say in the README that this connection is not set up yet.';
+      const key =
+        api.credentials === 'have'
+          ? 'The owner has an account and key for it; read the key from the environment, never from code.'
+          : 'The owner does not have an account or key for it yet, so the call cannot work: leave the code path in place, read the key from the environment, and fail cleanly with a message saying the service is not set up.';
       lines.push(
-        `- Outside service "${api.name}": ${api.purpose || 'used by the app'}. Call it only through lib/http-client outboundFetch(); its host must be listed in OUTBOUND_ALLOWED_HOSTS (add it to .env.example with a comment). ${
+        `- Outside service "${api.name}": ${api.purpose || 'used by the app'}. Call it only through lib/http-client outboundFetch(). ${reach} ${key} ${
           api.sendsPersonalData ? 'It receives personal data: send the minimum fields and list them in the feature README section.' : 'Send no personal data to it.'
         }`,
       );

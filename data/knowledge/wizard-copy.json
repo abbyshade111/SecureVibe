@@ -1396,7 +1396,7 @@
       "required": false,
       "title": "Other online services",
       "question": "Does the app need to talk to other online services?",
-      "helpText": "For example a calendar, a shipping company, a weather service or an accounting tool. For each one, say what it is for and whether it will receive people's personal details.",
+      "helpText": "For example a calendar, a shipping company, a weather service or an accounting tool. For each one, say what it is for, its web address, and whether you already have an account and key for it.",
       "whyWeAsk": "Every outside connection is a place where data leaves your app. We only allow the app to contact the services you list here and nothing else, and we note which ones receive personal data.",
       "fields": {
         "name": {
@@ -1410,6 +1410,15 @@
         "sendsPersonalData": {
           "label": "It will receive people's personal details (names, emails...)",
           "help": "Tick this if the service will see anything about identifiable people."
+        },
+        "host": {
+          "label": "Its web address",
+          "placeholder": "api.weatherservice.com",
+          "help": "Just the address, no https:// and no path. Leave it empty if you do not know it yet — we will say so rather than guess."
+        },
+        "credentials": {
+          "label": "Do you have an account and key for it?",
+          "help": "Most services need you to sign up and get a key. Without one the connection cannot work, so we build everything else and tell you what is left to do."
         }
       },
       "maxItems": 10,
@@ -1422,7 +1431,8 @@
         "*": [
           "The app can only contact the services you list; every other outside address is blocked.",
           "Each connection has a time limit and stops automatically if the service keeps failing.",
-          "Secret keys for these services live in the settings file, never in the code."
+          "Secret keys for these services live in the settings file, never in the code.",
+          "A service whose address you do not know, or that you have no key for yet, is not connected: we build the rest and tell you what is missing rather than guessing."
         ],
         "sendsPersonalData": [
           "Services that receive personal details are listed in the data-protection document so you can tell people where their data goes."

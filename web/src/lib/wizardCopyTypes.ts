@@ -63,6 +63,8 @@ export interface WizardExternalApiFields {
   name: { label: string; placeholder?: string };
   purpose: { label: string; placeholder?: string };
   sendsPersonalData: { label: string; help?: string };
+  host?: { label: string; placeholder?: string; help?: string };
+  credentials?: { label: string; help?: string };
 }
 
 export interface WizardQuestion {

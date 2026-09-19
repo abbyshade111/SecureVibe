@@ -169,7 +169,7 @@ export const marketplace: DesignProfile = DesignProfileSchema.parse({
     uploadKinds: ['images'],
     aiAssistant: { enabled: true, purpose: 'answer buyer questions and draft listing descriptions', dataItCanSee: 'all-records', canTakeActions: true, storesHistory: true, canSearchWeb: false, webSearchSites: [] },
     email: true,
-    externalApis: [{ name: 'Shipping rates API', purpose: 'quote shipping costs', sendsPersonalData: true }],
+    externalApis: [{ name: 'Shipping rates API', purpose: 'quote shipping costs', sendsPersonalData: true, host: 'api.shipping.example.com', credentials: 'have' }],
     scheduledJobs: true,
     publicApi: true,
     payments: true,
