@@ -45,6 +45,13 @@ an owner would notice, because that is what decides the order. Remove an item wh
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
+- **The harness should clear its own leftovers when it starts.** It removes its scratch workspace when a run
+  finishes normally and not when a run is killed, and a run gets killed whenever someone spots a problem early —
+  which is the harness working as intended. Fifteen abandoned workspaces reached 18GB on a disk with 17GB free
+  on 19 September 2026, one run away from failing. A disk-full failure mid-build is the worst kind, because it
+  reads as a regression in whatever changed last and sends both sessions hunting in the wrong place. Removing any
+  `securevibe-eval-*` older than a few hours before starting costs nothing and needs nobody to remember.
+
 ## The recipe-library session's half
 
 - The chart recipe (landed 19 September 2026), then a "needs attention" view, then keeping an assistant's answer
