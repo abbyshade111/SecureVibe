@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     # A hung suite must fail visibly rather than run until the six-hour default: this job hung at "npm test" on
     # every run before this was added, and nothing said so.
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -48,16 +48,23 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # --reporter=verbose names each file as it starts, so a stall says where it stalled.
+      # One file at a time, and a hard stop from the shell as well as the job.
+      #
+      # This suite starts real applications, each in its own process, and on a developer's machine vitest runs many
+      # files at once. A GitHub runner has a fraction of the cores and memory, and the job stopped reporting
+      # altogether rather than failing — the runner itself went quiet, which is what running out of memory looks
+      # like from the outside. Running the files one at a time keeps the number of live applications small.
+      # The `timeout` wrapper matters because the job's own timeout is enforced by the runner: when the runner is
+      # the thing that wedged, nothing was left to enforce it.
       - name: Run SecureVibe's own tests
-        run: npm test -- --reporter=verbose
+        run: timeout --signal=TERM --kill-after=30s 15m npm test -- --reporter=verbose --no-file-parallelism
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
         working-directory: templates/secure-web-app
         run: |
           node -e "require('fs').writeFileSync('securevibe.features.json', JSON.stringify({auth:true,adminMfa:true,userMfa:true,uploads:true,ai:true,aiActions:true,aiModeration:true,aiHistory:true,email:true,scheduler:true,publicApi:true,payments:true,fieldEncryption:true,retentionJobs:true,lanBinding:false,tlsMode:'off',example:true}))"
-          node --experimental-strip-types --test tests/security/*.test.ts
+          timeout --signal=TERM --kill-after=30s 15m node --experimental-strip-types --test --test-concurrency=2 tests/security/*.test.ts
 
   packages:
     name: Packages and bill of materials
