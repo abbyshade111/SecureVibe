@@ -67,6 +67,12 @@ export function runsRouter(deps: ApiDeps): Router {
         throw validationError('The app folder from that build is not there any more, so it has to be built from the start.');
       }
       const designHash = project.design?.profileHash;
+      // No provenance means the earlier run died before it recorded which answers it was building from, so a
+      // change of answers cannot be detected and continuing could lay new code onto a folder built from the old
+      // ones — exactly what the refusal below promises cannot happen. A run that early has nothing worth keeping.
+      if (!previous.provenance?.designProfileHash) {
+        throw validationError('That build stopped too early to be continued safely: it never recorded which answers it was building from. Start a fresh build instead.');
+      }
       if (designHash && previous.provenance?.designProfileHash && previous.provenance.designProfileHash !== designHash) {
         throw validationError('Your answers have changed since that build, so continuing it would build the wrong app. Start a fresh build instead.');
       }

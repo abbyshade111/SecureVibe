@@ -224,11 +224,20 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     expect(text).not.toMatch(/\bcertified\b/i);
   });
 
-  it('gates "Can I use it?" on open P1 findings', async () => {
+  it('gates "Can I use it?" on open P1 findings, and says which one', async () => {
     const { input } = buildInput();
     input.manifestResults = [];
     const result = evaluateCompliance(input);
     expect(result.overall.canIUseIt).toMatch(/urgent/i);
+
+    // Counting the blockers without naming them sent an owner to a list of five actions that did not contain the
+    // blocker — a finding SecureVibe fixes itself never becomes an action, because an action is something a
+    // person does. The verdict must name the thing it is talking about and point somewhere it can be found.
+    const blockers = input.findings.filter((f) => f.priority === 'P1' && f.status === 'open');
+    expect(blockers.length).toBeGreaterThan(0);
+    expect(result.overall.canIUseIt).toContain(blockers[0]!.title);
+    expect(result.overall.canIUseIt).toContain('What we found');
+    expect(result.overall.canIUseIt).not.toMatch(/issue need fixing/);
 
     const clean = evaluateCompliance({ ...input, findings: [] });
     expect(clean.overall.canIUseIt).not.toMatch(/urgent/i);

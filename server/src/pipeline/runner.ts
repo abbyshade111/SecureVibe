@@ -168,7 +168,7 @@ export function resumeDecision(previous: PipelineRun): { skipScaffold: true; ski
     skipScaffold: true,
     skipGenerate: wroteEverything,
     note: wroteEverything
-      ? 'Continued from the earlier build, which had finished writing your app: nothing was written again, and every check was run afresh.'
+      ? 'Continued from the earlier build, which had nothing left to write: nothing was written again, and every check was run afresh.'
       : 'Continued from the earlier build, which stopped while writing your app: the parts it had already written were kept, and the rest was written from there.',
   };
 }
@@ -325,7 +325,7 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     const onlyChecks = opts.onlyChecks?.length ? new Set<StageId>([...opts.onlyChecks, 'install']) : undefined;
     for (const stage of CORE_STAGES) {
       if (abort.signal.aborted) break;
-      const notAskedFor = onlyChecks && !onlyChecks.has(stage.id) ? 'You asked for some of the checks only, so this one was not run this time. Its last result is the one from your last full check.' : undefined;
+      const notAskedFor = onlyChecks && !onlyChecks.has(stage.id) ? 'You asked for some of the checks only, so this one was not run this time. What it says is the result of the last run that did include it.' : undefined;
       const skipReason = opts.skipStages?.[stage.id] ?? notAskedFor;
       if (skipReason) {
         await push(skipStage(ctx, stage.id, skipReason));

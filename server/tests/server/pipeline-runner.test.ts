@@ -135,7 +135,11 @@ describe('pipeline runner', () => {
     expect(stages.runGenerate).not.toHaveBeenCalled();
     expect(run.stages.find((s) => s.id === 'generate')?.status).toBe('skipped');
     expect(run.stages.find((s) => s.id === 'generate')?.summary).toMatch(/nothing was spent/i);
-    expect(run.resumedNote).toMatch(/finished writing/i);
+    // "had finished writing your app" was not always true: on a build without AI the recipes write the app at
+    // scaffold time and the writing step is skipped, so nothing ever finished writing. What the owner needs to
+    // know is the same either way — there was nothing left to write, so nothing was paid for twice.
+    expect(run.resumedNote).toMatch(/nothing left to write/i);
+    expect(run.resumedNote).toMatch(/nothing was written again/i);
   });
 
   it('runs only the checks the owner asked for, and leaves the compliance report alone', async () => {

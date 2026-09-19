@@ -17,6 +17,16 @@ const LABEL = {
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'info'] as const;
 
+/**
+ * A check whose step passed can still have findings open from that run — accepted ones, or ones another check
+ * raised against the same code. Printing "Nothing to fix" directly above "Still open from that run: 1 low"
+ * contradicts itself on one line, and the owner has to decide which half to believe.
+ */
+function labelFor(check: CheckStatus): string {
+  if (check.status === 'passed' && problemsLine(check)) return 'Passed, with things still open';
+  return LABEL[check.status];
+}
+
 function problemsLine(check: CheckStatus): string | undefined {
   if (!check.findingCounts) return undefined;
   const parts = SEVERITY_ORDER.filter((s) => check.findingCounts![s]).map((s) => `${check.findingCounts![s]} ${s}`);
@@ -61,6 +71,17 @@ export default function SecurityPage() {
 
   if (projectLoading || (!data && !error)) return <LoadingScreen label="Reading your checks…" />;
   if (projectError) return <ErrorNotice message={projectError} />;
+  // Without this, a failed read rendered the page from nothing: every check "Never run", and "your app has not
+  // had a full check yet". Both are statements about the app, both were false, and the real reason — a request
+  // that failed — sat above them in a notice that looked like a footnote beside them.
+  if (!data)
+    return (
+      <div className="sv-stack">
+        <h1>Security checks{project ? ` for ${project.name}` : ''}</h1>
+        <ErrorNotice message={error ?? 'Could not read your checks.'} />
+        <p className="sv-muted">Nothing is shown here because that read failed, not because the checks have not run.</p>
+      </div>
+    );
 
   return (
     <div className="sv-stack">
@@ -103,7 +124,7 @@ export default function SecurityPage() {
             <li key={check.id} className="sv-row-between" style={{ alignItems: 'flex-start', gap: 16, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
               <div>
                 <p>
-                  <strong>{check.title}</strong> <Badge tone={TONE[check.status]}>{LABEL[check.status]}</Badge>
+                  <strong>{check.title}</strong> <Badge tone={TONE[check.status]}>{labelFor(check)}</Badge>
                 </p>
                 <p className="sv-help">{check.covers}</p>
                 <p className="sv-muted">

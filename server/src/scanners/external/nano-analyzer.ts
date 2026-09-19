@@ -260,12 +260,21 @@ export async function runNanoAnalyzer(ctx: NanoRunContext, opts: NanoAnalyzerOpt
   } catch (err) {
     return { ran: false, reason: `skipped: nano-analyzer could not be run (${(err as Error).message})`, seeds: [] };
   }
-  if (result.timedOut) return { ran: false, reason: 'skipped: nano-analyzer was stopped at the time limit', seeds: [] };
+  // Not "skipped". By this point the tool has sent files to the AI service and the owner's key has been charged;
+  // the failure above this line is free because nothing ran, but these two are not. Calling a scan that spent
+  // money "skipped" understates what it cost, and the owner has no other way to find out.
+  if (result.timedOut) {
+    return { ran: false, reason: 'stopped at the time limit after reading some of your files: your AI service was charged for what it had already read', seeds: [] };
+  }
 
   const summary = readNanoSummary(outputDir);
   if (!summary) {
     const tail = result.stderr.trim().split(/\r?\n/).slice(-1)[0] ?? '';
-    return { ran: false, reason: `skipped: nano-analyzer wrote no results (exit code ${result.code ?? 'unknown'})${tail ? `: ${tail.slice(0, 160)}` : ''}`, seeds: [] };
+    return {
+      ran: false,
+      reason: `wrote no results (exit code ${result.code ?? 'unknown'}); it may already have read some of your files, in which case your AI service was charged for them${tail ? `: ${tail.slice(0, 160)}` : ''}`,
+      seeds: [],
+    };
   }
   const seeds = readNanoFindings(outputDir, opts.minConfidence);
   ctx.log(`[external] nano-analyzer read ${summary.filesScanned} file(s) and suggests ${seeds.length} thing(s) to look at`);

@@ -555,6 +555,24 @@ export function ResultsPage() {
         </Card>
       )}
 
+      {compliance && compliance.overall.topActions.length > 0 && (
+        <Card>
+          <h2>Top actions</h2>
+          <ol>
+            {compliance.overall.topActions.map((a) => (
+              <li key={a.id}>
+                <strong>{a.title}</strong> — {a.detail}{' '}
+                <span className="sv-faint">
+                  ({a.who}
+                  {a.effort ? `, ${a.effort}` : ''})
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
+
+
       <div className="sv-row" style={{ flexWrap: 'wrap' }}>
         <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${id}/wizard/about`}>
           Edit my answers
@@ -642,23 +660,6 @@ export function ResultsPage() {
               ))}
             </tbody>
           </table>
-        </Card>
-      )}
-
-      {compliance && compliance.overall.topActions.length > 0 && (
-        <Card>
-          <h2>Top actions</h2>
-          <ol>
-            {compliance.overall.topActions.map((a) => (
-              <li key={a.id}>
-                <strong>{a.title}</strong> — {a.detail}{' '}
-                <span className="sv-faint">
-                  ({a.who}
-                  {a.effort ? `, ${a.effort}` : ''})
-                </span>
-              </li>
-            ))}
-          </ol>
         </Card>
       )}
 

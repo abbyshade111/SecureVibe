@@ -236,7 +236,9 @@ export function projectsRouter(deps: ApiDeps): Router {
         theme: body.theme,
         applied,
         message: applied
-          ? 'Your app has the new look. Start it again (or reload its page if it is already running) to see it.'
+          // Not "reload the page": APP_THEME is read once when the app starts and the layout renders a constant,
+          // so a reload serves the old colours and an owner who follows the advice concludes the feature is broken.
+          ? 'Your app has the new look. Stop your app and start it again to see it — reloading the page is not enough, because an app reads its colours when it starts.'
           : 'Saved. Your app will be built with this look.',
       }),
     );

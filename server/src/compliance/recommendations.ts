@@ -105,7 +105,12 @@ function dedupe(recs: Recommendation[]): Recommendation[] {
 
 export function buildRecommendations(results: RequirementResult[], sbdEntries: SbdEvaluatedEntry[], findings: Finding[]): Recommendation[] {
   const combined = dedupe([...fromRequirements(results), ...fromSbd(sbdEntries), ...fromFindings(findings)]);
+  // An urgent finding and a merely important one both count as "high", and only the first five actions are shown,
+  // so alphabetical order could push the thing blocking the app off the end of the list. Anything tied to an
+  // urgent finding sorts to the front of its band.
+  const urgent = new Set(findings.filter((f) => f.priority === 'P1').map((f) => f.id));
+  const blocksUse = (r: Recommendation): number => (r.relatedFindings.some((id) => urgent.has(id)) ? 0 : 1);
   return combined
-    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.title.localeCompare(b.title))
+    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || blocksUse(a) - blocksUse(b) || a.title.localeCompare(b.title))
     .map((r, i) => ({ ...r, id: `REC-${String(i + 1).padStart(3, '0')}` }));
 }

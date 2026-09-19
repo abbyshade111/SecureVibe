@@ -209,13 +209,25 @@ function limitationsFor(input: EvaluateInput): string[] {
   return out;
 }
 
+/**
+ * Naming the blocker matters more than counting it. "1 urgent security issue need fixing first, see the top
+ * actions below" sent an owner to a list of five actions, none of which was the blocker: a finding SecureVibe
+ * fixes itself never becomes an action, because actions are things a person does. So the sentence pointed at a
+ * place the answer could not be. It says which issue now, and sends the reader where that issue really is.
+ */
 function canIUseIt(
   deploymentTarget: DesignProfile['deployment']['target'] | undefined,
-  p1Count: number,
+  p1Findings: Finding[],
   topActionCount: number,
   criticalNo: string[] = [],
 ): string {
-  if (p1Count > 0) return `Not yet — ${p1Count} urgent security issue${p1Count === 1 ? '' : 's'} need fixing first. See the top actions below.`;
+  if (p1Findings.length > 0) {
+    const named = p1Findings.slice(0, 2).map((f) => `"${f.title}"`).join(' and ');
+    const rest = p1Findings.length > 2 ? `, and ${p1Findings.length - 2} more` : '';
+    return p1Findings.length === 1
+      ? `Not yet — one urgent security issue needs fixing first: ${named}. It is under "What we found" below, with the evidence behind it.`
+      : `Not yet — ${p1Findings.length} urgent security issues need fixing first, starting with ${named}${rest}. They are under "What we found" below, with the evidence behind each one.`;
+  }
   if (deploymentTarget === 'local-only' || deploymentTarget === undefined) {
     // With no urgent finding, "At risk" comes only from unmet Secure by Design critical controls; say so, so the
     // red rating and the "yes" do not read as a contradiction.
@@ -356,7 +368,8 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     changesSincePrevious = { improved, regressed, newFindings, fixedFindings };
   }
 
-  const p1Count = input.findings.filter((f) => isOpen(f) && f.priority === 'P1').length;
+  const p1Findings = input.findings.filter((f) => isOpen(f) && f.priority === 'P1');
+  const p1Count = p1Findings.length;
   const overallCounts = allAppResults.reduce((acc, r) => {
     acc[r.status]++;
     return acc;
@@ -389,7 +402,7 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     overall: {
       rating: overallRating,
       headline,
-      canIUseIt: canIUseIt(deploymentTarget, p1Count, recTop5.length, sbd.criticalNo),
+      canIUseIt: canIUseIt(deploymentTarget, p1Findings, recTop5.length, sbd.criticalNo),
       topActions: recTop5,
     },
   };
