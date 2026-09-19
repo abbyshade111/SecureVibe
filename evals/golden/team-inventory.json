@@ -37,6 +37,13 @@
             "type": "money",
             "required": false,
             "sensitive": false
+          },
+          {
+            "name": "last-counted",
+            "label": "Last counted",
+            "type": "date",
+            "required": false,
+            "sensitive": false
           }
         ],
         "access": "all-signed-in"
@@ -65,14 +72,23 @@
             "type": "phone",
             "required": false,
             "sensitive": false
+          },
+          {
+            "name": "review-on",
+            "label": "Review on",
+            "type": "date",
+            "required": true,
+            "sensitive": false
           }
         ],
-        "access": "admin-only"
+        "access": "admin-only",
+        "pluralLabel": "Suppliers"
       }
     ],
     "keyFeatures": [
       "Low-stock warnings",
-      "Delivery log per supplier"
+      "Delivery log per supplier",
+      "See what is coming up"
     ]
   },
   "users": {

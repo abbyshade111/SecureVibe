@@ -51,14 +51,24 @@ export interface AttentionPlan {
 /**
  * The text that names a record on this page, or nothing.
  *
- * A record's own display title is the first required text field (`titleField`). Here it is shown only when the
- * person did not mark it sensitive: a sensitive title is stored encrypted, and putting it on a page that gathers
- * records from across the app would undo the point of that. The record is still listed — by its date, with a link —
- * because leaving it out silently would be worse than listing it plainly.
+ * A record's own display title (`titleField`) is the first required text-like field, but where a record type has no
+ * text at all it falls back to whatever field comes first — which may be the date, a number or a yes/no answer. This
+ * page only shows a name when that field really does hold text a person wrote: for a clinic appointment, whose only
+ * text is the reason for the visit and is marked sensitive, `titleField` is the appointment's own date, and showing
+ * it would put the same date in both columns.
+ *
+ * Nor is it shown when the person marked it sensitive: a sensitive title is stored encrypted, and putting it on a
+ * page that gathers records from across the app would undo the point of that. Either way the record is still listed,
+ * by its date with a link, because leaving it out silently would be worse than listing it plainly — and only the
+ * sensitive case is explained on the page, since "this record type has no text to name it by" is not a decision the
+ * person made and not something they can act on.
  */
 export function titleOf(entity: EntityPlan): { title: AttentionSection['title']; withheld: string | undefined } {
   const field = entity.titleField;
   if (!field) return { title: undefined, withheld: undefined };
+  // Text, a paragraph or an email address: something a person typed and would recognise the record by.
+  const namesTheRecord = field.control === 'text' || field.control === 'textarea' || field.control === 'email';
+  if (!namesTheRecord) return { title: undefined, withheld: undefined };
   if (field.field.sensitive) return { title: undefined, withheld: field.field.label };
   return { title: { column: field.column, label: field.field.label }, withheld: undefined };
 }

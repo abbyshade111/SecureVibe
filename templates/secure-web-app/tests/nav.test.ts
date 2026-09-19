@@ -26,6 +26,10 @@ import type { SessionUser } from '../src/features/auth/repo.ts';
  */
 const b64 = (n: number): string => randomBytes(n).toString('base64');
 process.env['NODE_ENV'] ??= 'test';
+// Set rather than defaulted, and set to this value on purpose: `silent` is what SecureVibe's test runner passes when
+// it runs a built app's suite, and the app's configuration used to reject it, so every app it built reported this
+// file as a failing test while the template's own suite passed. Asking for it here keeps the two honest.
+process.env['LOG_LEVEL'] = 'silent';
 process.env['SESSION_SECRET'] ??= b64(32);
 process.env['FIELD_KEYS'] ??= `1:${b64(32)}`;
 process.env['ACTIVE_FIELD_KEY'] ??= '1';

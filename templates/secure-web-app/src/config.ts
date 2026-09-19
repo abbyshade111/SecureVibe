@@ -133,7 +133,11 @@ const EnvSchema = z.object({
   AI_USER_DAILY_TOKENS: positiveInt('AI_USER_DAILY_TOKENS', 200000),
   AI_MODERATION: bool.default(false),
   EXAMPLE_FEATURE: bool.default(false),
-  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  /**
+   * `silent` turns logging off entirely, which pino supports and a test run asks for. It was missing here, so an app
+   * given LOG_LEVEL=silent refused to start with a message listing every level except the one that was asked for.
+   */
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   LOG_FILE: z.string().optional(),
   AUDIT_RETENTION_DAYS: positiveInt('AUDIT_RETENTION_DAYS', 400),
   RETENTION_MONTHS: z.string().optional(),
