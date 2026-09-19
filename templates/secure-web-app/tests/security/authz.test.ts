@@ -30,6 +30,23 @@ describe('authz', () => {
     await app?.stop();
   });
 
+  /**
+   * Pages the app puts behind a role, whatever that role is called.
+   *
+   * These used to be found with `auth === 'role:admin'`, which only ever worked for an app whose administrator role
+   * happened to be named "admin". An owner who calls the role "Owner" or "Manager" — and SecureVibe asks them to
+   * name it — got three failing tests on an app whose authorization was fine, and lost the evidence for V8.2.1 and
+   * V8.3.1 with them. Worse than the false failure: for every other app, those requirements were only ever verified
+   * by accident of naming.
+   *
+   * An administrator may open any of these whatever role they name, because requireRole checks `isAdmin` first
+   * (src/security/authz.ts), so this is the right set for both the "an administrator can" and the "a member cannot"
+   * halves of the check.
+   */
+  function roleRestrictedPages(): RouteInfo[] {
+    return registry.routes.filter((r) => r.method === 'GET' && r.auth.startsWith('role:') && !r.path.includes(':'));
+  }
+
   /** Concrete URL for a route, using the seeded sample record for entity params. */
   function urlFor(route: RouteInfo): string {
     const values: Record<string, string | number> = {};
@@ -81,12 +98,21 @@ describe('authz', () => {
     assert.deepEqual(failures, [], `anonymous access was not denied for:\n${failures.join('\n')}`);
   });
 
-  test('V8.2.1 a signed-in user with the wrong role is denied server-side (403 or 404), never validated first', async () => {
+  test('V8.2.1 a signed-in user with the wrong role is denied server-side (403 or 404), never validated first', async (t) => {
     const restricted = protectedRoutes().filter((r) => {
       if (r.auth.startsWith('role:')) return r.auth !== `role:${memberRole}`;
       return Array.isArray(r.roles) && r.roles.length > 0 && !r.roles.includes(memberRole);
     });
-    assert.ok(restricted.length > 0, 'expected at least one role-restricted route (the admin area)');
+    // An app with a single role has no wrong role to be. That is a real answer, not a failure: saying so leaves the
+    // requirement unverified, which is honest, where failing would report broken access control in an app that has
+    // none. A one-person app is the ordinary case for this, not a strange one.
+    if (restricted.length === 0) {
+      return t.skip(
+        registry.roles.length <= 1
+          ? `this app has one role (${registry.roles[0] ?? 'none'}), so there is no other role for a signed-in person to be`
+          : 'this app puts no page behind a role, so there is no wrong-role access to deny',
+      );
+    }
     const failures: string[] = [];
     for (const route of restricted) {
       const res = await probe(route, 'member');
@@ -98,9 +124,9 @@ describe('authz', () => {
     assert.ok(denials.length >= 1, 'authz.denied security events must be emitted');
   });
 
-  test('V8.2.1 administrators can open the admin pages that members cannot', async () => {
-    const adminGets = registry.routes.filter((r) => r.method === 'GET' && r.auth === 'role:admin' && !r.path.includes(':'));
-    assert.ok(adminGets.length > 0, 'expected admin GET routes');
+  test('V8.2.1 administrators can open the pages that are kept behind a role', async (t) => {
+    const adminGets = roleRestrictedPages();
+    if (adminGets.length === 0) return t.skip('this app puts no page behind a role');
     for (const route of adminGets) {
       const res = await probe(route, 'admin');
       await res.text();
@@ -140,9 +166,12 @@ describe('authz', () => {
     }
   });
 
-  test('V8.3.1 the authorization decision is made on the server: client-side hints are ignored', async () => {
-    const adminRoute = registry.routes.find((r) => r.method === 'GET' && r.auth === 'role:admin' && !r.path.includes(':'));
-    assert.ok(adminRoute, 'expected an admin GET route');
+  test('V8.3.1 the authorization decision is made on the server: client-side hints are ignored', async (t) => {
+    const adminRoute = roleRestrictedPages()[0];
+    if (!adminRoute) return t.skip('this app puts no page behind a role, so there is no role decision to try to talk it out of');
+    if (registry.roles.length <= 1) {
+      return t.skip(`this app has one role (${registry.roles[0] ?? 'none'}), so every signed-in person already holds it`);
+    }
     const url = urlFor(adminRoute);
     const hints: Record<string, string>[] = [
       { 'X-Role': 'admin' },
