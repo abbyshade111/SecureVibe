@@ -12,6 +12,7 @@ import {
   prepareRun,
   readEventsFile,
   readJob,
+  runIsLive,
   signalWorker,
   spawnBuildWorker,
   SSE_HEARTBEAT_MS,
@@ -172,7 +173,11 @@ export function runsRouter(deps: ApiDeps): Router {
     for (const runId of runIds) {
       const run = deps.store.readRun(project.id, runId);
       if (!run) continue;
-      if (run.status === 'running') running = true;
+      // "running" has to mean a run that is really executing, not one whose status was never written again.
+      // A worker that is killed — the machine sleeps, SecureVibe is stopped mid-check, the process dies — leaves
+      // its run saying "running" for ever, and this page then disables every button on it permanently, with no way
+      // back. runIsLive asks whether the process is actually there, which is what the rest of the API already does.
+      if (run.status === 'running' && runIsLive(deps.store, run.id)) running = true;
       for (const check of RERUNNABLE_CHECKS) {
         if (found.has(check)) continue;
         const stage = run.stages.find((s) => s.id === check);

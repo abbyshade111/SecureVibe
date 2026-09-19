@@ -34,6 +34,31 @@ describe('the checks a person can run again', () => {
     expect(res.body.checks.map((c: { id: string }) => c.id)).not.toContain('compliance');
   });
 
+  it('does not lock the page for ever because a run died without saying so', async () => {
+    // A worker that is killed — the machine sleeps, SecureVibe is stopped mid-check, the process dies — never
+    // writes its run again, so it says "running" for good. The page disables every button while something is
+    // running, so believing that status leaves an owner with a page of dead buttons and no way back. An owner
+    // reported exactly that.
+    const stuck = {
+      projectId,
+      id: 'r_20260919090000_cccccc',
+      mode: 'verify-only' as const,
+      status: 'running' as const,
+      startedAt: '2026-09-19T09:00:00.000Z',
+      findings: [],
+      coverage: [],
+      stages: [{ id: 'sast', status: 'passed', summary: 'Nothing found in the code.', round: 0, finishedAt: '2026-09-19T09:01:00.000Z' }],
+    } as unknown as PipelineRun;
+    await harness.store.writeRun(stuck);
+
+    const res = await request(harness.server).get(`/api/projects/${projectId}/checks`).set(headers);
+    expect(res.status).toBe(200);
+    // No worker was ever recorded for it, so nothing is executing and the buttons stay usable.
+    expect(res.body.running).toBe(false);
+    // What it did manage to finish is still worth showing.
+    expect(res.body.checks.find((c: { id: string }) => c.id === 'sast').status).toBe('passed');
+  });
+
   it('keeps the result of the run that really made a check, not the run that left it out', async () => {
     const base = {
       projectId,
