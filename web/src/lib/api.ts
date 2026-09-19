@@ -294,23 +294,18 @@ export function runEventsUrl(runId: string): string {
 
 // ---- findings -------------------------------------------------------------
 
-export function getFindings(id: string, runId?: string): Promise<z.infer<typeof FindingsResponseSchema>> {
-  // `runId` asks for one particular run's findings: the across-apps view counts from the last run that ran every
-  // check, which is not always the latest run, and the list has to come from the same place as the number.
-  return j(`/projects/${id}/findings${runId ? `?run=${encodeURIComponent(runId)}` : ''}`);
+export function getFindings(id: string, opts: { run?: string; current?: boolean } = {}): Promise<z.infer<typeof FindingsResponseSchema>> {
+  // `current` asks for every check's latest word rather than one run's, which is what the across-apps view counts:
+  // after a check is re-run on its own, what it found is newer than the last run that ran everything. `run` asks
+  // for one particular run.
+  const query = opts.current ? '?current=1' : opts.run ? `?run=${encodeURIComponent(opts.run)}` : '';
+  return j(`/projects/${id}/findings${query}`);
 }
 
-export function decideFinding(
-  id: string,
-  findingId: string,
-  body: z.infer<typeof FindingDecisionRequestSchema>,
-  runId?: string,
-): Promise<void> {
-  // `runId` names the run the finding was read from, which is not always the app's latest run.
-  return j<void>(`/projects/${id}/findings/${findingId}/decision${runId ? `?run=${encodeURIComponent(runId)}` : ''}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+export function decideFinding(id: string, findingId: string, body: z.infer<typeof FindingDecisionRequestSchema>): Promise<void> {
+  // No run is named: the server records the decision against the newest run that holds this finding, which is not
+  // always the app's latest run once single checks have been re-run.
+  return j<void>(`/projects/${id}/findings/${findingId}/decision`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 // ---- attestations / human review -----------------------------------------

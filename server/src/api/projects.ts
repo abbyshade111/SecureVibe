@@ -32,7 +32,7 @@ import {
 import { DesignProfileSchema, PartialDesignProfileSchema, type DesignProfile, type PartialDesignProfile } from '@shared/profile.js';
 import { HumanCodeReviewSchema, isUploadedApp, type Project } from '@shared/project.js';
 import { isOpen, type Finding } from '@shared/findings.js';
-import { withDecisions } from './findings-view.js';
+import { currentFindings, findRunWithFinding, withDecisions } from './findings-view.js';
 import { RUN_ID_PATTERN } from '../store/ids.js';
 import { applyPeerReviewPatch, deriveDesign, peerReview, profileHash, quickInfer } from '../integration.js';
 import { answerFieldAllowed, refineProfile } from '../llm/flows/refine.js';
@@ -546,6 +546,12 @@ export function projectsRouter(deps: ApiDeps): Router {
       if (!asked) throw notFound('That run could not be found for this app.');
       return res.json(FindingsResponseSchema.parse({ findings: withDecisions(asked, project) }));
     }
+    // `?current=1` is every check's latest word rather than one run's: after a check is re-run on its own, what it
+    // found (or no longer finds) is newer than the last run that ran everything. This is what the across-apps view
+    // counts, so its numbers and its lists cannot disagree.
+    if (req.query['current'] !== undefined) {
+      return res.json(FindingsResponseSchema.parse({ findings: currentFindings(deps.store, project).findings }));
+    }
     if (!project.lastRunId) return res.json(FindingsResponseSchema.parse({ findings: [] }));
     const run = deps.store.readRun(project.id, project.lastRunId);
     res.json(FindingsResponseSchema.parse({ findings: run ? withDecisions(run, project) : [] }));
@@ -562,10 +568,12 @@ export function projectsRouter(deps: ApiDeps): Router {
      */
     const wanted = req.query['run'];
     if (wanted !== undefined && (typeof wanted !== 'string' || !RUN_ID_PATTERN.test(wanted))) throw validationError('That is not a run of this app.');
-    const runId = typeof wanted === 'string' ? wanted : project.lastRunId;
-    if (!runId) throw notFound('That finding could not be found.');
-    const run = deps.store.readRun(project.id, runId);
-    const finding = run?.findings.find((f) => f.id === req.params['findingId']);
+    // Without a run named, the finding is looked for in the newest run that holds it, rather than only in the
+    // latest run. A single-check re-run is often the latest, and a finding raised by a different check is not in
+    // it — which answered "that finding could not be found" to a person who was looking straight at it.
+    const finding = (typeof wanted === 'string' ? deps.store.readRun(project.id, wanted) : findRunWithFinding(deps.store, project, req.params['findingId']!))?.findings.find(
+      (f) => f.id === req.params['findingId'],
+    );
     if (!finding) throw notFound('That finding could not be found.');
     if (body.status === 'open') {
       deps.store.setFindingDecision(project.id, { fingerprint: finding.fingerprint, status: 'open' });

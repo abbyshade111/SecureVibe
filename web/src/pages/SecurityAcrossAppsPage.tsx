@@ -11,10 +11,11 @@
  * send it to the AI to fix, accept it as it stands, or say it was never a real problem.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { AppSecurityRow, SecurityAcrossAppsResponse } from '@shared/api.js';
 import type { Finding } from '@shared/findings.js';
-import { decideFinding, getFindings, getSecurityAcrossApps } from '../lib/api';
+import { CHECK_FOR_SOURCE, STAGE_DESCRIPTIONS } from '@shared/pipeline.js';
+import { decideFinding, getEstimate, getFindings, getSecurityAcrossApps, startRun } from '../lib/api';
 import { Badge, Card, ErrorNotice, LoadingScreen } from '../components/Bits';
 import { FindingCard } from '../components/FindingCard';
 import { formatDate } from '../lib/format';
@@ -63,10 +64,42 @@ function headline(app: AppSecurityRow): { text: string; tone: 'good' | 'warn' | 
 }
 
 function AppRow({ app, onDecided }: { app: AppSecurityRow; onDecided: () => Promise<void> }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState<Severity | 'all' | null>(null);
   const [findings, setFindings] = useState<Finding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rechecking, setRechecking] = useState<string | null>(null);
   const verdict = headline(app);
+
+  /**
+   * Hands the finding to a fix run on the Build page, which shows what it will cost and asks before spending. This
+   * page never starts a paid run itself.
+   */
+  function askAiToFix(finding: Finding): void {
+    navigate(`/projects/${app.projectId}/build?fix=${encodeURIComponent(finding.id)}`);
+  }
+
+  /**
+   * "I have fixed it myself." There is no button here that marks a finding fixed, because saying so would not make
+   * it so: the check that raised it is what decides. This runs that one check again — free, no AI, a few seconds —
+   * and the finding is gone from the next reading of this page if the check no longer reports it.
+   */
+  async function recheck(finding: Finding): Promise<void> {
+    const check = CHECK_FOR_SOURCE[finding.source];
+    if (!check) return;
+    setRechecking(finding.id);
+    setError(null);
+    try {
+      const { approvalCode } = await getEstimate(app.projectId);
+      const { run } = await startRun(app.projectId, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true, checks: [check] });
+      // Hand the Build page the run that was just started. Without it that page has nothing to follow and offers to
+      // start a build instead — which reads as "your check did not happen" while it is quietly running.
+      navigate(`/projects/${app.projectId}/build?run=${encodeURIComponent(run.id)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That check could not be started.');
+      setRechecking(null);
+    }
+  }
 
   /** The findings behind a number, fetched when a person asks for them rather than for every app up front. */
   const show = useCallback(
@@ -78,15 +111,15 @@ function AppRow({ app, onDecided }: { app: AppSecurityRow; onDecided: () => Prom
       setOpen(severity);
       setError(null);
       try {
-        // From the same run the numbers above came from, not the latest one: a single-check re-run since then holds
-        // only that check's findings, and reading it would show an empty list under a count of one.
-        const res = await getFindings(app.projectId, app.lastFullCheck?.runId);
+        // The same thing the numbers above counted: every check's latest word. Asking for one run would disagree
+        // with them as soon as a single check had been run again.
+        const res = await getFindings(app.projectId, { current: true });
         setFindings(res.findings);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Those findings could not be read.');
       }
     },
-    [app.projectId, app.lastFullCheck?.runId, open],
+    [app.projectId, open],
   );
 
   const shown = (findings ?? []).filter((f) => f.status === 'open' && (open === 'all' || f.severity === open));
@@ -119,8 +152,8 @@ function AppRow({ app, onDecided }: { app: AppSecurityRow; onDecided: () => Prom
         <>
           <p className="sv-muted">
             {app.lastFullCheck?.finishedAt ? `Every check last ran ${formatDate(app.lastFullCheck.finishedAt)}.` : 'Every check has run.'}{' '}
-            {app.since.partialChecks > 0 &&
-              `${app.since.partialChecks} single check${app.since.partialChecks === 1 ? '' : 's'} ${app.since.partialChecks === 1 ? 'has' : 'have'} run since; ${app.since.partialChecks === 1 ? 'it says' : 'they say'} nothing about the steps ${app.since.partialChecks === 1 ? 'it' : 'they'} did not run, so the numbers below are from the full check. `}
+            {app.since.checksRerunSince > 0 &&
+              `${app.since.checksRerunSince} check${app.since.checksRerunSince === 1 ? ' has' : 's have'} been run again since; each number below is from the last time that check ran. `}
             {app.since.answersChanged && 'Your answers have changed since, so this may no longer describe what you want built. '}
           </p>
           <p className="sv-row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -166,14 +199,28 @@ function AppRow({ app, onDecided }: { app: AppSecurityRow; onDecided: () => Prom
               finding={f}
               projectId={app.projectId}
               canShowCode={app.origin === 'generated'}
+              // An uploaded app is only ever read, never rebuilt, so there is nothing for the AI to write in it;
+              // and a finding only its host can act on is not the AI's to try either.
+              {...(app.origin === 'generated' && f.whoCanFix !== 'hosting-provider' ? { onFix: () => askAiToFix(f) } : {})}
+              {...(CHECK_FOR_SOURCE[f.source]
+                ? {
+                    onRecheck: () => void recheck(f),
+                    // The check's name is quoted because every one of them is a phrase ("Checking configuration",
+                    // "Running the tests"), and "(free)" is there to separate it from the paid button beside it.
+                    recheckLabel:
+                      rechecking === f.id
+                        ? 'Starting…'
+                        : `I've fixed it — run "${STAGE_DESCRIPTIONS[CHECK_FOR_SOURCE[f.source]!].title}" again (free)`,
+                  }
+                : {})}
               onAccept={async (reason) => {
-                await decideFinding(app.projectId, f.id, { status: 'accepted', triage: { reason } }, app.lastFullCheck?.runId);
+                await decideFinding(app.projectId, f.id, { status: 'accepted', triage: { reason } });
                 setFindings((list) => (list ?? []).map((item) => (item.id === f.id ? { ...item, status: 'accepted' } : item)));
                 // The counts above this list were worked out before the decision, so they now disagree with it.
                 await onDecided();
               }}
               onFalsePositive={async (reason) => {
-                await decideFinding(app.projectId, f.id, { status: 'false-positive', triage: { reason } }, app.lastFullCheck?.runId);
+                await decideFinding(app.projectId, f.id, { status: 'false-positive', triage: { reason } });
                 setFindings((list) => (list ?? []).map((item) => (item.id === f.id ? { ...item, status: 'false-positive' } : item)));
                 await onDecided();
               }}
