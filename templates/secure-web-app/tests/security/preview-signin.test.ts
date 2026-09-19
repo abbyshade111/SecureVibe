@@ -36,8 +36,17 @@ describe('preview sign-in', () => {
   test('V7.1.1 in a preview the link signs in as the administrator and every page says so', async () => {
     const jar = new CookieJar();
     const res = await preview.fetch(`/preview-signin?t=${TOKEN}`, { jar, redirect: 'manual' });
-    assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), '/');
+    // Deliberately not a redirect. The visitor gets here by clicking a link in SecureVibe, served from 127.0.0.1
+    // while the preview runs on localhost, and a browser counts those as different sites. The session cookie is
+    // SameSite=Strict, so it is stored on arrival but withheld from anything that same click goes on to request:
+    // a 303 to "/" arrived with no cookie and the app asked for a password, which is what an owner reported. The
+    // hand-over is a page this app served, so the step to "/" is same-site and the cookie travels. A test cannot
+    // see any of this — it has no notion of which site started a request — so this assertion is the only place
+    // the reason is recorded. Turning it back into a redirect will pass every test here and break the preview.
+    assert.equal(res.status, 200);
+    const handover = await res.text();
+    assert.ok(handover.includes('http-equiv="refresh"'), 'the hand-over page does not move on by itself');
+    assert.ok(handover.includes('href="/"'), 'the hand-over page offers no link to follow either');
     const { res: home, html } = await preview.page('/', jar);
     assert.equal(home.status, 200);
     assert.ok(html.includes('Preview:'), 'the preview notice is on the page');

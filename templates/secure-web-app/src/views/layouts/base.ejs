@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<%= csrfToken %>">
+  <% if (metaRefreshHome) { %><meta http-equiv="refresh" content="0; url=/"><% } %>
   <title><%= title ? title + ' · ' : '' %><%= appName %></title>
   <link rel="stylesheet" href="/css/app.css">
   <script nonce="<%= nonce %>" src="/js/app.js" defer></script>

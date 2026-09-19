@@ -221,7 +221,14 @@ export function register(router: Router): void {
       req.session.rotate(admin.id, true);
       recordLoginSuccess(admin.id);
       emit('auth.login.success', { req, userId: admin.id, factor: 'password' });
-      res.redirect(303, '/');
+      // A page on this app's own address, not a redirect, and the reason is the session cookie's SameSite=Strict.
+      // The visitor arrives here by clicking a link in SecureVibe, which the browser serves from 127.0.0.1 while
+      // the preview runs on localhost — two different sites as far as cookies are concerned. A Strict cookie is
+      // stored on that cross-site arrival but is not sent on anything the same click goes on to request, so a
+      // redirect to "/" lands there with no cookie and the app asks for a password. Handing over from a page the
+      // app served itself makes the next step same-site, and the cookie goes with it. Keeping Strict matters more
+      // than saving this one page: it is what stops another site acting as the signed-in person.
+      renderPage(req, res, 'auth/preview-welcome', { title: 'Signed in', metaRefreshHome: true });
     },
   );
 
