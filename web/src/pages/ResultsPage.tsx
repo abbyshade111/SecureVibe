@@ -90,6 +90,14 @@ function FindingCard({
           )}
         </p>
       )}
+      {/* Checks that probe the running app report an address rather than a file, and without it a page full of
+          these reads as the same problem over and over: nineteen identical cards, no way to tell them apart or
+          judge any one of them. */}
+      {!finding.location?.file && finding.location?.endpoint && (
+        <p className="sv-faint">
+          <strong>Where:</strong> {finding.location.endpoint}
+        </p>
+      )}
       {showCode && finding.location?.file && (
         <CodeViewer
           projectId={projectId}
@@ -348,6 +356,13 @@ export function ResultsPage() {
   const alreadyAttested = new Set((project.attestations ?? []).map((a) => a.requirementId));
   const reviewFiles = run.provenance ? Object.keys(run.provenance.protectedFileHashes) : [];
   const uploaded = project.origin?.kind === 'uploaded';
+  // What the AI could actually change: everything except the problems that live in the hosting, where there is no
+  // code to edit. Uploaded apps are never rebuilt, so nothing there is offered either.
+  const aiCanTry = uploaded ? [] : openFindings.filter((f) => f.whoCanFix !== 'hosting-provider');
+  const fixProps = (f: Finding) =>
+    aiCanTry.some((x) => x.id === f.id)
+      ? { onFix: () => askAiToFix([f.id]), selected: selectedFixes.includes(f.id), onSelect: (on: boolean) => setSelectedFixes((ids) => (on ? [...ids, f.id] : ids.filter((x) => x !== f.id))) }
+      : {};
   // The code sits in the app folder either way: SecureVibe wrote it, or the owner uploaded it there.
   const codeAvailable = uploaded || instructions !== null;
 
@@ -611,7 +626,7 @@ export function ResultsPage() {
 
       <Card>
         <h2>What we found</h2>
-        {!uploaded && openFindings.length > 0 && (
+        {aiCanTry.length > 0 && (
           <div className="sv-card" style={{ margin: '0 0 16px', background: 'var(--color-bg-subtle)' }}>
             <p style={{ marginTop: 0 }}>
               <strong>Have the AI fix the code</strong> — tick the problems you want it to work on, or send them all.
@@ -623,8 +638,8 @@ export function ResultsPage() {
               <button type="button" className="sv-btn" disabled={selectedFixes.length === 0} onClick={() => askAiToFix(selectedFixes)}>
                 {selectedFixes.length === 0 ? 'Fix the ticked problems' : `Fix the ${selectedFixes.length} ticked problem(s)`}
               </button>
-              <button type="button" className="sv-btn sv-btn-secondary" onClick={() => askAiToFix(openFindings.map((f) => f.id))}>
-                Fix all {openFindings.length}
+              <button type="button" className="sv-btn sv-btn-secondary" onClick={() => askAiToFix(aiCanTry.map((f) => f.id))}>
+                Fix all {aiCanTry.length}
               </button>
               {selectedFixes.length > 0 && (
                 <button type="button" className="sv-btn-link" onClick={() => setSelectedFixes([])}>
@@ -660,7 +675,7 @@ export function ResultsPage() {
                 finding={f}
                 projectId={id!}
                 canShowCode={codeAvailable}
-                {...(uploaded ? {} : { onFix: () => askAiToFix([f.id]), selected: selectedFixes.includes(f.id), onSelect: (on) => setSelectedFixes((ids) => (on ? [...ids, f.id] : ids.filter((x) => x !== f.id))) })}
+                {...fixProps(f)}
                 onAccept={(reason) => acceptFinding(f.id, reason)}
               />
             ))}
@@ -673,7 +688,14 @@ export function ResultsPage() {
               <Badge tone="bad">{needsDeveloper.length}</Badge>
             </div>
             {needsDeveloper.map((f) => (
-              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} onAccept={(reason) => acceptFinding(f.id, reason)} />
+              <FindingCard
+                key={f.id}
+                finding={f}
+                projectId={id!}
+                canShowCode={codeAvailable}
+                {...fixProps(f)}
+                onAccept={(reason) => acceptFinding(f.id, reason)}
+              />
             ))}
           </div>
         )}
