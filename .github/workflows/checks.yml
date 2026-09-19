@@ -48,44 +48,28 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # One file at a time, in a loop that says which file it is about to run.
+      # One file at a time, and a hard stop from the shell as well as the job.
       #
-      # The suite dies at the same place whether the files run one at a time or all at once: seven fast files
-      # pass in the first six seconds and then there is no output at all until the timeout. That rules out the
-      # runner simply being small — starving on memory would slow everything down, not stop dead at the same
-      # point twice — and points at one file that blocks forever. vitest only prints a file once it has
-      # finished, so a file that never finishes is never named, which is why two runs have told us nothing.
+      # This suite starts real applications, each in its own process, and on a developer's machine vitest runs
+      # many files at once. Running them one at a time keeps the number of live applications small.
       #
-      # This loop names each file before running it and gives each one ninety seconds, so the log ends on the
-      # name of whatever is stuck. It is slower than a single run and is here to answer that question; once the
-      # file is known it goes back to one `vitest run`.
+      # Called directly rather than through `npm test`: the root script is `npm run test -w server`, so flags
+      # passed to it are read by npm as its own configuration and never reach vitest. An earlier attempt at this
+      # said so in the log — "Unknown cli config --reporter" — and ran exactly as before, which is why two runs
+      # looked like a fix and changed nothing.
+      #
+      # The `timeout` wrapper matters because the job's own timeout is enforced by the runner: when the runner
+      # is the thing that wedged, nothing is left to enforce it.
+      #
+      # KNOWN BUG, not yet solved: on a runner this suite stops dead a few seconds in and produces no further
+      # output, both in parallel and one file at a time, and the orphan list at kill time is two node processes
+      # rather than a crowd — one worker blocked on something, with the rest queued behind it. It has never
+      # reproduced locally. Naming the file needs a run that prints each name before running it, because vitest
+      # prints a file only once it finishes; that diagnostic is in this branch's history at 876cbe6 and can be
+      # put back when there are runner minutes to spend on it.
       - name: Run SecureVibe's own tests
         working-directory: server
-        run: |
-          set +e
-          stalled=""
-          for f in $(find tests -name '*.test.ts' | sort); do
-            echo "--- $f"
-            timeout --signal=TERM --kill-after=15s 90s ../node_modules/.bin/vitest run "$f" --no-file-parallelism --reporter=dot
-            code=$?
-            if [ $code -eq 124 ] || [ $code -eq 137 ]; then
-              echo "STALLED $f"
-              stalled="$stalled $f"
-            elif [ $code -ne 0 ]; then
-              echo "FAILED $f"
-              stalled="$stalled $f"
-            fi
-            # Three is enough to see the shape of it. Without this, a suite where many files stall would spend
-            # ninety seconds on each and be killed by the job timeout before printing anything.
-            if [ $(echo $stalled | wc -w) -ge 3 ]; then
-              echo "Stopping after three; that is enough to go on."
-              break
-            fi
-          done
-          if [ -n "$stalled" ]; then
-            echo "Files that stalled or failed:$stalled"
-            exit 1
-          fi
+        run: timeout --signal=TERM --kill-after=30s 15m ../node_modules/.bin/vitest run --reporter=verbose --no-file-parallelism
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
