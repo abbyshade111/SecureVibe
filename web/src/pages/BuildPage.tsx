@@ -432,7 +432,8 @@ export function BuildPage() {
 
   return (
     <div className="sv-stack">
-      <h1>{uploaded ? 'Checking your app' : 'Building your app'}</h1>
+      {/* A check-only run writes nothing, so calling it a build misdescribes what is happening and what it costs. */}
+      <h1>{uploaded || run.mode === 'verify-only' ? 'Checking your app' : 'Building your app'}</h1>
       {run.status === 'running' && (
         <Card>
           <ProgressBar percent={percent} label="Build progress" />

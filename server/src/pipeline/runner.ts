@@ -281,6 +281,11 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     if (opts.mode === 'verify-only') {
       if (project.design) ctx.design = project.design;
       await push(loadFrozenDesign(ctx));
+      // Say so, rather than leaving them pending for ever. A check-only run never lays the app out again and
+      // never writes code, and a step with no status reads as one that is still to come: the list showed two
+      // steps waiting that were never going to happen, and the progress bar counted them as work outstanding.
+      await push(skipStage(ctx, 'scaffold', 'Your app was not laid out again: this run only checks the code that is already there.'));
+      await push(skipStage(ctx, 'generate', 'Nothing was written and nothing was spent: this run only checks the code that is already there.'));
     } else if (resume) {
       // The design was frozen by the run being continued; freezing it again would only rewrite the same documents.
       if (project.design) ctx.design = project.design;
@@ -348,9 +353,11 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     // Was each planned feature actually built? Measured against the route list, the record types and the tests.
     if (ctx.plan && opts.mode !== 'verify-only') run.planCoverage = planCoverage(ctx.plan, appDir, ctx.acc.testResults);
 
-    if (opts.mode !== 'verify-only' && !crashedAt && !abort.signal.aborted) {
+    if (opts.mode === 'verify-only') {
+      await push(skipStage(ctx, 'fix', 'Nothing was fixed: this run only reports what it found, and fixing is part of a build.'));
+    } else if (!crashedAt && !abort.signal.aborted) {
       await push(await runFixLoop(ctx));
-    } else if (opts.mode !== 'verify-only') {
+    } else {
       await push(finishStage(ctx, 'fix', 'skipped', abort.signal.aborted ? 'The build was cancelled.' : 'Skipped because an earlier step stopped unexpectedly.', new Date()));
     }
 

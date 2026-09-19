@@ -160,7 +160,7 @@ describe('pipeline runner', () => {
     expect(run.stages.find((s) => s.id === 'compliance')?.summary).toMatch(/left as your last full check made it/i);
   });
 
-  it('skips design-freeze/scaffold/generate/fix in verify-only mode and uses the frozen design', async () => {
+  it('says it skipped scaffold/generate/fix in verify-only mode, rather than leaving them pending', async () => {
     const project = makeProject();
     project.design = { ...project.design, profileHash: 'x' } as never; // presence is all loadFrozenDesign needs
     const run = await startRun(project, { mode: 'verify-only', spendingCapUsd: 15 }, deps).execute();
@@ -170,8 +170,17 @@ describe('pipeline runner', () => {
     expect(stages.runScaffold).not.toHaveBeenCalled();
     expect(stages.runGenerate).not.toHaveBeenCalled();
     expect(fixLoop.runFixLoop).not.toHaveBeenCalled();
-    expect(run.stages.map((s) => s.id)).not.toContain('scaffold');
-    expect(run.stages.map((s) => s.id)).not.toContain('fix');
+    // Recorded as skipped, with a reason, rather than left out. A stage with no entry renders as "pending", which
+    // reads as work still to come and keeps the progress bar short of the end: an owner watching a free update saw
+    // two steps apparently waiting that were never going to happen.
+    for (const id of ['scaffold', 'generate', 'fix'] as const) {
+      const stage = run.stages.find((s) => s.id === id);
+      expect(stage, `${id} was left out of the run instead of being marked skipped`).toBeDefined();
+      expect(stage!.status).toBe('skipped');
+      expect(stage!.summary).toBeTruthy();
+    }
+    // The one that costs money says so plainly, because that is the reassurance a free update owes the owner.
+    expect(run.stages.find((s) => s.id === 'generate')!.summary).toMatch(/nothing was spent/i);
   });
 
   it('a design-freeze failure stops the run before scaffold/generate', async () => {
