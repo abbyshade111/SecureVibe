@@ -183,7 +183,12 @@ const DesignProfileSubsetSchema = z.object({
     tagline: z.string().optional(),
     description: z.string().optional(),
     category: z.string(),
-    theme: z.string(),
+    // No theme. It is a runtime setting, not a design decision — every theme is contrast-tested in both modes,
+    // so a colour cannot change what the design means, which is why it is also out of the design hash. A frozen
+    // record of what was built that carries it makes a claim it cannot keep: an owner changed her app's colours
+    // after the build and this file went on saying the old one. Keeping it in step would be worse, because a
+    // snapshot that changes after the build is not a snapshot. The colour lives in the owner's answers, and
+    // scaffold writes APP_THEME into the app's .env from them. Nothing writes back the other way; do not add it.
     entities: z.array(z.looseObject({ name: z.string() })),
   }),
   users: z.object({

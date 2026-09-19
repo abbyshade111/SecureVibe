@@ -69,6 +69,7 @@ export function BuildPage() {
   const [startError, setStartError] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [activity, setActivity] = useState<{ at: string; text: string }[]>([]);
+  const [liveSpend, setLiveSpend] = useState<{ usd: number; calls: number } | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const fixFindingIds = useMemo(() => {
     const raw = params.get('fix');
@@ -140,7 +141,18 @@ export function BuildPage() {
       // the run. The stage list only moves every few minutes, so a build that was working looked identical to one
       // that had stopped — and the owner watching a slow, paid build had nothing to tell them it was still going.
       try {
-        const payload = JSON.parse((ev as MessageEvent<string>).data) as { type?: string; message?: string; at?: string };
+        const payload = JSON.parse((ev as MessageEvent<string>).data) as {
+          type?: string;
+          message?: string;
+          at?: string;
+          data?: { estimatedCostUsd?: number; calls?: number };
+        };
+        // The run knows what it has spent from its first AI call, but the file this page re-reads is only written
+        // when a stage ends — and writing the app is one long stage. So an owner watching a paid build saw no
+        // figure at all until it finished, and had nothing to tell her it was working rather than stuck.
+        if (payload.type === 'spend' && typeof payload.data?.estimatedCostUsd === 'number') {
+          setLiveSpend({ usd: payload.data.estimatedCostUsd, calls: payload.data.calls ?? 0 });
+        }
         if (payload.type === 'log' && payload.message) {
           const line = { at: payload.at ?? new Date().toISOString(), text: plainActivity(payload.message) };
           setActivity((lines) => [...lines, line].slice(-ACTIVITY_LINES));
@@ -481,7 +493,14 @@ export function BuildPage() {
             <span className="sv-muted">
               Elapsed: {minutes}m {secondsPart}s
             </span>
-            {run.llmUsage && <span className="sv-muted">AI spend so far: {usd(run.llmUsage.estimatedCostUsd)}</span>}
+            {/* The live figure when the stream has sent one, the saved figure otherwise — a reconnected page has no
+                stream history, and a figure from the file is better than none. */}
+            {(liveSpend || run.llmUsage) && (
+              <span className="sv-muted">
+                AI spend so far: {usd(liveSpend ? liveSpend.usd : (run.llmUsage?.estimatedCostUsd ?? 0))}
+                {liveSpend && liveSpend.calls > 0 ? ` (${liveSpend.calls} call${liveSpend.calls === 1 ? '' : 's'})` : ''}
+              </span>
+            )}
             {browserNotify === 'default' && (
               <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void askBrowserNotify()}>
                 Notify me in the browser when it is done

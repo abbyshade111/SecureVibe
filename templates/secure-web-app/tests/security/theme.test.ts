@@ -126,6 +126,11 @@ describe('themes', () => {
       assert.ok(!html.includes(`data-theme="${DEFAULT_THEME}"`), 'the chosen theme must win over the default');
       await app.stop();
 
+      // The second half of this is the interesting one, and it was unreachable in a generated app until the
+      // design snapshot stopped carrying a theme. With a theme in that file the app fell back to it instead of
+      // to the default, so "nothing was chosen" could never be true and this failed in every app SecureVibe
+      // built while passing in the bare template. If it fails here again, look for a third source of the colour
+      // before changing the assertion: the only ones that should exist are APP_THEME and this default.
       app = await startApp();
       const plain = await (await app.fetch('/login')).text();
       assert.match(plain, new RegExp(`data-theme="${DEFAULT_THEME}"`));

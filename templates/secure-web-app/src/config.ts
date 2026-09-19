@@ -444,7 +444,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     dataDir,
     logFile,
     appName: e.APP_NAME ?? design.profile?.app?.name ?? 'My App',
-    theme: e.APP_THEME ?? design.profile?.app?.theme ?? DEFAULT_THEME,
+    // APP_THEME or the default, and nothing in between: the design snapshot used to offer a third opinion and
+    // was the stale one, so an app with no APP_THEME rendered a colour its owner had stopped using.
+    theme: e.APP_THEME ?? DEFAULT_THEME,
     registrationMode: e.REGISTRATION_MODE ?? design.profile?.users?.registration ?? 'admin-created',
     targetLevel,
     sessionIdleMinutes: optionalNumber(e.SESSION_IDLE_MINUTES, 'SESSION_IDLE_MINUTES') ?? sessionDefaults.idle,
