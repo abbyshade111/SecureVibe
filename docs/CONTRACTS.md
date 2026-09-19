@@ -1100,6 +1100,16 @@ V8.2.3 and, for records that belong to one person, V8.2.2; it does not re-claim 
 emitted and `record-type` leaves the field out with a reason the owner can read — a defensive path, since the design
 engine turns uploads on whenever any record has a file field.
 
+**Three template tests that named the wrong requirement (2026-09-18).** Found by the session building the
+test-name screen, confirmed against the framework data and fixed here, since they are template files:
+`errors.test.ts` checked that an unused HTTP method is refused and called it V13.4.3 (directory listings); it is
+V4.1.4, and `TPL-METHOD-01` now claims V4.1.4 `partial` beside V13.4.4 (V4.1.4 is L3, so it shows as out of target
+level rather than counting). V13.4.3 keeps its evidence from the `dast.leak.directory-listing` probe. In
+`validation.test.ts` the prototype-pollution test was V15.3.7 (parameter pollution) and is V15.3.6, and the
+oversized-body test was V15.3.6 and is V15.2.2 (availability under a resource-demanding request) — the requirement
+it actually speaks to. `TPL-BODY-01` claimed both the body limit and prototype pollution under V15.3.6 in one
+sentence; it now claims V15.2.2 for the limit and V15.3.6 for prototype pollution separately.
+
 **The bounded-list control.** `TPL-DB-02` used to claim V2.3.3 (transactions) for two different things: the
 transaction around a per-person limit *and* the LIMIT on every list. The LIMIT half is now its own control,
 `TPL-DB-04`, crediting V2.4.1 (anti-automation), and the template's own `db.test.ts` list test moved to V2.4.1 with

@@ -74,7 +74,7 @@ describe('errors', () => {
     assert.doesNotMatch(text, new RegExp(users.member2.replace('.', '\\.')), 'no account data may appear on a denied response');
   });
 
-  test('V13.4.3 the method is checked: unsupported methods on known paths are 404/405, never 500', async () => {
+  test('V4.1.4 only the HTTP methods the app supports can be used: an unused method is blocked with 404/405, never 500', async () => {
     for (const method of ['PUT', 'DELETE', 'PATCH', 'OPTIONS', 'PROPFIND']) {
       const res = await app.fetch(paths.login, { method, sameOrigin: false });
       const text = await res.text();

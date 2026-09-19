@@ -598,13 +598,18 @@
     },
     {
       "id": "TPL-METHOD-01",
-      "title": "TRACE method not supported",
-      "description": "The diagnostic TRACE request type, which can echo back cookies, is refused.",
+      "title": "Only the HTTP methods the app supports are accepted",
+      "description": "A TRACE request is refused and never echoed, and a method the app does not use is refused on a known path rather than causing an error.",
       "asvs": [
         {
           "id": "V13.4.4",
           "proves": "A TRACE request is answered with 405 and never echoed.",
           "coverage": "full"
+        },
+        {
+          "id": "V4.1.4",
+          "proves": "PUT, DELETE, PATCH, OPTIONS and PROPFIND on a known page are answered 403/404/405 (or 204 for OPTIONS) and never reach the handler. Verified on one representative route, not every route.",
+          "coverage": "partial"
         }
       ],
       "aisvs": [],
@@ -618,6 +623,10 @@
         {
           "type": "test",
           "name": "V13.4.4"
+        },
+        {
+          "type": "test",
+          "name": "V4.1.4"
         }
       ],
       "files": [
@@ -706,8 +715,13 @@
       "description": "Oversized requests are refused before they are processed, repeated or nested query parameters are never turned into arrays or objects, and special keys that could change how JavaScript objects behave are rejected.",
       "asvs": [
         {
+          "id": "V15.2.2",
+          "proves": "A body larger than the configured limit is rejected with 413 before it is processed, so one request cannot take up the time or memory the app needs.",
+          "coverage": "partial"
+        },
+        {
           "id": "V15.3.6",
-          "proves": "Bodies larger than the configured limit are rejected with 413 and JSON bodies with __proto__ or constructor.prototype keys are rejected with 400.",
+          "proves": "A JSON body carrying __proto__ or constructor.prototype is rejected with 400, and no object prototype is changed.",
           "coverage": "full"
         },
         {
