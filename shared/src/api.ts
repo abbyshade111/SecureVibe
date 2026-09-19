@@ -326,6 +326,72 @@ export const FindingDecisionRequestSchema = z.object({
 /** GET /api/projects/:id/findings → Finding[] (latest run, with persisted decisions applied) */
 export const FindingsResponseSchema = z.object({ findings: z.array(FindingSchema) });
 
+// ---------------------------------------------------------------------------------------------------------------
+// GET /api/security — every app at once, for someone whose job is the security of all of them
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * Why an app has no counts. A missing number is not a zero, and the difference matters more here than anywhere
+ * else: a list of apps showing "0" for one that was never checked invites exactly the false confidence the
+ * reports are written to avoid.
+ */
+export const NoCountsReasonSchema = z.enum(['never-built', 'never-fully-checked', 'checks-unreadable']);
+export type NoCountsReason = z.infer<typeof NoCountsReasonSchema>;
+
+export const AppSecurityRowSchema = z.object({
+  projectId: z.string(),
+  name: z.string(),
+  /** 'uploaded' for an app SecureVibe only ever reads, 'generated' for one it wrote. */
+  origin: z.enum(['generated', 'uploaded']),
+  /** Where the owner said it runs, which is what makes one app's numbers incomparable with another's. */
+  exposure: z.enum(['local-only', 'local-network', 'internet-later', 'unknown']),
+  /** Who the owner said uses it. */
+  audience: z.string().optional(),
+  /** The ASVS/AISVS level this app is measured against: 1 or 2. Absent before a design exists. */
+  targetLevel: z.union([z.literal(1), z.literal(2)]).optional(),
+  /** The last run that ran every check. Counts only ever come from one of these. */
+  lastFullCheck: z
+    .object({
+      runId: z.string(),
+      finishedAt: z.string().optional(),
+      status: z.string(),
+      rating: z.string().optional(),
+    })
+    .optional(),
+  /** Open findings from that full check, after the owner's decisions. Absent when there is no full check. */
+  open: z.record(z.string(), z.number()).optional(),
+  /** What a person has already ruled on, so the numbers above are not mistaken for everything that was found. */
+  decided: z.object({ accepted: z.number(), falsePositive: z.number() }).default({ accepted: 0, falsePositive: 0 }),
+  /** Open findings by who can act on them, which is what a security person sorts their day by. */
+  whoCanFix: z.record(z.string(), z.number()).default({}),
+  /** Set when there are no counts, saying why rather than showing zero. */
+  noCounts: NoCountsReasonSchema.optional(),
+  /** How much has happened since that full check, so nobody reads a stale number as current. */
+  since: z.object({
+    /** A check has been run on its own since; it says nothing about the checks it did not run. */
+    partialChecks: z.number().default(0),
+    /** The app was rebuilt since, so the code these numbers describe is not the code on disk. */
+    rebuilt: z.boolean().default(false),
+    /** The owner changed their answers since the design was last frozen. */
+    answersChanged: z.boolean().default(false),
+  }),
+});
+export type AppSecurityRow = z.infer<typeof AppSecurityRowSchema>;
+
+export const SecurityAcrossAppsResponseSchema = z.object({
+  apps: z.array(AppSecurityRowSchema),
+  /**
+   * Apps, not findings. Counting findings across apps would add a local-only note-taker to an app about to go on
+   * the internet and call the sum a number, so nothing here is summed across apps: this counts how many apps have
+   * something open that a person should look at, or have never been fully checked.
+   */
+  appsNeedingAttention: z.number(),
+  /** Apps with no full check at all, called out separately because they are unknown rather than clean. */
+  appsNeverFullyChecked: z.number(),
+  generatedAt: z.string(),
+});
+export type SecurityAcrossAppsResponse = z.infer<typeof SecurityAcrossAppsResponseSchema>;
+
 /** POST /api/projects/:id/attestations ; DELETE /api/projects/:id/attestations/:attestationId */
 export const AttestationRequestSchema = AttestationSchema.omit({ id: true, attestedAt: true });
 

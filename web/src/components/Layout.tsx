@@ -27,6 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
               My apps
             </NavLink>
             <NavLink to="/dashboard">Dashboard</NavLink>
+            <NavLink to="/security">Security</NavLink>
             <NavLink to="/settings">Settings</NavLink>
             <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void handleSignOut()}>
               Sign out

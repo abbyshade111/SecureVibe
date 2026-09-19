@@ -7,6 +7,7 @@ import { examplesRouter } from './examples.js';
 import { frameworksRouter } from './frameworks.js';
 import { knowledgeRouter } from './knowledge.js';
 import { metricsRouter } from './metrics.js';
+import { securityRouter } from './security.js';
 import { planRouter } from './plan.js';
 import { projectsRouter } from './projects.js';
 import { runsRouter } from './runs.js';
@@ -27,6 +28,7 @@ export function buildApiRouter(input: Omit<ApiDeps, 'approvals' | 'previews'> & 
   router.use(runsRouter(deps));
   router.use(artifactsRouter(deps));
   router.use(metricsRouter(deps));
+  router.use(securityRouter(deps));
   router.use(uploadsRouter(deps));
   router.use(planRouter(deps));
   return router;
