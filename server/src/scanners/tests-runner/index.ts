@@ -264,6 +264,12 @@ export async function runTests(ctx: ScanContext, opts: RunTestsOptions = {}): Pr
         NODE_ENV: 'test',
         DATA_DIR: dataDir,
         LOG_LEVEL: 'silent',
+        // `node --test` runs each test file in its own process, and a generated app's suite has around thirty of
+        // them, each stripping types from and compiling the same hundred or so modules. They share this cache, so
+        // that work happens once instead of thirty times. It is a cache of compiler output and nothing else: the
+        // same code runs, and it lives inside the one folder the tests are allowed to write to, so it is thrown
+        // away with the run rather than carried between them.
+        NODE_COMPILE_CACHE: join(dataDir, 'compile-cache'),
         ...(opts.extraEnv ?? {}),
       },
       // node --test runs each file in a child process, so the permission model must allow that.

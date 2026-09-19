@@ -104,9 +104,23 @@ async function main(): Promise<void> {
   const knowledge = loadKnowledge();
   const frameworks = loadFrameworks();
 
-  process.stdout.write(`Evaluation harness: ${cases.length} golden app(s), ${ai ? `with AI (${aiSettings.model}, cap $${spendingCapUsd} each)` : 'without AI'}\n`);
-  const results: CaseResult[] = [];
-  for (const name of cases) {
+  /**
+   * How many apps build at once. Each one has its own workspace, database and ports, so they do not interact — and
+   * nearly all of a build is the app's own test suite (88-92% of it, measured), which is what there is to overlap.
+   *
+   * Two by default rather than one per core: a single app's suite already runs its test files in parallel, and each
+   * password hash it computes asks for 64 MiB, so more copies mostly buy memory pressure. `--concurrency` raises it
+   * for a machine with room. With `--ai` it stays at one, because runs share a spending cap and a rate limit and
+   * interleaving them would make both impossible to reason about.
+   */
+  const concurrency = ai ? 1 : Math.max(1, Math.min(cases.length, Number(argValue('--concurrency') ?? 2)));
+  process.stdout.write(
+    `Evaluation harness: ${cases.length} golden app(s), ${ai ? `with AI (${aiSettings.model}, cap $${spendingCapUsd} each)` : 'without AI'}${concurrency > 1 ? `, ${concurrency} at a time` : ''}\n`,
+  );
+
+  // Every project is created up front, in order, so two builds can never race for an id, and so a bad golden file
+  // fails before anything has been built rather than half way through.
+  const prepared = cases.map((name) => {
     const profile = DesignProfileSchema.parse(JSON.parse(readFileSync(join(goldenDir, `${name}.json`), 'utf8')));
     const project = store.create({ name: profile.app.name, mode: 'guided', profile });
     const design = deriveDesign(profile, { knowledge, frameworks, attestations: project.attestations });
@@ -115,11 +129,18 @@ async function main(): Promise<void> {
       p.profileHash = design.profileHash;
       p.status = 'designed';
     });
+    return { name, projectId: project.id };
+  });
 
-    process.stdout.write(`\n▶ ${name}: building…\n`);
+  /**
+   * One app, built and compared. Its lines are gathered and printed in one block when it finishes rather than as
+   * they happen: with several builds in flight, interleaved progress would be unreadable and, worse, would attach
+   * one app's findings to another app's name.
+   */
+  async function runCase({ name, projectId }: { name: string; projectId: string }): Promise<CaseResult> {
     const startedAt = Date.now();
     const run = await runPipeline(
-      store.mustGet(project.id),
+      store.mustGet(projectId),
       { mode: 'full', spendingCapUsd, approvedBy: 'evaluation harness' },
       { store, config: { ...config, paths: { ...config.paths, home: scratchHome, projectsDir: join(scratchHome, 'projects') } }, knowledge, frameworks, provider, busRegistry: new RunBusRegistry() },
     );
@@ -130,19 +151,36 @@ async function main(): Promise<void> {
     const hadBaseline = existsSync(baselineFile);
     const result: CaseResult = { name, metrics, baselineFile, hadBaseline, problems: problemsOf(run) };
     if (hadBaseline) result.comparison = compareMetrics(JSON.parse(readFileSync(baselineFile, 'utf8')) as EvalMetrics, metrics);
-    results.push(result);
 
-    process.stdout.write(`  ${summaryLine(metrics)}\n`);
-    for (const stage of run.stages) if (stage.status === 'failed') process.stdout.write(`  step ${stage.id} failed: ${stage.summary}\n`);
+    const lines = [`\n▶ ${name}`, `  ${summaryLine(metrics)}`];
+    for (const stage of run.stages) if (stage.status === 'failed') lines.push(`  step ${stage.id} failed: ${stage.summary}`);
     if (result.comparison) {
-      for (const r of result.comparison.regressions) process.stdout.write(`  ✗ ${r}\n`);
-      for (const i of result.comparison.improvements) process.stdout.write(`  ✓ ${i}\n`);
-      for (const n of result.comparison.notes) process.stdout.write(`  · ${n}\n`);
-      if (!result.comparison.regressions.length && !result.comparison.improvements.length) process.stdout.write('  = same as the baseline\n');
+      for (const r of result.comparison.regressions) lines.push(`  ✗ ${r}`);
+      for (const i of result.comparison.improvements) lines.push(`  ✓ ${i}`);
+      for (const n of result.comparison.notes) lines.push(`  · ${n}`);
+      if (!result.comparison.regressions.length && !result.comparison.improvements.length) lines.push('  = same as the baseline');
     } else {
-      process.stdout.write(update ? '  (no baseline yet: saving this run as the baseline)\n' : '  (no baseline yet: run with --update to save one)\n');
+      lines.push(update ? '  (no baseline yet: saving this run as the baseline)' : '  (no baseline yet: run with --update to save one)');
     }
+    process.stdout.write(`${lines.join('\n')}\n`);
+    return result;
   }
+
+  // A plain pool: every worker takes the next case until there are none left. Results go back into the order the
+  // cases were listed in, so the results file and the summary do not depend on which build happened to finish first.
+  const byName = new Map<string, CaseResult>();
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      for (;;) {
+        const index = next++;
+        const item = prepared[index];
+        if (!item) return;
+        byName.set(item.name, await runCase(item));
+      }
+    }),
+  );
+  const results: CaseResult[] = cases.map((name) => byName.get(name)!).filter(Boolean);
 
   mkdirSync(resultsDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');

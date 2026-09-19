@@ -516,7 +516,13 @@ export class RunningApp {
   }
 
   db(): DatabaseSync {
-    return new DatabaseSync(this.dbPath());
+    const db = new DatabaseSync(this.dbPath());
+    // The same patience the app itself has (PRAGMA busy_timeout in src/db/index.ts). Without it this connection
+    // defaults to zero and gives up the instant the running app holds a write lock — so a test that writes behind
+    // the app fails with "database is locked" under load and passes on an idle machine. It cost one run of the
+    // template suite today, and building several apps at once makes the moment it needs to wait for more common.
+    db.exec('PRAGMA busy_timeout = 5000');
+    return db;
   }
 
   dbTables(): string[] {
