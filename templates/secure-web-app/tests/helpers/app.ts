@@ -82,7 +82,16 @@ export interface RouteInfo {
 
 export interface RoutesExport {
   routes: RouteInfo[];
+  /** The roles the app declares. Not the same thing as the roles its seeded test users hold: see `seededUsers`. */
   roles: string[];
+  /** Whichever declared role is the administrator. Apps name it themselves, so it is not always "admin". */
+  adminRole: string;
+  /**
+   * The test-mode users and the role each one actually holds (contract §1.16). An app that declares only an
+   * administrator role still seeds ordinary members, under a role it does not declare, so this is the only way for a
+   * test to know what the person it is probing with can do. Guessing from `roles` gets a one-person app wrong.
+   */
+  seededUsers: { email: string; role: string; mfa: boolean }[];
   entities: { name: string; ownerField: string; sample: { id: string | number } }[];
 }
 

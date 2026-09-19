@@ -20,7 +20,11 @@ describe('authz', () => {
   before(async () => {
     app = await startApp();
     registry = await app.routes();
-    memberRole = registry.roles[registry.roles.length - 1] ?? 'member';
+    // The role the person we probe with actually holds, asked of the app rather than guessed from the roles it
+    // declares. The two differ exactly where it matters: an app that declares only an administrator role still seeds
+    // ordinary members, under a role it never declared, so guessing from the declared roles would decide that the
+    // member holds the administrator's role and that the admin area is therefore not restricted from them.
+    memberRole = registry.seededUsers.find((u) => u.email === users.member)?.role ?? registry.roles[registry.roles.length - 1] ?? 'member';
     for (const who of ['member', 'member2', 'admin'] as const) {
       jars[who] = await app.login(users[who]);
       csrf[who] = await app.csrfToken(paths.account, jars[who]);
@@ -103,16 +107,10 @@ describe('authz', () => {
       if (r.auth.startsWith('role:')) return r.auth !== `role:${memberRole}`;
       return Array.isArray(r.roles) && r.roles.length > 0 && !r.roles.includes(memberRole);
     });
-    // An app with a single role has no wrong role to be. That is a real answer, not a failure: saying so leaves the
-    // requirement unverified, which is honest, where failing would report broken access control in an app that has
-    // none. A one-person app is the ordinary case for this, not a strange one.
-    if (restricted.length === 0) {
-      return t.skip(
-        registry.roles.length <= 1
-          ? `this app has one role (${registry.roles[0] ?? 'none'}), so there is no other role for a signed-in person to be`
-          : 'this app puts no page behind a role, so there is no wrong-role access to deny',
-      );
-    }
+    // Only where the app really keeps nothing behind a role is there nothing to check, and then the honest answer is
+    // to say so rather than to fail. A one-person app is not that case: it keeps its admin area behind its own role
+    // and its seeded members do not hold it, so the check runs and means something.
+    if (restricted.length === 0) return t.skip('this app puts no page behind a role, so there is no wrong-role access to deny');
     const failures: string[] = [];
     for (const route of restricted) {
       const res = await probe(route, 'member');
@@ -167,11 +165,8 @@ describe('authz', () => {
   });
 
   test('V8.3.1 the authorization decision is made on the server: client-side hints are ignored', async (t) => {
-    const adminRoute = roleRestrictedPages()[0];
-    if (!adminRoute) return t.skip('this app puts no page behind a role, so there is no role decision to try to talk it out of');
-    if (registry.roles.length <= 1) {
-      return t.skip(`this app has one role (${registry.roles[0] ?? 'none'}), so every signed-in person already holds it`);
-    }
+    const adminRoute = roleRestrictedPages().find((r) => r.auth !== `role:${memberRole}`);
+    if (!adminRoute) return t.skip('this app puts no page behind a role the person we probe with lacks');
     const url = urlFor(adminRoute);
     const hints: Record<string, string>[] = [
       { 'X-Role': 'admin' },
