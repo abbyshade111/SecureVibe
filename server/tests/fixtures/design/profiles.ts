@@ -178,9 +178,87 @@ export const marketplace: DesignProfile = DesignProfileSchema.parse({
   meta: { mode: 'quick', inferredFields: ['users.roles', 'capabilities.scheduledJobs', 'app.entities'], notSureFields: ['deployment.businessImpact'], confirmed: false },
 });
 
+/**
+ * 5. A community hall with three kinds of dated record under three different rules, and two sensitive fields.
+ *
+ * Its reason for existing is the page that gathers records from every record type ("needs-attention"): no other
+ * profile here has an administrators-only record type *with* a date on it, so nothing exercised the case where one
+ * section of a page must be built for one reader and not built at all for another. It also carries a sensitive name
+ * and a sensitive date, which are the two things that change what such a page may show.
+ */
+export const communityHall: DesignProfile = DesignProfileSchema.parse({
+  app: {
+    name: 'Community Hall',
+    description: 'Neighbours book the hall, volunteers sign up for shifts, and the committee keeps its own notes.',
+    category: 'booking',
+    entities: [
+      {
+        name: 'booking',
+        label: 'Booking',
+        pluralLabel: 'Bookings',
+        fields: [
+          { name: 'starts-at', label: 'Starts at', type: 'datetime', required: true },
+          { name: 'what-for', label: 'What it is for', type: 'text', required: true },
+          { name: 'people', label: 'How many people', type: 'number' },
+        ],
+        access: 'owner-only',
+      },
+      {
+        name: 'shift',
+        label: 'Shift',
+        pluralLabel: 'Shifts',
+        fields: [
+          { name: 'on', label: 'Day', type: 'date', required: true },
+          { name: 'job', label: 'Job', type: 'text', required: true },
+          { name: 'filled', label: 'Covered', type: 'boolean' },
+        ],
+        access: 'all-signed-in',
+      },
+      {
+        name: 'concern',
+        label: 'Concern',
+        pluralLabel: 'Concerns',
+        fields: [
+          { name: 'raised-on', label: 'Raised on', type: 'date', required: true },
+          { name: 'about-whom', label: 'About whom', type: 'text', required: true, sensitive: true },
+          { name: 'outcome', label: 'Outcome', type: 'longtext' },
+        ],
+        access: 'admin-only',
+      },
+      {
+        name: 'member-note',
+        label: 'Member note',
+        pluralLabel: 'Member notes',
+        fields: [
+          { name: 'joined-on', label: 'Joined on', type: 'date', required: true, sensitive: true },
+          { name: 'note', label: 'Note', type: 'longtext' },
+        ],
+        access: 'owner-only',
+      },
+    ],
+    keyFeatures: ['Book the hall', 'Sign up for a volunteering shift', 'Committee concerns log', 'See what is coming up'],
+  },
+  users: {
+    audience: 'my-team',
+    requiresSignIn: true,
+    roles: [
+      { name: 'admin', label: 'Committee', isAdmin: true },
+      { name: 'member', label: 'Member' },
+    ],
+    expectedUserCount: '21-500',
+    registration: 'invite-only',
+    adminMfa: true,
+  },
+  data: { categories: ['contact'], aboutOtherPeople: true, retention: 'keep-until-deleted', region: 'eu-uk' },
+  capabilities: {},
+  deployment: { target: 'local-network', owner: { name: 'Mo Abadi', contactEmail: 'mo@example.com' }, businessImpact: 'normal' },
+  meta: { mode: 'guided', notSureFields: [], confirmed: true },
+});
+
 export const allProfiles: { name: string; profile: DesignProfile }[] = [
   { name: 'habitTracker', profile: habitTracker },
   { name: 'teamInventory', profile: teamInventory },
   { name: 'clinicBookings', profile: clinicBookings },
   { name: 'marketplace', profile: marketplace },
+  { name: 'communityHall', profile: communityHall },
 ];

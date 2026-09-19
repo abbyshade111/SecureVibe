@@ -31,8 +31,38 @@ export function plural(name: string): string {
   return `${name}s`;
 }
 
+/**
+ * The words SQLite refuses as a bare identifier, so a field called "Order" or "From" cannot become a column called
+ * `order` or `from`. Without this, the migration for such a record type is invalid SQL and the whole build stops at
+ * the point the database is created — for a field name anybody might reasonably choose.
+ *
+ * It is sixty of SQLite's hundred and forty-seven keywords: the rest are accepted as identifiers and are left alone,
+ * because renaming a column that already works would change the schema of an app that is running. Which sixty is not
+ * a judgement — `sql-identifiers.test.ts` asks a real database, keyword by keyword, and fails if this list and
+ * SQLite ever disagree in either direction.
+ */
+const SQL_RESERVED = new Set([
+  'add', 'all', 'alter', 'and', 'as', 'autoincrement', 'between', 'case', 'cast', 'check', 'collate', 'commit',
+  'constraint', 'create', 'default', 'deferrable', 'delete', 'distinct', 'drop', 'else', 'escape', 'except',
+  'exists', 'foreign', 'from', 'group', 'having', 'in', 'index', 'insert', 'intersect', 'into', 'is', 'isnull',
+  'join', 'limit', 'not', 'nothing', 'notnull', 'null', 'on', 'or', 'order', 'primary', 'raise', 'references',
+  'returning', 'select', 'set', 'table', 'then', 'to', 'transaction', 'union', 'unique', 'update', 'using',
+  'values', 'when', 'where',
+]);
+
+/**
+ * A name safe to write into SQL unquoted. A reserved word gains a trailing underscore; everything else is untouched.
+ *
+ * Quoting every identifier instead would work equally well for the database and worse for everybody reading the
+ * generated code, which is most of the point of generating readable code — and it would mean getting the quoting
+ * right in six recipes' worth of emitted statements rather than in one function here.
+ */
+export function safeIdentifier(name: string): string {
+  return SQL_RESERVED.has(name) ? `${name}_` : name;
+}
+
 export function tableName(entity: EntitySpec): string {
-  return snake(plural(entity.name));
+  return safeIdentifier(snake(plural(entity.name)));
 }
 
 /** URL prefix for the entity's pages and API, e.g. `/appointments`. */
@@ -40,8 +70,9 @@ export function routeBase(entity: EntitySpec): string {
   return `/${plural(entity.name)}`;
 }
 
+/** The column a field is stored in. Never a word SQLite would refuse: see `safeIdentifier`. */
 export function columnName(field: EntityField): string {
-  return snake(field.name);
+  return safeIdentifier(snake(field.name));
 }
 
 /** The DTO/property name a column is exposed as, e.g. `start_time` → `startTime`. */

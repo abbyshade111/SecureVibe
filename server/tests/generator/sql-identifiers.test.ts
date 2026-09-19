@@ -1,0 +1,112 @@
+/**
+ * A field named after a SQL keyword must not break the app.
+ *
+ * "Order", "From", "To", "Group", "Check", "When", "Where" — all ordinary things to call a field, and until this was
+ * fixed each one produced a migration SQLite refuses to run, so the build stopped at the point the database is
+ * created. Not a subtle failure, and not a rare name: an inventory with an "Order" field, a timesheet with "From"
+ * and "To".
+ *
+ * The list of words that need escaping is not written by judgement, it is asked of the database. This test puts every
+ * SQLite keyword through a real CREATE TABLE and a real SELECT and requires that `safeIdentifier` escapes exactly
+ * those the database rejects — no more, because renaming a column that already works would change the schema of an
+ * app that is running, and no fewer, because one missed word is a build that dies on a valid answer.
+ */
+import { DatabaseSync } from 'node:sqlite';
+import { describe, expect, it } from 'vitest';
+import { columnName, planEntity, safeIdentifier, tableName } from '../../src/generator/recipes/record-type/fields.js';
+import { emitMigration } from '../../src/generator/recipes/record-type/emit.js';
+import type { EntitySpec } from '@shared/profile.js';
+
+/** SQLite's keyword list (https://sqlite.org/lang_keywords.html). */
+const KEYWORDS = `ABORT ACTION ADD AFTER ALL ALTER ALWAYS ANALYZE AND AS ASC ATTACH AUTOINCREMENT BEFORE BEGIN
+BETWEEN BY CASCADE CASE CAST CHECK COLLATE COLUMN COMMIT CONFLICT CONSTRAINT CREATE CROSS CURRENT CURRENT_DATE
+CURRENT_TIME CURRENT_TIMESTAMP DATABASE DEFAULT DEFERRABLE DEFERRED DELETE DESC DETACH DISTINCT DO DROP EACH ELSE
+END ESCAPE EXCEPT EXCLUDE EXCLUSIVE EXISTS EXPLAIN FAIL FILTER FIRST FOLLOWING FOR FOREIGN FROM FULL GENERATED GLOB
+GROUP GROUPS HAVING IF IGNORE IMMEDIATE IN INDEX INDEXED INITIALLY INNER INSERT INSTEAD INTERSECT INTO IS ISNULL
+JOIN KEY LAST LEFT LIKE LIMIT MATCH MATERIALIZED NATURAL NO NOT NOTHING NOTNULL NULL NULLS OF OFFSET ON OR ORDER
+OTHERS OUTER OVER PARTITION PLAN PRAGMA PRECEDING PRIMARY QUERY RAISE RANGE RECURSIVE REFERENCES REGEXP REINDEX
+RELEASE RENAME REPLACE RESTRICT RETURNING RIGHT ROLLBACK ROW ROWS SAVEPOINT SELECT SET TABLE TEMP TEMPORARY THEN
+TIES TO TRANSACTION TRIGGER UNBOUNDED UNION UNIQUE UPDATE USING VACUUM VALUES VIEW VIRTUAL WHEN WHERE WINDOW WITH
+WITHOUT`
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((w) => w.toLowerCase());
+
+/** Whether a real SQLite will take this word as a bare column name, in a table and then in a query. */
+function sqliteAccepts(word: string): boolean {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(`CREATE TABLE t (id TEXT PRIMARY KEY, ${word} TEXT)`);
+    db.exec(`SELECT ${word} FROM t WHERE ${word} >= 'x' ORDER BY ${word}`);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    db.close();
+  }
+}
+
+describe('a field named after a SQL keyword', () => {
+  it('escapes exactly the words a real SQLite refuses, and leaves every other one alone', () => {
+    const shouldEscape: string[] = [];
+    const wronglyEscaped: string[] = [];
+    for (const word of KEYWORDS) {
+      const accepted = sqliteAccepts(word);
+      const escaped = safeIdentifier(word) !== word;
+      if (!accepted && !escaped) shouldEscape.push(word);
+      if (accepted && escaped) wronglyEscaped.push(word);
+    }
+    expect(shouldEscape, 'these words break a generated app and are not being escaped').toEqual([]);
+    expect(wronglyEscaped, 'these words work as they are; renaming them would change a running app’s schema').toEqual([]);
+  });
+
+  it('leaves an ordinary field name completely alone', () => {
+    for (const name of ['title', 'starts_at', 'quantity', 'reason', 'owner_id', 'created_at', 'keyword', 'ordering']) {
+      expect(safeIdentifier(name)).toBe(name);
+    }
+  });
+
+  it('builds a migration SQLite will actually run for a record type whose fields are all keywords', () => {
+    // Every one of these is a plausible thing to call a field, and every one of them used to stop the build.
+    const entity: EntitySpec = {
+      name: 'order',
+      label: 'Order',
+      pluralLabel: 'Orders',
+      access: 'owner-only',
+      fields: [
+        { name: 'from', label: 'From', type: 'text', required: true },
+        { name: 'to', label: 'To', type: 'text' },
+        { name: 'group', label: 'Group', type: 'text' },
+        { name: 'check', label: 'Check', type: 'boolean' },
+        { name: 'when', label: 'When', type: 'date' },
+        { name: 'order', label: 'Order size', type: 'number' },
+        { name: 'references', label: 'References', type: 'longtext' },
+      ],
+    } as EntitySpec;
+
+    const plan = planEntity(entity, { uploads: false });
+    const migration = emitMigration(plan, 'r_20260101000000_sqlkeywords');
+
+    const db = new DatabaseSync(':memory:');
+    try {
+      // The migration is what the app runs at startup; if SQLite will not take it, the app never starts.
+      // Comment lines are stripped before splitting: a leading "-- Generated by ..." belongs to the statement that
+      // follows it, and dropping the whole chunk would quietly skip the CREATE TABLE this test is about.
+      const sql = migration
+        .split(/\r?\n/)
+        .filter((line) => !line.trim().startsWith('--'))
+        .join('\n');
+      for (const statement of sql.split(';').map((s) => s.trim()).filter((s) => s !== '')) {
+        db.exec(statement);
+      }
+      // And the columns are really there, under the escaped names, so a query the recipes emit can find them.
+      const columns = db.prepare(`SELECT name FROM pragma_table_info(?)`).all(tableName(entity)) as { name: string }[];
+      const names = columns.map((c) => c.name);
+      for (const field of entity.fields) {
+        expect(names, `${field.name} must have a column`).toContain(columnName(field));
+      }
+    } finally {
+      db.close();
+    }
+  });
+});
