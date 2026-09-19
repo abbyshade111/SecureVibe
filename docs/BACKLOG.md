@@ -33,6 +33,13 @@ an owner would notice, because that is what decides the order. Remove an item wh
   unscanned rather than implying they were checked. Not a new build-time scanner: malicious packages are rarely
   in antivirus signatures, and that risk is already covered by disabled install scripts, a minimum package age
   and the OSV check. V5.4.3 stays manual-only until an app actually scans.
+- **The same scanner, on SecureVibe's own Security page.** A second use of the same connection, and the stronger
+  of the two for SecureVibe itself: an opt-in external tool beside Trivy, Semgrep and the AI scanner, run on
+  demand like any other check. It earns its place most on an **uploaded** app — code SecureVibe is handed and
+  never runs is precisely untrusted content — and on a built app's own uploads folder, where whatever an owner
+  has been trying out is sitting. It must behave like the other opt-in tools when absent: say the check did not
+  run, never imply a clean result. Expect few hits on ordinary source; the honest claim is "nothing known-bad in
+  these files", not "this code is safe".
 
 ## The recipe-library session's half
 
