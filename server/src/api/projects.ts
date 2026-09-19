@@ -754,13 +754,64 @@ export function projectsRouter(deps: ApiDeps): Router {
     if (!existsSync(appDir)) throw notFound('This project has not been built yet.');
     // SecureVibe does not know how to start an app it did not build.
     if (isUploadedApp(project)) throw notFound('Run instructions are only available for apps SecureVibe built.');
-    res.json(buildRunInstructions(project.id, appDir, project.design?.buildSpec));
+    const lastRun = project.lastRunId ? deps.store.readRun(project.id, project.lastRunId) : undefined;
+    res.json(buildRunInstructions(project.id, appDir, project.design?.buildSpec, project.profile as DesignProfile | undefined, lastRun?.planCoverage));
   });
 
   return router;
 }
 
-function buildRunInstructions(projectId: string, appDir: string, buildSpec?: { features: { adminMfa: boolean } }): RunInstructions {
+/**
+ * What only the owner can finish: the things SecureVibe cannot do for them, read from facts rather than written
+ * as advice. An owner was told her app "only talks to the outside services you named (weather service, maps)"
+ * when neither was connected, because she had never been asked for their addresses; nothing anywhere said those
+ * connections were missing. This list is where that belongs. It has existed, and been rendered, and been empty.
+ */
+function unfinishedWork(
+  appDir: string,
+  profile: DesignProfile | undefined,
+  planCoverage: { title: string; status: string; evidence: string }[] | undefined,
+): string[] {
+  const out: string[] = [];
+  if (!profile) return out;
+
+  for (const api of profile.capabilities.externalApis) {
+    const name = api.name || 'An outside service';
+    if (!api.host?.trim()) {
+      out.push(`${name}: your app does not call it, because no web address was given for it. Add the address in your answers and rebuild.`);
+    } else if (api.credentials !== 'have') {
+      out.push(`${name}: your app is ready to call ${api.host}, but it needs an account and key for it. Get one, put it in the app's .env file, and restart the app.`);
+    }
+  }
+
+  // Switched on in the answers, with nothing behind it in the settings the app actually reads.
+  const env = existsSync(join(appDir, '.env')) ? readFileSync(join(appDir, '.env'), 'utf8') : '';
+  const setting = (key: string): string => new RegExp(`^${key}=(.*)$`, 'm').exec(env)?.[1]?.trim() ?? '';
+  if (profile.capabilities.aiAssistant.enabled && setting('ANTHROPIC_API_KEY') === '' && setting('OPENAI_API_KEY') === '') {
+    out.push('The assistant has no key yet, so it will say it is unavailable. Add your AI service key to the app\'s .env file and restart the app.');
+  }
+  if (profile.capabilities.email && setting('SMTP_URL') === '') {
+    out.push('Email is switched on but no mail service is set up, so nothing is sent. Put your mail service address in SMTP_URL in the app\'s .env file.');
+  }
+  if (profile.capabilities.payments) {
+    out.push('Payments use a placeholder checkout page: no money can move until you connect a real payment provider, which needs a developer and an account with them.');
+  }
+
+  for (const feature of planCoverage ?? []) {
+    if (feature.status === 'not-built') out.push(`"${feature.title}" was planned and is not there: ${feature.evidence}`);
+    else if (feature.status === 'files-in-place') out.push(`"${feature.title}" has its pages and records, but nothing has shown that it works: ${feature.evidence}`);
+    else if (feature.status === 'partly') out.push(`"${feature.title}" is only partly built: ${feature.evidence}`);
+  }
+  return out;
+}
+
+function buildRunInstructions(
+  projectId: string,
+  appDir: string,
+  buildSpec?: { features: { adminMfa: boolean } },
+  profile?: DesignProfile,
+  planCoverage?: { title: string; status: string; evidence: string }[],
+): RunInstructions {
   const hasNodeModules = existsSync(join(appDir, 'node_modules'));
   const hasEnv = existsSync(join(appDir, '.env'));
   const firstLoginFile = join(appDir, 'FIRST-LOGIN.txt');
@@ -783,6 +834,6 @@ function buildRunInstructions(projectId: string, appDir: string, buildSpec?: { f
     steps,
     ...(firstLogin ? { firstLogin } : {}),
     needsAuthenticatorApp: buildSpec?.features.adminMfa ?? true,
-    unfinished: [],
+    unfinished: unfinishedWork(appDir, profile, planCoverage),
   });
 }

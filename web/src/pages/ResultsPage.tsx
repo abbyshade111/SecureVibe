@@ -518,9 +518,14 @@ export function ResultsPage() {
               in.
             </p>
           )}
+          {/* Open, not folded. This list was empty for so long that it was reasonable to hide it; now that it says
+              which outside services are not connected and which features came back short, an owner who never
+              opens it is the owner who most needs it. The count is in the heading so it is worth opening. */}
           {instructions.unfinished.length > 0 && (
-            <details className="sv-details">
-              <summary>Things you still need to finish</summary>
+            <details className="sv-details" open>
+              <summary>
+                Things you still need to finish ({instructions.unfinished.length})
+              </summary>
               <ul style={{ marginBottom: 0 }}>
                 {instructions.unfinished.map((u, i) => (
                   <li key={i}>{u}</li>
