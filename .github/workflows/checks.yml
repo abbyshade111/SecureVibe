@@ -23,6 +23,9 @@ jobs:
   build:
     name: Types, tests and the app template's own suite
     runs-on: ubuntu-latest
+    # A hung suite must fail visibly rather than run until the six-hour default: this job hung at "npm test" on
+    # every run before this was added, and nothing said so.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -45,8 +48,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # --reporter=verbose names each file as it starts, so a stall says where it stalled.
       - name: Run SecureVibe's own tests
-        run: npm test
+        run: npm test -- --reporter=verbose
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
@@ -58,6 +62,7 @@ jobs:
   packages:
     name: Packages and bill of materials
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -86,6 +91,11 @@ jobs:
     name: New or changed packages in a pull request
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # GitHub only offers this where the dependency graph is on, which needs Advanced Security on a private
+    # repository. Until then it reports and does not block: a check nobody can make pass teaches people to ignore
+    # red crosses, which is worse than not having it. Turn it on at Settings, Code security and analysis.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
