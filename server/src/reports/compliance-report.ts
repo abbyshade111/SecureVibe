@@ -10,7 +10,7 @@ import { mdBullets, mdTable } from './md.js';
 import { adrAnchor, adrSectionHtml, adrSectionMarkdown, readAppAdrs } from './adrs.js';
 import { glossaryHtml, glossaryMarkdown } from './glossary.js';
 import { renderPage, type Banner, type TocEntry } from './page.js';
-import type { ReportModel } from './types.js';
+import { coverageRanText, type ReportModel } from './types.js';
 
 const NON_GOALS = [
   'Native mobile apps',
@@ -97,7 +97,7 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
     '',
     mdTable(
       ['Tool', 'Ran', 'What it covers'],
-      input.coverage.map((c) => [c.tool, c.ran ? 'Yes' : `No${c.reason ? ` (${c.reason})` : ''}`, c.covers ?? '']),
+      input.coverage.map((c) => [c.tool, coverageRanText(c), c.covers ?? '']),
     ),
   );
 
@@ -327,7 +327,7 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
   body.push(
     htmlTable(
       ['Tool', 'Ran', 'What it covers'],
-      input.coverage.map((c) => [escapeHtml(c.tool), c.ran ? 'Yes' : `No${c.reason ? ` (${escapeHtml(c.reason)})` : ''}`, escapeHtml(c.covers ?? '')]),
+      input.coverage.map((c) => [escapeHtml(c.tool), coverageRanText(c, escapeHtml), escapeHtml(c.covers ?? '')]),
     ),
   );
   body.push('</section>');

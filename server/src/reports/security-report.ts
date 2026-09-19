@@ -9,7 +9,7 @@ import { confidenceText, priorityBadge, priorityText, severityText } from './bad
 import { mdBullets, mdTable } from './md.js';
 import { glossaryHtml, glossaryMarkdown } from './glossary.js';
 import { renderPage, type Banner, type TocEntry } from './page.js';
-import type { ReportModel } from './types.js';
+import { coverageRanText, type ReportModel } from './types.js';
 
 function countBy<T extends string>(findings: Finding[], key: (f: Finding) => T, order: Record<T, number>): Record<T, number> {
   const out = {} as Record<T, number>;
@@ -98,7 +98,7 @@ export function renderSecurityReport(input: ReportModel): { md: string; html: st
   );
 
   md.push('', '## 3. Tool coverage & limits', '');
-  md.push(mdTable(['Tool', 'Ran', 'What it covers'], input.coverage.map((c) => [c.tool, c.ran ? 'Yes' : `No${c.reason ? ` (${c.reason})` : ''}`, c.covers ?? ''])));
+  md.push(mdTable(['Tool', 'Ran', 'What it covers'], input.coverage.map((c) => [c.tool, coverageRanText(c), c.covers ?? ''])));
 
   md.push('', '## 4. Findings by priority', '');
   if (findingsByPriority.length === 0) md.push('No open findings.');
@@ -243,7 +243,7 @@ export function renderSecurityReport(input: ReportModel): { md: string; html: st
     ])}</section>`,
   );
 
-  body.push(`<section id="coverage" class="chapter"><h2>3. Tool coverage &amp; limits</h2>${htmlTable(['Tool', 'Ran', 'What it covers'], input.coverage.map((c) => [escapeHtml(c.tool), c.ran ? 'Yes' : `No${c.reason ? ` (${escapeHtml(c.reason)})` : ''}`, escapeHtml(c.covers ?? '')]))}</section>`);
+  body.push(`<section id="coverage" class="chapter"><h2>3. Tool coverage &amp; limits</h2>${htmlTable(['Tool', 'Ran', 'What it covers'], input.coverage.map((c) => [escapeHtml(c.tool), coverageRanText(c, escapeHtml), escapeHtml(c.covers ?? '')]))}</section>`);
 
   const findingCards = findingsByPriority
     .map((f) => {

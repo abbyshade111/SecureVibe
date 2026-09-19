@@ -169,6 +169,13 @@ export type LlmUsage = z.infer<typeof LlmUsageSchema>;
 export const ToolCoverageSchema = z.object({
   tool: z.string(),
   ran: z.boolean(),
+  /**
+   * The tool started, did some of the work and stopped: it covered less than a full run, but it is not true that
+   * it never ran. Reported as "Partly". Without this, a scan that had already read files and charged the owner's
+   * key printed "Ran: No" directly above a sentence saying they had been charged — the sentence true, the cell
+   * above it false. `ran` stays false so nothing counts coverage the run did not actually give.
+   */
+  partial: z.boolean().optional(),
   version: z.string().optional(),
   reason: z.string().optional(),
   /** What the tool covers, in plain language. */

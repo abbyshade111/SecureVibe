@@ -124,7 +124,7 @@ export default function SecurityPage() {
             <li key={check.id} className="sv-row-between" style={{ alignItems: 'flex-start', gap: 16, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
               <div>
                 <p>
-                  <strong>{check.title}</strong> <Badge tone={TONE[check.status]}>{labelFor(check)}</Badge>
+                  <strong>{check.title}</strong> <Badge tone={problemsLine(check) ? 'warn' : TONE[check.status]}>{labelFor(check)}</Badge>
                 </p>
                 <p className="sv-help">{check.covers}</p>
                 <p className="sv-muted">

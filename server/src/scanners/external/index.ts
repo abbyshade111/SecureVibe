@@ -201,11 +201,16 @@ export function toolCacheEnv(cacheDir: string): Record<string, string> {
 }
 
 function coverageRow(tool: ExternalToolResult, covers: string): ToolCoverage {
+  // A reason that does not begin "skipped" means the tool did something before it stopped — it read files, and
+  // where it is an AI scanner the owner was charged for them. That is not the same as never having run.
+  const reason = tool.ran ? undefined : (tool.reason ?? 'skipped: not installed');
+  const didSomething = !tool.ran && reason !== undefined && !reason.startsWith('skipped');
   return {
     tool: tool.name,
     ran: tool.ran,
+    ...(didSomething ? { partial: true } : {}),
     version: tool.version,
-    reason: tool.ran ? undefined : (tool.reason ?? 'skipped: not installed'),
+    reason,
     covers,
   };
 }

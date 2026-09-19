@@ -36,3 +36,16 @@ export interface ReportModel {
   /** Findings of the previous run, for the "delta vs previous" summary line. */
   previousFindings?: Finding[];
 }
+
+/**
+ * The "Ran" cell for a tool, in one place so the four report tables cannot drift apart.
+ *
+ * "No" beside a reason that says the owner's key was charged is a false cell above a true sentence, which is how
+ * a report loses its reader. A tool that started, did some of the work and stopped reads "Partly": less than a
+ * full run, but not nothing.
+ */
+export function coverageRanText(c: { ran: boolean; partial?: boolean; reason?: string }, escape: (s: string) => string = (s) => s): string {
+  if (c.ran) return 'Yes';
+  const reason = c.reason ? ` (${escape(c.reason)})` : '';
+  return `${c.partial ? 'Partly' : 'No'}${reason}`;
+}
