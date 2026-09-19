@@ -2,9 +2,9 @@
   "version": 1,
   "case": "team-inventory",
   "mode": "no-ai",
-  "runId": "r_20260919123833_jj62mq",
+  "runId": "r_20260919180819_p2fa7h",
   "status": "succeeded",
-  "durationMs": 239704,
+  "durationMs": 267466,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -39,8 +39,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 201,
-    "passed": 154,
+    "total": 228,
+    "passed": 181,
     "failed": 0
   },
   "costUsd": 0
