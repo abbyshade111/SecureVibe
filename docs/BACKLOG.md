@@ -9,6 +9,27 @@ an owner would notice, because that is what decides the order. Remove an item wh
   prose: settings left unset, named outside services with no address, planned features that came back not-built.
   For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
   has this shape for deployment, so it extends a pattern rather than inventing a third list.
+- **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
+  organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
+  for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
+  the overstatement this whole project exists to avoid. Two parts instead. Where the control is really asking a
+  question, ask it in the wizard (does your organisation have a central sign-in system?) and let the existing
+  applicability rules mark it not applicable, as TLS requirements already are for a local-only app. Where no
+  question fits, let the owner record a **reason**: the control stays visible, reads "not applicable — because
+  …", the rating reflects it, and the reports name who decided and when. One hides a control; the other answers
+  it, and only the second can be audited.
+- **The red rating and the green ticks are different scoreboards, and the page does not say so.** "At risk"
+  comes from Secure by Design — one unmet critical control is enough — while the ticks below are ASVS, where the
+  same app passes 107 of 159. Both true, and read together they look like a contradiction. The rating needs to
+  carry which standard it comes from, and the ASVS section needs to say that a good score there does not lift a
+  critical control elsewhere.
+- **The authorization tests cannot see an admin area that is not called "admin".** `tests/security/authz.test.ts`
+  looks for routes whose auth is the literal `role:admin`, while the neighbouring assertion resolves the member
+  role from the config. An app whose admin role is named `owner` — as a real owner's app was — has sixteen
+  properly restricted admin routes and reports three failing authorization tests, because the check cannot find
+  what it is looking for. Worse than the false failure is the silent version: the evidence those tests provide is
+  only as good as the role happening to be named "admin". Resolve the role from the config, as line 86 already
+  does.
 - **"Files in place" instead of "built".** planCoverage called "See graphs and summaries of trends over time"
   *built* on the evidence that a page existed at the planned path and tests named as planned passed — while
   nothing drew anything. Where the only evidence is that files exist, the row should say that in those words.
