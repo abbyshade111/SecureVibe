@@ -99,7 +99,7 @@ securevibe/
 | `frameworks/` | Loads framework JSON; requirement lookup; applicability engine (profile → applicable requirements + target level); mapping tables (rule → requirements, probe → requirements, manifest control → requirements) |
 | `design/` | SbD engine: derive architecture, select patterns, fill checklist, risk triage, threat model, ADRs, design doc, security contract |
 | `llm/` | `LlmProvider` interface; `AnthropicProvider` (SDK, streaming, adaptive thinking, prompt caching, fallbacks, refusal handling, retries, budgets, audit log); `MockProvider` (deterministic; used by tests and Demo mode); prompt library; structured-output helpers; the code-generation agent loop with confined file tools |
-| `generator/` | Scaffold from template (feature toggles, entity stubs), build the generation brief, run the agent loop, provenance metadata |
+| `generator/` | Scaffold from template (feature toggles, entity stubs), the recipe library (`recipes/`: named, tested building blocks applied from the design profile), build the generation brief, run the agent loop, provenance metadata |
 | `scanners/` | `sast` (TypeScript-AST rule engine), `eslint` (eslint-plugin-security), `secrets`, `deps` (`npm audit` + lockfile + optional OSV), `config`, `dast` (runtime probes against the app started on 127.0.0.1), `tests` (vitest runner), `external` (semgrep/gitleaks/trivy when present), `normalize` (common Finding schema, fingerprints, dedupe, remediation enrichment) |
 | `compliance/` | Evidence collection, per-requirement evaluation (ASVS, AISVS), SbD checklist evaluation and scoring, summary metrics |
 | `reports/` | Renderers: JSON (source of truth), self-contained HTML, Markdown; compliance report, security report, design document, SBOM (CycloneDX) |

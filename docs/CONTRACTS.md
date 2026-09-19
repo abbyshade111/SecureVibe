@@ -32,7 +32,7 @@ securevibe/
     frameworks/                     loaders, id validation, applicability engine, plain-language lookup
     design/                         SbD engine (requirements, architecture, patterns, checklist, triage, threat model, ADRs, contract, build spec, summary)
     llm/                            providers (anthropic, null, scripted), prompt library (hash-pinned), structured outputs, agent loop, review, fix, quick-infer, peer-review, threat-model, budgets, audit log, redaction, screening
-    generator/                      scaffold (template copy + toggles + secrets + admin bootstrap), CRUD expander, brief builder, provenance
+    generator/                      scaffold (template copy + toggles + secrets + admin bootstrap), recipe library (recipes/), brief builder, provenance
     scanners/                       sast (TS AST rules), lint (eslint), secrets, deps (+sbom), config, dast (harness + probes), tests runner, external, normalize/dedupe/priority
     compliance/                     evidence collection, requirement evaluation, sbd evaluation, traceability, summaries, recommendations
     reports/                        overview, compliance, security, design doc, going-online checklist, sarif, html/md renderers, glossary
@@ -444,6 +444,11 @@ scanner flags `SECUREVIBE_TEST_MODE` in `.env`). Effects:
 * `GET /__securevibe/routes` → `{ routes: (RouteSpec serialisable fields + bodySchema: JSON Schema | null)[], roles: string[], entities: [{name, ownerField, sample: {id}}] }`.
 * `GET /__securevibe/events?since=<ISO>` → last 500 security events (for log-evidence probes).
 * `POST /__securevibe/reset-rate-limits` → clears limiter state (used between probe groups).
+* `POST /__securevibe/run-jobs` → runs scheduled jobs now whatever their interval says, each still under its own
+  lease (`runJobNow` in `src/lib/scheduler.ts`); `{"job":"<name>"}` runs one, an empty body runs all, and the reply
+  says which ran. Without it a test of a job that is due once a day would have to wait for a tick. **Administrators
+  only**, unlike the other three: anything that can set work going stays behind the administrator role, which is what
+  `tests/security/db.test.ts` requires of every non-GET route whose path mentions a job or a schedule.
 * Prints exactly one line to stdout when listening: `{"securevibe":"listening","port":<n>,"pid":<pid>,"tlsMode":"off"}`.
 * `general` rate limit raised to 100 000/min; `login`, `mfa`, `registration`, `reset`, `ai`, `uploads` unchanged.
 These endpoints do not exist outside test mode (404) — a DAST probe (`dast.leak.test-endpoints-absent`) verifies this in
@@ -1051,3 +1056,127 @@ against the app, the project folder and the SecureVibe folder in that order, and
 (`.md`/`.json` only, ≤512 KB, path-confined); `.env` and `FIRST-LOGIN.txt` are listed with `openable: false` and
 never served, whatever a check's wording says. The human-checks wizard shows a "Read docs/x.md" button per
 document and opens it in place.
+
+## The recipe library (added 2026-09-18)
+
+`server/src/generator/recipes/` is a library of named, tested **recipes**: each one is a way to add one kind of
+thing to a generated application, written deterministically from the design profile. The scaffold stage applies
+the whole library (`applyRecipes`) right after the template is copied, so a build without AI already produces a
+working app, and the generation agent extends what the recipes wrote instead of re-deriving the same patterns on
+every build. Recipe 1 is `record-type` (a record type with list, add, edit and delete — formerly the CRUD
+expander) recipe 2 is `record-attachment` (a file kept with a record), recipe 3 is
+`record-summary` (a report over existing records) and recipe 4 is `record-reminder` (a scheduled reminder before a
+date on a record).
+
+`types.ts` is the contract. A recipe carries `id` (stable, never reused), `version` (bumped when the emitted code
+changes), a plain-language `title` and `summary`, `plan(ctx)` — one instance per thing to build, from the profile
+— and `emit(instance, ctx)`, a pure function returning the files, the routes, a registration block for
+`src/features/index.ts`, plain-language `notes` about anything left out, a `description` of what this instance
+adds, and `requirements`. `RecipeContext` gives a recipe the design, the profile, the settled feature toggles, the
+run id and `nextMigrationNumber()` (100 upwards; the runner hands out the numbers so two recipes cannot clash).
+
+**Evidence.** A recipe's `requirements` say which of its own emitted tests speaks to which ASVS/AISVS requirement,
+and nothing more: the evidence is the test result the ordinary `unit-tests` stage collects. Because
+`compliance/evidence.ts` credits a test to a requirement when the test's own name *starts* with the requirement
+id, the emitted test names carry the ids, and the rest of each name restates the requirement in the same
+plain-language words the reports use (`V8.2.2 booking: changing the id in the address to a record owned by someone
+else is refused`), so a reader can see what the test claims to show and a name-based screen can recognise it. `tests/generator/recipes-contract.test.ts` holds every recipe to this: each claimed id must
+exist in the framework data, must lead the name of a test the recipe actually emits, and must come with a
+plain-language sentence saying what the test shows. A recipe that claims a requirement it does not test fails the
+suite. `record-type` claims V2.2.1, V2.2.2, V2.3.3, V2.4.1, V8.2.1, V8.2.3 and — for records that belong to one person —
+V8.2.2, and — for administrator-only records — V8.3.1. A name may not contain a quote or a backslash, because it is
+emitted inside a single-quoted literal.
+
+**Recipe 2 — `record-attachment`** ("A file kept with a record"). Applies to every record type that has a `file`
+field, when the uploads feature is on. It adds one column per file field (`ALTER TABLE`, additive), a page at
+`<base>/:id/files` listing what is attached, and per field a `POST <base>/:id/files/<column>` that attaches one and
+a `POST …/remove` that removes it. Uploading is not reimplemented: the attach route calls `receiveUpload` from
+`src/features/uploads/index.ts` (exported for exactly this, SC-12), so the Origin check, the form token, the byte
+cap, the magic-byte sniff, the storage location and the per-person storage limit are the module's. The attach route
+therefore declares `csrf: false` and `rateLimit: 'uploads'`, as the module's own route does, and the file input must
+be named `file` with the `_csrf` field written before it.
+
+Because the only file a caller can name is the one they just sent, a record can never be pointed at somebody
+else's stored file. That is why the `file` field is no longer part of the record type's own schema at all
+(`record-type` version 2 leaves it out; `attachmentFieldsOf` in `record-type/fields.ts` is the single definition
+both recipes read) — the column is writable only by attaching. Removing an attachment deletes the stored file only
+when it belongs to the person removing it, or they are an administrator. The recipe claims V3.5.1, V5.2.2, V8.2.1,
+V8.2.3 and, for records that belong to one person, V8.2.2; it does not re-claim what the template's own
+`uploads.test.ts` proves about the module. When a design has a file field but the uploads feature is off, nothing is
+emitted and `record-type` leaves the field out with a reason the owner can read — a defensive path, since the design
+engine turns uploads on whenever any record has a file field.
+
+**Recipe 3 — `record-summary`** ("A report over existing records"). Applies to every record type with a field worth
+adding up (an amount, a yes/no answer, or a choice with options). It emits one read-only page at
+`/reports/<plural>` — not `<base>/summary`, because the record type's own `<base>/:id` route is registered first
+and would match `summary` as an id — with the record count, the total and average of each amount, a tally of each
+yes/no field, a count per option of each choice, and two optional dates that narrow it by `created_at`.
+
+The database does the adding up (`COUNT`, `SUM`, `AVG`), so the page costs one query per section however large the
+table, and every statement is a fixed string with the table name written out locally (`summaryFieldsOf` in
+`record-type/fields.ts` is the shared definition of what may be summarised). Three rules make it safe to show:
+a field marked **sensitive is never summarised**, because a total or a breakdown can give away as much as the values;
+where records belong to one person the totals are over **that person's own records** (an administrator, who may
+already read every record, sees all of them); and the report **always needs a sign-in**, even for a record type
+anyone may read, because the list shows one page at a time while a total is taken over every record. The recipe
+claims V2.2.1 (the two dates are validated), V8.2.1, V8.2.3 (what the page shows is checked against the list of
+figures it may show — an allow-list, so an unexpected figure cannot slip past) and, for records that belong to one
+person, V8.2.2. The figures are checked by adding a second identical record and requiring every total to double,
+so the test cannot drift out of step with the sample values the record type's own tests use.
+
+**Three template tests that named the wrong requirement (2026-09-18).** Found by the session building the
+test-name screen, confirmed against the framework data and fixed here, since they are template files:
+`errors.test.ts` checked that an unused HTTP method is refused and called it V13.4.3 (directory listings); it is
+V4.1.4, and `TPL-METHOD-01` now claims V4.1.4 `partial` beside V13.4.4 (V4.1.4 is L3, so it shows as out of target
+level rather than counting). V13.4.3 keeps its evidence from the `dast.leak.directory-listing` probe. In
+`validation.test.ts` the prototype-pollution test was V15.3.7 (parameter pollution) and is V15.3.6, and the
+oversized-body test was V15.3.6 and is V15.2.2 (availability under a resource-demanding request) — the requirement
+it actually speaks to. `TPL-BODY-01` claimed both the body limit and prototype pollution under V15.3.6 in one
+sentence; it now claims V15.2.2 for the limit and V15.3.6 for prototype pollution separately.
+
+**The bounded-list control.** `TPL-DB-02` used to claim V2.3.3 (transactions) for two different things: the
+transaction around a per-person limit *and* the LIMIT on every list. The LIMIT half is now its own control,
+`TPL-DB-04`, crediting V2.4.1 (anti-automation), and the template's own `db.test.ts` list test moved to V2.4.1 with
+it. V2.3.3 keeps only the transaction claim. Before this, the only test crediting V2.3.3 in a generated app was the
+recipe's mislabelled page-size test, and both of the template's V2.3.3 tests skip when the reference `_example`
+feature is off — which it always is in a generated app.
+
+**Recipe 4 — `record-reminder`** ("A reminder before a date on a record"). Applies when the scheduler and email
+features are both on and a record type has a date or date-and-time field. It emits a `reminded_at` column, and a job
+registered through `src/lib/scheduler.ts` that once an hour emails the owner of every record whose date falls in the
+next 24 hours. It writes no scheduler and no mailer of its own: the template's scheduler declares jobs in code and
+holds a lease while one runs, and the template's mailer sanitises headers and writes to a local outbox when no SMTP
+server is configured.
+
+Three rules are the recipe's own, because they are safety rather than preference. The address is looked up from the
+record's `owner_id` in `users`, never taken from a field of the record, so a reminder cannot reach anybody the record
+does not already belong to (V8.2.2). A run sends at most 50 messages and a record is marked before its message is
+sent, so neither a second run nor a clock jump can fill a mailbox, and a message that fails to send is logged rather
+than retried (V2.4.1). The message carries the date and a link and nothing the person wrote — tested, but claiming no
+requirement, because no ASVS requirement covers what a notification may carry. A record type with a date but no way
+to send gets nothing, and the reason is reported through the new `Recipe.declined(ctx)` hook, which is how a recipe
+that builds nothing can still tell the owner why.
+
+**What an emitted test may assume.** Nothing about the starting state: test-bootstrap mode seeds one record per
+record type (§1.16), so a test that expects a count or a total to start at zero fails in a real build while passing
+every check here. Emitted tests measure a change from what the app reported a moment earlier. And a page route
+refuses an anonymous visitor by redirecting to the sign-in page rather than with 401 — only the JSON interface
+answers 401 — so an emitted test accepts either, as `tests/security/authz.test.ts` does.
+
+**Fence.** Recipes are trusted no more than the generation agent: `apply.ts` refuses any instance with a file
+outside the template manifest's `writablePaths`, writes nothing for it, and says so in the run. The contract test
+also checks that the generator's glob matcher (`generator/files.ts`) and the agent's (`llm/tools.ts`) agree on
+those path lists, so the two fences cannot drift apart.
+
+**Content hash.** Every `generatedFiles` entry also carries `contentSha256` (`contentSha256File` in
+`generator/files.ts`): the file's hash with the provenance header line removed. The header carries the run id, so
+two builds of an unchanged file never share a `sha256`; they do share this, which is what lets a diff-aware rebuild
+tell "byte-for-byte the file the earlier check read" from "written again with a new run id". It is written wherever
+a file entry is (scaffold, recipes, the agent's files, an upgrade) and is absent on runs made before it existed.
+
+**Identity.** `securevibe.provenance.json` gains `recipes: RecipeApplication[]` (what each application built, its
+files, its requirement mapping and its notes) and, on every file a recipe wrote, `recipe: { id, version,
+instance }`. `generator/upgrade.ts` carries those entries across an update, so the version diff and a later build
+can still say which recipe produced which file. The scaffold stage's details list the applications with their
+requirement ids, and `buildGenerationBrief` tells the agent what is already built, which files to read and which
+tests not to weaken.

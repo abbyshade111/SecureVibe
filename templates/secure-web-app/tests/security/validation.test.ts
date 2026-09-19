@@ -76,7 +76,7 @@ describe('validation', () => {
     }
   });
 
-  test('V15.3.7 prototype-pollution keys in JSON bodies are rejected', async (t) => {
+  test('V15.3.6 prototype-pollution keys in JSON bodies are rejected, so a prototype cannot be polluted', async (t) => {
     if (!hasNotes) return t.skip('reference notes API not mounted (EXAMPLE_FEATURE=0)');
     for (const raw of [
       `{"title":"x","body":"y","__proto__":{"polluted":true}}`,
@@ -89,7 +89,7 @@ describe('validation', () => {
     assert.equal(({} as { polluted?: boolean }).polluted, undefined);
   });
 
-  test('V15.3.6 oversized bodies are rejected with 413 before they are processed', async () => {
+  test('V15.2.2 an oversized body is rejected with 413 before it is processed, so one request cannot take up the time or resources the app needs', async () => {
     const big = JSON.stringify({ title: 'x', body: 'y'.repeat(2 * 1024 * 1024) });
     const res = await app.json('POST', hasNotes ? paths.notesApi : paths.login, undefined, member, { raw: big });
     const text = await res.text();

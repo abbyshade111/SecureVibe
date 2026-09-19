@@ -55,21 +55,24 @@ export function jobStatuses(): JobRow[] {
   });
 }
 
-/** Takes the lease for `job` if it is due and not already held. Returns true when this call may run it. */
-function tryAcquire(job: ScheduledJob, nowMs: number): boolean {
+/**
+ * Takes the lease for `job` if it is due and not already held. Returns true when this call may run it.
+ * `ignoreInterval` skips the "is it due yet" half — never the lease — and is only ever set by `runJobNow`.
+ */
+function tryAcquire(job: ScheduledJob, nowMs: number, ignoreInterval = false): boolean {
   return withTransaction(() => {
     run('INSERT OR IGNORE INTO scheduler_jobs (name, run_count) VALUES (?, 0)', [job.name]);
     const row = jobRow(job.name)!;
     const nowIsoStr = new Date(nowMs).toISOString();
     if (row.lock_until && row.lock_until > nowIsoStr) return false;
-    if (row.last_run_at && new Date(row.last_run_at).getTime() + job.intervalMs > nowMs) return false;
+    if (!ignoreInterval && row.last_run_at && new Date(row.last_run_at).getTime() + job.intervalMs > nowMs) return false;
     run('UPDATE scheduler_jobs SET lock_until = ? WHERE name = ?', [new Date(nowMs + LEASE_MS).toISOString(), job.name]);
     return true;
   });
 }
 
-async function runOne(job: ScheduledJob): Promise<void> {
-  if (!tryAcquire(job, Date.now())) return;
+async function runOne(job: ScheduledJob, ignoreInterval = false): Promise<void> {
+  if (!tryAcquire(job, Date.now(), ignoreInterval)) return;
   const started_ = Date.now();
   try {
     await job.run();
@@ -93,6 +96,22 @@ async function runOne(job: ScheduledJob): Promise<void> {
 /** Runs every due job once, right now (used by the initial kick and available for tests). */
 export async function runDueJobsOnce(): Promise<void> {
   for (const job of registry.values()) await runOne(job);
+}
+
+/**
+ * Runs one job now whatever its interval says, still under its lease so an overlapping tick cannot run it at the
+ * same time. Returns false when there is no such job, or when its lease is already held.
+ *
+ * This exists so a test can observe a job that is only due once an hour without waiting an hour: it is reached only
+ * through the test-mode endpoint in src/lib/test-mode.ts, which does not exist outside test mode, and a runtime
+ * probe checks that it answers 404 in production.
+ */
+export async function runJobNow(name: string): Promise<boolean> {
+  const job = registry.get(name);
+  if (!job) return false;
+  const before = jobRow(name)?.run_count ?? 0;
+  await runOne(job, true);
+  return (jobRow(name)?.run_count ?? 0) > before;
 }
 
 /** Starts the interval runner. Safe to call more than once — later calls are a no-op. */

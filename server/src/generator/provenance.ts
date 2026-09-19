@@ -8,8 +8,8 @@
  *     human-involvement summary are filled in from what the whole run observed.
  */
 import { createHash } from 'node:crypto';
-import type { GeneratedFileOrigin, Provenance, RunMode } from '@shared/pipeline.js';
-import { listFiles, sha256File } from './files.js';
+import type { GeneratedFileOrigin, Provenance, RecipeApplication, RunMode } from '@shared/pipeline.js';
+import { contentSha256File, listFiles, sha256File } from './files.js';
 
 export interface InitialProvenanceInput {
   runId: string;
@@ -34,7 +34,8 @@ const REPORT_SCHEMA_VERSION = '1.0.0';
 export function initialProvenance(input: InitialProvenanceInput): Provenance {
   const generatedFiles = listFiles(input.appDir).map((f) => {
     const sha256 = sha256File(f.absPath) ?? '';
-    return { path: f.relPath, sha256, origin: 'template' as GeneratedFileOrigin };
+    const contentSha256 = contentSha256File(f.absPath);
+    return { path: f.relPath, sha256, ...(contentSha256 ? { contentSha256 } : {}), origin: 'template' as GeneratedFileOrigin };
   });
   return {
     reportSchemaVersion: REPORT_SCHEMA_VERSION,
@@ -54,6 +55,7 @@ export function initialProvenance(input: InitialProvenanceInput): Provenance {
     ...(input.contractHash ? { contractHash: input.contractHash } : {}),
     codeTreeHash: '',
     generatedFiles,
+    recipes: [],
     protectedFileHashes: input.protectedFileHashes,
     ...(input.templateHash ? { templateHash: input.templateHash } : {}),
     sandbox: input.sandbox,
@@ -80,9 +82,11 @@ export function markGeneratedFiles(
       byPath.delete(rel);
       continue;
     }
+    const contentSha256 = contentSha256File(abs);
     byPath.set(rel, {
       path: rel,
       sha256,
+      ...(contentSha256 ? { contentSha256 } : {}),
       origin,
       ...(opts.correlationId ? { correlationId: opts.correlationId } : {}),
       ...(opts.promptHash ? { promptHash: opts.promptHash } : {}),
@@ -90,6 +94,27 @@ export function markGeneratedFiles(
     });
   }
   return { ...provenance, generatedFiles: [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path)) };
+}
+
+/**
+ * Records what the recipe library built (generator/recipes): the applications themselves, and, on every file a
+ * recipe wrote, which recipe and which version of it produced the file. That is what lets a later build, a
+ * template upgrade and the version diff say where a file came from without guessing from its contents.
+ */
+export function recordRecipes(provenance: Provenance, appDir: string, applications: RecipeApplication[]): Provenance {
+  const byPath = new Map<string, { id: string; version: string; instance: string }>();
+  for (const app of applications) {
+    for (const path of app.files) byPath.set(path, { id: app.recipeId, version: app.recipeVersion, instance: app.instance });
+  }
+  const withRecipes = markGeneratedFiles(provenance, appDir, [...byPath.keys()], 'expanded');
+  return {
+    ...withRecipes,
+    recipes: [...provenance.recipes.filter((r) => !applications.some((a) => a.recipeId === r.recipeId && a.instance === r.instance)), ...applications],
+    generatedFiles: withRecipes.generatedFiles.map((f) => {
+      const recipe = byPath.get(f.path);
+      return recipe ? { ...f, recipe } : f;
+    }),
+  };
 }
 
 export interface FinalizeProvenanceInput {

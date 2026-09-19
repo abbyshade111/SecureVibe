@@ -598,13 +598,18 @@
     },
     {
       "id": "TPL-METHOD-01",
-      "title": "TRACE method not supported",
-      "description": "The diagnostic TRACE request type, which can echo back cookies, is refused.",
+      "title": "Only the HTTP methods the app supports are accepted",
+      "description": "A TRACE request is refused and never echoed, and a method the app does not use is refused on a known path rather than causing an error.",
       "asvs": [
         {
           "id": "V13.4.4",
           "proves": "A TRACE request is answered with 405 and never echoed.",
           "coverage": "full"
+        },
+        {
+          "id": "V4.1.4",
+          "proves": "PUT, DELETE, PATCH, OPTIONS and PROPFIND on a known page are answered 403/404/405 (or 204 for OPTIONS) and never reach the handler. Verified on one representative route, not every route.",
+          "coverage": "partial"
         }
       ],
       "aisvs": [],
@@ -618,6 +623,10 @@
         {
           "type": "test",
           "name": "V13.4.4"
+        },
+        {
+          "type": "test",
+          "name": "V4.1.4"
         }
       ],
       "files": [
@@ -706,8 +715,13 @@
       "description": "Oversized requests are refused before they are processed, repeated or nested query parameters are never turned into arrays or objects, and special keys that could change how JavaScript objects behave are rejected.",
       "asvs": [
         {
+          "id": "V15.2.2",
+          "proves": "A body larger than the configured limit is rejected with 413 before it is processed, so one request cannot take up the time or memory the app needs.",
+          "coverage": "partial"
+        },
+        {
           "id": "V15.3.6",
-          "proves": "Bodies larger than the configured limit are rejected with 413 and JSON bodies with __proto__ or constructor.prototype keys are rejected with 400.",
+          "proves": "A JSON body carrying __proto__ or constructor.prototype is rejected with 400, and no object prototype is changed.",
           "coverage": "full"
         },
         {
@@ -1851,12 +1865,12 @@
     },
     {
       "id": "TPL-DB-02",
-      "title": "Safe database settings, private files, transactions and bounded lists",
-      "description": "The database uses safe settings, its files are readable only by the app's user, related writes happen all-or-nothing, and lists are always limited in size.",
+      "title": "Safe database settings, private files and all-or-nothing writes",
+      "description": "The database uses safe settings, its files are readable only by the app's user, and related writes happen all-or-nothing, so a half-finished change cannot be left behind.",
       "asvs": [
         {
           "id": "V2.3.3",
-          "proves": "Per-user quotas are checked inside a transaction and list queries always carry a LIMIT.",
+          "proves": "A per-person limit is checked inside the same transaction as the write it guards, so either the whole change happens or none of it does.",
           "coverage": "full"
         },
         {
@@ -1881,6 +1895,30 @@
       "files": [
         "src/db/index.ts",
         "src/features/_example/repo.ts"
+      ]
+    },
+    {
+      "id": "TPL-DB-04",
+      "title": "Every list is limited in size",
+      "description": "A page of records is always limited, and asking for a bigger page than allowed is capped or refused, so one call cannot copy the whole table out of the app.",
+      "asvs": [
+        {
+          "id": "V2.4.1",
+          "proves": "Every list query carries a LIMIT from clampLimit(), and a request for an unreasonable number of records is capped or refused.",
+          "coverage": "partial"
+        }
+      ],
+      "aisvs": [],
+      "sbd": [],
+      "principle": "secure-defaults",
+      "checks": [
+        {
+          "type": "test",
+          "name": "V2.4.1"
+        }
+      ],
+      "files": [
+        "src/db/index.ts"
       ]
     },
     {

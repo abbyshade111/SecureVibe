@@ -158,6 +158,7 @@ export async function renderReports(input: RenderReportsInput): Promise<RenderRe
       designHash: input.design.profileHash,
       codeTreeHash: '',
       generatedFiles: [],
+      recipes: [],
       protectedFileHashes: {},
       sandbox: { mode: 'node-permission-model', note: "Generated code runs under Node's permission model restricted to the project folder; network access is not restricted." },
     };

@@ -124,7 +124,7 @@ describe('db', () => {
     assert.ok([409, 412, 400, 422].includes(two.status), `a stale update must be rejected, got ${two.status}`);
   });
 
-  test('V2.3.3 list endpoints are bounded (LIMIT) and never return unbounded result sets', async (t) => {
+  test('V2.4.1 list endpoints are bounded (LIMIT) and never return unbounded result sets', async (t) => {
     if (!hasNotes) return t.skip('reference notes API not mounted (EXAMPLE_FEATURE=0)');
     const res = await app.fetch(`${paths.notesApi}?limit=100000`, { jar: member, headers: { Accept: 'application/json' } });
     const text = await res.text();

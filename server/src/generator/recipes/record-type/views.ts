@@ -1,5 +1,5 @@
 /**
- * EJS view emitters for the CRUD expander. Output is always escaped with `<%= %>`; the only unescaped values in
+ * EJS view emitters for the record-type recipe. Output is always escaped with `<%= %>`; the only unescaped values in
  * the template's layouts are the CSP nonce and the CSRF field, never record data.
  */
 import type { EntityPlan, FieldPlan } from './fields.js';
@@ -64,7 +64,10 @@ export function emitListView(plan: EntityPlan): string {
   const firstCellFallback = columns.length === 0 ? `            <td><a href="${plan.base}/<%= r.id %>"><%= r.id %></a></td>\n` : '';
   return `<section class="card">
   <h1>${escapeHtml(listTitle)}</h1>
-  <p class="actions"><a class="button" href="${plan.base}/new">New ${escapeHtml(plan.entity.label.toLowerCase())}</a></p>
+  <p class="actions"><a class="button" href="${plan.base}/new">New ${escapeHtml(plan.entity.label.toLowerCase())}</a>${
+    plan.summaries.length > 0 ? `
+    <a class="button button-secondary" href="/reports${plan.base}">Report</a>` : ''
+  }</p>
   <% if (records.length === 0) { %>
     <p class="muted">Nothing here yet.</p>
   <% } else { %>
@@ -99,7 +102,12 @@ export function emitShowView(plan: EntityPlan): string {
 ${rows}
   </dl>
   <p class="actions">
-    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/edit">Edit</a>
+    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/edit">Edit</a>${
+      plan.attachments.length > 0
+        ? `
+    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/files">${escapeHtml(plan.attachments.length === 1 ? plan.attachments[0]!.label : 'Files')}</a>`
+        : ''
+    }
   </p>
   <form method="post" action="${plan.base}/<%= record.id %>/delete" data-confirm="Delete this ${escapeHtml(plan.entity.label.toLowerCase())}?">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

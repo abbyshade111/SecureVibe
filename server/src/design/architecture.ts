@@ -234,7 +234,7 @@ export function deriveArchitecture(profile: DesignProfile, f: ProfileFacts): Arc
     data: allData,
     protocol: 'SQLite file',
     crossesTrustBoundary: false,
-    controls: ['TPL-DB-01', 'TPL-DB-02', 'TPL-DTO-01', ...(f.fieldEncryption ? ['TPL-CRYPTO-01'] : [])],
+    controls: ['TPL-DB-01', 'TPL-DB-02', 'TPL-DB-04', 'TPL-DTO-01', ...(f.fieldEncryption ? ['TPL-CRYPTO-01'] : [])],
   });
   if (f.uploads) {
     dataFlows.push({

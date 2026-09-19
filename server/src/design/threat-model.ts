@@ -387,7 +387,7 @@ export function buildThreatModel(profile: DesignProfile, f: ProfileFacts, arch: 
     likelihood: f.deployment === 'local-only' ? 'low' : 'medium',
     impact: dataImpact,
     mitigations: [
-      m('TPL-DB-02', 'Database file readable only by the app user (0600)', ['V2.3.3']),
+      m('TPL-DB-02', 'Database file readable only by the app user (0600)', ['V16.4.2']),
       ...(f.fieldEncryption ? [m('TPL-CRYPTO-01', 'Sensitive fields encrypted with AES-256-GCM; key rotation command', ['V11.3.2', 'V11.3.3'])] : []),
       ...(f.auth ? [m('TPL-AUTH-04', 'Passwords stored with a slow hash (argon2id or scrypt)', ['V11.4.2'])] : []),
     ],

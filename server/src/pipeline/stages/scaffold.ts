@@ -3,7 +3,7 @@
  * (generator/scaffold.ts) into the new `app/`.
  */
 import type { StageResult } from '@shared/pipeline.js';
-import { expandEntities, markGeneratedFiles, refreshDerivedFiles, scaffoldApp } from '../../generator/index.js';
+import { applyRecipes, markGeneratedFiles, recordRecipes, refreshDerivedFiles, scaffoldApp } from '../../generator/index.js';
 import { finishStage, startStage } from '../stage-helpers.js';
 import type { PipelineCtx } from '../types.js';
 
@@ -36,26 +36,31 @@ export async function runScaffold(ctx: PipelineCtx): Promise<StageResult> {
     ctx.featureFlags = result.featureFlags;
     ctx.provenance = result.provenance;
 
-    // Write a working feature for every record type the person described, so even a build without AI
-    // produces a usable application and the generation agent only has to extend it.
-    const expanded = await expandEntities({
+    // Apply the recipe library (generator/recipes): named, tested building blocks — a record type with its
+    // pages, and in time uploads, summary pages and scheduled jobs — written deterministically from the design.
+    // Even a build without AI therefore produces a usable application, and the generation agent extends what the
+    // recipes wrote instead of re-deriving the same patterns.
+    const recipes = await applyRecipes({
       appDir: ctx.appDir,
       design: ctx.design,
       profile: ctx.profile,
+      manifest: result.manifest,
       runId: ctx.run.id,
       log: (msg) => ctx.log('scaffold', msg),
     });
-    if (expanded.filesWritten.length > 0) {
-      ctx.provenance = markGeneratedFiles(ctx.provenance, ctx.appDir, expanded.filesWritten, 'expanded');
+    if (recipes.filesWritten.length > 0) {
+      ctx.provenance = markGeneratedFiles(ctx.provenance, ctx.appDir, recipes.filesWritten, 'expanded');
+      ctx.provenance = recordRecipes(ctx.provenance, ctx.appDir, recipes.applications);
     }
-    for (const warning of expanded.warnings) ctx.log('scaffold', warning);
+    for (const warning of recipes.warnings) ctx.log('scaffold', warning);
     if (ctx.provenance) ctx.provenance = markGeneratedFiles(ctx.provenance, ctx.appDir, ['routes.manifest.json'], 'expanded');
     const refreshed = await refreshDerivedFiles({ appDir: ctx.appDir, projectDir: ctx.paths.dir, runId: ctx.run.id, manifest: ctx.manifest, provenance: ctx.provenance });
     if (refreshed.provenance) ctx.provenance = refreshed.provenance;
     const routeWarnings = refreshed.warnings;
     for (const warning of routeWarnings) ctx.log('scaffold', warning);
 
-    const built = expanded.entities.length > 0 ? ` It already has pages and an interface for ${expanded.entities.map((e) => (e.label || e.name).toLowerCase()).join(', ')}.` : '';
+    const recordTypes = recipes.applications.filter((a) => a.recipeId === 'record-type');
+    const built = recordTypes.length > 0 ? ` It already has pages and an interface for ${recordTypes.map((a) => a.instance.toLowerCase()).join(', ')}.` : '';
     const summary = result.nodeModulesFastPath
       ? `The application folder is ready, with the packages already installed and the first administrator account created.${built}`
       : `The application folder is ready. Packages will be installed next.${built}`;
@@ -63,9 +68,17 @@ export async function runScaffold(ctx: PipelineCtx): Promise<StageResult> {
       details: {
         featureFlags: result.featureFlags,
         removedFeaturePaths: result.removedFeaturePaths,
-        warnings: [...result.warnings, ...expanded.warnings, ...routeWarnings],
+        warnings: [...result.warnings, ...recipes.warnings, ...routeWarnings],
         nodeModulesFastPath: result.nodeModulesFastPath,
-        expandedEntities: expanded.entities.map((e) => ({ name: e.name, table: e.table, routeBase: e.routeBase, files: e.files.length })),
+        recipes: recipes.applications.map((a) => ({
+          recipeId: a.recipeId,
+          recipeVersion: a.recipeVersion,
+          instance: a.instance,
+          title: a.title,
+          description: a.description,
+          files: a.files.length,
+          requirementIds: [...new Set(a.requirements.map((r) => r.id))],
+        })),
       },
     });
   } catch (err) {

@@ -1,5 +1,5 @@
 /**
- * Field-type mapping for the CRUD expander: how each `EntityField` type becomes a SQLite column, a zod rule,
+ * Field-type mapping for the record-type recipe: how each `EntityField` type becomes a SQLite column, a zod rule,
  * a form control and a display value. Everything here is deterministic — no model call is involved.
  */
 import type { EntityField, EntitySpec } from '@shared/profile.js';
@@ -178,22 +178,78 @@ export function planField(field: EntityField, entity: EntitySpec, opts: { upload
         fromDb: (v) => v,
       };
     case 'file':
-      // Files are stored by reference to the uploads feature. Without that feature there is nothing to point at,
-      // so the field is dropped and the expander records the reason for the report.
-      if (!opts.uploads) return undefined;
-      return {
-        ...base,
-        encrypted: false,
-        sqlType: 'TEXT',
-        zod: required ? `schemas.id` : `schemas.id.optional()`,
-        zodOptional: `schemas.id.optional()`,
-        control: 'text',
-        toDb: (v) => `${v} ?? null`,
-        fromDb: (v) => v,
-      };
+      // A file is never part of the record's own form or interface: it is added by attaching one, which the
+      // record-attachment recipe builds on top of the template's uploads module (see attachmentFieldsOf). That way
+      // the column can only ever hold a file the person attaching it just uploaded, rather than any id they typed.
+      return undefined;
     default:
       return undefined;
   }
+}
+
+/**
+ * One file attached to a record. The record's own schema has no such field (see `planField`); the column is added
+ * and written only by the record-attachment recipe, through the template's uploads module.
+ */
+export interface AttachmentField {
+  field: EntityField;
+  /** Database column on the record's table. */
+  column: string;
+  /** The name the column is exposed under. */
+  prop: string;
+  /** What the owner calls it ("Photo"). */
+  label: string;
+}
+
+/**
+ * The file fields of a record type that become attachments — none when the uploads feature is off, because there
+ * is then nothing to attach and nowhere safe to put it. Both recipes read this, so they cannot disagree about
+ * which fields exist.
+ */
+export function attachmentFieldsOf(entity: EntitySpec, opts: { uploads: boolean }): AttachmentField[] {
+  if (!opts.uploads) return [];
+  return entity.fields
+    .filter((f) => f.type === 'file')
+    .map((f) => ({ field: f, column: columnName(f), prop: propName(f), label: f.label }));
+}
+
+/**
+ * One field a summary page can add up. A field marked sensitive is never summarised: a total or a breakdown can
+ * say as much as the values themselves, and the summary is read by a wider audience than the record's owner.
+ */
+export interface SummaryField {
+  field: EntityField;
+  column: string;
+  prop: string;
+  label: string;
+  kind: 'number' | 'money' | 'choice' | 'boolean';
+  /** For a choice field, the options as the person described them. */
+  choices: string[];
+}
+
+const SUMMARY_KINDS: Record<string, SummaryField['kind'] | undefined> = {
+  number: 'number',
+  money: 'money',
+  choice: 'choice',
+  boolean: 'boolean',
+};
+
+/**
+ * The fields of a record type worth summarising — amounts to total, choices to count by, yes/no fields to tally.
+ * Both the record-type recipe (which links to the page) and the record-summary recipe (which builds it) read this,
+ * so they cannot disagree about what the page contains.
+ */
+export function summaryFieldsOf(entity: EntitySpec): SummaryField[] {
+  const out: SummaryField[] = [];
+  for (const field of entity.fields) {
+    if (field.sensitive) continue;
+    const kind = SUMMARY_KINDS[field.type];
+    if (!kind) continue;
+    const choices = (field.choices ?? []).filter((c) => c.trim() !== '');
+    if (kind === 'choice' && choices.length === 0) continue;
+    out.push({ field, column: columnName(field), prop: propName(field), label: field.label, kind, choices });
+  }
+  return out;
 }
 
 export interface EntityPlan {
@@ -205,6 +261,10 @@ export interface EntityPlan {
   camelName: string;
   rowType: string;
   fields: FieldPlan[];
+  /** Files attached to this record type, built by the record-attachment recipe rather than by this one. */
+  attachments: AttachmentField[];
+  /** Fields a summary page can add up, built by the record-summary recipe rather than by this one. */
+  summaries: SummaryField[];
   droppedFields: { name: string; reason: string }[];
   /** The first required text-like field, used as the record's display title. */
   titleField: FieldPlan | undefined;
@@ -222,11 +282,16 @@ export interface EntityPlan {
 export function planEntity(entity: EntitySpec, opts: { uploads: boolean }): EntityPlan {
   const fields: FieldPlan[] = [];
   const droppedFields: { name: string; reason: string }[] = [];
+  const attachments = attachmentFieldsOf(entity, opts);
+  const summaries = summaryFieldsOf(entity);
   for (const field of entity.fields) {
     const plan = planField(field, entity, opts);
     if (plan) fields.push(plan);
-    else if (field.type === 'file') droppedFields.push({ name: field.name, reason: 'file fields need the uploads feature, which is switched off for this app' });
-    else droppedFields.push({ name: field.name, reason: `the field type "${field.type}" is not supported by the expander` });
+    // A file field is handled by the attachment recipe when there is an uploads feature to handle it with, and is
+    // left out with a reason the owner can read when there is not.
+    else if (field.type === 'file' && opts.uploads) continue;
+    else if (field.type === 'file') droppedFields.push({ name: field.name, reason: 'files need the uploads feature, which is switched off for this app' });
+    else droppedFields.push({ name: field.name, reason: `the field type "${field.type}" is not one the standard building blocks can add` });
   }
   const titleField = fields.find((f) => f.field.required && (f.control === 'text' || f.control === 'email')) ?? fields.find((f) => f.control === 'text') ?? fields[0];
   const ownerScoped = entity.access === 'owner-only';
@@ -241,6 +306,8 @@ export function planEntity(entity: EntitySpec, opts: { uploads: boolean }): Enti
     camelName: camel(entity.name),
     rowType: `${pascal(entity.name)}Row`,
     fields,
+    attachments,
+    summaries,
     droppedFields,
     titleField,
     ownerScoped,

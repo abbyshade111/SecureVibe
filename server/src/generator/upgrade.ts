@@ -22,7 +22,7 @@ import { ProvenanceSchema, type GeneratedFileOrigin, type Provenance } from '@sh
 import type { DesignProfile } from '@shared/profile.js';
 import type { TemplateUpgrade } from '@shared/project.js';
 import type { Settings } from '../config.js';
-import { DEFAULT_WALK_IGNORE, listFiles, sha256File } from './files.js';
+import { contentSha256File, DEFAULT_WALK_IGNORE, listFiles, sha256File } from './files.js';
 import { initialProvenance } from './provenance.js';
 import { computeProtectedFileHashes, stageTemplate, tryNodeModulesFastPath } from './scaffold.js';
 import { describeSandbox } from '../pipeline/process.js';
@@ -34,6 +34,8 @@ const NEVER_TOUCH = /^(\.env$|securevibe\.provenance\.json$|FIRST-LOGIN\.txt$|da
 export interface OldEntry {
   sha256: string;
   origin: GeneratedFileOrigin;
+  /** Which recipe wrote the file, when one did (generator/recipes); carried across so the record survives an update. */
+  recipe?: { id: string; version: string; instance: string };
 }
 
 export interface UpgradePlan {
@@ -150,7 +152,7 @@ export async function upgradeApp(input: UpgradeInput): Promise<TemplateUpgrade> 
 
     log('Comparing the app with the latest template…');
     const old = readOldProvenance(appDir);
-    const oldEntries = new Map<string, OldEntry>((old?.generatedFiles ?? []).map((f) => [f.path, { sha256: f.sha256, origin: f.origin }]));
+    const oldEntries = new Map<string, OldEntry>((old?.generatedFiles ?? []).map((f) => [f.path, { sha256: f.sha256, origin: f.origin, ...(f.recipe ? { recipe: f.recipe } : {}) }]));
     const plan = planUpgrade({ oldEntries, appHashes: hashesOf(appDir), newHashes: hashesOf(stageDir) });
 
     log(`Applying the update: ${plan.updated.length} file(s) updated, ${plan.added.length} added, ${plan.removed.length} removed, ${plan.kept.length} kept with your changes.`);
@@ -202,7 +204,16 @@ export async function upgradeApp(input: UpgradeInput): Promise<TemplateUpgrade> 
     const generatedFiles = [...hashesOf(appDir)].map(([path, sha256]) => {
       const previous = oldEntries.get(path);
       const origin: GeneratedFileOrigin = changed.has(path) ? 'template' : (previous?.origin ?? 'template');
-      return { path, sha256, origin };
+      // A file a recipe wrote keeps saying which recipe wrote it: an update never rewrites those files, so the
+      // record stays true and the version diff can still name their source.
+      const contentSha256 = contentSha256File(join(appDir, path));
+      return {
+        path,
+        sha256,
+        ...(contentSha256 ? { contentSha256 } : {}),
+        origin,
+        ...(origin !== 'template' && previous?.recipe ? { recipe: previous.recipe } : {}),
+      };
     });
     const provenance: Provenance = {
       ...base,
