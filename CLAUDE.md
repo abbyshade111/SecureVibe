@@ -32,6 +32,10 @@ whatever you touch before changing it.
   spends the owner's Anthropic credit. Never run a paid AI step without the owner asking.
 - The AI review is the only paid check. It is ordered by risk (`reviewOrder`) so a spending stop loses the least,
   and on a rebuild it carries forward verdicts whose cited file is byte-identical (`pipeline/diff-aware.ts`).
+- A test named after a requirement is strong evidence for it, so `compliance/test-name-match.ts` compares the test
+  (name and body) with the requirement's wording and raises a finding when they share nothing. It reports and never
+  withholds credit: about a third of its flags are honest tests phrased differently, and it is blind to a swap
+  between neighbouring requirements that share vocabulary.
 - Evaluation harness: `npm run eval` builds the golden apps in `evals/golden/` without AI and compares them with
   `evals/baselines/` (`--update` to save new baselines, `--only <name>` for one app, `--ai` costs money). Run it
   through the `eval-no-ai` launcher (ports); it needs to pass before a template or pipeline change is done.

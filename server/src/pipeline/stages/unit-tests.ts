@@ -89,7 +89,8 @@ export function screenTestEvidence(ctx: PipelineCtx, evidence: Evidence[]): { ke
       description:
         `The test "${name}" is named after ${requirementId}, which is about "${(description ?? '').slice(0, 160)}". Nothing in the test, its name or its lines, refers to that. ` +
         'A test named after a rule counts as proof that the rule is met, so a name that does not match can make your app look checked when it is not. ' +
-        'This is a comparison of words, not of meaning, so a test written in different words can be flagged here and be perfectly good.',
+        'This is a comparison of words, not of meaning. A test written in different words can be flagged here and be perfectly good, and a test named after a neighbouring rule ' +
+        'that shares the same vocabulary will not be flagged at all — so this catches tests about something else entirely, not every wrong label.',
       impact: `${requirementId} is still counted as verified by this test. If the name is wrong, that credit is not real, which is why this is worth a look.`,
       evidence: `Neither the test's name nor the lines of the test share a word with ${requirementId}, in the standard's wording or in SecureVibe's plain-language version of it.`,
       remediation: {
