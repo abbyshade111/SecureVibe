@@ -7,10 +7,11 @@
  * and stable ids, paths inside the template's writable allow-list, and a requirement mapping that every claimed
  * requirement has an emitted test for.
  */
+import { recordAttachmentRecipe } from './record-attachment/index.js';
 import { recordTypeRecipe } from './record-type/index.js';
 import type { AnyRecipe } from './types.js';
 
-export const RECIPES: AnyRecipe[] = [recordTypeRecipe as AnyRecipe];
+export const RECIPES: AnyRecipe[] = [recordTypeRecipe as AnyRecipe, recordAttachmentRecipe as AnyRecipe];
 
 export function recipeById(id: string): AnyRecipe | undefined {
   return RECIPES.find((r) => r.id === id);

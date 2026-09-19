@@ -12,6 +12,8 @@ import { REPO_ROOT } from '../../src/config.js';
 import { deriveDesign, loadFrameworks, loadKnowledge } from '../../src/integration.js';
 import { TemplateManifestSchema } from '@shared/knowledge.js';
 import { applyRecipes } from '../../src/generator/recipes/apply.js';
+import { runSast } from '../../src/scanners/sast/index.js';
+import { makeScanContext } from '../scanners-static/helpers.js';
 import { clinicBookings, habitTracker, teamInventory } from '../fixtures/design/profiles.js';
 
 const templateDir = join(REPO_ROOT, 'templates', 'secure-web-app');
@@ -38,7 +40,7 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       expect(result.applications).toHaveLength(1);
       const habit = result.applications[0]!;
       expect(habit.recipeId).toBe('record-type');
-      expect(habit.recipeVersion).toBe('1');
+      expect(habit.recipeVersion).toBe('2');
       expect(habit.instance).toBe('habit');
       // The application names the files it wrote, which is how a later build or the version diff knows their source.
       expect(habit.files).toContain('src/features/habit/repo.ts');
@@ -72,29 +74,95 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
     }
   });
 
-  it('leaves out a file field when the uploads feature is off, and says why', async () => {
+  it('gives a record type with a file field its own attachment page, and keeps the column out of the record\u2019s own interface', async () => {
     const appDir = copyTemplate();
     try {
       const knowledge = loadKnowledge();
       const frameworks = loadFrameworks();
       const design = deriveDesign(teamInventory, { knowledge, frameworks });
+      expect(design.buildSpec.features.uploads, 'this design asks for file uploads').toBe(true);
       const result = await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_bbbbbb' });
 
-      const item = result.applications.find((a) => a.instance === 'item');
-      expect(item).toBeDefined();
-      if (design.buildSpec.features.uploads) {
-        expect(item!.notes).toHaveLength(0);
-      } else {
-        expect(item!.notes.some((n) => n.includes('photo'))).toBe(true);
-        expect(result.warnings.join(' ')).toMatch(/uploads/i);
-      }
+      const item = result.applications.find((a) => a.recipeId === 'record-type' && a.instance === 'item');
+      const files = result.applications.find((a) => a.recipeId === 'record-attachment' && a.instance === 'item-files');
+      expect(item, 'the record type itself').toBeDefined();
+      expect(files, 'its attachment feature').toBeDefined();
+      // The file field is handled by the attachment recipe, so it is not reported as left out.
+      expect(item!.notes).toEqual([]);
+
+      // The record's own schema has no photo field: the column can only be written by attaching a file.
+      const schema = readFileSync(join(appDir, 'src', 'features', 'item', 'schema.ts'), 'utf8');
+      expect(schema).not.toMatch(/photo/);
+      const itemMigration = readFileSync(join(appDir, 'src', 'db', 'migrations', '100_items.sql'), 'utf8');
+      expect(itemMigration).not.toMatch(/photo/);
       // Money is stored as whole cents so totals never drift.
-      const migration = readFileSync(join(appDir, 'src', 'db', 'migrations', '100_items.sql'), 'utf8');
-      expect(migration).toMatch(/cost INTEGER/);
+      expect(itemMigration).toMatch(/cost INTEGER/);
+
+      // The attachment recipe adds the column, the routes, the page and its tests.
+      const added = files!.files.find((f) => f.endsWith('_items_files.sql'))!;
+      expect(readFileSync(join(appDir, added), 'utf8')).toMatch(/ALTER TABLE items ADD COLUMN photo TEXT;/);
+      for (const rel of ['src/features/item-files/index.ts', 'src/views/item-files/index.ejs', 'tests/features/item-files.test.ts']) {
+        expect(existsSync(join(appDir, rel)), `${rel} must exist`).toBe(true);
+      }
+      // Uploading goes through the template's own module, never through code the recipe wrote (SC-12).
+      const routesSource = readFileSync(join(appDir, 'src', 'features', 'item-files', 'index.ts'), 'utf8');
+      expect(routesSource).toContain("import { receiveUpload } from '../uploads/index.ts'");
+      expect(routesSource, 'a recipe never parses a multipart body itself').not.toMatch(/from 'busboy'|require\('busboy'\)/);
+
+      const features = readFileSync(join(appDir, 'src', 'features', 'index.ts'), 'utf8');
+      expect(features).toContain("await import('./item-files/index.ts')");
+      const routes = JSON.parse(readFileSync(join(appDir, 'routes.manifest.json'), 'utf8')) as { method: string; path: string; auth: string; csrf: boolean }[];
+      const attach = routes.find((r) => r.path === '/items/:id/files/photo' && r.method === 'POST');
+      expect(attach, 'the attach route must be in the manifest').toBeDefined();
+      // The uploads module checks the Origin and the form token itself, because the body cannot be parsed first.
+      expect(attach!.csrf).toBe(false);
+      expect(attach!.auth).not.toBe('public');
+      expect(routes.some((r) => r.path === '/items/:id/files/photo/remove' && r.csrf === true)).toBe(true);
+      expect(routes.some((r) => r.path === '/items/:id/files' && r.method === 'GET')).toBe(true);
     } finally {
       rmSync(appDir, { recursive: true, force: true });
     }
   });
+
+  it('leaves a file field out, and says why, when the uploads feature is off', async () => {
+    const appDir = copyTemplate();
+    try {
+      const knowledge = loadKnowledge();
+      const frameworks = loadFrameworks();
+      // The design engine turns the uploads feature on whenever any record has a file field, so this is the
+      // defensive path rather than one a wizard answer can reach: the feature is forced off under a design that
+      // still describes a file.
+      const derived = deriveDesign(teamInventory, { knowledge, frameworks });
+      const design = { ...derived, buildSpec: { ...derived.buildSpec, features: { ...derived.buildSpec.features, uploads: false } } };
+      const result = await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_bbbb02' });
+
+      expect(result.applications.some((a) => a.recipeId === 'record-attachment'), 'no attachment feature without uploads').toBe(false);
+      const item = result.applications.find((a) => a.instance === 'item')!;
+      expect(item.notes.some((n) => n.includes('photo'))).toBe(true);
+      expect(result.warnings.join(' ')).toMatch(/uploads/i);
+      expect(existsSync(join(appDir, 'src', 'features', 'item-files')), 'nothing may be written for it').toBe(false);
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  });
+
+  it('produces code that compiles, attachments and all', async () => {
+    const appDir = copyTemplate();
+    try {
+      const knowledge = loadKnowledge();
+      const frameworks = loadFrameworks();
+      const design = deriveDesign(teamInventory, { knowledge, frameworks });
+      const result = await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_bbbb03' });
+      expect(result.applications.some((a) => a.recipeId === 'record-attachment')).toBe(true);
+
+      cpSync(join(templateDir, 'node_modules'), join(appDir, 'node_modules'), { recursive: true, dereference: false });
+      const tsc = join(appDir, 'node_modules', '.bin', 'tsc');
+      const out = execFileSync(tsc, ['-p', join(appDir, 'tsconfig.json')], { cwd: appDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(out.trim()).toBe('');
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  }, 300_000);
 
   it('produces code that compiles, with owner checks on records that belong to one person', async () => {
     const appDir = copyTemplate();
@@ -128,4 +196,26 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       rmSync(appDir, { recursive: true, force: true });
     }
   }, 300_000);
+
+  it('writes nothing the static scan objects to', async () => {
+    // The evaluation harness would catch this too, but only after a twenty-minute build of four apps. Running the
+    // real rules over what the recipes just wrote turns that into a few seconds, and it is how the recipes are held
+    // to the conventions the scan enforces on generated code — a query assembled at runtime, most of all.
+    const appDir = copyTemplate();
+    try {
+      const knowledge = loadKnowledge();
+      const frameworks = loadFrameworks();
+      const design = deriveDesign(teamInventory, { knowledge, frameworks });
+      const result = await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_sast01' });
+      const written = new Set(result.applications.flatMap((a) => a.files));
+      expect(written.size).toBeGreaterThan(0);
+
+      const scan = await runSast(makeScanContext(appDir, { manifest, buildSpec: design.buildSpec }));
+      const ours = scan.findings.filter((f) => f.location?.file !== undefined && written.has(f.location.file));
+      const serious = ours.filter((f) => f.severity === 'critical' || f.severity === 'high' || f.severity === 'medium');
+      expect(serious.map((f) => `${f.ruleId} ${f.location?.file}:${f.location?.line ?? 0} — ${f.title}`)).toEqual([]);
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  }, 120_000);
 });

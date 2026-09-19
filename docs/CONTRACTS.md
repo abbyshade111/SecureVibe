@@ -1059,7 +1059,8 @@ thing to a generated application, written deterministically from the design prof
 the whole library (`applyRecipes`) right after the template is copied, so a build without AI already produces a
 working app, and the generation agent extends what the recipes wrote instead of re-deriving the same patterns on
 every build. Recipe 1 is `record-type` (a record type with list, add, edit and delete — formerly the CRUD
-expander); uploads, summary pages and scheduled jobs follow as further recipes.
+expander) and recipe 2 is `record-attachment` (a file kept with a record); summary pages and scheduled jobs follow
+as further recipes.
 
 `types.ts` is the contract. A recipe carries `id` (stable, never reused), `version` (bumped when the emitted code
 changes), a plain-language `title` and `summary`, `plan(ctx)` — one instance per thing to build, from the profile
@@ -1079,6 +1080,25 @@ plain-language sentence saying what the test shows. A recipe that claims a requi
 suite. `record-type` claims V2.2.1, V2.2.2, V2.3.3, V2.4.1, V8.2.1, V8.2.3 and — for records that belong to one person —
 V8.2.2, and — for administrator-only records — V8.3.1. A name may not contain a quote or a backslash, because it is
 emitted inside a single-quoted literal.
+
+**Recipe 2 — `record-attachment`** ("A file kept with a record"). Applies to every record type that has a `file`
+field, when the uploads feature is on. It adds one column per file field (`ALTER TABLE`, additive), a page at
+`<base>/:id/files` listing what is attached, and per field a `POST <base>/:id/files/<column>` that attaches one and
+a `POST …/remove` that removes it. Uploading is not reimplemented: the attach route calls `receiveUpload` from
+`src/features/uploads/index.ts` (exported for exactly this, SC-12), so the Origin check, the form token, the byte
+cap, the magic-byte sniff, the storage location and the per-person storage limit are the module's. The attach route
+therefore declares `csrf: false` and `rateLimit: 'uploads'`, as the module's own route does, and the file input must
+be named `file` with the `_csrf` field written before it.
+
+Because the only file a caller can name is the one they just sent, a record can never be pointed at somebody
+else's stored file. That is why the `file` field is no longer part of the record type's own schema at all
+(`record-type` version 2 leaves it out; `attachmentFieldsOf` in `record-type/fields.ts` is the single definition
+both recipes read) — the column is writable only by attaching. Removing an attachment deletes the stored file only
+when it belongs to the person removing it, or they are an administrator. The recipe claims V3.5.1, V5.2.2, V8.2.1,
+V8.2.3 and, for records that belong to one person, V8.2.2; it does not re-claim what the template's own
+`uploads.test.ts` proves about the module. When a design has a file field but the uploads feature is off, nothing is
+emitted and `record-type` leaves the field out with a reason the owner can read — a defensive path, since the design
+engine turns uploads on whenever any record has a file field.
 
 **The bounded-list control.** `TPL-DB-02` used to claim V2.3.3 (transactions) for two different things: the
 transaction around a per-person limit *and* the LIMIT on every list. The LIMIT half is now its own control,

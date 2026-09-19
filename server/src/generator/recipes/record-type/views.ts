@@ -99,7 +99,12 @@ export function emitShowView(plan: EntityPlan): string {
 ${rows}
   </dl>
   <p class="actions">
-    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/edit">Edit</a>
+    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/edit">Edit</a>${
+      plan.attachments.length > 0
+        ? `
+    <a class="button button-secondary" href="${plan.base}/<%= record.id %>/files">${escapeHtml(plan.attachments.length === 1 ? plan.attachments[0]!.label : 'Files')}</a>`
+        : ''
+    }
   </p>
   <form method="post" action="${plan.base}/<%= record.id %>/delete" data-confirm="Delete this ${escapeHtml(plan.entity.label.toLowerCase())}?">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -62,7 +62,8 @@ function contentDispositionFor(name: string): string {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
-interface UploadOutcome {
+/** What `receiveUpload` settles to: the stored file, or the reason it was refused. */
+export interface UploadOutcome {
   status: number;
   body?: { id: string; originalName: string; mime: string; size: number };
   error?: { status: number; code: ErrorCode; message: string };
@@ -89,8 +90,16 @@ function errOutcome(status: number, message: string): UploadOutcome {
   return { status, error: { status, code: codeForStatus(status), message } };
 }
 
-/** Streams one multipart upload to disk, checking the CSRF field, the byte cap and the file type as it goes. */
-function receiveUpload(req: Request): Promise<UploadOutcome> {
+/**
+ * Streams one multipart upload to disk, checking the CSRF field, the byte cap and the file type as it goes.
+ *
+ * Exported because a generated feature that attaches a file to one of its records must do it through this module
+ * and nowhere else (SC-12): the route it adds calls this, so the Origin check, the form token, the byte cap, the
+ * magic-byte sniff, the storage location and the per-person storage limit are the same ones the `/uploads` page
+ * uses. Such a route must declare `csrf: false` and `rateLimit: 'uploads'`, for the reason described at the top of
+ * this file, and the file is recorded as owned by the signed-in person, never by the record's owner.
+ */
+export function receiveUpload(req: Request): Promise<UploadOutcome> {
   return new Promise((resolvePromise) => {
     let settled = false;
     const finish = (outcome: UploadOutcome) => {
