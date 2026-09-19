@@ -40,6 +40,10 @@ an owner would notice, because that is what decides the order. Remove an item wh
   has been trying out is sitting. It must behave like the other opt-in tools when absent: say the check did not
   run, never imply a clean result. Expect few hits on ordinary source; the honest claim is "nothing known-bad in
   these files", not "this code is safe".
+  For an **uploaded** app this belongs in the ordinary run rather than behind a switch: the owner is handing
+  SecureVibe files from somewhere else, so asking whether any of them is known-bad is part of checking them, not
+  an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
+  uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
 ## The recipe-library session's half
 
