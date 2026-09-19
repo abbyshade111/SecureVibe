@@ -31,7 +31,7 @@ import type {
   FileDiffResponse,
   AppFileResponse,
 } from '@shared/api.js';
-import type { AppearanceResponse, ChecksResponse, DocumentResponse, MetricsResponse, VerificationResponse } from '@shared/api.js';
+import type { AppearanceResponse, ChecksResponse, DocumentResponse, MetricsResponse, SecurityAcrossAppsResponse, VerificationResponse } from '@shared/api.js';
 import type { Project, Attestation } from '@shared/project.js';
 import type { PipelineRun, ArtifactRef } from '@shared/pipeline.js';
 import type { WizardCopy } from './wizardCopyTypes';
@@ -136,6 +136,11 @@ function j<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getMetrics(days: 7 | 30 | 90): Promise<MetricsResponse> {
   return j<MetricsResponse>(`/metrics?days=${days}`);
+}
+
+/** Every app's security at once, for the across-apps view. */
+export function getSecurityAcrossApps(): Promise<SecurityAcrossAppsResponse> {
+  return j<SecurityAcrossAppsResponse>('/security');
 }
 
 export function saveAiKey(body: { service: 'anthropic' | 'openai' | 'google'; key?: string; remove?: boolean }): Promise<StatusResponse['aiServices']> {
@@ -289,16 +294,23 @@ export function runEventsUrl(runId: string): string {
 
 // ---- findings -------------------------------------------------------------
 
-export function getFindings(id: string): Promise<z.infer<typeof FindingsResponseSchema>> {
-  return j(`/projects/${id}/findings`);
+export function getFindings(id: string, runId?: string): Promise<z.infer<typeof FindingsResponseSchema>> {
+  // `runId` asks for one particular run's findings: the across-apps view counts from the last run that ran every
+  // check, which is not always the latest run, and the list has to come from the same place as the number.
+  return j(`/projects/${id}/findings${runId ? `?run=${encodeURIComponent(runId)}` : ''}`);
 }
 
 export function decideFinding(
   id: string,
   findingId: string,
   body: z.infer<typeof FindingDecisionRequestSchema>,
+  runId?: string,
 ): Promise<void> {
-  return j<void>(`/projects/${id}/findings/${findingId}/decision`, { method: 'POST', body: JSON.stringify(body) });
+  // `runId` names the run the finding was read from, which is not always the app's latest run.
+  return j<void>(`/projects/${id}/findings/${findingId}/decision${runId ? `?run=${encodeURIComponent(runId)}` : ''}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 // ---- attestations / human review -----------------------------------------

@@ -32,6 +32,8 @@ import {
 import { DesignProfileSchema, PartialDesignProfileSchema, type DesignProfile, type PartialDesignProfile } from '@shared/profile.js';
 import { HumanCodeReviewSchema, isUploadedApp, type Project } from '@shared/project.js';
 import { isOpen, type Finding } from '@shared/findings.js';
+import { withDecisions } from './findings-view.js';
+import { RUN_ID_PATTERN } from '../store/ids.js';
 import { applyPeerReviewPatch, deriveDesign, peerReview, profileHash, quickInfer } from '../integration.js';
 import { answerFieldAllowed, refineProfile } from '../llm/flows/refine.js';
 import { applyRefinement } from '../design/refine-apply.js';
@@ -529,20 +531,40 @@ export function projectsRouter(deps: ApiDeps): Router {
 
   router.get('/projects/:id/findings', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
+    /**
+     * `?run=` reads the findings of one particular run rather than the latest.
+     *
+     * The across-apps security view needs this: its counts come from the last run that ran *every* check, which may
+     * be older than the latest run, because a single-check re-run holds only that check's findings. Without it the
+     * page showed "1 critical" and then an empty list underneath — the number from one run, the findings from
+     * another. The id is checked against the run-id pattern before it reaches a path.
+     */
+    const wanted = req.query['run'];
+    if (wanted !== undefined) {
+      if (typeof wanted !== 'string' || !RUN_ID_PATTERN.test(wanted)) throw validationError('That is not a run of this app.');
+      const asked = deps.store.readRun(project.id, wanted);
+      if (!asked) throw notFound('That run could not be found for this app.');
+      return res.json(FindingsResponseSchema.parse({ findings: withDecisions(asked, project) }));
+    }
     if (!project.lastRunId) return res.json(FindingsResponseSchema.parse({ findings: [] }));
     const run = deps.store.readRun(project.id, project.lastRunId);
-    const findings: Finding[] = (run?.findings ?? []).map((f) => {
-      const decision = project.findingDecisions.find((d) => d.fingerprint === f.fingerprint);
-      return decision ? { ...f, status: decision.status, triage: decision.triage } : f;
-    });
-    res.json(FindingsResponseSchema.parse({ findings }));
+    res.json(FindingsResponseSchema.parse({ findings: run ? withDecisions(run, project) : [] }));
   });
 
   router.post('/projects/:id/findings/:findingId/decision', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     const body = FindingDecisionRequestSchema.parse(req.body);
-    if (!project.lastRunId) throw notFound('That finding could not be found.');
-    const run = deps.store.readRun(project.id, project.lastRunId);
+    /**
+     * `?run=` says which run the finding being decided came from, for the same reason the route above takes it: the
+     * across-apps view works from the last run that ran every check, which is not always the latest run. Without
+     * it, deciding a finding from that view answered "that finding could not be found" — and the page had already
+     * shown it as decided, so a person could mark something a false positive and have nothing recorded.
+     */
+    const wanted = req.query['run'];
+    if (wanted !== undefined && (typeof wanted !== 'string' || !RUN_ID_PATTERN.test(wanted))) throw validationError('That is not a run of this app.');
+    const runId = typeof wanted === 'string' ? wanted : project.lastRunId;
+    if (!runId) throw notFound('That finding could not be found.');
+    const run = deps.store.readRun(project.id, runId);
     const finding = run?.findings.find((f) => f.id === req.params['findingId']);
     if (!finding) throw notFound('That finding could not be found.');
     if (body.status === 'open') {

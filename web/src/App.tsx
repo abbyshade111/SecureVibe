@@ -7,6 +7,7 @@ import { BuildPage } from './pages/BuildPage';
 import { ResultsPage } from './pages/ResultsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import SecurityAcrossAppsPage from './pages/SecurityAcrossAppsPage';
 import { VerifyPage } from './pages/VerifyPage';
 import SecurityPage from './pages/SecurityPage';
 import { UploadPage } from './pages/UploadPage';
@@ -33,6 +34,7 @@ export function App() {
         <Route path="/projects/:id/security" element={<SecurityPage />} />
         <Route path="/projects/:id/upload" element={<UploadPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/security" element={<SecurityAcrossAppsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
