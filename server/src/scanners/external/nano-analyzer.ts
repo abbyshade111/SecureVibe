@@ -171,16 +171,46 @@ export function readNanoFindings(outputDir: string, minConfidence: number): Exte
   return seeds;
 }
 
-/** What the run cost in the tool's own terms, for the log and the coverage row (never the key, never the code). */
-export function readNanoSummary(outputDir: string): { filesScanned: number; wallSeconds: number } | undefined {
+/**
+ * What the run did, and what it cost, when the tool says so.
+ *
+ * Files and seconds are not a cost. This scan spends the owner's own money, against their own key, outside
+ * SecureVibe's accounting of its AI spending — so what it cost is the one number they cannot find anywhere else,
+ * and SecureVibe was describing files and seconds as "what the run cost". Tokens and money are read when the
+ * tool reports them and left out when it does not, because an invented zero would be worse than silence.
+ */
+export function readNanoSummary(outputDir: string): { filesScanned: number; wallSeconds: number; tokens?: number; costUsd?: number } | undefined {
   const file = join(outputDir, 'summary.json');
   if (!existsSync(file)) return undefined;
   try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8')) as { files_scanned?: number; wall_time_seconds?: number };
-    return { filesScanned: parsed.files_scanned ?? 0, wallSeconds: parsed.wall_time_seconds ?? 0 };
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as {
+      files_scanned?: number;
+      wall_time_seconds?: number;
+      total_tokens?: number;
+      tokens?: number;
+      total_cost_usd?: number;
+      cost_usd?: number;
+    };
+    const tokens = parsed.total_tokens ?? parsed.tokens;
+    const costUsd = parsed.total_cost_usd ?? parsed.cost_usd;
+    return {
+      filesScanned: parsed.files_scanned ?? 0,
+      wallSeconds: parsed.wall_time_seconds ?? 0,
+      ...(typeof tokens === 'number' ? { tokens } : {}),
+      ...(typeof costUsd === 'number' ? { costUsd } : {}),
+    };
   } catch {
     return undefined;
   }
+}
+
+/** The part of the log line that says what the owner was charged, or nothing when the tool did not say. */
+export function nanoCostText(summary: { tokens?: number; costUsd?: number }): string {
+  if (typeof summary.costUsd === 'number') {
+    return `; your AI service was charged about $${summary.costUsd.toFixed(summary.costUsd < 0.01 ? 4 : 2)}${typeof summary.tokens === 'number' ? ` (${summary.tokens.toLocaleString()} tokens)` : ''}`;
+  }
+  if (typeof summary.tokens === 'number') return `; ${summary.tokens.toLocaleString()} tokens were sent to your AI service and charged to your key`;
+  return '';
 }
 
 export const NANO_COVERS =
@@ -277,6 +307,6 @@ export async function runNanoAnalyzer(ctx: NanoRunContext, opts: NanoAnalyzerOpt
     };
   }
   const seeds = readNanoFindings(outputDir, opts.minConfidence);
-  ctx.log(`[external] nano-analyzer read ${summary.filesScanned} file(s) and suggests ${seeds.length} thing(s) to look at`);
+  ctx.log(`[external] nano-analyzer read ${summary.filesScanned} file(s) and suggests ${seeds.length} thing(s) to look at${nanoCostText(summary)}`);
   return { ran: true, seeds, filesScanned: summary.filesScanned, ...(staging.leftOut > 0 ? { leftOut: staging.leftOut } : {}) };
 }

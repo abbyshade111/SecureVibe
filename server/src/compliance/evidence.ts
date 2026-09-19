@@ -191,7 +191,13 @@ function aiReviewEvidence(id: string, ctx: RequirementEvidenceCtx): { evidence: 
       runId: ctx.runMeta.runId,
       capturedAt: ctx.capturedAt,
       producedBy: review.model ?? 'claude',
-      aiReview: { model: review.model ?? 'unknown', promptHash: review.promptHash ?? '', confidence: assessment.confidence, citationVerified: true },
+      aiReview: {
+        model: review.model ?? 'unknown',
+        promptHash: review.promptHash ?? '',
+        confidence: assessment.confidence,
+        citationVerified: true,
+        citedFiles: [...new Set(assessment.citations.map((c) => c.file))],
+      },
       ...(assessment.citations[0] ? { location: { file: assessment.citations[0].file, ...(assessment.citations[0].line !== undefined ? { line: assessment.citations[0].line } : {}) } } : {}),
     }),
   ];

@@ -57,6 +57,12 @@ export const EvidenceSchema = z.object({
       promptHash: z.string(),
       confidence: z.enum(['high', 'medium', 'low']),
       citationVerified: z.boolean(),
+      /**
+       * Every file the assessment cited, not just the first. `location` names one of them for display; a rebuild
+       * may only carry this verdict forward when all of these are byte-identical, because a verdict formed from
+       * three files says nothing once two of them have been rewritten.
+       */
+      citedFiles: z.array(z.string()).optional(),
     })
     .optional(),
   /** Who produced it: "rules", "claude-opus-5", "owner:<name>", a tool name... */

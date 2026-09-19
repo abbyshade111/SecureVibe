@@ -28,7 +28,7 @@ function appWith(files: Record<string, string>): string {
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 
-function aiEvidence(requirement: string, file: string, citationVerified = true): Evidence {
+function aiEvidence(requirement: string, file: string, citationVerified = true, citedFiles?: string[]): Evidence {
   return {
     id: 'E-0001',
     type: 'ai-review',
@@ -38,7 +38,7 @@ function aiEvidence(requirement: string, file: string, citationVerified = true):
     passed: true,
     capturedAt: '2026-09-17T10:00:00.000Z',
     location: { file, line: 3 },
-    aiReview: { model: 'claude-opus-5', promptHash: 'h', confidence: 'medium', citationVerified },
+    aiReview: { model: 'claude-opus-5', promptHash: 'h', confidence: 'medium', citationVerified, ...(citedFiles ? { citedFiles } : {}) },
   };
 }
 
@@ -72,17 +72,36 @@ describe('reviewing again only what changed', () => {
     expect(carried.evidence[0]!.tier).toBe('weak');
     expect(carried.evidence[0]!.capturedAt).toBe('2026-09-17T10:00:00.000Z');
     expect(carried.note).toMatch(/has not changed since/);
-    // The note used to say "the code it cites has not changed", which claims more than was done: an assessment
-    // can cite several files and only the first is recorded on the evidence, so only that one is compared. The
-    // wording must not imply the rest were looked at.
-    expect(carried.note).not.toMatch(/the code (it cites|they cite)/);
-    expect(carried.note).toMatch(/only that first file was compared/i);
+    expect(carried.note).toMatch(/every file/i);
   });
 
   it('reviews again when the file has changed at all', () => {
     const appDir = appWith({ 'src/app.ts': 'export const a = 2;\n' });
     const previous = previousRun([aiEvidence('V6.1.1', 'src/app.ts')], { 'src/app.ts': sha('export const a = 1;\n') });
     expect(carryForwardReview(previous, appDir, 'design-1').skip.size).toBe(0);
+  });
+
+  it('reviews again when any file the verdict read has changed, not just the one it points at', () => {
+    // An assessment can cite several files; only the first is shown as its location. Comparing that one alone
+    // carried verdicts across rebuilds that had rewritten the others, while telling the owner the code the
+    // verdict rests on was untouched. It weakened the only check that costs money.
+    const appDir = appWith({ 'src/a.ts': 'first', 'src/b.ts': 'second (rewritten)' });
+    const previous = previousRun([aiEvidence('V1.1.1', 'src/a.ts', true, ['src/a.ts', 'src/b.ts'])], {
+      'src/a.ts': sha('first'),
+      'src/b.ts': sha('second'),
+    });
+    expect(carryForwardReview(previous, appDir, 'design-1').skip.size).toBe(0);
+  });
+
+  it('carries the verdict when every file it read is untouched, and says how many', () => {
+    const appDir = appWith({ 'src/a.ts': 'first', 'src/b.ts': 'second' });
+    const previous = previousRun([aiEvidence('V1.1.1', 'src/a.ts', true, ['src/a.ts', 'src/b.ts'])], {
+      'src/a.ts': sha('first'),
+      'src/b.ts': sha('second'),
+    });
+    const carried = carryForwardReview(previous, appDir, 'design-1');
+    expect(carried.skip.has('V1.1.1')).toBe(true);
+    expect(carried.evidence[0]!.summary).toMatch(/all 2 files it read/);
   });
 
   it('reviews again when the citation was never verified, or there is no file to check', () => {

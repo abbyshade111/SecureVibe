@@ -85,7 +85,12 @@ export function carryForwardReview(previous: PipelineRun | undefined, appDir: st
       const file = item.location?.file;
       // No citation, or one that was never verified: there is nothing to stand on, so it is reviewed again.
       if (!file || item.aiReview?.citationVerified !== true) continue;
-      if (!isUnchanged(file)) continue;
+      // Every file the assessment cited has to be unchanged, not merely the one shown as its location. A verdict
+      // formed by reading three files says nothing about the app once two of them have been rewritten, and
+      // carrying it forward would quietly weaken the one check the owner pays for. Older runs recorded only the
+      // location, so fall back to it: those are carried on the same terms as before rather than being discarded.
+      const cited = item.aiReview.citedFiles?.length ? item.aiReview.citedFiles : [file];
+      if (!cited.every((f) => isUnchanged(f))) continue;
       skip.add(requirement);
       evidence.push({
         ...item,
@@ -93,7 +98,7 @@ export function carryForwardReview(previous: PipelineRun | undefined, appDir: st
         // Names the one file that was actually compared, rather than implying the whole verdict was re-checked.
         // An assessment can cite several files and only the first is recorded on the evidence, so that is the
         // only one this can vouch for; saying "the code it cites has not changed" would claim more than was done.
-        summary: `${item.summary} (carried over from the check on ${(item.capturedAt ?? previous.startedAt).slice(0, 10)}: ${file}, the file it points at, has not changed since)`,
+        summary: `${item.summary} (carried over from the check on ${(item.capturedAt ?? previous.startedAt).slice(0, 10)}: ${cited.length === 1 ? `${file} has` : `all ${cited.length} files it read (${cited.join(', ')}) have`} not changed since)`,
         runId: item.runId ?? previous.id,
       });
     }
@@ -102,6 +107,6 @@ export function carryForwardReview(previous: PipelineRun | undefined, appDir: st
   const note =
     skip.size === 0
       ? ''
-      : `${skip.size} requirement${skip.size === 1 ? '' : 's'} kept the verdict from the earlier check, because the file ${skip.size === 1 ? 'it points at has' : 'each points at has'} not changed since. Where a verdict cited more than one file, only that first file was compared.`;
+      : `${skip.size} requirement${skip.size === 1 ? '' : 's'} kept the verdict from the earlier check, because every file ${skip.size === 1 ? 'it read has' : 'they read has'} not changed since.`;
   return { skip, evidence, note };
 }
