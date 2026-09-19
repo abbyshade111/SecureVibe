@@ -122,21 +122,24 @@ jobs:
           path: sbom.cdx.json
           retention-days: 90
 
-  dependency-review:
-    name: New or changed packages in a pull request
-    if: github.event_name == 'pull_request'
+  known-problems:
+    name: Known problems in the packages we install
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # GitHub only offers this where the dependency graph is on, which needs Advanced Security on a private
-    # repository. Until then it reports and does not block: a check nobody can make pass teaches people to ignore
-    # red crosses, which is worse than not having it. Turn it on at Settings, Code security and analysis.
-    continue-on-error: true
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Says what a pull request adds or upgrades, and fails it when a package with a known serious problem, or an
-      # unacceptable licence, would come in with it.
-      - name: Review what this pull request would install
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      # This replaces GitHub's own dependency review, which needs Advanced Security to work on a private
+      # repository and so could never pass here: a check nobody can make pass teaches people to ignore red
+      # crosses. OSV is Google's open database of known problems in public packages, it is free, it works on a
+      # private repository, and it reads the lockfiles directly, so it sees the exact versions `npm ci` installs
+      # rather than the ranges written in package.json.
+      #
+      # Only the two real lockfiles are named. The ones under server/tests/fixtures are deliberately unsafe
+      # sample projects that the scanner tests are pointed at, and a scan of those is meant to find things.
+      - name: Compare the installed packages with the public vulnerability database
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
         with:
-          fail-on-severity: high
+          scan-args: |-
+            --lockfile=package-lock.json
+            --lockfile=templates/secure-web-app/package-lock.json
