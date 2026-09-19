@@ -18,6 +18,7 @@ import {
   startRun,
   writeJob,
 } from '../pipeline/index.js';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { RERUNNABLE_CHECKS, STAGE_DESCRIPTIONS, type PipelineRun, type StageId } from '@shared/pipeline.js';
 import { forbidden, notFound, validationError } from '../security/errors.js';
@@ -50,6 +51,26 @@ export function runsRouter(deps: ApiDeps): Router {
     // "Run this check again" from the Security page: only these checks, and only ones that cost nothing.
     const checks = body.checks?.length ? body.checks.filter((c) => (RERUNNABLE_CHECKS as readonly string[]).includes(c)) : undefined;
     if (body.checks?.length && !checks?.length) throw validationError('Those are not checks that can be run on their own.');
+
+    /**
+     * Continuing a build that stopped. Only honest when the code on disk is the code that run wrote for this design:
+     * a different design, or a missing app folder, means there is nothing to continue and the build starts over.
+     */
+    let resumeFrom: PipelineRun | undefined;
+    if (body.resumeFromRunId) {
+      const previous = deps.store.readRun(project.id, body.resumeFromRunId);
+      if (!previous) throw validationError('That build could not be found, so there is nothing to continue.');
+      if (previous.status === 'running') throw validationError('That build is still going. Watch it, or stop it first.');
+      if (previous.status === 'succeeded') throw validationError('That build finished, so there is nothing to continue. Build again instead.');
+      if (!existsSync(join(deps.store.paths(project.id).appDir, 'package.json'))) {
+        throw validationError('The app folder from that build is not there any more, so it has to be built from the start.');
+      }
+      const designHash = project.design?.profileHash;
+      if (designHash && previous.provenance?.designProfileHash && previous.provenance.designProfileHash !== designHash) {
+        throw validationError('Your answers have changed since that build, so continuing it would build the wrong app. Start a fresh build instead.');
+      }
+      resumeFrom = previous;
+    }
 
     const settings = deps.config.settings.get();
     const spendingCapUsd = body.spendingCapUsd ?? project.spendingCapUsd ?? settings.defaultSpendingCapUsd;
@@ -92,6 +113,7 @@ export function runsRouter(deps: ApiDeps): Router {
       ...(body.fixFindingIds && !uploaded ? { fixFindingIds: body.fixFindingIds } : {}),
       ...(plan?.approvedAt ? { plan } : {}),
       ...(checks ? { onlyChecks: checks } : {}),
+      ...(resumeFrom ? { resumeFrom } : {}),
     };
     // The run record exists before anything runs, so the page has an id to follow. The work itself happens in a
     // separate worker process (pipeline/job.ts): a restart of SecureVibe no longer ends a build.
@@ -107,6 +129,7 @@ export function runsRouter(deps: ApiDeps): Router {
       ...(uploaded ? { uploaded: true } : {}),
       ...(body.withoutAi ? { withoutAi: true } : {}),
       ...(checks ? { checks } : {}),
+      ...(resumeFrom ? { resumeFromRunId: resumeFrom.id } : {}),
       createdAt: new Date().toISOString(),
     });
     try {

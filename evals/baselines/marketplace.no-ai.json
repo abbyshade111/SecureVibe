@@ -2,9 +2,9 @@
   "version": 1,
   "case": "marketplace",
   "mode": "no-ai",
-  "runId": "r_20260918212700_r4krqj",
+  "runId": "r_20260919005207_jrsaw2",
   "status": "succeeded",
-  "durationMs": 249406,
+  "durationMs": 273660,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -18,7 +18,7 @@
     "deps": "passed",
     "config": "warning",
     "dast": "passed",
-    "external": "warning",
+    "external": "passed",
     "ai-review": "skipped",
     "fix": "skipped",
     "compliance": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 1,
+    "medium": 9,
     "low": 2,
     "info": 0
   },
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 187,
-    "passed": 174,
+    "total": 188,
+    "passed": 175,
     "failed": 0
   },
   "costUsd": 0

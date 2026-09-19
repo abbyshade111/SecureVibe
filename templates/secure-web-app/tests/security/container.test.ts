@@ -90,7 +90,7 @@ describe('the checks that keep running after the app is handed over', () => {
     assert.match(job('publish'), /cosign attest .*--type cyclonedx/, 'a published image must carry its bill of materials');
   });
 
-  test('V15.1.2 a published image is signed, and publishing stays off until it is turned on', () => {
+  test('V15.1.2 a published image carries its inventory of third-party libraries and is signed, so its components can be traced to a trusted source', () => {
     const publish = job('publish');
     assert.match(publish, /vars\.PUBLISH_IMAGE == 'true'/, 'publishing must be opt-in');
     assert.match(publish, /id-token: write/, 'keyless signing needs GitHub to vouch for the run');

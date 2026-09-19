@@ -28,6 +28,8 @@ async function main(): Promise<void> {
   const store = new ProjectStore(config.paths.home);
   const job = readJob(store, projectId, runId);
   const run = store.readRun(projectId, runId);
+  // The build being continued, read back from disk: what it managed to do decides what this one may skip.
+  const resumeFrom = job?.resumeFromRunId ? store.readRun(projectId, job.resumeFromRunId) : undefined;
   if (!job || !run) throw new Error(`No job or run record for ${projectId}/${runId}.`);
   const project = store.mustGet(projectId);
 
@@ -47,6 +49,7 @@ async function main(): Promise<void> {
       ...(job.fixFindingIds ? { fixFindingIds: job.fixFindingIds } : {}),
       ...(job.plan ? { plan: job.plan } : {}),
       ...(job.checks?.length ? { onlyChecks: job.checks } : {}),
+      ...(resumeFrom ? { resumeFrom } : {}),
       ...(job.uploaded
         ? { skipStages: UPLOADED_SKIPPED_STAGES, manifestOverride: uploadedManifest(), extraIgnore: UPLOADED_IGNORE, excludedChecks: UPLOADED_EXCLUDED_CHECKS }
         : {}),

@@ -87,3 +87,63 @@ describe('the checks a person can run again', () => {
     expect(JSON.stringify(res.body)).toMatch(/not checks that can be run on their own/i);
   });
 });
+
+describe('continuing a build that stopped', () => {
+  let harness: TestHarness;
+  let projectId: string;
+  let headers: Record<string, string>;
+
+  beforeEach(async () => {
+    harness = await buildHarness();
+    projectId = harness.store.create({ name: 'Habits', mode: 'guided', profile: habitTracker }).id;
+    const { cookie, csrfToken } = await signIn(harness);
+    headers = { Host: '127.0.0.1', Cookie: cookie, 'X-CSRF-Token': csrfToken, Origin: 'http://127.0.0.1:4173' };
+    // A build needs a frozen design; these tests are about what happens after that.
+    const design = await request(harness.server).post(`/api/projects/${projectId}/design`).set(headers);
+    expect(design.status).toBe(200);
+  });
+  afterEach(() => harness?.cleanup());
+
+  async function ask(resumeFromRunId: string) {
+    return request(harness.server)
+      .post(`/api/projects/${projectId}/runs`)
+      .set(headers)
+      .send({ mode: 'full', approved: true, approvalCode: 'x'.repeat(24), resumeFromRunId });
+  }
+
+  it('refuses to continue a build that does not exist, or one that finished', async () => {
+    const missing = await ask('r_20260918120000_aaaaaa');
+    expect(missing.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(missing.body)).toMatch(/nothing to continue/i);
+
+    await harness.store.writeRun({
+      id: 'r_20260918130000_bbbbbb',
+      projectId,
+      mode: 'full',
+      status: 'succeeded',
+      startedAt: '2026-09-18T13:00:00.000Z',
+      stages: [],
+      findings: [],
+      coverage: [],
+    } as never);
+    const finished = await ask('r_20260918130000_bbbbbb');
+    expect(finished.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(finished.body)).toMatch(/finished/i);
+  });
+
+  it('refuses when there is no app folder left to continue from', async () => {
+    await harness.store.writeRun({
+      id: 'r_20260918140000_cccccc',
+      projectId,
+      mode: 'full',
+      status: 'failed',
+      startedAt: '2026-09-18T14:00:00.000Z',
+      stages: [{ id: 'generate', status: 'failed', summary: 'stopped', round: 0 }],
+      findings: [],
+      coverage: [],
+    } as never);
+    const res = await ask('r_20260918140000_cccccc');
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(res.body)).toMatch(/not there any more|built from the start/i);
+  });
+});
