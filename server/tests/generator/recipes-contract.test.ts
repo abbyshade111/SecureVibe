@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { TemplateManifestSchema } from '@shared/knowledge.js';
 import { REPO_ROOT } from '../../src/config.js';
 import { testMatchesRequirement } from '../../src/compliance/evidence.js';
+import { matchesRequirement, testBody } from '../../src/compliance/test-name-match.js';
 import { deriveDesign, loadFrameworks, loadKnowledge } from '../../src/integration.js';
 import { contentSha256File, matchesAnyGlob, sha256 } from '../../src/generator/files.js';
 import { matchesAny } from '../../src/llm/tools.js';
@@ -140,6 +141,32 @@ describe('the recipe library holds to its contract', () => {
           }
         }
         expect(claims, 'the library must evidence something').toBeGreaterThan(0);
+      });
+
+      it('names its tests so the test-name screen recognises them', () => {
+        // A test whose name says nothing its requirement says produces a finding on every build and puts a person
+        // in front of a comparison that was never worth their time. The recipes own their names, so they carry the
+        // cost of getting them right: each name restates the requirement in the plain words the reports use. This
+        // runs the screen exactly as pipeline/stages/unit-tests.ts runs it, id stripped off the front and all.
+        const ctx = fresh();
+        const unsupported: string[] = [];
+        for (const recipe of RECIPES) {
+          for (const instance of recipe.plan(ctx)) {
+            const emission = recipe.emit(instance, ctx);
+            const sources = emission.files
+              .filter((f) => f.path.startsWith('tests/'))
+              .map((f) => f.contents)
+              .join('\n');
+            for (const requirement of emission.requirements) {
+              const description = frameworks.getRequirement(requirement.id)?.description;
+              const plain = knowledge.requirementsPlain[requirement.id]?.plain;
+              const text = `${requirement.test.slice(requirement.id.length)}\n${testBody(sources, requirement.test)}`;
+              const verdict = matchesRequirement(text, description ? { description, ...(plain ? { plain } : {}) } : undefined);
+              if (verdict.match === 'unsupported') unsupported.push(`${recipe.id}/${instance.id} ${requirement.id}: ${requirement.test}`);
+            }
+          }
+        }
+        expect(unsupported, 'every recipe test name must share vocabulary with the requirement it cites').toEqual([]);
       });
 
       it('writes plain-language descriptions and a provenance header on every code file', () => {
