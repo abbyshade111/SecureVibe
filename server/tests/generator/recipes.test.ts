@@ -37,10 +37,11 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
 
       const result = await applyRecipes({ appDir, manifest, design, profile: habitTracker, runId: 'r_20260101000000_aaaaaa' });
 
-      expect(result.applications).toHaveLength(1);
+      // Two recipes apply: the record type itself, and a report over it (habits have a choice field to count by).
+      expect(result.applications.map((a) => a.recipeId)).toEqual(['record-type', 'record-summary']);
       const habit = result.applications[0]!;
       expect(habit.recipeId).toBe('record-type');
-      expect(habit.recipeVersion).toBe('2');
+      expect(habit.recipeVersion).toBe('3');
       expect(habit.instance).toBe('habit');
       // The application names the files it wrote, which is how a later build or the version diff knows their source.
       expect(habit.files).toContain('src/features/habit/repo.ts');
@@ -69,6 +70,22 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
         expect(requirement.test.startsWith(requirement.id), `${requirement.test} must start with ${requirement.id}`).toBe(true);
         expect(testFile, `the test named in the mapping for ${requirement.id} must exist`).toContain(`test('${requirement.test}'`);
       }
+
+      // The report is its own page, away from the record's own paths, because /habits/:id would match "summary".
+      const report = result.applications[1]!;
+      expect(report.instance).toBe('habit-report');
+      for (const rel of ['src/features/habit-report/index.ts', 'src/views/habit-report/index.ejs', 'tests/features/habit-report.test.ts']) {
+        expect(existsSync(join(appDir, rel)), `${rel} must exist`).toBe(true);
+      }
+      const reportRoutes = routes.filter((r) => r.path === '/reports/habits');
+      expect(reportRoutes).toHaveLength(1);
+      expect(reportRoutes[0]!.method).toBe('GET');
+      expect(reportRoutes[0]!.auth).not.toBe('public');
+      expect(readFileSync(join(appDir, 'src', 'views', 'habit', 'list.ejs'), 'utf8')).toContain('href="/reports/habits"');
+      // It reads and nothing else: no write of any kind reaches the table.
+      const reportSource = readFileSync(join(appDir, 'src', 'features', 'habit-report', 'index.ts'), 'utf8');
+      expect(reportSource).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|DROP)\b/);
+      expect(reportSource).toMatch(/COUNT\(\*\)/);
     } finally {
       rmSync(appDir, { recursive: true, force: true });
     }

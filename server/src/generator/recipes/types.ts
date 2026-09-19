@@ -23,6 +23,13 @@
  *
  * Recipes are held to the same fence as the generation agent: every path a recipe emits must match the
  * template manifest's `writablePaths`, which `apply.ts` checks before writing anything.
+ *
+ * Two things about the tests a recipe emits, both learnt the slow way:
+ *  - **They run against an app that is not empty.** Test-bootstrap mode seeds users *and one record per record
+ *    type* (CONTRACTS §1.16), so an emitted test must never assume a count, a total or a list starts at zero.
+ *    Measure a change from what the app says a moment earlier instead.
+ *  - **A page refuses an anonymous visitor by redirecting to the sign-in page**, not with 401; only the JSON
+ *    interface answers 401. Accept either, the way the template's own authorization test does.
  */
 import type { BuildSpec, DesignArtifacts } from '@shared/design.js';
 import type { RecipeApplication } from '@shared/pipeline.js';

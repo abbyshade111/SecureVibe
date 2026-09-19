@@ -64,7 +64,10 @@ export function emitListView(plan: EntityPlan): string {
   const firstCellFallback = columns.length === 0 ? `            <td><a href="${plan.base}/<%= r.id %>"><%= r.id %></a></td>\n` : '';
   return `<section class="card">
   <h1>${escapeHtml(listTitle)}</h1>
-  <p class="actions"><a class="button" href="${plan.base}/new">New ${escapeHtml(plan.entity.label.toLowerCase())}</a></p>
+  <p class="actions"><a class="button" href="${plan.base}/new">New ${escapeHtml(plan.entity.label.toLowerCase())}</a>${
+    plan.summaries.length > 0 ? `
+    <a class="button button-secondary" href="/reports${plan.base}">Report</a>` : ''
+  }</p>
   <% if (records.length === 0) { %>
     <p class="muted">Nothing here yet.</p>
   <% } else { %>

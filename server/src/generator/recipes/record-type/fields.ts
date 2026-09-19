@@ -213,6 +213,45 @@ export function attachmentFieldsOf(entity: EntitySpec, opts: { uploads: boolean 
     .map((f) => ({ field: f, column: columnName(f), prop: propName(f), label: f.label }));
 }
 
+/**
+ * One field a summary page can add up. A field marked sensitive is never summarised: a total or a breakdown can
+ * say as much as the values themselves, and the summary is read by a wider audience than the record's owner.
+ */
+export interface SummaryField {
+  field: EntityField;
+  column: string;
+  prop: string;
+  label: string;
+  kind: 'number' | 'money' | 'choice' | 'boolean';
+  /** For a choice field, the options as the person described them. */
+  choices: string[];
+}
+
+const SUMMARY_KINDS: Record<string, SummaryField['kind'] | undefined> = {
+  number: 'number',
+  money: 'money',
+  choice: 'choice',
+  boolean: 'boolean',
+};
+
+/**
+ * The fields of a record type worth summarising — amounts to total, choices to count by, yes/no fields to tally.
+ * Both the record-type recipe (which links to the page) and the record-summary recipe (which builds it) read this,
+ * so they cannot disagree about what the page contains.
+ */
+export function summaryFieldsOf(entity: EntitySpec): SummaryField[] {
+  const out: SummaryField[] = [];
+  for (const field of entity.fields) {
+    if (field.sensitive) continue;
+    const kind = SUMMARY_KINDS[field.type];
+    if (!kind) continue;
+    const choices = (field.choices ?? []).filter((c) => c.trim() !== '');
+    if (kind === 'choice' && choices.length === 0) continue;
+    out.push({ field, column: columnName(field), prop: propName(field), label: field.label, kind, choices });
+  }
+  return out;
+}
+
 export interface EntityPlan {
   entity: EntitySpec;
   table: string;
@@ -224,6 +263,8 @@ export interface EntityPlan {
   fields: FieldPlan[];
   /** Files attached to this record type, built by the record-attachment recipe rather than by this one. */
   attachments: AttachmentField[];
+  /** Fields a summary page can add up, built by the record-summary recipe rather than by this one. */
+  summaries: SummaryField[];
   droppedFields: { name: string; reason: string }[];
   /** The first required text-like field, used as the record's display title. */
   titleField: FieldPlan | undefined;
@@ -242,6 +283,7 @@ export function planEntity(entity: EntitySpec, opts: { uploads: boolean }): Enti
   const fields: FieldPlan[] = [];
   const droppedFields: { name: string; reason: string }[] = [];
   const attachments = attachmentFieldsOf(entity, opts);
+  const summaries = summaryFieldsOf(entity);
   for (const field of entity.fields) {
     const plan = planField(field, entity, opts);
     if (plan) fields.push(plan);
@@ -265,6 +307,7 @@ export function planEntity(entity: EntitySpec, opts: { uploads: boolean }): Enti
     rowType: `${pascal(entity.name)}Row`,
     fields,
     attachments,
+    summaries,
     droppedFields,
     titleField,
     ownerScoped,

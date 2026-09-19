@@ -1059,8 +1059,8 @@ thing to a generated application, written deterministically from the design prof
 the whole library (`applyRecipes`) right after the template is copied, so a build without AI already produces a
 working app, and the generation agent extends what the recipes wrote instead of re-deriving the same patterns on
 every build. Recipe 1 is `record-type` (a record type with list, add, edit and delete — formerly the CRUD
-expander) and recipe 2 is `record-attachment` (a file kept with a record); summary pages and scheduled jobs follow
-as further recipes.
+expander) recipe 2 is `record-attachment` (a file kept with a record) and recipe 3 is
+`record-summary` (a report over existing records); a scheduled job follows as a further recipe.
 
 `types.ts` is the contract. A recipe carries `id` (stable, never reused), `version` (bumped when the emitted code
 changes), a plain-language `title` and `summary`, `plan(ctx)` — one instance per thing to build, from the profile
@@ -1100,6 +1100,24 @@ V8.2.3 and, for records that belong to one person, V8.2.2; it does not re-claim 
 emitted and `record-type` leaves the field out with a reason the owner can read — a defensive path, since the design
 engine turns uploads on whenever any record has a file field.
 
+**Recipe 3 — `record-summary`** ("A report over existing records"). Applies to every record type with a field worth
+adding up (an amount, a yes/no answer, or a choice with options). It emits one read-only page at
+`/reports/<plural>` — not `<base>/summary`, because the record type's own `<base>/:id` route is registered first
+and would match `summary` as an id — with the record count, the total and average of each amount, a tally of each
+yes/no field, a count per option of each choice, and two optional dates that narrow it by `created_at`.
+
+The database does the adding up (`COUNT`, `SUM`, `AVG`), so the page costs one query per section however large the
+table, and every statement is a fixed string with the table name written out locally (`summaryFieldsOf` in
+`record-type/fields.ts` is the shared definition of what may be summarised). Three rules make it safe to show:
+a field marked **sensitive is never summarised**, because a total or a breakdown can give away as much as the values;
+where records belong to one person the totals are over **that person's own records** (an administrator, who may
+already read every record, sees all of them); and the report **always needs a sign-in**, even for a record type
+anyone may read, because the list shows one page at a time while a total is taken over every record. The recipe
+claims V2.2.1 (the two dates are validated), V8.2.1, V8.2.3 (what the page shows is checked against the list of
+figures it may show — an allow-list, so an unexpected figure cannot slip past) and, for records that belong to one
+person, V8.2.2. The figures are checked by adding a second identical record and requiring every total to double,
+so the test cannot drift out of step with the sample values the record type's own tests use.
+
 **Three template tests that named the wrong requirement (2026-09-18).** Found by the session building the
 test-name screen, confirmed against the framework data and fixed here, since they are template files:
 `errors.test.ts` checked that an unused HTTP method is refused and called it V13.4.3 (directory listings); it is
@@ -1116,6 +1134,12 @@ transaction around a per-person limit *and* the LIMIT on every list. The LIMIT h
 it. V2.3.3 keeps only the transaction claim. Before this, the only test crediting V2.3.3 in a generated app was the
 recipe's mislabelled page-size test, and both of the template's V2.3.3 tests skip when the reference `_example`
 feature is off — which it always is in a generated app.
+
+**What an emitted test may assume.** Nothing about the starting state: test-bootstrap mode seeds one record per
+record type (§1.16), so a test that expects a count or a total to start at zero fails in a real build while passing
+every check here. Emitted tests measure a change from what the app reported a moment earlier. And a page route
+refuses an anonymous visitor by redirecting to the sign-in page rather than with 401 — only the JSON interface
+answers 401 — so an emitted test accepts either, as `tests/security/authz.test.ts` does.
 
 **Fence.** Recipes are trusted no more than the generation agent: `apply.ts` refuses any instance with a file
 outside the template manifest's `writablePaths`, writes nothing for it, and says so in the run. The contract test

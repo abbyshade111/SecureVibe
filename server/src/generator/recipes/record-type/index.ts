@@ -67,6 +67,9 @@ function describe(plan: EntityPlan): string {
         : 'Everyone who has signed in can see them; each record remembers who added it.';
   const encrypted = plan.fields.filter((f) => f.encrypted);
   const sentences = [`Pages and a data interface for ${plural}: a list, a page per record, and forms to add, change and delete one.`, who];
+  if (plan.summaries.length > 0) {
+    sentences.push('The list also has a report page that counts them and adds up the amounts.');
+  }
   if (plan.attachments.length > 0) {
     const names = plan.attachments.map((f) => f.label.toLowerCase());
     sentences.push(`Each one also has a page for keeping ${names.length === 1 ? names[0]! : `${names.slice(0, -1).join(', ')} and ${names.at(-1)!}`} with it.`);
@@ -80,7 +83,7 @@ function describe(plan: EntityPlan): string {
 
 export const recordTypeRecipe: Recipe<RecordTypeInstance> = {
   id: 'record-type',
-  version: '2',
+  version: '3',
   title: 'A record type with list, add, edit and delete',
   summary:
     'Adds pages and a data interface for one kind of record the person described, with sign-in, ownership checks, ' +
