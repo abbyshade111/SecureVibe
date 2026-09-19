@@ -38,11 +38,12 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
 
       const result = await applyRecipes({ appDir, manifest, design, profile: habitTracker, runId: 'r_20260101000000_aaaaaa' });
 
-      // Two recipes apply: the record type itself, and a report over it (habits have a choice field to count by).
-      expect(result.applications.map((a) => a.recipeId)).toEqual(['record-type', 'record-summary']);
+      // Three recipes apply: the record type itself, a report over it (habits have a choice field to count by), and
+      // a chart of how many were added each month, which every record type gets.
+      expect(result.applications.map((a) => a.recipeId)).toEqual(['record-type', 'record-summary', 'record-chart']);
       const habit = result.applications[0]!;
       expect(habit.recipeId).toBe('record-type');
-      expect(habit.recipeVersion).toBe('3');
+      expect(habit.recipeVersion).toBe('4');
       expect(habit.instance).toBe('habit');
       // The application names the files it wrote, which is how a later build or the version diff knows their source.
       expect(habit.files).toContain('src/features/habit/repo.ts');
@@ -87,6 +88,25 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       const reportSource = readFileSync(join(appDir, 'src', 'features', 'habit-report', 'index.ts'), 'utf8');
       expect(reportSource).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|DROP)\b/);
       expect(reportSource).toMatch(/COUNT\(\*\)/);
+
+      // The chart is its own page too, and the picture is drawn by the app: no library, no script, no stylesheet,
+      // and every value in the drawing goes through the template's escaping rather than being inserted raw.
+      const chart = result.applications[2]!;
+      expect(chart.instance).toBe('habit-chart');
+      for (const rel of ['src/features/habit-chart/index.ts', 'src/views/habit-chart/index.ejs', 'tests/features/habit-chart.test.ts']) {
+        expect(existsSync(join(appDir, rel)), `${rel} must exist`).toBe(true);
+      }
+      const chartRoutes = routes.filter((r) => r.path === '/charts/habits');
+      expect(chartRoutes).toHaveLength(1);
+      expect(chartRoutes[0]!.auth).not.toBe('public');
+      expect(readFileSync(join(appDir, 'src', 'views', 'habit', 'list.ejs'), 'utf8')).toContain('href="/charts/habits"');
+      const chartView = readFileSync(join(appDir, 'src', 'views', 'habit-chart', 'index.ejs'), 'utf8');
+      expect(chartView).toContain('<svg');
+      expect(chartView, 'a chart must never insert a value into the page unescaped').not.toContain('<%-');
+      expect(chartView, 'nothing on a chart page runs').not.toMatch(/<script|<style/);
+      const chartSource = readFileSync(join(appDir, 'src', 'features', 'habit-chart', 'index.ts'), 'utf8');
+      expect(chartSource).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|DROP)\b/);
+      expect(chartSource, 'the picture is made of whole numbers worked out on the server').toMatch(/Math\.round/);
     } finally {
       rmSync(appDir, { recursive: true, force: true });
     }

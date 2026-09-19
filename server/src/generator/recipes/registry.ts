@@ -8,6 +8,7 @@
  * requirement has an emitted test for.
  */
 import { recordAttachmentRecipe } from './record-attachment/index.js';
+import { recordChartRecipe } from './record-chart/index.js';
 import { recordReminderRecipe } from './record-reminder/index.js';
 import { recordSummaryRecipe } from './record-summary/index.js';
 import { recordTypeRecipe } from './record-type/index.js';
@@ -17,6 +18,7 @@ export const RECIPES: AnyRecipe[] = [
   recordTypeRecipe as AnyRecipe,
   recordAttachmentRecipe as AnyRecipe,
   recordSummaryRecipe as AnyRecipe,
+  recordChartRecipe as AnyRecipe,
   recordReminderRecipe as AnyRecipe,
 ];
 
