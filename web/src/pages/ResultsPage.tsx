@@ -52,6 +52,22 @@ function printReport(url: string): void {
   document.body.appendChild(frame);
 }
 
+const PLAN_LABEL: Record<string, string> = {
+  built: 'Built',
+  'files-in-place': 'Files in place',
+  partly: 'Partly built',
+  'not-built': 'Not built',
+  'left-out': 'Left out',
+};
+
+const PLAN_TONE: Record<string, 'good' | 'warn' | 'bad' | 'neutral'> = {
+  built: 'good',
+  'files-in-place': 'warn',
+  partly: 'warn',
+  'not-built': 'bad',
+  'left-out': 'neutral',
+};
+
 const RUN_KIND: Record<string, string> = { full: 'Build', demo: 'Demo build', 'verify-only': 'Re-check' };
 const RUN_STATUS: Record<string, string> = { succeeded: 'finished', failed: 'failed', cancelled: 'cancelled', interrupted: 'stopped', running: 'running' };
 
@@ -437,9 +453,9 @@ export function ResultsPage() {
                 <tr key={c.featureId}>
                   <td>{c.title}</td>
                   <td>
-                    <Badge tone={c.status === 'built' ? 'good' : c.status === 'partly' ? 'warn' : c.status === 'not-built' ? 'bad' : 'neutral'}>
-                      {c.status === 'built' ? 'Built' : c.status === 'partly' ? 'Partly built' : c.status === 'not-built' ? 'Not built' : 'Left out'}
-                    </Badge>
+                    {/* "Files in place" is amber, not green: everything the plan named exists and nothing has
+                        shown it works. It reads as weaker than "Built" without anyone having to explain it. */}
+                    <Badge tone={PLAN_TONE[c.status] ?? 'neutral'}>{PLAN_LABEL[c.status] ?? c.status}</Badge>
                   </td>
                   <td className="sv-muted">{c.evidence}</td>
                 </tr>

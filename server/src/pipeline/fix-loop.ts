@@ -171,7 +171,10 @@ export async function runFixLoop(ctx: PipelineCtx): Promise<StageResult> {
       onEvent: (event) => {
         if (event.type === 'security') ctx.log('fix', securityEventLine(event));
         // The event carries this round's running total, so it is added to what was spent before the round.
-        if (event.type === 'usage') ctx.run.llmUsage = usageBeforeRound ? mergeUsage(usageBeforeRound, event.usage) : event.usage;
+        if (event.type === 'usage') {
+          ctx.run.llmUsage = usageBeforeRound ? mergeUsage(usageBeforeRound, event.usage) : event.usage;
+          ctx.bus.spend(ctx.run.llmUsage.estimatedCostUsd, ctx.run.llmUsage.calls);
+        }
       },
       abort: ctx.abort.signal,
       runId: ctx.run.id,

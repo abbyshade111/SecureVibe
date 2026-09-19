@@ -169,7 +169,11 @@ export type StageResult = z.infer<typeof StageResultSchema>;
 
 export const ProgressEventSchema = z.object({
   runId: z.string(),
-  type: z.enum(['stage', 'log', 'llm', 'done', 'error', 'heartbeat']),
+  // 'spend' carries the run's AI cost so far, in `data`. The run object holds that figure from the first call,
+  // but the file the page reads is only written when a stage ends — and writing the app is one long stage, so an
+  // owner watching a paid build saw no number at all until it finished. Sending it costs nothing; persisting it
+  // every few seconds would mean constant writes for a figure that is only ever displayed.
+  type: z.enum(['stage', 'log', 'llm', 'spend', 'done', 'error', 'heartbeat']),
   stage: StageIdSchema.optional(),
   status: StageStatusSchema.optional(),
   message: z.string(),
@@ -408,7 +412,13 @@ export const PipelineRunSchema = z.object({
       z.object({
         featureId: z.string(),
         title: z.string(),
-        status: z.enum(['built', 'partly', 'not-built', 'left-out']),
+        /**
+         * 'files-in-place' is 'built' without the proof. The pages and record types the plan named exist, and
+         * either the plan named no tests or none of them passed — so nothing has shown the feature does what it
+         * says. An owner was told "See a graph and summary of trends over time" was **built** when nothing in her
+         * app drew anything; the files were where the plan said they would be, and that was the whole of it.
+         */
+        status: z.enum(['built', 'files-in-place', 'partly', 'not-built', 'left-out']),
         /** One plain sentence: what was found and what was not. */
         evidence: z.string(),
       }),

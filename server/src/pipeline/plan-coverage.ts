@@ -67,7 +67,16 @@ export function planCoverage(plan: BuildPlan, appDir: string, tests: { name: str
     if (f.tests.length) parts.push(`${testsFound.length} of ${f.tests.length} tests exist (${testsPassing.length} passing)`);
     const evidence = parts.length ? `${parts.join('; ')}.` : 'The plan named nothing that can be checked for this feature.';
 
-    const status = planned === 0 ? 'partly' : found === planned ? 'built' : found === 0 ? 'not-built' : 'partly';
+    // "Built" has to mean something was shown to work, not that files turned up where the plan said they would.
+    // A feature whose pages and records all exist still only reads 'built' when a test the plan named passed on
+    // it; with no passing test it is 'files in place', which an owner reads as weaker without needing it
+    // explained. The case that prompted this: a charts feature marked built, with three of its planned test
+    // names passing, in an app where nothing draws anything — the tests asserted the page answered and carried a
+    // heading.
+    const everythingFound = planned > 0 && found === planned;
+    const provedByATest = f.tests.length > 0 && testsPassing.length > 0;
+    const status =
+      planned === 0 ? 'partly' : everythingFound ? (provedByATest ? 'built' : 'files-in-place') : found === 0 ? 'not-built' : 'partly';
     return { featureId: f.id, title: f.title, status, evidence };
   });
 }

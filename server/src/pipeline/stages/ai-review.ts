@@ -211,6 +211,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   });
 
   ctx.run.llmUsage = ctx.run.llmUsage ? mergeUsage(ctx.run.llmUsage, outcome.usage) : outcome.usage;
+  ctx.bus.spend(ctx.run.llmUsage.estimatedCostUsd, ctx.run.llmUsage.calls);
   ctx.acc.findings.push(...outcome.findings);
   ctx.acc.correlationIds.push(...outcome.correlationIds);
   ctx.acc.servedModels.push(...(outcome.model ? [outcome.model] : []));

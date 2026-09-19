@@ -52,7 +52,10 @@ export async function runGenerate(ctx: PipelineCtx): Promise<GenerateStageOutcom
       if (event.type === 'text' && event.text.trim()) ctx.bus.llm(event.text.trim().slice(0, 400));
       else if (event.type === 'tool_use') ctx.bus.log(`Claude is using ${event.tool}…`, 'generate');
       else if (event.type === 'security') ctx.log('generate', securityEventLine(event));
-      else if (event.type === 'usage') ctx.run.llmUsage = usageBefore ? mergeUsage(usageBefore, event.usage) : event.usage;
+      else if (event.type === 'usage') {
+        ctx.run.llmUsage = usageBefore ? mergeUsage(usageBefore, event.usage) : event.usage;
+        ctx.bus.spend(ctx.run.llmUsage.estimatedCostUsd, ctx.run.llmUsage.calls);
+      }
     },
     abort: ctx.abort.signal,
     runId: ctx.run.id,

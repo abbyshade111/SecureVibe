@@ -58,9 +58,28 @@ describe('plan coverage', () => {
         { name: 'research > RS-02 rejects invalid input', ok: false },
       ];
       const coverage = planCoverage(plan, appDir, tests);
-      expect(coverage.map((c) => c.status)).toEqual(['partly', 'built', 'not-built', 'left-out']);
+      // "Ask the assistant" has its page and no tests at all, so nothing has shown it does anything: files in
+      // place, not built. An owner was told a charts feature was built when her app drew nothing — its pages and
+      // records were where the plan said, and that was the whole of the evidence.
+      expect(coverage.map((c) => c.status)).toEqual(['partly', 'files-in-place', 'not-built', 'left-out']);
       expect(coverage[0]!.evidence).toBe('2 of 3 pages exist; 1 of 1 record types exist; 2 of 2 tests exist (1 passing).');
       expect(coverage[1]!.evidence).toBe('1 of 1 pages exist.');
+
+      // Everything found and a planned test that passes: that, and only that, is "built".
+      const proved = planCoverage(
+        { ...plan, features: [{ ...plan.features[1]!, pages: ['/ai'], tests: ['RS-01 denies anonymous visitors'] }] },
+        appDir,
+        tests,
+      );
+      expect(proved[0]!.status).toBe('built');
+
+      // Everything found, a planned test, and it fails: still not proof of anything.
+      const failing = planCoverage(
+        { ...plan, features: [{ ...plan.features[1]!, pages: ['/ai'], tests: ['RS-02 rejects invalid input'] }] },
+        appDir,
+        tests,
+      );
+      expect(failing[0]!.status).toBe('files-in-place');
     } finally {
       rmSync(appDir, { recursive: true, force: true });
     }

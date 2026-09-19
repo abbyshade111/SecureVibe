@@ -50,6 +50,17 @@ export class RunBus {
     this.publish({ runId: this.runId, type: 'log', message, at: new Date().toISOString(), ...(stage ? { stage } : {}) });
   }
 
+  /** The run's AI cost so far, for the page to show live. Money only: no prompt, no response, no key. */
+  spend(estimatedCostUsd: number, calls: number): void {
+    this.publish({
+      runId: this.runId,
+      type: 'spend',
+      message: `AI spend so far: ${estimatedCostUsd.toFixed(2)} across ${calls} call(s)`,
+      at: new Date().toISOString(),
+      data: { estimatedCostUsd, calls },
+    });
+  }
+
   llm(message: string, data?: unknown): void {
     this.publish({ runId: this.runId, type: 'llm', message, at: new Date().toISOString(), ...(data !== undefined ? { data } : {}) });
   }
