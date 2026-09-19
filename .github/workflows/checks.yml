@@ -56,8 +56,13 @@ jobs:
       # like from the outside. Running the files one at a time keeps the number of live applications small.
       # The `timeout` wrapper matters because the job's own timeout is enforced by the runner: when the runner is
       # the thing that wedged, nothing was left to enforce it.
+      #
+      # Called directly rather than through `npm test`: the root script is `npm run test -w server`, and flags
+      # passed to it are read by npm as its own configuration and never reach vitest. The first attempt at this
+      # said so in the log — "Unknown cli config --reporter" — and ran exactly as before.
       - name: Run SecureVibe's own tests
-        run: timeout --signal=TERM --kill-after=30s 15m npm test -- --reporter=verbose --no-file-parallelism
+        working-directory: server
+        run: timeout --signal=TERM --kill-after=30s 15m ../node_modules/.bin/vitest run --reporter=verbose --no-file-parallelism
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
