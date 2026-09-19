@@ -140,7 +140,15 @@ export function VersionDiff({ projectId }: { projectId: string }) {
                 {results.aisvs && <li>AISVS verified coverage: {delta(results.aisvs.before, results.aisvs.after)}.</li>}
                 {results.tests && (
                   <li>
-                    App tests passing: {results.tests.before.passed} of {results.tests.before.total} → {results.tests.after.passed} of {results.tests.after.total}.
+                    App tests passing: {results.tests.before.passed} of {results.tests.before.total} → {results.tests.after.passed} of {results.tests.after.total}.{' '}
+                    {/* "132 of 194" reads as "62 are failing", and usually none are: the rest are skipped because
+                        the app has no uploads, no scheduled jobs, no assistant. This comparison only carries the
+                        total and the passing count, so the line cannot yet name the reason — it can at least
+                        stop implying one. Naming it needs the failed and skipped counts, which is server work. */}
+                    <span className="sv-faint">
+                      A test that is not passing has either failed or been skipped because your app does not have
+                      that feature; this comparison does not yet say which.
+                    </span>
                   </li>
                 )}
               </ul>
@@ -174,9 +182,14 @@ export function VersionDiff({ projectId }: { projectId: string }) {
             <p>No files differ between these two versions.</p>
           ) : (
             <>
-              <p>
-                {diff.files.length} file(s) differ{diff.truncated ? ' (only the first are listed)' : ''}. Click a file to see the lines that changed.
-              </p>
+              {/* Folded away: a rebuild differs in 65 files, and an unfolded list that long stops being
+                  information and becomes scenery — the summary above it scrolls out of sight, and the one file
+                  worth noticing scrolls past with the rest. */}
+              <details className="sv-details">
+                <summary>
+                  {diff.files.length} file(s) differ{diff.truncated ? ' (only the first are listed)' : ''} — show them
+                </summary>
+              <p>Click a file to see the lines that changed.</p>
               <table className="sv-table">
                 <thead>
                   <tr>
@@ -192,6 +205,7 @@ export function VersionDiff({ projectId }: { projectId: string }) {
                   ))}
                 </tbody>
               </table>
+              </details>
             </>
           )}
         </>
