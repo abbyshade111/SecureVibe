@@ -2,9 +2,9 @@
   "version": 1,
   "case": "clinic-bookings",
   "mode": "no-ai",
-  "runId": "r_20260918211820_fx3yo6",
+  "runId": "r_20260918214751_ncgaon",
   "status": "succeeded",
-  "durationMs": 267825,
+  "durationMs": 263054,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -18,7 +18,7 @@
     "deps": "passed",
     "config": "warning",
     "dast": "passed",
-    "external": "warning",
+    "external": "passed",
     "ai-review": "skipped",
     "fix": "skipped",
     "compliance": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 1,
+    "medium": 0,
     "low": 1,
     "info": 0
   },
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 183,
-    "passed": 161,
+    "total": 184,
+    "passed": 162,
     "failed": 0
   },
   "costUsd": 0

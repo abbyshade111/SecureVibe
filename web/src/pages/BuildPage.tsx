@@ -189,7 +189,7 @@ export function BuildPage() {
    * 'ai': the normal build. 'free-build': the starter app from the answers, without AI (free). 'recheck': every
    * automated check on the app as it is, without AI and without changing it (free).
    */
-  async function begin(kind: 'ai' | 'free-build' | 'recheck' = 'ai') {
+  async function begin(kind: 'ai' | 'free-build' | 'recheck' = 'ai', resumeFromRunId?: string) {
     if (!id || !approvalCode) return;
     setStartError(null);
     try {
@@ -201,6 +201,7 @@ export function BuildPage() {
         spendingCapUsd: cap,
         ...(withoutAi ? { withoutAi: true } : {}),
         ...(fixFindingIds && !uploaded && !withoutAi ? { fixFindingIds } : {}),
+        ...(resumeFromRunId ? { resumeFromRunId } : {}),
       });
       setRun(res.run);
     } catch (e) {
@@ -484,6 +485,21 @@ export function BuildPage() {
             ))}
           </div>
         </div>
+      )}
+
+
+      {run.status !== 'running' && run.status !== 'succeeded' && !uploaded && run.mode === 'full' && (
+        <Card>
+          <h3 style={{ marginTop: 0 }}>Carry on from where it stopped</h3>
+          <p className="sv-help">
+            {run.stages.find((s) => s.id === 'generate')?.status === 'passed'
+              ? 'Your app was already written before this build stopped. Carrying on keeps all of that work and only runs the checks again, so it costs nothing to write.'
+              : 'The parts of your app that were written before this build stopped are still there. Carrying on keeps them and writes only the rest, so you do not pay twice for the same work.'}
+          </p>
+          <button type="button" className="sv-btn" disabled={!approvalCode} onClick={() => void begin('ai', run.id)}>
+            Carry on from where it stopped
+          </button>
+        </Card>
       )}
 
       {run.status === 'cancelled' && (

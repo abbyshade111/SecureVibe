@@ -2,9 +2,9 @@
   "version": 1,
   "case": "team-inventory",
   "mode": "no-ai",
-  "runId": "r_20260918213110_z5gqhf",
+  "runId": "r_20260918220032_2e57gp",
   "status": "succeeded",
-  "durationMs": 261910,
+  "durationMs": 239479,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -18,7 +18,7 @@
     "deps": "passed",
     "config": "warning",
     "dast": "passed",
-    "external": "warning",
+    "external": "passed",
     "ai-review": "skipped",
     "fix": "skipped",
     "compliance": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 1,
+    "medium": 0,
     "low": 2,
     "info": 0
   },
@@ -39,8 +39,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 187,
-    "passed": 140,
+    "total": 188,
+    "passed": 141,
     "failed": 0
   },
   "costUsd": 0

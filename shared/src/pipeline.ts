@@ -313,6 +313,13 @@ export const PipelineRunSchema = z.object({
   failure: RunFailureSchema.optional(),
   /** Whether the reports were rendered from an incomplete run. */
   incomplete: z.boolean().default(false),
+  /**
+   * The run this one continued. A build that stopped part-way leaves the code it wrote on disk; continuing keeps
+   * that work instead of paying to write it again. The reports say the app was written across both runs.
+   */
+  resumedFrom: z.string().optional(),
+  /** What the earlier run had already done, so the reports can say what was and was not paid for again. */
+  resumedNote: z.string().optional(),
   approvedAt: z.string().optional(),
   approvedBy: z.string().optional(),
   /** After the build: each planned feature checked against the pages, records and tests that exist. */

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { withConversationCache } from '../../src/llm/anthropic.js';
 import { runAgentLoop, WRAP_UP_NOTICE, type AgentTurn } from '../../src/llm/agent-loop.js';
 import { BudgetTracker, emptyLlmUsage } from '../../src/llm/budget.js';
-import { DEFAULT_SETTINGS, effectiveAiSettings, SAVE_CREDITS_MODEL } from '../../src/config.js';
+import { DEFAULT_SETTINGS, effectiveAiSettings, SAVE_CREDITS_MODEL, SMALL_STEP_MODELS, SMALL_STEPS } from '../../src/config.js';
 import { BUDGET_SHARES, stageBudgetUsd } from '../../src/pipeline/stage-helpers.js';
 import type { PipelineCtx } from '../../src/pipeline/types.js';
 import type { AgentRunRequest, AgentTool } from '../../src/llm/types.js';
@@ -44,6 +44,30 @@ describe('Save credits', () => {
   it('changes nothing when switched off', () => {
     const raw = { ...DEFAULT_SETTINGS, saveCredits: false, model: 'claude-opus-5', generationEffort: 'high' as const };
     expect(effectiveAiSettings(raw)).toBe(raw);
+  });
+});
+
+describe('the small steps', () => {
+  it('run on the cheap model of their service, whatever model is chosen for the rest', () => {
+    const chosen = { ...DEFAULT_SETTINGS, saveCredits: false, model: 'claude-opus-5' };
+    // Scoring a piece of text and rewriting wording in plain language are not judgement about the app.
+    expect(effectiveAiSettings(chosen, 'classify').model).toBe(SMALL_STEP_MODELS.anthropic);
+    expect(effectiveAiSettings(chosen, 'summarize').model).toBe(SMALL_STEP_MODELS.anthropic);
+    // Writing and reviewing keep the model the owner chose.
+    expect(effectiveAiSettings(chosen, 'generate').model).toBe('claude-opus-5');
+    expect(effectiveAiSettings(chosen, 'ai-review').model).toBe('claude-opus-5');
+    expect(effectiveAiSettings(chosen, 'plan').model).toBe('claude-opus-5');
+  });
+
+  it('follow the service that step was set to', () => {
+    const viaGoogle = { ...DEFAULT_SETTINGS, aiService: 'google' as const, aiServiceFor: { write: 'default' as const, review: 'default' as const, questions: 'default' as const } };
+    expect(effectiveAiSettings(viaGoogle, 'classify').model).toBe(SMALL_STEP_MODELS.google);
+    const questionsOnOpenAi = { ...DEFAULT_SETTINGS, aiServiceFor: { write: 'default' as const, review: 'default' as const, questions: 'openai' as const } };
+    expect(effectiveAiSettings(questionsOnOpenAi, 'classify')).toMatchObject({ aiService: 'openai', model: SMALL_STEP_MODELS.openai });
+  });
+
+  it('is a short list: only the steps that decide nothing about security', () => {
+    expect([...SMALL_STEPS].sort()).toEqual(['classify', 'summarize']);
   });
 });
 

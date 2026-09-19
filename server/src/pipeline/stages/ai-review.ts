@@ -9,6 +9,8 @@ import type { StageResult } from '@shared/pipeline.js';
 import { aiReview, DEFAULT_BUDGETS, mergeUsage, toAiReviewResult, type ReviewFile, type RequirementBatch, type RequirementForReview } from '../../integration.js';
 import { listFiles, sha256File } from '../../generator/files.js';
 import { MIN_STAGE_BUDGET_USD, budgetExhaustedText, finishStage, stageBudgetUsd, startStage } from '../stage-helpers.js';
+import type { PipelineRun } from '@shared/pipeline.js';
+import { carryForwardReview } from '../diff-aware.js';
 import type { PipelineCtx } from '../types.js';
 
 const MAX_FILES = 250;
@@ -149,6 +151,15 @@ function notReviewedNote(batches: { ok: boolean; message: string }[]): string {
   return ` ${parts.join('; ')}.`;
 }
 
+/** The most recent finished run of this project that produced a compliance result, or nothing on a first build. */
+function previousRunFor(ctx: PipelineCtx): PipelineRun | undefined {
+  for (const id of ctx.store.listRunIds(ctx.project.id).filter((id) => id < ctx.run.id).reverse()) {
+    const run = ctx.store.readRun(ctx.project.id, id);
+    if (run?.compliance && run.provenance) return run;
+  }
+  return undefined;
+}
+
 export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   const started = startStage(ctx, 'ai-review');
   if (!ctx.design) {
@@ -162,6 +173,19 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   }
 
   const files = collectFiles(ctx.appDir, ctx.extraIgnore ?? []);
+
+  /**
+   * A rebuild usually changes a small part of an app. Verdicts the last check formed about files that are still
+   * byte-for-byte the same are carried forward (see pipeline/diff-aware.ts), so the money goes on what changed.
+   * Anything without a verified citation, or whose file has changed, is reviewed again.
+   */
+  const carried = carryForwardReview(previousRunFor(ctx), ctx.appDir, ctx.design.profileHash);
+  if (carried.skip.size > 0) {
+    ctx.aiReviewSkip = new Set([...(ctx.aiReviewSkip ?? []), ...carried.skip]);
+    ctx.acc.evidence.push(...carried.evidence);
+    ctx.log('ai-review', carried.note);
+  }
+
   const requirements = buildBatches(ctx);
   if (requirements.length === 0) {
     return finishStage(ctx, 'ai-review', 'skipped', 'No requirements applied to this build, so there was nothing to review.', started, { skippedReason: 'no applicable requirements' });
@@ -194,9 +218,10 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   ctx.aiReviewResult = toAiReviewResult(outcome);
 
   const requested = requirements.reduce((n, b) => n + b.requirements.length, 0);
-  const skippedNote = ctx.aiReviewSkip?.size
-    ? `${ctx.aiReviewSkip.size} requirement(s) already verified by automated checks were not sent to the AI (to save cost). `
-    : '';
+  const alreadyVerified = (ctx.aiReviewSkip?.size ?? 0) - carried.skip.size;
+  const skippedNote =
+    (alreadyVerified > 0 ? `${alreadyVerified} requirement(s) already verified by automated checks were not sent to the AI (to save cost). ` : '') +
+    (carried.note ? `${carried.note} ` : '');
   // Mostly unreviewed (spending limit, no credit, failed calls) is a warning, not a pass.
   const status = outcome.performed
     ? outcome.assessments.length > 0 && outcome.reviewedRequirementIds.length * 2 >= requested

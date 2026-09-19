@@ -108,6 +108,20 @@ export const SAVE_CREDITS_MODELS: Record<AiServiceId, string> = { anthropic: SAV
 export const DEFAULT_MODELS: Record<AiServiceId, string> = { anthropic: 'claude-opus-5', openai: 'gpt-5', google: 'gemini-2.5-pro' };
 const MODEL_PREFIX: Record<AiServiceId, RegExp> = { anthropic: /^claude-/, openai: /^(gpt-|o\d)/, google: /^gemini-/ };
 
+/**
+ * The small steps, and the cheap model each service runs them on.
+ *
+ * Two of the AI steps are not judgement about your app: `classify` scores a piece of text for the moderation
+ * setting, and `summarize` rewrites technical wording in plain language. Both are short, both are checked by the
+ * code around them, and neither decides anything about security, so paying the top rate for them is waste. They run
+ * on the cheapest model of whichever service the step belongs to, whatever model is chosen for the rest.
+ *
+ * Writing your app, reviewing it, planning and second opinions are not in this list: those are judgement, and they
+ * use the model you chose. Every call's model and cost is recorded in the audit file either way.
+ */
+export const SMALL_STEPS: ReadonlySet<LlmPurpose> = new Set<LlmPurpose>(['classify', 'summarize']);
+export const SMALL_STEP_MODELS: Record<AiServiceId, string> = { anthropic: 'claude-haiku-4-5', openai: 'gpt-5-mini', google: 'gemini-2.5-flash' };
+
 /** A model name belongs to one service; a name from another service falls back to the chosen service's default. */
 export function modelForService(service: AiServiceId, model: string): string {
   return MODEL_PREFIX[service].test(model) ? model : DEFAULT_MODELS[service];
@@ -119,6 +133,10 @@ export function modelForService(service: AiServiceId, model: string): string {
  */
 export function effectiveAiSettings(settings: Settings, purpose?: LlmPurpose): Settings {
   const service = serviceForPurpose(settings, purpose);
+  // A small step runs on the cheap model of its service, whether or not Save credits is on (see SMALL_STEPS).
+  if (purpose && SMALL_STEPS.has(purpose)) {
+    return { ...settings, aiService: service, model: SMALL_STEP_MODELS[service] };
+  }
   if (!settings.saveCredits) {
     const model = modelForService(service, settings.model);
     return model === settings.model && service === settings.aiService ? settings : { ...settings, aiService: service, model };

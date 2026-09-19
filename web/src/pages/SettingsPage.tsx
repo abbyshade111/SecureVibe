@@ -292,10 +292,16 @@ export function SettingsPage() {
             <strong>{status.settings.saveCredits ? 'Save credits is on' : 'Save credits is off'}</strong>
           </span>
         </label>
-        <p className="sv-muted" style={{ marginBottom: 0 }}>
+        <p className="sv-muted">
           Builds now use <strong>{status.settings.effectiveModel}</strong>. Whatever you choose, a build never spends
           more than its spending limit: writing the app may use up to 55% of it, and the rest is kept for the code
           review and the fixes.
+        </p>
+        <p className="sv-muted" style={{ marginBottom: 0 }}>
+          Two small steps always use the cheapest model of whichever service they are set to, whatever you choose
+          here: scoring a piece of text for the moderation setting, and rewriting technical wording in plain
+          language. Neither decides anything about your app's security, and both are checked by the code around
+          them. Writing, reviewing, planning and second opinions always use the model you chose.
         </p>
       </Card>
       <Card>
