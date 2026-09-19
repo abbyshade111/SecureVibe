@@ -1,0 +1,40 @@
+# What is still to do
+
+Agreed work not yet started, so it lives somewhere more durable than a chat between sessions. Each item says what
+an owner would notice, because that is what decides the order. Remove an item when it lands.
+
+## Mine (this session's half of the split agreed on 19 September 2026)
+
+- **"What only you can do".** A list on the Results page and in the reports, derived from facts rather than
+  prose: settings left unset, named outside services with no address, planned features that came back not-built.
+  For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
+  has this shape for deployment, so it extends a pattern rather than inventing a third list.
+- **"Files in place" instead of "built".** planCoverage called "See graphs and summaries of trends over time"
+  *built* on the evidence that a page existed at the planned path and tests named as planned passed — while
+  nothing drew anything. Where the only evidence is that files exist, the row should say that in those words.
+- **A check for damaged saved answers.** A record type with no fields cannot have come from someone describing a
+  record: offer to remove it. A name that looks like a truncated sentence, and a description that reads as an
+  answer to a different question, are questions rather than offers — the owner decides. Removing one must set
+  `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
+  rebuild recreates them from the answers.
+- **Live spending during a build.** The run's own record carries no `llmUsage` while it runs, so the page has
+  nothing to show, while `workspace/llm-audit.jsonl` has every call. An owner watching a slow, paid build lost
+  the one number that said it was still working.
+- **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
+  already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
+  has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
+- **Scanning uploaded files for malware (ASVS V5.4.3).** Our scanners ask whether the code has a weakness; an
+  antivirus scanner asks whether a file is known-bad content. Nothing we run does the second. The template
+  already stops a file pretending to be an image — size enforced before the body finishes, magic bytes sniffed,
+  declared type and extension cross-checked, stored outside the web root under a random name — but a genuine
+  image carrying a known exploit, or a document with a malicious macro, passes all of that. Worth adding as an
+  optional connection to a scanner the owner runs (ClamAV being the usual one) for apps that accept uploads, with
+  the same wizard shape as an outside service. It must stay honest when absent: the app says uploads are
+  unscanned rather than implying they were checked. Not a new build-time scanner: malicious packages are rarely
+  in antivirus signatures, and that risk is already covered by disabled install scripts, a minimum package age
+  and the OSV check. V5.4.3 stays manual-only until an app actually scans.
+
+## The recipe-library session's half
+
+- The chart recipe (landed 19 September 2026), then a "needs attention" view, then keeping an assistant's answer
+  as a record with its sources, then an outside-service connection recipe now the wizard carries a host.
