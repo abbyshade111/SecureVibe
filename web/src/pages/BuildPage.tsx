@@ -49,6 +49,10 @@ export function BuildPage() {
     const raw = params.get('fix');
     return raw ? raw.split(',').filter(Boolean) : undefined;
   }, [params]);
+  // A run someone else already started and sent us here to watch — the free template update does this. Without it
+  // this page offers to start a build instead, which is the opposite of what the button they pressed said.
+  const watchRunId = params.get('run') ?? undefined;
+  const [attaching, setAttaching] = useState(Boolean(watchRunId));
 
   const loadEstimate = useCallback(
     (keepCap = false) => {
@@ -70,15 +74,33 @@ export function BuildPage() {
     if (status) setCap((c) => c || status.settings.defaultSpendingCapUsd);
   }, [status]);
 
+  // Attach to the run we were sent to watch. Unlike the reconnect below, this one takes the run whatever its
+  // status: a check that finished in the seconds it took to get here should show its result, not a build form.
+  useEffect(() => {
+    if (!watchRunId || run) return;
+    let cancelled = false;
+    getRun(watchRunId)
+      .then((r) => {
+        if (!cancelled) setRun(r);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setAttaching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [watchRunId, run]);
+
   // Reconnect to an already-running run on load/reload.
   useEffect(() => {
-    if (!project?.lastRunId || run) return;
+    if (!project?.lastRunId || run || watchRunId) return;
     getRun(project.lastRunId)
       .then((r) => {
         if (r.status === 'running') setRun(r);
       })
       .catch(() => undefined);
-  }, [project, run]);
+  }, [project, run, watchRunId]);
 
   useEffect(() => {
     if (!run || run.status !== 'running') {
@@ -224,6 +246,8 @@ export function BuildPage() {
 
   if (loading) return <LoadingScreen label="Loading…" />;
   if (error || !project) return <ErrorNotice message={error ?? 'Could not load this app.'} />;
+
+  if (attaching) return <LoadingScreen label="Opening the check…" />;
 
   if (!run) {
     return (

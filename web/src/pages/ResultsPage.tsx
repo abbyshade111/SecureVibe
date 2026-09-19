@@ -234,8 +234,11 @@ export function ResultsPage() {
     try {
       await upgradeTemplate(id);
       const { approvalCode } = await getEstimate(id);
-      await startRun(id, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true });
-      navigate(`/projects/${id}/build`);
+      // Send the Build page to this exact run. Left to work it out from the project, it reads a lastRunId that was
+      // fetched before this run existed, sees nothing running, and offers to start a build with AI instead — so a
+      // button promising a free update appeared to ask for money.
+      const { run: started } = await startRun(id, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true });
+      navigate(`/projects/${id}/build?run=${encodeURIComponent(started.id)}`);
     } catch (e) {
       setUpgradeError(e instanceof Error ? e.message : 'Could not update the app.');
       setUpgrading(false);
