@@ -24,7 +24,7 @@
  */
 import type { Recipe, RecipeContext, RecipeEmission, RecipeInstance } from '../types.js';
 import { planEntity, type EntityPlan } from '../record-type/fields.js';
-import { emitJob, emitMigration, reminderFieldOf, reminderPlan, type ReminderPlan } from './emit.js';
+import { emitJob, emitMigration, reminderFieldOf, reminderPlan, sensitiveDatesOf, type ReminderPlan } from './emit.js';
 import { emitTest, reminderRequirements } from './tests.js';
 
 export interface RecordReminderInstance extends RecipeInstance {
@@ -47,24 +47,32 @@ function describe(plan: ReminderPlan): string {
 
 export const recordReminderRecipe: Recipe<RecordReminderInstance> = {
   id: 'record-reminder',
-  version: '1',
+  version: '2',
   title: 'A reminder before a date on a record',
   summary:
     'Adds a background job that emails the person a record belongs to shortly before the date on it, once per ' +
     'record, with no record content in the message.',
 
-  /** A date with nothing to send it by is worth saying out loud, or the owner is left wondering. */
+  /** A date with nothing to send it by, or a date too private to send, is worth saying out loud. */
   declined(ctx: RecipeContext): string[] {
-    if (ctx.features.scheduler && ctx.features.email) return [];
     const out: string[] = [];
+    const missing = !ctx.features.email ? 'this app cannot send email' : !ctx.features.scheduler ? 'this app runs nothing in the background' : undefined;
     for (const entity of (ctx.profile.app.entities ?? []).filter((e) => e.name.trim() !== '')) {
       const planned = planEntity(entity, { uploads: ctx.features.uploads });
-      const field = reminderFieldOf(planned);
-      if (!field) continue;
       const lower = planned.entity.label.toLowerCase();
       const article = /^[aeiou]/.test(lower) ? 'an' : 'a';
-      const missing = !ctx.features.email ? 'this app cannot send email' : 'this app runs nothing in the background';
-      out.push(`${planned.entity.label}: no reminder before ${article} ${lower}'s ${field.label.toLowerCase()} was added, because ${missing}.`);
+      const field = reminderFieldOf(planned);
+      if (field && missing) {
+        out.push(`${planned.entity.label}: no reminder before ${article} ${lower}'s ${field.label.toLowerCase()} was added, because ${missing}.`);
+        continue;
+      }
+      // A reminder is an email, and it carries the date itself. A date the person called sensitive does not go to a
+      // mail server, so the reminder is not built rather than built and quietly weakened.
+      for (const sensitive of sensitiveDatesOf(planned)) {
+        out.push(
+          `${planned.entity.label}: no reminder before ${article} ${lower}'s ${sensitive.label.toLowerCase()} was added, because you marked that date sensitive and a reminder is an email, which rests on servers this app does not control.`,
+        );
+      }
     }
     return out;
   },

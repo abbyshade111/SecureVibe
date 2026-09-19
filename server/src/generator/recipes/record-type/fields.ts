@@ -252,6 +252,41 @@ export function summaryFieldsOf(entity: EntitySpec): SummaryField[] {
   return out;
 }
 
+/**
+ * One date on a record, and how precise it is. A date field is the only thing in a described record type that is
+ * unambiguously a point in time, which is what both the reminder job and the what-is-coming-up page need.
+ *
+ * It says nothing about what the date *means*. "The date the person described first" is a rule; "the deadline" is a
+ * guess. A page built on this must not call a record overdue, because the date may as easily be a birthday or the
+ * day something was recorded, and a system that calls a birthday overdue has stopped being trustworthy about the
+ * things it says more carefully.
+ */
+export interface DateField {
+  field: EntityField;
+  column: string;
+  prop: string;
+  label: string;
+  granularity: 'date' | 'datetime';
+}
+
+/**
+ * The first date or date-and-time field the person described, or nothing when the record type has none. The
+ * record-reminder recipe and the needs-attention recipe both read this, so they cannot disagree about which date a
+ * record type is about, and a field marked sensitive is never offered: a page that lists dates alongside names is
+ * read by a wider audience than the record itself.
+ */
+export function dateFieldOf(entity: EntityPlan): DateField | undefined {
+  const field = entity.fields.find((f) => !f.field.sensitive && (f.control === 'date' || f.control === 'datetime-local'));
+  if (!field) return undefined;
+  return {
+    field: field.field,
+    column: field.column,
+    prop: field.prop,
+    label: field.field.label,
+    granularity: field.control === 'date' ? 'date' : 'datetime',
+  };
+}
+
 export interface EntityPlan {
   entity: EntitySpec;
   table: string;
