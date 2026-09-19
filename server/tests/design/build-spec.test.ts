@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BuildSpecSchema } from '@shared/design.js';
-import { buildSpecFor, packageNameFor, sessionPolicyFor } from '../../src/design/index.js';
+import { buildSpecFor, packageNameFor, profileHash, sessionPolicyFor } from '../../src/design/index.js';
 import { allProfiles, clinicBookings, habitTracker, marketplace, teamInventory } from '../fixtures/design/profiles.js';
 
 describe('buildSpecFor', () => {
@@ -122,5 +122,55 @@ describe('buildSpecFor', () => {
       expect(buildSpecFor(teamInventory).brief).toContain('Retention: records are kept until deleted');
       expect(buildSpecFor(habitTracker).brief).not.toContain('Retention:');
     });
+  });
+});
+
+// Why this is here: a rebuild carries an AI verdict forward when the cited file is byte-identical and the design
+// profile hash is unchanged (pipeline/diff-aware.ts). Turning a feature off deletes that feature's files, which can
+// leave a file that is byte-identical but no longer compiles, or means something different. Carrying a verdict
+// across that would be dishonest, and the hash is the only thing standing between us and it. So the hash must move
+// whenever the feature set moves. It does today because featuresFor reads only profile sections the hash covers,
+// but nothing in the type system says so, and a future feature read from profile.meta would break it silently.
+describe('a change of features is always a change of hash', () => {
+  const caps = (overrides: Record<string, unknown>) => ({ ...marketplace, capabilities: { ...marketplace.capabilities, ...overrides } });
+
+  // Deliberately stated as an implication rather than "each of these turns a feature off". Several of them do not:
+  // a record with a file field needs uploads whatever the capability says, and an app with sign-in still sends
+  // account email with email switched off. Those are the derivation working correctly, and writing the test the
+  // other way round only pinned my guesses about it.
+  const variants: { what: string; profile: typeof marketplace }[] = [
+    { what: 'uploads off', profile: caps({ fileUploads: false, uploadKinds: [] }) },
+    {
+      what: 'uploads off and no file field on any record',
+      profile: {
+        ...caps({ fileUploads: false, uploadKinds: [] }),
+        app: { ...marketplace.app, entities: marketplace.app.entities.map((e) => ({ ...e, fields: e.fields.filter((f) => f.type !== 'file') })) },
+      },
+    },
+    { what: 'the AI assistant off', profile: caps({ aiAssistant: { ...marketplace.capabilities.aiAssistant, enabled: false } }) },
+    { what: 'the assistant kept but not allowed to act', profile: caps({ aiAssistant: { ...marketplace.capabilities.aiAssistant, canTakeActions: false } }) },
+    { what: 'email off', profile: caps({ email: false }) },
+    { what: 'scheduled jobs off', profile: caps({ scheduledJobs: false }) },
+    { what: 'the public API off', profile: caps({ publicApi: false }) },
+    { what: 'payments off', profile: caps({ payments: false }) },
+  ];
+
+  it('never lets the feature set move while the hash stands still', () => {
+    const before = buildSpecFor(marketplace).features;
+    let moved = 0;
+    for (const { what, profile } of variants) {
+      const changedFeatures = JSON.stringify(buildSpecFor(profile).features) !== JSON.stringify(before);
+      if (!changedFeatures) continue;
+      moved += 1;
+      expect(profileHash(profile), `${what} changes the feature set, so it must change the hash`).not.toBe(profileHash(marketplace));
+    }
+    // Without this the test would pass just as happily if nothing changed any features at all.
+    expect(moved, 'the variants must actually move the feature set, or this proves nothing').toBeGreaterThan(3);
+  });
+
+  it('leaves both alone for bookkeeping that decides nothing', () => {
+    const confirmed = { ...marketplace, meta: { ...marketplace.meta, confirmed: true } };
+    expect(buildSpecFor(confirmed).features).toEqual(buildSpecFor(marketplace).features);
+    expect(profileHash(confirmed)).toBe(profileHash(marketplace));
   });
 });

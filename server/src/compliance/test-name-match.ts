@@ -83,6 +83,17 @@ export interface NameMatchResult {
 /**
  * Whether `testText` (the test's name, and its body when available) says anything the requirement says.
  * A requirement SecureVibe has no wording for is never judged: it comes back supported.
+ *
+ * Callers must pass the same things the unit-tests stage passes, or the answer means nothing. Two mistakes cost
+ * another session an afternoon of chasing names that were fine:
+ *
+ *  - Strip the requirement id off the front of the test name. Left on, it is just a token neither side shares,
+ *    and it dilutes an already short name.
+ *  - Pass both the standard's wording and SecureVibe's plain-language rendering of it. The standard's phrasing
+ *    alone fails honest tests written in the plain words the reports use, which is most of them.
+ *
+ * `screenTestEvidence` in pipeline/stages/unit-tests.ts is the reference caller; copy what it does rather than
+ * the shape of this signature.
  */
 export function matchesRequirement(testText: string, wording: RequirementWording | undefined): NameMatchResult {
   if (!wording?.description) return { match: 'supported', shared: [] };
