@@ -167,7 +167,10 @@ export function BuildPage() {
 
   const uploaded = project?.origin?.kind === 'uploaded';
   // Writing with AI needs an approved plan for the current design; builds without AI and check-only runs do not.
-  const needsPlan = !uploaded && !fixFindingIds && status?.llm.previewMode !== true;
+  // A fix run rebuilds the app with the chosen problems on the agent's list, so the server asks for an approved
+  // plan exactly as it does for any other AI build. Hiding the plan here left an owner refused with "approve the
+  // build plan first" on a page that offered no way to approve one.
+  const needsPlan = !uploaded && status?.llm.previewMode !== true;
   const plan = project?.buildPlan && project.buildPlan.designHash === project.design?.profileHash ? project.buildPlan : undefined;
   const [planning, setPlanning] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);

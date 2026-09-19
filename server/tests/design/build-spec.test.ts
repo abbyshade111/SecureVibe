@@ -168,6 +168,16 @@ describe('a change of features is always a change of hash', () => {
     expect(moved, 'the variants must actually move the feature set, or this proves nothing').toBeGreaterThan(3);
   });
 
+  it('leaves the hash alone when only the colours change', () => {
+    // The page offering the colours says the change costs nothing and cannot affect how the app protects data.
+    // While the theme was in the hash that was false: picking a colour voided the approved build plan and every
+    // AI verdict a rebuild could have carried forward, and an owner who then asked the AI to fix a finding was
+    // told to approve a build plan — because they had changed a colour.
+    const recoloured = { ...marketplace, app: { ...marketplace.app, theme: 'forest' } };
+    expect(profileHash(recoloured)).toBe(profileHash(marketplace));
+    expect(buildSpecFor(recoloured).features).toEqual(buildSpecFor(marketplace).features);
+  });
+
   it('leaves both alone for bookkeeping that decides nothing', () => {
     const confirmed = { ...marketplace, meta: { ...marketplace.meta, confirmed: true } };
     expect(buildSpecFor(confirmed).features).toEqual(buildSpecFor(marketplace).features);

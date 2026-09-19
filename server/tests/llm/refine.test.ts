@@ -66,10 +66,25 @@ describe('applying an accepted answer', () => {
 
     const withEntity = applyRefinement(withFeature, 'app.entities.add', 'Treatment note');
     const added = withEntity.app?.entities?.find((e) => e?.name === 'treatment-note');
-    expect(added).toMatchObject({ label: 'Treatment note', access: 'all-signed-in' });
+    // Owner-only, not all-signed-in: this flow may only move an answer to the safer side, and the owner never saw
+    // this record type to decide who should reach it. An app built for one person had a record type added this
+    // way that every signed-in person could read and write.
+    expect(added).toMatchObject({ label: 'Treatment note', access: 'owner-only' });
     // Adding the same thing twice changes nothing.
     expect(applyRefinement(withEntity, 'app.entities.add', 'Treatment note').app?.entities?.length).toBe(withEntity.app?.entities?.length);
     expect(applyRefinement(withFeature, 'app.keyFeatures.add', 'keep a note for each visit').app?.keyFeatures?.length).toBe(withFeature.app?.keyFeatures?.length);
+  });
+
+  it('refuses a sentence about records as the name of a record', () => {
+    // What an owner actually met: answering "Run entries and Body Weight Training entries as separate records"
+    // added a third record type with that sentence as its name, cut off mid-word, and no fields — so its page
+    // offered a form with nothing to fill in, beside the two record types the sentence was describing.
+    const before = applyRefinement(habitTracker as never, 'app.entities.add', 'Habit');
+    const after = applyRefinement(before, 'app.entities.add', 'Run entries and Body Weight Training entries as separate records');
+    expect(after.app?.entities?.length).toBe(before.app?.entities?.length);
+    expect(after.app?.entities?.some((e) => (e?.label ?? '').includes('separate rec'))).toBe(false);
+    // A plain name still works.
+    expect(applyRefinement(before, 'app.entities.add', 'Workout')?.app?.entities?.some((e) => e?.name === 'workout')).toBe(true);
   });
 
   it('sets the allowed answers and ignores anything else', () => {

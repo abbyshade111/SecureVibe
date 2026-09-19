@@ -21,6 +21,20 @@ function isLogCall(node: ts.CallExpression): boolean {
   return LOG_RECEIVER.test(node.expression.expression.getText());
 }
 
+/**
+ * The value-carrying parts of a concatenation: every leaf that is not literal text, plus the expressions inside
+ * `${...}`. Literal text of any kind — quoted or backticked — is left out, because words are not values.
+ */
+function joinedParts(node: ts.Expression, file: Parameters<typeof text>[1]): string {
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    return `${joinedParts(node.left, file)} ${joinedParts(node.right, file)}`;
+  }
+  if (ts.isParenthesizedExpression(node)) return joinedParts(node.expression, file);
+  if (ts.isTemplateExpression(node)) return node.templateSpans.map((span) => text(span.expression, file)).join(' ');
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return '';
+  return text(node, file);
+}
+
 export const logSensitiveField = defineRule({
   id: 'sast.log-sensitive-field',
   title: 'A secret or personal value is written to the log',
@@ -56,7 +70,12 @@ export const logSensitiveField = defineRule({
       } else if (ts.isTemplateExpression(arg)) {
         for (const span of arg.templateSpans) if (SENSITIVE_IDENTIFIER.test(text(span.expression, file))) offenders.push(text(span.expression, file));
       } else if (ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-        if (SENSITIVE_IDENTIFIER.test(text(arg, file).replace(/'[^']*'|"[^"]*"/g, ''))) offenders.push(text(arg, file).slice(0, 60));
+        // Only the parts that carry a value. Prose is not a secret: a message reading "your password was reset"
+        // is fine, a variable called `password` is not. Quoted strings were already skipped here, but backticked
+        // ones were not, so any message in a template literal that merely mentioned a secret was reported — which
+        // is how a rotation script's explanation of itself came to be flagged in every app SecureVibe builds.
+        const interpolated = joinedParts(arg, file);
+        if (SENSITIVE_IDENTIFIER.test(interpolated)) offenders.push(text(arg, file).slice(0, 60));
       } else if (ts.isIdentifier(arg) || ts.isPropertyAccessExpression(arg)) {
         const t = text(arg, file);
         if (/^(req|request)\.(body|headers)$/.test(t) || (SENSITIVE_IDENTIFIER.test(t) && !/^req$/.test(t))) offenders.push(t);

@@ -47,9 +47,17 @@ export function applyRefinement(profile: PartialDesignProfile, field: string, va
       const entities = (app.entities ??= []);
       const name = entityName(trimmed);
       const exists = entities.some((e) => e?.name === name || e?.label?.trim().toLowerCase() === trimmed.toLowerCase());
-      if (!exists && entities.length < MAX_ENTITIES && trimmed !== '') {
+      // A record name, not a sentence about records. An owner answering "run entries and body weight training
+      // entries as separate records" had that whole sentence taken as a third record type, on top of the two it
+      // was describing — no fields, so its form had nothing to fill in, and a name cut off mid-word at 60
+      // characters. A name that long, or one joining two things with "and", is a description of the answer, not
+      // the answer; the two records it describes are added on their own.
+      const looksLikeASentence = trimmed.length > 40 || /\band\b/i.test(trimmed);
+      if (!exists && !looksLikeASentence && entities.length < MAX_ENTITIES && trimmed !== '') {
         // Fields are left for the owner (or the generator) to fill in; the record itself is what was accepted.
-        entities.push({ name, label: trimmed.slice(0, 60), description: '', access: 'all-signed-in', fields: [] });
+        // Owner-only, because this flow may only ever move an answer to the safer side and the owner never saw
+        // this record type to decide about it. The wizard can widen it; an accident must not.
+        entities.push({ name, label: trimmed.slice(0, 60), description: '', access: 'owner-only', fields: [] });
       }
       break;
     }

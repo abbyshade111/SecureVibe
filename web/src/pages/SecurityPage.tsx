@@ -54,6 +54,15 @@ export default function SecurityPage() {
     void load();
   }, [load]);
 
+  // While something is running, keep asking. This page reads its data once when it opens, so a check that
+  // finished afterwards left it saying "A check is running right now" with every button disabled until the owner
+  // thought to reload — which looks exactly like the page being stuck, and is how it was reported.
+  useEffect(() => {
+    if (!data?.running) return;
+    const timer = setInterval(() => void load(), 4000);
+    return () => clearInterval(timer);
+  }, [data?.running, load]);
+
   /** Starts a run and follows it on the build page, where the progress already lives. */
   async function run(checks?: CheckStatus['id'][]) {
     if (!id) return;

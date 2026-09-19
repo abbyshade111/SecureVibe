@@ -15,12 +15,18 @@
  *
  * Values already in the environment always win, so a host that injects real environment variables needs nothing
  * here at all.
+ *
+ * There is deliberately no "run this command to fetch them" source, though it is the obvious third option. It
+ * would make every app built by SecureVibe start an operating-system command at boot, which widens what any bug
+ * in the app can reach — and SecureVibe's own scanner said so, raising two high findings against this file when
+ * it had one. Tools like sops and Vault are normally used to produce an environment or a file before the process
+ * starts (`sops exec-env`, a Vault agent writing a template), so nothing is lost: do that, and point SECRETS_DIR
+ * here, or let them export real environment variables.
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type SecretsSource = 'env' | 'files' | 'command';
+export type SecretsSource = 'env' | 'files';
 
 /** A name a secret may have. Anything else in the source is ignored rather than trusted. */
 const SECRET_NAME = /^[A-Z][A-Z0-9_]*$/;
@@ -28,7 +34,6 @@ const SECRET_NAME = /^[A-Z][A-Z0-9_]*$/;
 export interface SecretsOptions {
   source?: string;
   dir?: string;
-  command?: string;
   /** Present for tests; the real one is the process environment. */
   target?: NodeJS.ProcessEnv;
 }
@@ -60,38 +65,6 @@ function fromFiles(dir: string, target: NodeJS.ProcessEnv): string[] {
 }
 
 /**
- * A command that prints KEY=value lines: `sops -d secrets.env`, `vault kv get -format=...`, a wrapper around a
- * cloud provider's manager. Run once at startup, before the app listens, and its output is never logged.
- */
-function fromCommand(command: string, target: NodeJS.ProcessEnv): string[] {
-  const parts = command.trim().split(/\s+/);
-  const file = parts[0];
-  if (!file) throw new Error('SECRETS_COMMAND is empty.');
-  let out: string;
-  try {
-    out = execFileSync(file, parts.slice(1), { encoding: 'utf8', timeout: 30_000, maxBuffer: 1024 * 1024 });
-  } catch (err) {
-    // The message may carry part of the command's output, which may carry a secret.
-    throw new Error(`SECRETS_COMMAND failed after ${(err as { signal?: string }).signal === 'SIGTERM' ? 'timing out' : 'exiting with an error'}. The app will not start without its secrets.`);
-  }
-  const taken: string[] = [];
-  for (const rawLine of out.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq <= 0) continue;
-    const name = line.slice(0, eq).trim();
-    if (!SECRET_NAME.test(name)) continue;
-    if (target[name] !== undefined) continue;
-    let value = line.slice(eq + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    target[name] = value;
-    taken.push(name);
-  }
-  return taken;
-}
-
-/**
  * Fills `target` from the configured source. Call before reading the configuration. Returns the names it
  * supplied, for the startup log; the values are never returned, printed or logged.
  */
@@ -107,11 +80,5 @@ export function loadSecrets(opts: SecretsOptions = {}): SecretsLoaded {
     const names = fromFiles(dir, target);
     return { source, names, note: `Secrets come from one file each in ${dir}.` };
   }
-  if (source === 'command') {
-    const command = (opts.command ?? target['SECRETS_COMMAND'] ?? '').trim();
-    if (!command) throw new Error('SECRETS_SOURCE=command needs SECRETS_COMMAND to say what to run.');
-    const names = fromCommand(command, target);
-    return { source, names, note: 'Secrets come from the command in SECRETS_COMMAND.' };
-  }
-  throw new Error(`SECRETS_SOURCE must be "env", "files" or "command"; it is "${String(source)}".`);
+  throw new Error(`SECRETS_SOURCE must be "env" or "files"; it is "${String(source)}".`);
 }
