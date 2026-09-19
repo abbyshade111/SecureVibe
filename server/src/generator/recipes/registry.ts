@@ -8,6 +8,7 @@
  * requirement has an emitted test for.
  */
 import { recordAttachmentRecipe } from './record-attachment/index.js';
+import { needsAttentionRecipe } from './needs-attention/index.js';
 import { recordChartRecipe } from './record-chart/index.js';
 import { recordReminderRecipe } from './record-reminder/index.js';
 import { recordSummaryRecipe } from './record-summary/index.js';
@@ -20,6 +21,8 @@ export const RECIPES: AnyRecipe[] = [
   recordSummaryRecipe as AnyRecipe,
   recordChartRecipe as AnyRecipe,
   recordReminderRecipe as AnyRecipe,
+  // Last: it gathers from every record type, so everything it links to exists by the time it is written.
+  needsAttentionRecipe as AnyRecipe,
 ];
 
 export function recipeById(id: string): AnyRecipe | undefined {
