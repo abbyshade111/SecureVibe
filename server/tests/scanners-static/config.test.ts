@@ -86,6 +86,26 @@ describe('config-app-good: every check passes', () => {
   });
 });
 
+describe('the provenance file is never checked against a hash stored inside itself', () => {
+  it('reports nothing when the only "mismatch" is the record of the hashes', async () => {
+    // An owner saw two high findings — "protected files differ from the template" and "protected security file
+    // was changed" — on an app whose other 105 protected files all matched. The odd one out was
+    // securevibe.provenance.json, which cannot match: writing its own hash into it changes it, so the recorded
+    // value is wrong the moment it is written. Any value here is wrong, which is the point of the test.
+    const appDir = fixtureDir('config-app-good');
+    const ctx = makeScanContext(appDir, {
+      provenance: fakeProvenance({
+        protectedFileHashes: {
+          'package.json': fileHash(appDir, 'package.json'),
+          'securevibe.provenance.json': 'f'.repeat(64),
+        },
+      }),
+    });
+    const result = await runConfig(ctx);
+    expect(result.findings.map((f) => f.ruleId)).not.toContain('config.protected-files-unchanged');
+  });
+});
+
 describe('config-app (bad): most checks fail with a plain-language reason', () => {
   it('runConfig reports the expected failures', async () => {
     const ctx = makeScanContext(fixtureDir('config-app')); // no provenance supplied

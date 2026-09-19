@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { RuleMeta } from '../sast/findings.js';
 import { globToRegex, listAppFiles, readTextFile, sha256File } from '../sast/files.js';
+import { NOT_SELF_HASHABLE } from '../../generator/files.js';
 import type { ScanContext } from '../types.js';
 import { base64ByteLength, parseEnv } from './env.js';
 
@@ -468,6 +469,10 @@ export const protectedFilesUnchanged: ConfigCheckDef = {
     const paths = expandProtectedPaths(ctx);
     const problems: string[] = [];
     for (const relPath of paths) {
+      // Apps built before this was fixed still carry the provenance file's own hash in their record, and it can
+      // never match: writing the hash in changes the file. Skipping it here as well as at the point it is
+      // recorded means those apps stop reporting it without needing to be built again.
+      if (relPath === NOT_SELF_HASHABLE) continue;
       const expected = hashes[relPath];
       if (!expected) continue; // not every protected path is necessarily tracked individually
       const actual = sha256File(join(ctx.appDir, relPath));

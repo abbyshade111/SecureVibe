@@ -134,3 +134,11 @@ export function protectedTreeHash(appDir: string, protectedPaths: string[]): { h
   for (const f of files) hash.update(`${f.relPath}:${sha256File(f.absPath) ?? ''}\n`);
   return { hash: hash.digest('hex'), files: files.map((f) => f.relPath) };
 }
+
+/**
+ * The provenance file cannot be hashed into itself: writing its own hash into it changes it, so the recorded value
+ * is wrong the moment it is written and every comparison fails for ever after. An owner met this as two separate
+ * high findings on an app whose other 105 protected files all matched. It stays protected by the means that
+ * actually work — the upgrade refuses to touch it, and the generator may not write it.
+ */
+export const NOT_SELF_HASHABLE = 'securevibe.provenance.json';

@@ -6,6 +6,7 @@ import { isBuiltin } from 'node:module';
 import { join } from 'node:path';
 import { positionOf } from '../engine.js';
 import { globToRegex, sha256File } from '../files.js';
+import { NOT_SELF_HASHABLE } from '../../../generator/files.js';
 import { defineRule } from './base.js';
 
 export function packageNameOf(specifier: string): string {
@@ -69,6 +70,9 @@ export const protectedFileModified = defineRule({
     const hashes = tree.ctx.provenance?.protectedFileHashes;
     if (!hashes) return;
     for (const [relPath, expected] of Object.entries(hashes)) {
+      // See NOT_SELF_HASHABLE: the provenance file cannot match a hash stored inside itself, and apps built
+      // before that was fixed still have it in their record.
+      if (relPath === NOT_SELF_HASHABLE) continue;
       const actual = sha256File(join(tree.ctx.appDir, relPath));
       if (actual === expected) continue;
       const what = actual === undefined ? 'is missing' : 'was modified';

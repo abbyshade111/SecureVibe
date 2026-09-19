@@ -19,7 +19,7 @@ import type { Provenance } from '@shared/pipeline.js';
 import type { DesignProfile } from '@shared/profile.js';
 import type { Settings } from '../config.js';
 import { describeSandbox, runNode } from '../pipeline/process.js';
-import { listFiles, matchesAnyGlob, sha256File } from './files.js';
+import { listFiles, matchesAnyGlob, NOT_SELF_HASHABLE, sha256File } from './files.js';
 import { initialProvenance } from './provenance.js';
 import { templateHash } from './template-hash.js';
 
@@ -290,6 +290,7 @@ export async function tryNodeModulesFastPath(templateDir: string, appDir: string
 export function computeProtectedFileHashes(appDir: string, manifest: TemplateManifest): Record<string, string> {
   const hashes: Record<string, string> = {};
   for (const file of listFiles(appDir)) {
+    if (file.relPath === NOT_SELF_HASHABLE) continue;
     if (!matchesAnyGlob(file.relPath, manifest.protectedPaths)) continue;
     const hash = sha256File(file.absPath);
     if (hash) hashes[file.relPath] = hash;
