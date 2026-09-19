@@ -122,6 +122,8 @@ export async function applyRecipes(input: ApplyRecipesInput): Promise<ApplyRecip
     let instances;
     try {
       instances = recipe.plan(ctx);
+      // A recipe that declines to build something the person might expect says so in its own words.
+      warnings.push(...(recipe.declined?.(ctx) ?? []));
     } catch (err) {
       warnings.push(`The "${recipe.title}" step could not work out what to build, so it was skipped: ${err instanceof Error ? err.message : String(err)}`);
       continue;

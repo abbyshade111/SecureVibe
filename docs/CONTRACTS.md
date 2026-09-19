@@ -444,6 +444,11 @@ scanner flags `SECUREVIBE_TEST_MODE` in `.env`). Effects:
 * `GET /__securevibe/routes` → `{ routes: (RouteSpec serialisable fields + bodySchema: JSON Schema | null)[], roles: string[], entities: [{name, ownerField, sample: {id}}] }`.
 * `GET /__securevibe/events?since=<ISO>` → last 500 security events (for log-evidence probes).
 * `POST /__securevibe/reset-rate-limits` → clears limiter state (used between probe groups).
+* `POST /__securevibe/run-jobs` → runs scheduled jobs now whatever their interval says, each still under its own
+  lease (`runJobNow` in `src/lib/scheduler.ts`); `{"job":"<name>"}` runs one, an empty body runs all, and the reply
+  says which ran. Without it a test of a job that is due once a day would have to wait for a tick. **Administrators
+  only**, unlike the other three: anything that can set work going stays behind the administrator role, which is what
+  `tests/security/db.test.ts` requires of every non-GET route whose path mentions a job or a schedule.
 * Prints exactly one line to stdout when listening: `{"securevibe":"listening","port":<n>,"pid":<pid>,"tlsMode":"off"}`.
 * `general` rate limit raised to 100 000/min; `login`, `mfa`, `registration`, `reset`, `ai`, `uploads` unchanged.
 These endpoints do not exist outside test mode (404) — a DAST probe (`dast.leak.test-endpoints-absent`) verifies this in
@@ -1059,8 +1064,9 @@ thing to a generated application, written deterministically from the design prof
 the whole library (`applyRecipes`) right after the template is copied, so a build without AI already produces a
 working app, and the generation agent extends what the recipes wrote instead of re-deriving the same patterns on
 every build. Recipe 1 is `record-type` (a record type with list, add, edit and delete — formerly the CRUD
-expander) recipe 2 is `record-attachment` (a file kept with a record) and recipe 3 is
-`record-summary` (a report over existing records); a scheduled job follows as a further recipe.
+expander) recipe 2 is `record-attachment` (a file kept with a record), recipe 3 is
+`record-summary` (a report over existing records) and recipe 4 is `record-reminder` (a scheduled reminder before a
+date on a record).
 
 `types.ts` is the contract. A recipe carries `id` (stable, never reused), `version` (bumped when the emitted code
 changes), a plain-language `title` and `summary`, `plan(ctx)` — one instance per thing to build, from the profile
@@ -1134,6 +1140,22 @@ transaction around a per-person limit *and* the LIMIT on every list. The LIMIT h
 it. V2.3.3 keeps only the transaction claim. Before this, the only test crediting V2.3.3 in a generated app was the
 recipe's mislabelled page-size test, and both of the template's V2.3.3 tests skip when the reference `_example`
 feature is off — which it always is in a generated app.
+
+**Recipe 4 — `record-reminder`** ("A reminder before a date on a record"). Applies when the scheduler and email
+features are both on and a record type has a date or date-and-time field. It emits a `reminded_at` column, and a job
+registered through `src/lib/scheduler.ts` that once an hour emails the owner of every record whose date falls in the
+next 24 hours. It writes no scheduler and no mailer of its own: the template's scheduler declares jobs in code and
+holds a lease while one runs, and the template's mailer sanitises headers and writes to a local outbox when no SMTP
+server is configured.
+
+Three rules are the recipe's own, because they are safety rather than preference. The address is looked up from the
+record's `owner_id` in `users`, never taken from a field of the record, so a reminder cannot reach anybody the record
+does not already belong to (V8.2.2). A run sends at most 50 messages and a record is marked before its message is
+sent, so neither a second run nor a clock jump can fill a mailbox, and a message that fails to send is logged rather
+than retried (V2.4.1). The message carries the date and a link and nothing the person wrote — tested, but claiming no
+requirement, because no ASVS requirement covers what a notification may carry. A record type with a date but no way
+to send gets nothing, and the reason is reported through the new `Recipe.declined(ctx)` hook, which is how a recipe
+that builds nothing can still tell the owner why.
 
 **What an emitted test may assume.** Nothing about the starting state: test-bootstrap mode seeds one record per
 record type (§1.16), so a test that expects a count or a total to start at zero fails in a real build while passing

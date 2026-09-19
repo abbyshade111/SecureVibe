@@ -162,16 +162,18 @@ export const leakTestEndpointsAbsent: ProbeModule = {
     title: 'Test-mode endpoints reachable in production',
     severity: 'critical',
     cwe: ['CWE-489'],
-    description: 'The /__securevibe test endpoints (route export, security events, rate-limit reset) answered in production mode.',
+    description: 'The /__securevibe test endpoints (route export, security events, rate-limit reset, run scheduled jobs) answered in production mode.',
     impact: 'Anyone could read security events, reset rate limits and learn every route of the app.',
     fix: 'Mount the test-mode router only when NODE_ENV=test and SECUREVIBE_TEST_MODE=1; refuse test mode in production.',
   },
   async run(ctx) {
-    const expected = '/__securevibe/routes, /__securevibe/events and POST /__securevibe/reset-rate-limits answer 404 in production mode';
+    const expected =
+      '/__securevibe/routes, /__securevibe/events, POST /__securevibe/reset-rate-limits and POST /__securevibe/run-jobs answer 404 in production mode';
     const checks = await Promise.all([
       ctx.http.get('/__securevibe/routes'),
       ctx.http.get('/__securevibe/events'),
       ctx.http.request('/__securevibe/reset-rate-limits', { method: 'POST' }),
+      ctx.http.request('/__securevibe/run-jobs', { method: 'POST' }),
     ]);
     for (const res of checks) {
       if (res.status !== 404 && res.status !== 405) return fail(expected, `${res.request.method} ${res.request.path} answered ${res.status}`, res);

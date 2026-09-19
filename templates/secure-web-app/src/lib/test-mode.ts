@@ -1,7 +1,7 @@
 /**
  * Test-bootstrap mode (NODE_ENV=test + SECUREVIBE_TEST_MODE=1 only). Seeds one user per role and one record per
  * entity so the SecureVibe runtime scanner can probe every route as anonymous / wrong role / non-owner, and exposes
- * three helper endpoints under /__securevibe. None of this exists in production.
+ * four helper endpoints under /__securevibe. None of this exists in production.
  */
 import type { Router } from 'express';
 import { z } from 'zod';
@@ -77,6 +77,24 @@ export function seedTestData(): void {
   logger.info({ users: seededUserPlan().map((u) => u.email) }, 'test mode: seeded users');
 }
 
+/** Which job to run, or nothing for every job. A name is only ever matched against the jobs declared in code. */
+const RunJobsBody = z.strictObject({ job: z.string().trim().min(1).max(60).optional() });
+
+interface SchedulerModule {
+  listJobs(): { name: string }[];
+  runJobNow(name: string): Promise<boolean>;
+}
+
+/** The scheduler module when this app has one; undefined when the feature was left out and the file with it. */
+async function loadScheduler(): Promise<SchedulerModule | undefined> {
+  try {
+    return (await import(new URL('./scheduler.ts', import.meta.url).href)) as SchedulerModule;
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ERR_MODULE_NOT_FOUND') return undefined;
+    throw err;
+  }
+}
+
 const EventsQuery = z.strictObject({ since: z.string().datetime({ offset: true }).optional() });
 
 export function registerTestModeRoutes(router: Router): void {
@@ -110,6 +128,33 @@ export function registerTestModeRoutes(router: Router): void {
     run('UPDATE users SET failed_logins = 0, lock_until = NULL');
     res.json({ ok: true });
   });
+
+  /**
+   * Runs scheduled jobs now, whatever their interval says, so a test can watch a job that is only due once a day
+   * without waiting a day. Each job still runs under its own lease. `{"job":"<name>"}` runs one; no body runs all.
+   *
+   * Administrators only, unlike the other three endpoints here. Anything that can set work going belongs behind the
+   * administrator role wherever it exists at all — which is also the rule `tests/security/db.test.ts` enforces on
+   * every route whose path mentions a job or a schedule, and there is no reason for this one to be the exception.
+   */
+  defineRoute(
+    router,
+    { method: 'POST', path: '/__securevibe/run-jobs', auth: 'role:admin', kind: 'api', csrf: false, schema: { body: RunJobsBody }, summary: 'Test mode: run scheduled jobs now' },
+    async (req, res) => {
+      // The scheduler is an optional feature, so its module may not be part of this app at all: it is loaded here
+      // rather than imported, the same way the retention job loads the uploads module.
+      const scheduler = await loadScheduler();
+      if (!scheduler) {
+        res.json({ ran: [], jobs: [], note: 'this app has no scheduler' });
+        return;
+      }
+      const wanted = (req.valid.body as { job?: string }).job;
+      const names = wanted ? [wanted] : scheduler.listJobs().map((j) => j.name);
+      const ran: string[] = [];
+      for (const name of names) if (await scheduler.runJobNow(name)) ran.push(name);
+      res.json({ ran, jobs: scheduler.listJobs().map((j) => j.name) });
+    },
+  );
   // Keep the DB warm for the first request in tests.
   get('SELECT 1 AS ok');
 }

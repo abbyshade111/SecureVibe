@@ -115,6 +115,12 @@ export interface Recipe<I extends RecipeInstance = RecipeInstance> {
   summary: string;
   /** One instance per thing this recipe should build for this design; an empty array when it does not apply. */
   plan(ctx: RecipeContext): I[];
+  /**
+   * Plain-language reasons this recipe built nothing where the person might have expected something — "you asked
+   * for a date on each booking, but this app cannot send email, so no reminder was added". Without this a recipe
+   * that declines is silent, because `notes` only reach the owner through an instance that was built.
+   */
+  declined?(ctx: RecipeContext): string[];
   /** The files, routes, tests and requirement mapping for one instance. */
   emit(instance: I, ctx: RecipeContext): RecipeEmission;
 }

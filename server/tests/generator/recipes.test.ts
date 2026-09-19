@@ -4,7 +4,7 @@
  * worse than none. `recipes-contract.test.ts` covers the library's rules; this covers what it actually produces.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,6 +12,7 @@ import { REPO_ROOT } from '../../src/config.js';
 import { deriveDesign, loadFrameworks, loadKnowledge } from '../../src/integration.js';
 import { TemplateManifestSchema } from '@shared/knowledge.js';
 import { applyRecipes } from '../../src/generator/recipes/apply.js';
+import { manifestFeatureFlags } from '../../src/generator/scaffold.js';
 import { runSast } from '../../src/scanners/sast/index.js';
 import { makeScanContext } from '../scanners-static/helpers.js';
 import { clinicBookings, habitTracker, teamInventory } from '../fixtures/design/profiles.js';
@@ -235,4 +236,45 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       rmSync(appDir, { recursive: true, force: true });
     }
   }, 120_000);
+
+  it('compiles when the features a design left out have been removed', async () => {
+    // A copy of the template has every optional file in it; a real build deletes the files of every feature the
+    // design switched off. Code that reaches one of those files still compiles here and fails in the app — which is
+    // what happened: a test-mode helper imported src/lib/scheduler.ts, and every app without a scheduler stopped
+    // compiling. This removes the same paths the scaffold removes before it checks.
+    const appDir = copyTemplate();
+    try {
+      const knowledge = loadKnowledge();
+      const frameworks = loadFrameworks();
+      // team-inventory has no scheduler, no email, no AI and no public interface: a good stress case.
+      const design = deriveDesign(teamInventory, { knowledge, frameworks });
+      const flags = manifestFeatureFlags(design.buildSpec, teamInventory);
+      expect(flags.scheduler, 'this design must have the scheduler off for the test to mean anything').toBe(false);
+      const removed: string[] = [];
+      for (const feature of manifest.features) {
+        if (flags[feature.id] !== false) continue;
+        for (const rel of feature.paths) {
+          if (!existsSync(join(appDir, rel))) continue;
+          rmSync(join(appDir, rel), { recursive: true, force: true });
+          removed.push(rel);
+        }
+      }
+      expect(removed.length, 'some feature files must have been removed').toBeGreaterThan(0);
+      writeFileSync(join(appDir, 'securevibe.features.json'), `${JSON.stringify(flags, null, 2)}\n`);
+
+      await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_ff0001' });
+
+      cpSync(join(templateDir, 'node_modules'), join(appDir, 'node_modules'), { recursive: true, dereference: false });
+      const tsc = join(appDir, 'node_modules', '.bin', 'tsc');
+      let out = '';
+      try {
+        execFileSync(tsc, ['-p', join(appDir, 'tsconfig.json')], { cwd: appDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (err) {
+        out = String((err as { stdout?: string }).stdout ?? '');
+      }
+      expect(out.trim(), `removed: ${removed.join(', ')}`).toBe('');
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  }, 300_000);
 });

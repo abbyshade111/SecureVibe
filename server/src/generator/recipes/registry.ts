@@ -8,11 +8,17 @@
  * requirement has an emitted test for.
  */
 import { recordAttachmentRecipe } from './record-attachment/index.js';
+import { recordReminderRecipe } from './record-reminder/index.js';
 import { recordSummaryRecipe } from './record-summary/index.js';
 import { recordTypeRecipe } from './record-type/index.js';
 import type { AnyRecipe } from './types.js';
 
-export const RECIPES: AnyRecipe[] = [recordTypeRecipe as AnyRecipe, recordAttachmentRecipe as AnyRecipe, recordSummaryRecipe as AnyRecipe];
+export const RECIPES: AnyRecipe[] = [
+  recordTypeRecipe as AnyRecipe,
+  recordAttachmentRecipe as AnyRecipe,
+  recordSummaryRecipe as AnyRecipe,
+  recordReminderRecipe as AnyRecipe,
+];
 
 export function recipeById(id: string): AnyRecipe | undefined {
   return RECIPES.find((r) => r.id === id);
