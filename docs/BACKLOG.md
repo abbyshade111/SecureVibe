@@ -45,6 +45,12 @@ an owner would notice, because that is what decides the order. Remove an item wh
   65 of them after a rebuild — so the comparison a person came for is buried under a list they scroll past. Fold
   it by default behind a count they can open, and keep the summary above it visible. Same component as the skip
   counts below, so do both at once.
+- **A build in progress is invisible from anywhere but the build page.** The live spending figure and the
+  activity feed arrive on the run's event stream, which only that page listens to. An owner who wanders off
+  mid-build — to their project list, to another app — sees nothing to say that something is running and costing
+  them money, and coming back recovers only the figure from the last completed stage. That is the moment a
+  first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
+  they are, which is more than a line of code: something has to hold the run's state above the page.
 - **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
   already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
   has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
