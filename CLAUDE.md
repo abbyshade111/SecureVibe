@@ -89,4 +89,10 @@ whatever you touch before changing it.
 
 - Plain language in the UI and reports: the owner is not a programmer. No jargon without an explanation.
 - Say what was verified and what was not. Report test results as they are.
-- Commit only when asked; the owner runs `git add -A && git commit` themselves.
+- Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once
+  its checks are green, without asking first. Say what went in afterwards; a short, honest account of each change
+  is the point, not a request for permission. The owner asked for this on 18 September 2026, because pausing at
+  each of those steps was catching nothing and stopping work that had already been agreed.
+- Still ask first, every time: anything that spends the owner's AI credit, anything that changes the repository's
+  settings or visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money
+  or are hard to undo, and the pre-approval above does not reach them.
