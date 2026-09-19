@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "Home Log",
+    "description": "My own record of jobs around the house and the meter readings I take each month.",
+    "category": "tracker",
+    "entities": [
+      {
+        "name": "job",
+        "label": "Job",
+        "pluralLabel": "Jobs",
+        "fields": [
+          {
+            "name": "what",
+            "label": "What needs doing",
+            "type": "text",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "when",
+            "label": "When",
+            "type": "date",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "cost",
+            "label": "Cost",
+            "type": "money",
+            "required": false,
+            "sensitive": false
+          },
+          {
+            "name": "who",
+            "label": "Who is doing it",
+            "type": "choice",
+            "required": false,
+            "choices": ["me", "a tradesperson", "the landlord"],
+            "sensitive": false
+          },
+          {
+            "name": "done",
+            "label": "Finished",
+            "type": "boolean",
+            "required": false,
+            "sensitive": false
+          }
+        ],
+        "access": "owner-only"
+      },
+      {
+        "name": "reading",
+        "label": "Meter reading",
+        "pluralLabel": "Meter readings",
+        "fields": [
+          {
+            "name": "taken-on",
+            "label": "Taken on",
+            "type": "date",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "meter",
+            "label": "Meter",
+            "type": "choice",
+            "required": true,
+            "choices": ["electricity", "gas", "water"],
+            "sensitive": false
+          },
+          {
+            "name": "value",
+            "label": "Reading",
+            "type": "number",
+            "required": true,
+            "sensitive": false
+          },
+          {
+            "name": "account-number",
+            "label": "Account number",
+            "type": "text",
+            "required": false,
+            "sensitive": true
+          }
+        ],
+        "access": "owner-only"
+      }
+    ],
+    "keyFeatures": [
+      "Write down a job and when it needs doing",
+      "Record a meter reading each month",
+      "See what is coming up",
+      "See what I have spent"
+    ]
+  },
+  "users": {
+    "audience": "just-me",
+    "requiresSignIn": true,
+    "roles": [
+      {
+        "name": "owner",
+        "label": "Owner",
+        "description": "It is only me. I manage the account and see everything.",
+        "isAdmin": true
+      }
+    ],
+    "expectedUserCount": "1",
+    "registration": "admin-created",
+    "adminMfa": true
+  },
+  "data": {
+    "categories": ["contact"],
+    "aboutOtherPeople": false,
+    "retention": "keep-until-deleted",
+    "region": "eu-uk"
+  },
+  "capabilities": {
+    "fileUploads": false,
+    "uploadKinds": [],
+    "aiAssistant": {
+      "enabled": false,
+      "purpose": "",
+      "dataItCanSee": "nothing",
+      "canTakeActions": false,
+      "storesHistory": false,
+      "canSearchWeb": false,
+      "webSearchSites": []
+    },
+    "email": false,
+    "externalApis": [],
+    "scheduledJobs": false,
+    "publicApi": false,
+    "payments": false
+  },
+  "deployment": {
+    "target": "local-only",
+    "owner": {
+      "name": "Ada Whitfield",
+      "contactEmail": "ada@example.com"
+    },
+    "businessImpact": "low"
+  },
+  "meta": {
+    "mode": "guided",
+    "inferredFields": [],
+    "notSureFields": [],
+    "confirmed": true
+  }
+}
