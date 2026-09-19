@@ -2,9 +2,9 @@
   "version": 1,
   "case": "team-inventory",
   "mode": "no-ai",
-  "runId": "r_20260919180819_p2fa7h",
+  "runId": "r_20260919213444_buznqp",
   "status": "succeeded",
-  "durationMs": 267466,
+  "durationMs": 258770,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",

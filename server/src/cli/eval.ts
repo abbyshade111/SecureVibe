@@ -70,6 +70,52 @@ function argValues(flag: string): string[] {
   return out;
 }
 
+/** Written while a run is in progress, holding its process id. Its absence is what makes a workspace sweepable. */
+const RUNNING_MARKER = '.securevibe-eval-running';
+
+/**
+ * Clears workspaces left by runs that are over, before this one starts.
+ *
+ * The harness removes its own workspace when it finishes and cannot when it is killed — and killing a run early
+ * is the harness working as intended; both sessions did it repeatedly in one afternoon. Fifteen leftovers reached
+ * 18GB against 17GB free, one run away from failing, and a build that dies on disk space reads as a regression in
+ * whatever changed last.
+ *
+ * Deliberately not by age. A sweep keyed on "older than a few hours" deletes a live workspace the moment someone
+ * widens the threshold, which is exactly what a person does when the disk is full — and two harnesses running at
+ * once is not hypothetical, it happened twice in a day. This asks instead whether the run that made a workspace
+ * is still alive: a marker file with its process id, removed when it finishes. No marker means it is over. A
+ * marker whose process is gone means it was killed. Neither can describe a run in progress.
+ */
+function sweepAbandonedWorkspaces(): void {
+  let entries: string[];
+  try {
+    entries = readdirSync(tmpdir()).filter((name) => name.startsWith('securevibe-eval-'));
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    const dir = join(tmpdir(), name);
+    const marker = join(dir, RUNNING_MARKER);
+    if (existsSync(marker)) {
+      const pid = Number(readFileSync(marker, 'utf8').trim());
+      // A live process owns it. Anything we cannot prove is dead is left alone.
+      if (!Number.isInteger(pid) || pid <= 0) continue;
+      try {
+        process.kill(pid, 0);
+        continue;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EPERM') continue; // alive, owned by someone else
+      }
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // A workspace we cannot remove is not worth failing a run over.
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const ai = process.argv.includes('--ai');
   const update = process.argv.includes('--update');
@@ -99,7 +145,9 @@ async function main(): Promise<void> {
   const spendingCapUsd = maxUsd ?? settings.defaultSpendingCapUsd;
 
   // Every case builds in its own scratch workspace: nothing here touches the owner's projects.
+  sweepAbandonedWorkspaces();
   const scratchHome = realpathSync(mkdtempSync(join(tmpdir(), 'securevibe-eval-')));
+  writeFileSync(join(scratchHome, RUNNING_MARKER), String(process.pid));
   const store = new ProjectStore(scratchHome);
   const knowledge = loadKnowledge();
   const frameworks = loadFrameworks();
@@ -200,6 +248,7 @@ async function main(): Promise<void> {
   process.stdout.write(`  ${regressed.length} regressed, ${improved.length} improved, ${results.filter((r) => !r.hadBaseline).length} without a baseline\n`);
   process.stdout.write(`  Results: ${resultFile}\n`);
   if (update) process.stdout.write(`  Baselines updated in ${baselineDir}\n`);
+  rmSync(join(scratchHome, RUNNING_MARKER), { force: true });
   if (keep) process.stdout.write(`  Scratch workspace kept: ${scratchHome}\n`);
   else rmSync(scratchHome, { recursive: true, force: true });
 
