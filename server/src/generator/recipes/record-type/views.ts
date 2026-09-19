@@ -67,7 +67,8 @@ export function emitListView(plan: EntityPlan): string {
   <p class="actions"><a class="button" href="${plan.base}/new">New ${escapeHtml(plan.entity.label.toLowerCase())}</a>${
     plan.summaries.length > 0 ? `
     <a class="button button-secondary" href="/reports${plan.base}">Report</a>` : ''
-  }</p>
+  }
+    <a class="button button-secondary" href="/charts${plan.base}">Chart</a></p>
   <% if (records.length === 0) { %>
     <p class="muted">Nothing here yet.</p>
   <% } else { %>
