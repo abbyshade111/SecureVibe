@@ -72,6 +72,11 @@ describe('reviewing again only what changed', () => {
     expect(carried.evidence[0]!.tier).toBe('weak');
     expect(carried.evidence[0]!.capturedAt).toBe('2026-09-17T10:00:00.000Z');
     expect(carried.note).toMatch(/has not changed since/);
+    // The note used to say "the code it cites has not changed", which claims more than was done: an assessment
+    // can cite several files and only the first is recorded on the evidence, so only that one is compared. The
+    // wording must not imply the rest were looked at.
+    expect(carried.note).not.toMatch(/the code (it cites|they cite)/);
+    expect(carried.note).toMatch(/only that first file was compared/i);
   });
 
   it('reviews again when the file has changed at all', () => {

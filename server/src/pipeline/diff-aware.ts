@@ -90,12 +90,18 @@ export function carryForwardReview(previous: PipelineRun | undefined, appDir: st
       evidence.push({
         ...item,
         // The verdict keeps the run and the date it was really formed; only the wording says it was carried.
-        summary: `${item.summary} (carried over from the check on ${(item.capturedAt ?? previous.startedAt).slice(0, 10)}: ${file} has not changed since)`,
+        // Names the one file that was actually compared, rather than implying the whole verdict was re-checked.
+        // An assessment can cite several files and only the first is recorded on the evidence, so that is the
+        // only one this can vouch for; saying "the code it cites has not changed" would claim more than was done.
+        summary: `${item.summary} (carried over from the check on ${(item.capturedAt ?? previous.startedAt).slice(0, 10)}: ${file}, the file it points at, has not changed since)`,
         runId: item.runId ?? previous.id,
       });
     }
   }
 
-  const note = skip.size === 0 ? '' : `${skip.size} requirement${skip.size === 1 ? '' : 's'} kept the verdict from the earlier check, because the code ${skip.size === 1 ? 'it cites has' : 'they cite has'} not changed since.`;
+  const note =
+    skip.size === 0
+      ? ''
+      : `${skip.size} requirement${skip.size === 1 ? '' : 's'} kept the verdict from the earlier check, because the file ${skip.size === 1 ? 'it points at has' : 'each points at has'} not changed since. Where a verdict cited more than one file, only that first file was compared.`;
   return { skip, evidence, note };
 }

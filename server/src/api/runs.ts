@@ -171,12 +171,23 @@ export function runsRouter(deps: ApiDeps): Router {
    */
   router.get('/projects/:id/checks', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
-    const runIds = deps.store.listRunIds(project.id).slice(-MAX_RUNS_SEARCHED).reverse();
+    // Every run, newest first, and stop as soon as there is nothing left to learn.
+    //
+    // This used to read only the last ten runs, which broke by being used exactly as intended: each "Run this
+    // one" makes a run of its own, and a single-check run marks the other eight stages skipped, which says
+    // nothing about them. After ten of those the whole window held nothing but partial runs, so every check the
+    // owner had not personally re-run read "This check has not run for your app yet" and the page announced that
+    // the app had never had a full check. Both false, with the real answers sitting in older run records on disk.
+    // A ceiling on how far back to look is a ceiling on the truth. The reads are small JSON files and the loop
+    // ends the moment every check is answered and a full check is found, so in the ordinary case it stops after
+    // one or two.
+    const runIds = deps.store.listRunIds(project.id).reverse();
     const found = new Map<StageId, CheckStatus>();
     let lastFullCheck: ChecksResponse['lastFullCheck'];
     let running = false;
 
     for (const runId of runIds) {
+      if (found.size === RERUNNABLE_CHECKS.length && lastFullCheck) break;
       const run = deps.store.readRun(project.id, runId);
       if (!run) continue;
       // "running" has to mean a run that is really executing, not one whose status was never written again.
@@ -317,6 +328,3 @@ function countsFor(run: PipelineRun, check: StageId): Record<string, number> | u
   }
   return Object.keys(counts).length ? counts : undefined;
 }
-
-/** Runs read to answer "when did this check last run": enough for a few partial runs in a row. */
-const MAX_RUNS_SEARCHED = 10;

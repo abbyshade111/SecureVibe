@@ -59,6 +59,53 @@ describe('the checks a person can run again', () => {
     expect(res.body.checks.find((c: { id: string }) => c.id === 'sast').status).toBe('passed');
   });
 
+  it('still finds an older full check after a long run of single-check runs', async () => {
+    // The page used to read only the last ten runs, and every "Run this one" makes a run of its own that marks
+    // the other checks skipped. So using the page as intended emptied the window of anything but partial runs:
+    // checks that had really run read "never run", and the page said the app had never had a full check, while
+    // the real answers sat in older records on disk. Twelve partial runs here, two more than the old ceiling.
+    const full = {
+      projectId,
+      id: 'r_20260901100000_aafull',
+      mode: 'verify-only' as const,
+      status: 'succeeded' as const,
+      startedAt: '2026-09-01T10:00:00.000Z',
+      finishedAt: '2026-09-01T10:05:00.000Z',
+      findings: [],
+      coverage: [],
+      stages: RERUNNABLE_CHECKS.map((id) => ({ id, status: 'passed', summary: `${id} was checked in the full run.`, round: 0, finishedAt: '2026-09-01T10:04:00.000Z' })),
+    } as unknown as PipelineRun;
+    await harness.store.writeRun(full);
+
+    for (let i = 0; i < 12; i += 1) {
+      await harness.store.writeRun({
+        projectId,
+        id: `r_202609021000${String(i).padStart(2, '0')}_part${'abcdefghijkl'[i]}${'mnopqrstuvwx'[i]}`,
+        mode: 'verify-only' as const,
+        status: 'succeeded' as const,
+        startedAt: `2026-09-02T10:00:${String(i).padStart(2, '0')}.000Z`,
+        finishedAt: `2026-09-02T10:01:${String(i).padStart(2, '0')}.000Z`,
+        partial: true,
+        partialChecks: ['sast'],
+        findings: [],
+        coverage: [],
+        stages: RERUNNABLE_CHECKS.map((id) => ({
+          id,
+          status: id === 'sast' ? 'passed' : 'skipped',
+          summary: id === 'sast' ? 'Checked on its own.' : 'You asked for some of the checks only.',
+          round: 0,
+          ...(id === 'sast' ? { finishedAt: `2026-09-02T10:01:${String(i).padStart(2, '0')}.000Z` } : {}),
+        })),
+      } as unknown as PipelineRun);
+    }
+
+    const res = await request(harness.server).get(`/api/projects/${projectId}/checks`).set(headers);
+    expect(res.status).toBe(200);
+    expect(res.body.lastFullCheck?.runId, 'the full check is older than the window used to reach').toBe(full.id);
+    const neverRun = res.body.checks.filter((c: { status: string }) => c.status === 'never-run');
+    expect(neverRun, `these checks really ran: ${neverRun.map((c: { id: string }) => c.id).join(', ')}`).toHaveLength(0);
+  });
+
   it('keeps the result of the run that really made a check, not the run that left it out', async () => {
     const base = {
       projectId,
