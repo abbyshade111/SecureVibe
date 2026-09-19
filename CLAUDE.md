@@ -96,3 +96,9 @@ whatever you touch before changing it.
 - Still ask first, every time: anything that spends the owner's AI credit, anything that changes the repository's
   settings or visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money
   or are hard to undo, and the pre-approval above does not reach them.
+- Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
+  `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different
+  identity, so git calls the branch unmerged while every line of it is already there — and the reverse, a branch
+  git calls merged, can still be the only copy of something if history was rewritten under it. Only the file
+  comparison answers "would deleting this lose anything". On 19 September 2026 all three branches from a stacked
+  pull request read as unmerged and all three were entirely contained in `main`.
