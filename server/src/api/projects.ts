@@ -37,7 +37,6 @@ import { answerFieldAllowed, refineProfile } from '../llm/flows/refine.js';
 import { applyRefinement } from '../design/refine-apply.js';
 import { documentsFor, readDocument, DocumentNotAvailable } from '../verification/documents.js';
 import { AppearanceError, setAppTheme } from '../generator/appearance.js';
-import { PathConfinementError } from '../store/paths.js';
 import { SELF_PROJECT_NAME, loadComplianceInputs, refreshReportsWithAnswers, RefreshUnavailableError, reviewIsCurrent, reviewScope, reviewTree } from '../verification/index.js';
 import { effectiveAiSettings } from '../config.js';
 import { PreviewError } from '../preview/index.js';

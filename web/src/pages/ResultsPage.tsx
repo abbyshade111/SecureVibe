@@ -660,7 +660,7 @@ export function ResultsPage() {
                 finding={f}
                 projectId={id!}
                 canShowCode={codeAvailable}
-                {...(uploaded ? {} : { onFix: () => void askClaudeToFix(f.id) })}
+                {...(uploaded ? {} : { onFix: () => askAiToFix([f.id]), selected: selectedFixes.includes(f.id), onSelect: (on) => setSelectedFixes((ids) => (on ? [...ids, f.id] : ids.filter((x) => x !== f.id))) })}
                 onAccept={(reason) => acceptFinding(f.id, reason)}
               />
             ))}

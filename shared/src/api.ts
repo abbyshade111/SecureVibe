@@ -533,6 +533,14 @@ export const FileDiffResponseSchema = z.object({
 });
 export type FileDiffResponse = z.infer<typeof FileDiffResponseSchema>;
 
+/** GET /api/projects/:id/document?path=… — one document a human check refers to. */
+export const DocumentResponseSchema = z.object({
+  path: z.string(),
+  where: z.enum(['app', 'project', 'securevibe']),
+  text: z.string(),
+});
+export type DocumentResponse = z.infer<typeof DocumentResponseSchema>;
+
 /**
  * GET /api/projects/:id/app/file?path=&version= → AppFileResponse
  *
