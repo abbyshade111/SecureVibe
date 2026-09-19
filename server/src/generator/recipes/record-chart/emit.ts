@@ -206,6 +206,9 @@ export function register(router: Router): void {
       kind: 'page',
       schema: { query: ChartQuery },
       summary: ${JSON.stringify(plan.title)},
+      // In the menu under its own name: the owner of the first app built with charts went looking for hers at
+      // app level rather than from the record's list page, which is also where the home page shows it.
+      menu: ${JSON.stringify(plan.title)},
     },
     (req: Request, res: Response) => {
       const months = monthsBack((req.valid.query as { months?: number }).months ?? 12);

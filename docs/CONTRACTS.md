@@ -161,6 +161,7 @@ export interface RouteSpec<P = unknown, Q = unknown, B = unknown> {
   summary?: string;                   // for docs/api.md + openapi.json
   entity?: string;                    // entity name (for docs + DAST IDOR probes)
   kind?: 'page' | 'api';              // pages render EJS; api returns JSON. Default from path prefix (/api → api)
+  menu?: string;                      // label for this page in the menu; omitted = not in the menu
 }
 export function defineRoute(router: Router, spec: RouteSpec, handler: (req, res) => Promise<void> | void): void;
 export function listRoutes(): RouteSpec[];      // used by routes:export, docs:build, test mode endpoint
@@ -172,7 +173,13 @@ Handlers receive `req.valid = { params, query, body }` (validated), `req.user` (
 (API) or re-render with errors (pages). Unknown fields → 400. Arrays where scalars expected → 400.
 
 `routes.manifest.json` (written by `routes:export`, also produced by the generation agent for generated routes):
-`[{ method, path, auth, roles, owner, entity, kind, csrf }]`.
+`[{ method, path, auth, roles, owner, entity, kind, csrf }]`. `menu` is deliberately not in it: the menu is built
+from the live registry (`listRoutes`), so the manifest shape the scanners and reports read is unchanged.
+
+`src/lib/nav.ts` offers a record type's own list page automatically, one per record type. Any other page has to ask
+with `menu`, because a page that spans record types has no record type to be listed under and a page below the top
+level is not a list page — without asking, neither is reachable from the menu or the home page. Asking changes where
+a link appears and never who may follow it: the menu still shows a page only to somebody `auth` and `roles` admit.
 
 ### 1.5 Headers
 

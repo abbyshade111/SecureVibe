@@ -42,6 +42,7 @@ function describe(plan: ChartPlan): string {
   const sentences = [
     `A page that draws ${shows.join(' and ')}, as bars month by month, for as many months back as you ask for.`,
     'The picture is drawn by the app itself rather than by anything fetched from elsewhere, and the same numbers are listed in a table underneath it, so they can be read without seeing the picture.',
+    'It is in the menu under its own name, and on the front page, as well as on the list of records.',
   ];
   if (entity.ownerScoped) {
     sentences.push(`It is drawn from your own ${plural} only; an administrator sees the shape over everyone's.`);
@@ -62,7 +63,7 @@ function describe(plan: ChartPlan): string {
 
 export const recordChartRecipe: Recipe<RecordChartInstance> = {
   id: 'record-chart',
-  version: '1',
+  version: '2',
   title: 'A chart of how records change over time',
   summary:
     'Adds a read-only page that draws how many records were added each month, and the monthly total of each ' +

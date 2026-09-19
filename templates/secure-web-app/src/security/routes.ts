@@ -39,6 +39,14 @@ export interface RouteSpec<P = unknown, Q = unknown, B = unknown> {
   summary?: string;
   entity?: string;
   kind?: 'page' | 'api';
+  /**
+   * A page that belongs in the menu says so here, and the string is the label people see ("Runs over time").
+   * Without it, the menu offers a record type's own list page and nothing else (src/lib/nav.ts) — which leaves a
+   * page that spans record types, or sits below the top level, with nothing linking to it anywhere.
+   *
+   * It is a label, not permission: the menu still shows a page only to somebody `auth` and `roles` already let in.
+   */
+  menu?: string;
   /** Pages: called with the field errors instead of the generic 400 page (re-render the form). */
   onInvalid?: (req: Request, res: Response, fields: FieldErrors) => Promise<void> | void;
 }
