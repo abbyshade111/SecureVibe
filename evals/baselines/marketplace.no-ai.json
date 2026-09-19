@@ -2,9 +2,9 @@
   "version": 1,
   "case": "marketplace",
   "mode": "no-ai",
-  "runId": "r_20260918215631_27eo52",
+  "runId": "r_20260919005207_jrsaw2",
   "status": "succeeded",
-  "durationMs": 241245,
+  "durationMs": 273660,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
+    "medium": 9,
     "low": 2,
     "info": 0
   },

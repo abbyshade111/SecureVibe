@@ -2,9 +2,9 @@
   "version": 1,
   "case": "clinic-bookings",
   "mode": "no-ai",
-  "runId": "r_20260918214751_ncgaon",
+  "runId": "r_20260919004311_b7q66r",
   "status": "succeeded",
-  "durationMs": 263054,
+  "durationMs": 284795,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
+    "medium": 7,
     "low": 1,
     "info": 0
   },

@@ -2,9 +2,9 @@
   "version": 1,
   "case": "habit-tracker",
   "mode": "no-ai",
-  "runId": "r_20260918215214_55uf2n",
+  "runId": "r_20260919004755_v5462m",
   "status": "succeeded",
-  "durationMs": 256682,
+  "durationMs": 251865,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -27,7 +27,7 @@
   "openFindings": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
+    "medium": 3,
     "low": 1,
     "info": 1
   },

@@ -102,7 +102,10 @@ export function screenTestEvidence(ctx: PipelineCtx, evidence: Evidence[]): { ke
         references: [],
       },
       verification: { howToConfirmFixed: 'Run the checks again; the test and the rule it names talk about the same thing.', rerunCommand: 'npm test' },
-      mappings: { asvs: requirementId.startsWith('V') ? [requirementId] : [], aisvs: /^(C\d|AC\.)/.test(requirementId) ? [requirementId] : [], sbd: [] },
+      // Deliberately mapped to no requirement. This says a test may be misnamed, not that the app breaks the rule:
+      // a finding mapped to a requirement counts against it, which would let a word comparison fail a requirement
+      // the app actually meets. The requirement is named in the text instead, where a person reads it.
+      mappings: { asvs: [], aisvs: [], sbd: [] },
       status: 'open',
       whoCanFix: 'developer',
       introducedBy: 'unknown',

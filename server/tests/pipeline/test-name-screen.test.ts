@@ -62,7 +62,9 @@ describe('a test that may not check what its name claims', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.ruleId).toBe('tests.name-does-not-match-requirement');
     expect(findings[0]!.impact).toMatch(/still counted as verified/);
-    expect(findings[0]!.mappings.asvs).toEqual(['V2.3.3']);
+    // Mapped to no requirement on purpose: a finding against V2.3.3 would fail a rule the app may well meet.
+    expect(findings[0]!.mappings.asvs).toEqual([]);
+    expect(findings[0]!.description).toContain('V2.3.3');
     expect(logged[0]).toMatch(/says nothing that V2\.3\.3 says/);
   });
 
