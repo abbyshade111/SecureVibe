@@ -61,8 +61,11 @@ export default function SecurityPage() {
     setError(null);
     try {
       const { approvalCode } = await getEstimate(id);
-      await startRun(id, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true, ...(checks ? { checks } : {}) });
-      navigate(`/projects/${id}/build`);
+      // Send the Build page to this run. Without the id it works out what to show from the project's last run,
+      // which it read before this one existed, and so offers to start a build with AI instead — the same way the
+      // free template update did. Every page that starts a run has to hand over the run it started.
+      const { run: started } = await startRun(id, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true, ...(checks ? { checks } : {}) });
+      navigate(`/projects/${id}/build?run=${encodeURIComponent(started.id)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start that check.');
       setStarting(null);

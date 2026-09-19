@@ -126,6 +126,7 @@ export function SettingsPage() {
           not write it. Only services with a key can be chosen; add one under "Your AI service" above. Save credits
           picks each service's cheaper model, and the reports record which service did which step.
         </p>
+        <h3 style={{ marginTop: 16 }}>Your main service</h3>
         <div className="sv-option-list">
           {status.aiServices.map((s) => (
             <label className="sv-option" key={s.service} data-checked={status.settings.aiService === s.service}>
@@ -145,7 +146,13 @@ export function SettingsPage() {
           ))}
         </div>
 
-        <h3 style={{ marginTop: 20 }}>Steps that can use a different service</h3>
+        {/* "Steps that can use a different service" read as though some steps were merely eligible, and left an
+            owner unsure whether the list was a choice at all. Each step has its own setting; say that. */}
+        <h3 style={{ marginTop: 20 }}>Which service does each step</h3>
+        <p className="sv-help">
+          Each of these can use your main service or a different one — they are set separately, so you can mix them.
+          Leave a step on your main service unless you have a reason to change it.
+        </p>
         {STEP_CHOICES.map((step) => (
           <div className="sv-field" key={step.id}>
             <label className="sv-label" htmlFor={`aiServiceFor-${step.id}`}>
@@ -162,7 +169,7 @@ export function SettingsPage() {
                 })
               }
             >
-              <option value="default">Same as above ({serviceLabel(status.aiServices, status.settings.aiService)})</option>
+              <option value="default">Use my main service ({serviceLabel(status.aiServices, status.settings.aiService)})</option>
               {status.aiServices
                 .filter((s) => s.configured)
                 .map((s) => (

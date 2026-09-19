@@ -67,9 +67,11 @@ export const STAGE_DESCRIPTIONS: Record<StageId, { title: string; running: strin
     why: 'Linters catch risky patterns such as unsafe regular expressions and dangerous function calls.',
   },
   'unit-tests': {
-    title: 'Running the tests',
-    running: 'Running the built-in security tests (sign-in, permissions, headers, forms…) and the app tests…',
-    why: 'Tests prove the protections actually work, not just that they exist in the code.',
+    // "Running the tests" left an owner asking whose tests, of what. Every check on this page runs something, so
+    // the name has to say what is peculiar to this one: the tests that live inside the app itself.
+    title: "Running your app's own security tests",
+    running: 'Running the security tests inside your app — signing in, permissions, page headers, forms — and any other tests it has…',
+    why: 'Your app carries a test for each protection it claims. Running them proves the protections work on your real code, rather than only looking right when read.',
   },
   sast: {
     title: 'Static security analysis',

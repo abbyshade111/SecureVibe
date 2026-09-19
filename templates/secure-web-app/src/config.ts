@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { loadSecrets } from './lib/secrets.ts';
 import { THEMES, DEFAULT_THEME, type Theme } from './lib/themes.ts';
 
 export const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -373,6 +374,10 @@ function optionalNumber(raw: string | undefined, name: string): number | undefin
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  // A host's own secret store first, when one is configured; then the .env file beside the app, which is the
+  // default and what SecureVibe sets up. Values already in the environment always win, so a host that injects
+  // real environment variables needs neither. See src/lib/secrets.ts and docs/adr/0002-secrets.md.
+  loadSecrets({ target: env });
   loadDotEnv(resolve(APP_ROOT, '.env'), env);
 
   const parsed = EnvSchema.safeParse(env);

@@ -544,8 +544,10 @@ export function VerifyPage() {
     setRefreshError(null);
     try {
       const { approvalCode } = await getEstimate(id!);
-      await startRun(id!, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true });
-      navigate(`/projects/${id}/build`);
+      // Hand the Build page the run this started; left to guess it offers a paid build instead. Third page with
+      // the same bug, so it is the pattern that is wrong, not three separate slips.
+      const { run: started } = await startRun(id!, { mode: 'verify-only', approved: true, approvalCode, withoutAi: true });
+      navigate(`/projects/${id}/build?run=${encodeURIComponent(started.id)}`);
     } catch (e) {
       setRefreshError(e instanceof Error ? e.message : 'Could not start the check.');
       setRechecking(false);

@@ -17,7 +17,8 @@
     "audit:verify": "node --experimental-strip-types scripts/audit-verify.ts",
     "rotate-field-key": "node --experimental-strip-types scripts/rotate-field-key.ts",
     "routes:export": "node --experimental-strip-types scripts/routes-export.ts",
-    "gen-cert": "node --experimental-strip-types scripts/gen-cert.ts"
+    "gen-cert": "node --experimental-strip-types scripts/gen-cert.ts",
+    "rotate:keys": "node --experimental-strip-types scripts/rotate-keys.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
