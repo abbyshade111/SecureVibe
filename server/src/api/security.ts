@@ -20,7 +20,7 @@
 import { Router } from 'express';
 import { SecurityAcrossAppsResponseSchema, type AppSecurityRow, type SecurityAcrossAppsResponse } from '@shared/api.js';
 import { isOpen, type Finding } from '@shared/findings.js';
-import { withDecisions } from './findings-view.js';
+import { currentFindings } from './findings-view.js';
 import { isUploadedApp, type Project } from '@shared/project.js';
 import type { PipelineRun } from '@shared/pipeline.js';
 import type { ApiDeps } from './types.js';
@@ -33,30 +33,6 @@ function needsAttention(row: AppSecurityRow): boolean {
   if (row.noCounts) return true;
   const open = row.open ?? {};
   return (open.critical ?? 0) > 0 || (open.high ?? 0) > 0;
-}
-
-/**
- * The last run that ran every check, newest first, with no ceiling on how far back to look — plus how many runs
- * since then ran only some checks, because those say nothing about the checks they left out.
- */
-function lastFullRun(deps: ApiDeps, project: Project): { run?: PipelineRun; partialsSince: number; unreadable: boolean } {
-  const runIds = deps.store.listRunIds(project.id).reverse();
-  let partialsSince = 0;
-  let unreadable = false;
-  for (const runId of runIds) {
-    const run = deps.store.readRun(project.id, runId);
-    if (!run) {
-      unreadable = true;
-      continue;
-    }
-    if (run.status === 'running') continue;
-    if (run.partial) {
-      partialsSince += 1;
-      continue;
-    }
-    return { run, partialsSince, unreadable: false };
-  }
-  return { partialsSince, unreadable };
 }
 
 function countBy<T extends string>(findings: Finding[], key: (f: Finding) => T): Record<string, number> {
@@ -78,20 +54,22 @@ function rowFor(deps: ApiDeps, project: Project): AppSecurityRow {
     whoCanFix: {},
   };
 
-  const { run, partialsSince, unreadable } = lastFullRun(deps, project);
+  const current = currentFindings(deps.store, project);
+  const run = current.lastFullRun;
   const since = {
-    partialChecks: partialsSince,
-    // The app was rebuilt after that check, so these numbers describe code that is no longer the code on disk.
+    // Each of these checks has been run again since everything was last checked together, so its numbers are newer
+    // than that run's — which is the point of re-running one after fixing what it complained about.
+    checksRerunSince: current.checksRerunSince,
     rebuilt: Boolean(run && project.lastRunId && project.lastRunId !== run.id && !deps.store.readRun(project.id, project.lastRunId)?.partial),
     answersChanged: project.designStale,
   };
 
   if (!run) {
-    const reason = unreadable ? 'checks-unreadable' : project.lastRunId ? 'never-fully-checked' : 'never-built';
+    const reason = current.unreadable ? 'checks-unreadable' : project.lastRunId ? 'never-fully-checked' : 'never-built';
     return { ...base, noCounts: reason, since };
   }
 
-  const findings = withDecisions(run, project);
+  const findings = current.findings;
   const open = findings.filter(isOpen);
   const counts: Record<string, number> = {};
   for (const severity of SEVERITIES) {

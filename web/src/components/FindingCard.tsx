@@ -17,6 +17,8 @@ export function FindingCard({
   projectId,
   canShowCode,
   onFix,
+  onRecheck,
+  recheckLabel,
   onAccept,
   onFalsePositive,
   selected,
@@ -28,6 +30,13 @@ export function FindingCard({
   /** False for an app whose code SecureVibe does not hold (nothing to open). */
   canShowCode: boolean;
   onFix?: () => void;
+  /**
+   * "I have fixed it myself": runs the check that raised this finding again. There is deliberately no button that
+   * marks a finding fixed — the check that found it is what decides whether it is gone, and a person saying so
+   * would put a claim in the reports that nothing stands behind.
+   */
+  onRecheck?: () => void;
+  recheckLabel?: string;
   onAccept?: (reason: string) => Promise<void>;
   /** Marks the finding as mistaken, with the reason a person gives for saying so. */
   onFalsePositive?: (reason: string) => Promise<void>;
@@ -168,11 +177,16 @@ export function FindingCard({
           That was not saved: {decisionError}
         </p>
       )}
-      {(onFix || onAccept || onFalsePositive) && (
+      {(onFix || onRecheck || onAccept || onFalsePositive) && (
         <div className="sv-row">
           {onFix && (
             <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={onFix}>
               Ask AI to fix this one
+            </button>
+          )}
+          {onRecheck && (
+            <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={onRecheck}>
+              {recheckLabel ?? "I've fixed it — check again"}
             </button>
           )}
           {onAccept && !accepting && (

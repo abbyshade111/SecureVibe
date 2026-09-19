@@ -11,12 +11,12 @@ import { clinicBookings, habitTracker } from '../fixtures/design/profiles.js';
 import { buildHarness, signIn, type TestHarness } from './helpers.js';
 
 /** A finding with just the fields this view reads. */
-function finding(id: string, severity: Finding['severity'], whoCanFix: Finding['whoCanFix'] = 'developer'): Finding {
+function finding(id: string, severity: Finding['severity'], whoCanFix: Finding['whoCanFix'] = 'developer', source: Finding['source'] = 'sast'): Finding {
   return {
     id,
     fingerprint: `fp-${id}`,
-    source: 'sast',
-    sourcesReporting: ['sast'],
+    source,
+    sourcesReporting: [source],
     ruleId: 'sast.example',
     title: `Example ${id}`,
     severity,
@@ -33,7 +33,14 @@ function finding(id: string, severity: Finding['severity'], whoCanFix: Finding['
   } as unknown as Finding;
 }
 
-function run(projectId: string, id: string, opts: { partial?: boolean; findings?: Finding[]; finishedAt?: string } = {}): PipelineRun {
+function run(
+  projectId: string,
+  id: string,
+  opts: { partial?: boolean; findings?: Finding[]; finishedAt?: string; ranChecks?: string[] } = {},
+): PipelineRun {
+  // A partial run marks the checks it did not run as skipped, exactly as the pipeline does; that is what tells the
+  // view which checks this run may speak for.
+  const ran = opts.ranChecks ?? (opts.partial ? ['sast'] : [...RERUNNABLE_CHECKS]);
   return {
     projectId,
     id,
@@ -43,8 +50,14 @@ function run(projectId: string, id: string, opts: { partial?: boolean; findings?
     finishedAt: opts.finishedAt ?? '2026-09-01T10:05:00.000Z',
     findings: opts.findings ?? [],
     coverage: [],
-    ...(opts.partial ? { partial: true, partialChecks: ['sast'] } : {}),
-    stages: RERUNNABLE_CHECKS.map((stage) => ({ id: stage, status: 'passed', summary: `${stage} ran.`, round: 0, finishedAt: '2026-09-01T10:04:00.000Z' })),
+    ...(opts.partial ? { partial: true, partialChecks: ran } : {}),
+    stages: RERUNNABLE_CHECKS.map((stage) => ({
+      id: stage,
+      status: ran.includes(stage) ? 'passed' : 'skipped',
+      summary: `${stage} ${ran.includes(stage) ? 'ran' : 'was not run'}.`,
+      round: 0,
+      finishedAt: opts.finishedAt ?? '2026-09-01T10:04:00.000Z',
+    })),
   } as unknown as PipelineRun;
 }
 
@@ -71,7 +84,7 @@ describe('security across every app', () => {
         noCounts?: string;
         decided: { accepted: number; falsePositive: number };
         whoCanFix: Record<string, number>;
-        since: { partialChecks: number; rebuilt: boolean; answersChanged: boolean };
+        since: { checksRerunSince: number; rebuilt: boolean; answersChanged: boolean };
         lastFullCheck?: { runId: string };
       }[];
       appsNeedingAttention: number;
@@ -90,12 +103,17 @@ describe('security across every app', () => {
     expect(body.appsNeedingAttention).toBe(1);
   });
 
-  it('counts only a run that ran every check, and says how many single checks came after it', async () => {
+  it('does not let a single-check re-run wipe out what the other checks found', async () => {
     const project = harness.store.create({ name: 'Habits', mode: 'guided', profile: habitTracker });
-    await harness.store.writeRun(run(project.id, 'r_20260901100000_aafull', { findings: [finding('a', 'high'), finding('b', 'low')] }));
-    // A single-check re-run afterwards holds findings from that check alone. Counting it would show the app
-    // improving because less was looked at, which is the opposite of what happened.
-    await harness.store.writeRun(run(project.id, 'r_20260902100000_bbpart', { partial: true, findings: [], finishedAt: '2026-09-02T10:01:00.000Z' }));
+    // A high one from the code scan and a low one from the dependency check.
+    await harness.store.writeRun(
+      run(project.id, 'r_20260901100000_aafull', { findings: [finding('a', 'high', 'developer', 'sast'), finding('b', 'low', 'developer', 'deps')] }),
+    );
+    // Then the code scan alone is run again and still finds its one. That run says nothing about dependencies, so
+    // reading it alone would drop the low finding and show the app as better than it is.
+    await harness.store.writeRun(
+      run(project.id, 'r_20260902100000_bbpart', { partial: true, ranChecks: ['sast'], findings: [finding('a', 'high', 'developer', 'sast')], finishedAt: '2026-09-02T10:01:00.000Z' }),
+    );
     harness.store.update(project.id, (p) => {
       p.lastRunId = 'r_20260902100000_bbpart';
     });
@@ -104,7 +122,30 @@ describe('security across every app', () => {
     const app = body.apps[0]!;
     expect(app.lastFullCheck?.runId).toBe('r_20260901100000_aafull');
     expect(app.open).toEqual({ high: 1, low: 1 });
-    expect(app.since.partialChecks).toBe(1);
+    expect(app.since.checksRerunSince).toBe(1);
+  });
+
+  it('stops counting a finding once the check that raised it has been run again and no longer reports it', async () => {
+    // This is the whole point of being able to fix something: fix it, run that check again, and the number goes
+    // down. Counting only the last run that ran everything would keep reporting a finding that is demonstrably gone.
+    const project = harness.store.create({ name: 'Habits', mode: 'guided', profile: habitTracker });
+    await harness.store.writeRun(
+      run(project.id, 'r_20260901100000_aafull', { findings: [finding('a', 'medium', 'developer', 'config'), finding('b', 'low', 'developer', 'deps')] }),
+    );
+    // The person fixes the configuration problem and runs the configuration check on its own: it finds nothing.
+    await harness.store.writeRun(
+      run(project.id, 'r_20260902100000_bbconf', { partial: true, ranChecks: ['config'], findings: [], finishedAt: '2026-09-02T10:01:00.000Z' }),
+    );
+    harness.store.update(project.id, (p) => {
+      p.lastRunId = 'r_20260902100000_bbconf';
+    });
+
+    const body = await get();
+    const app = body.apps[0]!;
+    // Gone, because the check that raised it was asked again and said so — not because anybody marked it fixed.
+    // The dependency finding, which that run said nothing about, is still counted.
+    expect(app.open).toEqual({ low: 1 });
+    expect(app.since.checksRerunSince).toBe(1);
   });
 
   it('respects what a person has already decided about a finding', async () => {
@@ -188,24 +229,30 @@ describe('security across every app', () => {
     // The page showed the finding as decided and the server had refused it, because the decision route only looked
     // in the latest run — the partial one. A person could mark something a false positive and have nothing saved.
     const project = harness.store.create({ name: 'Habits', mode: 'guided', profile: habitTracker });
-    await harness.store.writeRun(run(project.id, 'r_20260901100000_aafull', { findings: [finding('a', 'critical')] }));
-    await harness.store.writeRun(run(project.id, 'r_20260902100000_bbpart', { partial: true, findings: [], finishedAt: '2026-09-02T10:01:00.000Z' }));
+    await harness.store.writeRun(run(project.id, 'r_20260901100000_aafull', { findings: [finding('a', 'critical', 'developer', 'sast')] }));
+    // The code scan was run again and still reports it, which is the case a person disputes: the check keeps
+    // raising it and they are saying it was never a real problem.
+    await harness.store.writeRun(
+      run(project.id, 'r_20260902100000_bbpart', { partial: true, ranChecks: ['sast'], findings: [finding('a', 'critical', 'developer', 'sast')], finishedAt: '2026-09-02T10:01:00.000Z' }),
+    );
     harness.store.update(project.id, (p) => {
       p.lastRunId = 'r_20260902100000_bbpart';
     });
 
-    // Without the run, the finding is not in the latest run and the refusal is honest.
-    const blind = await request(harness.server)
+    // No run is named, which is what the page sends: the finding is looked for in the newest run that holds it,
+    // rather than only in the latest run, which here is a single-check re-run that never saw it.
+    const saved = await request(harness.server)
       .post(`/api/projects/${project.id}/findings/a/decision`)
       .set(headers)
       .send({ status: 'false-positive', triage: { reason: 'The scanner misread the route registry.' } });
-    expect(blind.status).toBe(404);
-
-    const saved = await request(harness.server)
-      .post(`/api/projects/${project.id}/findings/a/decision?run=r_20260901100000_aafull`)
-      .set(headers)
-      .send({ status: 'false-positive', triage: { reason: 'The scanner misread the route registry.' } });
     expect(saved.status).toBe(204);
+
+    // A finding that is in no run at all is still refused, rather than recorded against nothing.
+    const missing = await request(harness.server)
+      .post(`/api/projects/${project.id}/findings/never-existed/decision`)
+      .set(headers)
+      .send({ status: 'false-positive', triage: { reason: 'No such finding.' } });
+    expect(missing.status).toBe(404);
 
     // And the view stops counting it, without moving it to "accepted", which would mean something else entirely.
     const body = await get();

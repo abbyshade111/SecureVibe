@@ -368,8 +368,12 @@ export const AppSecurityRowSchema = z.object({
   noCounts: NoCountsReasonSchema.optional(),
   /** How much has happened since that full check, so nobody reads a stale number as current. */
   since: z.object({
-    /** A check has been run on its own since; it says nothing about the checks it did not run. */
-    partialChecks: z.number().default(0),
+    /**
+     * Checks that have been run again since everything was last checked together. Their numbers above are the
+     * newer ones: each check contributes the result of the last run that actually ran it, so fixing what a check
+     * complained about and running that check again is reflected here.
+     */
+    checksRerunSince: z.number().default(0),
     /** The app was rebuilt since, so the code these numbers describe is not the code on disk. */
     rebuilt: z.boolean().default(false),
     /** The owner changed their answers since the design was last frozen. */

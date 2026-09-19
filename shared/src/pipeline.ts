@@ -31,8 +31,32 @@ export const STAGE_IDS = [
  */
 export const RERUNNABLE_CHECKS = ['typecheck', 'lint', 'unit-tests', 'sast', 'secrets', 'deps', 'config', 'dast', 'external'] as const;
 
+
 export const StageIdSchema = z.enum(STAGE_IDS);
 export type StageId = z.infer<typeof StageIdSchema>;
+/**
+ * Which check raised a finding, by the finding's `source`. A check's id is its source's id with two exceptions: the
+ * app's own test suite is the `unit-tests` step and records findings as `tests`, and an external tool's findings
+ * carry its own name as well as `external`. `ai-review` has no entry on purpose — it is the one check that costs
+ * money, so it is never offered as something to run again on its own.
+ *
+ * This lives here so the server and the web app cannot disagree about which check to re-run after a fix: the whole
+ * point of re-running it is that its answer, not a person's word, decides whether the finding is gone.
+ */
+export const CHECK_FOR_SOURCE: Record<string, StageId | undefined> = {
+  typecheck: 'typecheck',
+  lint: 'lint',
+  tests: 'unit-tests',
+  sast: 'sast',
+  secrets: 'secrets',
+  deps: 'deps',
+  config: 'config',
+  dast: 'dast',
+  external: 'external',
+  semgrep: 'external',
+  'ai-review': undefined,
+};
+
 
 /** Plain-language descriptions shown while a stage runs (kept here so server and web agree). */
 export const STAGE_DESCRIPTIONS: Record<StageId, { title: string; running: string; why: string }> = {
