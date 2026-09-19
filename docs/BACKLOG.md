@@ -20,6 +20,10 @@ an owner would notice, because that is what decides the order. Remove an item wh
 - **Live spending during a build.** The run's own record carries no `llmUsage` while it runs, so the page has
   nothing to show, while `workspace/llm-audit.jsonl` has every call. An owner watching a slow, paid build lost
   the one number that said it was still working.
+- **The changed-files list should fold away.** "What changed since the previous version" prints every file —
+  65 of them after a rebuild — so the comparison a person came for is buried under a list they scroll past. Fold
+  it by default behind a count they can open, and keep the summary above it visible. Same component as the skip
+  counts below, so do both at once.
 - **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
   already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
   has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
