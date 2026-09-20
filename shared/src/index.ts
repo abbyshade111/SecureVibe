@@ -6,3 +6,4 @@ export * from './pipeline.js';
 export * from './project.js';
 export * from './api.js';
 export * from './knowledge.js';
+export * from './languages.js';

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { whatWeCanSay } from '@shared/languages.js';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useProject } from '../hooks/useProject';
 import { Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
@@ -109,6 +110,24 @@ export function UploadPage() {
             }}
           />
         </div>
+
+        {plan && !plan.problem && (
+          /**
+           * What this app will actually get, said before the upload rather than discovered in the report.
+           * The first person to hand SecureVibe somebody else's code uploaded a Python app, waited through a
+           * check, paid for an AI review, and was told "0 of 106 requirements verified" — a sentence about
+           * code that had never been read. The report no longer says that, and this is the half that stops
+           * somebody spending twenty minutes to find out (ADR-012).
+           */
+          <div className="sv-banner">
+            <p style={{ marginBottom: 4 }}>
+              <strong>{whatWeCanSay(plan.files.map((f) => f.path)).headline}</strong>
+            </p>
+            <p className="sv-faint" style={{ marginBottom: 0 }}>
+              {whatWeCanSay(plan.files.map((f) => f.path)).detail}
+            </p>
+          </div>
+        )}
 
         {plan && (
           <div className={plan.problem ? 'sv-banner sv-banner-warn' : 'sv-banner'}>

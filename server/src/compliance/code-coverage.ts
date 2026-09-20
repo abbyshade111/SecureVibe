@@ -15,25 +15,7 @@
  * from the first and was missing.
  */
 
-/** The file types SecureVibe's own code scanners parse. Everything else is read by nothing but the AI review. */
-const READ_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.ejs']);
-
-/** Extensions that are code somebody wrote, grouped under the name a person would use for them. */
-const LANGUAGES: { name: string; extensions: string[] }[] = [
-  { name: 'TypeScript', extensions: ['.ts', '.tsx'] },
-  { name: 'JavaScript', extensions: ['.js', '.jsx', '.mjs', '.cjs'] },
-  { name: 'EJS templates', extensions: ['.ejs'] },
-  { name: 'Python', extensions: ['.py'] },
-  { name: 'Ruby', extensions: ['.rb'] },
-  { name: 'Go', extensions: ['.go'] },
-  { name: 'Rust', extensions: ['.rs'] },
-  { name: 'Java', extensions: ['.java'] },
-  { name: 'Kotlin', extensions: ['.kt', '.kts'] },
-  { name: 'C#', extensions: ['.cs'] },
-  { name: 'PHP', extensions: ['.php'] },
-  { name: 'Swift', extensions: ['.swift'] },
-  { name: 'Shell scripts', extensions: ['.sh', '.bash', '.zsh'] },
-];
+import { ASSESSABLE_SHARE, languageBreakdown } from '@shared/languages.js';
 
 export interface LanguageCoverage {
   language: string;
@@ -60,39 +42,14 @@ export interface CodeCoverage {
   summary: string;
 }
 
-function extensionOf(relPath: string): string {
-  const name = relPath.slice(relPath.lastIndexOf('/') + 1);
-  const dot = name.lastIndexOf('.');
-  return dot <= 0 ? '' : name.slice(dot).toLowerCase();
-}
-
-/**
- * Below this share of an application's code being readable, a score is not reported. Set at a half rather than
- * at something stricter because the point is to catch "we read almost none of it", not to withhold a score from
- * an app with a few shell scripts in it.
- */
-export const ASSESSABLE_SHARE = 0.5;
-
 export function summariseCodeCoverage(relPaths: string[]): CodeCoverage {
-  const byLanguage = new Map<string, { files: number; read: boolean }>();
-  let codeFiles = 0;
-  let filesRead = 0;
-
-  for (const relPath of relPaths) {
-    const ext = extensionOf(relPath);
-    const language = LANGUAGES.find((l) => l.extensions.includes(ext));
-    if (!language) continue;
-    codeFiles += 1;
-    const read = READ_EXTENSIONS.has(ext);
-    if (read) filesRead += 1;
-    const entry = byLanguage.get(language.name) ?? { files: 0, read };
-    entry.files += 1;
-    byLanguage.set(language.name, entry);
-  }
-
-  const languages = [...byLanguage.entries()]
-    .map(([language, v]) => ({ language, files: v.files, read: v.read }))
-    .sort((a, b) => b.files - a.files || a.language.localeCompare(b.language));
+  // The language table lives in shared/ so that the upload page and this agree. They tell a person the same
+  // thing at two different moments, and a page promising what the report then withholds is worse than either
+  // being wrong on its own.
+  const breakdown = languageBreakdown(relPaths);
+  const languages: LanguageCoverage[] = breakdown.map((l) => ({ language: l.language, files: l.files, read: l.analysed }));
+  const codeFiles = breakdown.reduce((n, l) => n + l.files, 0);
+  const filesRead = breakdown.filter((l) => l.analysed).reduce((n, l) => n + l.files, 0);
   const unreadLanguages = languages.filter((l) => !l.read).map((l) => l.language);
 
   // An app with no code files at all is not assessable either, and saying "0 of 0" would be the same lie.
