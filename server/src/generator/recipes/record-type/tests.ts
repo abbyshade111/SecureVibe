@@ -409,7 +409,9 @@ function queryTests(plan: EntityPlan, query: QueryPlan): EmittedTest[] {
       // The value searched for is the other person's own, so a scope that has been dropped shows up immediately.
       code: `  test('V8.2.2 ${name}: searching and sorting cannot reach another person${'\u2019'}s data, because the ownership clause is part of every query', async () => {
     const theirs = await app.login(users.member2);
-    const secret = 'zzq-' + Math.random().toString(36).slice(2, 10);
+    // randomUUID rather than Math.random: the static scan objects to Math.random in generated code, and it is
+    // right to, because the next person to copy this line may be using it for something that must be unguessable.
+    const secret = 'zzq-' + randomUUID().slice(0, 8);
     const created = await app.json('POST', API, { ...PAYLOAD_A, ${JSON.stringify(searchField.prop)}: secret }, theirs);
     if (created.status !== 201) {
       // Some record types cannot take arbitrary text in that field; fall back to their own sample record.
@@ -475,6 +477,7 @@ export function emitTest(plan: EntityPlan, runId: string): string {
 /** ${label}: the security checks every generated feature must pass (SC-17). */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { CookieJar, startApp, type RunningApp } from '../helpers/app.ts';
 import { users } from '../helpers/conventions.ts';
 

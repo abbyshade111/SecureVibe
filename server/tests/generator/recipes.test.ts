@@ -15,7 +15,7 @@ import { applyRecipes } from '../../src/generator/recipes/apply.js';
 import { manifestFeatureFlags } from '../../src/generator/scaffold.js';
 import { runSast } from '../../src/scanners/sast/index.js';
 import { makeScanContext } from '../scanners-static/helpers.js';
-import { clinicBookings, habitTracker, teamInventory } from '../fixtures/design/profiles.js';
+import { allProfiles, clinicBookings, habitTracker, teamInventory } from '../fixtures/design/profiles.js';
 
 const templateDir = join(REPO_ROOT, 'templates', 'secure-web-app');
 const manifest = TemplateManifestSchema.parse(JSON.parse(readFileSync(join(templateDir, 'securevibe.manifest.json'), 'utf8')));
@@ -235,27 +235,31 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
     }
   }, 300_000);
 
-  it('writes nothing the static scan objects to', async () => {
-    // The evaluation harness would catch this too, but only after a twenty-minute build of four apps. Running the
-    // real rules over what the recipes just wrote turns that into a few seconds, and it is how the recipes are held
-    // to the conventions the scan enforces on generated code — a query assembled at runtime, most of all.
-    const appDir = copyTemplate();
-    try {
-      const knowledge = loadKnowledge();
-      const frameworks = loadFrameworks();
-      const design = deriveDesign(teamInventory, { knowledge, frameworks });
-      const result = await applyRecipes({ appDir, manifest, design, profile: teamInventory, runId: 'r_20260101000000_sast01' });
-      const written = new Set(result.applications.flatMap((a) => a.files));
-      expect(written.size).toBeGreaterThan(0);
+  // Every profile, not one. This ran against team-inventory alone until 20 September 2026, and team-inventory's
+  // record types are all shared or administrators-only — so a test emitted only for a record type that belongs to
+  // one person was never written here and never scanned. A Math.random in it reached two golden apps and was found
+  // twenty minutes into an eval. Which recipes emit which files depends on the answers, so scanning one set of
+  // answers scans a fraction of what the library can write.
+  for (const { name, profile } of allProfiles) {
+    it(`writes nothing the static scan objects to, for the ${name} answers`, async () => {
+      const appDir = copyTemplate();
+      try {
+        const knowledge = loadKnowledge();
+        const frameworks = loadFrameworks();
+        const design = deriveDesign(profile, { knowledge, frameworks });
+        const result = await applyRecipes({ appDir, manifest, design, profile, runId: 'r_20260101000000_sast01' });
+        const written = new Set(result.applications.flatMap((a) => a.files));
+        expect(written.size).toBeGreaterThan(0);
 
-      const scan = await runSast(makeScanContext(appDir, { manifest, buildSpec: design.buildSpec }));
-      const ours = scan.findings.filter((f) => f.location?.file !== undefined && written.has(f.location.file));
-      const serious = ours.filter((f) => f.severity === 'critical' || f.severity === 'high' || f.severity === 'medium');
-      expect(serious.map((f) => `${f.ruleId} ${f.location?.file}:${f.location?.line ?? 0} — ${f.title}`)).toEqual([]);
-    } finally {
-      rmSync(appDir, { recursive: true, force: true });
-    }
-  }, 120_000);
+        const scan = await runSast(makeScanContext(appDir, { manifest, buildSpec: design.buildSpec }));
+        const ours = scan.findings.filter((f) => f.location?.file !== undefined && written.has(f.location.file));
+        const serious = ours.filter((f) => f.severity === 'critical' || f.severity === 'high' || f.severity === 'medium');
+        expect(serious.map((f) => `${f.ruleId} ${f.location?.file}:${f.location?.line ?? 0} — ${f.title}`)).toEqual([]);
+      } finally {
+        rmSync(appDir, { recursive: true, force: true });
+      }
+    }, 120_000);
+  }
 
   it('compiles when the features a design left out have been removed', async () => {
     // A copy of the template has every optional file in it; a real build deletes the files of every feature the
