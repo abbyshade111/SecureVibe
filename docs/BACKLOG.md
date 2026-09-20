@@ -94,6 +94,13 @@ an owner would notice, because that is what decides the order. Remove an item wh
 Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
 building from nothing.
 
+- **The agent is told how many tests failed, and not which.** `runTestCheck` in pipeline/checks.ts hands the
+  generation agent a summary and a count — "178 passed / 1 failed / 44 skipped" — while the very same result
+  object carries `details.tests`, every test with its name and outcome. On the first app built by a stranger the
+  agent said so itself: it could not isolate the failing test because the tool "only returns a pass/fail summary
+  count, not per-test names", re-ran twice, spent budget, and handed the owner a recommendation to run it again
+  with verbose output. The information existed and was withheld by us, and it cost her money to find that out.
+  Include the failing tests' names, and their file, in what the tool returns.
 - **An assistant that is working should say so.** Pressing "Run research" in Pain in the Butt returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
