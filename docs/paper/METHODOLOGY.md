@@ -84,6 +84,19 @@ native project. **B vs C isolates the language**, path held constant.
 All four runs (C was run twice, with and without AI) used one SecureVibe process, started at 17:14 and not
 restarted between them, so no code change can account for a difference between arms.
 
+## What the regression suite can and cannot tell you
+
+Worth stating because it bears on how much weight any "all five golden apps came back clean" sentence in this
+paper can carry. The baselines record counts: requirement statuses, findings by severity, tests passed, stage
+outcomes. They do not record the wording of anything.
+
+So when a change alters what a report *says* rather than what it *counts* — which several of the changes on
+20 September did — five identical apps is consistent with three different worlds: the change working, the change
+doing nothing, and the change not being present at all. The harness answers the question the baselines ask,
+which is not always the question being asked of it. Where that gap mattered here, a unit test covering the
+negative direction is what actually holds the result, and the eval's role was limited to showing nothing else
+moved.
+
 ## Limits worth stating
 
 - One app per language. The Python arm is a single Flask application; nothing here generalises to Python as such.
