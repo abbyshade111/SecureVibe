@@ -331,7 +331,13 @@ function queryTests(plan: EntityPlan, query: QueryPlan): EmittedTest[] {
   const name = plan.entity.name;
   const tests: EmittedTest[] = [];
   const signIn = plan.adminOnly ? 'users.admin' : 'users.member';
-  const searchField = query.searchable[0];
+  // Free text only. A searchable column may be an email address or a web address, and neither will accept an
+  // arbitrary word — the earlier version fell back to creating a plain record when the write was refused, which
+  // made the search find nothing for anybody and the assertion pass whatever the app did. A test that cannot fail
+  // is worse than no test, so the field is chosen so the write must succeed, and the test proves the term really
+  // matches before it proves it does not leak.
+  const freeText = new Set(plan.fields.filter((f) => f.control === 'text' || f.control === 'textarea').map((f) => f.column));
+  const searchField = query.searchable.find((c) => freeText.has(c.column));
 
   tests.push({
     name: `V1.2.4 ${name}: what a person types reaches the database as a bound value, never as part of the query, so an injection attempt is only ever text`,
@@ -413,13 +419,13 @@ function queryTests(plan: EntityPlan, query: QueryPlan): EmittedTest[] {
     // right to, because the next person to copy this line may be using it for something that must be unguessable.
     const secret = 'zzq-' + randomUUID().slice(0, 8);
     const created = await app.json('POST', API, { ...PAYLOAD_A, ${JSON.stringify(searchField.prop)}: secret }, theirs);
-    if (created.status !== 201) {
-      // Some record types cannot take arbitrary text in that field; fall back to their own sample record.
-      await created.text();
-      await app.json('POST', API, PAYLOAD_A, theirs);
-    } else {
-      await created.text();
-    }
+    await created.text();
+    assert.equal(created.status, 201, 'the other person must be able to create the record this test searches for');
+
+    // Their own search must find it. Without this the next assertion passes when the term matches nothing at all,
+    // which it would do just as happily if the ownership clause had been dropped.
+    const theirHits = await searchIds(theirs, secret);
+    assert.ok(theirHits.length > 0, 'the search term must match their own record, or this test proves nothing');
 
     const mine = await app.login(users.member);
     for (const query of ['?search=' + encodeURIComponent(secret), '?search=' + encodeURIComponent(secret) + '&sort=${searchField.column}', '?page=1', '?page=2']) {
@@ -507,6 +513,14 @@ describe('${plan.entity.name}', () => {
     const res = await app.json('POST', API, PAYLOAD_A, jar);
     await res.text();
     assert.equal(res.status, 201, \`a ${plan.entity.label.toLowerCase()} must be created (got \${res.status})\`);
+  }
+
+  /** The ids a search turns up for one person. */
+  async function searchIds(jar: CookieJar, term: string): Promise<string[]> {
+    const res = await app.json('GET', \`\${API}?search=\${encodeURIComponent(term)}\`, undefined, jar);
+    const body = (await res.json()) as { records?: { id: string }[] };
+    assert.equal(res.status, 200, \`a search must answer (got \${res.status})\`);
+    return (body.records ?? []).map((r) => r.id);
   }
 
   /** How many the list says there are. Read from the list rather than counted in the test. */
