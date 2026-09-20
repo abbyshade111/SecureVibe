@@ -55,7 +55,10 @@ describe('the virus scanner adapter', () => {
 
     const broken = readClamavExit(2, '', "ERROR: Can't connect to clamd through /var/run/clamav/clamd.sock");
     expect(broken.kind).toBe('error');
-    expect(broken.kind === 'error' && broken.reason).toContain('not running');
+    // "could not be reached" rather than "not running": observed on this machine, a caller that is not allowed
+    // to open the socket gets the same exit code as a daemon that was never started.
+    expect(broken.kind === 'error' && broken.reason).toContain('could not be reached');
+    expect(broken.kind === 'error' && broken.daemonUnreachable).toBe(true);
 
     const denied = readClamavExit(2, '', 'ERROR: Access denied');
     expect(denied.kind === 'error' && denied.reason).toContain('could not read the files');
@@ -207,6 +210,46 @@ describe('running the virus scanner', () => {
     });
     expect(result.ran).toBe(false);
     expect(result.seeds).toEqual([]);
+    expect(result.reason).toContain('has not downloaded its virus signatures');
+  });
+
+  it('falls back to the slow scanner when the daemon cannot be reached, rather than reporting nothing', async () => {
+    // Observed for real: a caller that is not allowed to open clamd's socket gets "Could not connect to clamd
+    // ... Operation not permitted" from clamdscan, while clamscan does the same work with the same signatures.
+    // Reporting "not scanned" there would be true of the first command and false of the situation.
+    const used: string[] = [];
+    const result = await runClamavScan({
+      ...base,
+      enabled: true,
+      find: (name) => `/usr/bin/${name}`,
+      run: async (file, args) => {
+        if (args.includes('--version')) return version;
+        used.push(file);
+        return file.endsWith('clamdscan')
+          ? { stdout: '', stderr: 'ERROR: Could not connect to clamd on LocalSocket /var/run/clamav/clamd.sock: Operation not permitted', code: 2, timedOut: false }
+          : { stdout: '/app/x.doc: Eicar-Test-Signature FOUND', stderr: '', code: 1, timedOut: false };
+      },
+    });
+    expect(used).toEqual(['/usr/bin/clamdscan', '/usr/bin/clamscan']);
+    expect(result.ran).toBe(true);
+    expect(result.seeds).toHaveLength(1);
+  });
+
+  it('does not retry the other scanner for a problem both of them would have', async () => {
+    // No signature database is a property of the installation, not of which command asked.
+    const used: string[] = [];
+    const result = await runClamavScan({
+      ...base,
+      enabled: true,
+      find: (name) => `/usr/bin/${name}`,
+      run: async (file, args) => {
+        if (args.includes('--version')) return version;
+        used.push(file);
+        return { stdout: '', stderr: 'LibClamAV Error: cli_loaddbdir: No supported database files found', code: 2, timedOut: false };
+      },
+    });
+    expect(used).toEqual(['/usr/bin/clamdscan']);
+    expect(result.ran).toBe(false);
     expect(result.reason).toContain('has not downloaded its virus signatures');
   });
 

@@ -163,7 +163,11 @@ export function toClamavSeed(detection: ClamavDetection, version: ClamavVersion)
 export type ClamavOutcome =
   | { kind: 'clean' }
   | { kind: 'infected'; detections: ClamavDetection[] }
-  | { kind: 'error'; reason: string };
+  /**
+   * `daemonUnreachable` marks the one failure worth retrying a different way: clamdscan needs a running daemon
+   * it can reach, and clamscan needs neither. Everything else that goes wrong goes wrong for both.
+   */
+  | { kind: 'error'; reason: string; daemonUnreachable?: boolean };
 
 export function readClamavExit(code: number, stdout: string, stderr: string, appDir?: string): ClamavOutcome {
   if (code === 0) return { kind: 'clean' };
@@ -187,7 +191,11 @@ export function readClamavExit(code: number, stdout: string, stderr: string, app
     };
   }
   if (/Can't connect to clamd|Could not connect|ERROR: Can't access|socket/i.test(text)) {
-    return { kind: 'error', reason: 'The virus scanner\u2019s background service (clamd) is installed but not running, so nothing was scanned.' };
+    return {
+      kind: 'error',
+      reason: 'The virus scanner\u2019s background service (clamd) could not be reached, so nothing was scanned.',
+      daemonUnreachable: true,
+    };
   }
   if (/Access denied|Permission denied|lstat\(\) failed/i.test(text)) {
     return { kind: 'error', reason: 'The virus scanner could not read the files it was asked to check, so nothing was scanned.' };
@@ -245,41 +253,53 @@ const NOT_ENABLED = 'skipped: not switched on for this project (it runs by itsel
 export async function runClamavScan(opts: ClamavRunOptions): Promise<ClamavRunResult> {
   if (!opts.enabled) return { ran: false, installed: false, seeds: [], reason: NOT_ENABLED };
 
-  const command = CLAMAV_COMMANDS.find((c) => opts.find(c));
-  const file = command ? opts.find(command) : undefined;
-  if (!command || !file) {
+  const available = CLAMAV_COMMANDS.filter((c) => opts.find(c));
+  if (available.length === 0) {
     return { ran: false, installed: false, seeds: [], reason: 'skipped: not installed (ClamAV is an optional extra)' };
   }
 
-  let version: ClamavVersion = {};
-  try {
-    const v = await opts.run(file, ['--version'], 20_000);
-    version = parseClamavVersion(`${v.stdout}\n${v.stderr}`);
-  } catch {
-    // A version we could not read is not a reason to skip the scan; it is a reason to say so afterwards.
-  }
+  // The daemon first because it holds the signatures in memory and answers in seconds. When it cannot be
+  // reached — not started, or a caller that is not allowed to open its socket — clamscan does the same work
+  // with the same signatures, just slowly, and that is a far better answer than reporting nothing scanned.
+  let lastFailure: ClamavRunResult | undefined;
+  for (const command of available) {
+    const file = opts.find(command)!;
 
-  opts.log(`[external] running ${command}${version.engine ? ` ${version.engine}` : ''}`);
-  let result: Awaited<ReturnType<ClamavRunOptions['run']>>;
-  try {
-    result = await opts.run(file, clamavArgs(command, opts.appDir, opts.exclude), opts.timeoutMs);
-  } catch (err) {
-    return { ran: false, installed: true, seeds: [], reason: `skipped: ${command} could not be run (${err instanceof Error ? err.message : String(err)})` };
-  }
-  if (result.timedOut) {
-    return { ran: false, installed: true, seeds: [], reason: 'skipped: the virus scanner was stopped at the time limit, so the files were not checked' };
-  }
+    let version: ClamavVersion = {};
+    try {
+      const v = await opts.run(file, ['--version'], 20_000);
+      version = parseClamavVersion(`${v.stdout}\n${v.stderr}`);
+    } catch {
+      // A version we could not read is not a reason to skip the scan; it is a reason to say so afterwards.
+    }
 
-  const outcome = readClamavExit(result.code ?? 2, result.stdout, result.stderr, opts.appDir);
-  if (outcome.kind === 'error') {
-    return { ran: false, installed: true, seeds: [], version: version.engine, reason: `skipped: ${outcome.reason}` };
+    opts.log(`[external] running ${command}${version.engine ? ` ${version.engine}` : ''}`);
+    let result: Awaited<ReturnType<ClamavRunOptions['run']>>;
+    try {
+      result = await opts.run(file, clamavArgs(command, opts.appDir, opts.exclude), opts.timeoutMs);
+    } catch (err) {
+      lastFailure = { ran: false, installed: true, seeds: [], reason: `skipped: ${command} could not be run (${err instanceof Error ? err.message : String(err)})` };
+      continue;
+    }
+    if (result.timedOut) {
+      // Not retried with the slower command: it would take longer and stop at the same limit.
+      return { ran: false, installed: true, seeds: [], reason: 'skipped: the virus scanner was stopped at the time limit, so the files were not checked' };
+    }
+
+    const outcome = readClamavExit(result.code ?? 2, result.stdout, result.stderr, opts.appDir);
+    if (outcome.kind === 'error') {
+      lastFailure = { ran: false, installed: true, seeds: [], ...(version.engine ? { version: version.engine } : {}), reason: `skipped: ${outcome.reason}` };
+      if (outcome.daemonUnreachable) continue;
+      return lastFailure;
+    }
+    const detections = outcome.kind === 'infected' ? outcome.detections : [];
+    return {
+      ran: true,
+      installed: true,
+      seeds: detections.map((d) => toClamavSeed(d, version)),
+      ...(version.engine ? { version: version.engine } : {}),
+      note: signatureNote(version),
+    };
   }
-  const detections = outcome.kind === 'infected' ? outcome.detections : [];
-  return {
-    ran: true,
-    installed: true,
-    seeds: detections.map((d) => toClamavSeed(d, version)),
-    version: version.engine,
-    note: signatureNote(version),
-  };
+  return lastFailure ?? { ran: false, installed: true, seeds: [], reason: 'skipped: the virus scanner could not be run' };
 }
