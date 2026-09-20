@@ -73,6 +73,30 @@ Statuses: `pass`, `ai-assessed`, `documented`, `attested`, `partial`, `fail`, `n
 - Evaluation harness: five golden applications rebuilt without AI and compared against recorded baselines. A
   template or pipeline change is not finished until they pass.
 
+## What the harness is for, and what it caught
+
+Phrased by the session that built it, which watched the first run:
+
+> The evaluation harness builds four fixed applications from saved answers without any AI, checks each one
+> exactly as an owner's app is checked, and compares the outcome with a saved baseline: whether the build
+> finished, whether each step passed, how many problems are open and how serious, what share of ASVS and AISVS
+> requirements automated checks verified, and how many of the app's own tests passed. Cost and time are recorded
+> but never fail a run, so a baseline is free and repeatable. Its first run, on 18 September 2026, found five
+> faults in the template that every generated application inherits and that no unit test had caught, because
+> each one only appears when a particular set of answers is built: feature switches written in one spelling and
+> read in another, so API keys, assistant actions and retention jobs never turned on at runtime; a file removed
+> with one switch while the assistant still imported it, so those apps did not compile; applications set to
+> serve HTTPS themselves shipped without a certificate and could not start; generated tests that sent text
+> where an upload identifier belonged; and the built-in security tests running against each app's deployment
+> settings instead of the loopback address, so a proxy setting made unrelated tests fail. Before the fixes, one
+> golden app passed 10 of 169 tests and carried 150 high-severity findings; after them, all four build with no
+> open critical, high or medium findings and 60–68% of applicable ASVS requirements verified. Every one of those
+> faults would have reached a real owner's application first.
+
+This matters to the paper's question because those five faults are invisible to unit testing by construction:
+each appears only in a particular *combination* of wizard answers, and the template is a set of switches. A
+foundation that is only tested as a library is not tested as the thing people receive.
+
 ## The comparison, 20 September 2026
 
 Designed to separate two variables that the obvious version of the experiment confounds.

@@ -31,9 +31,32 @@ then containerised generated code, then the OpenAI and Google providers. Before 
 already built save-and-resume of wizard answers, the dashboard, "Save credits", the human-checks wizard, app
 previews with a one-click sign-in link, and uploading your own app for a check.
 
+### Day 0 — 17 September 2026, reconstructed from the first session's transcript
+
+Commit ids are from the destroyed history and will not resolve in this repository.
+
+| time | commit | what happened |
+|---|---|---|
+| 10:36 | `a9c6661` | Initial commit. The wizard, design engine, pipeline, scanners, compliance engine, reports and the template already in place. |
+| morning | — | The owner asks for save/resume of wizard answers, and the red Delete button. |
+| afternoon | `6aec203` | The security log with named events, the Dashboard, "Save credits" (Sonnet, low effort, one fix round, the 55/30/15 budget split so a $5 cap always covers a build), the human-checks wizard, app previews, and uploading your own app for a check. |
+| — | `1a17857`, `8d8c0a2` | Navigation to the human checks, the Finish page, the free re-check, self-assessment fixes. |
+| evening | — | The third build of *Pain in the Butt*, a friend's app: $3.81, rated at risk on AC-02 and MT-06, 88 of 159 ASVS requirements verified. The owner decides its assistant should do its own research against vetted sites — which becomes a new wizard question. |
+| ~20:00 | — | The owner chooses the order of the remaining work and asks for it to be carried out without further approval. |
+| ~20:15 | `af6b83f` | All of it lands at once: the plan flow, refine questions, own API keys in `.env`, durable worker builds, the evaluation harness with its golden apps, `CLAUDE.md`, and five template fixes the harness had just found. |
+| — | `1a08dca`, `0ee9f1b`, `8811f07`, `55f04fa`, `ed99750` | Baselines recorded, raw TAP kept for readable failures, a web-search test fix, template upgrades. |
+| — | `52ad9a8` | The repository has just been moved into a folder named "Desktop – Abby's MacBook Air". First symptom of what is coming: test paths containing `%20`. |
+| 23:02 | `6576faf` | Version diff. |
+| ~23:45 | — | The hand-off pack is written and tested but not yet committed when Vite begins failing with an empty module export — the first sign of iCloud eviction. It survives as `5cfc0be` in the new history. |
+
+That night, durable builds were verified live: two free re-checks on the test app kept running through a Ctrl-C
+and a server restart.
+
 So the foundation the rest of this timeline builds on — the evidence model, the durable build, the harness, the
 upgrade path — was in place before the first surviving commit. The three days below are the period in which that
-foundation was used, tested by people other than the owner, and found wanting in the ways recorded here.
+foundation was used, tested by people other than the owner, and found wanting in the ways recorded here. Worth
+noting that the pattern starts before them: **the foundation's own first hour was the harness finding the
+template wanting.**
 
 ## The surviving record
 
