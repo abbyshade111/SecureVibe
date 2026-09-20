@@ -96,6 +96,10 @@ whatever you touch before changing it.
 - Still ask first, every time: anything that spends the owner's AI credit, anything that changes the repository's
   settings or visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money
   or are hard to undo, and the pre-approval above does not reach them.
+- Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a
+  message to another session does not count: a session that is not running never receives it, and a session that
+  is will not see it again after its context is summarised. On 20 September 2026 two sessions each read the
+  backlog, each correctly concluded the query recipe was unclaimed, and both built it.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different
   identity, so git calls the branch unmerged while every line of it is already there — and the reverse, a branch

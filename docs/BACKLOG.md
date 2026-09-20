@@ -3,6 +3,11 @@
 Agreed work not yet started, so it lives somewhere more durable than a chat between sessions. Each item says what
 an owner would notice, because that is what decides the order. Remove an item when it lands.
 
+**Claiming an item happens here, not in a message.** Before starting something, add `**[taken: <session>, <date>]**`
+to its first line and commit that on its own; release it the same way if you stop. A message claiming an item is
+invisible to a session that is not running, which is how two sessions spent two hours of 20 September 2026 both
+building the query recipe: each read this file, each correctly saw the item unclaimed, and neither was wrong.
+
 ## Mine (this session's half of the split agreed on 19 September 2026)
 
 - **"What only you can do".** A list on the Results page and in the reports, derived from facts rather than
@@ -60,7 +65,9 @@ an owner would notice, because that is what decides the order. Remove an item wh
 - **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
   already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
   has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
-- **Scanning uploaded files for malware (ASVS V5.4.3).** Our scanners ask whether the code has a weakness; an
+- **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
+  `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
+  refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an
   antivirus scanner asks whether a file is known-bad content. Nothing we run does the second. The template
   already stops a file pretending to be an image — size enforced before the body finishes, magic bytes sniffed,
   declared type and extension cross-checked, stored outside the web root under a random name — but a genuine
@@ -70,7 +77,7 @@ an owner would notice, because that is what decides the order. Remove an item wh
   unscanned rather than implying they were checked. Not a new build-time scanner: malicious packages are rarely
   in antivirus signatures, and that risk is already covered by disabled install scripts, a minimum package age
   and the OSV check. V5.4.3 stays manual-only until an app actually scans.
-- **The same scanner, on SecureVibe's own Security page.** A second use of the same connection, and the stronger
+- **The same scanner, on SecureVibe's own Security page.** **[taken: this session, 20 Sep 2026]** A second use of the same connection, and the stronger
   of the two for SecureVibe itself: an opt-in external tool beside Trivy, Semgrep and the AI scanner, run on
   demand like any other check. It earns its place most on an **uploaded** app — code SecureVibe is handed and
   never runs is precisely untrusted content — and on a built app's own uploads folder, where whatever an owner
@@ -81,6 +88,18 @@ an owner would notice, because that is what decides the order. Remove an item wh
   SecureVibe files from somewhere else, so asking whether any of them is known-bad is part of checking them, not
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
+
+- **The brand materials are drawn and nothing uses them.** A logo lockup (flat and stacked), a favicon, and six
+  mascot states — good, needs attention, at risk, building, stopped, failed — are sitting in
+  `../securevibe-brand/` as SVG, with a `preview.html` showing them together. None of it is in the repository
+  and none of it reaches a page: SecureVibe still shows a browser default where its favicon should be, and the
+  status a person reads on the Results page is carried entirely by words and a colour. The six mascots map onto
+  states the app already computes, which is why they are worth wiring rather than decorating with — a state with
+  a face is recognisable at a glance and, more to the point, the same face everywhere stops "at risk" on one
+  page reading as a different thing from "at risk" on another. Wants the files copied into `web/` under version
+  control (they are the project's own work, not a dependency), the favicon and lockup in the shell, and a single
+  mapping from status to mascot so no page invents its own. Keep the words: the picture never replaces the
+  sentence that says what is wrong, because an owner who cannot read the face must still be told.
 
 - **The harness should clear its own leftovers when it starts.** It removes its scratch workspace when a run
   finishes normally and not when a run is killed, and a run gets killed whenever someone spots a problem early —
@@ -101,7 +120,12 @@ building from nothing.
   count, not per-test names", re-ran twice, spent budget, and handed the owner a recommendation to run it again
   with verbose output. The information existed and was withheld by us, and it cost her money to find that out.
   Include the failing tests' names, and their file, in what the tool returns.
-- **A recipe for querying records.** First impression from an owner reading a generated app: the database code
+- **A recipe for querying records.** **[taken: recipe-library session, 20 Sep 2026]** The engine landed in the
+  template on 20 September 2026 (`src/db/query.ts`, `eb35de0`): search, filter, sort and paginate settled once,
+  with the ownership clause structural and fifteen tests on it. What remains is the per-entity half — turning a
+  record type's fields into a query, fixing the scope once from its `access` answer so no call site chooses, and
+  the search and sort controls on the list page. Original reasoning kept because it is still the argument:
+  First impression from an owner reading a generated app: the database code
   is where it looks least like something a person would want to inherit. Search, filter, sort and paginate are
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
