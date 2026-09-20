@@ -55,11 +55,22 @@ export const authzAnonymousDenied: ProbeModule = {
     const expected = 'every non-public route answers 401/403 (API) or redirects to sign-in (pages) without a session';
     const failures: ProbeFailure[] = [];
     let checked = 0;
+    let rateLimited = 0;
     for (const route of routes) {
-      const res = await call(ctx, route, undefined, sampleValues(ctx, route));
+      let res = await call(ctx, route, undefined, sampleValues(ctx, route));
+      if (res.status === 429) {
+        // A limiter answering before the route did says nothing about who may reach it: clear it and ask once more.
+        await ctx.resetRateLimits();
+        res = await call(ctx, route, undefined, sampleValues(ctx, route));
+        if (res.status === 429) {
+          rateLimited++;
+          continue;
+        }
+      }
       checked++;
       if (!denied(res, route.kind)) failures.push(failureFrom(res, `status ${res.status} without a session`));
     }
+    if (checked === 0 && rateLimited > 0) return NOT_ATTEMPTED(`${rateLimited} route(s) were rate-limited before they could be tried`, expected);
     return summarize(expected, checked, failures);
   },
 };

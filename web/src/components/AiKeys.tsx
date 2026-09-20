@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { safeExternalHref } from '../lib/links';
 import type { StatusResponse } from '@shared/api.js';
 import { saveAiKey } from '../lib/api';
 import { Card, ErrorNotice } from './Bits';
@@ -68,9 +69,13 @@ export function AiKeys({ services, onChanged }: { services: Service[]; onChanged
         </label>
         <p className="sv-help">
           Get a key from{' '}
-          <a href={current?.consoleUrl} target="_blank" rel="noreferrer noopener">
-            {current?.label}
-          </a>
+          {safeExternalHref(current?.consoleUrl) ? (
+            <a href={safeExternalHref(current?.consoleUrl)} target="_blank" rel="noreferrer noopener">
+              {current?.label}
+            </a>
+          ) : (
+            current?.label
+          )}
           . Treat it like a password: anyone with it can spend money on your account.
         </p>
         <input

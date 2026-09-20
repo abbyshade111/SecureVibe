@@ -11,6 +11,7 @@ import { useState } from 'react';
 import type { Finding } from '@shared/findings.js';
 import { CodeViewer } from './CodeViewer';
 import { Badge, CopyButton } from './Bits';
+import { safeExternalHref } from '../lib/links';
 
 export function FindingCard({
   finding,
@@ -169,14 +170,22 @@ export function FindingCard({
         </p>
         {finding.remediation.references.length > 0 && (
           <p className="sv-faint" style={{ marginBottom: 0 }}>
-            {finding.remediation.references.map((href, i) => (
-              <span key={href}>
-                {i > 0 && ' · '}
-                <a href={href} target="_blank" rel="noreferrer noopener">
-                  {href.replace(/^https?:\/\//, '').slice(0, 60)}
-                </a>
-              </span>
-            ))}
+            {finding.remediation.references.map((href, i) => {
+              const safe = safeExternalHref(href);
+              const label = href.replace(/^https?:\/\//, '').slice(0, 60);
+              return (
+                <span key={href}>
+                  {i > 0 && ' · '}
+                  {safe ? (
+                    <a href={safe} target="_blank" rel="noreferrer noopener">
+                      {label}
+                    </a>
+                  ) : (
+                    label
+                  )}
+                </span>
+              );
+            })}
           </p>
         )}
       </details>
