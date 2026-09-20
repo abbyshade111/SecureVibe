@@ -19,7 +19,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { matchesRequirement, testBody } from '../../src/compliance/test-name-match.js';
-import { loadFrameworks, loadKnowledge } from '../../src/frameworks/index.js';
+import { loadFrameworks, loadKnowledge, standardForId } from '../../src/frameworks/index.js';
 
 const TEMPLATE_TESTS = join(import.meta.dirname, '../../../templates/secure-web-app/tests/security');
 
@@ -40,6 +40,21 @@ const ACCEPTED: Record<string, string> = {
     'The same V8.2.2 vocabulary gap: this is the object-level authorization check, written in the words the uploads feature uses.',
 };
 
+/**
+ * Tests in tests/security that cannot cite a requirement, named one at a time with why.
+ *
+ * Named rather than exempted by file, and the reason is this check's own history. `suite.test.ts` had been
+ * enforcing that every test name *starts with* something id-shaped for weeks, which `UX-01` satisfied while
+ * existing in no framework file — the shape was checked and the existence never was. Exempting the whole file
+ * would re-open a door of exactly that kind one room along: anything added to it next month would be silently
+ * uncited and nothing would say so. A list somebody has to add to deliberately, with a sentence per entry, is the
+ * same mechanism as ACCEPTED below and for the same reason.
+ */
+const UNCITED_BY_DESIGN: Record<string, string> = {
+  'security suite has at least one test file per security area and every test name starts with a requirement id':
+    'The test asserting that the others cite requirements cannot cite one itself: its subject is the suite, not a control.',
+};
+
 interface Flagged {
   file: string;
   name: string;
@@ -56,6 +71,40 @@ function testNames(source: string): string[] {
 }
 
 describe('the template’s own test names', () => {
+  /*
+   * A citation has to point at something.
+   *
+   * `UX-01` named four tests in the theme suite for weeks. It appears in no framework file, so it was credited to
+   * nothing and screened by nothing — and the checker below could not see it either, because `requirementIdOf` only
+   * recognises the ASVS and AISVS shapes, so an unrecognised prefix is silently not-a-citation rather than a bad one.
+   * A citation to nothing was indistinguishable from no citation at all, which is the zero-for-two-reasons failure
+   * in the very check built to catch mislabelled tests.
+   *
+   * So this asserts the folder's own rule directly: a test in tests/security cites a requirement, and the
+   * requirement exists. Secure by Design ids live in their own index, which is why this resolves through
+   * standardForId rather than getRequirement alone — AS-07 and MT-07 are honest citations that getRequirement
+   * cannot find.
+   */
+  it('every id a test cites resolves to a real requirement', () => {
+    const frameworks = loadFrameworks();
+    const unknown: string[] = [];
+    const uncited: string[] = [];
+    for (const file of readdirSync(TEMPLATE_TESTS).filter((f) => f.endsWith('.test.ts'))) {
+      for (const name of testNames(readFileSync(join(TEMPLATE_TESTS, file), 'utf8'))) {
+        if (UNCITED_BY_DESIGN[name] !== undefined) continue;
+        const token = /^([A-Z]{1,3}[-.]?\d+(?:\.\d+)*)/.exec(name)?.[1];
+        if (!token) {
+          uncited.push(`${file}: ${name}`);
+          continue;
+        }
+        const exists = standardForId(token) === 'sbd' ? frameworks.getSbdControl(token) !== undefined : frameworks.getRequirement(token) !== undefined;
+        if (!exists) unknown.push(`${file}: ${token} — ${name}`);
+      }
+    }
+    expect(unknown, 'these tests cite an id that exists in no framework file').toEqual([]);
+    expect(uncited, 'a test in tests/security must cite a requirement, or belong in tests/ instead').toEqual([]);
+  });
+
   it('each test named after a requirement says something that requirement says', () => {
     const frameworks = loadFrameworks();
     const knowledge = loadKnowledge();

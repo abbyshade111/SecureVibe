@@ -280,7 +280,7 @@ building from nothing.
   have existed first.
 - **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
   different set of records, or to see what a rebuild does, currently risks the app they already have.
-- **`UX-01` looks like a requirement id and indexes nothing.** `tests/security/theme.test.ts` names four tests
+- ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
   `UX-01 …`, and `UX-01` appears in no framework file and no knowledge file — so it is credited to nothing, screened
   by nothing, and reads to anyone else as a citation. Either it becomes a real entry somewhere with wording the
   test-name checker can compare against, or the tests drop the prefix and say what they show in plain words, as the
