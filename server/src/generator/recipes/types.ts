@@ -30,6 +30,16 @@
  *    Measure a change from what the app says a moment earlier instead.
  *  - **A page refuses an anonymous visitor by redirecting to the sign-in page**, not with 401; only the JSON
  *    interface answers 401. Accept either, the way the template's own authorization test does.
+ *  - **A test whose setup can quietly fall back is a test that can quietly stop testing.** An emitted test that
+ *    creates a record and carries on when the write is refused ends up measuring nothing, and says so by passing.
+ *    A search test written that way searched for a term no record had, and would have passed with the ownership
+ *    clause deleted — the very thing it existed to guarantee. That is worse than having no test there, because the
+ *    green tick is evidence to everyone who reads it afterwards.
+ *    This is the same family as the seeded record above, and the dangerous member of it: the others fail loudly.
+ *    So assert the setup worked, and assert the thing you are looking for is really findable, before asserting it
+ *    is not leaked. And when a record type cannot support the test, emit no test rather than a weaker one — a
+ *    recipe that claims a requirement it cannot exercise for that record type is the failure this file exists to
+ *    prevent.
  */
 import type { BuildSpec, DesignArtifacts } from '@shared/design.js';
 import type { RecipeApplication } from '@shared/pipeline.js';
