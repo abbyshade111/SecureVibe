@@ -1,9 +1,46 @@
 # Timeline
 
-Assembled from the repository's own history: 116 commits over three days, 18–20 September 2026. Times are the
-commit times, so they record when a change was finished rather than when it was begun. Commit subjects are
-reproduced as written — they were written to say what changed and why, and several of them are the primary
-record of a decision.
+## A gap in this record, stated first because everything below depends on it
+
+**This is not the project's full history, and the project did not begin on 18 September.**
+
+The repository's first commit, `c85c174`, is titled *"Restore SecureVibe after iCloud eviction (fresh history)"*
+and lands **687 files and 280,421 lines in one go** — a mature project appearing at once. The commits before it
+were lost when iCloud evicted the working copy, and what survived was reconstructed as a single starting point.
+
+Work demonstrably began earlier. Ten of the twelve architecture decision records are dated **16 September 2026**,
+two days before the repository's first commit, and the documentation references the 17th. So at least two days
+of development — including most of the foundational decisions the rest of the project rests on — happened before
+any commit in this timeline.
+
+What follows is therefore **the surviving record from 18 September onward**, not the project's life. Treat the
+commit count as a measure of the last three days, and the ADRs in Part V as evidence of what came before them.
+The reconstruction itself is worth noting as a finding: a project whose history can be evicted by a file-sync
+service is one whose provenance rests on something outside the developer's control.
+
+## What happened before the record, from the session that did it
+
+The session that built SecureVibe's backbone on 17–18 September was archived, restored on 20 September, and
+wrote what it knew to `docs/FIRST-SESSION-CONTEXT.md`. Its account of the lost period, which nothing in the
+commit history shows:
+
+The owner chose the order of work on **17 September** and asked for it to be carried out without further
+approval: `CLAUDE.md`, then plan → approve → build → verify, then builds as durable jobs, then the evaluation
+harness with its golden apps, then template upgrades, version diff, the hand-off pack and the one-page report,
+then containerised generated code, then the OpenAI and Google providers. Before that list the same session had
+already built save-and-resume of wizard answers, the dashboard, "Save credits", the human-checks wizard, app
+previews with a one-click sign-in link, and uploading your own app for a check.
+
+So the foundation the rest of this timeline builds on — the evidence model, the durable build, the harness, the
+upgrade path — was in place before the first surviving commit. The three days below are the period in which that
+foundation was used, tested by people other than the owner, and found wanting in the ways recorded here.
+
+## The surviving record
+
+Assembled from the repository's own history: 116 commits across 18–20 September 2026. Times are the commit
+times, so they record when a change was finished rather than when it was begun. Commit subjects are reproduced
+as written — they were written to say what changed and why, and several of them are the primary record of a
+decision.
 
 The project was built by an owner who is not a programmer, working with AI agents, against a fixed template and
 the OWASP Secure by Design, ASVS 5.0 and AISVS 1.0 checklists. Two people other than the owner used it during

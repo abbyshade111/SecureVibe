@@ -5,6 +5,11 @@ is checkable against the repository at the commit this was written from.
 
 ## The question
 
+> **On the project's age.** The repository's history begins on 18 September 2026 with a commit restoring the
+> project after an iCloud eviction destroyed what came before. Ten of the twelve ADRs are dated 16 September, so
+> development began at least two days earlier than any commit shows. Where this appendix says "three days" it
+> means the surviving record, not the project.
+
 Whether giving a non-programmer a secure foundation — a fixed, hardened template plus automated checking against
 OWASP Secure by Design, ASVS 5.0 and AISVS 1.0 — produces a safer way to build software than writing it with an
 AI assistant alone.

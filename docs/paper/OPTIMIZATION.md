@@ -1,6 +1,7 @@
 # Cost, time and optimization
 
-Measured over three days of real use: **51 successful runs, 823 AI calls, $63.46 of Anthropic credit**. Every
+Measured over the three days the repository's surviving history covers (18–20 September; earlier work was lost
+in the iCloud eviction described in the timeline, and its AI spend is not in this log either): **51 successful runs, 823 AI calls, $63.46 of Anthropic credit**. Every
 figure here comes from `workspace/llm-audit.jsonl`, which records each call with its purpose, tokens, cache use
 and cost, and from the runs' own `startedAt`/`finishedAt`.
 
