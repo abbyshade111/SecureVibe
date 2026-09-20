@@ -208,7 +208,7 @@ building from nothing.
 - **Find your best Ab needs a clean-up pass.** The first app built from nothing by someone other than the owner,
   and the one to read carefully before deciding what else matters. Worth going through it feature by feature
   rather than fixing whatever catches the eye first.
-- **An assistant that is working should say so.** Pressing "Run research" in Pain in the Butt returns nothing
+- **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in Pain in the Butt returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
@@ -227,6 +227,12 @@ building from nothing.
   have existed first.
 - **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
   different set of records, or to see what a rebuild does, currently risks the app they already have.
+- **`UX-01` looks like a requirement id and indexes nothing.** `tests/security/theme.test.ts` names four tests
+  `UX-01 …`, and `UX-01` appears in no framework file and no knowledge file — so it is credited to nothing, screened
+  by nothing, and reads to anyone else as a citation. Either it becomes a real entry somewhere with wording the
+  test-name checker can compare against, or the tests drop the prefix and say what they show in plain words, as the
+  secrets tests do. Found while looking for a catalogue to file an assistant-progress test under, on 20 September
+  2026. Same family as the mislabelled requirement names: an id is a claim, and a claim wants something behind it.
 - **One spelling standard, American English, with the Oxford comma.** The interface, the reports and the code
   comments are written in British English today ("colour", "behaviour", "recognise"). Owner-facing text first —
   the wizard copy, the reports, the finding descriptions — and the knowledge files that feed them, since a report
