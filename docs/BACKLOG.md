@@ -89,18 +89,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **The brand materials are drawn and nothing uses them.** **[taken: Vibe-coding builder (original, restored), 20 Sep 2026]** A logo lockup (flat and stacked), a favicon, and six
-  mascot states — good, needs attention, at risk, building, stopped, failed — are sitting in
-  `../securevibe-brand/` as SVG, with a `preview.html` showing them together. None of it is in the repository
-  and none of it reaches a page: SecureVibe still shows a browser default where its favicon should be, and the
-  status a person reads on the Results page is carried entirely by words and a colour. The six mascots map onto
-  states the app already computes, which is why they are worth wiring rather than decorating with — a state with
-  a face is recognisable at a glance and, more to the point, the same face everywhere stops "at risk" on one
-  page reading as a different thing from "at risk" on another. Wants the files copied into `web/` under version
-  control (they are the project's own work, not a dependency), the favicon and lockup in the shell, and a single
-  mapping from status to mascot so no page invents its own. Keep the words: the picture never replaces the
-  sentence that says what is wrong, because an owner who cannot read the face must still be told.
-
 - **Let an uploaded app be checked without answering the questions first.** `POST /projects/:id/runs` refuses an
   uploaded app that has no design: "Answer the questions about your app before checking it." The reason is real —
   the answers decide which rules apply, and a compliance report written without them is guesswork — but it is the
