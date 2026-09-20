@@ -192,6 +192,18 @@ building the query recipe: each read this file, each correctly saw the item uncl
   option beside the free one would cost a line of UI and close a gap that currently makes the native case worse
   served than the uploaded one.
 
+- **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
+  report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,
+  so no PDF exists on disk until a person saves one, one report and one dialog at a time. On 20 September 2026
+  the owner wanted the three reports for every application, for a paper's appendix: seven apps, twenty-two
+  documents, twenty-two dialogs. They were produced instead by driving the same rendering headlessly.
+  That is a workaround, and the need is ordinary rather than exotic — an appendix, an auditor, a handover, a
+  record of what the app looked like on the day somebody signed off on it. Writing the PDFs alongside the HTML
+  at report time would cost a rendering step and remove the manual one entirely. Worth doing as part of the
+  hand-off pack rather than beside it, since that is already the thing somebody sends to another person.
+  The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
+  in turn.
+
 - **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
