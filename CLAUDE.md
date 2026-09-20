@@ -45,7 +45,9 @@ whatever you touch before changing it.
   withholds credit: about a third of its flags are honest tests phrased differently, and it is blind to a swap
   between neighbouring requirements that share vocabulary.
 - Evaluation harness: `npm run eval` builds the golden apps in `evals/golden/` without AI and compares them with
-  `evals/baselines/` (`--update` to save new baselines, `--only <name>` for one app, `--ai` costs money). Run it
+  `evals/baselines/` (`--update` to save new baselines, `--only <name>` for one app, `--ai` costs money).
+  Prefer `--only <name>` when one app answers the question: about four and a half minutes against fourteen for all
+  five, and the harness is a shared resource two sessions have collided on. Run it
   through the `eval-no-ai` launcher (ports); it needs to pass before a template or pipeline change is done.
 
 ## Running SecureVibe

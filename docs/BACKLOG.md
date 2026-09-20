@@ -111,6 +111,22 @@ building the query recipe: each read this file, each correctly saw the item uncl
   which a SecureVibe run does show, and "this app's uploads are scanned", which it cannot show, because the app
   is checked inside a sandbox that puts the scanner out of reach (ADR-011). V5.4.3 stays unverified by a run.
 
+- **The harness should hold a lock while it runs.** ~~Unclaimed~~ **[taken: recipe-library session, 20 Sep 2026,
+  after the query recipe lands]** Two sessions ran it at once for eight minutes on 20 September 2026, each having
+  said in a message that they would say something first. Almost nothing is actually shared — each session has its
+  own checkout of the baselines and the template, each run makes its own scratch workspace with its own tool
+  caches, and the apps bind ephemeral ports — so the collision is one laptop's processor, memory and disk, plus
+  the fact that neither session can see what the other is running. A lock naming the session, the branch and the
+  start time fixes the second half: a second run either waits or is told "a five-app run started four minutes ago,
+  expect the harness free at 13:58". It has a second use immediately, because the sweep that clears leftovers needs
+  to tell a dead workspace from a live one, and a lock is what answers that.
+  Two things deliberately **not** done, so nobody proposes them again without new reasons:
+  - *Containers.* They isolate filesystems and ports, which are already isolated, and they do not create processor
+    cores. They would also likely break the reuse that makes a build four minutes rather than eight.
+  - *A shared limit on total builds in flight, so both sessions can run at once.* Considered and declined on
+    20 September 2026: it solves wanting to run simultaneously, and what we have is wanting not to collide. Use
+    `--only <app>` when one app answers the question — four and a half minutes rather than fourteen — and the lock
+    for the rest.
 - **The harness should clear its own leftovers when it starts.** It removes its scratch workspace when a run
   finishes normally and not when a run is killed, and a run gets killed whenever someone spots a problem early —
   which is the harness working as intended. Fifteen abandoned workspaces reached 18GB on a disk with 17GB free
