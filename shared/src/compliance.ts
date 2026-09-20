@@ -314,6 +314,22 @@ export const ComplianceResultSchema = z.object({
       fixedFindings: z.number().int(),
     })
     .optional(),
+  /**
+   * What SecureVibe could actually read. Printed beside every score, because a score without it can be read as
+   * a verdict on code nobody looked at — which is how an unexamined Python app came to be reported as
+   * "0 of 106 verified" on 20 September 2026.
+   */
+  codeCoverage: z
+    .object({
+      codeFiles: z.number().int(),
+      filesRead: z.number().int(),
+      languages: z.array(z.object({ language: z.string(), files: z.number().int(), read: z.boolean() })),
+      unreadLanguages: z.array(z.string()),
+      /** False when most of the app's code was not read: the requirements were not assessed, not failed. */
+      assessable: z.boolean(),
+      summary: z.string(),
+    })
+    .optional(),
   overall: z.object({
     rating: z.enum(['good', 'needs-attention', 'at-risk']),
     headline: z.string(), // one plain-language sentence

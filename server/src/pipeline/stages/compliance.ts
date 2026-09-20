@@ -13,6 +13,8 @@ import { finishStage, startStage } from '../stage-helpers.js';
 import { buildScanContext, type PipelineCtx } from '../types.js';
 import { saveComplianceInputs, type SavedComplianceInputs } from '../../verification/index.js';
 import { humanReviewIsCurrent } from '../human-review.js';
+import { summariseCodeCoverage } from '../../compliance/code-coverage.js';
+import { DEFAULT_IGNORE, listAppFiles } from '../../scanners/sast/files.js';
 
 async function staleDocFiles(ctx: PipelineCtx): Promise<Set<string>> {
   const stale = new Set<string>();
@@ -110,8 +112,16 @@ export async function runComplianceStage(ctx: PipelineCtx): Promise<StageResult>
     } catch (err) {
       ctx.log('compliance', `The results could not be saved for later report refreshes: ${err instanceof Error ? err.message : String(err)}`);
     }
+    /**
+     * What the scanners could read, worked out from the app folder rather than from any one scanner's tally:
+     * a scanner that read nothing would otherwise report nothing, and the gap would be invisible.
+     */
+    const codeCoverage = summariseCodeCoverage(listAppFiles(ctx.appDir, [...DEFAULT_IGNORE, ...scanCtx.ignore]).map((f) => f.relPath));
+    if (!codeCoverage.assessable) ctx.log('compliance', codeCoverage.summary);
+
     const outcome = await evaluateCompliance({
       ...automated,
+      codeCoverage,
       design: ctx.design,
       ...(ctx.profile ? { profile: ctx.profile } : {}),
       attestations: ctx.project.attestations,

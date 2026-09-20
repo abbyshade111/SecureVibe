@@ -6,6 +6,7 @@
  * pipeline can pass its richer objects unchanged (ProbeResult from scanners/dast is assignable to ProbeResultLike).
  */
 import type { ComplianceResult, Evidence } from '@shared/compliance.js';
+import type { CodeCoverage } from './code-coverage.js';
 import type { BuildSpec, DesignArtifacts } from '@shared/design.js';
 import type { Confidence, Finding } from '@shared/findings.js';
 import type { ManifestCheck, TemplateManifest } from '@shared/knowledge.js';
@@ -174,4 +175,6 @@ export interface EvaluateInput {
   previousFindings?: Finding[];
   knowledge: Knowledge;
   frameworks?: Frameworks;
+  /** What the scanners could read; when most of the app was not read, no score is reported. */
+  codeCoverage?: CodeCoverage;
 }

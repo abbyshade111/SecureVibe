@@ -376,9 +376,25 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
   }, emptyCounts());
   const overallApplicable = allAppResults.filter((r) => r.status !== 'not-applicable' && r.status !== 'out-of-level').length;
   const { rating: overallRating } = computeRating(overallCounts, overallApplicable, p1Count > 0, sbd.criticalNo.length > 0);
-  const headline = aisvsEval
+  /**
+   * The headline says what was found, or says that nothing was looked at — never the first dressed as a score.
+   *
+   * "0 of 106 applicable requirements verified passing" is arithmetically true of an application whose code was
+   * never read, and it is read by every person who sees it as *this app failed 106 requirements*. On
+   * 20 September 2026 that sentence was printed about a Python app after the scanners had read one JavaScript
+   * file. A requirement that was not assessed is not a failed one, for the same reason a scan that did not run
+   * is not a clean result.
+   */
+  const scored = aisvsEval
     ? `${asvsEval.summary.counts.pass} of ${asvsEval.summary.applicableCount} applicable Level ${asvsEval.summary.targetLevel} ASVS requirements verified passing; ${aisvsEval.summary.counts.pass} of ${aisvsEval.summary.applicableCount} applicable AISVS requirements verified passing.`
     : `${asvsEval.summary.counts.pass} of ${asvsEval.summary.applicableCount} applicable Level ${asvsEval.summary.targetLevel} ASVS requirements verified passing.`;
+  const coverage = input.codeCoverage;
+  const headline =
+    coverage && !coverage.assessable
+      ? `Not assessed: ${coverage.summary} Without reading the code, SecureVibe cannot say whether this app meets the ${asvsEval.summary.applicableCount} requirements that apply to it, so it does not score them. Anything found below is real; what is absent has not been checked.`
+      : coverage && coverage.unreadLanguages.length > 0
+        ? `${scored} ${coverage.summary}`
+        : scored;
 
   const recTop5 = recommendations.slice(0, 5);
   const deploymentTarget = input.profile?.deployment.target ?? input.runMeta.deploymentTarget;
@@ -389,6 +405,7 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     runId: input.runMeta.runId,
     ...(input.runMeta.previousRunId ? { previousRunId: input.runMeta.previousRunId } : {}),
     sbd,
+    ...(input.codeCoverage ? { codeCoverage: input.codeCoverage } : {}),
     asvs: { summary: asvsEval.summary, results: asvsEval.results },
     ...(aisvsEval ? { aisvs: { summary: aisvsEval.summary, results: aisvsEval.results } } : {}),
     appendixC: { summary: appendixCEval.summary, results: appendixCEval.results },

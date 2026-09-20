@@ -214,6 +214,52 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     expect(row!.manual.whoCanDo).toBe('developer');
   });
 
+  it('does not score an app whose code it could not read, and says so instead', () => {
+    // The failure this guards against, from the first app anybody uploaded from outside: seven Python files
+    // holding the authentication and the database access, one JavaScript file read, and a report that said
+    // "0 of 106 applicable requirements verified passing". Arithmetically true, and read by every person who
+    // sees it as a verdict on code nobody looked at.
+    const { input } = buildInput();
+    input.codeCoverage = {
+      codeFiles: 8,
+      filesRead: 1,
+      languages: [
+        { language: 'Python', files: 7, read: false },
+        { language: 'JavaScript', files: 1, read: true },
+      ],
+      unreadLanguages: ['Python'],
+      assessable: false,
+      summary: "SecureVibe read 1 of this app's 8 code files. It cannot read Python, so the rest was not examined by the code checks.",
+    };
+    const result = evaluateCompliance(input);
+    expect(result.overall.headline).toMatch(/^Not assessed:/);
+    expect(result.overall.headline).toContain('read 1 of this app');
+    expect(result.overall.headline).toContain('does not score them');
+    // The sentence that caused this must not appear at all.
+    expect(result.overall.headline).not.toMatch(/\d+ of \d+ applicable Level \d ASVS requirements verified passing/);
+    // And the fact travels in the report, so a reader of the JSON sees it too.
+    expect(result.codeCoverage?.assessable).toBe(false);
+    expect(ComplianceResultSchema.parse(result).codeCoverage?.filesRead).toBe(1);
+  });
+
+  it('still scores an app it could read, with what it read said beside the score', () => {
+    const { input } = buildInput();
+    input.codeCoverage = {
+      codeFiles: 10,
+      filesRead: 9,
+      languages: [
+        { language: 'TypeScript', files: 9, read: true },
+        { language: 'Shell scripts', files: 1, read: false },
+      ],
+      unreadLanguages: ['Shell scripts'],
+      assessable: true,
+      summary: "SecureVibe read 9 of this app's 10 code files. It cannot read Shell scripts, so the rest was not examined by the code checks.",
+    };
+    const result = evaluateCompliance(input);
+    expect(result.overall.headline).toMatch(/^\d+ of \d+ applicable Level \d ASVS requirements verified passing/);
+    expect(result.overall.headline).toContain('cannot read Shell scripts');
+  });
+
   it('reports the overall headline as "N of M applicable Level L ASVS requirements verified passing" and never says compliant/certified', async () => {
     const { input } = buildInput();
     input.manifestResults = [];

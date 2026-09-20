@@ -120,6 +120,25 @@ building the query recipe: each read this file, each correctly saw the item uncl
   a change that broke it would go unnoticed. Either give `web/` a test run of its own and put it in the checks, or
   move the file where the server suite will pick it up — but not leave a file that looks like coverage and is not.
 
+- **A report that says 0 of 106 when the truth is "we did not look".** The first app anybody handed SecureVibe
+  from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
+  21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
+  verified**, one critical configuration problem and ten high/medium issues. Every one of those ten was in
+  `static/app.js` and `static/index.html`. The static analysis read **1 code file and 1 template**; not one line
+  of Python was examined. The dependency check read **0 packages** because `requirements.txt` is not a lockfile
+  it knows, and then raised `deps.lockfile-missing`. Several configuration findings are npm concepts
+  (`config.ignore-scripts`) asked of an app with no npm. The AI review — the one checker that could have read
+  Python — reviewed all 139 requirements and cited **0 places in the code**.
+  This is the exact failure the project exists to prevent, pointing the other way: not a pass we did not earn,
+  but a damning report we did not earn either. "0 of 106 verified" reads as *this app is catastrophically
+  insecure*; it means *this app was not assessed*. An owner shown that would either despair or, worse, rewrite
+  working code to chase findings that are artifacts of assuming Node.
+  Three things, in order. **Say what was read**: every report needs the file count and the languages it covered,
+  beside the score, so "1 of 12 files" is visible. **Refuse to score what was not read**: an app whose code the
+  scanners cannot parse gets "not assessed" rather than zero, on the same principle as a skipped test not being
+  a failing one. **Then decide about languages** — Python and plain JavaScript at least, or say plainly on the
+  upload page which languages are actually checked, before somebody spends twenty cents finding out.
+
 - **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
