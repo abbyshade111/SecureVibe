@@ -18,6 +18,7 @@ import type { EntitySpec } from '@shared/profile.js';
 import type { Recipe, RecipeContext, RecipeEmission, RecipeInstance, RecipeRoute } from '../types.js';
 import { emitMigration, emitRepo, emitRoutes, emitSchema } from './emit.js';
 import { planEntity, type EntityPlan } from './fields.js';
+import { queryPlanOf } from './query.js';
 import { emitTest, recordTypeRequirements } from './tests.js';
 import { emitFormView, emitListView, emitShowView } from './views.js';
 
@@ -78,13 +79,32 @@ function describe(plan: EntityPlan): string {
   if (encrypted.length > 0) {
     sentences.push(`${encrypted.map((f) => f.field.label).join(' and ')} ${encrypted.length === 1 ? 'is' : 'are'} scrambled in the database, so reading the file gives nothing away.`);
   }
+  const query = queryPlanOf(plan);
+  const asks: string[] = [];
+  if (query.searchable.length > 0) asks.push(`searched by ${query.searchable.map((c) => c.label.toLowerCase()).join(' or ')}`);
+  if (query.filterable.length > 0) asks.push(`narrowed down by ${query.filterable.map((c) => c.label.toLowerCase()).join(' or ')}`);
+  if (query.sortable.length > 0) asks.push('put in any order you like');
+  if (asks.length > 0) {
+    sentences.push(`The list can be ${asks.length === 1 ? asks[0]! : `${asks.slice(0, -1).join(', ')} and ${asks.at(-1)!}`}.`);
+  }
   sentences.push(`One person can keep up to ${plan.quota} ${plural}, and a list never returns more than one page at a time.`);
   return sentences.join(' ');
 }
 
+/**
+ * Fields the list would otherwise have offered to search or narrow down by, left out because the person marked them
+ * sensitive. Worth saying in the app rather than only in a report: a missing filter with no explanation reads as a
+ * gap, and the reason is one an owner can weigh.
+ */
+function unsearchableSensitive(plan: EntityPlan): string[] {
+  return plan.fields
+    .filter((f) => f.field.sensitive && (f.control === 'text' || f.control === 'textarea' || f.control === 'select' || f.control === 'checkbox'))
+    .map((f) => f.field.label);
+}
+
 export const recordTypeRecipe: Recipe<RecordTypeInstance> = {
   id: 'record-type',
-  version: '4',
+  version: '5',
   title: 'A record type with list, add, edit and delete',
   summary:
     'Adds pages and a data interface for one kind of record the person described, with sign-in, ownership checks, ' +
@@ -120,7 +140,13 @@ export const recordTypeRecipe: Recipe<RecordTypeInstance> = {
     mounted.push('${plan.entity.name}');
   }`,
       requirements: recordTypeRequirements(plan),
-      notes: plan.droppedFields.map((d) => `${plan.entity.label}: the field "${d.name}" was left out because ${d.reason}.`),
+      notes: [
+        ...plan.droppedFields.map((d) => `${plan.entity.label}: the field "${d.name}" was left out because ${d.reason}.`),
+        ...unsearchableSensitive(plan).map(
+          (label) =>
+            `${plan.entity.label}: you can see ${label.toLowerCase()} on the page, but the list cannot be searched, sorted or narrowed down by it, because you marked it sensitive — answering those questions would let somebody work out its value without being allowed to read it.`,
+        ),
+      ],
     };
   },
 };

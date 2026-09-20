@@ -12,6 +12,7 @@
  */
 import type { RecipeRequirement } from '../types.js';
 import type { EntityPlan, FieldPlan } from './fields.js';
+import { queryPlanOf, type QueryPlan } from './query.js';
 
 /** One test the recipe emits: its name, the code of the `test(...)` call, and what (if anything) it evidences. */
 export interface EmittedTest {
@@ -313,10 +314,143 @@ ${sensitive.map((f) => `      assert.ok(!(${JSON.stringify(f.prop)} in r), '${f.
     });
   }
 
+  tests.push(...queryTests(plan, queryPlanOf(plan)));
+
   return tests;
 }
 
 /** The requirement mapping for one record type: every emitted test that says what it evidences. */
+/**
+ * Tests for the list's search, sort, filter and paging.
+ *
+ * The one that matters is V8.2.2. A list that forgets its ownership clause looks perfectly normal, and the way it
+ * usually gets forgotten is that somebody adds search. So the test does not check that search works; it checks that
+ * search cannot be used to reach a record belonging to somebody else, by searching for the exact text of one.
+ */
+function queryTests(plan: EntityPlan, query: QueryPlan): EmittedTest[] {
+  const name = plan.entity.name;
+  const tests: EmittedTest[] = [];
+  const signIn = plan.adminOnly ? 'users.admin' : 'users.member';
+  const searchField = query.searchable[0];
+
+  tests.push({
+    name: `V1.2.4 ${name}: what a person types reaches the database as a bound value, never as part of the query, so an injection attempt is only ever text`,
+    requirement: {
+      standard: 'asvs',
+      id: 'V1.2.4',
+      proves:
+        'Search terms, sort names, directions and filter values that look like SQL are treated as text or refused: the table is still there afterwards, the records are unchanged, and nothing a person typed became part of a statement.',
+    },
+    code: `  test('V1.2.4 ${name}: what a person types reaches the database as a bound value, never as part of the query, so an injection attempt is only ever text', async () => {
+    const jar = await app.login(${signIn});
+    await createOne(jar);
+    const before = await countList(jar);
+    assert.ok(before >= 1, 'there must be something to lose before we try to lose it');
+
+    // Each of these is a real attempt, not a lookalike: a comment, a quote break, a dropped table, a tautology.
+    const attempts = [
+      '?search=%25',
+      "?search=' OR '1'='1",
+      "?search=x'); DROP TABLE ${plan.table}; --",
+      '?sort=id; DROP TABLE ${plan.table}',
+      '?sort=(SELECT 1)',
+      '?direction=asc, id',
+      '?search=' + encodeURIComponent('_'),
+    ];
+    for (const attempt of attempts) {
+      const res = await app.fetch(\`\${API}\${attempt}\`, { jar });
+      const body = await res.text();
+      // Refused or answered, both are fine. Answering with somebody else's data, or a 500, is not.
+      assert.ok(res.status === 200 || res.status === 400, \`\${attempt} answered \${res.status}: \${body.slice(0, 120)}\`);
+    }
+
+    // The table is still there and still holds what it held.
+    const after = await countList(jar);
+    assert.equal(after, before, 'no attempt may add or remove a record');
+    const plain = await app.json('GET', API, undefined, jar);
+    assert.equal(plain.status, 200, 'the list must still work afterwards');
+    await plain.text();
+  });`,
+  });
+
+  tests.push({
+    name: `V2.2.1 ${name}: a way of ordering or narrowing the list that it does not offer is checked against what is expected before the app uses it`,
+    requirement: {
+      standard: 'asvs',
+      id: 'V2.2.1',
+      proves:
+        'The list only accepts the questions it offers: a key it does not know is refused, and a sort column or direction outside its allow-list is ignored with a sentence saying so rather than reaching the query.',
+    },
+    code: `  test('V2.2.1 ${name}: a way of ordering or narrowing the list that it does not offer is checked against what is expected before the app uses it', async () => {
+    const jar = await app.login(${signIn});
+    // A key the list does not have is refused outright, because the schema names every one it accepts.
+    for (const query of ['?nonsense=1', '?owner_id=someone-else', '?direction=sideways']) {
+      const res = await app.fetch(\`\${API}\${query}\`, { jar });
+      await res.text();
+      assert.equal(res.status, 400, \`\${query} must be refused (got \${res.status})\`);
+    }
+    // A sort column that exists as a key but is not one this list offers is ignored, and the list still answers.
+    const res = await app.json('GET', \`\${API}?sort=owner_id\`, undefined, jar);
+    const body = (await res.json()) as { ignored?: string[]; sort?: string };
+    assert.equal(res.status, 200, 'an impossible sort must not break the list');
+    assert.notEqual(body.sort, 'owner_id', 'the list must not sort by a column it does not offer');
+    assert.ok((body.ignored ?? []).length > 0, 'and it must say that it did something else');
+  });`,
+  });
+
+  if (plan.ownerScoped && searchField) {
+    tests.push({
+      name: `V8.2.2 ${name}: searching and sorting cannot reach another person\u2019s data, because the ownership clause is part of every query`,
+      requirement: {
+        standard: 'asvs',
+        id: 'V8.2.2',
+        proves: `Searching for the exact text of somebody else's ${plan.entity.label.toLowerCase()} returns nothing, and neither does sorting or paging past it: the scope is chosen from how the record type was described, not by the code calling the list.`,
+      },
+      // The value searched for is the other person's own, so a scope that has been dropped shows up immediately.
+      code: `  test('V8.2.2 ${name}: searching and sorting cannot reach another person${'\u2019'}s data, because the ownership clause is part of every query', async () => {
+    const theirs = await app.login(users.member2);
+    const secret = 'zzq-' + Math.random().toString(36).slice(2, 10);
+    const created = await app.json('POST', API, { ...PAYLOAD_A, ${JSON.stringify(searchField.prop)}: secret }, theirs);
+    if (created.status !== 201) {
+      // Some record types cannot take arbitrary text in that field; fall back to their own sample record.
+      await created.text();
+      await app.json('POST', API, PAYLOAD_A, theirs);
+    } else {
+      await created.text();
+    }
+
+    const mine = await app.login(users.member);
+    for (const query of ['?search=' + encodeURIComponent(secret), '?search=' + encodeURIComponent(secret) + '&sort=${searchField.column}', '?page=1', '?page=2']) {
+      const res = await app.json('GET', \`\${API}\${query}\`, undefined, mine);
+      const body = (await res.json()) as { records?: { id: string }[] };
+      assert.equal(res.status, 200, \`\${query} must answer\`);
+      for (const record of body.records ?? []) {
+        assert.ok(!JSON.stringify(record).includes(secret), \`\${query} returned another person's record\`);
+      }
+    }
+  });`,
+    });
+  }
+
+  if (searchField) {
+    tests.push({
+      name: `${name}: searching narrows the list to what matches, and clearing it brings the rest back`,
+      code: `  test('${name}: searching narrows the list to what matches, and clearing it brings the rest back', async () => {
+    const jar = await app.login(${signIn});
+    const all = await countList(jar);
+    const absent = await app.json('GET', \`\${API}?search=\${encodeURIComponent('zzq-nothing-has-this')}\`, undefined, jar);
+    const body = (await absent.json()) as { records: unknown[]; total?: number };
+    assert.equal(absent.status, 200);
+    assert.equal(body.records.length, 0, 'a search for something absent must match nothing');
+    // Measured as a change rather than against a number: test mode seeds a record of its own.
+    assert.equal(await countList(jar), all, 'clearing the search brings the list back to what it was');
+  });`,
+    });
+  }
+
+  return tests;
+}
+
 export function recordTypeRequirements(plan: EntityPlan): RecipeRequirement[] {
   return recordTypeTests(plan)
     .filter((t): t is EmittedTest & { requirement: NonNullable<EmittedTest['requirement']> } => t.requirement !== undefined)
@@ -364,6 +498,21 @@ describe('${plan.entity.name}', () => {
   after(async () => {
     await app?.stop();
   });
+
+  /** One ${plan.entity.label.toLowerCase()}, through its own interface. */
+  async function createOne(jar: CookieJar): Promise<void> {
+    const res = await app.json('POST', API, PAYLOAD_A, jar);
+    await res.text();
+    assert.equal(res.status, 201, \`a ${plan.entity.label.toLowerCase()} must be created (got \${res.status})\`);
+  }
+
+  /** How many the list says there are. Read from the list rather than counted in the test. */
+  async function countList(jar: CookieJar, query = ''): Promise<number> {
+    const res = await app.json('GET', \`\${API}\${query}\`, undefined, jar);
+    const body = (await res.json()) as { total?: number; records?: unknown[] };
+    assert.equal(res.status, 200, \`the list must answer (got \${res.status})\`);
+    return body.total ?? (body.records ?? []).length;
+  }
 
 ${recordTypeTests(plan)
   .map((t) => t.code)

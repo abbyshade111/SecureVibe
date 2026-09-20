@@ -69,8 +69,60 @@ export function emitListView(plan: EntityPlan): string {
     <a class="button button-secondary" href="/reports${plan.base}">Report</a>` : ''
   }
     <a class="button button-secondary" href="/charts${plan.base}">Chart</a></p>
+  <%
+    /* Everything the person asked for travels in the links and the form below, so paging keeps the search. */
+    const asked = new URLSearchParams();
+    if (applied.search) asked.set('search', applied.search);
+    if (applied.sort) asked.set('sort', applied.sort);
+    if (applied.direction) asked.set('direction', applied.direction);
+    for (const f of applied.filters) asked.set(f.column, f.value);
+    const keep = (extra) => { const p = new URLSearchParams(asked); for (const k in extra) p.set(k, extra[k]); return p.toString(); };
+  %>
+  <form method="get" action="${plan.base}" class="filters">
+    <div class="field">
+      <label for="search">Search</label>
+      <input id="search" name="search" type="search" value="<%= applied.search %>"<% if (searchableLabels.length > 0) { %> placeholder="<%= searchableLabels.join(', ') %>"<% } %>>
+    </div>
+    <% for (const f of filterChoices) { %>
+      <div class="field">
+        <label for="filter-<%= f.column %>"><%= f.label %></label>
+        <select id="filter-<%= f.column %>" name="<%= f.column %>">
+          <option value="">Any</option>
+          <% for (const choice of f.choices) { %>
+            <option value="<%= choice %>"<% if (applied.filters.some((a) => a.column === f.column && a.value === choice)) { %> selected<% } %>><%= choice %></option>
+          <% } %>
+        </select>
+      </div>
+    <% } %>
+    <div class="field">
+      <label for="sort">Order by</label>
+      <select id="sort" name="sort">
+        <% for (const c of sortableColumns) { %>
+          <option value="<%= c.column %>"<% if (c.column === applied.sort) { %> selected<% } %>><%= c.label %></option>
+        <% } %>
+      </select>
+    </div>
+    <div class="field">
+      <label for="direction">Direction</label>
+      <select id="direction" name="direction">
+        <option value="desc"<% if (applied.direction === 'desc') { %> selected<% } %>>Largest or newest first</option>
+        <option value="asc"<% if (applied.direction === 'asc') { %> selected<% } %>>Smallest or oldest first</option>
+      </select>
+    </div>
+    <button type="submit" class="button">Show</button>
+    <% if (applied.search || applied.filters.length > 0) { %><a class="button button-secondary" href="${plan.base}">Clear</a><% } %>
+  </form>
+  <%
+    /* Anything asked for and not done, in the app's own words. Not an error: the list is still shown. */
+  %>
+  <% if (applied.ignored.length > 0) { %>
+    <ul class="muted" data-ignored="<%= applied.ignored.length %>">
+      <% for (const line of applied.ignored) { %><li><%= line %></li><% } %>
+    </ul>
+  <% } %>
+  <p class="total" data-total="<%= total %>"><%= total %> ${escapeHtml(listTitle.toLowerCase())}<% if (applied.search || applied.filters.length > 0) { %> match what you asked for<% } %>.</p>
   <% if (records.length === 0) { %>
-    <p class="muted">Nothing here yet.</p>
+    <p class="muted"><% if (applied.search || applied.filters.length > 0) { %>Nothing matches what you asked for.<% } else { %>Nothing here yet.<% } %></p>
   <% } else { %>
     <table class="table">
       <thead><tr>${headers || '<th>Record</th>'}<th>Updated</th></tr></thead>
@@ -84,8 +136,8 @@ ${firstCellFallback}${cells}${cells ? '\n' : ''}            <td><%= formatDate(r
     </table>
   <% } %>
   <p class="pager">
-    <% if (page > 1) { %><a href="${plan.base}?page=<%= page - 1 %>">Previous</a><% } %>
-    <% if (hasMore) { %><a href="${plan.base}?page=<%= page + 1 %>">Next</a><% } %>
+    <% if (page > 1) { %><a href="${plan.base}?<%= keep({ page: String(page - 1) }) %>">Previous</a><% } %>
+    <% if (hasMore) { %><a href="${plan.base}?<%= keep({ page: String(page + 1) }) %>">Next</a><% } %>
   </p>
 </section>
 `;
