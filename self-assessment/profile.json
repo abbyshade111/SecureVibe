@@ -1,0 +1,60 @@
+{
+  "app": {
+    "name": "SecureVibe",
+    "tagline": "Design, build and verify a secure web application without writing security code yourself",
+    "description": "SecureVibe is a local-first tool that walks a non-technical person through describing a web application, designs it following the OWASP Secure by Design Framework, generates the code with Claude, and verifies the result against OWASP ASVS and AISVS. This profile describes SecureVibe itself, assessed the same way it assesses the applications it builds.",
+    "category": "internal-tool",
+    "entities": [],
+    "keyFeatures": [
+      "Guided wizard that turns plain-language answers into a security design",
+      "Generates a hardened web application with Claude, inside a fixed security contract",
+      "Runs static analysis, dependency checks, secret scanning, a dynamic scan and an AI review on what was built",
+      "Produces a compliance report and a security report for the generated application",
+      "Runs its own verification pipeline against itself (this file)"
+    ]
+  },
+  "users": {
+    "audience": "just-me",
+    "requiresSignIn": false,
+    "roles": [],
+    "expectedUserCount": "1",
+    "registration": "admin-created",
+    "adminMfa": false
+  },
+  "data": {
+    "categories": ["credentials", "business-confidential"],
+    "aboutOtherPeople": false,
+    "retention": "keep-until-deleted",
+    "region": "unsure"
+  },
+  "capabilities": {
+    "fileUploads": false,
+    "uploadKinds": [],
+    "aiAssistant": {
+      "enabled": true,
+      "purpose": "generates and reviews application code",
+      "dataItCanSee": "users-own-records",
+      "canTakeActions": true,
+      "storesHistory": false
+    },
+    "email": false,
+    "externalApis": [
+      { "name": "Anthropic API", "purpose": "generates and reviews the code of applications the user designs", "sendsPersonalData": false },
+      { "name": "npm registry", "purpose": "installs the packages a generated application depends on", "sendsPersonalData": false }
+    ],
+    "scheduledJobs": false,
+    "publicApi": false,
+    "payments": false
+  },
+  "deployment": {
+    "target": "local-only",
+    "owner": { "name": "The person running SecureVibe on this computer", "contactEmail": "owner@example.invalid" },
+    "businessImpact": "normal"
+  },
+  "meta": {
+    "mode": "guided",
+    "inferredFields": [],
+    "notSureFields": [],
+    "confirmed": true
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "$comment": "Reviewed decisions for scanner findings on SecureVibe's own code (npm run self-assess). Several rules encode conventions of the applications SecureVibe generates (route registry, database wrapper, http-client) that SecureVibe's own server does not use; others fire on deliberate test values. Each entry says why. Reviewed with AI assistance on 2026-09-17; a human maintainer should confirm them.",
+  "reviewedBy": "Claude (AI-assisted review) \u2014 pending confirmation by a human maintainer",
+  "reviewedAt": "2026-09-17",
+  "decisions": [
+    {
+      "ruleId": "sast.route-outside-registry",
+      "paths": [
+        "server/src/**"
+      ],
+      "status": "false-positive",
+      "reason": "The route registry is a convention of generated apps. SecureVibe mounts its whole API under /api behind requireSession, csrfCheck and requireJsonBody (server/src/app.ts), after the global host allow-list, origin check and rate limit."
+    },
+    {
+      "ruleId": "sast.req-body-unvalidated",
+      "paths": [
+        "server/src/**"
+      ],
+      "status": "false-positive",
+      "reason": "Every flagged use passes a route id to the project store, which rejects anything that is not a well-formed project or run id (isProjectId / isRunId in server/src/store) and confines paths to the workspace. Request bodies are parsed with zod schemas; the startup token is compared in constant time."
+    },
+    {
+      "ruleId": "sast.fs-user-path",
+      "paths": [
+        "server/src/api/**"
+      ],
+      "status": "false-positive",
+      "reason": "The paths are built by ProjectStore from validated ids and confined with confinePath; artifact names are looked up in the run's own artifact list before any file is opened."
+    },
+    {
+      "ruleId": "sast.path-join-user-input",
+      "paths": [
+        "server/src/api/**"
+      ],
+      "status": "false-positive",
+      "reason": "appDir comes from ProjectStore.paths(), which validates the project id; the joined names are fixed strings."
+    },
+    {
+      "ruleId": "sast.child-process-exec",
+      "paths": [
+        "server/src/**"
+      ],
+      "status": "accepted",
+      "reason": "Running the tools it assesses (node, npm, tsc, the generated app) is SecureVibe's purpose. Every call uses an argument array with shell: false; generated code runs under Node's permission model with an environment allow-list, timeouts and process-group cleanup (server/src/pipeline/process.ts). main.ts opens the browser with SecureVibe's own fixed URL.",
+      "compensatingControl": "Node permission model (file access limited to the project folder), environment allow-list, timeouts, stale-process sweep at startup. Network access of generated code is not restricted; the reports say so."
+    },
+    {
+      "ruleId": "sast.tls-reject-unauthorized-false",
+      "paths": [
+        "server/src/scanners/dast/**"
+      ],
+      "status": "accepted",
+      "reason": "The runtime scanner connects only to the application under test on 127.0.0.1, which uses its own self-signed certificate in the TLS test phase. No external host is contacted with verification disabled."
+    },
+    {
+      "ruleId": "sast.hardcoded-secret",
+      "paths": [
+        "server/src/scanners/dast/probes/**"
+      ],
+      "status": "false-positive",
+      "reason": "Deliberately wrong or weak passwords that the runtime probes send to the app under test to check it refuses them. They are not credentials for anything."
+    },
+    {
+      "ruleId": "secrets.password-assignment",
+      "paths": [
+        "server/src/scanners/dast/probes/**"
+      ],
+      "status": "false-positive",
+      "reason": "Deliberately wrong or weak probe passwords (see sast.hardcoded-secret)."
+    },
+    {
+      "ruleId": "secrets.high-entropy-assignment",
+      "paths": [
+        "server/src/scanners/dast/probes/**"
+      ],
+      "status": "false-positive",
+      "reason": "Deliberately wrong probe passwords (see sast.hardcoded-secret)."
+    },
+    {
+      "ruleId": "sast.fetch-outside-http-client",
+      "paths": [
+        "server/src/**",
+        "web/src/**"
+      ],
+      "status": "false-positive",
+      "reason": "The shared http-client is a convention of generated apps. SecureVibe's server makes one outbound request of its own (a HEAD to registry.npmjs.org during preflight) besides the Anthropic SDK; the web UI only calls its own origin with same-origin credentials."
+    },
+    {
+      "ruleId": "lint.security/detect-unsafe-regex",
+      "paths": [
+        "server/src/**",
+        "web/vite.config.ts"
+      ],
+      "status": "false-positive",
+      "reason": "Each flagged pattern was reviewed: they are anchored or bounded, contain no nested unbounded quantifiers, and run on SecureVibe's own data (framework ids, TAP lines, tool version output, host headers limited by Node's header size)."
+    },
+    {
+      "ruleId": "sast.href-from-data",
+      "paths": [
+        "web/src/pages/**"
+      ],
+      "status": "false-positive",
+      "reason": "The link is built by artifactUrl(), which points at SecureVibe's own /api path and URL-encodes the artifact name; the project id comes from the router and is validated by the server."
+    },
+    {
+      "ruleId": "sast.timing-unsafe-compare",
+      "paths": [
+        "server/src/api/projects.ts"
+      ],
+      "status": "false-positive",
+      "reason": "Compares two design-profile hashes to detect a stale design. Neither value is a secret."
+    },
+    {
+      "ruleId": "sast.helmet-disabled-csp",
+      "paths": [
+        "server/src/app.ts"
+      ],
+      "status": "false-positive",
+      "reason": "helmet's static CSP is switched off because cspMiddleware (next line in app.ts) sets a stricter policy with a per-request nonce."
+    },
+    {
+      "ruleId": "sast.inline-script-in-view",
+      "paths": [
+        "web/index.html"
+      ],
+      "status": "false-positive",
+      "reason": "The only script is an external module whose nonce placeholder is replaced with the per-request nonce when the server sends the page (server/src/app.ts)."
+    },
+    {
+      "ruleId": "config.secrets-strength",
+      "status": "false-positive",
+      "reason": "Not applicable: this check looks for the session, token and field-encryption keys of a generated app. SecureVibe keeps its session keys in memory for the life of the process; its .env holds only optional settings and the Anthropic key."
+    },
+    {
+      "ruleId": "config.protected-files-unchanged",
+      "status": "false-positive",
+      "reason": "Not applicable: protected-file hashes are recorded when SecureVibe scaffolds an app. SecureVibe itself is not generated."
+    },
+    {
+      "ruleId": "config.provenance-present",
+      "status": "false-positive",
+      "reason": "Not applicable: securevibe.provenance.json records which files of a generated app were written by AI. SecureVibe's own source is not generated by its pipeline."
+    },
+    {
+      "ruleId": "config.package-json-unmodified",
+      "status": "false-positive",
+      "reason": "Not applicable: this compares a generated app's package.json with the hash recorded at scaffold time."
+    },
+    {
+      "ruleId": "dast.errors.404-generic",
+      "status": "false-positive",
+      "reason": "SecureVibe is a single-page app. Without a session every page path answers 401 with the same fixed 'open the startup link' page, which never echoes the path; with a session, unknown pages are handled by the app's client-side router. Unknown API paths answer a generic JSON 404 and other unknown requests a plain 'Not found.'."
+    },
+    {
+      "ruleId": "dast.input.proto-pollution",
+      "status": "false-positive",
+      "reason": "The probe's request answered 401 (no session), not 500. SecureVibe uses Express's 'simple' query parser, so __proto__[x] stays a flat string key, and JSON bodies are parsed with JSON.parse, which does not modify prototypes."
+    },
+    {
+      "ruleId": "dast.session.logout-visible",
+      "status": "false-positive",
+      "reason": "SecureVibe's pages are rendered by its JavaScript app, so the static HTML the probe reads has no form. Every signed-in page shows a 'Sign out' button in the top bar (web/src/components/Layout.tsx) that posts to /auth/logout with the CSRF token."
+    },
+    {
+      "ruleId": "deps.deprecated-package",
+      "status": "accepted",
+      "reason": "glob@10 and prebuild-install@7 come only through libxmljs2, the optional XML support of @cyclonedx/cyclonedx-npm (the SBOM generator). SecureVibe writes JSON bills of materials only and installs with ignore-scripts, so that code is not built or run. Revisit when @cyclonedx/cyclonedx-npm is updated.",
+      "compensatingControl": "Installs run with ignore-scripts=true; the dependency check still reports any known vulnerability in these packages."
+    },
+    {
+      "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+      "paths": [
+        "server/src/scanners/dast/**"
+      ],
+      "status": "accepted",
+      "reason": "Same code as sast.tls-reject-unauthorized-false: the runtime scanner only connects to the app under test on 127.0.0.1, which uses its own self-signed certificate in the TLS test phase."
+    },
+    {
+      "ruleId": "sast.href-from-data",
+      "paths": [
+        "web/src/components/AppPreview.tsx"
+      ],
+      "status": "false-positive",
+      "reason": "The preview link comes from SecureVibe's own server (GET /api/projects/:id/preview) and is only rendered when it matches ^http://localhost:<port>/$ (previewUrl in AppPreview.tsx), so it can never point anywhere but an app preview on this computer."
+    }
+  ]
+}
