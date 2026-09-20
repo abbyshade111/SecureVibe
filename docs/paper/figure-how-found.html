@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Problems Were Found</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --by-use: #d03b3b;     /* found by a person using it */
+    --by-tests: #007a33;   /* found by the automated suites */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --by-use: #e05252; --by-tests: #17a34a;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --by-use: #e05252; --by-tests: #17a34a;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 22px; font-size: .9rem; }
+  .hero { display: flex; gap: 28px; flex-wrap: wrap; margin: 0 0 26px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 14px 18px; flex: 1 1 220px; }
+  .stat b { display: block; font-size: 2.1rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .85rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  td:first-child { color: var(--text-primary); }
+  td.who { white-space: nowrap; color: var(--text-secondary); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; vertical-align: 1px; }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>How the problems were found</h1>
+  <p class="sub">Every usability failure recorded over three days, and what found it. The automated suites were
+     green throughout.</p>
+
+  <div class="hero">
+    <div class="stat"><b style="color:var(--by-tests)">0</b><span>found by the test suites — 1,075 server tests and 215 template tests, all passing</span></div>
+    <div class="stat"><b style="color:var(--by-use)">13</b><span>found by a person trying to use the thing</span></div>
+  </div>
+
+  <table>
+    <caption style="text-align:left;color:var(--text-muted);font-size:.8rem;padding-bottom:10px">
+      <span class="dot" style="background:var(--by-use)"></span>Found by use &nbsp;·&nbsp; Each blocked or misled somebody mid-task.
+    </caption>
+    <thead><tr><th>What the person was doing</th><th>What happened</th><th>Found by</th></tr></thead>
+    <tbody>
+      <tr><td>Uploading an app to be checked</td><td>A .zip uploaded silently as a single file; the check would have run on compressed bytes and reported it clean</td><td class="who">owner</td></tr>
+      <tr><td>Checking uploaded code</td><td>Forced through the whole design wizard before any check could run</td><td class="who">owner</td></tr>
+      <tr><td>Starting a check</td><td>Approval box ticked, button permanently disabled, no reason shown anywhere</td><td class="who">owner</td></tr>
+      <tr><td>Re-checking an uploaded app</td><td>No route to it from the results page; the two buttons there do other things</td><td class="who">owner</td></tr>
+      <tr><td>Watching a paid run</td><td>No cost shown for the first two minutes — it appeared only after money was spent</td><td class="who">owner</td></tr>
+      <tr><td>Comparing two versions</td><td>Five identical findings listed with no filename to tell them apart</td><td class="who">owner</td></tr>
+      <tr><td>Reading the report</td><td>"0 of 106 requirements verified" on an app whose code was never read</td><td class="who">owner</td></tr>
+      <tr><td>Resuming after credit ran out</td><td>Resume existed, worked, and nothing linked to it</td><td class="who">owner</td></tr>
+      <tr><td>Asking the assistant a question</td><td>No page, no progress, no sign the request arrived</td><td class="who">2nd user</td></tr>
+      <tr><td>Describing a record type</td><td>Red error on clicking into an empty box, before typing anything</td><td class="who">2nd user</td></tr>
+      <tr><td>Answering a follow-up question</td><td>Several answers applied; only one could be given</td><td class="who">2nd user</td></tr>
+      <tr><td>Running one security scan</td><td>"Run this one" navigated to the build page instead</td><td class="who">owner</td></tr>
+      <tr><td>Reading the security page</td><td>A card named only "running the scans" — ambiguous about what it would do</td><td class="who">owner</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">The suites test what the software does, and every one of these is about what a person could
+     reach, understand or trust. A green suite is evidence about behaviour and says nothing about whether the
+     person it was built for can get to it — which matters most precisely when that person is not technical and
+     cannot route around a dead button.</p>
+</div>
+</body>
+</html>

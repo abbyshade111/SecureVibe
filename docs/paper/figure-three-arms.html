@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three Arms</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --pass: #007a33;
+    --ai: #2a78d6;
+    --partial: #c98500;
+    --fail: #d03b3b;
+    --absent: #b6b5ae;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --text-primary: #fff; --text-secondary: #c3c2b7; --text-muted: #96958c;
+      --grid: #35342f; --pass: #17a34a; --ai: #3987e5; --partial: #d99b13; --fail: #e05252; --absent: #5b5a54;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --text-primary: #fff; --text-secondary: #c3c2b7; --text-muted: #96958c;
+    --grid: #35342f; --pass: #17a34a; --ai: #3987e5; --partial: #d99b13; --fail: #e05252; --absent: #5b5a54;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root {
+    background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 880px; margin: 0 auto;
+  }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 20px; font-size: .9rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 18px; font-size: .85rem; color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  table { border-collapse: collapse; width: 100%; margin-top: 22px; font-size: .85rem; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); color: var(--text-secondary); }
+  th:first-child, td:first-child { text-align: left; color: var(--text-primary); }
+  caption { text-align: left; color: var(--text-muted); font-size: .8rem; padding-bottom: 8px; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>What each check could verify</h1>
+  <p class="sub">OWASP ASVS 5.0 requirements that applied to each app, by the strength of evidence found.
+     Arms A and B are the same code; only the path differs.</p>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--pass)"></i>Verified passing</span>
+    <span><i class="sw" style="background:var(--ai)"></i>AI review only</span>
+    <span><i class="sw" style="background:var(--partial)"></i>Partial</span>
+    <span><i class="sw" style="background:var(--fail)"></i>Failed</span>
+    <span><i class="sw" style="background:var(--absent);opacity:.55"></i>Never assessed</span>
+  </div>
+
+  <svg viewBox="0 0 860 260" width="100%" role="img" aria-labelledby="t d">
+    <title id="t">Requirement outcomes across three arms</title>
+    <desc id="d">Arm A verified 104 of 159. Arm B, the same code uploaded, verified 0 of 149, with 77 never assessed. Arm C, a Python app, verified 0 of 106, with 84 never assessed.</desc>
+    <defs>
+      <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+        <rect width="7" height="7" fill="var(--absent)" opacity="0.22"/>
+        <line x1="0" y1="0" x2="0" y2="7" stroke="var(--absent)" stroke-width="2.5"/>
+      </pattern>
+    </defs>
+
+    <!-- scale: 159 requirements = 620px -->
+    <g font-size="13" fill="var(--text-secondary)">
+      <!-- ARM A -->
+      <text x="0" y="34" fill="var(--text-primary)" font-weight="600">Arm A</text>
+      <text x="0" y="52">SecureFit, native</text>
+      <g transform="translate(150,18)">
+        <rect x="0" y="0" width="405" height="30" rx="4" fill="var(--pass)"/>
+        <rect x="407" y="0" width="88" height="30" fill="var(--partial)"/>
+        <rect x="497" y="0" width="123" height="30" rx="4" fill="url(#hatch)"/>
+        <text x="16" y="20" fill="#fff" font-weight="600">104 verified</text>
+        <text x="524" y="20" fill="var(--text-secondary)">32 not assessed</text>
+      </g>
+      <text x="790" y="38" fill="var(--text-muted)">of 159</text>
+
+      <!-- ARM B -->
+      <text x="0" y="122" fill="var(--text-primary)" font-weight="600">Arm B</text>
+      <text x="0" y="140">same code, uploaded</text>
+      <g transform="translate(150,106)">
+        <rect x="0" y="0" width="175" height="30" rx="4" fill="var(--ai)"/>
+        <rect x="177" y="0" width="88" height="30" fill="var(--partial)"/>
+        <rect x="267" y="0" width="14" height="30" fill="var(--fail)"/>
+        <rect x="283" y="0" width="298" height="30" rx="4" fill="url(#hatch)"/>
+        <text x="16" y="20" fill="#fff" font-weight="600">0 verified</text>
+        <text x="310" y="20" fill="var(--text-secondary)">77 not assessed</text>
+      </g>
+      <text x="790" y="126" fill="var(--text-muted)">of 149</text>
+
+      <!-- ARM C -->
+      <text x="0" y="210" fill="var(--text-primary)" font-weight="600">Arm C</text>
+      <text x="0" y="228">Python, uploaded</text>
+      <g transform="translate(150,194)">
+        <rect x="0" y="0" width="35" height="30" rx="4" fill="var(--partial)"/>
+        <rect x="37" y="0" width="50" height="30" fill="var(--fail)"/>
+        <rect x="89" y="0" width="327" height="30" rx="4" fill="url(#hatch)"/>
+        <text x="116" y="20" fill="var(--text-secondary)">84 not assessed</text>
+      </g>
+      <text x="790" y="214" fill="var(--text-muted)">of 106</text>
+    </g>
+  </svg>
+
+  <table>
+    <caption>The same figures. "Verified passing" counts only strong and medium evidence; an AI review never counts as passing.</caption>
+    <thead><tr><th>Arm</th><th>Applicable</th><th>Verified</th><th>AI only</th><th>Partial</th><th>Failed</th><th>Never assessed</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>A — SecureFit, native</td><td>159</td><td>104</td><td>0</td><td>23</td><td>0</td><td>32</td><td>$0.00</td></tr>
+      <tr><td>B — same code, uploaded</td><td>149</td><td>0</td><td>45</td><td>23</td><td>4</td><td>77</td><td>$2.38</td></tr>
+      <tr><td>C — Python, uploaded</td><td>106</td><td>0</td><td>0</td><td>9</td><td>13</td><td>84</td><td>$0.20</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">A and B are byte-identical code, so the drop from 104 verified to 0 is the upload path alone:
+    SecureVibe does not run an app it did not build, so the app's 235 security tests and 74 runtime probes —
+    the only sources of strong evidence — never happen. B and C differ only in language: the AI review assessed
+    45 requirements in TypeScript and none at all in Python.</p>
+</div>
+</body>
+</html>

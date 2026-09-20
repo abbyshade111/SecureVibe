@@ -1,0 +1,39 @@
+arm,app,language,path,run_id,rule_id,severity,title,file,source
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,config.protected-files-unchanged,high,Protected files differ from the template,,config
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,sast.protected-file-modified,high,Protected security file was changed,.env,sast
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,tests.name-does-not-match-requirement,medium,A test may be named after a rule it does not check: authz > V8.2.2 administrators bypass ownership checks only where the registry allows it,,tests
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,tests.security-test-failed,medium,"A built-in security test is failing: authz > V8.2.1 a signed-in user with the wrong role is denied server-side (403 or 404), never validated first",tests/security/authz.test.ts,tests
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,tests.security-test-failed,medium,A built-in security test is failing: authz > V8.2.1 administrators can open the admin pages that members cannot,tests/security/authz.test.ts,tests
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,tests.security-test-failed,medium,A built-in security test is failing: authz > V8.3.1 the authorization decision is made on the server: client-side hints are ignored,tests/security/authz.test.ts,tests
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,tests.security-test-failed,medium,"A built-in security test is failing: themes > the rendered page > UX-01 the page carries the chosen theme, and the default when nothing was chosen",tests/security/theme.test.ts,tests
+A,SecureFit,TypeScript,native,r_20260920213225_5wob3a,config.no-default-admin,info,Default administrator credential present,FIRST-LOGIN.txt,config
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,sast.sql-string-concat,high,Database query built by joining text,src/security/audit.ts,sast
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,sast.sql-string-concat,high,Database query built by joining text,src/security/authz.ts,sast
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,config.gitignore-covers-env,high,.gitignore does not exclude .env,.gitignore,config
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,config.ignore-scripts,medium,npm install scripts are allowed,.npmrc,config
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,config.env-example-present,low,.env.example is missing,.env.example,config
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,ai-review.finding,low,No human code review evidence for AI-generated feature code,src/features/body-weight-training/index.ts,ai-review
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,sast.multiple-writes-no-transaction,low,Several database writes without a transaction,src/features/auth/repo.ts,sast
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,ai-review.finding,info,Record schemas do not verify that endTime is after startTime,src/features/run/schema.ts,ai-review
+B,SecureFit,TypeScript,uploaded,r_20260920214627_uxdbx7,ai-review.finding,info,Recovery codes hashed with keyed HMAC instead of an approved salted password-hashing algorithm,src/security/totp.ts,ai-review
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.innerhtml-assignment,high,HTML set from data with innerHTML,static/app.js,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.innerhtml-assignment,high,HTML set from data with innerHTML,static/app.js,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.innerhtml-assignment,high,HTML set from data with innerHTML,static/app.js,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.innerhtml-assignment,high,HTML set from data with innerHTML,static/app.js,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.innerhtml-assignment,high,HTML set from data with innerHTML,static/app.js,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,config.gitignore-covers-env,high,.gitignore does not exclude .env,.gitignore,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.sensitive-in-get-param,medium,Sensitive value sent in a URL parameter,static/index.html,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.inline-script-in-view,medium,Inline script without the CSP nonce,static/index.html,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.inline-script-in-view,medium,Inline script without the CSP nonce,static/index.html,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,sast.inline-script-in-view,medium,Inline script without the CSP nonce,static/index.html,sast
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,config.env-example-present,low,.env.example is missing,.env.example,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.outside-services-documented,low,The outside services the app may contact are not documented,docs/communications.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.data-classes-documented,low,The kinds of information the app holds are not documented,docs/data-protection.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.dependency-updates-documented,low,How the app's packages are kept up to date is not documented,docs/dependencies.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.logging-documented,low,What the app logs is not documented,docs/logging.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.sign-in-rules-documented,low,The sign-in rules are not documented,docs/SECURITY.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.session-times-documented,low,The sign-in times are not documented,docs/sessions.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,docs.validation-documented,low,The rules for what people may type are not documented,docs/validation.md,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,config.node-engine-pinned,low,Node.js version not pinned,package.json,config
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,deps.unpinned-versions,low,The exact versions of your packages are not written down,requirements.txt,deps
+C,fitness-tracker,Python,uploaded,r_20260920212536_t4aqdm,config.readme-run-instructions,info,README lacks run instructions,README.md,config
