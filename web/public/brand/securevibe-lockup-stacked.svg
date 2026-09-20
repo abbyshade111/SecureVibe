@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="190" viewBox="0 0 240 190" role="img" aria-label="SecureVibe">
+  <title>SecureVibe</title>
+  <g fill="none" stroke="#E0574A" stroke-width="7">
+    <rect x="84" y="46" width="72" height="62" rx="16"/>
+    <path d="M98 46 Q98 15 120 15 Q142 15 142 46" stroke-linecap="round"/>
+  </g>
+  <circle cx="108" cy="72" r="4.6" fill="#E0574A"/>
+  <circle cx="132" cy="72" r="4.6" fill="#E0574A"/>
+  <path d="M106 86 Q120 98 134 86" fill="none" stroke="#E0574A" stroke-width="6" stroke-linecap="round"/>
+  <text x="120" y="160" text-anchor="middle" font-family="Avenir Next, Avenir, Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="38" font-weight="500" fill="#1F2329">Secure<tspan fill="#E0574A">Vibe</tspan></text>
+</svg>

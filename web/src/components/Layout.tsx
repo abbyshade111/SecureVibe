@@ -17,9 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="sv-topbar">
         <div className="sv-topbar-inner">
           <Link className="sv-brand" to="/" aria-label="SecureVibe home">
-            <span className="sv-brand-mark" aria-hidden="true">
-              SV
-            </span>
+            <img className="sv-brand-mark" src="/brand/securevibe-favicon.svg" alt="" width={30} height={30} />
             SecureVibe
           </Link>
           <nav className="sv-nav" aria-label="Main">

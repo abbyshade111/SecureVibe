@@ -236,6 +236,14 @@ img {
   color: var(--color-text);
   text-decoration: none;
 }
+.sv-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.sv-mascot {
+  flex: 0 0 auto;
+}
 .sv-brand-mark {
   width: 30px;
   height: 30px;

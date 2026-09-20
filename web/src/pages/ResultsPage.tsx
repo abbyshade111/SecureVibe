@@ -4,6 +4,7 @@ import { AppPreview } from '../components/AppPreview';
 import { CodeViewer } from '../components/CodeViewer';
 import { FindingCard } from '../components/FindingCard';
 import { VersionDiff } from '../components/VersionDiff';
+import { Mascot, mascotForRating } from '../components/Mascot';
 import type { Finding } from '@shared/findings.js';
 import type { PipelineRun } from '@shared/pipeline.js';
 import type { RunInstructions } from '@shared/api.js';
@@ -349,7 +350,9 @@ export function ResultsPage() {
       {compliance && (
         <Card>
           <h1 style={{ marginBottom: 4 }}>
-            <Badge tone={RATING_TONE[compliance.overall.rating]}>{compliance.overall.rating.replace('-', ' ')}</Badge>
+            <Mascot state={mascotForRating(compliance.overall.rating)}>
+              <Badge tone={RATING_TONE[compliance.overall.rating]}>{compliance.overall.rating.replace('-', ' ')}</Badge>
+            </Mascot>
           </h1>
           <h2>{compliance.overall.headline}</h2>
           <p>{compliance.overall.canIUseIt}</p>

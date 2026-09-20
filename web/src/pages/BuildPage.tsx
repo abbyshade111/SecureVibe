@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Mascot, mascotForRunStatus } from '../components/Mascot';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   STAGE_DESCRIPTIONS,
@@ -499,7 +500,17 @@ export function BuildPage() {
   return (
     <div className="sv-stack">
       {/* A check-only run writes nothing, so calling it a build misdescribes what is happening and what it costs. */}
-      <h1>{uploaded || run.mode === 'verify-only' ? 'Checking your app' : 'Building your app'}</h1>
+      <h1>
+        {mascotForRunStatus(run.status) ? (
+          <Mascot state={mascotForRunStatus(run.status)!} size={48}>
+            {uploaded || run.mode === 'verify-only' ? 'Checking your app' : 'Building your app'}
+          </Mascot>
+        ) : uploaded || run.mode === 'verify-only' ? (
+          'Checking your app'
+        ) : (
+          'Building your app'
+        )}
+      </h1>
       {run.status === 'running' && (
         <Card>
           <ProgressBar percent={percent} label="Build progress" />
