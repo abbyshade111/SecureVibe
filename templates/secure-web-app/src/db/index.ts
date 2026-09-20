@@ -7,6 +7,9 @@ import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { config } from '../config.ts';
 
+// Lives in its own module so the query builder can use it without pulling in the database or the configuration.
+export { clampLimit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './limits.ts';
+
 export type SqlValue = string | number | bigint | Buffer | null;
 export type SqlParam = SqlValue | boolean | undefined | Date;
 
@@ -129,10 +132,4 @@ export function checkpoint(): void {
 
 export function nowIso(): string {
   return new Date().toISOString();
-}
-
-/** Clamp a page size so list queries always carry a bounded LIMIT. */
-export function clampLimit(requested: number | undefined, fallback = 50, max = 200): number {
-  if (requested === undefined || !Number.isFinite(requested)) return fallback;
-  return Math.max(1, Math.min(max, Math.floor(requested)));
 }
