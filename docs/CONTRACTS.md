@@ -401,6 +401,7 @@ alongside a `test`/`dast`/`ast`/`config-value`/`doc-generated` check. Feature id
 | TPL-UPLOAD-04 | Download headers (attachment, RFC 6266, nosniff, sandbox), type from DB | uploads | V5.4.1, V5.4.2, V3.2.1 | dast.upload.download-headers, test "V5.4.2" |
 | TPL-UPLOAD-05 | Ownership on download; per-user quota | uploads | V8.2.2 (partial), V2.3.2 (partial) | dast.upload.non-owner-denied, test "V2.3.2 upload quota" |
 | TPL-UPLOAD-06 | docs/uploads.md | uploads | V5.1.1 (doc) | doc-generated docs/uploads.md |
+| TPL-UPLOAD-07 | Every uploaded file is scanned for known-bad content before it is recorded; infected **and unscannable** are both deleted and refused (ADR-011) | uploads | V5.4.3 | test "V5.4.3" (refused when infected, refused when no scanner, accepted when clean) |
 | TPL-AI-01 | Input normalisation, control-char/allow-list, reserved-token escaping | ai | C2.1.1, C2.1.5, C2.1.7 | test "C2.1.1", "C2.1.5", "C2.1.7", dast.ai.control-chars-rejected |
 | TPL-AI-02 | Encoding smuggling and length rejection (422, no truncation) | ai | C2.1.2, C2.1.4 | test "C2.1.2", "C2.1.4", dast.ai.oversized-input-422 |
 | TPL-AI-03 | Injection ruleset: block + event | ai | C2.1.3, C12.2.1 | test "C2.1.3", dast.ai.injection-blocked-and-logged |

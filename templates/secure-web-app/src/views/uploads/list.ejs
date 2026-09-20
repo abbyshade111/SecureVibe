@@ -5,6 +5,15 @@
     Total storage: <%= Math.round(quotaBytes / 1024 / 1024) %> MB.
   </p>
 
+  <p class="hint"><%= scannerNote %></p>
+
+  <% if (!uploadsPossible) { %>
+    <p class="notice">
+      Uploading is switched off because no virus scanner is set up for this app. Every file has to be checked
+      before it is kept, so until a scanner is running there is nothing to check with and files cannot be
+      accepted. Whoever set this app up can turn it back on by running one.
+    </p>
+  <% } else { %>
   <form method="post" action="/uploads" enctype="multipart/form-data" novalidate>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="field">
@@ -13,6 +22,7 @@
     </div>
     <button type="submit" class="button">Upload</button>
   </form>
+  <% } %>
 
   <h2 class="spaced">Uploaded so far</h2>
   <% if (uploads.length === 0) { %>

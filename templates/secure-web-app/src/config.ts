@@ -141,6 +141,16 @@ const EnvSchema = z.object({
   LOG_FILE: z.string().optional(),
   AUDIT_RETENTION_DAYS: positiveInt('AUDIT_RETENTION_DAYS', 400),
   RETENTION_MONTHS: z.string().optional(),
+  /**
+   * Whether uploaded files are checked for known-bad content, and where the scanner is (ADR-011). The default
+   * is the ClamAV daemon on this machine, so an app is safe without being configured. "off" does not mean
+   * "accept anything": it means uploads are refused, because a file that was not checked does not get in.
+   */
+  MALWARE_SCANNER: z.enum(['clamd', 'off']).optional(),
+  CLAMD_SOCKET: z.string().optional(),
+  CLAMD_HOST: z.string().optional(),
+  CLAMD_PORT: z.string().optional(),
+  CLAMD_TIMEOUT_MS: z.string().optional(),
   SECUREVIBE_TEST_MODE: bool.optional(),
   SECUREVIBE_TEST_PASSWORD: z.string().optional(),
   SECUREVIBE_TEST_TOTP_SEED: z.string().optional(),
@@ -343,6 +353,8 @@ export interface AppConfig extends Omit<z.infer<typeof EnvSchema>, 'SESSION_IDLE
   sessionMaxConcurrent: number;
   fieldKeys: Map<number, Buffer>;
   testMode: boolean;
+  /** Where uploaded files get checked for known-bad content. Never absent: "none" refuses uploads. */
+  malwareScanner: MalwareScanner;
   tlsEnabled: boolean;
   roles: RoleDefinition[];
   adminRole: string;
@@ -369,6 +381,16 @@ export interface AppConfig extends Omit<z.infer<typeof EnvSchema>, 'SESSION_IDLE
     apiKeyPerMin: number;
   };
 }
+
+/**
+ * `clamd` is a real scanner. `test` is the app's own suite standing in for one and checks nothing real. `none`
+ * means uploads are refused outright. There is deliberately no option that accepts a file without checking it.
+ */
+export type MalwareScanner =
+  | { kind: 'clamd'; socketPath: string; timeoutMs: number }
+  | { kind: 'clamd'; host: string; port: number; timeoutMs: number }
+  | { kind: 'test' }
+  | { kind: 'none' };
 
 function optionalNumber(raw: string | undefined, name: string): number | undefined {
   if (raw === undefined || raw === '') return undefined;
@@ -454,6 +476,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionMaxConcurrent: optionalNumber(e.SESSION_MAX_CONCURRENT, 'SESSION_MAX_CONCURRENT') ?? sessionDefaults.max,
     fieldKeys,
     testMode,
+    // Test mode stands a fake in for the daemon so the upload suite can prove both halves — that a file the
+    // scanner calls bad is refused, and that an ordinary one is kept — on a machine with no daemon running.
+    // An explicit MALWARE_SCANNER setting still wins, so the same suite can be pointed at a real clamd.
+    malwareScanner:
+      e.MALWARE_SCANNER === 'off'
+        ? { kind: 'none' }
+        : testMode && e.MALWARE_SCANNER === undefined
+          ? { kind: 'test' }
+          : e.CLAMD_SOCKET && e.CLAMD_SOCKET !== ''
+            ? { kind: 'clamd', socketPath: e.CLAMD_SOCKET, timeoutMs: optionalNumber(e.CLAMD_TIMEOUT_MS, 'CLAMD_TIMEOUT_MS') ?? 30_000 }
+            : {
+                kind: 'clamd',
+                host: e.CLAMD_HOST && e.CLAMD_HOST !== '' ? e.CLAMD_HOST : '127.0.0.1',
+                port: optionalNumber(e.CLAMD_PORT, 'CLAMD_PORT') ?? 3310,
+                timeoutMs: optionalNumber(e.CLAMD_TIMEOUT_MS, 'CLAMD_TIMEOUT_MS') ?? 30_000,
+              },
     tlsEnabled: tlsMode !== 'off',
     roles,
     adminRole,

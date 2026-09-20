@@ -23,6 +23,7 @@ import { renderPage } from '../../lib/views.ts';
 import { CSRF_FIELD, passesOriginCheck } from '../../security/csrf.ts';
 import { emit, onSecurityEvent } from '../../security/events.ts';
 import { defineRoute } from '../../security/routes.ts';
+import { scanForMalware, scannerDescription, uploadsArePossible } from '../../security/malware.ts';
 import { schemas } from '../../security/validate.ts';
 import {
   checkFileType,
@@ -214,22 +215,40 @@ export function receiveUpload(req: Request): Promise<UploadOutcome> {
         }
         out?.end(() => {
           if (rejected) return;
-          const result = recordUpload(id, {
-            ownerId: req.user!.id,
-            originalName,
-            mime: sniffed!,
-            size: bytes,
-            sha256: hash.digest('hex'),
-          });
-          if (!result.ok) {
-            safeUnlink(tmp);
-            emit('upload.rejected', { req, reason: 'quota-bytes' });
-            return cleanupAndFinish(errOutcome(409, 'You have reached your storage limit. Delete a file to make room.'));
-          }
-          commitTempFile(tmp, id);
-          tempPath = undefined;
-          emit('upload.stored', { req, uploadId: id, size: bytes, mime: sniffed });
-          finish({ status: 201, body: { id, originalName, mime: sniffed!, size: bytes } });
+          // ADR-011. The file is checked before it is recorded and before it can be read back, and anything
+          // that is not a clean verdict is deleted and refused — including a verdict we could not obtain. The
+          // two refusals are deliberately different: "this is a virus" and "we could not check this" are not
+          // the same thing to tell somebody about their own file.
+          void (async () => {
+            const verdict = await scanForMalware(tmp);
+            if (verdict.kind !== 'clean') {
+              safeUnlink(tmp);
+              tempPath = undefined;
+              if (verdict.kind === 'infected') {
+                emit('upload.rejected', { req, reason: 'malware' });
+                return cleanupAndFinish(errOutcome(422, 'This file was recognised as a known virus, so it has not been kept.'));
+              }
+              emit('upload.rejected', { req, reason: 'unscannable' });
+              return cleanupAndFinish(errOutcome(503, `${verdict.reason} Your file has not been kept.`));
+            }
+            const result = recordUpload(id, {
+              ownerId: req.user!.id,
+              originalName,
+              mime: sniffed!,
+              size: bytes,
+              sha256: hash.digest('hex'),
+            });
+            if (!result.ok) {
+              safeUnlink(tmp);
+              tempPath = undefined;
+              emit('upload.rejected', { req, reason: 'quota-bytes' });
+              return cleanupAndFinish(errOutcome(409, 'You have reached your storage limit. Delete a file to make room.'));
+            }
+            commitTempFile(tmp, id);
+            tempPath = undefined;
+            emit('upload.stored', { req, uploadId: id, size: bytes, mime: sniffed });
+            finish({ status: 201, body: { id, originalName, mime: sniffed!, size: bytes } });
+          })();
         });
       });
     });
@@ -266,6 +285,10 @@ export function register(router: Router): void {
       maxBytes: config.UPLOAD_MAX_BYTES,
       allowedTypes: config.UPLOAD_ALLOWED_TYPES.split(',').map((t) => t.trim()),
       quotaBytes: config.UPLOAD_USER_QUOTA_BYTES,
+      // Said before somebody picks a file, not after they have waited for an upload to fail. An app whose
+      // scanner is not running has uploads that do not work, and that has to read as something to set up.
+      scannerNote: scannerDescription(),
+      uploadsPossible: uploadsArePossible(),
     });
   });
 
