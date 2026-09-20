@@ -139,6 +139,18 @@ building the query recipe: each read this file, each correctly saw the item uncl
   a failing one. **Then decide about languages** — Python and plain JavaScript at least, or say plainly on the
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
+- **An uploaded app cannot be checked again from the page that shows its results.** The Results page offers
+  "Update to the latest template", which only applies to an app SecureVibe built, and "Rerun the reports", which
+  rewrites the reports from saved results and checks nothing. The action that actually re-runs the checks lives
+  on the build page and nothing links to it, so on 20 September 2026 an owner wanting to re-check an uploaded
+  app after a fix had landed read both buttons, correctly concluded neither was the one, and had to ask. She had
+  hit the identical shape the night before with resume: the action exists, works, and has no route to it from
+  where a person looks for it.
+  Worth fixing as one thing rather than two: the Results page should offer "Check this app again" whenever a
+  re-check is possible, which is always for an uploaded app and after a template update for a built one. And
+  while there, the two existing buttons need to say what they do not do — "Rerun the reports" saying "nothing is
+  checked again" in small grey text under it was not enough to stop somebody reasonably wondering.
+
 - **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost

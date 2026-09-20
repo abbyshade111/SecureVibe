@@ -4,6 +4,8 @@
  * gave, without running any check or AI again.
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { summariseCodeCoverage } from '../compliance/code-coverage.js';
+import { DEFAULT_IGNORE, listAppFiles } from '../scanners/sast/files.js';
 import { join } from 'node:path';
 import { isUploadedApp, type Project } from '@shared/project.js';
 import { UPLOADED_REVIEW_GLOBS } from '../api/uploads.js';
@@ -133,8 +135,19 @@ export async function refreshReportsWithAnswers(deps: RefreshDeps, projectId: st
     );
   }
   const current = reviewIsCurrent(project, deps.store, deps.config);
+  /**
+   * Worked out again from the app folder, because it is not in the saved inputs: it is a fact about the code on
+   * disk rather than about what the scanners returned. Without this, rewriting the reports re-derived the old
+   * headline — an app whose code was never read went back to being scored "0 of 106 verified" the moment
+   * somebody pressed the button that only rewrites the reports. The fix would have looked like it had not
+   * worked, which is worse than the fix not existing.
+   */
+  const codeCoverage = summariseCodeCoverage(
+    listAppFiles(deps.store.paths(project.id).appDir, [...DEFAULT_IGNORE]).map((f) => f.relPath),
+  );
   const evaluation = await evaluateCompliance({
     ...inputs,
+    codeCoverage,
     design: project.design,
     ...(project.profile ? { profile: project.profile as DesignProfile } : {}),
     attestations: project.attestations,
