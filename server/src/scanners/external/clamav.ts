@@ -206,3 +206,80 @@ export function scanTarget(appDir: string, subPath?: string): string {
   const full = `${appDir.replace(/\/$/, '')}/${subPath.replace(/^\//, '')}`;
   return existsSync(full) ? full : appDir;
 }
+
+// --- running it ----------------------------------------------------------------------------------
+
+export interface ClamavRunOptions {
+  /** Whether to run at all. Mandatory for an uploaded app; opt-in for one SecureVibe built (ADR-011). */
+  enabled: boolean;
+  appDir: string;
+  exclude: string[];
+  timeoutMs: number;
+  log: (msg: string) => void;
+  /** Supplied by the caller so this module never imports the process runner. */
+  run: (file: string, args: string[], timeoutMs: number) => Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }>;
+  /** Looks a command up on PATH. Injected for the same reason. */
+  find: (name: string) => string | undefined;
+}
+
+export interface ClamavRunResult {
+  ran: boolean;
+  installed: boolean;
+  seeds: ExternalFindingSeed[];
+  version?: string;
+  /** Present whenever `ran` is false, and always a sentence saying what was not checked. */
+  reason?: string;
+  /** The signature-age sentence, when a scan actually happened. */
+  note?: string;
+}
+
+const NOT_ENABLED = 'skipped: not switched on for this project (it runs by itself only for an app you uploaded)';
+
+/**
+ * Runs the scanner over the app folder and turns what it said into findings.
+ *
+ * Never throws and never returns `ran: true` without having read a real answer. The three unhappy endings —
+ * not installed, no signatures, could not run — each come back as their own sentence, because a report that
+ * says "did not run" without saying why invites the reader to assume it was nothing important.
+ */
+export async function runClamavScan(opts: ClamavRunOptions): Promise<ClamavRunResult> {
+  if (!opts.enabled) return { ran: false, installed: false, seeds: [], reason: NOT_ENABLED };
+
+  const command = CLAMAV_COMMANDS.find((c) => opts.find(c));
+  const file = command ? opts.find(command) : undefined;
+  if (!command || !file) {
+    return { ran: false, installed: false, seeds: [], reason: 'skipped: not installed (ClamAV is an optional extra)' };
+  }
+
+  let version: ClamavVersion = {};
+  try {
+    const v = await opts.run(file, ['--version'], 20_000);
+    version = parseClamavVersion(`${v.stdout}\n${v.stderr}`);
+  } catch {
+    // A version we could not read is not a reason to skip the scan; it is a reason to say so afterwards.
+  }
+
+  opts.log(`[external] running ${command}${version.engine ? ` ${version.engine}` : ''}`);
+  let result: Awaited<ReturnType<ClamavRunOptions['run']>>;
+  try {
+    result = await opts.run(file, clamavArgs(command, opts.appDir, opts.exclude), opts.timeoutMs);
+  } catch (err) {
+    return { ran: false, installed: true, seeds: [], reason: `skipped: ${command} could not be run (${err instanceof Error ? err.message : String(err)})` };
+  }
+  if (result.timedOut) {
+    return { ran: false, installed: true, seeds: [], reason: 'skipped: the virus scanner was stopped at the time limit, so the files were not checked' };
+  }
+
+  const outcome = readClamavExit(result.code ?? 2, result.stdout, result.stderr, opts.appDir);
+  if (outcome.kind === 'error') {
+    return { ran: false, installed: true, seeds: [], version: version.engine, reason: `skipped: ${outcome.reason}` };
+  }
+  const detections = outcome.kind === 'infected' ? outcome.detections : [];
+  return {
+    ran: true,
+    installed: true,
+    seeds: detections.map((d) => toClamavSeed(d, version)),
+    version: version.engine,
+    note: signatureNote(version),
+  };
+}

@@ -18,9 +18,11 @@ import { DEFAULT_IGNORE, ignorePatternToRegex } from '../sast/files.js';
 import type { ScanContext, ScanResult, ScanStatus } from '../types.js';
 import { PARSERS, toFinding, type ExternalFindingSeed, type ExternalToolName } from './parse.js';
 import { NANO_ANALYZER, NANO_COVERS, runNanoAnalyzer, type NanoAnalyzerOptions } from './nano-analyzer.js';
+import { CLAMAV, CLAMAV_COVERS, runClamavScan } from './clamav.js';
 
 export * from './parse.js';
 export * from './nano-analyzer.js';
+export * from './clamav.js';
 
 export const EXTERNAL_TOOL_TIMEOUT_MS = 5 * 60_000;
 
@@ -116,7 +118,7 @@ function gitleaksConfig(run: ToolRunContext): string {
 }
 
 /** The tools found on PATH and run the same way. nano-analyzer is not one of them: it has its own module. */
-const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER>, ToolRun> = {
+const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER | typeof CLAMAV>, ToolRun> = {
   // With metrics off, semgrep needs named rule sets (they are downloaded from the Semgrep registry).
   semgrep: {
     args: (run) => [
@@ -157,7 +159,7 @@ const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER>, ToolRun> = {
 };
 
 /** The command-line arguments SecureVibe passes to a tool (exported for tests). */
-export function externalArgs(name: Exclude<ExternalToolName, typeof NANO_ANALYZER>, run: ToolRunContext): string[] {
+export function externalArgs(name: Exclude<ExternalToolName, typeof NANO_ANALYZER | typeof CLAMAV>, run: ToolRunContext): string[] {
   return RUNS[name].args(run);
 }
 
@@ -183,6 +185,12 @@ export interface RunExternalOptions {
   timeoutMs?: number;
   /** nano-analyzer's settings. Left out, or switched off, means it does not run. */
   nano?: NanoAnalyzerOptions;
+  /**
+   * Whether the virus scanner runs. True for an app the owner uploaded, because code we were handed and will
+   * never run is the clearest untrusted content SecureVibe holds, so asking whether any of it is known-bad is
+   * part of checking it rather than an extra (ADR-011).
+   */
+  clamav?: { enabled: boolean };
 }
 
 /**
@@ -245,7 +253,7 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
     }
 
     ctx.log(`[external] running ${name}${detected.version ? ` ${detected.version}` : ''}`);
-    const spec = RUNS[name as Exclude<ExternalToolName, typeof NANO_ANALYZER>];
+    const spec = RUNS[name as Exclude<ExternalToolName, typeof NANO_ANALYZER | typeof CLAMAV>];
     const workDir = mkdtempSync(join(tmpdir(), 'securevibe-external-'));
     const reportFile = join(workDir, `${name}.json`);
     let seeds: ExternalFindingSeed[] = [];
@@ -341,6 +349,46 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
     } finally {
       removeDir(workDir);
     }
+  }
+
+  // The virus scanner, after the code scanners: it answers a different question from all of them — whether a
+  // file is known-bad content, rather than whether code is badly written — and it is the only one here whose
+  // absence has to be visible, because an uploaded app that was not checked must not read as one that was.
+  {
+    const started = Date.now();
+    const clam = await runClamavScan({
+      enabled: opts.clamav?.enabled === true,
+      appDir: ctx.appDir,
+      exclude: [...DEFAULT_IGNORE, ...ctx.ignore],
+      timeoutMs: opts.timeoutMs ?? EXTERNAL_TOOL_TIMEOUT_MS,
+      log: ctx.log,
+      find: (name) => findOnPath(name),
+      run: async (file, args, timeoutMs) => {
+        const r = await runCommand(file, args, {
+          cwd: ctx.appDir,
+          projectDir: ctx.projectDir,
+          runId: ctx.runId,
+          timeoutMs,
+          maxOutputBytes: 16 * 1024 * 1024,
+          abort: ctx.abort,
+        });
+        return { code: r.code, stdout: r.stdout, stderr: r.stderr, timedOut: r.timedOut };
+      },
+    });
+    for (const seed of clam.seeds) findings.push(toFinding(seed, clam.version));
+    const result: ExternalToolResult = {
+      name: CLAMAV,
+      installed: clam.installed,
+      ran: clam.ran,
+      ...(clam.version ? { version: clam.version } : {}),
+      ...(clam.reason ? { reason: clam.reason } : {}),
+      findingCount: clam.seeds.length,
+      durationMs: Date.now() - started,
+    };
+    tools.push(result);
+    // A clean result is meaningless without the age of the signatures behind it, so that sentence goes into
+    // the coverage row rather than being left in a log nobody reads.
+    coverageRows.push(coverageRow(result, clam.note ? `${CLAMAV_COVERS} ${clam.note}` : CLAMAV_COVERS));
   }
 
   const ranTools = tools.filter((t) => t.ran);

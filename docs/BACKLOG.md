@@ -101,6 +101,16 @@ building the query recipe: each read this file, each correctly saw the item uncl
   mapping from status to mascot so no page invents its own. Keep the words: the picture never replaces the
   sentence that says what is wrong, because an owner who cannot read the face must still be told.
 
+- **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
+  left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
+  demand against an app SecureVibe built — the uploaded-app case runs by itself, and the built-app case has
+  nowhere to be turned on from yet. Second, the reports naming the scanner as something the owner has to keep
+  running: an app whose uploads are scanner-gated has a dependency on a background service, and that belongs in
+  "what only you can do" beside an outside service with no address. Third, and most important to get right,
+  the reports must keep two claims apart that are easy to merge — "this app refuses a file it cannot check",
+  which a SecureVibe run does show, and "this app's uploads are scanned", which it cannot show, because the app
+  is checked inside a sandbox that puts the scanner out of reach (ADR-011). V5.4.3 stays unverified by a run.
+
 - **The harness should clear its own leftovers when it starts.** It removes its scratch workspace when a run
   finishes normally and not when a run is killed, and a run gets killed whenever someone spots a problem early —
   which is the harness working as intended. Fifteen abandoned workspaces reached 18GB on a disk with 17GB free

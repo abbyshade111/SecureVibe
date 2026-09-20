@@ -2,9 +2,9 @@
   "version": 1,
   "case": "home-log",
   "mode": "no-ai",
-  "runId": "r_20260920164951_vwxh7d",
+  "runId": "r_20260920182041_3vv7ee",
   "status": "succeeded",
-  "durationMs": 260575,
+  "durationMs": 262431,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -39,8 +39,8 @@
     "fail": 0
   },
   "tests": {
-    "total": 249,
-    "passed": 190,
+    "total": 257,
+    "passed": 193,
     "failed": 0
   },
   "costUsd": 0

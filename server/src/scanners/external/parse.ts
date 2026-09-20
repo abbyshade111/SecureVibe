@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { relative, isAbsolute } from 'node:path';
 import type { Finding, Severity } from '@shared/findings.js';
 
-export type ExternalToolName = 'semgrep' | 'gitleaks' | 'trivy' | 'osv-scanner' | 'nano-analyzer';
+export type ExternalToolName = 'semgrep' | 'gitleaks' | 'trivy' | 'osv-scanner' | 'nano-analyzer' | 'clamav';
 
 /** Tools whose findings are one program's opinion rather than a rule that matched: never more than a suggestion. */
 export const OPINION_TOOLS: ReadonlySet<ExternalToolName> = new Set<ExternalToolName>(['nano-analyzer']);
@@ -301,6 +301,8 @@ export const PARSERS: Record<ExternalToolName, (text: string, appDir: string) =>
   'osv-scanner': parseOsvScanner,
   // nano-analyzer writes a folder of documents rather than one JSON file; see nano-analyzer.ts.
   'nano-analyzer': () => [],
+  // clamav prints plain text and is read by its own module, which also needs the exit code; see clamav.ts.
+  clamav: () => [],
 };
 
 /** critical/high from an AI scanner become medium; lower levels stay as they are. */

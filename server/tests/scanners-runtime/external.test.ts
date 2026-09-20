@@ -167,14 +167,21 @@ describe('runExternal', () => {
     const details = result.details as ExternalDetails;
     expect(result.status).toBe('skipped');
     expect(result.findings).toEqual([]);
-    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner', 'nano-analyzer']);
-    const onPath = details.tools.filter((t) => t.name !== 'nano-analyzer');
+    expect(details.tools.map((t) => t.name)).toEqual(['semgrep', 'gitleaks', 'trivy', 'osv-scanner', 'nano-analyzer', 'clamav']);
+    const onPath = details.tools.filter((t) => t.name !== 'nano-analyzer' && t.name !== 'clamav');
     expect(onPath.every((t) => !t.installed && t.reason === 'skipped: not installed')).toBe(true);
     // The opt-in AI scanner is skipped for a different reason: it was never switched on, which is not the same
     // thing as missing, and the coverage table has to say which of the two it was.
-    expect(details.tools.at(-1)).toMatchObject({ name: 'nano-analyzer', ran: false, findingCount: 0 });
-    expect(details.tools.at(-1)!.reason).toMatch(/not switched on in Settings/);
-    expect(externalCoverageRows(result)).toHaveLength(5);
+    const nano = details.tools.find((t) => t.name === 'nano-analyzer')!;
+    expect(nano).toMatchObject({ ran: false, findingCount: 0 });
+    expect(nano.reason).toMatch(/not switched on in Settings/);
+    // The virus scanner is skipped for a third reason again: this project is not one it runs for by itself.
+    // Three different sentences for three different silences, because "did not run" on its own invites the
+    // reader to assume it was nothing important.
+    const clam = details.tools.find((t) => t.name === 'clamav')!;
+    expect(clam).toMatchObject({ ran: false, findingCount: 0 });
+    expect(clam.reason).toMatch(/not switched on for this project/);
+    expect(externalCoverageRows(result)).toHaveLength(6);
     expect(externalCoverageRows(result).every((row) => row.ran === false && row.covers)).toBe(true);
     expect(result.coverage.reason).toMatch(/not installed/);
     expect(result.summary).toMatch(/No extra security scanners are installed/);

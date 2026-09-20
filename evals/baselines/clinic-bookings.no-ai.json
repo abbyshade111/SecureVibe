@@ -2,9 +2,9 @@
   "version": 1,
   "case": "clinic-bookings",
   "mode": "no-ai",
-  "runId": "r_20260920164523_5p7b5w",
+  "runId": "r_20260920181631_fvcddg",
   "status": "succeeded",
-  "durationMs": 267772,
+  "durationMs": 284164,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 233,
-    "passed": 211,
+    "total": 241,
+    "passed": 214,
     "failed": 0
   },
   "costUsd": 0

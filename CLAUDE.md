@@ -26,6 +26,14 @@ whatever you touch before changing it.
   Run those, and the full suite, through the launch configs in `../.claude/launch.json` (`server-tests`,
   `template-tests`, `preview-test`, `self-assess`, `app-tests`) via `preview_start`; each writes its result to a
   file in the session scratchpad, and the script prints a DONE marker.
+- **To find out how something behaves inside the fence, ask in two seconds, not in a golden-app run.** A four-line
+  script under `node --permission --allow-fs-read=<dir> script.mjs` answers it directly. Generated code is checked
+  with file reads confined to the app folder and the network fenced to loopback, and things do not merely return
+  falsy there — `existsSync` on a path outside the app folder **throws** `ERR_ACCESS_DENIED` rather than returning
+  false, so a guard written as `if (!existsSync(p)) continue;` crashes instead of skipping. On 20 September 2026
+  that cost three evaluation runs and about forty minutes: the same failure was "fixed" twice by reasoning about
+  what the sandbox probably does, while the error code naming the real cause sat in the results file the whole
+  time. Read what the run said, then reproduce it with the flags, then fix it.
 - Template suite: the `template-tests` launcher copies an all-features `securevibe.features.json` into the
   template and generates a `.env`; remove `templates/secure-web-app/.env` afterwards if the script left it.
 - Self-assessment (SecureVibe checking itself): `npm run self-assess -- --no-ai` is free; without `--no-ai` it

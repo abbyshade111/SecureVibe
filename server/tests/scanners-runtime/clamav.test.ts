@@ -12,6 +12,7 @@ import {
   scanIsMandatory,
   signatureAgeInDays,
   signatureNote,
+  runClamavScan,
   toClamavSeed,
 } from '../../src/scanners/external/clamav.js';
 
@@ -129,5 +130,94 @@ describe('the virus scanner adapter', () => {
     expect(scanIsMandatory('uploaded')).toBe(true);
     expect(scanIsMandatory('built')).toBe(false);
     expect(scanIsMandatory(undefined)).toBe(false);
+  });
+});
+
+describe('running the virus scanner', () => {
+  const base = {
+    appDir: '/app',
+    exclude: ['node_modules'],
+    timeoutMs: 60_000,
+    log: () => {},
+  };
+  const version = { stdout: 'ClamAV 1.5.4/28129/Sun Sep 20 02:26:26 2026', stderr: '', code: 0, timedOut: false };
+
+  it('does not run at all unless this project is one it runs for', async () => {
+    let called = false;
+    const result = await runClamavScan({
+      ...base,
+      enabled: false,
+      find: () => '/usr/bin/clamdscan',
+      run: async () => {
+        called = true;
+        return version;
+      },
+    });
+    expect(called).toBe(false);
+    expect(result.ran).toBe(false);
+    expect(result.reason).toContain('not switched on');
+  });
+
+  it('says it is not installed rather than saying it found nothing', async () => {
+    const result = await runClamavScan({ ...base, enabled: true, find: () => undefined, run: async () => version });
+    expect(result.ran).toBe(false);
+    expect(result.installed).toBe(false);
+    expect(result.reason).toContain('not installed');
+    expect(result.seeds).toEqual([]);
+  });
+
+  it('prefers the daemon, which holds the signatures in memory', async () => {
+    const asked: string[] = [];
+    await runClamavScan({
+      ...base,
+      enabled: true,
+      find: (name) => {
+        asked.push(name);
+        return `/usr/bin/${name}`;
+      },
+      run: async () => version,
+    });
+    expect(asked[0]).toBe('clamdscan');
+  });
+
+  it('reports a detection, with the age of the signatures behind it', async () => {
+    const result = await runClamavScan({
+      ...base,
+      enabled: true,
+      find: () => '/usr/bin/clamdscan',
+      run: async (_file, args) =>
+        args.includes('--version') ? version : { stdout: '/app/uploads/x.doc: Doc.Downloader.Emotet-1 FOUND', stderr: '', code: 1, timedOut: false },
+    });
+    expect(result.ran).toBe(true);
+    expect(result.seeds).toHaveLength(1);
+    expect(result.seeds[0]?.severity).toBe('critical');
+    expect(result.seeds[0]?.file).toBe('uploads/x.doc');
+    expect(result.note).toContain('signatures last updated');
+  });
+
+  it('a scanner with no signature database is never recorded as a scan that happened', async () => {
+    const result = await runClamavScan({
+      ...base,
+      enabled: true,
+      find: () => '/usr/bin/clamscan',
+      run: async (_file, args) =>
+        args.includes('--version')
+          ? { stdout: 'ClamAV 1.5.4', stderr: '', code: 0, timedOut: false }
+          : { stdout: '', stderr: "LibClamAV Error: cli_loaddbdir: No supported database files found in /var/lib/clamav\nERROR: Can't open file or directory", code: 2, timedOut: false },
+    });
+    expect(result.ran).toBe(false);
+    expect(result.seeds).toEqual([]);
+    expect(result.reason).toContain('has not downloaded its virus signatures');
+  });
+
+  it('a scan stopped at the time limit is not a clean scan', async () => {
+    const result = await runClamavScan({
+      ...base,
+      enabled: true,
+      find: () => '/usr/bin/clamscan',
+      run: async (_file, args) => (args.includes('--version') ? version : { stdout: '', stderr: '', code: null, timedOut: true }),
+    });
+    expect(result.ran).toBe(false);
+    expect(result.reason).toContain('time limit');
   });
 });

@@ -2,9 +2,9 @@
   "version": 1,
   "case": "marketplace",
   "mode": "no-ai",
-  "runId": "r_20260920164952_wo3a3f",
+  "runId": "r_20260920182116_paelle",
   "status": "succeeded",
-  "durationMs": 259560,
+  "durationMs": 258226,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 244,
-    "passed": 231,
+    "total": 252,
+    "passed": 238,
     "failed": 0
   },
   "costUsd": 0
