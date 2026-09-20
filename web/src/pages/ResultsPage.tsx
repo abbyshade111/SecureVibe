@@ -587,6 +587,7 @@ export function ResultsPage() {
                 finding={f}
                 projectId={id!}
                 canShowCode={codeAvailable}
+                {...(instructions ? { appDir: instructions.appDir } : {})}
                 {...fixProps(f)}
                 onAccept={(reason) => acceptFinding(f.id, reason)}
                 onFalsePositive={(reason) => markFalsePositive(f.id, reason)}
@@ -606,6 +607,7 @@ export function ResultsPage() {
                 finding={f}
                 projectId={id!}
                 canShowCode={codeAvailable}
+                {...(instructions ? { appDir: instructions.appDir } : {})}
                 {...fixProps(f)}
                 onAccept={(reason) => acceptFinding(f.id, reason)}
                 onFalsePositive={(reason) => markFalsePositive(f.id, reason)}
