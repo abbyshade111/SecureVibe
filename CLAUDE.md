@@ -80,6 +80,24 @@ whatever you touch before changing it.
   evidence. Do not make a check look stronger than it is. A checker that knows which requirements it verifies says
   so in `Evidence.requirementIds`; automating a manual check means producing real evidence for it, never lowering
   the bar for what counts as verified.
+- **Break your own rule and watch what catches it.** A new check is not known to work because it passes; it is known
+  to work when the thing it guards is broken and it fails. Disable the guard, run the suite, read which tests go
+  red, then put it back. This takes a minute and it has found something every time it has been done here: the SQL
+  keyword guard failed with `near "from": syntax error` as intended, but the sensitive-field rule was caught by
+  exactly **one** fixture, because nearly every sensitive field in the fixtures is text and text is encrypted, so
+  the engine was already refusing it — the case the rule existed for was exercised by nothing, and a rule with one
+  accidental witness is a rule that survives being deleted.
+  Three things follow, and each one has already cost a run:
+  - **Count what caught it.** One test failing where you expected several means the coverage is accidental. Add the
+    fixture that makes it deliberate.
+  - **A check that runs against one set of answers checks a fraction of what the recipes can write**, and the
+    fraction it misses is the part that varies, which is the part most likely to be wrong. The recipe static scan
+    ran against one profile for weeks; the file containing the fault was never emitted there, so it was never
+    scanned, and it reached two golden apps.
+  - **A test whose setup can fail quietly is worse than no test.** A search test that falls back to a different
+    record when its write is refused ends up searching for something nobody has, and then passes whatever the app
+    does — including with the ownership clause deleted. Assert the setup worked, and assert the thing you are
+    looking for is really findable, before asserting it is not leaked.
 - The generation agent is fenced (allow-listed paths, validated tool inputs, screened tool output). The second
   opinion and the follow-up questions may only change answers from their allow-lists, and only toward the safer
   side. Keep it that way.
@@ -104,6 +122,9 @@ whatever you touch before changing it.
 - Still ask first, every time: anything that spends the owner's AI credit, anything that changes the repository's
   settings or visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money
   or are hard to undo, and the pre-approval above does not reach them.
+- The evaluation harness is a shared resource, and claiming it works the same way: say so where the other session
+  can see it, not only in a message. On 20 September 2026 both sessions ran it at once for eight minutes, having each
+  said in a message that they would say something first. A message is not a claim, for the same reason as below.
 - Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a
   message to another session does not count: a session that is not running never receives it, and a session that
   is will not see it again after its context is summarised. On 20 September 2026 two sessions each read the
