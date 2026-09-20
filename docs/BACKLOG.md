@@ -89,6 +89,35 @@ an owner would notice, because that is what decides the order. Remove an item wh
   reads as a regression in whatever changed last and sends both sessions hunting in the wrong place. Removing any
   `securevibe-eval-*` older than a few hours before starting costs nothing and needs nobody to remember.
 
+## From the first two people to use SecureVibe (19-20 September 2026)
+
+Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
+building from nothing.
+
+- **An assistant that is working should say so.** Pressing "Run research" in Pain in the Butt returns nothing
+  until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
+  cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
+  the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
+  app.
+- **The Features page refuses before anyone has typed.** Clicking into the record-type box raises a red banner
+  saying nothing was saved because there is nothing there — an error about the user's failure to have already
+  done the thing they are in the middle of starting. Validation should wait for the field to be left, or for a
+  save, not fire on focus.
+- **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
+  rest. Multiple selection where the question allows it, and the answers it may set must still come from the
+  same allow-list, so this widens what an owner can say without widening what the flow may change.
+- **Make resume reachable, and pin the fix with a test.** The resume bug — a continued build reaching the writing
+  step with no manifest and refusing — is fixed but has no test, and nothing in either suite or the five sample
+  apps exercises resuming an interrupted build. That is why it survived a day of green checks. A test that
+  continues a run whose writing step failed, and asserts it writes rather than refuses, is the guard that should
+  have existed first.
+- **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
+  different set of records, or to see what a rebuild does, currently risks the app they already have.
+- **One spelling standard, American English, with the Oxford comma.** The interface, the reports and the code
+  comments are written in British English today ("colour", "behaviour", "recognise"). Owner-facing text first —
+  the wizard copy, the reports, the finding descriptions — and the knowledge files that feed them, since a report
+  that mixes conventions reads as carelessly assembled whatever else is true of it.
+
 ## The recipe-library session's half
 
 - The chart recipe (landed 19 September 2026), then a "needs attention" view, then keeping an assistant's answer
