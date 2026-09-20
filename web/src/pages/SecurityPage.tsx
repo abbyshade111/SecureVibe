@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import type { CheckStatus, ChecksResponse } from '@shared/api.js';
 import { getChecks, getEstimate, startRun } from '../lib/api';
 import { Badge, Card, ErrorNotice, LoadingScreen } from '../components/Bits';
+import { artifactUrl } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { useProject } from '../hooks/useProject';
 
@@ -122,6 +123,15 @@ export default function SecurityPage() {
           {starting === 'all' ? 'Starting…' : 'Run every check again'}
         </button>
         {data?.running && <p className="sv-muted">A check is running right now. <Link to={`/projects/${id}/build`}>Watch it</Link>.</p>}
+        {data?.lastFullCheck && (
+          <p className="sv-muted" style={{ marginTop: 12 }}>
+            For a security person or their tools:{' '}
+            <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, 'scan-data.zip', data.lastFullCheck.runId)} download>
+              Download the scan data (zip)
+            </a>{' '}
+            — the raw output of every check in the last full check, with nothing the reports do not hold and no passwords or keys.
+          </p>
+        )}
       </Card>
 
       <Card>

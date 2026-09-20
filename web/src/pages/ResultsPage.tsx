@@ -571,7 +571,7 @@ export function ResultsPage() {
               <Badge tone="good">{fixed.length}</Badge>
             </div>
             {fixed.map((f) => (
-              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} />
+              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} {...(instructions ? { appDir: instructions.appDir } : {})} />
             ))}
           </div>
         )}
@@ -620,7 +620,7 @@ export function ResultsPage() {
               <Badge tone="neutral">{nothingToDo.length}</Badge>
             </div>
             {nothingToDo.map((f) => (
-              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} />
+              <FindingCard key={f.id} finding={f} projectId={id!} canShowCode={codeAvailable} {...(instructions ? { appDir: instructions.appDir } : {})} />
             ))}
           </div>
         )}

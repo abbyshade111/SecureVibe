@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import type { Finding } from '@shared/findings.js';
 import { CodeViewer } from './CodeViewer';
-import { Badge } from './Bits';
+import { Badge, CopyRow } from './Bits';
 
 export function FindingCard({
   finding,
@@ -100,6 +100,9 @@ export function FindingCard({
           )}
         </p>
       )}
+      {/* Two ways to reach the file, for two kinds of reader: the button above opens it here; the row below hands a
+          developer the full path to paste into an editor. Both stay. */}
+      {appDir && finding.location?.file && <CopyRow text={`${appDir}/${finding.location.file}`} />}
       {/* Checks that probe the running app report an address rather than a file, and without it a page full of
           these reads as the same problem over and over: nineteen identical cards, no way to tell them apart or
           judge any one of them. */}
