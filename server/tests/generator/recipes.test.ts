@@ -43,7 +43,7 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       expect(result.applications.map((a) => a.recipeId)).toEqual(['record-type', 'record-summary', 'record-chart']);
       const habit = result.applications[0]!;
       expect(habit.recipeId).toBe('record-type');
-      expect(habit.recipeVersion).toBe('4');
+      expect(habit.recipeVersion).toBe('5');
       expect(habit.instance).toBe('habit');
       // The application names the files it wrote, which is how a later build or the version diff knows their source.
       expect(habit.files).toContain('src/features/habit/repo.ts');

@@ -231,6 +231,9 @@ export const communityHall: DesignProfile = DesignProfileSchema.parse({
         pluralLabel: 'Member notes',
         fields: [
           { name: 'joined-on', label: 'Joined on', type: 'date', required: true, sensitive: true },
+          // A sensitive choice, which is the case the list's sensitive-field rule exists for: a choice is not
+          // encrypted, so nothing in the database stops it being filtered, and six options fall in six questions.
+          { name: 'standing', label: 'Standing', type: 'choice', choices: ['in good standing', 'in arrears', 'suspended'], sensitive: true },
           { name: 'note', label: 'Note', type: 'longtext' },
         ],
         access: 'owner-only',
