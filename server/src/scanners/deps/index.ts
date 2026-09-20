@@ -7,6 +7,7 @@
  * coverage row says "skipped: offline" instead of implying that nothing was found.
  */
 import { createHash } from 'node:crypto';
+import { detectEcosystems, usesNpm } from '../ecosystems.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Evidence } from '@shared/compliance.js';
@@ -58,6 +59,20 @@ const FALLBACKS: Record<string, DepsRuleFallback> = {
     impact: 'Your app could silently start using code that was never reviewed or tested here.',
     fix: 'Run `npm install` once and keep the package-lock.json file it creates.',
     steps: ['Open a terminal in your app folder.', 'Run `npm install`.', 'Keep package-lock.json alongside package.json.'],
+  },
+  'deps.unpinned-versions': {
+    title: 'The exact versions of your packages are not written down',
+    severity: 'medium',
+    cwe: ['CWE-1104'],
+    description:
+      'This app lists the packages it needs but not the exact versions, so what actually gets installed can differ from what was checked here.',
+    impact:
+      'Nobody can say which code your app is running, so a known problem in a package cannot be looked up, and an install tomorrow can bring in code nobody has seen.',
+    fix: 'Write the exact versions down in the file your package manager uses for it, and keep that file with the app.',
+    steps: [
+      'Ask your package manager to record exact versions (for example a lock file).',
+      'Keep that file alongside the app, and update it deliberately rather than by accident.',
+    ],
   },
   'deps.install-scripts-present': {
     title: 'A package runs its own script at install time',
@@ -265,6 +280,47 @@ export async function runDeps(ctx: ScanContext, opts: RunDepsOptions = {}): Prom
   const evidence: Evidence[] = [];
   const checks: DepsDetails['checks'] = [];
   const lock = parseLockfile(ctx.appDir);
+
+  /**
+   * Everything below this point is about npm. An app that does not use npm is not missing a
+   * package-lock.json; it is a different kind of app, and saying otherwise puts a false sentence in a report
+   * (ADR-012). What such an app does get is the question underneath, asked in its own terms: are the versions
+   * of its packages written down anywhere?
+   */
+  if (!usesNpm(ctx.appDir)) {
+    const ecosystems = detectEcosystems(ctx.appDir);
+    const unpinned = ecosystems.filter((e) => e.lockfile === undefined);
+    for (const eco of unpinned) {
+      findings.push(
+        buildDepsFinding(ctx, {
+          ruleId: 'deps.unpinned-versions',
+          key: eco.manifest,
+          file: eco.manifest,
+          evidence: `${eco.manifest} lists this app's ${eco.name} packages, and no file next to it records the exact versions that were installed.`,
+        }),
+      );
+    }
+    const named = ecosystems.map((e) => e.name).join(', ');
+    return {
+      findings,
+      evidence,
+      coverage: {
+        tool: 'deps',
+        ran: false,
+        reason:
+          ecosystems.length === 0
+            ? 'skipped: this app does not list its packages in a file SecureVibe recognises, so they could not be checked'
+            : `skipped: SecureVibe's own package check only reads npm, and this app uses ${named}. Its packages were checked by the optional scanners instead, when they are installed.`,
+        covers: 'Known problems in the packages an app installs, and whether their versions are pinned.',
+      },
+      status: findings.length > 0 ? 'warning' : 'skipped',
+      summary:
+        ecosystems.length === 0
+          ? 'No package list was found that SecureVibe knows how to read, so its packages were not checked here.'
+          : `This app uses ${named} rather than npm, so SecureVibe's own package check did not run.${unpinned.length > 0 ? ` ${unpinned.length} of its package lists do not record exact versions.` : ''}`,
+      details: { checks, notApplicable: ['npm'] },
+    };
+  }
 
   // deps.lockfile-missing ------------------------------------------------------------------------
   if (!lock) {

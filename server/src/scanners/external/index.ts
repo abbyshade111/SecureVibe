@@ -14,7 +14,7 @@ import type { Evidence } from '@shared/compliance.js';
 import type { Finding } from '@shared/findings.js';
 import type { ToolCoverage } from '@shared/pipeline.js';
 import { removeDir, runCommand } from '../../pipeline/process.js';
-import { DEFAULT_IGNORE, ignorePatternToRegex } from '../sast/files.js';
+import { DEFAULT_IGNORE, ignorePatternToRegex, listAppFiles } from '../sast/files.js';
 import type { ScanContext, ScanResult, ScanStatus } from '../types.js';
 import { PARSERS, toFinding, type ExternalFindingSeed, type ExternalToolName } from './parse.js';
 import { NANO_ANALYZER, NANO_COVERS, runNanoAnalyzer, type NanoAnalyzerOptions } from './nano-analyzer.js';
@@ -93,7 +93,56 @@ function majorVersion(version: string | undefined): number {
   return Number.parseInt(version?.split('.')[0] ?? '', 10);
 }
 
-const LOCKFILES = ['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml'];
+/**
+ * The dependency files osv-scanner is handed. Every ecosystem's, not only npm's (ADR-012): osv-scanner reads
+ * `requirements.txt` and the rest natively, and handing it only npm's meant a Python app's packages were never
+ * checked against the vulnerability database at all while the report said the dependency check had run.
+ *
+ * `requirements.txt` is verified: it parsed the four packages of the app that prompted this. The others are
+ * listed on osv-scanner's own documentation; each will simply be skipped by it if unsupported, which is a
+ * failure mode that costs nothing.
+ */
+const LOCKFILES = [
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'requirements.txt',
+  'poetry.lock',
+  'Pipfile.lock',
+  'uv.lock',
+  'pdm.lock',
+  'go.mod',
+  'Cargo.lock',
+  'Gemfile.lock',
+  'composer.lock',
+  'pom.xml',
+  'gradle.lockfile',
+];
+
+/**
+ * Semgrep rule packs, chosen from the languages actually present rather than fixed at TypeScript. The community
+ * packs are free and already downloaded by the tool; asking for a pack whose language is absent costs a
+ * download and matches nothing, so they are picked per app.
+ */
+const SEMGREP_PACKS: { pack: string; extensions: string[] }[] = [
+  { pack: 'p/typescript', extensions: ['.ts', '.tsx'] },
+  { pack: 'p/javascript', extensions: ['.js', '.jsx', '.mjs', '.cjs'] },
+  { pack: 'p/python', extensions: ['.py'] },
+  { pack: 'p/golang', extensions: ['.go'] },
+  { pack: 'p/ruby', extensions: ['.rb'] },
+  { pack: 'p/java', extensions: ['.java'] },
+  { pack: 'p/php', extensions: ['.php'] },
+  { pack: 'p/csharp', extensions: ['.cs'] },
+];
+
+/** The packs worth asking for in this app: owasp-top-ten always, plus one per language actually present. */
+export function semgrepPacks(relPaths: string[]): string[] {
+  const present = new Set(relPaths.map((p) => p.slice(p.lastIndexOf('.')).toLowerCase()));
+  const packs = SEMGREP_PACKS.filter((p) => p.extensions.some((e) => present.has(e))).map((p) => p.pack);
+  // Always at least one language pack, so an app of a language we do not list still gets the cross-language rules.
+  return ['p/owasp-top-ten', ...packs];
+}
 
 /** "templates/**" → "templates"; bare names stay as they are. */
 function excludeDir(pattern: string): string {
@@ -137,8 +186,7 @@ const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER | typeof CLAMA
   semgrep: {
     args: (run) => [
       'scan',
-      '--config', 'p/owasp-top-ten',
-      '--config', 'p/typescript',
+      ...semgrepPacks(listAppFiles(run.appDir, run.exclude).map((f) => f.relPath)).flatMap((p) => ['--config', p]),
       '--no-git-ignore',
       ...run.exclude.flatMap((p) => ['--exclude', excludeDir(p)]),
       '--json', '--quiet', '--disable-version-check', '--metrics=off',

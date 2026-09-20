@@ -4,7 +4,7 @@
  *
  * The offline path is exercised for real by pointing npm at a port nothing is listening on.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -244,9 +244,27 @@ describe('runDeps against the fixture app with no reachable registry', () => {
     expect(result.status).toBe('failed');
   }, 180_000);
 
-  it('reports a missing lockfile', async () => {
+  it('reports a missing lockfile for an app that really does use npm', async () => {
+    // The fixture needs a package.json to be an npm app at all. Before ADR-012 this test passed against an
+    // empty folder, which meant it was asserting the very sentence that change removed: telling something with
+    // no npm that its npm lockfile is missing.
+    writeFileSync(join(projectDir, 'package.json'), JSON.stringify({ name: 'x', version: '1.0.0' }));
     const result = await runDeps(contextFor(projectDir), { env: { npm_config_registry: DEAD_REGISTRY }, preferCli: false });
     expect(result.findings.some((f) => f.ruleId === 'deps.lockfile-missing')).toBe(true);
     expect(result.evidence.find((e) => e.ref === 'deps.lockfile-missing')?.passed).toBe(false);
+  }, 180_000);
+
+  it('does not tell an app with no npm that its npm lockfile is missing', async () => {
+    // A Python app. It is not an npm app without a lockfile; it is a different kind of app, and the report
+    // saying otherwise is wrong rather than incomplete (ADR-012).
+    writeFileSync(join(projectDir, 'requirements.txt'), 'fastapi>=0.115,<1.0\n');
+    const result = await runDeps(contextFor(projectDir), { env: { npm_config_registry: DEAD_REGISTRY }, preferCli: false });
+    expect(result.findings.some((f) => f.ruleId === 'deps.lockfile-missing')).toBe(false);
+    expect(result.coverage.ran).toBe(false);
+    expect(result.coverage.reason).toContain('only reads npm');
+    // And the question underneath is still asked, in the app's own terms.
+    const unpinned = result.findings.filter((f) => f.ruleId === 'deps.unpinned-versions');
+    expect(unpinned).toHaveLength(1);
+    expect(unpinned[0]?.location?.file).toBe('requirements.txt');
   }, 180_000);
 });

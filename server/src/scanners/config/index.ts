@@ -20,8 +20,14 @@ export const runConfig: Scanner = async (ctx) => {
   const findings: Finding[] = [];
   const evidence: Evidence[] = [];
 
+  const notApplicable: string[] = [];
   for (const check of ALL_CONFIG_CHECKS) {
     if (ctx.abort.aborted) break;
+    // A check with nothing to say about this app is recorded as not applicable, never as failed (ADR-012).
+    if (check.applies && !check.applies(ctx)) {
+      notApplicable.push(check.meta.id);
+      continue;
+    }
     let outcome;
     try {
       outcome = check.run(ctx);
@@ -71,10 +77,15 @@ export const runConfig: Scanner = async (ctx) => {
 
   const status = statusFromFindings(findings);
   const passedCount = evidence.filter((e) => e.passed).length;
+  const ranCount = ALL_CONFIG_CHECKS.length - notApplicable.length;
+  const notApplicableText =
+    notApplicable.length === 0
+      ? ''
+      : ` ${notApplicable.length} check${notApplicable.length === 1 ? '' : 's'} did not apply to this app and ${notApplicable.length === 1 ? 'was' : 'were'} not counted either way (they are about npm, which this app does not use).`;
   const summary =
     findings.length === 0
-      ? `All ${ALL_CONFIG_CHECKS.length} configuration and documentation checks passed.`
-      : `${passedCount} of ${ALL_CONFIG_CHECKS.length} configuration and documentation checks passed; ${findings.length} did not (${countBySeverityText(findings)}).`;
+      ? `All ${ranCount} configuration and documentation checks passed.${notApplicableText}`
+      : `${passedCount} of ${ranCount} configuration and documentation checks passed; ${findings.length} did not (${countBySeverityText(findings)}).${notApplicableText}`;
   ctx.log(summary);
 
   const result: ScanResult = {
@@ -86,7 +97,7 @@ export const runConfig: Scanner = async (ctx) => {
       version: CONFIG_TOOL.version,
       covers: `${CONFIG_CHECKS.length} checks: environment files, secret strength, TLS/proxy settings, session policy, protected-file integrity, and required documentation.`,
     },
-    details: { checks: CONFIG_CHECKS.length, passed: passedCount, failed: findings.length },
+    details: { checks: CONFIG_CHECKS.length, passed: passedCount, failed: findings.length, notApplicable },
     status,
     summary,
   };

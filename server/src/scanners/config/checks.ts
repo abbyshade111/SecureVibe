@@ -4,6 +4,7 @@
  * fails.
  */
 import { existsSync } from 'node:fs';
+import { usesNpm } from '../ecosystems.js';
 import { join } from 'node:path';
 import type { RuleMeta } from '../sast/findings.js';
 import { globToRegex, listAppFiles, readTextFile, sha256File } from '../sast/files.js';
@@ -24,6 +25,15 @@ export interface ConfigCheckOutcome {
 export interface ConfigCheckDef {
   meta: RuleMeta;
   run(ctx: ScanContext): ConfigCheckOutcome;
+  /**
+   * Whether this check has anything to say about this application. Absent means always.
+   *
+   * A check that does not apply is not a check that failed. Without this, a Python app was told its
+   * `package-lock.json` was missing and marked down for not setting `ignore-scripts=true` in an `.npmrc` it has
+   * no reason to own — not a coverage gap, which is honest, but a report saying something untrue out loud
+   * (ADR-012).
+   */
+  applies?(ctx: ScanContext): boolean;
 }
 
 function meta(input: Omit<RuleMeta, 'remediation' | 'whoCanFix'> & { fix: string; steps?: string[]; references?: string[] }): RuleMeta {
@@ -244,6 +254,7 @@ export const lockfilePresent: ConfigCheckDef = {
     fix: 'Restore the tested package-lock.json from the template and install with npm ci --ignore-scripts.',
     references: ['https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html'],
   }),
+  applies: (ctx) => usesNpm(ctx.appDir),
   run: (ctx) => {
     const exists = existsSync(join(ctx.appDir, 'package-lock.json'));
     return { passed: exists, summary: exists ? 'package-lock.json is present.' : 'package-lock.json was not found.', file: 'package-lock.json' };
@@ -266,6 +277,7 @@ export const ignoreScripts: ConfigCheckDef = {
     fix: 'Add ignore-scripts=true to .npmrc.',
     references: ['https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html'],
   }),
+  applies: (ctx) => usesNpm(ctx.appDir),
   run: (ctx) => {
     const text = read(ctx, '.npmrc');
     const ok = !!text && /^\s*ignore-scripts\s*=\s*true\s*$/m.test(text);
