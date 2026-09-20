@@ -578,7 +578,20 @@ export const DiffFileSchema = z.object({
 });
 export type DiffFile = z.infer<typeof DiffFileSchema>;
 
-export const FindingBriefSchema = z.object({ id: z.string(), fingerprint: z.string(), severity: z.string(), ruleId: z.string(), title: z.string() });
+/**
+ * `file` matters more than it looks. Five findings of the same rule carry the same title, so a comparison
+ * listing them by title alone reads as five identical lines — "Protected security file was changed" over and
+ * over, with no way to tell which file each one was, or whether the new one is the same file as any of the
+ * resolved ones. The location is the only thing that distinguishes them, and it was being dropped here.
+ */
+export const FindingBriefSchema = z.object({
+  id: z.string(),
+  fingerprint: z.string(),
+  severity: z.string(),
+  ruleId: z.string(),
+  title: z.string(),
+  file: z.string().optional(),
+});
 
 export const VersionDiffSchema = z.object({
   from: AppVersionSchema,

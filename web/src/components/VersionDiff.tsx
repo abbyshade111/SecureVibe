@@ -159,6 +159,7 @@ export function VersionDiff({ projectId }: { projectId: string }) {
                     {results.findingsNew.map((f) => (
                       <li key={f.fingerprint}>
                         <Badge tone={f.severity === 'critical' || f.severity === 'high' ? 'bad' : f.severity === 'medium' ? 'warn' : 'neutral'}>{f.severity}</Badge> {f.title}
+                        {f.file && <span className="sv-faint"> — {f.file}</span>}
                       </li>
                     ))}
                   </ul>
@@ -171,6 +172,7 @@ export function VersionDiff({ projectId }: { projectId: string }) {
                     {results.findingsResolved.map((f) => (
                       <li key={f.fingerprint}>
                         <Badge tone="good">{f.severity}</Badge> {f.title}
+                        {f.file && <span className="sv-faint"> — {f.file}</span>}
                       </li>
                     ))}
                   </ul>
