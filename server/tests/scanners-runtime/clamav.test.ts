@@ -17,9 +17,12 @@ import {
 
 describe('the virus scanner adapter', () => {
   it('reads the engine, the signature database and the date that database was built', () => {
-    const v = parseClamavVersion('ClamAV 1.0.3/27263/Mon Sep 15 09:12:44 2026');
-    expect(v.engine).toBe('1.0.3');
-    expect(v.database).toBe('27263');
+    // Taken from the real binary on this machine on 20 September 2026, rather than invented: the shape of this
+    // string is the only thing that tells a report how current a clean result is, so it is worth having a
+    // fixture somebody actually saw rather than one that looks right.
+    const v = parseClamavVersion('ClamAV 1.5.4/28129/Sun Sep 20 02:26:26 2026');
+    expect(v.engine).toBe('1.5.4');
+    expect(v.database).toBe('28129');
     expect(v.databaseDate?.getUTCFullYear()).toBe(2026);
     // An older build prints the engine on its own, and that must not be read as a date of any kind.
     expect(parseClamavVersion('ClamAV 0.103.11').databaseDate).toBeUndefined();
@@ -44,6 +47,7 @@ describe('the virus scanner adapter', () => {
   it('reads a clean run, a detection and a failure as three different things', () => {
     expect(readClamavExit(0, '', '')).toEqual({ kind: 'clean' });
 
+    // Also real: this is what clamscan printed for the standard EICAR test file, which exists for this purpose.
     const found = readClamavExit(1, '/app/uploads/x.pdf: Eicar-Test-Signature FOUND', '', '/app');
     expect(found.kind).toBe('infected');
     expect(found.kind === 'infected' && found.detections).toEqual([{ file: 'uploads/x.pdf', signature: 'Eicar-Test-Signature' }]);
