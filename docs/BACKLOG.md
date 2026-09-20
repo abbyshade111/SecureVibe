@@ -192,6 +192,32 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
 
+- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.**
+  A self-assessment on 20 September 2026 returned 31 of 161 requirements verified, 4 critical, 113 high. Checked
+  one by one, the bulk is SecureVibe's own rules misfiring on SecureVibe: 62 `route-outside-registry`,
+  13 `child-process-exec`, 17 `fs-user-path`, 11 `path-join-user-input`. Those rules assume the thing being
+  scanned is a generated application, which is meant to declare its routes in a registry and never spawn a
+  process. SecureVibe is a build tool: spawning processes and joining paths is its job. Same class as asking a
+  Python app about its npm lockfile, one level up — the target is not what the rules assume, and the report says
+  so in the language of failure.
+  The six findings that are *not* explained by that were checked individually and are all legitimate: three
+  "hardcoded secrets" are deliberately-wrong passwords (`not-a-real-password-1`) that DAST posts to a login form
+  to prove it rejects them, and three `tls-reject-unauthorized-false` are the runtime probes connecting to the
+  app under test over its own self-signed certificate — including the probe whose entire purpose is to attempt a
+  TLS 1.1 handshake and confirm it is refused.
+  So the self-assessment is currently unusable as a signal: its true findings are buried under a hundred false
+  ones, and an owner or a reviewer reading it would reasonably conclude the opposite of the truth. It needs the
+  same treatment the uploaded-app case just got — rules that declare what kind of target they apply to, and a
+  report that says "this check does not apply to this thing" rather than failing it.
+
+- **The runtime probe's HTTP client accepts any certificate from any host.** `scanners/dast/http.ts:244` sets
+  `rejectUnauthorized: false`, which is correct for what it does — connecting to a freshly built app on
+  loopback with a self-signed certificate — and is enforced by nothing. The two other places that disable
+  certificate checking both pin `127.0.0.1` at the call site; this one takes whatever URL it is handed. The
+  guarantee holds because of who calls it rather than because of what it enforces, which is the shape this
+  project has spent a week finding in other places. Refusing a non-loopback host in the client would make it
+  true by construction and cost one line.
+
 - **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
