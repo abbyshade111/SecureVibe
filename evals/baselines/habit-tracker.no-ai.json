@@ -2,9 +2,9 @@
   "version": 1,
   "case": "habit-tracker",
   "mode": "no-ai",
-  "runId": "r_20260920194333_peuwzr",
+  "runId": "r_20260920205843_w2whzh",
   "status": "succeeded",
-  "durationMs": 248041,
+  "durationMs": 280906,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -39,8 +39,8 @@
     "fail": 0
   },
   "tests": {
-    "total": 231,
-    "passed": 164,
+    "total": 234,
+    "passed": 165,
     "failed": 0
   },
   "costUsd": 0

@@ -2,9 +2,9 @@
   "version": 1,
   "case": "marketplace",
   "mode": "no-ai",
-  "runId": "r_20260920194817_mjwrq4",
+  "runId": "r_20260920210324_qig4hp",
   "status": "succeeded",
-  "durationMs": 257762,
+  "durationMs": 258226,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -46,8 +46,8 @@
     "fail": 2
   },
   "tests": {
-    "total": 259,
-    "passed": 245,
+    "total": 262,
+    "passed": 248,
     "failed": 0
   },
   "costUsd": 0
