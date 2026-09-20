@@ -37,6 +37,16 @@ export function UploadPage() {
   }
   const previous = project.origin?.upload;
   const hasAnswers = project.wizardStep > 0 || project.design !== undefined;
+  /**
+   * The questions come next, and they are not a detour: `POST /projects/:id/runs` refuses an uploaded app that
+   * has no design with "Answer the questions about your app before checking it", because they are what decides
+   * which rules apply to it. Sending somebody straight to the check page instead — which this did for half an
+   * hour on 20 September 2026 — lands them on a page whose button can never enable, for a reason nothing shows.
+   *
+   * Whether an uploaded app should need them at all is a fair question and a real one: most of the scanners do
+   * not, and somebody checking code they did not write cannot answer half of them. That is on the backlog as a
+   * decision to make rather than something to route around here.
+   */
   const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/wizard/about`;
 
   async function start() {
@@ -132,12 +142,23 @@ export function UploadPage() {
             </button>
           ) : (
             previous && (
-              <Link className="sv-btn sv-btn-secondary" to={hasAnswers ? nextStep : `/projects/${id}/wizard/about`}>
+              <Link className="sv-btn sv-btn-secondary" to={nextStep}>
                 Keep the current version
               </Link>
             )
           )}
         </div>
+
+        {!hasAnswers && (
+          <p className="sv-faint" style={{ marginTop: 12, marginBottom: 0 }}>
+            Next you will be asked a few questions about what this app does — whether it takes payments, whether
+            it holds health or financial information, whether your organisation has a central sign-in. They decide
+            which rules apply to it, so the check needs them before it can say whether the app meets them. If you
+            did not write this app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an
+            answer SecureVibe understands and it never counts as evidence either way.
+          </p>
+        )}
+
       </Card>
     </div>
   );

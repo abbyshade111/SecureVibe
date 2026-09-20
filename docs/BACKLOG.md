@@ -101,6 +101,36 @@ building the query recipe: each read this file, each correctly saw the item uncl
   mapping from status to mascot so no page invents its own. Keep the words: the picture never replaces the
   sentence that says what is wrong, because an owner who cannot read the face must still be told.
 
+- **Let an uploaded app be checked without answering the questions first.** `POST /projects/:id/runs` refuses an
+  uploaded app that has no design: "Answer the questions about your app before checking it." The reason is real —
+  the answers decide which rules apply, and a compliance report written without them is guesswork — but it is the
+  wrong shape for what people actually do. The first person to hand SecureVibe somebody else's code on
+  20 September 2026 said plainly "I just want to check the code that's uploaded", and most of what would tell her
+  something does not need a single answer: secrets, dependencies, configuration, the AI review and the virus scan
+  all read the code as it is. What needs the answers is the ASVS mapping, and only the applicability part of it.
+  So the split to build is: run every check that does not depend on the answers straight away, and show the
+  compliance section as unanswered rather than absent — "these rules may or may not apply to your app; answer
+  eight questions and we will say". That also fixes the worse half, which is that somebody checking code they did
+  not write cannot honestly answer half the wizard, and guessing puts made-up facts into a report. A shorter set
+  of questions for uploaded apps is probably part of the answer.
+
+- **One test in `web/` and nothing runs it.** `web/src/pages/plainActivity.test.ts` exists, passes when run by
+  hand, and is executed by no suite: the root `npm test` script is `npm run test -w server`, the server's vitest
+  only includes `tests/**`, and `web/` has no vitest configuration at all. So it has never guarded anything, and
+  a change that broke it would go unnoticed. Either give `web/` a test run of its own and put it in the checks, or
+  move the file where the server suite will pick it up — but not leave a file that looks like coverage and is not.
+
+- **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
+  20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
+  complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
+  nothing, and read as a clean result. It now refuses a lone archive and says to unpack it first, which is the
+  honest stop-gap and still asks the person to do something SecureVibe could do for them. Unpacking server-side
+  is the real answer and needs care rather than a library call: every entry's path checked before it is written
+  (no `..`, no absolute paths, no symlinks, no links out of the staging folder), the uncompressed size capped
+  before extracting rather than after, and the same skip list applied to what comes out. A zip from outside is
+  untrusted input in exactly the way ADR-011 means, so whatever lands should also be what the virus scanner is
+  pointed at.
+
 - **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
   left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
   demand against an app SecureVibe built — the uploaded-app case runs by itself, and the built-app case has

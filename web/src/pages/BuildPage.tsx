@@ -67,6 +67,7 @@ export function BuildPage() {
   const [approved, setApproved] = useState(false);
   const [run, setRun] = useState<PipelineRun | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [activity, setActivity] = useState<{ at: string; text: string }[]>([]);
   const [liveSpend, setLiveSpend] = useState<{ usd: number; calls: number } | null>(null);
@@ -83,13 +84,20 @@ export function BuildPage() {
   const loadEstimate = useCallback(
     (keepCap = false) => {
       if (!id) return;
+      setEstimateError(null);
       getEstimate(id)
         .then((r) => {
           setEstimate(r.estimate);
           setApprovalCode(r.approvalCode);
           if (!keepCap) setCap(r.estimate.spendingCapUsd);
         })
-        .catch(() => undefined);
+        /**
+         * Shown, not swallowed. The start button needs the approval code this call returns, so when the call
+         * fails the button can never enable — and a `.catch(() => undefined)` here meant it sat there greyed out
+         * with nothing on the page saying why. On 20 September 2026 an owner ticked the box, could not press the
+         * button, and there was no way for them to find out that the estimate had been refused.
+         */
+        .catch((e: unknown) => setEstimateError(e instanceof Error ? e.message : 'The estimate could not be worked out.'));
     },
     [id],
   );
@@ -448,6 +456,12 @@ export function BuildPage() {
             </div>
           )}
 
+          {estimateError && (
+            <ErrorNotice
+              title="This app cannot be checked yet"
+              message={`${estimateError} Until that is sorted out, the button below stays switched off.`}
+            />
+          )}
           {needsPlan && !plan?.approvedAt && <p className="sv-faint">Approve the plan above first.</p>}
           <button type="button" className="sv-btn" disabled={!approved || !approvalCode || (needsPlan && !plan?.approvedAt)} onClick={() => void begin()}>
             {uploaded ? 'Check my app' : fixFindingIds ? 'Fix and rebuild' : 'Build my app'}

@@ -65,8 +65,20 @@ export function planUpload(list: FileList | File[]): UploadPlan {
     files.push({ file, path: rel });
     bytes += file.size;
   }
+  /**
+   * A single archive is the one wrong choice that looks right. The picker will accept a .zip, it uploads as one
+   * file without complaint, and the check then runs over a folder containing one lump of compressed bytes: it
+   * completes, finds almost nothing, and reads as a clean result. Refusing it with an instruction is the whole
+   * fix, because the person is one step away from the right answer and does not know it.
+   */
+  const ARCHIVES = ['.zip', '.tar', '.tar.gz', '.tgz', '.gz', '.rar', '.7z'];
+  const onlyArchive =
+    files.length === 1 && ARCHIVES.some((ext) => (files[0]!.path.toLowerCase().endsWith(ext)));
+
   let problem: string | undefined;
-  if (files.length === 0) problem = 'There is nothing to check in that folder. Choose the folder that holds your app’s code.';
+  if (onlyArchive) {
+    problem = `That is a compressed archive (${files[0]!.path}), and SecureVibe checks code rather than the box it arrives in. Unpack it first, then choose the folder that comes out.`;
+  } else if (files.length === 0) problem = 'There is nothing to check in that folder. Choose the folder that holds your app’s code.';
   else if (files.length > MAX_FILES) problem = `That folder has ${files.length} files to check; the limit is ${MAX_FILES}. Choose the app’s own folder, not a folder above it.`;
   else if (bytes > MAX_TOTAL_BYTES) problem = 'That folder is larger than 50 MB without its dependencies. Choose the app’s own folder, not a folder above it.';
   return { folderName: first, files, bytes, skipped, ...(problem ? { problem } : {}) };
