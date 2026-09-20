@@ -120,11 +120,26 @@ function gitleaksConfig(run: ToolRunContext): string {
 /** The tools found on PATH and run the same way. nano-analyzer is not one of them: it has its own module. */
 const RUNS: Record<Exclude<ExternalToolName, typeof NANO_ANALYZER | typeof CLAMAV>, ToolRun> = {
   // With metrics off, semgrep needs named rule sets (they are downloaded from the Semgrep registry).
+  /**
+   * `--no-git-ignore` is the whole reason this scanner has ever seen a file of anybody's application.
+   *
+   * Semgrep scans only files tracked by git unless told otherwise. No app folder is ever a git repository —
+   * scaffold does not run `git init`, and the uploader strips `.git` on purpose — so semgrep walked in, found
+   * nothing tracked, scanned **zero files**, exited successfully, and SecureVibe recorded "ran, 0 findings".
+   *
+   * Every app SecureVibe has ever checked carried that clean result. The natural experiment is in the workspace:
+   * twenty runs across five applications, every one of them zero, against six runs of the self-assessment —
+   * whose target is SecureVibe's own repository, which *is* git-tracked — every one of them non-zero. One
+   * control group, and it is the only case where the scan ever happened.
+   *
+   * The excludes below still apply, so this does not mean reading `node_modules`.
+   */
   semgrep: {
     args: (run) => [
       'scan',
       '--config', 'p/owasp-top-ten',
       '--config', 'p/typescript',
+      '--no-git-ignore',
       ...run.exclude.flatMap((p) => ['--exclude', excludeDir(p)]),
       '--json', '--quiet', '--disable-version-check', '--metrics=off',
       run.appDir,

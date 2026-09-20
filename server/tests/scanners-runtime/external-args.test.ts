@@ -19,6 +19,15 @@ describe('extra scanner settings', () => {
     expect(args.join(' ')).toContain('--exclude node_modules --exclude templates');
   });
 
+  it('tells semgrep to read files that are not tracked by git, because no app folder ever is', () => {
+    // Without this semgrep scans only git-tracked files, and an app folder is never a git repository:
+    // scaffold does not run `git init` and the uploader strips `.git`. It therefore scanned zero files and
+    // reported a clean result for every application SecureVibe has ever checked. This assertion is the guard
+    // on that, and it is worth more than it looks: nothing else in the suite would notice its absence,
+    // because a scan of zero files fails no test — it just quietly agrees with everything.
+    expect(externalArgs('semgrep', { ...run, version: '1.176.0' })).toContain('--no-git-ignore');
+  });
+
   it('lets trivy update its database and skips excluded folders and secret files', () => {
     const args = externalArgs('trivy', { ...run, version: '0.74.0' });
     expect(args).not.toContain('--skip-db-update');
