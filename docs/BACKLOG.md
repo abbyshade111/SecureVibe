@@ -51,6 +51,12 @@ an owner would notice, because that is what decides the order. Remove an item wh
   them money, and coming back recovers only the figure from the last completed stage. That is the moment a
   first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
   they are, which is more than a line of code: something has to hold the run's state above the page.
+- **A stopped build can only be resumed from the build page, and nothing points there.** "Carry on from where it
+  stopped" lives on the build page for that specific run, and the Results page offers no way back to it — so an
+  owner whose build stopped part-way has the option, cannot reach it, and is left with a rebuild that pays again
+  for work already done. It happened the night an owner's AI credit ran out mid-build: the only route was a URL
+  typed by hand. The Results page should offer it directly whenever the last run is a full build that did not
+  finish, with the same wording about keeping what was already written.
 - **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
   already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
   has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
