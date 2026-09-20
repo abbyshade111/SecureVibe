@@ -28,7 +28,7 @@ SecureVibe checked this application with automated tests, runtime probes against
 **Limitations:**
 
 - Generated code and its tests run under Node's permission model restricted to the project folder; network access is not restricted.
-- Some checks were skipped this run: design-freeze (verify-only run (the design on file was used)); install (node_modules fast path); ai-review (AI is not configured (preview mode)).
+- Some checks were skipped this run: design-freeze (verify-only run (the design on file was used)); scaffold (Your app was not laid out again: this run only checks the code that is already there.); generate (Nothing was written and nothing was spent: this run only checks the code that is already there.); install (node_modules fast path); ai-review (AI is not configured (preview mode)); fix (Nothing was fixed: this run only reports what it found, and fixing is part of a build.).
 - No independent, professional application-security review of this code has been performed.
 
 **Tool coverage:**
@@ -116,7 +116,7 @@ flowchart LR
     external_api_2["npm registry"]
   end
   browser -->|"F-01 HTTP (localhost) · TPL-HEADERS-01, TPL-VALIDATION-01, TPL-BODY-01, TPL-RATE-01, TPL-ERRORS-01, TPL-AUTHZ-01, TPL-CSRF-01, TPL-COOKIE-01, TPL-SESSION-01"| app
-  app -.->|"F-02 SQLite file · TPL-DB-01, TPL-DB-02, TPL-DTO-01"| db
+  app -.->|"F-02 SQLite file · TPL-DB-01, TPL-DB-02, TPL-DB-04, TPL-DTO-01"| db
   app -->|"F-04 HTTPS (vendor API) · TPL-AI-03, TPL-AI-04, TPL-AI-05, TPL-AI-06, TPL-AI-08, TPL-OUTBOUND-01"| ai_provider
   app -->|"F-21 HTTPS (vendor API) · TPL-OUTBOUND-01, TPL-OUTBOUND-02"| external_api_1
   app -->|"F-22 HTTPS (vendor API) · TPL-OUTBOUND-01, TPL-OUTBOUND-02"| external_api_2
@@ -160,16 +160,16 @@ flowchart LR
 
 | Id | Title | Date |
 | --- | --- | --- |
-| [ADR-001](#adr-001) | Authentication model: local accounts with passwords | 2026-09-17 |
-| [ADR-002](#adr-002) | Session store: server-side sessions in SQLite | 2026-09-17 |
-| [ADR-003](#adr-003) | Data encryption: file permissions and disk encryption; no field encryption | 2026-09-17 |
-| [ADR-004](#adr-004) | File uploads: not included | 2026-09-17 |
-| [ADR-005](#adr-005) | AI boundary: the assistant advises, application code decides | 2026-09-17 |
-| [ADR-006](#adr-006) | Deployment and exposure: this computer only (loopback) | 2026-09-17 |
-| [ADR-007](#adr-007) | Logging, audit and data retention | 2026-09-17 |
-| [ADR-008](#adr-008) | Dependency policy: locked, script-free, inventoried | 2026-09-17 |
+| [ADR-001](#adr-001) | Authentication model: local accounts with passwords | 2026-09-20 |
+| [ADR-002](#adr-002) | Session store: server-side sessions in SQLite | 2026-09-20 |
+| [ADR-003](#adr-003) | Data encryption: file permissions and disk encryption; no field encryption | 2026-09-20 |
+| [ADR-004](#adr-004) | File uploads: not included | 2026-09-20 |
+| [ADR-005](#adr-005) | AI boundary: the assistant advises, application code decides | 2026-09-20 |
+| [ADR-006](#adr-006) | Deployment and exposure: this computer only (loopback) | 2026-09-20 |
+| [ADR-007](#adr-007) | Logging, audit and data retention | 2026-09-20 |
+| [ADR-008](#adr-008) | Dependency policy: locked, script-free, inventoried | 2026-09-20 |
 
-Full text: see section 14 (10 more decision record(s) come with the starter application).
+Full text: see section 14 (12 more decision record(s) come with the starter application).
 
 ### Second opinion (independent AI review of the design)
 
@@ -222,11 +222,11 @@ Not performed for this build.
 | SR-05 | Security-relevant actions (sign-ins, denied access, changes by administrators) are recorded in a tamper-evident log kept for at least 12 months. |  | V16.2.1, V16.3.1, V16.3.2, V16.4.2 |  | MT-01, MT-07 | 🟡 Partial |
 | SR-06 | The app limits how many requests one person or address can make, stops slow requests, and reports whether it is healthy. |  | V2.4.1, V15.2.2 |  | RR-06, RR-07 | 🟡 Partial |
 | SR-07 | Secrets and keys live only in the configuration file, never in code, logs or reports. |  | V13.3.2, V16.2.5 |  | AC-05 | 🟡 Partial |
-| SR-08 | Third-party packages are locked to tested versions, inventoried, and checked for known problems. |  | V15.1.1, V15.1.2, V15.2.1 |  | RR-01 | 🟡 Partial |
-| SR-09 | A written incident plan names The person running SecureVibe on this computer as the security contact and says what to do when something goes wrong. |  | V6.1.1 |  | MT-06 | 🟡 Partial |
+| SR-08 | Third-party packages are locked to tested versions, inventoried, and checked for known problems. |  | V15.1.1, V15.1.2, V15.2.1 |  | RR-01 | ❌ Fail |
+| SR-09 | A written incident plan names The person running SecureVibe on this computer as the security contact and says what to do when something goes wrong. |  | V6.1.1 |  | MT-06 | ❌ Fail |
 | SR-10 | Saving the same form twice, or two people editing at once, never corrupts a record. |  | V2.3.3 |  | DM-03, RR-05 | 🟡 Partial |
 | SR-11 | People must sign in with a password of at least 12 characters before using SecureVibe. Guessing attempts are slowed down and locked temporarily. |  | V6.2.1, V6.2.4, V6.3.1, V6.3.2, V11.4.2 |  | AC-02 | 🟡 Partial |
-| SR-12 | Each role only gets what it needs (Administrator). Records with an owner are visible only to that owner and administrators. |  | V8.2.1, V8.2.2, V8.3.1, V15.3.1 |  | AC-03 | 🟡 Partial |
+| SR-12 | Each role only gets what it needs (Administrator). Records with an owner are visible only to that owner and administrators. |  | V8.2.1, V8.2.2, V8.3.1, V15.3.1 |  | AC-03 | ❌ Fail |
 | SR-13 | Sessions end after 15 minutes of inactivity and after 8 hours at most. Logging out works on every page and ends the session on the server. |  | V7.2.1, V7.2.4, V7.3.1, V7.3.2, V7.4.1, V7.4.2 |  | AC-02 | 🟡 Partial |
 | SR-14 | No account exists with a default password. The first administrator gets a one-time password that must be changed. |  | V6.3.2, V6.4.1 |  | AC-02 | 🟡 Partial |
 | SR-15 | Every person may turn on an authenticator app for their own account. |  | V6.5.1, V6.5.3 |  | AC-02 | 🟡 Partial |
@@ -235,7 +235,7 @@ Not performed for this build.
 | SR-18 | The assistant only sees the signed-in person's own records, always through the signed-in person's own permissions. |  |  | C5.2.1, C5.2.4, C9.5.3, C9.5.4 | AC-03 | 🟡 Partial |
 | SR-19 | Every AI request is logged with its cost. Each person has a daily budget, and an administrator can switch the assistant off at once. |  |  | C12.1.1, C12.1.3, C9.1.2, C9.6.1, C12.4.3 | MT-01, RR-07 | 🟡 Partial |
 | SR-20 | The assistant can propose a change, but nothing happens until the person confirms it. |  |  | C9.2.1, C9.3.2, C9.5.1 | AC-03 | 🟡 Partial |
-| SR-21 | SecureVibe only talks to the outside services named in its configuration. Each call has a time limit and a failure never takes the app down. |  | V13.2.4, V13.2.5, V12.3.2, V15.3.2, V16.5.2, V13.1.1 |  | RR-02, AS-01 | 🟡 Partial |
+| SR-21 | SecureVibe only talks to the outside services named in its configuration. Each call has a time limit and a failure never takes the app down. |  | V13.2.4, V13.2.5, V12.3.2, V15.3.2, V16.5.2, V13.1.1 |  | RR-02, AS-01 | ❌ Fail |
 
 ## 5. Secure by Design checklist
 
@@ -321,7 +321,7 @@ Not performed for this build.
 
 ## 6. ASVS results
 
-32 pass · 0 AI-assessed · 0 documented · 116 attested · 8 partial · 1 fail · 4 not verified · 92 not applicable · 92 out of level. Rating: 🟡 Needs attention — 1 requirement(s) failed and need a developer's attention.
+31 pass · 0 AI-assessed · 0 documented · 95 attested · 12 partial · 20 fail · 3 not verified · 92 not applicable · 92 out of level. Rating: 🔴 At risk — At least one failing requirement is linked to an urgent (P1) security finding.
 
 ### V1 — Encoding and Sanitization
 
@@ -330,7 +330,7 @@ Not performed for this build.
 | V1.1.1 | Verify that input is decoded or unescaped into a canonical form only once, it is only decoded when encoded data in that form is expected, and that this is done before processing the input further, for example it is not performed after input validation or sanitization. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V1.1.2 | Verify that the application performs output encoding and escaping either as a final step before being used by the interpreter for which it is intended or by the interpreter itself. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V1.2.1 | Verify that output encoding for an HTTP response, HTML document, or XML document is relevant for the context required, such as encoding the relevant characters for HTML elements, HTML attributes, HTML comments, CSS, or HTTP header fields, to avoid changing the message or document structure. | ✅ Pass | Verified by 1 runtime probe and 1 scanner check. |
-| V1.2.2 | Verify that when dynamically building URLs, untrusted data is encoded according to its context (e.g., URL encoding or base64url encoding for query or path parameters). Ensure that only safe URL protocols are permitted (e.g., disallow javascript: or data:). | 🟡 Partial | A single static check passed (1 scanner check); one more independent check, a test or a runtime probe would be needed to verify it. |
+| V1.2.2 | Verify that when dynamically building URLs, untrusted data is encoded according to its context (e.g., URL encoding or base64url encoding for query or path parameters). Ensure that only safe URL protocols are permitted (e.g., disallow javascript: or data:). | ❌ Fail | 2 open findings (F-0147, F-0149) contradict this requirement. |
 | V1.2.3 | Verify that output encoding or escaping is used when dynamically building JavaScript content (including JSON), to avoid changing the message or document structure (to avoid JavaScript and JSON injection). | 🟡 Partial | A single static check passed (1 scanner check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V1.2.4 | Verify that data selection or database queries (e.g., SQL, HQL, NoSQL, Cypher) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from SQL Injection and other database injection attacks. This is also relevant when writing stored procedures. | ✅ Pass | Verified by 1 runtime probe and 1 scanner check. |
 | V1.2.5 | Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. | 🟡 Partial | A single static check passed (1 scanner check); one more independent check, a test or a runtime probe would be needed to verify it. |
@@ -362,9 +362,9 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V2.1.1 | Verify that the application's documentation defines input validation rules for how to check the validity of data items against an expected structure. This could be common data formats such as credit card numbers, email addresses, telephone numbers, or it could be an internal data format. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V2.1.1 | Verify that the application's documentation defines input validation rules for how to check the validity of data items against an expected structure. This could be common data formats such as credit card numbers, email addresses, telephone numbers, or it could be an internal data format. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0169) contradicts this requirement. |
 | V2.1.2 | Verify that the application's documentation defines how to validate the logical and contextual consistency of combined data items, such as checking that suburb and ZIP code match. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V2.1.3 | Verify that expectations for business logic limits and validations are documented, including both per-user and globally across the application. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V2.1.3 | Verify that expectations for business logic limits and validations are documented, including both per-user and globally across the application. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0169) contradicts this requirement. |
 | V2.2.1 | Verify that input is validated to enforce business or functional expectations for that input. This should either use positive validation against an allow list of values, patterns, and ranges, or be based on comparing the input to an expected structure and logical limits according to predefined rules. For L1, this can focus on input which is used to make specific business or security decisions. For L2 and up, this should apply to all input. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V2.2.2 | Verify that the application is designed to enforce input validation at a trusted service layer. While client-side validation improves usability and should be encouraged, it must not be relied upon as a security control. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V2.2.3 | Verify that the application ensures that combinations of related data items are reasonable according to the pre-defined rules. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -418,7 +418,7 @@ Not performed for this build.
 | --- | --- | --- | --- |
 | V4.1.1 | Verify that every HTTP response with a message body contains a Content-Type header field that matches the actual content of the response, including the charset parameter to specify safe character encoding (e.g., UTF-8, ISO-8859-1) according to IANA Media Types, such as "text/", "/+xml" and "/xml". | ✅ Pass | Verified by 2 runtime probes. |
 | V4.1.2 | Verify that only user-facing endpoints (intended for manual web-browser access) automatically redirect from HTTP to HTTPS, while other services or endpoints do not implement transparent redirects. This is to avoid a situation where a client is erroneously sending unencrypted HTTP requests, but since the requests are being automatically redirected to HTTPS, the leakage of sensitive data goes undiscovered. | ➖ Not applicable | This app runs on this computer only, without HTTPS, so there is no HTTP-to-HTTPS redirect to configure. |
-| V4.1.3 | Verify that any HTTP header field used by the application and set by an intermediary layer, such as a load balancer, a web proxy, or a backend-for-frontend service, cannot be overridden by the end-user. Example headers might include X-Real-IP, X-Forwarded-*, or X-User-ID. | ✅ Pass | Verified by 1 runtime probe. |
+| V4.1.3 | Verify that any HTTP header field used by the application and set by an intermediary layer, such as a load balancer, a web proxy, or a backend-for-frontend service, cannot be overridden by the end-user. Example headers might include X-Real-IP, X-Forwarded-*, or X-User-ID. | ✅ Pass | Verified by 1 runtime probe and 1 configuration check. |
 | V4.1.4 | Verify that only HTTP methods that are explicitly supported by the application or its API (including OPTIONS during preflight requests) can be used and that unused methods are blocked. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V4.1.5 | Verify that per-message digital signatures are used to provide additional assurance on top of transport protections for requests or transactions which are highly sensitive or which traverse a number of systems. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V4.2.1 | Verify that all application components (including load balancers, firewalls, and application servers) determine boundaries of incoming HTTP messages using the appropriate mechanism for the HTTP version to prevent HTTP request smuggling. In HTTP/1.x, if a Transfer-Encoding header field is present, the Content-Length header must be ignored per RFC 2616. When using HTTP/2 or HTTP/3, if a Content-Length header field is present, the receiver must ensure that it is consistent with the length of the DATA frames. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -455,9 +455,9 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V6.1.1 | Verify that application documentation defines how controls such as rate limiting, anti-automation, and adaptive response, are used to defend against attacks such as credential stuffing and password brute force. The documentation must make clear how these controls are configured and prevent malicious account lockout. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V6.1.2 | Verify that a list of context-specific words is documented in order to prevent their use in passwords. The list could include permutations of organization names, product names, system identifiers, project codenames, department or role names, and similar. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V6.1.3 | Verify that, if the application includes multiple authentication pathways, these are all documented together with the security controls and authentication strength which must be consistently enforced across them. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V6.1.1 | Verify that application documentation defines how controls such as rate limiting, anti-automation, and adaptive response, are used to defend against attacks such as credential stuffing and password brute force. The documentation must make clear how these controls are configured and prevent malicious account lockout. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0167) contradicts this requirement. |
+| V6.1.2 | Verify that a list of context-specific words is documented in order to prevent their use in passwords. The list could include permutations of organization names, product names, system identifiers, project codenames, department or role names, and similar. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0167) contradicts this requirement. |
+| V6.1.3 | Verify that, if the application includes multiple authentication pathways, these are all documented together with the security controls and authentication strength which must be consistently enforced across them. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0167) contradicts this requirement. |
 | V6.2.1 | Verify that user set passwords are at least 8 characters in length although a minimum of 15 characters is strongly recommended. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.2.2 | Verify that users can change their password. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.2.3 | Verify that password change functionality requires the user's current and new password. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -471,14 +471,14 @@ Not performed for this build.
 | V6.2.11 | Verify that the documented list of context specific words is used to prevent easy to guess passwords being created. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.2.12 | Verify that passwords submitted during account registration or password changes are checked against a set of breached passwords. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | V6.3.1 | Verify that controls to prevent attacks such as credential stuffing and password brute force are implemented according to the application's security documentation. | ✅ Pass | Verified by 1 runtime probe. |
-| V6.3.2 | Verify that default user accounts (e.g., "root", "admin", or "sa") are not present in the application or are disabled. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V6.3.2 | Verify that default user accounts (e.g., "root", "admin", or "sa") are not present in the application or are disabled. | ✅ Pass | Verified by 2 configuration checks. |
 | V6.3.3 | Verify that either a multi-factor authentication mechanism or a combination of single-factor authentication mechanisms, must be used in order to access the application. For L3, one of the factors must be a hardware-based authentication mechanism which provides compromise and impersonation resistance against phishing attacks while verifying the intent to authenticate by requiring a user-initiated action (such as a button press on a FIDO hardware key or a mobile phone). Relaxing any of the considerations in this requirement requires a fully documented rationale and a comprehensive set of mitigating controls. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.3.4 | Verify that, if the application includes multiple authentication pathways, there are no undocumented pathways and that security controls and authentication strength are enforced consistently. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | V6.3.5 | Verify that users are notified of suspicious authentication attempts (successful or unsuccessful). This may include authentication attempts from an unusual location or client, partially successful authentication (only one of multiple factors), an authentication attempt after a long period of inactivity or a successful authentication after several unsuccessful attempts. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V6.3.6 | Verify that email is not used as either a single-factor or multi-factor authentication mechanism. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V6.3.7 | Verify that users are notified after updates to authentication details, such as credential resets or modification of the username or email address. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V6.3.8 | Verify that valid users cannot be deduced from failed authentication challenges, such as by basing on error messages, HTTP response codes, or different response times. Registration and forgot password functionality must also have this protection. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| V6.4.1 | Verify that system generated initial passwords or activation codes are securely randomly generated, follow the existing password policy, and expire after a short period of time or after they are initially used. These initial secrets must not be permitted to become the long term password. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V6.4.1 | Verify that system generated initial passwords or activation codes are securely randomly generated, follow the existing password policy, and expire after a short period of time or after they are initially used. These initial secrets must not be permitted to become the long term password. | 🟡 Partial | A single static check passed (1 configuration check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V6.4.2 | Verify that password hints or knowledge-based authentication (so-called "secret questions") are not present. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.4.3 | Verify that a secure process for resetting a forgotten password is implemented, that does not bypass any enabled multi-factor authentication mechanisms. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V6.4.4 | Verify that if a multi-factor authentication factor is lost, evidence of identity proofing is performed at the same level as during enrollment. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
@@ -507,15 +507,15 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V7.1.1 | Verify that the user's session inactivity timeout and absolute maximum session lifetime are documented, are appropriate in combination with other controls, and that the documentation includes justification for any deviations from NIST SP 800-63B re-authentication requirements. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V7.1.2 | Verify that the documentation defines how many concurrent (parallel) sessions are allowed for one account as well as the intended behaviors and actions to be taken when the maximum number of active sessions is reached. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V7.1.1 | Verify that the user's session inactivity timeout and absolute maximum session lifetime are documented, are appropriate in combination with other controls, and that the documentation includes justification for any deviations from NIST SP 800-63B re-authentication requirements. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0168) contradicts this requirement. |
+| V7.1.2 | Verify that the documentation defines how many concurrent (parallel) sessions are allowed for one account as well as the intended behaviors and actions to be taken when the maximum number of active sessions is reached. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0168) contradicts this requirement. |
 | V7.1.3 | Verify that all systems that create and manage user sessions as part of a federated identity management ecosystem (such as SSO systems) are documented along with controls to coordinate session lifetimes, termination, and any other conditions that require re-authentication. | ➖ Not applicable | This app is not part of a single sign-on (SSO) setup with other systems. |
 | V7.2.1 | Verify that the application performs all session token verification using a trusted, backend service. | ✅ Pass | Verified by 1 runtime probe. |
 | V7.2.2 | Verify that the application uses either self-contained or reference tokens that are dynamically generated for session management, i.e. not using static API secrets and keys. | ✅ Pass | Verified by 1 runtime probe. |
 | V7.2.3 | Verify that if reference tokens are used to represent user sessions, they are unique and generated using a cryptographically secure pseudo-random number generator (CSPRNG) and possess at least 128 bits of entropy. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V7.2.4 | Verify that the application generates a new session token on user authentication, including re-authentication, and terminates the current session token. | ✅ Pass | Verified by 1 runtime probe. |
-| V7.3.1 | Verify that there is an inactivity timeout such that re-authentication is enforced according to risk analysis and documented security decisions. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V7.3.2 | Verify that there is an absolute maximum session lifetime such that re-authentication is enforced according to risk analysis and documented security decisions. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V7.3.1 | Verify that there is an inactivity timeout such that re-authentication is enforced according to risk analysis and documented security decisions. | 🟡 Partial | A single static check passed (1 configuration check); one more independent check, a test or a runtime probe would be needed to verify it. |
+| V7.3.2 | Verify that there is an absolute maximum session lifetime such that re-authentication is enforced according to risk analysis and documented security decisions. | 🟡 Partial | A single static check passed (1 configuration check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V7.4.1 | Verify that when session termination is triggered (such as logout or expiration), the application disallows any further use of the session. For reference tokens or stateful sessions, this means invalidating the session data at the application backend. Applications using self-contained tokens will need a solution such as maintaining a list of terminated tokens, disallowing tokens produced before a per-user date and time or rotating a per-user signing key. | ✅ Pass | Verified by 1 runtime probe. |
 | V7.4.2 | Verify that the application terminates all active sessions when a user account is disabled or deleted (such as an employee leaving the company). | ❓ Not verified | The check that covers this could not run because the app’s packages did not install. |
 | V7.4.3 | Verify that the application gives the option to terminate all other active sessions after a successful change or removal of any authentication factor (including password change via reset or recovery and, if present, an MFA settings update). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -535,11 +535,11 @@ Not performed for this build.
 | V8.1.2 | Verify that authorization documentation defines rules for field-level access restrictions (both read and write) based on consumer permissions and resource attributes. Note that these rules might depend on other attribute values of the relevant data object, such as state or status. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V8.1.3 | Verify that the application's documentation defines the environmental and contextual attributes (including but not limited to, time of day, user location, IP address, or device) that are used in the application to make security decisions, including those pertaining to authentication and authorization. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V8.1.4 | Verify that authentication and authorization documentation defines how environmental and contextual factors are used in decision-making, in addition to function-level, data-specific, and field-level authorization. This should include the attributes evaluated, thresholds for risk, and actions taken (e.g., allow, challenge, deny, step-up authentication). | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| V8.2.1 | Verify that the application ensures that function-level access is restricted to consumers with explicit permissions. | ✅ Pass | Verified by 1 runtime probe. |
+| V8.2.1 | Verify that the application ensures that function-level access is restricted to consumers with explicit permissions. | ❌ Fail | 1 runtime probe failed; 1 open finding (F-0001) contradicts this requirement. |
 | V8.2.2 | Verify that the application ensures that data-specific access is restricted to consumers with explicit permissions to specific data items to mitigate insecure direct object reference (IDOR) and broken object level authorization (BOLA). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V8.2.3 | Verify that the application ensures that field-level access is restricted to consumers with explicit permissions to specific fields to mitigate broken object property level authorization (BOPLA). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V8.2.4 | Verify that adaptive security controls based on a consumer's environmental and contextual attributes (such as time of day, location, IP address, or device) are implemented for authentication and authorization decisions, as defined in the application's documentation. These controls must be applied when the consumer tries to start a new session and also during an existing session. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| V8.3.1 | Verify that the application enforces authorization rules at a trusted service layer and doesn't rely on controls that an untrusted consumer could manipulate, such as client-side JavaScript. | ✅ Pass | Verified by 1 runtime probe. |
+| V8.3.1 | Verify that the application enforces authorization rules at a trusted service layer and doesn't rely on controls that an untrusted consumer could manipulate, such as client-side JavaScript. | ❌ Fail | 1 runtime probe failed; 1 open finding (F-0001) contradicts this requirement. |
 | V8.3.2 | Verify that changes to values on which authorization decisions are made are applied immediately. Where changes cannot be applied immediately, (such as when relying on data in self-contained tokens), there must be mitigating controls to alert when a consumer performs an action when they are no longer authorized to do so and revert the change. Note that this alternative would not mitigate information leakage. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V8.3.3 | Verify that access to an object is based on the originating subject's (e.g. consumer's) permissions, not on the permissions of any intermediary or service acting on their behalf. For example, if a consumer calls a web service using a self-contained token for authentication, and the service then requests data from a different service, the second service will use the consumer's token, rather than a machine-to-machine token from the first service, to make permission decisions. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V8.4.1 | Verify that multi-tenant applications use cross-tenant controls to ensure consumer operations will never affect tenants with which they do not have permissions to interact. | ➖ Not applicable | This app serves one organisation. It does not host several separate customer organisations that must be kept apart from each other. |
@@ -608,7 +608,7 @@ Not performed for this build.
 | V11.1.4 | Verify that a cryptographic inventory is maintained. This must include a documented plan that outlines the migration path to new cryptographic standards, such as post-quantum cryptography, in order to react to future threats. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V11.2.1 | Verify that industry-validated implementations (including libraries and hardware-accelerated implementations) are used for cryptographic operations. | 🟡 Partial | A single static check passed (1 scanner check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V11.2.2 | Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available. | ❌ Fail | Abby answered that it is not in place. |
-| V11.2.3 | Verify that all cryptographic primitives utilize a minimum of 128-bits of security based on the algorithm, key size, and configuration. For example, a 256-bit ECC key provides roughly 128 bits of security where RSA requires a 3072-bit key to achieve 128 bits of security. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V11.2.3 | Verify that all cryptographic primitives utilize a minimum of 128-bits of security based on the algorithm, key size, and configuration. For example, a 256-bit ECC key provides roughly 128 bits of security where RSA requires a 3072-bit key to achieve 128 bits of security. | ❌ Fail | 1 configuration check failed. |
 | V11.2.4 | Verify that all cryptographic operations are constant-time, with no 'short-circuit' operations in comparisons, calculations, or returns, to avoid leaking information. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V11.2.5 | Verify that all cryptographic modules fail securely, and errors are handled in a way that does not enable vulnerabilities, such as Padding Oracle attacks. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V11.3.1 | Verify that insecure block modes (e.g., ECB) and weak padding schemes (e.g., PKCS#1 v1.5) are not used. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -648,13 +648,13 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V13.1.1 | Verify that all communication needs for the application are documented. This must include external services which the application relies upon and cases where an end user might be able to provide an external location to which the application will then connect. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V13.1.1 | Verify that all communication needs for the application are documented. This must include external services which the application relies upon and cases where an end user might be able to provide an external location to which the application will then connect. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0163) contradicts this requirement. |
 | V13.1.2 | Verify that for each service the application uses, the documentation defines the maximum number of concurrent connections (e.g., connection pool limits) and how the application behaves when that limit is reached, including any fallback or recovery mechanisms, to prevent denial of service conditions. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V13.1.3 | Verify that the application documentation defines resource‑management strategies for every external system or service it uses (e.g., databases, file handles, threads, HTTP connections). This should include resource‑release procedures, timeout settings, failure handling, and where retry logic is implemented, specifying retry limits, delays, and back‑off algorithms. For synchronous HTTP request–response operations it should mandate short timeouts and either disable retries or strictly limit retries to prevent cascading delays and resource exhaustion. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V13.1.4 | Verify that the application's documentation defines the secrets that are critical for the security of the application and a schedule for rotating them, based on the organization's threat model and business requirements. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V13.2.1 | Verify that communications between backend application components that don't support the application's standard user session mechanism, including APIs, middleware, and data layers, are authenticated. Authentication must use individual service accounts, short-term tokens, or certificate-based authentication and not unchanging credentials such as passwords, API keys, or shared accounts with privileged access. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V13.2.2 | Verify that communications between backend application components, including local or operating system services, APIs, middleware, and data layers, are performed with accounts assigned the least necessary privileges. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V13.2.3 | Verify that if a credential has to be used for service authentication, the credential being used by the consumer is not a default credential (e.g., root/root or admin/admin). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V13.2.3 | Verify that if a credential has to be used for service authentication, the credential being used by the consumer is not a default credential (e.g., root/root or admin/admin). | ❌ Fail | 1 configuration check failed. |
 | V13.2.4 | Verify that an allowlist is used to define the external resources or systems with which the application is permitted to communicate (e.g., for outbound requests, data loads, or file access). This allowlist can be implemented at the application layer, web server, firewall, or a combination of different layers. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V13.2.5 | Verify that the web or application server is configured with an allowlist of resources or systems to which the server can send requests or load data or files from. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V13.2.6 | Verify that where the application connects to separate services, it follows the documented configuration for each connection, such as maximum parallel connections, behavior when maximum allowed connections is reached, connection timeouts, and retry strategies. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
@@ -663,7 +663,7 @@ Not performed for this build.
 | V13.3.3 | Verify that all cryptographic operations are performed using an isolated security module (such as a vault or hardware security module) to securely manage and protect key material from exposure outside of the security module. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V13.3.4 | Verify that secrets are configured to expire and be rotated based on the application's documentation. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V13.4.1 | Verify that the application is deployed either without any source control metadata, including the .git or .svn folders, or in a way that these folders are inaccessible both externally and to the application itself. | ✅ Pass | Verified by 3 runtime probes. |
-| V13.4.2 | Verify that debug modes are disabled for all components in production environments to prevent exposure of debugging features and information leakage. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V13.4.2 | Verify that debug modes are disabled for all components in production environments to prevent exposure of debugging features and information leakage. | 🟡 Partial | A single static check passed (1 configuration check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V13.4.3 | Verify that web servers do not expose directory listings to clients unless explicitly intended. | ✅ Pass | Verified by 1 runtime probe. |
 | V13.4.4 | Verify that using the HTTP TRACE method is not supported in production environments, to avoid potential information leakage. | ✅ Pass | Verified by 2 runtime probes. |
 | V13.4.5 | Verify that documentation (such as for internal APIs) and monitoring endpoints are not exposed unless explicitly intended. | ✅ Pass | Verified by 2 runtime probes. |
@@ -674,8 +674,8 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V14.1.1 | Verify that all sensitive data created and processed by the application has been identified and classified into protection levels. This includes data that is only encoded and therefore easily decoded, such as Base64 strings or the plaintext payload inside a JWT. Protection levels need to take into account any data protection and privacy regulations and standards which the application is required to comply with. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V14.1.2 | Verify that all sensitive data protection levels have a documented set of protection requirements. This must include (but not be limited to) requirements related to general encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, database-level encryption, privacy and privacy-enhancing technologies to be used, and other confidentiality requirements. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V14.1.1 | Verify that all sensitive data created and processed by the application has been identified and classified into protection levels. This includes data that is only encoded and therefore easily decoded, such as Base64 strings or the plaintext payload inside a JWT. Protection levels need to take into account any data protection and privacy regulations and standards which the application is required to comply with. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0164) contradicts this requirement. |
+| V14.1.2 | Verify that all sensitive data protection levels have a documented set of protection requirements. This must include (but not be limited to) requirements related to general encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, database-level encryption, privacy and privacy-enhancing technologies to be used, and other confidentiality requirements. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0164) contradicts this requirement. |
 | V14.2.1 | Verify that sensitive data is only sent to the server in the HTTP message body or header fields, and that the URL and query string do not contain sensitive information, such as an API key or session token. | ✅ Pass | Verified by 1 runtime probe. |
 | V14.2.2 | Verify that the application prevents sensitive data from being cached in server components, such as load balancers and application caches, or ensures that the data is securely purged after use. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | V14.2.3 | Verify that defined sensitive data is not sent to untrusted parties (e.g., user trackers) to prevent unwanted collection of data outside of the application's control. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
@@ -692,20 +692,20 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V15.1.1 | Verify that application documentation defines risk based remediation time frames for 3rd party component versions with vulnerabilities and for updating libraries in general, to minimize the risk from these components. | ❓ Not verified | The check that covers this could not run because the app’s packages did not install. |
-| V15.1.2 | Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. 3 low-confidence findings are open but not counted (see the security report). |
+| V15.1.1 | Verify that application documentation defines risk based remediation time frames for 3rd party component versions with vulnerabilities and for updating libraries in general, to minimize the risk from these components. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0165) contradicts this requirement. |
+| V15.1.2 | Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories. | ❌ Fail | 1 configuration check failed. 3 low-confidence findings are open but not counted (see the security report). |
 | V15.1.3 | Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | V15.1.4 | Verify that application documentation highlights third-party libraries which are considered to be "risky components". | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V15.1.5 | Verify that application documentation highlights parts of the application where "dangerous functionality" is being used. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| V15.2.1 | Verify that the application only contains components which have not breached the documented update and remediation time frames. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V15.2.1 | Verify that the application only contains components which have not breached the documented update and remediation time frames. | 🟡 Partial | A single static check passed (1 configuration check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V15.2.2 | Verify that the application has implemented defenses against loss of availability due to functionality which is time-consuming or resource-demanding, based on the documented security decisions and strategies for this. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V15.2.3 | Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V15.2.3 | Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | ❌ Fail | 1 configuration check failed. |
 | V15.2.4 | Verify that third-party components and all of their transitive dependencies are included from the expected repository, whether internally owned or an external source, and that there is no risk of a dependency confusion attack. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V15.2.5 | Verify that the application implements additional protections around parts of the application which are documented as containing "dangerous functionality" or using third-party libraries considered to be "risky components". This could include techniques such as sandboxing, encapsulation, containerization or network level isolation to delay and deter attackers who compromise one part of an application from pivoting elsewhere in the application. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | V15.3.1 | Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V15.3.2 | Verify that where the application backend makes calls to external URLs, it is configured to not follow redirects unless it is intended functionality. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V15.3.3 | Verify that the application has countermeasures to protect against mass assignment attacks by limiting allowed fields per controller and action, e.g., it is not possible to insert or update a field value when it was not intended to be part of that action. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| V15.3.4 | Verify that all proxying and middleware components transfer the user's original IP address correctly using trusted data fields that cannot be manipulated by the end user, and the application and web server use this correct value for logging and security decisions such as rate limiting, taking into account that even the original IP address may not be reliable due to dynamic IPs, VPNs, or corporate firewalls. | ✅ Pass | Verified by 1 runtime probe. |
+| V15.3.4 | Verify that all proxying and middleware components transfer the user's original IP address correctly using trusted data fields that cannot be manipulated by the end user, and the application and web server use this correct value for logging and security decisions such as rate limiting, taking into account that even the original IP address may not be reliable due to dynamic IPs, VPNs, or corporate firewalls. | ✅ Pass | Verified by 1 runtime probe and 1 configuration check. |
 | V15.3.5 | Verify that the application explicitly ensures that variables are of the correct type and performs strict equality and comparator operations. This is to avoid type juggling or type confusion vulnerabilities caused by the application code making an assumption about a variable type. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V15.3.6 | Verify that JavaScript code is written in a way that prevents prototype pollution, for example, by using Set() or Map() instead of object literals. | 🟡 Partial | A single static check passed (1 scanner check); one more independent check, a test or a runtime probe would be needed to verify it. |
 | V15.3.7 | Verify that the application has defenses against HTTP parameter pollution attacks, particularly if the application framework makes no distinction about the source of request parameters (query string, body parameters, cookies, or header fields). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -718,7 +718,7 @@ Not performed for this build.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
-| V16.1.1 | Verify that an inventory exists documenting the logging performed at each layer of the application's technology stack, what events are being logged, log formats, where that logging is stored, how it is used, how access to it is controlled, and for how long logs are kept. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| V16.1.1 | Verify that an inventory exists documenting the logging performed at each layer of the application's technology stack, what events are being logged, log formats, where that logging is stored, how it is used, how access to it is controlled, and for how long logs are kept. | ❌ Fail | 1 configuration check failed; 1 open finding (F-0166) contradicts this requirement. |
 | V16.2.1 | Verify that each log entry includes necessary metadata (such as when, where, who, what) that would allow for a detailed investigation of the timeline when an event happens. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V16.2.2 | Verify that time sources for all logging components are synchronized, and that timestamps in security event metadata use UTC or include an explicit time zone offset. UTC is recommended to ensure consistency across distributed systems and to prevent confusion during daylight saving time transitions. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | V16.2.3 | Verify that the application only stores or broadcasts logs to the files and services that are documented in the log inventory. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -1010,7 +1010,7 @@ Not performed for this build.
 
 ## 8. AI-assisted development process (AISVS Appendix C)
 
-0 pass · 0 partial · 1 fail · 0 not verified.
+0 pass · 0 partial · 3 fail · 0 not verified.
 
 | Id | Requirement | Status | Rationale |
 | --- | --- | --- | --- |
@@ -1031,7 +1031,7 @@ Not performed for this build.
 | AC.4.1 | Verify that AI-generated code always goes through code review by a qualified human engineer. The reviewer must not be the same identity that asked for the AI generation in the first place (separation of duties). And the AI agent itself does not count as the human reviewer. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | AC.4.2 | Verify that automated security testing runs on every pull request containing AI-generated code: SAST, IAST, DAST, secret scanning, IaC scanning, and SCA. Where the scanner supports them, AI-attribution-aware rules are turned on. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | AC.4.3 | Verify that pull requests containing AI-generated code are blocked from merging when an automated scan surfaces a critical security finding, defined as CVSS >= 9.0 or the equivalent threshold in the organization's vulnerability severity policy. Bypassing the block requires a written exception approved by an authorized human. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
-| AC.4.4 | Verify that security-critical files require an elevated review threshold when AI generated or modified them: two-person review, security-team sign-off, or stricter. Security-critical files here include authentication, authorization, and cryptography code; IAM policy; CI/CD workflow definitions; deployment manifests; and sandbox or network policy artifacts. | ❌ Fail | The record says: no named person has recorded a review of the security-critical files for this build yet. |
+| AC.4.4 | Verify that security-critical files require an elevated review threshold when AI generated or modified them: two-person review, security-team sign-off, or stricter. Security-critical files here include authentication, authorization, and cryptography code; IAM policy; CI/CD workflow definitions; deployment manifests; and sandbox or network policy artifacts. | ❌ Fail | 1 configuration check failed; the record says: no named person has recorded a review of the security-critical files for this build yet. |
 | AC.4.5 | Verify that differential fuzz testing or property-based tests cover the security-critical behaviors of AI-generated code: input validation, authorization logic, and deserialization safety. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | AC.5.1 | Verify that prompt-and-response pairs are logged with stable correlation identifiers, so that an investigator can later replay the whole chain: prompt → response → commit → build → deployment. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | AC.5.2 | Verify that developers can pull up the citations (training snippets, retrieved documents, MCP tool outputs) that support a suggestion, and that the citation chain travels with the artifact. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
@@ -1040,7 +1040,7 @@ Not performed for this build.
 | AC.6.2 | Verify that aggregated feedback feeds into periodic system-prompt updates or retrieval-augmented generation against vetted secure-coding corpora (OWASP Cheat Sheets, internal coding standards). Where the organization controls model training infrastructure, fine-tuning on the same feedback corpus is also required. | ➖ Not applicable | SecureVibe does not fine-tune the AI model or run a feedback programme that changes it; the model is the vendor's. Flagging a bad suggestion is done by editing your answers or the generated code. |
 | AC.6.3 | Verify that scheduled red-team exercises target the AI tooling itself. The exercises include direct and indirect prompt-injection probes delivered through realistic PR, issue, and comment surfaces, jailbreak corpora, and supply-chain payload generation. Findings are remediated under tracked severity SLAs. | ✍️ Attested | This can only be confirmed by a person. Abby confirmed it on 2026-09-17; it is recorded, not independently verified. |
 | AC.6.4 | Verify that a closed-loop evaluation harness runs regression tests after every fine-tune, system-prompt change, or model upgrade. Security metrics must meet or exceed the prior baseline before deployment. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| AC.7.1 | Verify that AI-generated or AI-modified artifacts are clearly labeled and tracked as such. Artifact classes in scope include infrastructure-as-code (Terraform, CloudFormation, Pulumi, Bicep), CI/CD workflow files (GitHub Actions, GitLab CI, Jenkinsfile, Argo Workflows, Tekton), container and orchestration manifests (Dockerfile, Kubernetes, Helm), and security policy artifacts (IAM, OPA/Rego, NetworkPolicy, admission controllers). | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| AC.7.1 | Verify that AI-generated or AI-modified artifacts are clearly labeled and tracked as such. Artifact classes in scope include infrastructure-as-code (Terraform, CloudFormation, Pulumi, Bicep), CI/CD workflow files (GitHub Actions, GitLab CI, Jenkinsfile, Argo Workflows, Tekton), container and orchestration manifests (Dockerfile, Kubernetes, Helm), and security policy artifacts (IAM, OPA/Rego, NetworkPolicy, admission controllers). | ❌ Fail | 1 configuration check failed. |
 | AC.7.2 | Verify that AI-generated infrastructure and pipeline configurations require human review and approval before they run in any environment beyond a hermetic sandbox. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | AC.7.3 | Verify that AI-generated infrastructure and workflow changes pass policy-as-code enforcement (OPA, Conftest, Checkov, tfsec, KICS, kube-linter) at the same level as, or stricter than, human-authored changes. Policy violations block promotion. | ➖ Not applicable | SecureVibe does not generate infrastructure or pipeline configuration files (such as Terraform or CI workflows), so there is nothing for policy-as-code tools to check. |
 | AC.7.4 | Verify that changes to high-impact pipeline trigger configurations require both dual control and a security-team review, no matter who or what produced the change. The configurations in scope include GitHub Actions `pull_request_target` and `workflow_run`, self-hosted runner labels, workflow `permissions:` blocks, OIDC trust policies, and secret-environment mappings. | ➖ Not applicable | There is no CI/CD pipeline in a local build, so there are no pipeline trigger settings to protect. |
@@ -1052,7 +1052,7 @@ Not performed for this build.
 | AC.9.1 | Verify that AI-generated artifacts carry signed origin and generation metadata (in-toto or SLSA provenance attestations, AI BOM entries) identifying the AI system that produced them, the generation context, the humans involved, and the associated audit records. | ➖ Not applicable | There is no deployment pipeline that could check signed origin metadata; SecureVibe writes the app to a folder on this computer. It still records who generated what in securevibe.provenance.json (see AC.10). |
 | AC.9.2 | Verify that deployment pipelines check the presence, signature, and integrity of origin and generation metadata on AI-generated artifacts before promotion, using a trusted verifier (Sigstore/cosign, in-toto verification). | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | AC.9.3 | Verify that artifacts are rejected at deployment and quarantined for review when they are missing required origin and generation information, signed by untrusted keys, or produced by an unapproved AI system or environment. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
-| AC.10.1 | Verify that AI-generated artifacts carry the required origin and generation fields: model identity and version, tool or agent identity, generation context, prompt hash, human involvement, session identifiers, and correlation IDs. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
+| AC.10.1 | Verify that AI-generated artifacts carry the required origin and generation fields: model identity and version, tool or agent identity, generation context, prompt hash, human involvement, session identifiers, and correlation IDs. | ❌ Fail | 1 configuration check failed. |
 | AC.10.2 | Verify that origin and generation metadata is checked for completeness and consistency: no missing or ambiguous fields, values normalized to a single representation, and a signature chain that validates back to a trusted root. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
 | AC.10.3 | Verify that artifacts with incomplete, inconsistent, or unverifiable origin and generation metadata are rejected before merge or deployment, and that the rejection event is logged so trends can be tracked. Rejection happens on the verifier side, against the attestation or proof model defined in SLSA and the verification criteria in ISO/IEC 42001. | ⬜ Out of level | This requirement belongs to verification level 3, above this app's target level 2. |
 | AC.11.1 | Verify that AI review and assistant bots treat every piece of PR-supplied content (diff, title, description, comments, file contents, commit messages, linked external URLs) as untrusted input, and apply the AISVS C2.1 prompt-injection defenses: instruction-hierarchy enforcement, content sanitization, and indirect-injection detection. | ✍️ Attested | Abby confirmed this manually on 2026-09-17. It is recorded, not independently verified. |
@@ -1087,9 +1087,19 @@ Not performed for this build.
 
 | Finding | Title | Priority | Status | Affects requirement(s) |
 | --- | --- | --- | --- | --- |
-| F-0139 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
-| F-0140 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
-| F-0141 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
+| F-0147 | Link address taken from data without a protocol check | 🟡 P3 — fix when convenient | open | V1.2.2 |
+| F-0149 | Link address taken from data without a protocol check | 🟡 P3 — fix when convenient | open | V1.2.2 |
+| F-0169 | The rules for what people may type are not documented | 🟡 P3 — fix when convenient | open | V2.1.1, V2.1.3 |
+| F-0167 | The sign-in rules are not documented | 🟡 P3 — fix when convenient | open | V6.1.1, V6.1.2, V6.1.3 |
+| F-0168 | The sign-in times are not documented | 🟡 P3 — fix when convenient | open | V7.1.1, V7.1.2 |
+| F-0001 | Protected route reachable without signing in | 🔴 P1 — fix first | open | V8.2.1, V8.3.1 |
+| F-0163 | The outside services the app may contact are not documented | 🟡 P3 — fix when convenient | open | V13.1.1 |
+| F-0164 | The kinds of information the app holds are not documented | 🟡 P3 — fix when convenient | open | V14.1.1, V14.1.2 |
+| F-0165 | How the app's packages are kept up to date is not documented | 🟡 P3 — fix when convenient | open | V15.1.1 |
+| F-0193 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
+| F-0194 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
+| F-0195 | Dependency runs install scripts | ⚪ P4 — low priority | open | V15.1.2 |
+| F-0166 | What the app logs is not documented | 🟡 P3 — fix when convenient | open | V16.1.1 |
 
 ## 10. Manual verification
 
@@ -1128,6 +1138,7 @@ Not performed for this build.
 | V7.3.2 | Set SESSION_ABSOLUTE_HOURS to a small value in a test environment, sign in, keep clicking, and confirm you are signed out after that time. | hour |
 | V8.1.2 | Read the field-level section of docs/authorization.md. Compare with the DTO functions (toPublicDto, toOwnerDto, toAdminDto) in each feature. | hour |
 | V8.2.3 | Send an update request as a normal user including an admin-only field (for example status or ownerId). Confirm the request is rejected (unknown field) or the field is ignored. | minutes |
+| V8.3.1 | Use curl to call an admin API route with a non-admin session cookie. Confirm a 403 response. | minutes |
 | V11.1.2 | Open docs/crypto.md and crypto-inventory.json. Confirm every key from .env (SESSION_SECRET, FIELD_KEYS, TOKEN_HMAC_KEY, TLS certificate if any) is listed with its purpose. | minutes |
 | V11.2.1 | Search the code for imports other than node:crypto that perform encryption or hashing. | minutes |
 | V11.2.2 | Add a second key id to FIELD_KEYS, set ACTIVE_FIELD_KEY to it and run npm run rotate-field-key in a test copy. Confirm encrypted values now carry the new key id and still decrypt. | hour |
@@ -1246,7 +1257,6 @@ Not performed for this build.
 - **V6.2.8** — If you sign in with your password typed in different capitalisation, is it refused? `[ ] Yes  [ ] No`
 - **V6.2.9** — Can you set a 70-character password? `[ ] Yes  [ ] No`
 - **V6.2.11** — When you try a password that contains your app's name, is it refused? `[ ] Yes  [ ] No`
-- **V6.3.2** — Have you signed in once as the first administrator, changed the one-time password and deleted FIRST-LOGIN.txt? `[ ] Yes  [ ] No`
 - **V6.3.3** — Are all administrators using an authenticator app, and have you decided whether staff who see sensitive data should too? `[ ] Yes  [ ] No`
 - **V6.4.1** — When you create a user from the admin area, is the temporary password random and does the user have to change it on first sign-in? `[ ] Yes  [ ] No`
 - **V6.4.2** — Are you sure there is no 'password hint' or 'security question' anywhere in sign-up or reset? `[ ] Yes  [ ] No`
@@ -1266,6 +1276,7 @@ Not performed for this build.
 - **V7.5.1** — When you try to change your email or MFA settings, are you asked for your password again? `[ ] Yes  [ ] No`
 - **V7.5.2** — Can you see a list of your active sessions in Account and end one? `[ ] Yes  [ ] No`
 - **V8.1.1** — Does docs/authorization.md list every page and action with the roles allowed? `[ ] Yes  [ ] No`
+- **V8.2.1** — When you sign in as a non-administrator and type the address of an admin page, are you refused? `[ ] Yes  [ ] No`
 - **V8.2.2** — When you sign in as one customer and change the record number in the address to another customer's record, are you refused? `[ ] Yes  [ ] No`
 - **V11.1.1** — Have you read docs/crypto.md, and do you know where the .env file with the keys is kept and who can open it? `[ ] Yes  [ ] No`
 - **V13.1.1** — Does docs/communications.md list every outside service you expect (and nothing you do not recognise)? `[ ] Yes  [ ] No`
@@ -1341,25 +1352,57 @@ Not performed for this build.
 
 | Priority | Title | Who | Effort |
 | --- | --- | --- | --- |
-| High | AC-02: If your organisation has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams. | developer |  |
-| High | AC-05: When the app is hosted online, move its secrets from the .env file into the hosting provider's secret manager and set up regular key rotation. | hosting-provider |  |
-| High | MT-06: Read docs/incident-response.md and walk through one scenario (for example 'a staff password was leaked') with the people named in it, then record the rehearsal date on the results page. | owner |  |
+| High | Protected route reachable without signing in | developer |  |
+| High | V8.2.1: Verify that the application ensures that function-level access is restricted to consumers with explicit permissions. | owner | minutes |
+| High | V8.3.1: Verify that the application enforces authorization rules at a trusted service layer and doesn't rely on controls that an untrusted consumer could manipulate, such as client-side JavaScript. | developer | minutes |
+| High | V1.2.2: Verify that when dynamically building URLs, untrusted data is encoded according to its context (e.g., URL encoding or base64url encoding for query or path parameters). Ensure that only safe URL protocols are permitted (e.g., disallow javascript: or data:). | developer | hour |
 | High | V11.2.2: Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available. | developer | hour |
+| High | V11.2.3: Verify that all cryptographic primitives utilize a minimum of 128-bits of security based on the algorithm, key size, and configuration. For example, a 256-bit ECC key provides roughly 128 bits of security where RSA requires a 3072-bit key to achieve 128 bits of security. | developer | minutes |
+| High | V13.1.1: Verify that all communication needs for the application are documented. This must include external services which the application relies upon and cases where an end user might be able to provide an external location to which the application will then connect. | owner | minutes |
+| High | V13.2.3: Verify that if a credential has to be used for service authentication, the credential being used by the consumer is not a default credential (e.g., root/root or admin/admin). | developer | minutes |
+| High | V14.1.1: Verify that all sensitive data created and processed by the application has been identified and classified into protection levels. This includes data that is only encoded and therefore easily decoded, such as Base64 strings or the plaintext payload inside a JWT. Protection levels need to take into account any data protection and privacy regulations and standards which the application is required to comply with. | owner | minutes |
+| High | V14.1.2: Verify that all sensitive data protection levels have a documented set of protection requirements. This must include (but not be limited to) requirements related to general encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, database-level encryption, privacy and privacy-enhancing technologies to be used, and other confidentiality requirements. | owner | minutes |
+| High | V15.1.1: Verify that application documentation defines risk based remediation time frames for 3rd party component versions with vulnerabilities and for updating libraries in general, to minimize the risk from these components. | owner | minutes |
+| High | V15.1.2: Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories. | developer | minutes |
+| High | V15.2.3: Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | owner | minutes |
+| High | V16.1.1: Verify that an inventory exists documenting the logging performed at each layer of the application's technology stack, what events are being logged, log formats, where that logging is stored, how it is used, how access to it is controlled, and for how long logs are kept. | owner | minutes |
+| High | V2.1.1: Verify that the application's documentation defines input validation rules for how to check the validity of data items against an expected structure. This could be common data formats such as credit card numbers, email addresses, telephone numbers, or it could be an internal data format. | owner | minutes |
+| High | V2.1.3: Verify that expectations for business logic limits and validations are documented, including both per-user and globally across the application. | owner | minutes |
+| High | V6.1.1: Verify that application documentation defines how controls such as rate limiting, anti-automation, and adaptive response, are used to defend against attacks such as credential stuffing and password brute force. The documentation must make clear how these controls are configured and prevent malicious account lockout. | owner | minutes |
+| High | V6.1.2: Verify that a list of context-specific words is documented in order to prevent their use in passwords. The list could include permutations of organization names, product names, system identifiers, project codenames, department or role names, and similar. | owner | minutes |
+| High | V6.1.3: Verify that, if the application includes multiple authentication pathways, these are all documented together with the security controls and authentication strength which must be consistently enforced across them. | owner | minutes |
+| High | V7.1.1: Verify that the user's session inactivity timeout and absolute maximum session lifetime are documented, are appropriate in combination with other controls, and that the documentation includes justification for any deviations from NIST SP 800-63B re-authentication requirements. | owner | minutes |
+| High | V7.1.2: Verify that the documentation defines how many concurrent (parallel) sessions are allowed for one account as well as the intended behaviors and actions to be taken when the maximum number of active sessions is reached. | owner | minutes |
 | Medium | C9.5.4: Verify that secrets and credentials required by an agent at runtime are not exposed within the model's observable context, including the context window, system prompts, or tool call parameters. | developer | minutes |
-| Medium | V1.2.2: Verify that when dynamically building URLs, untrusted data is encoded according to its context (e.g., URL encoding or base64url encoding for query or path parameters). Ensure that only safe URL protocols are permitted (e.g., disallow javascript: or data:). | developer | hour |
+| Medium | How the app's packages are kept up to date is not documented | developer |  |
+| Medium | Link address taken from data without a protocol check | developer |  |
+| Medium | The kinds of information the app holds are not documented | developer |  |
+| Medium | The outside services the app may contact are not documented | developer |  |
+| Medium | The rules for what people may type are not documented | developer |  |
+| Medium | The sign-in rules are not documented | developer |  |
+| Medium | The sign-in times are not documented | developer |  |
 | Medium | V1.2.3: Verify that output encoding or escaping is used when dynamically building JavaScript content (including JSON), to avoid changing the message or document structure (to avoid JavaScript and JSON injection). | developer | hour |
 | Medium | V1.2.5: Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. | developer | minutes |
 | Medium | V1.3.2: Verify that the application avoids the use of eval() or other dynamic code execution features such as Spring Expression Language (SpEL). Where there is no alternative, any user input being included must be sanitized before being executed. | developer | minutes |
 | Medium | V1.3.6: Verify that the application protects against Server-side Request Forgery (SSRF) attacks, by validating untrusted data against an allowlist of protocols, domains, paths and ports and sanitizing potentially dangerous characters before using the data to call another service. | developer | hour |
 | Medium | V11.2.1: Verify that industry-validated implementations (including libraries and hardware-accelerated implementations) are used for cryptographic operations. | developer | minutes |
 | Medium | V11.4.1: Verify that only approved hash functions are used for general cryptographic use cases, including digital signatures, HMAC, KDF, and random bit generation. Disallowed hash functions, such as MD5, must not be used for any cryptographic purpose. | developer | minutes |
+| Medium | V13.4.2: Verify that debug modes are disabled for all components in production environments to prevent exposure of debugging features and information leakage. | owner | minutes |
+| Medium | V15.2.1: Verify that the application only contains components which have not breached the documented update and remediation time frames. | developer | minutes |
 | Medium | V15.3.6: Verify that JavaScript code is written in a way that prevents prototype pollution, for example, by using Set() or Map() instead of object literals. | developer | minutes |
+| Medium | V6.4.1: Verify that system generated initial passwords or activation codes are securely randomly generated, follow the existing password policy, and expire after a short period of time or after they are initially used. These initial secrets must not be permitted to become the long term password. | owner | minutes |
+| Medium | V7.3.1: Verify that there is an inactivity timeout such that re-authentication is enforced according to risk analysis and documented security decisions. | owner | hour |
+| Medium | V7.3.2: Verify that there is an absolute maximum session lifetime such that re-authentication is enforced according to risk analysis and documented security decisions. | developer | hour |
+| Medium | What the app logs is not documented | developer |  |
+| Low | A regular expression can take exponential time to match | developer |  |
 | Low | Dependency runs install scripts | developer |  |
-| Low | MT-02: When the app is hosted online, add uptime monitoring on /healthz and an alert for repeated errors or failed sign-ins. | hosting-provider |  |
-| Low | V15.1.1: Verify that application documentation defines risk based remediation time frames for 3rd party component versions with vulnerabilities and for updating libraries in general, to minimize the risk from these components. | owner | minutes |
 | Low | V16.3.1: Verify that all authentication operations are logged, including successful and unsuccessful attempts. Additional metadata, such as the type of authentication or factors used, should also be collected. | owner | minutes |
 | Low | V6.6.3: Verify that a code based out-of-band authentication mechanism is protected against brute force attacks by using rate limiting. Consider also using a code with at least 64 bits of entropy. | owner | minutes |
 | Low | V7.4.2: Verify that the application terminates all active sessions when a user account is disabled or deleted (such as an employee leaving the company). | owner | minutes |
+| High | AC-02: If your organisation has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams. | developer |  |
+| High | AC-05: When the app is hosted online, move its secrets from the .env file into the hosting provider's secret manager and set up regular key rotation. | hosting-provider |  |
+| High | MT-06: Read docs/incident-response.md and walk through one scenario (for example 'a staff password was leaked') with the people named in it, then record the rehearsal date on the results page. | owner |  |
+| Low | MT-02: When the app is hosted online, add uptime monitoring on /healthz and an alert for repeated errors or failed sign-ins. | hosting-provider |  |
 
 ## 12. Human sign-off
 
@@ -1369,7 +1412,7 @@ Not performed for this build.
 
 ## 13. Provenance
 
-- Run: r_20260917172649_xnk3d4 on 2026-09-17 (mode: verify-only).
+- Run: r_20260920232551_o3ufkk on 2026-09-20 (mode: verify-only).
 - SecureVibe 0.1.0, template unknown.
 - Frameworks: ASVS 5.0.0, AISVS 1.0, SbD 0.5.0 (Draft, August 2025).
 - Human involvement: Not recorded for this run.
@@ -1383,7 +1426,7 @@ Not performed for this build.
 <a id="adr-001"></a>
 #### ADR-001: Authentication model: local accounts with passwords
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** SecureVibe is used by administrator. Sign-in is required because the AI assistant works per signed-in person. There is no company identity provider to connect to.
 
@@ -1402,7 +1445,7 @@ Related: TPL-AUTH-01, TPL-AUTH-05, TPL-AUTH-06, TPL-AUTHZ-01, V6.2.1, V6.3.1, V8
 <a id="adr-002"></a>
 #### ADR-002: Session store: server-side sessions in SQLite
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** Signed-in people need a session that can be ended on the server (logout, disable, "log out everywhere").
 
@@ -1420,7 +1463,7 @@ Related: TPL-SESSION-01, TPL-SESSION-02, TPL-SESSION-03, TPL-SESSION-04, TPL-COO
 <a id="adr-003"></a>
 #### ADR-003: Data encryption: file permissions and disk encryption; no field encryption
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** SecureVibe stores no sensitive categories and no field is marked sensitive. The database is a file on this computer.
 
@@ -1439,7 +1482,7 @@ Related: TPL-DB-02, TPL-AUTH-04, V11.4.2, DM-02
 <a id="adr-004"></a>
 #### ADR-004: File uploads: not included
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** No feature or record needs uploaded files.
 
@@ -1454,7 +1497,7 @@ Status: accepted · 2026-09-17
 <a id="adr-005"></a>
 #### ADR-005: AI boundary: the assistant advises, application code decides
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** SecureVibe includes an AI assistant to generates and reviews application code. The model reads text from people, which can contain instructions meant to trick it, and its answers cannot be trusted blindly.
 
@@ -1472,7 +1515,7 @@ Related: TPL-AI-01, TPL-AI-03, TPL-AI-04, TPL-AI-05, TPL-AI-06, TPL-AI-07, TPL-A
 <a id="adr-006"></a>
 #### ADR-006: Deployment and exposure: this computer only (loopback)
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** SecureVibe will run on this computer only. Business impact: normal.
 
@@ -1490,7 +1533,7 @@ Related: TPL-TRUSTZONES-01, TPL-RESILIENCE-01, AS-01, AC-01, RR-06
 <a id="adr-007"></a>
 #### ADR-007: Logging, audit and data retention
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** Security events must be reconstructable later, and logs must not become a liability.
 
@@ -1508,7 +1551,7 @@ Related: TPL-LOG-01, TPL-LOG-02, TPL-LOG-03, TPL-LOG-05, TPL-DATA-01, TPL-IR-01,
 <a id="adr-008"></a>
 #### ADR-008: Dependency policy: locked, script-free, inventoried
 
-Status: accepted · 2026-09-17
+Status: accepted · 2026-09-20
 
 **Context.** Every package is code from strangers that runs with the app's permissions. The generator (an AI) must not be able to add packages.
 
@@ -1749,6 +1792,189 @@ File-system damage is prevented; network exfiltration by malicious generated cod
 
 ## Related
 Controls: —. Requirements: C9.3.1.
+
+<a id="app-adr-adr-011"></a>
+#### ADR-014: A file that cannot be checked for malware is refused, not stored
+
+From the app folder: `docs/adr/ADR-011.md`
+
+**Status:** accepted — 2026-09-20
+
+## Context
+Our scanners ask whether code has a weakness. None of them asks whether a file is known-bad content. The
+template already stops a file pretending to be an image — the byte cap aborts the request before the body
+finishes, magic bytes are sniffed, the declared type and the extension are cross-checked, and the file is stored
+outside the web root under a random name — but a genuine image carrying a known exploit, or a document with a
+malicious macro, passes every one of those checks. ASVS V5.4.3 asks for the second question, and until an app
+actually scans, it stays manual-only.
+
+There are two separate places a file arrives, and they were being discussed as one:
+
+1. **Into a generated app**, uploaded by whoever uses it.
+2. **Into SecureVibe**, when an owner hands us an application to check (`origin.kind === 'uploaded'`).
+
+The temptation in both is to accept the file and mark it unscanned. That is the failure mode this whole project
+exists to avoid: a file sitting in the app, an owner who believes the app checks uploads, and a report that says
+"unscanned" in a place nobody reads.
+
+## Decision
+
+**Scanning is mandatory wherever files arrive from outside, and mandatory means the file does not get in.**
+
+*In a generated app that accepts uploads:* every uploaded file is scanned between the temporary file and the
+commit, before it is recorded or readable. A file the scanner reports as infected is deleted and refused. A file
+the scanner **cannot** reach a verdict on — the scanner is not installed, the daemon is not running, the scan
+timed out, the file is larger than the scanner accepts — is also deleted and refused, with a plain message
+saying the app could not check it rather than a message implying the file was bad. Uploads fail closed. An app
+built with uploads and no working scanner has uploads that do not work, and says so on the upload page, in the
+build report and in "what only you can do", rather than accepting files it cannot vouch for.
+
+*In SecureVibe, on an uploaded application:* the scan runs as part of the ordinary check, not behind a switch.
+Code we were handed and will never run is the clearest untrusted content there is. It is still conditional on
+the scanner being installed, and when it did not run the page and the report say so beside the checks that did.
+It does not block the rest of the run: an owner who cannot install a scanner still gets every other check.
+
+*Everywhere else it is optional:* on an app SecureVibe built itself, the same scanner is an opt-in tool beside
+Trivy, Semgrep and the AI scanner, run on demand. Source code is not where antivirus signatures earn their
+keep, and the honest claim after a clean run is "nothing known-bad in these files", never "this code is safe".
+
+**Not a build-time dependency scanner.** Malicious packages are rarely in antivirus signatures. That risk is
+covered by disabled install scripts, a minimum package age and the OSV check, and pointing an antivirus scanner
+at `node_modules` would produce a clean result that means almost nothing.
+
+### Why fail closed, given the cost
+"Every uploaded file has to go through ClamAV" is only a true sentence if a file that did not go through it does
+not get in. Quarantine-and-flag was considered and rejected: it leaves the file on disk, it makes the app's
+behaviour depend on an owner reading a flag, and it turns a security property into a piece of paperwork. The
+owner chose this explicitly on 20 September 2026, knowing the cost.
+
+The cost is real and falls on the least experienced person: an owner who builds an app with uploads and has no
+scanner installed finds that uploads do not work. That is only acceptable if we say so loudly and early — at
+build time, on the page, and in the reports — so it reads as a thing to finish setting up rather than as a bug.
+
+## Alternatives considered
+* **Accept, quarantine, mark unscanned.** Rejected: the file is in the app, and "unscanned" is a word in a
+  report rather than a control.
+* **Refuse in production, warn on a local-only app.** Rejected as the default: two behaviours means the thing an
+  owner tests is not the thing that runs, and the report has to describe both honestly to be worth anything. Can
+  be revisited as an explicit, recorded choice if the fail-closed cost proves too high for first-time owners.
+* **Scan on a schedule, after storing.** Rejected: a file readable before it is scanned has already been served.
+
+## Consequences
+* An app with uploads gains a dependency on something the owner installs, which the reports must name as clearly
+  as they name an outside service.
+* `V5.4.3` becomes claimable by an app that actually scans, on the evidence of a test that pushes a harmless
+  test file (EICAR) through the upload route and asserts it is refused — not on the evidence that the code
+  contains a call to a scanner.
+* An honest-absence path has to be tested as carefully as the scanning path: the test that matters most is the
+  one proving that with no scanner present, the upload is refused and the page says why.
+
+## What SecureVibe can and cannot show about this
+Found on 20 September 2026, by the golden apps rather than by reasoning about it. A generated app is checked
+inside SecureVibe's own sandbox — file reads confined to the app folder, network fenced to loopback — and from
+in there the scanner's socket is out of reach. So when SecureVibe runs an app's tests, every upload is refused,
+because every file is unscannable.
+
+That is the fail-closed rule working exactly as specified, and it means something important for what the reports
+may claim. SecureVibe's own checks can show that **an app refuses what it cannot check**. They cannot show that
+**an app's uploads are scanned**, because SecureVibe never lets the app reach a scanner. The second claim needs
+the app running normally, outside the fence, which is how an owner runs it.
+
+So V5.4.3 is not verified by a SecureVibe run. The evidence a run does produce is the refusal path, which is
+worth having and is a different sentence. The reports must not merge them, and the test that would prove the
+second claim skips — loudly, with a reason — wherever no daemon answers.
+
+## Related
+Controls: uploads (TPL-UPLOAD-01..06). Requirements: V5.4.3. Backlog: the two antivirus items.
+
+<a id="app-adr-adr-012"></a>
+#### ADR-012: What "SecureVibe checks this app" means in another language
+
+From the app folder: `docs/adr/ADR-012.md`
+
+**Status:** accepted — 20 September 2026.
+
+The owner accepted the five steps below and ruled out custom static-analysis rules for other languages
+explicitly. That second half is the load-bearing part: it settles that tier 2 is where other languages live,
+permanently, and that a tier-2 app is checked rather than scored. Nobody should revisit it by writing "just a
+few" Python rules.
+
+## Context
+
+The first application handed to SecureVibe from outside was a Python Flask app. It was reported as **0 of 106
+applicable requirements verified**, having had one JavaScript file read. The reporting half of that is fixed
+(ADR-011's sibling change: say what was read, and do not score what was not read). What is left is the real
+question underneath: should SecureVibe check anything other than the Node applications it writes, and what would
+it honestly be able to say?
+
+Three things were measured on that app rather than assumed, and they change the shape of the answer:
+
+1. **Semgrep scans only files tracked by git unless told otherwise.** No app folder is ever a git repository, so
+   semgrep had been scanning zero files and reporting a clean result for every application SecureVibe has ever
+   checked. With `--no-git-ignore` it read 12 files and ran **151 Python rules** over the 7 Python files. That
+   flag is fixed separately; it is listed here because it is most of what "support Python" would have meant.
+2. **osv-scanner reads `requirements.txt` natively.** It parsed the app's four packages unprompted. It reported
+   nothing because the versions are ranges rather than pins, which is a finding we should raise and do not.
+3. **Our own scanners are Node-shaped in two different ways**, and only one of them matters. The static rules
+   parse TypeScript, JavaScript and EJS: they cannot read Python and that is honest. But the `deps` and `config`
+   checks *assume* npm — a Python app is told `deps.lockfile-missing` and asked about `ignore-scripts`. Those
+   are not gaps, they are wrong answers.
+
+## What is actually already there
+
+Language-agnostic today, reading every file whatever it is written in: the secrets scan, gitleaks, trivy,
+ClamAV, and the AI review. Multi-language but currently narrowed to Node by our own arguments: semgrep (rule
+packs are chosen as `p/typescript`) and osv-scanner (handed only npm lockfiles). Node-only by nature: our own
+static rules, the template controls, the runtime probes, and everything that runs the app.
+
+So the gap is narrower than "support Python" suggests, and it is mostly configuration rather than analysis.
+
+## Decision to make
+
+Three tiers, and the proposal is to name them in the product rather than leave people to infer them.
+
+**Tier 1 — built and checked (Node/Express, today).** Everything: our own rules, the template controls, the
+tests, the runtime probes, the ASVS mapping. This is the only tier where a compliance score means what it says.
+
+**Tier 2 — checked, not built.** The external tools plus the AI review plus the language-agnostic scans, with
+the requirement mapping explicitly partial. For a Python app that is: 151 semgrep rules, dependency
+vulnerabilities from osv-scanner, secrets, malware, configuration hygiene that is not npm-specific, and the AI
+review reading every file. That is a genuinely useful check. It is not a compliance verdict, and the reports
+must not round it up into one.
+
+**Tier 3 — read, not analysed.** Everything else. The file is scanned for secrets and malware and read by the
+AI review; no static analysis understands it. Reported as exactly that.
+
+## Proposed work, in the order that pays
+
+1. **Choose semgrep rule packs from the languages present** (`p/python`, `p/golang`, `p/ruby`, …) instead of the
+   fixed `p/typescript`. Small, and it is what turns tier 3 into tier 2 for most languages.
+2. **Hand osv-scanner every lockfile it understands**, not only npm's. `requirements.txt` is verified; the rest
+   should be checked against its documentation rather than assumed.
+3. **Stop asking non-Node apps Node questions.** A `deps`/`config` check that only makes sense with npm should
+   report not-applicable for an app with no `package.json`, not fail it. This is the part that currently puts
+   wrong statements into a report, so it may deserve to be first.
+4. **Raise unpinned dependencies as their own finding**, in any ecosystem. "These four packages are version
+   ranges, so nobody can tell you what you are actually running" is true and useful and we do not say it.
+5. **Say the tier on the page and in the report**, beside `codeCoverage`. An owner should know before uploading
+   what they are going to get.
+
+Not proposed: our own static rules for another language, or generating apps in another language. The first is
+months of work to be worse than semgrep at semgrep's job; the second is a different product.
+
+## Consequences
+
+* A Python or Go app would get a real, useful security check and an explicitly partial compliance picture. That
+  is a new kind of answer for SecureVibe to give, and the reports are not shaped for it yet.
+* The temptation this creates is the dangerous part: once tier 2 produces findings, a score will look computable
+  from them. It is not. A requirement whose evidence would have come from a template control or a runtime probe
+  is unassessed in tier 2 no matter how many semgrep rules ran.
+* Steps 1, 2 and 4 make the tool find *more* in apps it already checks, including the ones it built, because
+  semgrep has never read any of them.
+
+## Related
+Requirements: — . Depends on the `--no-git-ignore` fix. Sibling of the code-coverage change that stopped scoring
+unread code.
 
 ## Glossary
 

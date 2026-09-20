@@ -9,9 +9,9 @@
     "sbd": "0.5.0 (Draft, August 2025)"
   },
   "toolVersions": {},
-  "runId": "r_20260917172649_xnk3d4",
+  "runId": "r_20260920232551_o3ufkk",
   "projectId": "p_lwph5z7zqd",
-  "generatedAt": "2026-09-17T17:26:49.795Z",
+  "generatedAt": "2026-09-20T23:25:51.525Z",
   "mode": "verify-only",
   "humanInvolvement": {
     "summary": "Not recorded for this run.",
@@ -19,10 +19,11 @@
     "attestations": 0,
     "humanCodeReview": false
   },
-  "designProfileHash": "527641b61562889172e20e36b21cc76d0c5d84c72703ada97a0905b13092eacf",
-  "designHash": "527641b61562889172e20e36b21cc76d0c5d84c72703ada97a0905b13092eacf",
+  "designProfileHash": "69d7e7b1e51dd5aa1393ced7b6f68153209290182cc62bf710708ae190b4ae87",
+  "designHash": "69d7e7b1e51dd5aa1393ced7b6f68153209290182cc62bf710708ae190b4ae87",
   "codeTreeHash": "",
   "generatedFiles": [],
+  "recipes": [],
   "protectedFileHashes": {},
   "sandbox": {
     "mode": "node-permission-model",

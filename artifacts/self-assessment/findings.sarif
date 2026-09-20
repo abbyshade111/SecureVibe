@@ -10,6 +10,23 @@
           "informationUri": "https://github.com/owasp/secure-by-design",
           "rules": [
             {
+              "id": "dast.authz.anonymous-denied",
+              "name": "Protected route reachable without signing in",
+              "shortDescription": {
+                "text": "Protected route reachable without signing in"
+              },
+              "fullDescription": {
+                "text": "A route declared as requiring sign-in responded to an anonymous request with data or success."
+              },
+              "properties": {
+                "tags": [
+                  "dast",
+                  "CWE-306"
+                ],
+                "security-severity": "9.5"
+              }
+            },
+            {
               "id": "sast.hardcoded-secret",
               "name": "Secret written directly in the code",
               "shortDescription": {
@@ -335,6 +352,125 @@
               }
             },
             {
+              "id": "docs.outside-services-documented",
+              "name": "The outside services the app may contact are not documented",
+              "shortDescription": {
+                "text": "The outside services the app may contact are not documented"
+              },
+              "fullDescription": {
+                "text": "docs/communications.md is missing, or does not list the hosts the app is allowed to contact."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.data-classes-documented",
+              "name": "The kinds of information the app holds are not documented",
+              "shortDescription": {
+                "text": "The kinds of information the app holds are not documented"
+              },
+              "fullDescription": {
+                "text": "docs/data-protection.md is missing, or does not cover the kinds of information the app was designed to hold and how long they are kept."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.dependency-updates-documented",
+              "name": "How the app's packages are kept up to date is not documented",
+              "shortDescription": {
+                "text": "How the app's packages are kept up to date is not documented"
+              },
+              "fullDescription": {
+                "text": "docs/dependencies.md is missing, or does not give the deadlines for applying security updates."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.logging-documented",
+              "name": "What the app logs is not documented",
+              "shortDescription": {
+                "text": "What the app logs is not documented"
+              },
+              "fullDescription": {
+                "text": "docs/logging.md is missing, or does not say where the log is kept and for how long."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.sign-in-rules-documented",
+              "name": "The sign-in rules are not documented",
+              "shortDescription": {
+                "text": "The sign-in rules are not documented"
+              },
+              "fullDescription": {
+                "text": "docs/SECURITY.md is missing, or does not describe the sign-in limits, the banned password words and the administrator's second step."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.session-times-documented",
+              "name": "The sign-in times are not documented",
+              "shortDescription": {
+                "text": "The sign-in times are not documented"
+              },
+              "fullDescription": {
+                "text": "docs/sessions.md is missing, or the times in it are not the ones the app actually uses."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
+              "id": "docs.validation-documented",
+              "name": "The rules for what people may type are not documented",
+              "shortDescription": {
+                "text": "The rules for what people may type are not documented"
+              },
+              "fullDescription": {
+                "text": "docs/validation.md is missing, empty, or does not cover every kind of record the app keeps."
+              },
+              "properties": {
+                "tags": [
+                  "config",
+                  "CWE-1059"
+                ],
+                "security-severity": "3.0"
+              }
+            },
+            {
               "id": "dast.errors.404-generic",
               "name": "Not-found page leaks details",
               "shortDescription": {
@@ -441,8 +577,43 @@
       },
       "results": [
         {
-          "ruleId": "sast.hardcoded-secret",
+          "ruleId": "dast.authz.anonymous-denied",
           "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "A route declared as requiring sign-in responded to an anonymous request with data or success. Anyone on the network can read or change data without an account."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "POST /api/projects/00000000-0000-4000-8000-000000000001/plan/approve"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "deb4e706351c2d94a6ff364e2203c2dffb5a9036697fe979aba285e5ed4839d2"
+          },
+          "properties": {
+            "severity": "critical",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "dast",
+            "status": "open",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.hardcoded-secret",
+          "ruleIndex": 1,
           "level": "error",
           "message": {
             "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
@@ -481,7 +652,7 @@
         },
         {
           "ruleId": "sast.hardcoded-secret",
-          "ruleIndex": 0,
+          "ruleIndex": 1,
           "level": "error",
           "message": {
             "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
@@ -520,7 +691,7 @@
         },
         {
           "ruleId": "sast.hardcoded-secret",
-          "ruleIndex": 0,
+          "ruleIndex": 1,
           "level": "error",
           "message": {
             "text": "A password, API key or signing secret appears as a literal string in a source file. Anyone who sees the code (backups, sharing, version control) gets the secret, and it cannot be rotated without changing code."
@@ -559,7 +730,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -571,7 +742,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 53,
+                  "startLine": 56,
                   "startColumn": 3
                 }
               }
@@ -598,7 +769,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -610,7 +781,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 72,
+                  "startLine": 75,
                   "startColumn": 3
                 }
               }
@@ -637,7 +808,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -649,7 +820,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 79,
+                  "startLine": 82,
                   "startColumn": 3
                 }
               }
@@ -676,7 +847,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -688,7 +859,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 83,
+                  "startLine": 86,
                   "startColumn": 3
                 }
               }
@@ -715,7 +886,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -727,7 +898,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 92,
+                  "startLine": 95,
                   "startColumn": 12
                 }
               }
@@ -751,7 +922,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -763,7 +934,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 102,
+                  "startLine": 105,
                   "startColumn": 11
                 }
               }
@@ -787,7 +958,7 @@
         },
         {
           "ruleId": "sast.path-join-user-input",
-          "ruleIndex": 3,
+          "ruleIndex": 4,
           "level": "error",
           "message": {
             "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
@@ -799,7 +970,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 102,
+                  "startLine": 105,
                   "startColumn": 22
                 }
               }
@@ -822,8 +993,44 @@
           }
         },
         {
-          "ruleId": "sast.path-join-user-input",
+          "ruleId": "sast.fs-user-path",
           "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 135,
+                  "startColumn": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5f75dd19c13b0cf05493aebb04cbfbf9c3bbb882e97b041663ae3c9c112825a0"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
           "level": "error",
           "message": {
             "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
@@ -835,7 +1042,79 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 117,
+                  "startLine": 135,
+                  "startColumn": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "bb13717b97fa96ce7e5061679f12bfb02d4e77fe6ec96f75fd962d3488bf4210"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 136,
+                  "startColumn": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "2014270d5c58dcd1d3b4b316e3ef1ef234e8e696361fe0fb023666360fa15c90"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/artifacts.ts"
+                },
+                "region": {
+                  "startLine": 180,
                   "startColumn": 11
                 }
               }
@@ -859,7 +1138,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -871,7 +1150,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 122,
+                  "startLine": 185,
                   "startColumn": 10
                 }
               }
@@ -895,7 +1174,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -907,7 +1186,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 129,
+                  "startLine": 192,
                   "startColumn": 21
                 }
               }
@@ -931,7 +1210,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -943,7 +1222,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 138,
+                  "startLine": 201,
                   "startColumn": 44
                 }
               }
@@ -967,7 +1246,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -979,7 +1258,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 140,
+                  "startLine": 203,
                   "startColumn": 5
                 }
               }
@@ -1003,7 +1282,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1042,7 +1321,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1081,7 +1360,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1120,7 +1399,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1159,7 +1438,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1171,7 +1450,7 @@
                   "uri": "server/src/api/metrics.ts"
                 },
                 "region": {
-                  "startLine": 247,
+                  "startLine": 249,
                   "startColumn": 3
                 }
               }
@@ -1198,7 +1477,85 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/plan.ts"
+                },
+                "region": {
+                  "startLine": 24,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "e6d22e52a7b288bf425356b110f57f5cd48de170662bcce359854507ec1306c9"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/plan.ts"
+                },
+                "region": {
+                  "startLine": 47,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "f20f3d555d40b8eb7de7b85379074e7fd5df59f0ece9724ca6101423904e3e65"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1210,7 +1567,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 62,
+                  "startLine": 77,
                   "startColumn": 3
                 }
               }
@@ -1237,7 +1594,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1249,7 +1606,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 82,
+                  "startLine": 103,
                   "startColumn": 3
                 }
               }
@@ -1276,7 +1633,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1288,7 +1645,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 86,
+                  "startLine": 107,
                   "startColumn": 3
                 }
               }
@@ -1315,7 +1672,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1327,7 +1684,235 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 92,
+                  "startLine": 114,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a32892fd09f6094ab5621ab60088769691d1769e79b357d1dc48547502970e36"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 125,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b05ed5af5365888e77b43303f9625e9bd57c97138b49161361e42d2378d8594d"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 139,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "0e8183705f00d943738ef6636e06e5bb259f524754d6417131ad709f9b5234ba"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 155,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "181b0ff4f48faf76e3e03c5fd9f42097633b4ec4acfba6cc070ccdbd6c8dd16e"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 160,
+                  "startColumn": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "67b3747bb06b1716ac355943424dec54197e130a71bf9f1b22126165db830a09"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 160,
+                  "startColumn": 21
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6ca2ad5d1a641987e8c44cc3ef1b8c429095860d1ca9368e5d3f015c4ea510e2"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 188,
                   "startColumn": 3
                 }
               }
@@ -1354,7 +1939,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1366,7 +1951,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 104,
+                  "startLine": 200,
                   "startColumn": 3
                 }
               }
@@ -1393,7 +1978,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1405,7 +1990,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 111,
+                  "startLine": 207,
                   "startColumn": 3
                 }
               }
@@ -1432,7 +2017,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1444,7 +2029,118 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 118,
+                  "startLine": 219,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "4dddf711b79b16aa9b78280779a31e075ada8429ca90540b023a0cc01e8a3dfe"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 224,
+                  "startColumn": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "938c688d02bdf576789ee9b5ad96275ef5bf0c2be123425b71e8f885c2932704"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 224,
+                  "startColumn": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "55233b8af316799d969b93ecc23580f96794096d96472fea96bf1162806be1ac"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 249,
                   "startColumn": 3
                 }
               }
@@ -1471,7 +2167,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1483,7 +2179,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 134,
+                  "startLine": 268,
                   "startColumn": 3
                 }
               }
@@ -1510,7 +2206,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1522,7 +2218,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 153,
+                  "startLine": 287,
                   "startColumn": 3
                 }
               }
@@ -1549,7 +2245,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1561,7 +2257,85 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 173,
+                  "startLine": 308,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d19d8c64c7823c92e10927734e0fc809534ea724497c687891ee663c4d2db725"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 325,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "651bc1cb2738b3c617bc30e2888a6226a916fd43920c5926fcb1d75e779ef05e"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 363,
                   "startColumn": 3
                 }
               }
@@ -1588,7 +2362,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1600,7 +2374,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 239,
+                  "startLine": 429,
                   "startColumn": 3
                 }
               }
@@ -1627,7 +2401,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1639,7 +2413,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 256,
+                  "startLine": 446,
                   "startColumn": 3
                 }
               }
@@ -1666,7 +2440,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1678,7 +2452,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 294,
+                  "startLine": 484,
                   "startColumn": 3
                 }
               }
@@ -1705,7 +2479,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1717,7 +2491,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 312,
+                  "startLine": 502,
                   "startColumn": 3
                 }
               }
@@ -1744,7 +2518,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1756,7 +2530,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 342,
+                  "startLine": 532,
                   "startColumn": 3
                 }
               }
@@ -1783,7 +2557,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1795,7 +2569,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 353,
+                  "startLine": 560,
                   "startColumn": 3
                 }
               }
@@ -1822,7 +2596,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1834,7 +2608,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 373,
+                  "startLine": 591,
                   "startColumn": 3
                 }
               }
@@ -1861,7 +2635,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1873,7 +2647,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 380,
+                  "startLine": 598,
                   "startColumn": 3
                 }
               }
@@ -1900,7 +2674,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1912,7 +2686,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 386,
+                  "startLine": 604,
                   "startColumn": 3
                 }
               }
@@ -1939,7 +2713,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1951,7 +2725,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 403,
+                  "startLine": 628,
                   "startColumn": 3
                 }
               }
@@ -1978,7 +2752,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -1990,7 +2764,46 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 450,
+                  "startLine": 678,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "29a070c97d64ecfc6dbc02268ef212d432ebb60a45bb0d2900c837732971dbb1"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 692,
                   "startColumn": 3
                 }
               }
@@ -2017,7 +2830,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2029,7 +2842,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 463,
+                  "startLine": 705,
                   "startColumn": 3
                 }
               }
@@ -2056,7 +2869,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2068,7 +2881,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 468,
+                  "startLine": 710,
                   "startColumn": 3
                 }
               }
@@ -2095,7 +2908,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2107,7 +2920,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 486,
+                  "startLine": 728,
                   "startColumn": 3
                 }
               }
@@ -2134,7 +2947,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2146,7 +2959,46 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 492,
+                  "startLine": 735,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5837c4f79008d25bd7a6d27db88d71f393f4689da650ea4e2c9a447577118035"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 751,
                   "startColumn": 3
                 }
               }
@@ -2173,7 +3025,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -2185,7 +3037,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 495,
+                  "startLine": 754,
                   "startColumn": 10
                 }
               }
@@ -2209,7 +3061,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -2221,7 +3073,79 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 505,
+                  "startLine": 788,
+                  "startColumn": 15
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6f0995e3bef3c34de808b6b3ca3f15eef2f514b2290695d3f3d33d95d67d3678"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 788,
+                  "startColumn": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "2b663959c376223acead86cbe6e0f865ef52bbb28c1848544d530dbf5b3d6576"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 815,
                   "startColumn": 26
                 }
               }
@@ -2245,7 +3169,7 @@
         },
         {
           "ruleId": "sast.path-join-user-input",
-          "ruleIndex": 3,
+          "ruleIndex": 4,
           "level": "error",
           "message": {
             "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
@@ -2257,7 +3181,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 505,
+                  "startLine": 815,
                   "startColumn": 37
                 }
               }
@@ -2281,7 +3205,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -2293,7 +3217,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 506,
+                  "startLine": 816,
                   "startColumn": 18
                 }
               }
@@ -2317,7 +3241,7 @@
         },
         {
           "ruleId": "sast.path-join-user-input",
-          "ruleIndex": 3,
+          "ruleIndex": 4,
           "level": "error",
           "message": {
             "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
@@ -2329,7 +3253,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 506,
+                  "startLine": 816,
                   "startColumn": 29
                 }
               }
@@ -2353,7 +3277,7 @@
         },
         {
           "ruleId": "sast.path-join-user-input",
-          "ruleIndex": 3,
+          "ruleIndex": 4,
           "level": "error",
           "message": {
             "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
@@ -2365,7 +3289,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 507,
+                  "startLine": 817,
                   "startColumn": 26
                 }
               }
@@ -2389,7 +3313,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2401,7 +3325,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 20,
+                  "startLine": 39,
                   "startColumn": 3
                 }
               }
@@ -2427,8 +3351,80 @@
           }
         },
         {
+          "ruleId": "sast.fs-user-path",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 66,
+                  "startColumn": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "8ae515a1bcf0da7a70d1e5d22b89e8cea1ddbcf69bb50da26b95a8d0447cd3aa"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 66,
+                  "startColumn": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7f08f9a0bab2552d8441f2a2a680e082d1fb2c7055ceba27db6332e6469fdf15"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2440,7 +3436,46 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 82,
+                  "startLine": 172,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "45cae6c51e8749ccb9e5b046f5e58d0f951918598eba9b9d95cf21e9d8be98f7"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 236,
                   "startColumn": 3
                 }
               }
@@ -2467,7 +3502,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2479,7 +3514,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 88,
+                  "startLine": 242,
                   "startColumn": 3
                 }
               }
@@ -2506,7 +3541,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2518,7 +3553,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 94,
+                  "startLine": 253,
                   "startColumn": 3
                 }
               }
@@ -2544,8 +3579,83 @@
           }
         },
         {
+          "ruleId": "sast.path-join-user-input",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "path.join or path.resolve is called with a value from a request. A value like ../../.env lets a user read or write files outside the intended folder, including secrets."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/runs.ts"
+                },
+                "region": {
+                  "startLine": 283,
+                  "startColumn": 24
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a1a1dc8ede60d2b1ff030f776732a1d898f01ee8900c53c927487929e45d0217"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V5.3.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/security.ts"
+                },
+                "region": {
+                  "startLine": 101,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "97aecabfb88d747451d5cd01af77f96221c722accc90aea8e71386835b6e7c56"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2557,7 +3667,7 @@
                   "uri": "server/src/api/status.ts"
                 },
                 "region": {
-                  "startLine": 14,
+                  "startLine": 17,
                   "startColumn": 3
                 }
               }
@@ -2584,7 +3694,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2596,7 +3706,46 @@
                   "uri": "server/src/api/status.ts"
                 },
                 "region": {
-                  "startLine": 62,
+                  "startLine": 78,
+                  "startColumn": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b01eeed4ac1f7434fffd0d2df68858ee0fa1141b52e4ce1e9d7391f3bac1d3f0"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V8.2.1",
+              "V8.3.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-03"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.route-outside-registry",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/status.ts"
+                },
+                "region": {
+                  "startLine": 96,
                   "startColumn": 3
                 }
               }
@@ -2623,7 +3772,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2662,7 +3811,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2701,7 +3850,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -2737,7 +3886,7 @@
         },
         {
           "ruleId": "sast.fs-user-path",
-          "ruleIndex": 2,
+          "ruleIndex": 3,
           "level": "error",
           "message": {
             "text": "A node:fs call receives a path that includes request data. Users can read or overwrite arbitrary files the app can access, such as the database or .env."
@@ -2773,7 +3922,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2812,7 +3961,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2851,7 +4000,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2890,7 +4039,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2929,7 +4078,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -2968,7 +4117,7 @@
         },
         {
           "ruleId": "sast.route-outside-registry",
-          "ruleIndex": 1,
+          "ruleIndex": 2,
           "level": "error",
           "message": {
             "text": "A route is added with app.get / router.post directly instead of defineRoute. The route skips the registry's mandatory authorization declaration, validation, CSRF and rate-limit defaults, so it may be reachable by anyone."
@@ -3007,7 +4156,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3043,7 +4192,79 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/generator/scaffold.ts"
+                },
+                "region": {
+                  "startLine": 93,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5252360ad800ad3e0c0da3defebf9cf6ebb143faddb6840b9f6f87fe6ca85b65"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/generator/scaffold.ts"
+                },
+                "region": {
+                  "startLine": 96,
+                  "startColumn": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5ee9d364b76ca7a20ef2e8326cc1dfffe78d5e9b3366896d695c287717ab6280"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3055,7 +4276,7 @@
                   "uri": "server/src/main.ts"
                 },
                 "region": {
-                  "startLine": 53,
+                  "startLine": 58,
                   "startColumn": 32
                 }
               }
@@ -3079,7 +4300,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3091,7 +4312,7 @@
                   "uri": "server/src/main.ts"
                 },
                 "region": {
-                  "startLine": 54,
+                  "startLine": 59,
                   "startColumn": 36
                 }
               }
@@ -3115,7 +4336,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3127,7 +4348,7 @@
                   "uri": "server/src/main.ts"
                 },
                 "region": {
-                  "startLine": 55,
+                  "startLine": 60,
                   "startColumn": 10
                 }
               }
@@ -3151,7 +4372,115 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/notify.ts"
+                },
+                "region": {
+                  "startLine": 46,
+                  "startColumn": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "62bd0b8f12ad80fb748c14cbcce8277bf768d107d2b9d5c5ab20e8144ca1eaef"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/job.ts"
+                },
+                "region": {
+                  "startLine": 143,
+                  "startColumn": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "c03c485ed59bba961e8aa00c923925d3676eb8a9eb2dffe7dfa7f80f03b42d63"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/pipeline/net-fence.ts"
+                },
+                "region": {
+                  "startLine": 44,
+                  "startColumn": 15
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "16303b5dbe6b0dca5837409a6b3ba78704f8b3cd2878d86ff227eec620595f0b"
+          },
+          "properties": {
+            "severity": "high",
+            "priority": "P1",
+            "confidence": "high",
+            "source": "sast",
+            "status": "accepted",
+            "asvs": [
+              "V1.2.5"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.child-process-exec",
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3163,7 +4492,7 @@
                   "uri": "server/src/pipeline/process.ts"
                 },
                 "region": {
-                  "startLine": 120,
+                  "startLine": 128,
                   "startColumn": 18
                 }
               }
@@ -3187,7 +4516,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3199,7 +4528,7 @@
                   "uri": "server/src/pipeline/process.ts"
                 },
                 "region": {
-                  "startLine": 240,
+                  "startLine": 254,
                   "startColumn": 15
                 }
               }
@@ -3223,7 +4552,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3235,7 +4564,7 @@
                   "uri": "server/src/pipeline/process.ts"
                 },
                 "region": {
-                  "startLine": 270,
+                  "startLine": 284,
                   "startColumn": 13
                 }
               }
@@ -3259,7 +4588,7 @@
         },
         {
           "ruleId": "sast.child-process-exec",
-          "ruleIndex": 4,
+          "ruleIndex": 5,
           "level": "error",
           "message": {
             "text": "The code uses child_process (exec, spawn, execSync) to run commands on the computer. Commands run with the app's operating system permissions. A mistake in how the command is built can let a user run their own commands, and the generated app's design forbids this."
@@ -3271,7 +4600,7 @@
                   "uri": "server/src/pipeline/process.ts"
                 },
                 "region": {
-                  "startLine": 373,
+                  "startLine": 387,
                   "startColumn": 17
                 }
               }
@@ -3295,7 +4624,7 @@
         },
         {
           "ruleId": "config.protected-files-unchanged",
-          "ruleIndex": 5,
+          "ruleIndex": 6,
           "level": "error",
           "message": {
             "text": "One or more protected files (security modules, config, security tests, manifest, package files) do not match the hashes recorded at scaffold time. A control may have been weakened, and the compliance report can no longer credit template controls for those files."
@@ -3331,7 +4660,7 @@
         },
         {
           "ruleId": "config.secrets-strength",
-          "ruleIndex": 6,
+          "ruleIndex": 7,
           "level": "error",
           "message": {
             "text": "SESSION_SECRET, FIELD_KEYS or TOKEN_HMAC_KEY is shorter than 32 bytes or equals the .env.example placeholder. Sessions, reset tokens, API keys and encrypted fields all rely on these values. A weak or known value lets an attacker forge sessions or decrypt data."
@@ -3366,7 +4695,7 @@
         },
         {
           "ruleId": "config.package-json-unmodified",
-          "ruleIndex": 7,
+          "ruleIndex": 8,
           "level": "error",
           "message": {
             "text": "package.json differs from the tested template version (new dependencies or changed scripts). New packages were not reviewed or locked; changed scripts may disable checks or enable debug flags."
@@ -3402,7 +4731,7 @@
         },
         {
           "ruleId": "sast.helmet-disabled-csp",
-          "ruleIndex": 8,
+          "ruleIndex": 9,
           "level": "error",
           "message": {
             "text": "helmet is configured with contentSecurityPolicy: false or the CSP directives were relaxed with 'unsafe-inline' or 'unsafe-eval'. The browser will run injected scripts, removing the last line of defence against cross-site scripting."
@@ -3439,7 +4768,7 @@
         },
         {
           "ruleId": "sast.tls-reject-unauthorized-false",
-          "ruleIndex": 9,
+          "ruleIndex": 10,
           "level": "error",
           "message": {
             "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
@@ -3475,7 +4804,7 @@
         },
         {
           "ruleId": "sast.tls-reject-unauthorized-false",
-          "ruleIndex": 9,
+          "ruleIndex": 10,
           "level": "error",
           "message": {
             "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
@@ -3511,7 +4840,7 @@
         },
         {
           "ruleId": "sast.tls-reject-unauthorized-false",
-          "ruleIndex": 9,
+          "ruleIndex": 10,
           "level": "error",
           "message": {
             "text": "The code sets rejectUnauthorized: false or NODE_TLS_REJECT_UNAUTHORIZED=0, turning off certificate verification for outbound connections. Anyone on the network path can impersonate the service the app talks to and read or alter the data, including API keys sent to it."
@@ -3547,7 +4876,7 @@
         },
         {
           "ruleId": "secrets.password-assignment",
-          "ruleIndex": 10,
+          "ruleIndex": 11,
           "level": "error",
           "message": {
             "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
@@ -3586,7 +4915,7 @@
         },
         {
           "ruleId": "secrets.password-assignment",
-          "ruleIndex": 10,
+          "ruleIndex": 11,
           "level": "error",
           "message": {
             "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
@@ -3625,7 +4954,7 @@
         },
         {
           "ruleId": "secrets.password-assignment",
-          "ruleIndex": 10,
+          "ruleIndex": 11,
           "level": "error",
           "message": {
             "text": "A variable named password (or similar) is assigned a literal value. The password is visible to anyone with the code and cannot be changed without editing it."
@@ -3664,7 +4993,7 @@
         },
         {
           "ruleId": "config.provenance-present",
-          "ruleIndex": 11,
+          "ruleIndex": 12,
           "level": "warning",
           "message": {
             "text": "securevibe.provenance.json is missing or unreadable. You cannot tell which files were AI-generated, by which model and in which run, which breaks the audit trail."
@@ -3699,7 +5028,7 @@
         },
         {
           "ruleId": "dast.input.proto-pollution",
-          "ruleIndex": 12,
+          "ruleIndex": 13,
           "level": "warning",
           "message": {
             "text": "A JSON body containing __proto__ or constructor.prototype keys was accepted. Crafted input may alter the behaviour of all objects in the process, bypassing checks or crashing the app."
@@ -3732,7 +5061,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3744,7 +5073,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 54,
+                  "startLine": 57,
                   "startColumn": 40
                 }
               }
@@ -3771,7 +5100,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3783,7 +5112,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 74,
+                  "startLine": 77,
                   "startColumn": 55
                 }
               }
@@ -3810,7 +5139,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3822,7 +5151,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 80,
+                  "startLine": 83,
                   "startColumn": 19
                 }
               }
@@ -3849,7 +5178,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3861,7 +5190,7 @@
                   "uri": "server/src/api/artifacts.ts"
                 },
                 "region": {
-                  "startLine": 84,
+                  "startLine": 87,
                   "startColumn": 19
                 }
               }
@@ -3888,7 +5217,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3900,7 +5229,7 @@
                   "uri": "server/src/api/metrics.ts"
                 },
                 "region": {
-                  "startLine": 248,
+                  "startLine": 250,
                   "startColumn": 27
                 }
               }
@@ -3926,8 +5255,47 @@
           }
         },
         {
-          "ruleId": "sast.fetch-outside-http-client",
+          "ruleId": "sast.req-body-unvalidated",
           "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/plan.ts"
+                },
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 40
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b2a7c2a471f7ae0a0996df6eab1783160853dc8563f27bd36645fca6303e004d"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.fetch-outside-http-client",
+          "ruleIndex": 15,
           "level": "warning",
           "message": {
             "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
@@ -3966,7 +5334,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -3978,7 +5346,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 87,
+                  "startLine": 108,
                   "startColumn": 36
                 }
               }
@@ -4005,7 +5373,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4017,14 +5385,14 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 105,
-                  "startColumn": 37
+                  "startLine": 115,
+                  "startColumn": 24
                 }
               }
             }
           ],
           "partialFingerprints": {
-            "securevibeFingerprint": "98b53d52c28ded0a2ee9f1845555df3c8fe3ee83c1b4f7a644cb843416686753"
+            "securevibeFingerprint": "1c61b68ca9fa5b21fbeba0e4606fd3e8e9c3c07c6d95ae73668d3fcfc941b702"
           },
           "properties": {
             "severity": "medium",
@@ -4044,7 +5412,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4056,7 +5424,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 119,
+                  "startLine": 126,
                   "startColumn": 40
                 }
               }
@@ -4082,8 +5450,125 @@
           }
         },
         {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 129,
+                  "startColumn": 31
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a158208870bcf0443a76f1fac7b92cfdf66eb636489d65086c6e33a0ebf95497"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 141,
+                  "startColumn": 31
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "0450caf14ec0e06f8e949bef747eea692c3b62915e7653cc6204bc90a4607722"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 201,
+                  "startColumn": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "98b53d52c28ded0a2ee9f1845555df3c8fe3ee83c1b4f7a644cb843416686753"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
           "ruleId": "sast.timing-unsafe-compare",
-          "ruleIndex": 15,
+          "ruleIndex": 16,
           "level": "warning",
           "message": {
             "text": "A token, hash or secret is compared with === or ==, which stops at the first different character. By measuring response times an attacker can guess a secret one character at a time."
@@ -4095,7 +5580,7 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 126,
+                  "startLine": 260,
                   "startColumn": 48
                 }
               }
@@ -4120,7 +5605,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4132,14 +5617,14 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 358,
-                  "startColumn": 56
+                  "startLine": 542,
+                  "startColumn": 20
                 }
               }
             }
           ],
           "partialFingerprints": {
-            "securevibeFingerprint": "d1f8abfb9e3905d11196846d802d6ee8de7dc8ead8be9e68f4d5a459f86ebb1a"
+            "securevibeFingerprint": "997f442ff47b459abfc140374098a03e5f13d7c66f13da0722bca229c00ed6f5"
           },
           "properties": {
             "severity": "medium",
@@ -4159,7 +5644,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4171,7 +5656,46 @@
                   "uri": "server/src/api/projects.ts"
                 },
                 "region": {
-                  "startLine": 381,
+                  "startLine": 575,
+                  "startColumn": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b821f795cc18f58b9083e234cd79d1611b15c9bcf607840dca1b781a7e3a4ef0"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 599,
                   "startColumn": 50
                 }
               }
@@ -4198,7 +5722,85 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 680,
+                  "startColumn": 25
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d33d95c53b56e3c27440a54795eacc7a7c03e73d21feb02178b3045c23ff4505"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/api/projects.ts"
+                },
+                "region": {
+                  "startLine": 737,
+                  "startColumn": 34
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "f69ab12738b332b0d71d6ac7d93435d15e7c15ea26a3813742aedd5ddea653e6"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V2.2.1",
+              "V15.3.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AS-05"
+            ]
+          }
+        },
+        {
+          "ruleId": "sast.req-body-unvalidated",
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4210,7 +5812,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 21,
+                  "startLine": 40,
                   "startColumn": 40
                 }
               }
@@ -4237,7 +5839,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4249,7 +5851,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 83,
+                  "startLine": 237,
                   "startColumn": 36
                 }
               }
@@ -4276,7 +5878,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4288,46 +5890,7 @@
                   "uri": "server/src/api/runs.ts"
                 },
                 "region": {
-                  "startLine": 89,
-                  "startColumn": 33
-                }
-              }
-            }
-          ],
-          "partialFingerprints": {
-            "securevibeFingerprint": "6cd3a1267078b2206da35c438942e433514ac33af089d7a76053de37ffec00a7"
-          },
-          "properties": {
-            "severity": "medium",
-            "priority": "P3",
-            "confidence": "high",
-            "source": "sast",
-            "status": "false-positive",
-            "asvs": [
-              "V2.2.1",
-              "V15.3.3"
-            ],
-            "aisvs": [],
-            "sbd": [
-              "AS-05"
-            ]
-          }
-        },
-        {
-          "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
-          "level": "warning",
-          "message": {
-            "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "server/src/api/runs.ts"
-                },
-                "region": {
-                  "startLine": 95,
+                  "startLine": 243,
                   "startColumn": 19
                 }
               }
@@ -4354,7 +5917,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4393,7 +5956,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4432,7 +5995,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4471,7 +6034,7 @@
         },
         {
           "ruleId": "sast.req-body-unvalidated",
-          "ruleIndex": 13,
+          "ruleIndex": 14,
           "level": "warning",
           "message": {
             "text": "A handler reads req.body directly instead of req.valid.body from a defineRoute schema. Unexpected types, missing fields and extra fields reach your logic, enabling mass assignment, crashes and injection."
@@ -4510,7 +6073,7 @@
         },
         {
           "ruleId": "sast.inline-script-in-view",
-          "ruleIndex": 16,
+          "ruleIndex": 17,
           "level": "warning",
           "message": {
             "text": "A template contains a <script> tag without nonce=\"<%= nonce %>\". The browser will block the script under the app's Content Security Policy, so the feature breaks; and if someone relaxes the policy to make it work, injected scripts would run too."
@@ -4529,7 +6092,7 @@
             }
           ],
           "partialFingerprints": {
-            "securevibeFingerprint": "cf181b54b785da1828fccc9e8d181c175964e7230ffe98694f684a8f82e093b6"
+            "securevibeFingerprint": "5f21858c64dcb40009bc4f579693844dda14b275abe5e7597351185935fe1add"
           },
           "properties": {
             "severity": "medium",
@@ -4546,7 +6109,43 @@
         },
         {
           "ruleId": "sast.href-from-data",
-          "ruleIndex": 17,
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/components/AiKeys.tsx"
+                },
+                "region": {
+                  "startLine": 71,
+                  "startColumn": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b5145610bb08cf039a5ef575dbd4c5058b9e5bc05233b0952dc25ef521243ff2"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "open",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
           "level": "warning",
           "message": {
             "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
@@ -4558,7 +6157,7 @@
                   "uri": "web/src/components/AppPreview.tsx"
                 },
                 "region": {
-                  "startLine": 73,
+                  "startLine": 85,
                   "startColumn": 37
                 }
               }
@@ -4581,8 +6180,44 @@
           }
         },
         {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/components/FindingCard.tsx"
+                },
+                "region": {
+                  "startLine": 175,
+                  "startColumn": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "7b9e28698e4ea2e97fffe42f6b93d48a289d4f8b80f3a24943c5666fa1a9a6f4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "open",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
           "ruleId": "sast.fetch-outside-http-client",
-          "ruleIndex": 14,
+          "ruleIndex": 15,
           "level": "warning",
           "message": {
             "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
@@ -4594,7 +6229,7 @@
                   "uri": "web/src/lib/api.ts"
                 },
                 "region": {
-                  "startLine": 67,
+                  "startLine": 71,
                   "startColumn": 20
                 }
               }
@@ -4621,7 +6256,7 @@
         },
         {
           "ruleId": "sast.fetch-outside-http-client",
-          "ruleIndex": 14,
+          "ruleIndex": 15,
           "level": "warning",
           "message": {
             "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
@@ -4633,7 +6268,7 @@
                   "uri": "web/src/lib/api.ts"
                 },
                 "region": {
-                  "startLine": 95,
+                  "startLine": 99,
                   "startColumn": 17
                 }
               }
@@ -4660,7 +6295,7 @@
         },
         {
           "ruleId": "sast.fetch-outside-http-client",
-          "ruleIndex": 14,
+          "ruleIndex": 15,
           "level": "warning",
           "message": {
             "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
@@ -4672,7 +6307,7 @@
                   "uri": "web/src/lib/api.ts"
                 },
                 "region": {
-                  "startLine": 123,
+                  "startLine": 127,
                   "startColumn": 9
                 }
               }
@@ -4699,7 +6334,7 @@
         },
         {
           "ruleId": "sast.fetch-outside-http-client",
-          "ruleIndex": 14,
+          "ruleIndex": 15,
           "level": "warning",
           "message": {
             "text": "Code calls the global fetch directly instead of outboundFetch from src/lib/http-client.ts. The call bypasses the outbound allow-list, timeouts, size cap and redirect control, so a user-influenced address could reach internal services (server-side request forgery)."
@@ -4711,7 +6346,7 @@
                   "uri": "web/src/lib/api.ts"
                 },
                 "region": {
-                  "startLine": 207,
+                  "startLine": 220,
                   "startColumn": 8
                 }
               }
@@ -4738,7 +6373,7 @@
         },
         {
           "ruleId": "sast.href-from-data",
-          "ruleIndex": 17,
+          "ruleIndex": 18,
           "level": "warning",
           "message": {
             "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
@@ -4750,7 +6385,151 @@
                   "uri": "web/src/pages/ResultsPage.tsx"
                 },
                 "region": {
-                  "startLine": 475,
+                  "startLine": 683,
+                  "startColumn": 49
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "5e8df3bf4e1a02c6aac2a4b714e17538d2f9a208447db1cb9b6b6da4a4891024"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 740,
+                  "startColumn": 64
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "ee5c61dd4f83e54f0ed386df840be14b5f63d57d74a12c31267b859625f8d713"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 745,
+                  "startColumn": 64
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "86a903cab4b4f93da1f743656eec6d55c9825b0930f7f579eb7099db4c03e13e"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 749,
+                  "startColumn": 62
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a501f20b9e15091c1a25522ef349d219e2178afe742bdcb51fabbfe1b7d1c4d4"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "sast.href-from-data",
+          "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/ResultsPage.tsx"
+                },
+                "region": {
+                  "startLine": 784,
                   "startColumn": 70
                 }
               }
@@ -4774,7 +6553,7 @@
         },
         {
           "ruleId": "sast.href-from-data",
-          "ruleIndex": 17,
+          "ruleIndex": 18,
           "level": "warning",
           "message": {
             "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
@@ -4786,7 +6565,7 @@
                   "uri": "web/src/pages/ResultsPage.tsx"
                 },
                 "region": {
-                  "startLine": 478,
+                  "startLine": 787,
                   "startColumn": 70
                 }
               }
@@ -4809,8 +6588,44 @@
           }
         },
         {
-          "ruleId": "secrets.high-entropy-assignment",
+          "ruleId": "sast.href-from-data",
           "ruleIndex": 18,
+          "level": "warning",
+          "message": {
+            "text": "An href is set from a stored or user-provided value without checking it starts with http:// or https://. A value like javascript:... runs code when clicked."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/src/pages/SecurityPage.tsx"
+                },
+                "region": {
+                  "startLine": 129,
+                  "startColumn": 62
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "a0228e7256c09a66ea2e2b4d9d79ae2e02a2c9899b96ada8224319fd64622629"
+          },
+          "properties": {
+            "severity": "medium",
+            "priority": "P3",
+            "confidence": "medium",
+            "source": "sast",
+            "status": "false-positive",
+            "asvs": [
+              "V1.2.2"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "secrets.high-entropy-assignment",
+          "ruleIndex": 19,
           "level": "warning",
           "message": {
             "text": "A long, random-looking string is assigned to a variable named like key, secret, token or password. It is probably a real credential written into the code, where anyone with the code can read it."
@@ -4848,7 +6663,7 @@
         },
         {
           "ruleId": "secrets.high-entropy-assignment",
-          "ruleIndex": 18,
+          "ruleIndex": 19,
           "level": "warning",
           "message": {
             "text": "A long, random-looking string is assigned to a variable named like key, secret, token or password. It is probably a real credential written into the code, where anyone with the code can read it."
@@ -4885,8 +6700,251 @@
           }
         },
         {
+          "ruleId": "docs.outside-services-documented",
+          "ruleIndex": 20,
+          "level": "note",
+          "message": {
+            "text": "docs/communications.md is missing, or does not list the hosts the app is allowed to contact. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/communications.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "541f4d9c96f1afb70bbb09eee6d6999faf7ede9c89b1fb413d108b9fd13ed71b"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V13.1.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.data-classes-documented",
+          "ruleIndex": 21,
+          "level": "note",
+          "message": {
+            "text": "docs/data-protection.md is missing, or does not cover the kinds of information the app was designed to hold and how long they are kept. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/data-protection.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "80cdb9378e172c87ad180ee297ca3e8dcb5f62e6db878b9708c1dcc6d5c4d5b3"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V14.1.1",
+              "V14.1.2"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.dependency-updates-documented",
+          "ruleIndex": 22,
+          "level": "note",
+          "message": {
+            "text": "docs/dependencies.md is missing, or does not give the deadlines for applying security updates. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/dependencies.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "aab72e10380eb6e4908aace7081a76beb60d8a6e73ccdeea376a2d01e402151d"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V15.1.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.logging-documented",
+          "ruleIndex": 23,
+          "level": "note",
+          "message": {
+            "text": "docs/logging.md is missing, or does not say where the log is kept and for how long. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/logging.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "9889737100beee8f36c590391afab99f4f5c77600fdff884540cbade9b82617e"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V16.1.1"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.sign-in-rules-documented",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "docs/SECURITY.md is missing, or does not describe the sign-in limits, the banned password words and the administrator's second step. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/SECURITY.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "d66c7c434de82280539be701d2a7d096209955f022ae005ebccdd7d2048d06ec"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V6.1.1",
+              "V6.1.2",
+              "V6.1.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.session-times-documented",
+          "ruleIndex": 25,
+          "level": "note",
+          "message": {
+            "text": "docs/sessions.md is missing, or the times in it are not the ones the app actually uses. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/sessions.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "b126cc843ed45c76bc87e89af12713403cf6bc3706b7e0d427803109d7883101"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V7.1.1",
+              "V7.1.2"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
+          "ruleId": "docs.validation-documented",
+          "ruleIndex": 26,
+          "level": "note",
+          "message": {
+            "text": "docs/validation.md is missing, empty, or does not cover every kind of record the app keeps. Documentation that is missing or out of date misleads whoever runs the app, and the check it answers has to be done by hand instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "docs/validation.md"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "eeefa3a421546cf158f4c491faec7faed11ea26e8e4bad19f1ed3994c933e30e"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P3",
+            "confidence": "high",
+            "source": "config",
+            "status": "open",
+            "asvs": [
+              "V2.1.1",
+              "V2.1.3"
+            ],
+            "aisvs": [],
+            "sbd": [
+              "AC-04"
+            ]
+          }
+        },
+        {
           "ruleId": "dast.errors.404-generic",
-          "ruleIndex": 19,
+          "ruleIndex": 27,
           "level": "note",
           "message": {
             "text": "The 404 response echoed the requested path unescaped or revealed framework details. Echoing the path can enable reflected script injection; framework details help attackers."
@@ -4895,13 +6953,13 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "GET /no-such-page-svprobe-1789666023538"
+                  "uri": "GET /no-such-page-svprobe-1789946766171"
                 }
               }
             }
           ],
           "partialFingerprints": {
-            "securevibeFingerprint": "ed2aa57f7af19bcec77c61c646edcd53bdc6d4fe94940fe53e16c3ba5302da19"
+            "securevibeFingerprint": "d54ff3d6e0e00dd89c0d8733214176ee4363ef4cae8b3693fbe32f1af8941dce"
           },
           "properties": {
             "severity": "low",
@@ -4918,7 +6976,7 @@
         },
         {
           "ruleId": "dast.session.logout-visible",
-          "ruleIndex": 20,
+          "ruleIndex": 28,
           "level": "note",
           "message": {
             "text": "An authenticated page did not contain the logout form from the base layout. Users on shared computers may not sign out, leaving their session open."
@@ -4950,7 +7008,7 @@
         },
         {
           "ruleId": "deps.deprecated-package",
-          "ruleIndex": 21,
+          "ruleIndex": 29,
           "level": "note",
           "message": {
             "text": "A package in use is marked deprecated by its maintainers. It will not receive security fixes; problems found later will stay unpatched."
@@ -4984,7 +7042,7 @@
         },
         {
           "ruleId": "deps.deprecated-package",
-          "ruleIndex": 21,
+          "ruleIndex": 29,
           "level": "note",
           "message": {
             "text": "A package in use is marked deprecated by its maintainers. It will not receive security fixes; problems found later will stay unpatched."
@@ -5018,7 +7076,7 @@
         },
         {
           "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
-          "ruleIndex": 22,
+          "ruleIndex": 30,
           "level": "note",
           "message": {
             "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
@@ -5051,7 +7109,7 @@
         },
         {
           "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
-          "ruleIndex": 22,
+          "ruleIndex": 30,
           "level": "note",
           "message": {
             "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
@@ -5084,7 +7142,7 @@
         },
         {
           "ruleId": "external.semgrep.problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
-          "ruleIndex": 22,
+          "ruleIndex": 30,
           "level": "note",
           "message": {
             "text": "Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used. Reported by semgrep, an extra security scanner installed on this computer. SecureVibe includes it as-is; a developer should confirm whether it applies to your app."
@@ -5117,7 +7175,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5153,7 +7211,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5189,7 +7247,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5225,7 +7283,43 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/scanners/external/clamav.ts"
+                },
+                "region": {
+                  "startLine": 52,
+                  "startColumn": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "6a6795467ee239f030ff8df9badc0e6e2ed4b1f9ccba50018aac5fe55974b2c4"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "false-positive",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5237,7 +7331,7 @@
                   "uri": "server/src/scanners/external/index.ts"
                 },
                 "region": {
-                  "startLine": 51,
+                  "startLine": 58,
                   "startColumn": 10
                 }
               }
@@ -5261,7 +7355,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5297,7 +7391,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5333,7 +7427,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5369,7 +7463,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5405,7 +7499,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5441,7 +7535,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5477,7 +7571,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5513,7 +7607,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5549,7 +7643,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5585,7 +7679,7 @@
         },
         {
           "ruleId": "lint.security/detect-unsafe-regex",
-          "ruleIndex": 23,
+          "ruleIndex": 31,
           "level": "note",
           "message": {
             "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
@@ -5594,17 +7688,17 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "web/vite.config.ts"
+                  "uri": "server/src/verification/documents.ts"
                 },
                 "region": {
-                  "startLine": 19,
-                  "startColumn": 27
+                  "startLine": 24,
+                  "startColumn": 16
                 }
               }
             }
           ],
           "partialFingerprints": {
-            "securevibeFingerprint": "62d9893f7a0a84521da0b963696eeaca29d2fc988d6e5a35cce85a0d417cd6c1"
+            "securevibeFingerprint": "286568fed9438561f41a1ba35057040444978f5c87ea3fa63115290e623ccb27"
           },
           "properties": {
             "severity": "low",
@@ -5620,8 +7714,44 @@
           }
         },
         {
+          "ruleId": "lint.security/detect-unsafe-regex",
+          "ruleIndex": 31,
+          "level": "note",
+          "message": {
+            "text": "The pattern has nested repetition (e.g. (a+)+) that can force catastrophic backtracking on certain input. A short, crafted input can make this pattern take seconds or minutes to match, freezing the server (denial of service)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "shared/src/profile.ts"
+                },
+                "region": {
+                  "startLine": 147,
+                  "startColumn": 16
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securevibeFingerprint": "977f8a0dd505eeca9b3ba3eddb12e39667a777c58c19f354b482f5a5b3ea11cf"
+          },
+          "properties": {
+            "severity": "low",
+            "priority": "P4",
+            "confidence": "medium",
+            "source": "lint",
+            "status": "open",
+            "asvs": [
+              "V1.3.12"
+            ],
+            "aisvs": [],
+            "sbd": []
+          }
+        },
+        {
           "ruleId": "deps.install-scripts-present",
-          "ruleIndex": 24,
+          "ruleIndex": 32,
           "level": "note",
           "message": {
             "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."
@@ -5655,7 +7785,7 @@
         },
         {
           "ruleId": "deps.install-scripts-present",
-          "ruleIndex": 24,
+          "ruleIndex": 32,
           "level": "note",
           "message": {
             "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."
@@ -5689,7 +7819,7 @@
         },
         {
           "ruleId": "deps.install-scripts-present",
-          "ruleIndex": 24,
+          "ruleIndex": 32,
           "level": "note",
           "message": {
             "text": "A package in the lockfile declares an install script (hasInstallScript). Install scripts run arbitrary code on your computer; with ignore-scripts=true they are skipped, but the package may then not work as expected."

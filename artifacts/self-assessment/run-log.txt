@@ -1,17 +1,20 @@
-SecureVibe run r_20260917172649_xnk3d4 — mode: verify-only — status: running
-Started: 2026-09-17T17:26:49.795Z
+SecureVibe run r_20260920232551_o3ufkk — mode: verify-only — status: running
+Started: 2026-09-20T23:25:51.525Z
 Finished: (not finished)
 
 [SKIPPED ] design-freeze       1ms  Using the design already on file (verify-only run). (skipped: verify-only run (the design on file was used))
+[SKIPPED ] scaffold            0ms  Your app was not laid out again: this run only checks the code that is already there. (skipped: Your app was not laid out again: this run only checks the code that is already there.)
+[SKIPPED ] generate            0ms  Nothing was written and nothing was spent: this run only checks the code that is already there. (skipped: Nothing was written and nothing was spent: this run only checks the code that is already there.)
 [SKIPPED ] install             0ms  The packages were already installed from a matching, previously tested set. (skipped: node_modules fast path)
-[PASSED  ] typecheck        5518ms  The code is consistent and type-safe.
-[PASSED  ] lint             1512ms  The security linter checked 253 files and found 14 issues (14 medium). After merging duplicates and review: 14 distinct, 14 accepted or false positive (reasons in the security report), 0 open.
-[PASSED  ] unit-tests          1ms  Ran 786 tests from vitest 5.0.1: 786 passed, 0 failed, 0 skipped.
-[PASSED  ] sast              862ms  Static analysis read 250 code files and 1 page templates with 57 rules and found 131 issues (6 critical, 74 high, 51 medium). After merging duplicates and review: 107 distinct, 107 accepted or false positive (reasons in the security report), 0 open.
-[PASSED  ] secrets           158ms  The secrets scan read 284 files and found 5 possible leaked credentials (3 high, 2 medium). After merging duplicates and review: 5 distinct, 5 accepted or false positive (reasons in the security report), 0 open.
-[WARNING ] deps             2763ms  Checked 534 packages: none has a known security problem. Bill of materials: 356 packages listed. After merging duplicates and review: 5 distinct, 2 accepted or false positive (reasons in the security report), 3 open.
-[PASSED  ] config              5ms  15 of 19 configuration checks passed; 4 did not (1 critical, 2 high, 1 medium). After merging duplicates and review: 4 distinct, 4 accepted or false positive (reasons in the security report), 0 open.
-[PASSED  ] dast            11202ms  Ran 74 runtime checks against your app: 28 passed, 3 found a problem, 43 could not be run. After merging duplicates and review: 3 distinct, 3 accepted or false positive (reasons in the security report), 0 open.
-[WARNING ] external        11820ms  Ran 4 extra scanners (semgrep, gitleaks, trivy, osv-scanner) and found 3 things to look at.
-[SKIPPED ] ai-review           1ms  AI is not configured, so no AI review was performed. Nothing in this run was assessed by AI. (skipped: AI is not configured (preview mode))
-[PASSED  ] compliance        185ms  32 of 161 applicable Level 2 ASVS requirements verified passing; 0 of 63 applicable AISVS requirements verified passing.
+[PASSED  ] typecheck        5662ms  The code is consistent and type-safe.
+[WARNING ] lint             1986ms  The security linter checked 314 files and found 16 issues (16 medium). After merging duplicates and review: 16 distinct, 15 accepted or false positive (reasons in the security report), 1 open.
+[PASSED  ] unit-tests          1ms  Ran 1078 tests from vitest 5.0.1: 1078 passed, 0 failed, 0 skipped.
+[WARNING ] sast             1285ms  Static analysis read 312 code files and 3 page templates with 57 rules and found 191 issues (6 critical, 109 high, 76 medium). After merging duplicates and review: 151 distinct, 149 accepted or false positive (reasons in the security report), 2 open.
+[PASSED  ] secrets           265ms  The secrets scan read 427 files and found 5 possible leaked credentials (3 high, 2 medium). After merging duplicates and review: 5 distinct, 5 accepted or false positive (reasons in the security report), 0 open.
+[WARNING ] deps             2379ms  Checked 534 packages: none has a known security problem. Bill of materials: 275 packages listed. After merging duplicates and review: 5 distinct, 2 accepted or false positive (reasons in the security report), 3 open.
+[WARNING ] config              3ms  15 of 26 configuration and documentation checks passed; 11 did not (1 critical, 2 high, 1 medium, 7 low). After merging duplicates and review: 11 distinct, 4 accepted or false positive (reasons in the security report), 7 open.
+[FAILED  ] dast            12029ms  Ran 74 runtime checks against your app: 27 passed, 4 found a problem, 43 could not be run. After merging duplicates and review: 4 distinct, 3 accepted or false positive (reasons in the security report), 1 open.
+[WARNING ] external        13028ms  Ran 4 extra scanners (semgrep, gitleaks, trivy, osv-scanner) and found 3 things to look at.
+[SKIPPED ] ai-review           0ms  AI is not configured, so no AI review was performed. Nothing in this run was assessed by AI. (skipped: AI is not configured (preview mode))
+[SKIPPED ] fix                 0ms  Nothing was fixed: this run only reports what it found, and fixing is part of a build. (skipped: Nothing was fixed: this run only reports what it found, and fixing is part of a build.)
+[PASSED  ] compliance        259ms  31 of 161 applicable Level 2 ASVS requirements verified passing; 0 of 63 applicable AISVS requirements verified passing.
