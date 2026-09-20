@@ -1,37 +1,24 @@
 /**
- * The list-query builder (TPL-QUERY-01). These are unit tests on the SQL that comes out, deliberately, because
- * the property worth proving is not "the list looked right on screen" — a list that leaks another person's
- * records looks perfectly right on screen. It is "the ownership clause is in the statement, and nothing a
- * visitor typed is in the statement". Both are things you can only see by reading the SQL.
+ * The list-query builder, where it is evidence for a requirement (TPL-QUERY-01).
+ *
+ * These are unit tests on the SQL that comes out, deliberately, because the property worth proving is not "the
+ * list looked right on screen" — a list that leaks another person's records looks perfectly right on screen. It
+ * is "the ownership clause is in the statement, and nothing a visitor typed is in the statement". Both are
+ * things you can only see by reading the SQL.
+ *
+ * Only tests that really are evidence for the requirement they name live here. The builder's other behaviour —
+ * how it escapes a search, what it refuses to be configured as, what it reports back to the page — is tested in
+ * `tests/query-behaviour.test.ts`, with no requirement id, because a test that names a requirement it does not
+ * check credits the wrong control. Eight of these tests used to be in this file and were moved out for exactly
+ * that reason, after SecureVibe's own test-name-match checker flagged them.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assertUsableSpec, buildListQuery, likePattern, sortableColumns, type QuerySpec } from '../../src/db/query.ts';
-
-const spec: QuerySpec = {
-  table: 'notes',
-  columns: [
-    { column: 'title', label: 'Title', kind: 'text', searchable: true, sortable: true },
-    { column: 'body', label: 'Notes', kind: 'text', searchable: true },
-    { column: 'amount', label: 'Amount', kind: 'number', sortable: true, filterable: true },
-    { column: 'done', label: 'Finished', kind: 'boolean', filterable: true },
-    { column: 'status', label: 'Status', kind: 'choice', filterable: true, choices: ['open', 'closed'] },
-    { column: 'secret_note', label: 'Private note', kind: 'text', encrypted: true },
-  ],
-  defaultSort: { column: 'updated_at', direction: 'desc' },
-  pageSize: 20,
-};
-
-/** Everything after the table name: the clauses a request can influence, without the column list it cannot. */
-function clauses(sql: string): string {
-  return sql.slice(sql.indexOf(' FROM '));
-}
-
-const mine = { kind: 'owner', ownerId: 'user-1' } as const;
-const everyone = { kind: 'everyone', because: 'this list is public to read' } as const;
+import { buildListQuery, assertUsableSpec } from '../../src/db/query.ts';
+import { spec, mine, everyone, clauses } from '../helpers/query-spec.ts';
 
 describe('list queries', () => {
-  test('V8.2.2 a query for one person always carries the ownership check, whatever else was asked for', () => {
+  test('V8.2.2 a query for one person restricts it to that person’s own records, whatever else was asked for', () => {
     const requests = [
       {},
       { search: 'anything' },
@@ -49,34 +36,29 @@ describe('list queries', () => {
     }
   });
 
-  test('V8.2.2 reading everyone\u2019s records is a sentence somebody wrote, not a scope left off', () => {
-    const built = buildListQuery(spec, everyone, {});
-    assert.doesNotMatch(clauses(built.sql), /WHERE/, 'an everyone query should not be scoped at all');
-    // The type system stops this at build time; this is the runtime half of the same fence.
+  test('V8.2.2 access to other people’s records cannot be obtained by leaving the scope off', () => {
+    // There is no unscoped default. Reading everyone's records is a named choice carrying its own reason.
     assert.throws(() => buildListQuery(spec, undefined as never, {}), /needs a scope/);
     assert.throws(() => buildListQuery(spec, { kind: 'all' } as never, {}), /needs a scope/);
+    const built = buildListQuery(spec, everyone, {});
+    assert.doesNotMatch(clauses(built.sql), /WHERE/, 'the explicit everyone scope is the only way to read them all');
   });
 
-  test('V1.2.4 a sort column that is not on the allow-list never reaches the SQL', () => {
-    const attempts = ['id; DROP TABLE notes', 'body', '(SELECT 1)', 'title--', 'secret_note', 'owner_id, 1'];
-    for (const sort of attempts) {
-      const built = buildListQuery(spec, mine, { sort });
-      assert.match(built.sql, /ORDER BY updated_at DESC, id ASC/, `"${sort}" changed the sort`);
-      assert.doesNotMatch(clauses(built.sql), /DROP|SELECT 1|--/, `"${sort}" reached the SQL`);
-    }
-    // A column the spec does allow is used, so the allow-list is doing the work rather than a blanket refusal.
-    assert.match(buildListQuery(spec, mine, { sort: 'amount', direction: 'asc' }).sql, /ORDER BY amount ASC/);
+  test('V8.2.2 a query returns only the data items it declares, so a column added later is not exposed by default', () => {
+    const built = buildListQuery(spec, mine, {});
+    assert.doesNotMatch(built.sql, /SELECT \*/, 'a list should never ask for every column');
+    const selected = /^SELECT (.+?) FROM/.exec(built.sql)?.[1]?.split(', ') ?? [];
+    assert.deepEqual(
+      [...selected].sort(),
+      ['amount', 'body', 'created_at', 'done', 'id', 'owner_id', 'secret_note', 'status', 'title', 'updated_at'],
+      'every column of the row, and nothing that is not a column of the row',
+    );
+    const widened = buildListQuery({ ...spec, columns: [...spec.columns, { column: 'added_later', label: 'Added later', kind: 'text' }] }, mine, {});
+    assert.match(widened.sql, /added_later/, 'a column is returned once the spec declares it');
+    assert.doesNotMatch(built.sql, /added_later/, 'and not before');
   });
 
-  test('V1.2.4 the sort direction can only ever be one of two words', () => {
-    for (const direction of ['asc); DROP TABLE notes --', 'ASC, owner_id', 'sideways', '']) {
-      const built = buildListQuery(spec, mine, { sort: 'amount', direction });
-      assert.match(built.sql, /ORDER BY amount (ASC|DESC), id ASC LIMIT \? OFFSET \?$/, `"${direction}" got through`);
-    }
-    assert.match(buildListQuery(spec, mine, { sort: 'amount', direction: 'ASC' }).sql, /amount ASC/, 'capitals are still a direction');
-  });
-
-  test('V1.2.4 everything a person typed is a bound value and none of it is in the statement', () => {
+  test('V1.2.4 every value from a request is a bound parameter, so a database query cannot be injected into', () => {
     const nasty = "' OR 1=1 --";
     const built = buildListQuery(spec, mine, { search: nasty, filters: { status: 'open', amount: '42' } });
     assert.ok(!built.sql.includes(nasty), 'a typed value reached the SQL text');
@@ -88,69 +70,35 @@ describe('list queries', () => {
     assert.ok(built.params.includes('open'), 'the choice filter should be a bound parameter');
   });
 
-  test('V1.2.4 search wildcards are escaped, so looking for a per-cent sign does not match everything', () => {
-    assert.equal(likePattern('100%'), '%100\\%%');
-    assert.equal(likePattern('a_b'), '%a\\_b%');
-    assert.equal(likePattern('back\\slash'), '%back\\\\slash%');
-    const built = buildListQuery(spec, mine, { search: '%' });
-    assert.match(built.sql, /LIKE \? ESCAPE '\\'/, 'the LIKE must declare its escape character');
-    assert.ok(built.params.includes('%\\%%'), 'the wildcard should have been escaped before binding');
+  test('V1.2.4 SQL injection through the sort column is prevented: an unlisted column never reaches the query', () => {
+    // The sort column is one of only two things that cannot be a bound parameter, so it is the injection route.
+    const attempts = ['id; DROP TABLE notes', 'body', '(SELECT 1)', 'title--', 'secret_note', 'owner_id, 1'];
+    for (const sort of attempts) {
+      const built = buildListQuery(spec, mine, { sort });
+      assert.match(built.sql, /ORDER BY updated_at DESC, id ASC/, `"${sort}" changed the sort`);
+      assert.doesNotMatch(clauses(built.sql), /DROP|SELECT 1|--/, `"${sort}" reached the SQL`);
+    }
+    assert.match(buildListQuery(spec, mine, { sort: 'amount', direction: 'asc' }).sql, /ORDER BY amount ASC/, 'a listed column is still honoured');
   });
 
-  test('V1.2.4 a field stored scrambled can be neither searched nor sorted, and saying otherwise is refused', () => {
-    assert.throws(() => assertUsableSpec({ ...spec, columns: [{ column: 'secret_note', label: 'Private note', kind: 'text', encrypted: true, searchable: true }] }), /scrambled/);
-    assert.throws(() => assertUsableSpec({ ...spec, columns: [{ column: 'secret_note', label: 'Private note', kind: 'text', encrypted: true, sortable: true }] }), /scrambled/);
-    // And an encrypted column is not silently searched by a search that names no column.
-    const built = buildListQuery(spec, mine, { search: 'anything' });
-    assert.doesNotMatch(clauses(built.sql), /secret_note/, 'a scrambled column must not be part of a search');
+  test('V1.2.4 SQL injection through the sort direction is prevented: only ASC or DESC reach the query', () => {
+    // The other value that cannot be bound.
+    for (const direction of ['asc); DROP TABLE notes --', 'ASC, owner_id', 'sideways', '']) {
+      const built = buildListQuery(spec, mine, { sort: 'amount', direction });
+      assert.match(built.sql, /ORDER BY amount (ASC|DESC), id ASC LIMIT \? OFFSET \?$/, `"${direction}" got through`);
+    }
+    assert.match(buildListQuery(spec, mine, { sort: 'amount', direction: 'ASC' }).sql, /amount ASC/, 'capitals are still a direction');
   });
 
-  test('V1.2.4 a spec that could only behave surprisingly is refused rather than written', () => {
+  test('V1.2.4 a table or column name that is not a plain identifier is refused before any query is built', () => {
+    // The names of tables and columns are the only parts of the statement written as text rather than bound, so
+    // this is what stands between a badly built spec and an injected query.
     assert.throws(() => assertUsableSpec({ ...spec, table: 'notes; DROP TABLE users' }), /plain identifier/);
     assert.throws(() => assertUsableSpec({ ...spec, columns: [{ column: 'a b', label: 'A', kind: 'text' }] }), /plain identifier/);
-    assert.throws(() => assertUsableSpec({ ...spec, columns: [spec.columns[0]!, spec.columns[0]!] }), /listed twice/);
-    assert.throws(() => assertUsableSpec({ ...spec, defaultSort: { column: 'nope', direction: 'asc' } }), /default sort/);
-    assert.throws(() => assertUsableSpec({ ...spec, columns: [{ column: 'amount', label: 'Amount', kind: 'number', searchable: true }] }), /would not mean anything/);
+    assert.throws(() => assertUsableSpec({ ...spec, columns: [{ column: 'x)--', label: 'A', kind: 'text' }] }), /plain identifier/);
   });
 
-  test('V8.2.2 the statement names the columns it wants, so a later migration cannot widen every list', () => {
-    const built = buildListQuery(spec, mine, {});
-    assert.doesNotMatch(built.sql, /SELECT \*/, 'a list should never ask for every column');
-    const selected = /^SELECT (.+?) FROM/.exec(built.sql)?.[1]?.split(', ') ?? [];
-    assert.deepEqual(
-      [...selected].sort(),
-      ['amount', 'created_at', 'done', 'id', 'owner_id', 'secret_note', 'status', 'title', 'updated_at', 'body'].sort(),
-      'every column of the row, and nothing that is not a column of the row',
-    );
-    // The point of naming them: a column that arrives later is not selected until the spec says so.
-    const widened = buildListQuery({ ...spec, columns: [...spec.columns, { column: 'added_later', label: 'Added later', kind: 'text' }] }, mine, {});
-    assert.match(widened.sql, /added_later/);
-    assert.doesNotMatch(built.sql, /added_later/);
-  });
-
-  test('V8.2.2 a list can never be ordered by who added the rows', () => {
-    const built = buildListQuery(spec, everyone, { sort: 'owner_id' });
-    assert.doesNotMatch(clauses(built.sql), /ORDER BY owner_id/, 'sorting by owner groups a shared list by person');
-    assert.match(built.sql, /ORDER BY updated_at DESC/);
-    assert.match(built.applied.ignored.join(' '), /cannot be sorted by "owner_id"/);
-    // It is still selected, because a page has to know whose row it is showing.
-    assert.match(built.sql, /^SELECT [^]*owner_id[^]*FROM/);
-  });
-
-  test('V2.4.1 a request cannot page past the end of the world, or send an unbounded pile of filters', () => {
-    const far = buildListQuery(spec, mine, { page: 99_999_999 });
-    assert.equal(far.applied.page, 10_000, 'the page number should have been capped');
-    assert.equal(far.params.at(-1), (10_000 - 1) * 20, 'the offset follows the capped page');
-    assert.match(far.applied.ignored.join(' '), /never more than 10000 pages/);
-
-    const many = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`f${i}`, 'x']));
-    const piled = buildListQuery(spec, mine, { filters: many });
-    assert.equal(piled.applied.filters.length, 0, 'none of those are real columns');
-    assert.ok(piled.applied.ignored.length <= 21, `expected the filters to be capped, got ${piled.applied.ignored.length} explanations`);
-    assert.match(piled.applied.ignored.join(' '), /Only the first 20/);
-  });
-
-  test('V2.4.1 every list query is bounded and a page size cannot be raised past the cap', () => {
+  test('V2.4.1 every list query is bounded, so no request can draw out the whole table', () => {
     const built = buildListQuery(spec, mine, { page: 3 });
     assert.match(built.sql, /LIMIT \? OFFSET \?$/);
     assert.equal(built.applied.pageSize, 20);
@@ -162,34 +110,14 @@ describe('list queries', () => {
     }
   });
 
-  test('V1.2.4 a filter is checked against what the field actually is, and an impossible one is dropped', () => {
-    const bad = buildListQuery(spec, mine, { filters: { status: 'deleted', amount: 'lots', done: 'perhaps', nonsense: 'x' } });
-    assert.deepEqual(bad.applied.filters, [], 'none of those filters should have been applied');
-    assert.equal(bad.applied.ignored.length, 4, `expected four explanations, got ${JSON.stringify(bad.applied.ignored)}`);
-    assert.ok(bad.applied.ignored.every((line) => line.endsWith('.')), 'each explanation should read as a sentence');
-    const good = buildListQuery(spec, mine, { filters: { status: 'open', done: 'yes' } });
-    assert.deepEqual(
-      good.applied.filters.map((f) => `${f.column}=${f.value}`).sort(),
-      ['done=yes', 'status=open'],
-      'both filters should have been applied, with the values the person will see on the page',
-    );
-    assert.equal(good.applied.ignored.length, 0);
-    assert.ok(good.params.includes(1), 'a yes should be bound as 1');
-  });
+  test('V2.4.1 the work one request can demand is capped: no runaway page number, no unbounded pile of filters', () => {
+    const far = buildListQuery(spec, mine, { page: 99_999_999 });
+    assert.equal(far.applied.page, 10_000, 'the page number should have been capped');
+    assert.equal(far.params.at(-1), (10_000 - 1) * 20, 'the offset follows the capped page');
 
-  test('V1.2.4 what was ignored is reported rather than quietly dropped', () => {
-    const built = buildListQuery(spec, mine, { sort: 'nope', direction: 'sideways' });
-    assert.equal(built.applied.ignored.length, 2);
-    assert.match(built.applied.ignored.join(' '), /cannot be sorted by "nope"/);
-    assert.equal(built.applied.sort, 'updated_at');
-    assert.equal(built.applied.sortLabel, 'when it was last changed');
-  });
-
-  test('V1.2.4 the sort menu offers only columns the builder would accept', () => {
-    for (const { column } of sortableColumns(spec)) {
-      const built = buildListQuery(spec, mine, { sort: column });
-      assert.equal(built.applied.sort, column, `the menu offers "${column}" but the builder refused it`);
-      assert.equal(built.applied.ignored.length, 0);
-    }
+    const many = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`f${i}`, 'x']));
+    const piled = buildListQuery(spec, mine, { filters: many });
+    assert.equal(piled.applied.filters.length, 0, 'none of those are real columns');
+    assert.ok(piled.applied.ignored.length <= 21, `expected the filters to be capped, got ${piled.applied.ignored.length} explanations`);
   });
 });
