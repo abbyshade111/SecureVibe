@@ -507,14 +507,22 @@ export function BuildPage() {
             <span className="sv-muted">
               Elapsed: {minutes}m {secondsPart}s
             </span>
-            {/* The live figure when the stream has sent one, the saved figure otherwise — a reconnected page has no
-                stream history, and a figure from the file is better than none. */}
-            {(liveSpend || run.llmUsage) && (
-              <span className="sv-muted">
-                AI spend so far: {usd(liveSpend ? liveSpend.usd : (run.llmUsage?.estimatedCostUsd ?? 0))}
-                {liveSpend && liveSpend.calls > 0 ? ` (${liveSpend.calls} call${liveSpend.calls === 1 ? '' : 's'})` : ''}
-              </span>
-            )}
+            {/*
+                Shown from the first second, starting at nothing, rather than appearing once money has been spent.
+                Gated on having a figure, this was invisible for the first two minutes of every run — which is
+                exactly the stretch where somebody watches a progress bar and wonders what it is costing them.
+                Zero is a true and reassuring answer to that, and a number that starts at zero and moves is
+                easier to trust than one that materialises part-way through. On a run with AI switched off it
+                simply stays at zero for the whole run, which demonstrates the point better than a label saying
+                so would.
+
+                The live figure when the stream has sent one, the saved figure otherwise — a reconnected page has
+                no stream history, and a figure from the file is better than none.
+            */}
+            <span className="sv-muted">
+              AI spend so far: {usd(liveSpend ? liveSpend.usd : (run.llmUsage?.estimatedCostUsd ?? 0))}
+              {liveSpend && liveSpend.calls > 0 ? ` (${liveSpend.calls} call${liveSpend.calls === 1 ? '' : 's'})` : ''}
+            </span>
             {browserNotify === 'default' && (
               <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void askBrowserNotify()}>
                 Notify me in the browser when it is done
