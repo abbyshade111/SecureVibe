@@ -242,6 +242,43 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     expect(ComplianceResultSchema.parse(result).codeCoverage?.filesRead).toBe(1);
   });
 
+  it('does not let a low score read as a verdict when the app was never run', () => {
+    // Arm B of the comparison on 20 September 2026: SecureFit's own code, byte-identical to the native run,
+    // exported and uploaded back. 151 of 151 files readable, so it is scored — and it scored 0 of 149, of code
+    // that had verified 104 of 159 an hour earlier. Only 4 requirements actually failed; 77 were never
+    // assessed, because an uploaded app is never run and its tests and live probes are the only evidence that
+    // could have verified them.
+    const { input } = buildInput();
+    input.codeCoverage = {
+      codeFiles: 151,
+      filesRead: 151,
+      languages: [{ language: 'TypeScript', files: 151, read: true }],
+      unreadLanguages: [],
+      assessable: true,
+      summary: "SecureVibe read 151 of this app's 151 code files.",
+    };
+    input.runMeta = {
+      ...input.runMeta,
+      stages: [
+        { id: 'unit-tests', status: 'skipped', skippedReason: "SecureVibe does not run an uploaded app's own tests" },
+        { id: 'dast', status: 'skipped', skippedReason: 'SecureVibe does not start an uploaded app' },
+      ] as never,
+    };
+    const result = evaluateCompliance(input);
+    expect(result.overall.headline).toContain('not a verdict on the app');
+    expect(result.overall.headline).toContain('does not run an application it did not build');
+    expect(result.overall.headline).toMatch(/could not be assessed at all/);
+  });
+
+  it('leaves the plain score alone when the app was actually run', () => {
+    // The guard must not fire on a native build, where a low score would be a real result.
+    const { input } = buildInput();
+    input.runMeta = { ...input.runMeta, stages: [{ id: 'unit-tests', status: 'passed' }, { id: 'dast', status: 'passed' }] as never };
+    const result = evaluateCompliance(input);
+    expect(result.overall.headline).toMatch(/^\d+ of \d+ applicable Level \d ASVS requirements verified passing/);
+    expect(result.overall.headline).not.toContain('not a verdict on the app');
+  });
+
   it('still scores an app it could read, with what it read said beside the score', () => {
     const { input } = buildInput();
     input.codeCoverage = {

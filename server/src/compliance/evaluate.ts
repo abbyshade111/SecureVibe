@@ -389,12 +389,43 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     ? `${asvsEval.summary.counts.pass} of ${asvsEval.summary.applicableCount} applicable Level ${asvsEval.summary.targetLevel} ASVS requirements verified passing; ${aisvsEval.summary.counts.pass} of ${aisvsEval.summary.applicableCount} applicable AISVS requirements verified passing.`
     : `${asvsEval.summary.counts.pass} of ${asvsEval.summary.applicableCount} applicable Level ${asvsEval.summary.targetLevel} ASVS requirements verified passing.`;
   const coverage = input.codeCoverage;
+
+  /**
+   * The second way a score can be a verdict nobody earned, and the one the first fix did not cover.
+   *
+   * Strong evidence in this model means the application was *run*: a test executed, a live request refused.
+   * SecureVibe never runs an app it did not build, so for an uploaded app the `unit-tests` and `dast` stages
+   * are skipped and no strong evidence can exist at any price. The requirements that would have been verified
+   * by them come out `not-verified`, the pass count comes out at or near zero, and the headline then says
+   * "0 of 149 applicable requirements verified passing" about code that verified 104 of 159 an hour earlier
+   * through the other door.
+   *
+   * Every number in that sentence is right and the sentence is false, which is the same failure as scoring an
+   * app whose code was never read. The first fix guarded whether the code could be *read*; readability was
+   * never the constraint here — Arm B was 151 files of 151 readable. What was missing was the evidence, and
+   * that is what this looks at.
+   */
+  const unrunStages = (input.runMeta.stages ?? [])
+    .filter((s) => (s.id === 'unit-tests' || s.id === 'dast') && s.status === 'skipped')
+    .map((s) => s.id);
+  const counts = asvsEval.summary.counts;
+  const notVerified = counts['not-verified'] ?? 0;
+  const otherEvidence = [
+    (counts['ai-assessed'] ?? 0) > 0 ? `${counts['ai-assessed']} assessed by the AI review only` : '',
+    (counts.partial ?? 0) > 0 ? `${counts.partial} partly met` : '',
+    (counts.fail ?? 0) > 0 ? `${counts.fail} not met` : '',
+  ].filter(Boolean);
+
   const headline =
     coverage && !coverage.assessable
       ? `Not assessed: ${coverage.summary} Without reading the code, SecureVibe cannot say whether this app meets the ${asvsEval.summary.applicableCount} requirements that apply to it, so it does not score them. Anything found below is real; what is absent has not been checked.`
-      : coverage && coverage.unreadLanguages.length > 0
-        ? `${scored} ${coverage.summary}`
-        : scored;
+      : unrunStages.length > 0 && notVerified > 0
+        ? `${scored} That is not a verdict on the app: ${notVerified} of the ${asvsEval.summary.applicableCount} could not be assessed at all, because SecureVibe does not run an application it did not build — so this app's own tests and live checks, the only evidence that can verify them, never happened.${
+            otherEvidence.length > 0 ? ` Of the rest, ${otherEvidence.join(', ')}.` : ''
+          }`
+        : coverage && coverage.unreadLanguages.length > 0
+          ? `${scored} ${coverage.summary}`
+          : scored;
 
   const recTop5 = recommendations.slice(0, 5);
   const deploymentTarget = input.profile?.deployment.target ?? input.runMeta.deploymentTarget;

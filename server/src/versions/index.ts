@@ -101,7 +101,16 @@ function readText(file: string): { text?: string; binary: boolean; tooLarge: boo
 }
 
 function brief(f: Finding) {
-  return { id: f.id, fingerprint: f.fingerprint, severity: f.severity, ruleId: f.ruleId, title: f.title };
+  // The file goes with it: several findings of one rule share a title, and without the location a comparison
+  // shows the same sentence repeated with nothing to tell the instances apart.
+  return {
+    id: f.id,
+    fingerprint: f.fingerprint,
+    severity: f.severity,
+    ruleId: f.ruleId,
+    title: f.title,
+    ...(f.location?.file ? { file: f.location.file } : {}),
+  };
 }
 
 function percent(run: PipelineRun | undefined, standard: 'asvs' | 'aisvs'): number | undefined {
