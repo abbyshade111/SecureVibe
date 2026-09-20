@@ -32,12 +32,18 @@
   <% } %>
 
   <% if (enabled) { %>
-    <form method="post" action="/ai">
+    <form method="post" action="/ai" data-working="Asking the assistant…">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label for="message">Your question</label>
       <textarea id="message" name="message" rows="4" maxlength="<%= maxChars %>" required></textarea>
       <p class="hint">Up to <%= maxChars %> characters. Please write in plain words — messages with hidden or encoded text are refused.</p>
+      <%
+        /* Said in plain text as well as through the button, because this is the half that works with no JavaScript:
+           somebody who knows an answer takes up to a minute can tell waiting from broken. */
+      %>
+      <p class="hint">An answer can take up to a minute. The page will wait for it — you do not need to press Ask again.</p>
       <button type="submit" class="button">Ask</button>
+      <p class="hint" role="status" aria-live="polite" data-working-status></p>
     </form>
   <% } %>
 
@@ -59,7 +65,7 @@
         <li>
           <p><%= proposal.summary %></p>
           <p class="muted"><%= formatDate(proposal.createdAt) %></p>
-          <form method="post" action="/ai/confirm/<%= proposal.id %>">
+          <form method="post" action="/ai/confirm/<%= proposal.id %>" data-working="Doing it…">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="button">Yes, do this</button>
           </form>
