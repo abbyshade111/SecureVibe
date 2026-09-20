@@ -2,9 +2,10 @@
  * Tests the runner's own orchestration (CONTRACTS §9.5) — stage order, persistence, the three failure rules, and
  * cancellation — with every stage function mocked so nothing here depends on a real scanner or a real LLM call.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StageId, StageResult } from '@shared/pipeline.js';
 import { loadFrameworks, loadKnowledge, createProvider } from '../../src/integration.js';
@@ -116,6 +117,45 @@ describe('pipeline runner', () => {
     // Checks always run again: a check carried over would describe code that has changed since.
     expect(stages.runSastStage).toHaveBeenCalledTimes(1);
     expect(stages.runComplianceStage).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the writing step the app it is continuing, or it cannot write at all', async () => {
+    // The bug this exists for: a continued build skips scaffold, and scaffold is what puts the app's manifest on
+    // the context. The manifest was loaded from disk *after* the generate branch, so a resumed run reached the
+    // writing step with none and refused — "The application was not ready to be written yet." Resume could
+    // therefore never continue a build interrupted while writing, which is the only case it exists for.
+    //
+    // It survived a full day of green checks because the test above mocks runGenerate and asserts only that it
+    // was called. Being called was never the problem. This asserts what it was called *with*.
+    const project = makeProject();
+    const appDir = deps.store.paths(project.id).appDir;
+    mkdirSync(appDir, { recursive: true });
+    // The real template's manifest, not a hand-written stand-in: the runner parses it against the schema, and a
+    // fixture that drifts from the template would pass here while failing for every actual app.
+    copyFileSync(fileURLToPath(new URL('../../../templates/secure-web-app/securevibe.manifest.json', import.meta.url)), join(appDir, 'securevibe.manifest.json'));
+
+    const stopped = {
+      id: 'r_20260920000000_cccccc',
+      projectId: project.id,
+      mode: 'full',
+      status: 'cancelled',
+      startedAt: '2026-09-20T00:00:00.000Z',
+      stages: [{ id: 'generate', status: 'failed', summary: 'the AI could not be reached', round: 0 }],
+      findings: [],
+      coverage: [],
+    } as never;
+    // Captured at the moment of the call, not read from the context afterwards. The context is one mutable
+    // object that later stages go on filling in, so inspecting it at the end says what the run eventually knew,
+    // not what the writing step was given — and the first version of this test passed with the bug reinstated.
+    let manifestAtWritingTime: unknown;
+    vi.mocked(stages.runGenerate).mockImplementationOnce(async (ctx: { manifest?: unknown }) => {
+      manifestAtWritingTime = ctx.manifest;
+      return { result: passed('generate') };
+    });
+    await startRun(project, { mode: 'full', spendingCapUsd: 15, resumeFrom: stopped }, deps).execute();
+
+    expect(stages.runGenerate).toHaveBeenCalledTimes(1);
+    expect(manifestAtWritingTime, 'the writing step was handed no manifest, so the real one would refuse to write').toBeDefined();
   });
 
   it('pays nothing to write again when the stopped build had finished writing', async () => {

@@ -101,6 +101,14 @@ building from nothing.
   count, not per-test names", re-ran twice, spent budget, and handed the owner a recommendation to run it again
   with verbose output. The information existed and was withheld by us, and it cost her money to find that out.
   Include the failing tests' names, and their file, in what the tool returns.
+- **A recipe for querying records.** First impression from an owner reading a generated app: the database code
+  is where it looks least like something a person would want to inherit. Search, filter, sort and paginate are
+  written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
+  most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
+  argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
+- **Find your best Ab needs a clean-up pass.** The first app built from nothing by someone other than the owner,
+  and the one to read carefully before deciding what else matters. Worth going through it feature by feature
+  rather than fixing whatever catches the eye first.
 - **An assistant that is working should say so.** Pressing "Run research" in Pain in the Butt returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show

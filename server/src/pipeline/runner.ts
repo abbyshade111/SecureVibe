@@ -11,7 +11,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { TemplateManifestSchema, type TemplateManifest } from '@shared/knowledge.js';
-import { PipelineRunSchema, type PipelineRun, type RunMode, type StageId, type StageResult } from '@shared/pipeline.js';
+import { PipelineRunSchema, ProvenanceSchema, type PipelineRun, type Provenance, type RunMode, type StageId, type StageResult } from '@shared/pipeline.js';
 import type { Project } from '@shared/project.js';
 import { effectiveAiSettings, type SecureVibeConfig } from '../config.js';
 import { newRunId, type ProjectPaths, type ProjectStore } from '../store/index.js';
@@ -125,6 +125,20 @@ export function cancelRun(runId: string): boolean {
 
 function emptyAccumulator(seedEvidence: PipelineAccumulator['evidence'] = []): PipelineAccumulator {
   return { findings: [], evidence: [...seedEvidence], coverage: [], testResults: [], probeResults: [], correlationIds: [], servedModels: [] };
+}
+
+/**
+ * The provenance an earlier run wrote, so a continued run keeps recording who wrote which file rather than
+ * starting a fresh record halfway through an app.
+ */
+function loadProvenanceFromAppDir(appDir: string): Provenance | undefined {
+  const file = join(appDir, 'securevibe.provenance.json');
+  if (!existsSync(file)) return undefined;
+  try {
+    return ProvenanceSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+  } catch {
+    return undefined;
+  }
 }
 
 function loadManifestFromAppDir(appDir: string): TemplateManifest | undefined {
@@ -278,6 +292,15 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
       run.resumedFrom = opts.resumeFrom!.id;
       run.resumedNote = resume.note;
     }
+    // Before anything may write: a continued run skips scaffold, and scaffold is what normally puts the app's
+    // manifest and provenance on the context. Loading them after the generate branch — which is where this used
+    // to happen — meant a resumed build reached generate with no manifest and refused with "the application was
+    // not ready to be written yet". So a build interrupted while writing, which is the case resume exists for,
+    // could never be continued: an owner whose AI credit ran out mid-build was stuck for good. A fresh build
+    // overwrites both from scaffold a moment later, so this costs nothing there.
+    if (!ctx.manifest) ctx.manifest = loadManifestFromAppDir(appDir);
+    if (!ctx.provenance) ctx.provenance = loadProvenanceFromAppDir(appDir);
+
     if (opts.mode === 'verify-only') {
       if (project.design) ctx.design = project.design;
       await push(loadFrozenDesign(ctx));

@@ -62,10 +62,28 @@ async function runLintCheck(ctx: PipelineCtx): Promise<RunCheckOutcome> {
   return { ok: scan.status !== 'failed', output: output.slice(-8000) };
 }
 
+export interface TestCheckDetails {
+  failed?: number;
+  total?: number;
+  tests?: { name: string; ok: boolean; skipped?: boolean; file?: string; detail?: string }[];
+}
+
+/** Exported so the wording can be tested without standing an application up to fail a test on purpose. */
+export function formatTestCheckOutput(summary: string, details: TestCheckDetails | undefined): string {
+  // Name the failures. This used to hand the agent a count — "1 of 223 failing" — while the same result object
+  // carried every test's name and outcome. On the first app built by someone new, the agent said so itself: it
+  // could not isolate the failing test because the tool returned a summary rather than names, re-ran the suite
+  // twice, spent the owner's budget, and ended by recommending she run it again herself. We knew and did not say.
+  const failing = (details?.tests ?? []).filter((t) => !t.ok && !t.skipped);
+  const line = (t: { name: string; file?: string; detail?: string }): string =>
+    `  ${t.name}${t.file ? ` (${t.file})` : ''}${t.detail ? `\n    ${t.detail.replace(/\s+/g, ' ').slice(0, 200)}` : ''}`;
+  const named = failing.length > 0 ? `\nFailing:\n${failing.slice(0, 20).map(line).join('\n')}${failing.length > 20 ? `\n  …and ${failing.length - 20} more` : ''}` : '';
+  return `${summary}${details ? ` (${details.failed ?? 0} of ${details.total ?? 0} failing)` : ''}${named}`;
+}
+
 async function runTestCheck(ctx: PipelineCtx): Promise<RunCheckOutcome> {
   const scan = await runTests(buildScanContext(ctx, 'unit-tests'), { sandbox: true });
-  const details = scan.details as { failed?: number; total?: number } | undefined;
-  const output = `${scan.summary}${details ? ` (${details.failed ?? 0} of ${details.total ?? 0} failing)` : ''}`;
+  const output = formatTestCheckOutput(scan.summary, scan.details as TestCheckDetails | undefined);
   return { ok: scan.status === 'passed', output: output.slice(-8000) };
 }
 
