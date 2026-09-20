@@ -89,7 +89,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **The brand materials are drawn and nothing uses them.** A logo lockup (flat and stacked), a favicon, and six
+- **The brand materials are drawn and nothing uses them.** **[taken: Vibe-coding builder (original, restored), 20 Sep 2026]** A logo lockup (flat and stacked), a favicon, and six
   mascot states — good, needs attention, at risk, building, stopped, failed — are sitting in
   `../securevibe-brand/` as SVG, with a `preview.html` showing them together. None of it is in the repository
   and none of it reaches a page: SecureVibe still shows a browser default where its favicon should be, and the
