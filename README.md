@@ -5,6 +5,12 @@
 > process, and it has been used in earnest by three people. The reports it writes are careful about what they
 > have and have not verified — `docs/` records where it has been found wrong, including by its own checks.
 > MIT licensed: use it, change it, build on it.
+>
+> **The commit messages are a candid working record and are meant to be read.** They say what was wrong as well
+> as what changed: a scanner that turned out to have read nothing for weeks, a report that gave an app a
+> damning verdict on code nobody had looked at, two days of history destroyed by a file-sync service, and a
+> fair number of mistakes made while fixing those. They have not been tidied. A project about honest reporting
+> that quietly rewrote its own history would be arguing against itself, and the failures are the useful part.
 
 
 **Describe the app you want. Get a working, security-hardened web application — plus the evidence.**
