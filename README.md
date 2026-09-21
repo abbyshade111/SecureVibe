@@ -1,5 +1,12 @@
 # SecureVibe
 
+> **What this is, and is not.** A research project accompanying a paper on whether a secure foundation makes
+> vibe coding safer for people who are not programmers. It is not a supported product, it has no release
+> process, and it has been used in earnest by three people. The reports it writes are careful about what they
+> have and have not verified — `docs/` records where it has been found wrong, including by its own checks.
+> MIT licensed: use it, change it, build on it.
+
+
 **Describe the app you want. Get a working, security-hardened web application — plus the evidence.**
 
 SecureVibe is a local-first "vibe-coding" tool for people who are not security experts. It walks you through a few

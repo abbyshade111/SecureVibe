@@ -218,6 +218,20 @@ building the query recipe: each read this file, each correctly saw the item uncl
   project has spent a week finding in other places. Refusing a non-loopback host in the client would make it
   true by construction and cost one line.
 
+- **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
+  test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
+  there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
+  every test of the work one session had just finished, were not run by the suite that reported on it. The list
+  is now regenerated before each run rather than maintained, and the output states the file count so a
+  shrinking suite is visible.
+  It cannot simply be a glob, which is the interesting part: `~/Desktop` is TCC-protected on macOS, so the
+  launcher's shell can open a path it is handed but cannot enumerate the directory — every glob returns "no
+  matches found" there while working in a terminal, and node given the bare directory finds `tests/security/`
+  and misses the four files at `tests/` root. Three separate silent failures of the same kind, in the thing
+  whose job is to notice failures.
+  The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
+  the iCloud reason and now has a second.
+
 - **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
@@ -287,7 +301,7 @@ building from nothing.
 - **Find your best Ab needs a clean-up pass.** The first app built from nothing by someone other than the owner,
   and the one to read carefully before deciding what else matters. Worth going through it feature by feature
   rather than fixing whatever catches the eye first.
-- **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in Pain in the Butt returns nothing
+- **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one

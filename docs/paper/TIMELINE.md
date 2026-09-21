@@ -41,7 +41,7 @@ Commit ids are from the destroyed history and will not resolve in this repositor
 | morning | — | The owner asks for save/resume of wizard answers, and the red Delete button. |
 | afternoon | `6aec203` | The security log with named events, the Dashboard, "Save credits" (Sonnet, low effort, one fix round, the 55/30/15 budget split so a $5 cap always covers a build), the human-checks wizard, app previews, and uploading your own app for a check. |
 | — | `1a17857`, `8d8c0a2` | Navigation to the human checks, the Finish page, the free re-check, self-assessment fixes. |
-| evening | — | The third build of *Pain in the Butt*, a friend's app: $3.81, rated at risk on AC-02 and MT-06, 88 of 159 ASVS requirements verified. The owner decides its assistant should do its own research against vetted sites — which becomes a new wizard question. |
+| evening | — | The third build of a health-tracking app made for a friend: $3.81, rated at risk on AC-02 and MT-06, 88 of 159 ASVS requirements verified. The owner decides its assistant should do its own research against vetted sites — which becomes a new wizard question. |
 | ~20:00 | — | The owner chooses the order of the remaining work and asks for it to be carried out without further approval. |
 | ~20:15 | `af6b83f` | All of it lands at once: the plan flow, refine questions, own API keys in `.env`, durable worker builds, the evaluation harness with its golden apps, `CLAUDE.md`, and five template fixes the harness had just found. |
 | — | `1a08dca`, `0ee9f1b`, `8811f07`, `55f04fa`, `ed99750` | Baselines recorded, raw TAP kept for readable failures, a web-search test fix, template upgrades. |

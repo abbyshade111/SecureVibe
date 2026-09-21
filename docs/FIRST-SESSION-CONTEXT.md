@@ -23,9 +23,11 @@ app previews with a one-click sign-in link, uploading your own app for a verify-
 - **Running builds.** Never restart SecureVibe while a build runs; only the owner stops the server (Ctrl-C) and
   we ask first. Durable worker builds exist so a restart is survivable, not so it is casual.
 - **The owner's apps are theirs.** Salon Bookings `p_5c4fyqgk66`, SecureFit (was SecureApp) `p_anwzto2pth`,
-  Pain in the Butt `p_enj4cx7ffl`, the self-assessment `p_lwph5z7zqd`, and the apps other people built since.
+  a health-tracking app built for a friend `p_enj4cx7ffl`, the self-assessment `p_lwph5z7zqd`, and the apps
+  other people built since.
   Only `p_vozfygv6vt` "Salon Bookings (test)" is ours to break. Repair a record only to fix damage, and say so.
-- **Pain in the Butt** (a friend's app): the assistant does the research itself (Claude's web-search tool), may
+- **The health-tracking app** (built for a friend, and referred to that way here rather than by its name,
+  because its subject is somebody’s health): the assistant does the research itself (Claude's web-search tool), may
   suggest treatments and home remedies as long as sources are vetted and doubts about them are stated; records
   are kept until deleted; backups were explicitly not a concern; the allowed sites (medical bodies, journals,
   universities) came from a wizard question the owner asked for, `capabilities.aiAssistant.webSearchSites`;
