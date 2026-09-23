@@ -54,40 +54,35 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN 4, temporary. Run 3 refuted run 3's own premise, which is why it was worth running.
+      # DIAGNOSTIC RUN 5, temporary. Run 4 named the describe block: "audit log". The other four finished,
+      # including "audit log from a real run", which is the one that does the most work.
       #
-      # Every one of safety.test.ts's seven imports returned on the runner, in 330ms, and
-      # loadDefaultInjectionPatterns() with them. So the block is not in module loading after all: it is inside a
-      # test. The reason run 2 saw no test start and no --testTimeout fire is that neither can happen while the
-      # main thread is held by SYNCHRONOUS work. vitest's per-test timeout is a timer, and a timer cannot
-      # interrupt a blocking call or a loop that never yields; the reporter cannot print for the same reason.
-      # A synchronous block is invisible to every tool that has been pointed at this so far.
-      #
-      # So bisect by describe block. Each is run alone with its own limit, and the result is appended to a file
-      # rather than printed. The block that times out is the one holding the thread.
-      - name: Bisect the file by describe block
+      # Five tests live in that block, and one of them holds the thread. The same bisect, one level down.
+      - name: Bisect the audit log block by test
         working-directory: server
         run: |
           set +e
-          rm -f /tmp/bisect.log
+          rm -f /tmp/bisect2.log
           while IFS= read -r name; do
-            timeout --signal=KILL 60s ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
+            timeout --signal=KILL 45s ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
               --no-file-parallelism --reporter=dot -t "$name" > /dev/null 2>&1
             code=$?
             if [ $code -eq 137 ]; then
-              echo "BLOCKED  $name" >> /tmp/bisect.log
+              echo "BLOCKED  $name" >> /tmp/bisect2.log
             else
-              echo "finished $name (exit $code)" >> /tmp/bisect.log
+              echo "finished $name (exit $code)" >> /tmp/bisect2.log
             fi
           done <<'NAMES'
-          screening ordinary business text
-          redaction
-          audit log
-          audit log from a real run
-          prompt library
+          never breaks a build when it cannot write
+          writes one JSON line per call
+          redacts a credential that slipped into an entry
+          keeps SecureVibe-generated ids readable
+          stores the full exchange only when that is switched on
           NAMES
-          echo "--- which describe block holds the thread:"
-          cat /tmp/bisect.log
+          echo "--- which test holds the thread:"
+          cat /tmp/bisect2.log
+          echo "--- and what /proc actually does here, since that test writes into it:"
+          node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('mkdir SUCCEEDED, which is its own problem')}catch(e){console.log('mkdir threw',e.code,'in',process.uptime().toFixed(3)+'s')}"
           exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
