@@ -65,7 +65,7 @@ jobs:
           rm -f /tmp/bisect2.log
           while IFS= read -r name; do
             timeout --signal=KILL 45s ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
-              --no-file-parallelism --reporter=dot -t "$name" > /dev/null 2>&1
+              --no-file-parallelism --reporter=dot -t "$name" > /dev/null 2>&1 < /dev/null
             code=$?
             if [ $code -eq 137 ]; then
               echo "BLOCKED  $name" >> /tmp/bisect2.log
@@ -82,7 +82,8 @@ jobs:
           echo "--- which test holds the thread:"
           cat /tmp/bisect2.log
           echo "--- and what /proc actually does here, since that test writes into it:"
-          node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('mkdir SUCCEEDED, which is its own problem')}catch(e){console.log('mkdir threw',e.code,'in',process.uptime().toFixed(3)+'s')}"
+          timeout --signal=KILL 20s node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('mkdir SUCCEEDED, which is its own problem')}catch(e){console.log('mkdir threw',e.code,'in',process.uptime().toFixed(3)+'s')}"
+          echo "probe exit: $? (137 means mkdirSync never returned - it blocks, it does not fail)"
           exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
