@@ -54,23 +54,50 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN 2, temporary. The first run named the file: tests/llm/safety.test.ts printed vitest's
-      # banner and then nothing at all for ninety seconds. It takes 331ms on the owner's machine.
+      # DIAGNOSTIC RUN 3, temporary. Run 2 settled where the block is, by settling where it is not.
       #
-      # The dot reporter flushes its dots at the end, so "no dots" does not mean "no test ran" - it means the
-      # file never finished, and we still cannot see how far it got. This run answers that. --reporter=verbose
-      # prints each test as it completes rather than at the end, and --testTimeout gives vitest its own limit
-      # below the shell's, so a test that blocks is failed and named by vitest itself. If nothing at all prints,
-      # the block is in the imports rather than in a test, which is equally worth knowing.
-      - name: Name the stalling test, not just the file
+      # vitest printed its banner and then nothing for four minutes, with --reporter=verbose (which prints each
+      # test as it completes, not at the end) and --testTimeout=15000. That per-test limit never fired, so no
+      # test ever started: the file blocks while its modules are being loaded, before a single test runs. That
+      # also explains why every earlier attempt failed to name it - there was nothing to name.
+      #
+      # So this probe imports safety.test.ts's modules one at a time, in its order, from a file sitting in the
+      # same folder so the relative paths are identical. Progress is appended to a file rather than printed,
+      # because stdout is buffered and intercepted and the process is about to be killed: whatever the log ends
+      # on is the import that never returned. The file is written here and never committed.
+      - name: Find the import that never returns
         working-directory: server
         run: |
           set +e
-          timeout --signal=TERM --kill-after=15s 4m ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
-            --no-file-parallelism --reporter=verbose --testTimeout=15000 --hookTimeout=15000
+          rm -f /tmp/probe.log
+          cat > tests/llm/import-probe.test.ts <<'PROBE'
+          import { appendFileSync } from 'node:fs';
+          import { it } from 'vitest';
+          const log = (m: string) => appendFileSync('/tmp/probe.log', m + '\n');
+          const step = async (name: string, load: () => Promise<unknown>) => {
+            log('start ' + name);
+            await load();
+            log('  done ' + name);
+          };
+          await step('audit', () => import('../../src/llm/audit.js'));
+          await step('flows/generate', () => import('../../src/llm/flows/generate.js'));
+          await step('scripted', () => import('../../src/llm/scripted.js'));
+          await step('helpers', () => import('./helpers.js'));
+          await step('prompts/index', () => import('../../src/llm/prompts/index.js'));
+          await step('redaction', () => import('../../src/llm/redaction.js'));
+          await step('screening', () => import('../../src/llm/screening.js'));
+          const screening = await import('../../src/llm/screening.js');
+          log('start loadDefaultInjectionPatterns()');
+          screening.loadDefaultInjectionPatterns();
+          log('  done loadDefaultInjectionPatterns()');
+          log('ALL IMPORTS RETURNED');
+          it('probe', () => {});
+          PROBE
+          timeout --signal=TERM --kill-after=15s 3m ../node_modules/.bin/vitest run tests/llm/import-probe.test.ts --no-file-parallelism --reporter=dot
           echo "vitest exit: $?"
-          echo "--- node processes still alive:"
-          ps -eo pid,etime,args | grep -i [n]ode | head -20
+          echo "--- probe log, in order; the last line is the import that never returned:"
+          cat /tmp/probe.log || echo "(the probe wrote nothing at all)"
+          rm -f tests/llm/import-probe.test.ts
           exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
