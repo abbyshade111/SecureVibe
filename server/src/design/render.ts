@@ -18,7 +18,7 @@ export interface RenderedDesign {
 
 function cell(text: string | number | boolean | undefined): string {
   if (text === undefined) return '';
-  return String(text).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+  return String(text).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
 function table(headers: string[], rows: (string | number | boolean | undefined)[][]): string {

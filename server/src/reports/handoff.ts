@@ -104,7 +104,7 @@ export function handoffMarkdown(input: HandoffInput): string {
     lines.push('| Seriousness | Problem | Who can fix it | What to do |', '|---|---|---|---|');
     for (const f of open.slice(0, 60)) {
       const where = f.location?.file ? ` (\`${f.location.file}${f.location.line ? `:${f.location.line}` : ''}\`)` : '';
-      const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+      const cell = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
       lines.push(`| ${f.severity} | ${cell(f.title)}${where} | ${WHO_LABEL[f.whoCanFix] ?? f.whoCanFix} | ${cell(f.remediation.summary)} |`);
     }
     if (open.length > 60) lines.push(`| … | ${open.length - 60} more in \`reports/security-report.html\` | | |`);

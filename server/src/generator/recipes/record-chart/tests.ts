@@ -12,6 +12,17 @@
  */
 import type { EntityField } from '@shared/profile.js';
 import type { RecipeRequirement } from '../types.js';
+
+/**
+ * Escapes a value for use inside a single-quoted JavaScript string in emitted code.
+ *
+ * The backslash goes first. Escaping only the quote means a label ending in a backslash emits
+ * `'…\\'` — an escaped quote rather than a closing one — and the generated test file no longer
+ * parses. Record-type labels are typed by the owner, so this is reachable with an ordinary answer.
+ */
+function jsStringLiteral(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+}
 import { payloadLiteral } from '../record-type/tests.js';
 import type { ChartPlan } from './emit.js';
 
@@ -192,7 +203,7 @@ ${
           },
         }
       : {}),
-    code: `  test('${encodingName.replace(/'/g, "\\'")}', async () => {
+    code: `  test('${jsStringLiteral(encodingName)}', async () => {
     const jar = await app.login(${signIn});
 ${typed ? `    await app.json('POST', API, { ...PAYLOAD, ${typed.prop}: TYPED_AS_MARKUP }, jar);\n` : `    await createRecord(jar);\n`}    const { res, html } = await app.page(CHART, jar);
     assert.equal(res.status, 200, 'the chart must be readable');
