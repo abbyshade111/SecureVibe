@@ -17,6 +17,9 @@
 name: CodeQL
 
 on:
+  # By hand first: after default setup is switched off, run it once deliberately and see it go green before
+  # letting pushes and pull requests carry it.
+  workflow_dispatch:
   push:
     branches: ['main']
   pull_request:
@@ -37,6 +40,10 @@ jobs:
       fail-fast: false
       matrix:
         # Python appears in this repository only as scanner fixtures, so it is not scanned.
+        # Rust has never been scanned here (default setup did not, and agnostic/crates has only ever been seen by
+        # cargo), so that leg is the one nobody has evidence for yet: if the Rust pack or build-mode none is not
+        # available on these runners it fails alone (fail-fast is off) and the JavaScript results still land.
+        # Its first real run will also raise real findings on the crates, which are to be triaged, not dismissed.
         language: ['javascript-typescript', 'rust']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
