@@ -5,7 +5,7 @@ another session is not a claim.
 
 ## Next
 
-- **The 76 inherited exclusions.** `applicability.json`'s 39 `never` rules carry reasons written about v1's Node
+- **The 76 inherited exclusions.** **[taken: keen-meninsky-691a27, 22 September 2026]** `applicability.json`'s 39 `never` rules carry reasons written about v1's Node
   template, and they account for 39% of everything `sv scope` currently excludes. See `docs/DESIGN.md` → "What
   the first run found" for the three ways each one has to be resolved. Until this lands, `sv` cannot honestly
   publish a not-applicable list, which blocks the reports.
