@@ -54,36 +54,38 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN 5, temporary. Run 4 named the describe block: "audit log". The other four finished,
-      # including "audit log from a real run", which is the one that does the most work.
+      # DIAGNOSTIC RUN 6, temporary, and narrowed to one question.
       #
-      # Five tests live in that block, and one of them holds the thread. The same bisect, one level down.
-      - name: Bisect the audit log block by test
+      # Run 5 wedged for eight minutes on a five-iteration loop capped at forty-five seconds, which cannot
+      # happen - unless `timeout --signal=KILL` failed to kill something. SIGKILL cannot end a process sitting
+      # in an uninterruptible kernel wait, and the first thing that loop ran was the test that calls mkdirSync
+      # on /proc/definitely/not/writable.
+      #
+      # If that is right it explains everything at once: the block is synchronous, so vitest's timers and
+      # reporter never get a turn; it is uninterruptible, so the shell's own kill does not end it either; and it
+      # cannot happen on the owner's Mac, where /proc does not exist and the call fails instantly with EPERM.
+      #
+      # So ask that one question, and ask it in a way that cannot wedge this step: run the probe in the
+      # background writing to a file, watch it for fifteen seconds, and report whether it ever came back. A
+      # probe for a hang must not be able to hang the thing asking.
+      - name: Does mkdirSync under /proc return at all
         working-directory: server
         run: |
           set +e
-          rm -f /tmp/bisect2.log
-          while IFS= read -r name; do
-            timeout --signal=KILL 45s ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
-              --no-file-parallelism --reporter=dot -t "$name" > /dev/null 2>&1 < /dev/null
-            code=$?
-            if [ $code -eq 137 ]; then
-              echo "BLOCKED  $name" >> /tmp/bisect2.log
-            else
-              echo "finished $name (exit $code)" >> /tmp/bisect2.log
-            fi
-          done <<'NAMES'
-          never breaks a build when it cannot write
-          writes one JSON line per call
-          redacts a credential that slipped into an entry
-          keeps SecureVibe-generated ids readable
-          stores the full exchange only when that is switched on
-          NAMES
-          echo "--- which test holds the thread:"
-          cat /tmp/bisect2.log
-          echo "--- and what /proc actually does here, since that test writes into it:"
-          timeout --signal=KILL 20s node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('mkdir SUCCEEDED, which is its own problem')}catch(e){console.log('mkdir threw',e.code,'in',process.uptime().toFixed(3)+'s')}"
-          echo "probe exit: $? (137 means mkdirSync never returned - it blocks, it does not fail)"
+          node -e "const {mkdirSync}=require('node:fs');const t=Date.now();try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('RETURNED: mkdir succeeded after',Date.now()-t,'ms')}catch(e){console.log('RETURNED: mkdir threw',e.code,'after',Date.now()-t,'ms')}" > /tmp/mkdir.out 2>&1 &
+          probe=$!
+          for i in $(seq 1 15); do kill -0 $probe 2>/dev/null || break; sleep 1; done
+          if kill -0 $probe 2>/dev/null; then
+            echo "VERDICT: mkdirSync did not return within 15 seconds. It blocks; it does not fail."
+            echo "Its state, from the kernel (D means an uninterruptible wait, which SIGKILL cannot end):"
+            ps -o pid,stat,wchan:32,args -p $probe
+          else
+            echo "VERDICT: it returned, so this is not the cause:"
+            cat /tmp/mkdir.out
+          fi
+          echo "--- for contrast, the same call one directory up:"
+          timeout --signal=KILL 10s node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/x',{recursive:true});console.log('/proc/x succeeded')}catch(e){console.log('/proc/x threw',e.code)}"
+          echo "contrast exit: $?"
           exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
