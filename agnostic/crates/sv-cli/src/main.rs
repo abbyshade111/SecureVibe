@@ -3,9 +3,9 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_frameworks::Frameworks;
-use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
+use sv_frameworks::applicability::{ApplicabilityConfig, bucket, requirements_gated_on};
 use sv_frameworks::{Condition, Source};
-use sv_manifest::{ClaimState, Manifest, spec};
+use sv_manifest::{ClaimState, Manifest, consistency, spec};
 use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures, scan};
 
@@ -67,31 +67,6 @@ fn signatures_path() -> PathBuf {
 /// How each manifest claim is checked against the code.
 fn corroborators_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/claim-corroborators.json")
-}
-
-/// How many in-scope requirements actually turn on a condition.
-///
-/// Some conditions gate nothing: `payments` and `scheduler` are asked about in the manifest and
-/// have plain-language reasons written for them, but no rule in the OWASP data keys on either.
-/// Announcing that the manifest is wrong about one of them, without saying that it changes no
-/// requirement, would be its own small overstatement — the loud kind.
-fn requirements_gated_on(
-    frameworks: &Frameworks,
-    config: &ApplicabilityConfig,
-    condition: Condition,
-    target_level: u8,
-) -> usize {
-    frameworks
-        .requirements
-        .values()
-        .filter(|r| r.level <= target_level)
-        .filter(|r| {
-            config
-                .rules_for(&r.id)
-                .iter()
-                .any(|rule| rule.condition == condition)
-        })
-        .count()
 }
 
 /// Evidence in the words a person would use.
@@ -216,9 +191,8 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
                 requirements_gated_on(&frameworks, &config, c.condition, manifest.target_level());
             if gated == 0 {
                 println!(
-                    "       This changes no requirement — nothing in the OWASP data turns on {}.\n\
-                     \x20      It still means the manifest does not describe this app, and the\n\
-                     \x20      data categories probably should.",
+                    "       On its own this changes no requirement: nothing in the OWASP data \
+                     turns on {}.",
                     c.condition.name()
                 );
             } else {
@@ -267,6 +241,51 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         .iter()
         .filter(|na| na.source == Source::Claim)
         .count();
+    // A claim can be wrong, change no requirement directly, and still matter — because of what it
+    // implies about the data categories, which set the target level.
+    let inconsistencies = consistency::check(&manifest, &resolved);
+    if !inconsistencies.is_empty() {
+        println!("\nWorth checking in securevibe.toml:");
+        for i in &inconsistencies {
+            println!("  {}", i.explain());
+        }
+    }
+
+    // Questions the manifest asks that currently decide nothing. Better said plainly than left for
+    // someone to discover after answering them carefully.
+    let inert: Vec<&str> = Condition::ALL
+        .iter()
+        .filter(|c| c.source() == Source::Claim)
+        // `level2` is computed from the audience and the data categories rather than answered,
+        // and `self-assessment` is v1's notion of checking itself. Neither is a question anyone
+        // fills in, so listing them as answered would be untrue.
+        .filter(|c| {
+            !matches!(
+                c,
+                Condition::Always
+                    | Condition::Never
+                    | Condition::SelfAssessment
+                    | Condition::Level2
+            )
+        })
+        .filter(|c| {
+            resolved
+                .iter()
+                .any(|r| r.condition == **c && r.claimed.is_some())
+        })
+        .filter(|c| requirements_gated_on(&frameworks, &config, **c, manifest.target_level()) == 0)
+        .map(|c| c.name())
+        .collect();
+    if !inert.is_empty() {
+        println!(
+            "\nAnswered in securevibe.toml but gating nothing: {}.\n\
+             No requirement in ASVS 5.0, AISVS 1.0 or Appendix C turns on these, so answering them\n\
+             differently changes no result. They are kept because they describe the app and because\n\
+             a future revision of the standards may use them.",
+            inert.join(", ")
+        );
+    }
+
     let found: Vec<&sv_scan::Answer> = report
         .answers
         .iter()

@@ -10,11 +10,6 @@ another session is not a claim.
   `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
   in the reports is a better answer than a weak one.
 
-- **`payments` and `scheduler` gate no requirements.** They are asked about, they have reasons written for
-  them, and nothing in the OWASP data keys on either. Either they earn rules in the v2 overlay, or they stop
-  being conditions and become what they really are — a prompt to check the data categories. Right now `sv`
-  reports a contradiction it then has to explain away.
-
 - **`sv check`.** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
   tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on
   them rather than starting over.
