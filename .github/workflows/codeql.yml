@@ -1,0 +1,64 @@
+# CodeQL, set up as a committed workflow ("advanced setup") rather than GitHub's default setup.
+#
+# The reason is the fixtures. SecureVibe tests its own scanners on deliberately vulnerable applications
+# (server/tests/fixtures/scanners-static/dirty-app and its neighbours, agnostic/crates/sv-scan/tests/fixtures),
+# and with default setup every one of their faults is a real alert in the Security tab: eighteen were dismissed
+# by hand on 22 September 2026, sixteen of them from v1's fixtures. A dismissal is a click that lives only in
+# GitHub's web page and comes back for every branch and every new fixture; the list below is one reviewable line
+# per folder and applies everywhere at once. Default setup cannot read a configuration file at all, so this is the
+# only way to say it.
+#
+# GitHub refuses to run this workflow while default setup is still switched on. Turning it off is a repository
+# setting (Settings → Code security → CodeQL) and is the owner's to change; until then this file is inert.
+#
+# Every action is pinned to an exact commit fingerprint, as in checks.yml: a version name can be moved, a
+# fingerprint cannot. The comment beside each says which release it is.
+
+name: CodeQL
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  schedule:
+    - cron: '0 6 * * 1' # Mondays, 06:00 UTC: the query packs improve while nothing changes here.
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Python appears in this repository only as scanner fixtures, so it is not scanned.
+        language: ['javascript-typescript', 'rust']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: github/codeql-action/init@3ea06614dafe36dec890db3446326e0d40ce53d4 # v3.38.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config: |
+            paths-ignore:
+              # Deliberately vulnerable inputs for SecureVibe's own scanner tests. They exist to be found by
+              # sv-scan and the v1 scanners; an alert on one of them is the fixture doing its job. Do not
+              # "fix" them and do not un-exclude them.
+              - server/tests/fixtures/**
+              - agnostic/crates/sv-scan/tests/fixtures/**
+              # Saved wizard answers and baseline numbers for the evaluation harness: data, not code.
+              - evals/**
+              # Build output and packages.
+              - '**/node_modules/**'
+              - web/dist/**
+              - agnostic/target/**
+
+      - uses: github/codeql-action/analyze@3ea06614dafe36dec890db3446326e0d40ce53d4 # v3.38.1
+        with:
+          category: '/language:${{ matrix.language }}'
