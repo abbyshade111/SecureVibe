@@ -5,7 +5,7 @@ another session is not a claim.
 
 ## Next
 
-- **The dependency scanner**, which is now what 17 not-assessed requirements are waiting on. It answers the
+- **The dependency scanner.** **[taken: keen-meninsky-691a27, 22 September 2026]** It is which is now what 17 not-assessed requirements are waiting on. It answers the
   eleven `derived` conditions — WebSockets, GraphQL, LDAP, XPath, XML, LaTeX, JNDI, memcache, format strings,
   unmanaged code, postMessage — by reading dependency manifests and detected languages. Until it exists those
   requirements are honestly unanswered, which is correct but not useful.
