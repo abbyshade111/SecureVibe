@@ -3,10 +3,20 @@
 
 use std::path::PathBuf;
 use sv_frameworks::Frameworks;
-use sv_frameworks::applicability::{ApplicabilityConfig, Condition, ConditionContext, bucket};
+use sv_frameworks::applicability::{ApplicabilityConfig, ConditionContext, bucket};
+use sv_frameworks::{Condition, Source};
 
 fn data_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data")
+}
+
+/// The v2 overlay that replaces the rules describing v1's own template.
+fn overlay() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/applicability-v2.json")
+}
+
+fn v2_config() -> ApplicabilityConfig {
+    ApplicabilityConfig::load_v2(&data_dir().join("knowledge"), &overlay()).unwrap()
 }
 
 #[test]
@@ -36,9 +46,9 @@ fn silence_in_the_rules_means_the_requirement_applies() {
     // The property the whole manifest-driven design rests on: a requirement nobody wrote a rule
     // for is in scope. A claim that goes missing must cost the user a requirement they must meet,
     // never one they are wrongly told to skip.
-    let config = ApplicabilityConfig::load(&data_dir().join("knowledge")).unwrap();
+    let config = v2_config();
     let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
-    let ctx = ConditionContext::default(); // every condition false
+    let ctx = ConditionContext::default(); // nothing answered
     let buckets = bucket(&f, &config, &ctx, 2);
 
     let unruled: Vec<&String> = buckets
@@ -53,40 +63,102 @@ fn silence_in_the_rules_means_the_requirement_applies() {
 }
 
 #[test]
-fn inherited_v1_exclusions_are_identifiable() {
-    // 39 rules in applicability.json use the `never` condition, and their reasons are statements
-    // about v1's Node template: "this app is written in TypeScript for Node.js", "all data lives
-    // in its own SQLite database file", "there is no CI/CD pipeline in a local build". For an app
-    // `sv` did not write, those are not reasons — they are wrong statements in a report, which is
-    // precisely what ADR-012 exists to prevent.
+fn the_overlay_leaves_almost_no_inherited_never_rules() {
+    // 39 rules in the shared applicability.json use the `never` condition, and their reasons are
+    // statements about v1's Node template: "this app is written in TypeScript for Node.js", "all
+    // data lives in its own SQLite database file", "the model is hosted and maintained by the
+    // vendor (Anthropic)". For an app `sv` did not write, those are not reasons — they are wrong
+    // statements in a report, which is what ADR-012 exists to prevent.
     //
-    // This test does not assert a count, which would only pin today's data. It asserts that every
-    // such exclusion is *distinguishable* from a real one, so v2 can report them as not assessed
-    // instead of repeating them. Delete `NotApplicable::condition` and this fails.
-    let config = ApplicabilityConfig::load(&data_dir().join("knowledge")).unwrap();
-    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
-    let ctx = ConditionContext::default();
-    let buckets = bucket(&f, &config, &ctx, 2);
+    // The overlay replaces 37 of them. The two left are V15.4 and C5.1, whose reasons say the
+    // requirements are ASVS level 3 — honest, and nothing to do with v1.
+    let base = ApplicabilityConfig::load(&data_dir().join("knowledge")).unwrap();
+    let before = base
+        .rules
+        .iter()
+        .filter(|r| r.condition == Condition::Never)
+        .count();
+    let after = v2_config()
+        .rules
+        .iter()
+        .filter(|r| r.condition == Condition::Never)
+        .count();
+    assert!(
+        before > 30,
+        "expected the v1 rules to still carry their `never` rules"
+    );
+    assert_eq!(after, 2, "only the two level-3 rules may keep `never`");
+}
 
-    let inherited = buckets
+#[test]
+fn no_requirement_is_excluded_by_an_inherited_reason() {
+    // The property that matters to a reader of the report, rather than to the data file: with the
+    // overlay applied, nothing is excluded on the strength of a sentence about v1's template.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    // Answer everything, so the only exclusions left are ones a rule really made.
+    for c in Condition::ALL {
+        ctx.set(*c, false);
+    }
+    let buckets = bucket(&f, &config, &ctx, 2);
+    let inherited: Vec<&str> = buckets
         .not_applicable
         .iter()
         .filter(|na| na.condition == Condition::Never)
-        .count();
+        .map(|na| na.id.as_str())
+        .collect();
     assert!(
-        inherited > 0,
-        "the `never` rules must be visible as inherited, not blended into honest exclusions"
+        inherited.is_empty(),
+        "still excluded by a v1-template reason: {inherited:?}"
+    );
+}
+
+#[test]
+fn an_unanswered_condition_is_not_assessed_rather_than_not_applicable() {
+    // The distinction this whole project exists to keep: "this does not apply to you" and
+    // "nothing here has checked" are different answers, and only one of them is safe to guess.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let ctx = ConditionContext::default(); // nothing answered at all
+    let buckets = bucket(&f, &config, &ctx, 2);
+    assert!(
+        !buckets.not_assessed.is_empty(),
+        "with nothing answered, gated requirements must be not-assessed"
     );
     assert!(
-        inherited < buckets.not_applicable.len(),
-        "not every exclusion is inherited; the honest ones must survive the filter"
+        buckets.not_applicable.is_empty(),
+        "nothing may be excluded when nothing has been answered"
     );
+}
+
+#[test]
+fn every_overlay_rule_names_where_its_answer_comes_from() {
+    // An exclusion resting on the owner's word is weaker than one read out of their dependencies.
+    // A report that prints them identically overstates the first, so the source is not optional.
+    let base: Vec<String> = ApplicabilityConfig::load(&data_dir().join("knowledge"))
+        .unwrap()
+        .rules
+        .iter()
+        .filter(|r| r.condition == Condition::Never)
+        .map(|r| r.scope.clone())
+        .collect();
+    for rule in &v2_config().rules {
+        if base.contains(&rule.scope) && rule.condition != Condition::Never {
+            assert!(
+                rule.source.is_some(),
+                "overlay rule for {} states no source",
+                rule.scope
+            );
+            assert!(matches!(rule.source(), Source::Claim | Source::Derived));
+        }
+    }
 }
 
 #[test]
 fn manual_only_requirements_get_the_manual_only_class() {
     use sv_frameworks::VerificationClass;
-    let config = ApplicabilityConfig::load(&data_dir().join("knowledge")).unwrap();
+    let config = v2_config();
     // Listed in applicability.json's manualOnly array.
     assert_eq!(
         config.verification_class_for("V2.3.1"),
@@ -96,11 +168,99 @@ fn manual_only_requirements_get_the_manual_only_class() {
 
 #[test]
 fn the_most_specific_scope_wins() {
-    let config = ApplicabilityConfig::load(&data_dir().join("knowledge")).unwrap();
+    let config = v2_config();
     // V1.2.6 has its own requirement-level rule; it must not resolve to V1.2's or V1's.
     let rules = config.rules_for("V1.2.6");
     assert!(
         rules.iter().all(|r| r.scope == "V1.2.6"),
         "a requirement-level rule must replace its section and chapter rules"
+    );
+}
+
+#[test]
+fn a_partly_answered_app_leaves_the_technology_questions_not_assessed() {
+    // The realistic case, and the one the CLI actually runs: securevibe.toml answers every claim,
+    // and nothing yet reads the dependency manifests, so the technology conditions stay unknown.
+    // Those requirements must land in not-assessed and must not appear among the exclusions.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    for c in Condition::ALL
+        .iter()
+        .filter(|c| c.source() == Source::Claim)
+    {
+        ctx.set(*c, false);
+    }
+    let buckets = bucket(&f, &config, &ctx, 2);
+
+    // V4.3 is GraphQL, V1.5.1 is XXE, V1.3.8 is JNDI — all read from dependencies, none readable yet.
+    for id in ["V4.3.1", "V1.5.1", "V1.3.8"] {
+        assert!(
+            buckets.not_assessed.iter().any(|na| na.id == id),
+            "{id} should be not-assessed while nothing reads the dependencies"
+        );
+        assert!(
+            !buckets.not_applicable.iter().any(|na| na.id == id),
+            "{id} must not be excluded on the strength of a scanner that does not exist"
+        );
+    }
+}
+
+#[test]
+fn nothing_a_scanner_cannot_yet_answer_is_reported_as_an_exclusion() {
+    // The general form of the test above: every exclusion must rest on a condition something
+    // actually answered. If a derived condition is unknown, its requirements cannot be excluded.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    for c in Condition::ALL
+        .iter()
+        .filter(|c| c.source() == Source::Claim)
+    {
+        ctx.set(*c, false);
+    }
+    let buckets = bucket(&f, &config, &ctx, 2);
+    for na in &buckets.not_applicable {
+        assert!(
+            ctx.get(na.condition).is_some(),
+            "{} excluded by {}, which nothing answered",
+            na.id,
+            na.condition.name()
+        );
+    }
+    assert!(
+        !buckets.not_assessed.is_empty(),
+        "the derived conditions are unanswered here"
+    );
+}
+
+#[test]
+fn every_requirement_lands_in_exactly_one_bucket() {
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    for c in Condition::ALL
+        .iter()
+        .filter(|c| c.source() == Source::Claim)
+    {
+        ctx.set(*c, false);
+    }
+    let buckets = bucket(&f, &config, &ctx, 2);
+    let mut seen: Vec<&str> = buckets.applicable.iter().map(String::as_str).collect();
+    seen.extend(buckets.not_applicable.iter().map(|na| na.id.as_str()));
+    seen.extend(buckets.not_assessed.iter().map(|na| na.id.as_str()));
+    seen.extend(buckets.out_of_level.iter().map(String::as_str));
+    assert_eq!(
+        seen.len(),
+        f.len(),
+        "a requirement was dropped or double-counted"
+    );
+    seen.sort_unstable();
+    let before = seen.len();
+    seen.dedup();
+    assert_eq!(
+        before,
+        seen.len(),
+        "a requirement is in two buckets at once"
     );
 }

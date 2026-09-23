@@ -5,10 +5,10 @@ another session is not a claim.
 
 ## Next
 
-- **The 76 inherited exclusions.** **[taken: keen-meninsky-691a27, 22 September 2026]** `applicability.json`'s 39 `never` rules carry reasons written about v1's Node
-  template, and they account for 39% of everything `sv scope` currently excludes. See `docs/DESIGN.md` → "What
-  the first run found" for the three ways each one has to be resolved. Until this lands, `sv` cannot honestly
-  publish a not-applicable list, which blocks the reports.
+- **The dependency scanner**, which is now what 17 not-assessed requirements are waiting on. It answers the
+  eleven `derived` conditions — WebSockets, GraphQL, LDAP, XPath, XML, LaTeX, JNDI, memcache, format strings,
+  unmanaged code, postMessage — by reading dependency manifests and detected languages. Until it exists those
+  requirements are honestly unanswered, which is correct but not useful.
 
 - **Corroborators.** Nothing checks a claim against the code yet, so every claim resolves `unverifiable` and
   says so. First ones worth having, because they are the claims most often wrong in the safe-looking direction:

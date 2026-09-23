@@ -34,5 +34,14 @@ webrtc = false
 external-apis = ["api.sendgrid.com"]
 tls = "terminated-upstream"
 
+out-of-band-auth = false
+shared-hostname = false
+
+[repository]
+ci-cd = true            # GitHub Actions
+hosted-scm = true       # GitHub, with branch protection
+outside-contributors = false
+iac = false
+
 [capabilities.ai]
 enabled = false

@@ -3,7 +3,8 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_frameworks::Frameworks;
-use sv_frameworks::applicability::{ApplicabilityConfig, Condition, bucket};
+use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
+use sv_frameworks::{Condition, Source};
 use sv_manifest::{ClaimState, Manifest, spec};
 
 fn main() -> Result<()> {
@@ -49,6 +50,11 @@ fn data_dir() -> Result<PathBuf> {
     bail!("cannot find the OWASP data folder; set SV_DATA_DIR")
 }
 
+/// The v2 overlay, which replaces the applicability rules whose reasons describe v1's own template.
+fn overlay_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/applicability-v2.json")
+}
+
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -63,7 +69,8 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let data = data_dir()?;
     let frameworks =
         Frameworks::load(&data.join("frameworks")).context("loading the OWASP frameworks")?;
-    let config = ApplicabilityConfig::load(&data.join("knowledge"))?;
+    let overlay = overlay_path();
+    let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay)?;
 
     // No corroborators are wired up yet, so every claim is unverifiable and says so. This is the
     // honest state of the tool today, not a placeholder that reads as a clean result.
@@ -80,16 +87,17 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         manifest.target_level()
     );
     println!(
-        "\n{} requirements apply, {} do not, {} are above this level ({} loaded).",
+        "\n{} apply, {} do not, {} not assessed, {} above this level ({} loaded).",
         buckets.applicable.len(),
         buckets.not_applicable.len(),
+        buckets.not_assessed.len(),
         buckets.out_of_level.len(),
         frameworks.len()
     );
 
     let unverifiable = resolved
         .iter()
-        .filter(|r| r.state == ClaimState::Unverifiable && r.claimed)
+        .filter(|r| r.state == ClaimState::Unverifiable && r.claimed == Some(true))
         .count();
     if unverifiable > 0 {
         println!(
@@ -98,36 +106,46 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         );
     }
 
-    // `never` rules carry reasons written about v1's Node template — "this app is written in
-    // TypeScript for Node.js", "there is no CI/CD pipeline in a local build". They are claims about
-    // a stack `sv` cannot assume, so they are counted and flagged, not printed as if true.
-    let inherited: Vec<_> = buckets
-        .not_applicable
-        .iter()
-        .filter(|na| na.condition == Condition::Never)
-        .collect();
-    if !inherited.is_empty() {
-        println!(
-            "\n{} of the {} exclusions come from fixed rules written for SecureVibe's own Node\n\
-             template, not from this app. Their stated reasons are not safe to repeat here, and\n\
-             these requirements are reported as NOT ASSESSED until v2 derives them from the code.",
-            inherited.len(),
-            buckets.not_applicable.len()
-        );
+    let mut blocked: std::collections::BTreeMap<Condition, usize> = Default::default();
+    for na in &buckets.not_assessed {
+        for c in &na.blocked_on {
+            *blocked.entry(*c).or_default() += 1;
+        }
     }
 
-    println!("\nDoes not apply:");
-    for na in buckets
+    if !buckets.not_assessed.is_empty() {
+        println!(
+            "\n{} are NOT ASSESSED: something has to answer a question about this app before\n\
+             anyone can say whether they apply. They are not passes and not exclusions.",
+            buckets.not_assessed.len()
+        );
+        for (condition, n) in &blocked {
+            let who = match condition.source() {
+                Source::Claim => "securevibe.toml does not say",
+                Source::Derived => "no scanner reads this from the code yet",
+            };
+            println!("  {n:>3}  {:<22} {who}", condition.name());
+        }
+    }
+
+    // An exclusion resting on somebody's word is weaker than one resting on their dependencies,
+    // and a report that prints them identically overstates the first.
+    let claimed = buckets
         .not_applicable
         .iter()
-        .filter(|na| na.condition != Condition::Never)
-        .take(12)
-    {
+        .filter(|na| na.source == Source::Claim)
+        .count();
+    println!(
+        "\nDoes not apply: {} in total — {} because the manifest says so, {} read from the code.",
+        buckets.not_applicable.len(),
+        claimed,
+        buckets.not_applicable.len() - claimed
+    );
+    for na in buckets.not_applicable.iter().take(8) {
         println!("  {} — {}", na.id, na.reason);
     }
-    let shown = buckets.not_applicable.len() - inherited.len();
-    if shown > 12 {
-        println!("  … and {} more", shown - 12);
+    if buckets.not_applicable.len() > 8 {
+        println!("  … and {} more", buckets.not_applicable.len() - 8);
     }
     Ok(())
 }

@@ -1,0 +1,227 @@
+{
+  "_comment": "v2 replacements for the `never` rules in data/knowledge/applicability.json. Each of those rules carries a reason that is a statement about v1's Node template \u2014 'this app is written in TypeScript for Node.js', 'all data lives in its own SQLite database file', 'the model is hosted by the vendor (Anthropic)'. True of a v1 app, unknowable about someone else's. A rule here replaces the rule at the same scope, and states where its answer comes from: `claim` means securevibe.toml says, `derived` means the app's own dependencies say. V15.4 and C5.1 are deliberately absent: their `never` reasons are about ASVS level 3, which is honest and not specific to v1.",
+  "rules": [
+    {
+      "scope": "AC.11.7",
+      "condition": "outside-contributors",
+      "source": "claim",
+      "notApplicableReason": "There are no pull requests from outside contributors for the AI to review."
+    },
+    {
+      "scope": "AC.12",
+      "condition": "ci-cd",
+      "source": "claim",
+      "notApplicableReason": "This app has no CI/CD pipeline, so there are no pipeline-hardening requirements to meet."
+    },
+    {
+      "scope": "AC.13",
+      "condition": "outside-contributors",
+      "source": "claim",
+      "notApplicableReason": "This app receives no code contributions from outside people, so there are none to screen."
+    },
+    {
+      "scope": "AC.6",
+      "condition": "training",
+      "source": "claim",
+      "notApplicableReason": "This app does not fine-tune a model or run a feedback programme that changes one."
+    },
+    {
+      "scope": "AC.7.3",
+      "condition": "iac",
+      "source": "claim",
+      "notApplicableReason": "No infrastructure or pipeline configuration (Terraform, CloudFormation, CI workflows) is generated here."
+    },
+    {
+      "scope": "AC.7.4",
+      "condition": "ci-cd",
+      "source": "claim",
+      "notApplicableReason": "This app has no CI/CD pipeline, so there are no pipeline trigger settings to protect."
+    },
+    {
+      "scope": "AC.8.3",
+      "condition": "hosted-scm",
+      "source": "claim",
+      "notApplicableReason": "This app's code is not on a source-control server with branch protection or a merge queue."
+    },
+    {
+      "scope": "AC.9",
+      "condition": "ci-cd",
+      "source": "claim",
+      "notApplicableReason": "There is no deployment pipeline that could check signed origin metadata."
+    },
+    {
+      "scope": "C11",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "The model is trained and protected by its vendor; this app cannot change or copy it."
+    },
+    {
+      "scope": "C12.3",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "Model drift is monitored by the vendor hosting the model, not by this app."
+    },
+    {
+      "scope": "C12.5",
+      "condition": "training",
+      "source": "claim",
+      "notApplicableReason": "This app does not train models or manage training data."
+    },
+    {
+      "scope": "C2.2.3",
+      "condition": "multimodal-ai",
+      "source": "claim",
+      "notApplicableReason": "The assistant accepts typed text only; it does not take images, video or audio."
+    },
+    {
+      "scope": "C3",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "This app does not build, deploy or roll back AI models of its own; it calls a model that its vendor hosts."
+    },
+    {
+      "scope": "C4",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "The AI model runs on its vendor's infrastructure, not on hardware this app controls."
+    },
+    {
+      "scope": "C6.1.1",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "No model files are downloaded or imported; the model stays with its vendor and is used over an API."
+    },
+    {
+      "scope": "C6.1.3",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "No model files are downloaded or imported, so there are no model artifacts to integrity-check."
+    },
+    {
+      "scope": "C6.1.4",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "No model files are promoted between environments; the vendor-hosted model is pinned by name."
+    },
+    {
+      "scope": "C6.2.2",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "This app publishes no AI bill of materials for model artifacts of its own; it has none."
+    },
+    {
+      "scope": "C6.2.3",
+      "condition": "self-hosted-model",
+      "source": "claim",
+      "notApplicableReason": "There is no build step that assembles model artifacts, so there is no AI bill-of-materials check to fail."
+    },
+    {
+      "scope": "C9.4",
+      "condition": "multi-agent",
+      "source": "claim",
+      "notApplicableReason": "There is a single assistant, not several AI agents that must identify each other."
+    },
+    {
+      "scope": "V1.2.6",
+      "condition": "ldap",
+      "source": "derived",
+      "notApplicableReason": "No LDAP client library is used, so LDAP injection is not possible."
+    },
+    {
+      "scope": "V1.2.7",
+      "condition": "xpath",
+      "source": "derived",
+      "notApplicableReason": "No XPath library is used."
+    },
+    {
+      "scope": "V1.2.8",
+      "condition": "latex",
+      "source": "derived",
+      "notApplicableReason": "No LaTeX processing library is used."
+    },
+    {
+      "scope": "V1.3.10",
+      "condition": "format-strings",
+      "source": "derived",
+      "notApplicableReason": "This app's languages have no C-style format strings that user input could reach."
+    },
+    {
+      "scope": "V1.3.8",
+      "condition": "jndi",
+      "source": "derived",
+      "notApplicableReason": "JNDI is a Java technology and this app does not run on the JVM."
+    },
+    {
+      "scope": "V1.3.9",
+      "condition": "memcache",
+      "source": "derived",
+      "notApplicableReason": "No memcache client library is used."
+    },
+    {
+      "scope": "V1.4",
+      "condition": "unmanaged-code",
+      "source": "derived",
+      "notApplicableReason": "This app's languages are memory-safe and it contains no unmanaged (C/C++) code."
+    },
+    {
+      "scope": "V1.5.1",
+      "condition": "xml",
+      "source": "derived",
+      "notApplicableReason": "No XML parser is used, so XML external entity (XXE) attacks are not possible."
+    },
+    {
+      "scope": "V3.5.4",
+      "condition": "shared-hostname",
+      "source": "claim",
+      "notApplicableReason": "This is a single application on its own address; no separate applications share its hostname."
+    },
+    {
+      "scope": "V3.5.5",
+      "condition": "postmessage",
+      "source": "derived",
+      "notApplicableReason": "This app's pages do not use the browser postMessage feature."
+    },
+    {
+      "scope": "V4.3",
+      "condition": "graphql",
+      "source": "derived",
+      "notApplicableReason": "No GraphQL library is used."
+    },
+    {
+      "scope": "V4.4",
+      "condition": "websockets",
+      "source": "derived",
+      "notApplicableReason": "No WebSocket library is used; every request is a normal web request."
+    },
+    {
+      "scope": "V6.6.1",
+      "condition": "out-of-band-auth",
+      "source": "claim",
+      "notApplicableReason": "This app never sends one-time codes by phone call or text message."
+    },
+    {
+      "scope": "V6.6.2",
+      "condition": "out-of-band-auth",
+      "source": "claim",
+      "notApplicableReason": "This app does not use out-of-band sign-in codes sent by phone, SMS or push notification."
+    },
+    {
+      "scope": "V6.8",
+      "condition": "oauth",
+      "source": "claim",
+      "notApplicableReason": "This app uses its own accounts, not sign-in through an external identity provider."
+    },
+    {
+      "scope": "V7.1.3",
+      "condition": "oauth",
+      "source": "claim",
+      "notApplicableReason": "This app is not part of a single sign-on (SSO) setup with other systems."
+    },
+    {
+      "scope": "V7.6",
+      "condition": "oauth",
+      "source": "claim",
+      "notApplicableReason": "This app does not sign people in through an external identity provider, so there is no federated re-authentication."
+    }
+  ]
+}
