@@ -119,6 +119,7 @@ dependencies = [
  "anyhow",
  "sv-frameworks",
  "sv-manifest",
+ "sv-run",
  "sv-scan",
 ]
 
@@ -139,6 +140,15 @@ dependencies = [
  "serde",
  "sv-frameworks",
  "toml",
+]
+
+[[package]]
+name = "sv-run"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "sv-manifest",
 ]
 
 [[package]]

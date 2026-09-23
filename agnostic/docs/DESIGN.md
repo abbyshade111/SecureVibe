@@ -298,3 +298,47 @@ payment-specific requirements. Announcing that the manifest is wrong about payme
 changes no requirement would be its own small overstatement, so `sv` says both — and points at the answer that
 does matter, which is that an app taking money should probably be declaring `payment-card` or `financial` in
 its data categories, and that *does* raise the target level.
+
+## The container runner
+
+`sv run ./app` starts the app behind a network fence and checks it answers. The fence design was
+**measured rather than reasoned about**, and the measurement overturned the obvious translation of v1's.
+
+v1 fences a child process with `sandbox-exec` or a network namespace and probes it over `127.0.0.1`. The
+obvious container equivalent — publish a port to loopback, probe from the host — does not work:
+
+| | `--internal` network | default bridge |
+|---|---|---|
+| sidecar on the same network reaches the app | yes | yes |
+| app can reach `1.1.1.1:53` | **blocked** | succeeded |
+| host reaches a published port | **no** | yes |
+
+An `--internal` network is exactly the fence wanted, and is unreachable from the host whether or not a port is
+published. Moving to a bridge to make host probing work removes the fence entirely. So the probes run from a
+**sidecar container on the same internal network**, and nothing is published to this computer at all.
+
+Two earlier attempts at that measurement proved nothing, which is the more useful half of the story. The first
+used `alpine:3`, whose busybox has no `httpd` applet: every container exited immediately and dutifully reported
+"outbound blocked" while not running. The second used `example.com`'s old address, decommissioned in 2024, which
+made the *default bridge* look fenced too. The table above comes from a run with a live target and a host
+baseline confirming this machine can reach the outside at all — without that line, "blocked" means nothing.
+
+### Not trusting the flag
+
+The runner asks the daemon whether the network really is internal before starting any untrusted code, and
+refuses the run if the answer is anything but `true`. Passing `--internal` and verifying `--internal` are
+different claims, and only the second survives a future edit that drops the flag.
+
+Removing the flag was tried: the runner refuses to run at all and two tests fail. The failure mode is "refuses
+to start" rather than "runs unfenced and reports a clean result", which is the fail-secure principle v1 lists
+and the only acceptable direction for this particular mistake.
+
+### Everything that cannot run is not assessed
+
+No backend, no run command in the manifest, a backend that refuses, an app that never answers — every one
+reports **not assessed**, never `pass` and never `fail`. A test enforces that each reason says so in those
+words, because an app that will not start under `sv` has not been shown to be insecure. That test failed on its
+first run against a message reading "could not be attempted", and the message was changed rather than the test.
+
+The empty strings `sv init` prints (`image = ""`) are treated as unanswered, not as commands, so an AI tool that
+leaves the placeholders produces "not assessed" rather than a container failing for reasons nobody can read.

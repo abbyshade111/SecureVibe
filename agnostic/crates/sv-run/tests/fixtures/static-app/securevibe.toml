@@ -1,0 +1,15 @@
+manifest-version = 1
+
+[app]
+name = "Static fixture"
+audience = "just-me"
+deployment = "local-only"
+
+[stack]
+languages = []
+
+[stack.run]
+# busybox is already needed for the health probe, so this runs with nothing extra to pull.
+image = "busybox:1.36"
+start = "httpd -f -h /app -p $PORT"
+health = "/index.html"

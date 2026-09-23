@@ -13,3 +13,4 @@ anyhow.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-manifest = { path = "../sv-manifest" }
 sv-scan = { path = "../sv-scan" }
+sv-run = { path = "../sv-run" }

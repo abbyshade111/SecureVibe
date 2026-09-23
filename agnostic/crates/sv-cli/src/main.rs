@@ -6,6 +6,7 @@ use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
 use sv_frameworks::{Condition, Source};
 use sv_manifest::{ClaimState, Manifest, spec};
+use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures, scan};
 
 fn main() -> Result<()> {
@@ -17,6 +18,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
+        Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -33,7 +35,8 @@ fn print_help() {
         "sv — check an app against OWASP ASVS 5.0, AISVS 1.0 and Secure by Design.\n\n\
          USAGE:\n  \
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
-         sv scope [PATH]    show which requirements apply to the app, and why\n"
+         sv scope [PATH]    show which requirements apply to the app, and why\n  \
+         sv run [PATH]      start the app behind the network fence and check it answers\n"
     );
 }
 
@@ -294,6 +297,69 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     }
     if buckets.not_applicable.len() > 8 {
         println!("  … and {} more", buckets.not_applicable.len() - 8);
+    }
+    Ok(())
+}
+
+/// Starts the app behind the fence, so the checks that need it running have something to check.
+fn cmd_run(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let manifest_path = app_dir.join("securevibe.toml");
+    if !manifest_path.exists() {
+        bail!(
+            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
+            app_dir.display()
+        );
+    }
+    let manifest = Manifest::load(&manifest_path)?;
+
+    let plan = match RunPlan::from_manifest(&manifest, &app_dir) {
+        Ok(plan) => plan,
+        Err(reason) => {
+            println!("Not assessed.\n\n{}", reason.explain());
+            return Ok(());
+        }
+    };
+
+    let backend = match sv_run::detect() {
+        Ok(backend) => backend,
+        Err(reason) => {
+            println!("Not assessed.\n\n{}", reason.explain());
+            return Ok(());
+        }
+    };
+
+    println!(
+        "Starting {} with {} behind the network fence…",
+        manifest.app.name, plan.image
+    );
+    match backend.run(&plan) {
+        Err(reason) => {
+            println!("\nNot assessed.\n\n{}", reason.explain());
+        }
+        Ok(outcome) => {
+            println!("\nThe app started and answered on {}.", plan.health_path);
+            println!("\n{}", outcome.fence.explain());
+            match outcome.tests {
+                None => println!(
+                    "\nsecurevibe.toml declares no test command, so no test evidence was \
+                     collected. That is recorded as not assessed, not as a pass."
+                ),
+                Some(result) if result.exit_code == 0 => {
+                    println!("\nThe app's own tests passed.")
+                }
+                Some(result) => println!(
+                    "\nThe app's own tests failed (exit {}):\n{}",
+                    result.exit_code,
+                    result
+                        .output
+                        .lines()
+                        .take(15)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ),
+            }
+        }
     }
     Ok(())
 }

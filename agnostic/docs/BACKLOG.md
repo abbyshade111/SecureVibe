@@ -22,11 +22,12 @@ another session is not a claim.
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **The container runner.** **[taken: keen-meninsky-691a27, 22 September 2026]** A backend is now available here (Colima 0.10.3, Docker 29.8.1, linux/aarch64), so
-  this is no longer blocked. Still build the trait and the honest `not assessed` path first: a machine without a
-  backend is the normal case for everyone else, and a runner that assumes one would report their apps as failing
-  rather than as unrun. Colima's defaults are two CPUs and 2 GB, which a real test suite can exhaust — the
-  runner has to tell a starved run apart from a broken one.
+- **DAST probes.** The runner starts the app and confirms it answers; nothing probes it yet. The probes run
+  from a sidecar on the fenced network — `sv-run` already does exactly that for the health check, so the
+  mechanism is proven and what is missing is the probe suite itself. Port v1's `scanners/dast/probes`.
+
+- **Seeded users.** v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
+  declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
 - **Reports.** Port `reports/` once the exclusions above are honest. Not before: a report is where a wrong
   exclusion does its damage.
