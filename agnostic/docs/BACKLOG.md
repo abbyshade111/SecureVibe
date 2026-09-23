@@ -5,11 +5,15 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators.** **[taken: keen-meninsky-691a27, 22 September 2026]** Nothing checks a claim against the code yet, so every claim resolves `unverifiable` and
-  says so. First ones worth having, because they are the claims most often wrong in the safe-looking direction:
-  `auth`, `payments`, `uploads`, `external-apis`, `jwt`, `oauth`. Each is a grep-plus-manifest check over
-  dependency files and route definitions. The interface already exists — `resolve` takes a
-  `Fn(Condition) -> Option<bool>` — and `None` must keep meaning "no corroborator", never "not found".
+- **Corroborators for the ten claims that still have none**: `public-api`, `multi-tenant`, `shared-hostname`,
+  `external-apis`, `tls`, `internet`, `ai-actions`, `ai-history`, `ai-moderation`, `multimodal-ai`,
+  `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
+  in the reports is a better answer than a weak one.
+
+- **`payments` and `scheduler` gate no requirements.** They are asked about, they have reasons written for
+  them, and nothing in the OWASP data keys on either. Either they earn rules in the v2 overlay, or they stop
+  being conditions and become what they really are — a prompt to check the data categories. Right now `sv`
+  reports a contradiction it then has to explain away.
 
 - **`sv check`.** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
   tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on

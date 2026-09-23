@@ -61,6 +61,53 @@ fn signatures_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
 }
 
+/// How each manifest claim is checked against the code.
+fn corroborators_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/claim-corroborators.json")
+}
+
+/// How many in-scope requirements actually turn on a condition.
+///
+/// Some conditions gate nothing: `payments` and `scheduler` are asked about in the manifest and
+/// have plain-language reasons written for them, but no rule in the OWASP data keys on either.
+/// Announcing that the manifest is wrong about one of them, without saying that it changes no
+/// requirement, would be its own small overstatement — the loud kind.
+fn requirements_gated_on(
+    frameworks: &Frameworks,
+    config: &ApplicabilityConfig,
+    condition: Condition,
+    target_level: u8,
+) -> usize {
+    frameworks
+        .requirements
+        .values()
+        .filter(|r| r.level <= target_level)
+        .filter(|r| {
+            config
+                .rules_for(&r.id)
+                .iter()
+                .any(|rule| rule.condition == condition)
+        })
+        .count()
+}
+
+/// Evidence in the words a person would use.
+fn describe(evidence: &Evidence) -> String {
+    match evidence {
+        Evidence::Dependency { name, manifest } => format!("`{name}` is declared in {manifest}"),
+        Evidence::Source { pattern, file } => format!("`{pattern}` appears in {file}"),
+        Evidence::Language { language } => format!("the app contains {language}"),
+        Evidence::File { path } => format!("{path} is in the repository"),
+        Evidence::NothingFound { files_read } => {
+            format!("nothing like it in the {files_read} files read")
+        }
+        Evidence::NotFoundButNotDecisive { .. } => {
+            "nothing found, which settles nothing".to_owned()
+        }
+        Evidence::Incomplete { reason } => reason.clone(),
+    }
+}
+
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -78,9 +125,10 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let overlay = overlay_path();
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay)?;
 
-    // The scanner answers the `derived` conditions. It answers nothing a claim is responsible
-    // for, so every claim is still unverifiable — corroborators are the next piece of work.
-    let signatures = Signatures::load(&signatures_path())?;
+    // The scanner answers the `derived` conditions from the code, and checks each of the
+    // manifest's claims against it. Corroboration only ever moves toward more requirements
+    // applying: a claim of "no" cannot survive the code saying otherwise.
+    let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
     let report = scan(&app_dir, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
@@ -97,8 +145,9 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     if !report.ecosystems.is_empty() {
         let names: Vec<&str> = report.ecosystems.iter().map(|e| e.name.as_str()).collect();
         println!(
-            "\nRead {} source files in {}; package manifests: {}.",
+            "\nRead {} source file{} in {}; package manifests: {}.",
             report.files_read,
+            if report.files_read == 1 { "" } else { "s" },
             report
                 .languages
                 .iter()
@@ -135,14 +184,54 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         frameworks.len()
     );
 
+    let contradicted: Vec<&sv_manifest::ResolvedClaim> = resolved
+        .iter()
+        .filter(|r| r.state == ClaimState::Contradicted)
+        .collect();
+    if !contradicted.is_empty() {
+        println!(
+            "\nThe manifest and the code disagree about {} thing{}. The code wins:",
+            contradicted.len(),
+            if contradicted.len() == 1 { "" } else { "s" }
+        );
+        for c in &contradicted {
+            let how = report
+                .answers
+                .iter()
+                .find(|a| a.condition == c.condition)
+                .map(|a| describe(&a.evidence))
+                .unwrap_or_default();
+            println!(
+                "  securevibe.toml says {} is {}, but {how}",
+                c.condition.name(),
+                match c.claimed {
+                    Some(false) => "not used",
+                    _ => "unset",
+                }
+            );
+            let gated =
+                requirements_gated_on(&frameworks, &config, c.condition, manifest.target_level());
+            if gated == 0 {
+                println!(
+                    "       This changes no requirement — nothing in the OWASP data turns on {}.\n\
+                     \x20      It still means the manifest does not describe this app, and the\n\
+                     \x20      data categories probably should.",
+                    c.condition.name()
+                );
+            } else {
+                println!("       {gated} requirements turn on this.");
+            }
+        }
+    }
+
     let unverifiable = resolved
         .iter()
         .filter(|r| r.state == ClaimState::Unverifiable && r.claimed == Some(true))
         .count();
     if unverifiable > 0 {
         println!(
-            "\n{unverifiable} of the manifest's claims are asserted and not verified: nothing in \
-             `sv` checks them against the code yet."
+            "\n{unverifiable} of the manifest's claims are asserted and not verified: `sv` looked \
+             and found nothing,\nwhich for these is not the same as finding they are absent."
         );
     }
 

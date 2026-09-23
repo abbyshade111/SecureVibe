@@ -22,6 +22,11 @@ use std::path::Path;
 use sv_frameworks::Condition;
 
 #[derive(Debug, Deserialize)]
+// `deny_unknown_fields` is not fussiness. Without it, `absenceIsEvidence` in the data file did not
+// bind to `absence_is_evidence` here, every corroborator silently took the default — the dangerous
+// value, true — and the only symptom was requirements quietly switching off. A typo in this file
+// should stop the run, not change the answer.
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Signature {
     pub condition: String,
     /// Why this signature is shaped the way it is. Carried into the report.
@@ -36,14 +41,46 @@ pub struct Signature {
     /// Source patterns, by language.
     #[serde(default)]
     pub source: BTreeMap<String, Vec<String>>,
+    /// Paths whose presence settles the condition: an exact relative path, or `*.ext`.
+    #[serde(default)]
+    pub files: Vec<String>,
+    /// Whether finding nothing is itself an answer.
+    ///
+    /// True for a technology that always leaves a trace, and for configuration that has to be a
+    /// file in the repository. False wherever the capability can be hand-rolled: sign-in built
+    /// from a hash function and a database table leaves no library behind, and calling it absent
+    /// because no library appears is the over-confident exclusion this project exists to avoid.
+    #[serde(default = "yes")]
+    pub absence_is_evidence: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Signatures {
+    /// Present in the data files as documentation; ignored here but named so it is not "unknown".
+    #[serde(rename = "_comment", default)]
+    pub comment: String,
     pub signatures: Vec<Signature>,
 }
 
 impl Signatures {
+    /// Loads several signature files into one set. The technology signatures answer the `derived`
+    /// conditions and the corroborators check the manifest's claims; they do not overlap.
+    pub fn load_all(paths: &[&Path]) -> Result<Self> {
+        let mut all = Signatures {
+            comment: String::new(),
+            signatures: Vec::new(),
+        };
+        for path in paths {
+            all.signatures.extend(Self::load(path)?.signatures);
+        }
+        Ok(all)
+    }
+
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
@@ -61,6 +98,10 @@ pub enum Evidence {
     Source { pattern: String, file: String },
     /// The language is present at all.
     Language { language: String },
+    /// A file in the repository.
+    File { path: String },
+    /// Nothing was found, and for this condition that does not mean it is absent.
+    NotFoundButNotDecisive { note: String },
     /// Nothing matched, and every file that could have carried it was read.
     NothingFound { files_read: usize },
     /// Nothing matched, but files that could have carried it were not read.
@@ -82,6 +123,8 @@ pub struct ScanReport {
     pub unpinned: Vec<ecosystems::DetectedEcosystem>,
     pub declared: Vec<deps::Declared>,
     pub languages: BTreeSet<String>,
+    /// Every path in the app, whatever its type, so a configuration file can be looked for.
+    pub all_paths: BTreeSet<String>,
     pub files_read: usize,
     /// Files that look like source but whose language `sv` cannot read, with their extensions.
     pub unread_extensions: BTreeSet<String>,
@@ -138,7 +181,19 @@ fn evaluate(
         }
     }
 
-    // 2. A declared dependency.
+    // 2. A file in the repository. Configuration is the clearest kind of evidence there is: it
+    // either exists or it does not.
+    for pattern in &sig.files {
+        if let Some(hit) = matching_path(&report.all_paths, pattern) {
+            return Answer {
+                condition,
+                value: Some(true),
+                evidence: Evidence::File { path: hit },
+            };
+        }
+    }
+
+    // 3. A declared dependency.
     for declared in &report.declared {
         if let Some(names) = sig.packages.get(&declared.ecosystem)
             && names.iter().any(|n| eq_ignore_case(n, &declared.name))
@@ -156,7 +211,7 @@ fn evaluate(
         }
     }
 
-    // 3. A pattern in the app's own source — how a standard-library use is caught.
+    // 4. A pattern in the app's own source — how a standard-library use is caught.
     for (language, path, contents) in files {
         let Some(patterns) = sig.source.get(language) else {
             continue;
@@ -176,7 +231,23 @@ fn evaluate(
         }
     }
 
-    // 4. Nothing matched. Whether that is an answer depends entirely on what was read.
+    // 5. Nothing matched.
+    //
+    // For most claims that is where it stops. A capability that can be written by hand leaves
+    // nothing to find, so "no library appears" is not "the app does not do this" — it is `sv`
+    // having no opinion, which `resolve` records as the claim being unverified rather than
+    // contradicted.
+    if !sig.absence_is_evidence {
+        return Answer {
+            condition,
+            value: None,
+            evidence: Evidence::NotFoundButNotDecisive {
+                note: sig.note.clone(),
+            },
+        };
+    }
+
+    // Whether the rest is an answer depends entirely on what was read.
     //
     // Reading nothing is the clearest case: a scan that did not run is not a clean result. An
     // empty folder, a repository of files `sv` skipped, an app whose source lives somewhere else —
@@ -240,6 +311,25 @@ fn evaluate(
     }
 }
 
+/// A path pattern: either an exact relative path, or `*.ext` matched against every path.
+fn matching_path(paths: &BTreeSet<String>, pattern: &str) -> Option<String> {
+    if let Some(ext) = pattern.strip_prefix("*.") {
+        let suffix = format!(".{}", ext.to_lowercase());
+        return paths
+            .iter()
+            .find(|p| p.to_lowercase().ends_with(&suffix))
+            .cloned();
+    }
+    let wanted = pattern.replace('\\', "/").to_lowercase();
+    paths
+        .iter()
+        .find(|p| {
+            let p = p.replace('\\', "/").to_lowercase();
+            p == wanted || p.starts_with(&format!("{wanted}/"))
+        })
+        .cloned()
+}
+
 fn eq_ignore_case(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.to_lowercase() == b.to_lowercase()
 }
@@ -257,9 +347,18 @@ fn walk(
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if ecosystems::SKIP_DIRS.contains(&name.as_str()) || name.starts_with('.') {
+            // Only the genuinely uninteresting directories are skipped. `.github` is a dot-directory
+            // and is exactly where a CI pipeline lives, so a blanket dot-skip would answer "no
+            // CI/CD" for every repository that has one.
+            if ecosystems::SKIP_DIRS.contains(&name.as_str()) {
                 continue;
             }
+            let relative = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .to_string();
+            report.all_paths.insert(relative);
             walk(root, &path, files, report)?;
             continue;
         }
@@ -271,6 +370,7 @@ fn walk(
             .unwrap_or(&path)
             .to_string_lossy()
             .to_string();
+        report.all_paths.insert(relative.clone());
         match ecosystems::language_of(&ext.to_lowercase()) {
             Some(language) => match std::fs::read_to_string(&path) {
                 Ok(contents) => files.push((language.to_owned(), relative, contents)),

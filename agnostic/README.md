@@ -20,8 +20,8 @@ cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to y
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
 ```
 
-Not built yet: the remaining scanners (secrets, config, SBOM, AST rules), the corroborators that check the
-manifest's claims against the code, the container runner, the reports, the MCP server.
+Not built yet: the remaining scanners (secrets, config, SBOM, AST rules), the container runner, the reports,
+the MCP server.
 
 ## Building
 
