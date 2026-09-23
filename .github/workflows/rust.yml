@@ -1,0 +1,69 @@
+# The Rust checks for the language-agnostic variant in `agnostic/`.
+#
+# A separate workflow from `checks.yml` on purpose, for three reasons:
+#
+#  * It is scoped to `agnostic/**` by the paths filter below, so a change that touches only v1 never starts it.
+#    v2 costs main nothing it would not otherwise spend.
+#  * `checks.yml` is started by hand only, because its test job hangs until something kills it. These checks take
+#    seconds and share nothing with that job, so they can run automatically without inheriting the problem.
+#  * The tests it runs are the ones that catch v1 and v2 drifting apart. `sv` reads the same
+#    `data/frameworks` and `data/knowledge` files v1 does, and its suite asserts things about them: that exactly
+#    two `never` rules survive the v2 overlay, that the set of conditions no rule keys on is the one we think,
+#    and that every condition named in the data files exists in the Rust enum. Those guards existed before this
+#    workflow and never ran unless somebody remembered to run them, which is the same as not having them.
+#
+# `data/**` is in the paths filter as well: a v1 change to the shared OWASP data is exactly the case these
+# guards are for, and it would otherwise be the one change that skips them.
+#
+# Every step is pinned to an exact commit fingerprint rather than a version name, as `checks.yml` is: a version
+# name can be moved to point at different code, a fingerprint cannot.
+
+name: Rust (agnostic)
+
+on:
+  push:
+    paths:
+      - 'agnostic/**'
+      - 'data/**'
+      - '.github/workflows/rust.yml'
+  pull_request:
+    paths:
+      - 'agnostic/**'
+      - 'data/**'
+      - '.github/workflows/rust.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: agnostic
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
+      # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
+      - name: Use the toolchain this workspace needs
+        # edition 2024 and resolver 3 need a recent stable; the runner image ships one, but saying so explicitly
+        # means a runner image change fails here with a clear reason rather than a syntax error in a crate.
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt && rustup default stable
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Lints
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
+        # where there is none they assert the honest-absence path instead and say which branch they took.
+        run: cargo test --workspace
