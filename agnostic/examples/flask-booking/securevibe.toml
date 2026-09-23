@@ -1,0 +1,38 @@
+# A Python/Flask booking app, as an AI coding tool would describe it after building it.
+manifest-version = 1
+
+[app]
+name = "Clinic booking"
+description = "Patients book appointments with a clinic; staff manage the diary."
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["python"]
+
+[stack.run]
+image = "python:3.12-slim"
+build = "pip install -r requirements.txt"
+start = "gunicorn -b 127.0.0.1:$PORT app:app"
+test = "pytest -q"
+health = "/healthz"
+
+[data]
+categories = ["contact", "health"]
+
+[capabilities]
+auth = true
+oauth = true
+jwt = true
+uploads = true
+payments = false
+email = true
+public-api = false
+scheduler = true
+multi-tenant = false
+webrtc = false
+external-apis = ["api.sendgrid.com"]
+tls = "terminated-upstream"
+
+[capabilities.ai]
+enabled = false
