@@ -43,8 +43,17 @@ public-api = false        # can other programs connect with an API key?
 scheduler = false         # are there background or scheduled jobs?
 multi-tenant = false      # do separate customer organisations share one system?
 webrtc = false            # real-time audio or video calls
+out-of-band-auth = false  # sign-in codes sent by phone, SMS or push notification
+shared-hostname = false   # do other applications share this app's address?
 external-apis = []        # host names it calls, e.g. ["api.stripe.com"]
 tls = "terminated-upstream"   # off | self | terminated-upstream
+
+[repository]
+# How the code is developed and shipped. Ten AISVS Appendix C requirements turn on the first one.
+ci-cd = false             # GitHub Actions, GitLab CI, Jenkins or similar
+hosted-scm = false        # hosted source control with branch protection or a merge queue
+outside-contributors = false  # code contributions from people outside the team
+iac = false               # Terraform, CloudFormation or CI workflow files in the repository
 
 [capabilities.ai]
 enabled = false
@@ -54,6 +63,9 @@ moderation = false
 rag = false               # does it search a document store or vector database?
 mcp = false               # does it reach tools over the Model Context Protocol?
 training = false          # does this app train or fine-tune a model?
+self-hosted = false       # does it host or deploy model files itself, rather than calling a vendor's API?
+multi-agent = false       # several AI agents that must identify each other?
+multimodal = false        # does it take images, video or audio, rather than typed text only?
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.
@@ -70,6 +82,11 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
 
   2. Do not describe the app you were asked to build. Describe the code that is there. If the
      payment flow was planned and never written, payments is false.
+
+  3. Leave nothing out. A line you delete is not read as "no" — it is read as "nobody answered",
+     and every requirement that turned on it is reported as not assessed rather than resolved.
+     If you genuinely do not know, leaving it out is the honest thing to do; guessing "false" is
+     not.
 
 `sv` does not take this file at its word. It looks for each claim in the code and reports what it
 finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable. A claim of "no" never
