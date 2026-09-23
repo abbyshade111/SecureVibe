@@ -10,6 +10,14 @@ building the query recipe: each read this file, each correctly saw the item uncl
 
 ## Mine (this session's half of the split agreed on 19 September 2026)
 
+- **The test job hangs on a runner, and nobody knows which file.** **[taken: this session, 22 Sep 2026]** Seven
+  fast files pass in the first six seconds and then the log goes silent until the step is killed, whether the
+  files run together or one at a time. It has never reproduced locally. Because the checks cannot be trusted to
+  finish, they run by hand only: the `push`, `pull_request` and `schedule` triggers are commented out in
+  `.github/workflows/checks.yml`, so nothing here is actually checked on the way in. The diagnostic that names
+  the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
+  is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
+  repository is public now, so the minutes are free and this is unblocked.
 - **"What only you can do".** A list on the Results page and in the reports, derived from facts rather than
   prose: settings left unset, named outside services with no address, planned features that came back not-built.
   For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
