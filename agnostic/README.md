@@ -11,14 +11,17 @@ with your own AI tool until the app is what you wanted, and then `sv` picks up t
 Early. The compliance engine is ported and runs against the real OWASP data; the scanners, the container runner
 and the reports are not built yet.
 
-Working today:
+Working today: `sv scope` reads the app's manifests and source, answers every technology question from the
+code itself, and says which OWASP requirements apply, which do not, and which nothing has yet answered.
+
 
 ```bash
 cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
 ```
 
-Not built yet: `sv check` (the scanners), the container runner, the reports, the MCP server.
+Not built yet: the remaining scanners (secrets, config, SBOM, AST rules), the corroborators that check the
+manifest's claims against the code, the container runner, the reports, the MCP server.
 
 ## Building
 

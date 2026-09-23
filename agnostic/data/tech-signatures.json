@@ -1,0 +1,655 @@
+{
+  "_comment": "What each `derived` condition looks like in real code. Two kinds of evidence: a dependency named in a manifest, and a pattern in the app's own source. Source matters because several of these are reachable from a standard library with no dependency at all - Python's xml.etree and Java's JAXB are XML parsers nothing declares - so a dependency-only scan answering `false` would be the same class of wrong statement as the inherited reasons this replaced. Matching is case-insensitive substring: it over-matches rather than under-matches, and over-matching makes a condition true, which only ever adds requirements.",
+  "signatures": [
+    {
+      "condition": "xml",
+      "note": "Every mainstream language parses XML from its standard library, so dependencies alone can never answer this.",
+      "packages": {
+        "npm": [
+          "xml2js",
+          "fast-xml-parser",
+          "libxmljs",
+          "xmldom",
+          "@xmldom/xmldom",
+          "xml-js",
+          "sax"
+        ],
+        "Python": [
+          "lxml",
+          "xmltodict",
+          "defusedxml",
+          "untangle",
+          "xmlsec"
+        ],
+        "Ruby": [
+          "nokogiri",
+          "ox",
+          "rexml"
+        ],
+        "PHP": [
+          "sabre/xml"
+        ],
+        "Rust": [
+          "quick-xml",
+          "serde-xml-rs",
+          "xml-rs",
+          "roxmltree"
+        ],
+        "Go": [
+          "etree",
+          "xmlquery"
+        ],
+        "Java (Maven)": [
+          "dom4j",
+          "jdom2",
+          "xstream",
+          "jackson-dataformat-xml"
+        ],
+        "Java (Gradle)": [
+          "dom4j",
+          "jdom2",
+          "xstream",
+          "jackson-dataformat-xml"
+        ]
+      },
+      "source": {
+        "python": [
+          "xml.etree",
+          "xml.dom",
+          "xml.sax",
+          "minidom",
+          "lxml",
+          "xmltodict"
+        ],
+        "java": [
+          "javax.xml",
+          "org.w3c.dom",
+          "DocumentBuilder",
+          "SAXParser",
+          "XMLInputFactory",
+          "JAXBContext",
+          "org.xml.sax"
+        ],
+        "kotlin": [
+          "javax.xml",
+          "org.w3c.dom",
+          "DocumentBuilder",
+          "SAXParser"
+        ],
+        "csharp": [
+          "System.Xml",
+          "XmlDocument",
+          "XDocument"
+        ],
+        "ruby": [
+          "REXML",
+          "Nokogiri"
+        ],
+        "php": [
+          "SimpleXML",
+          "DOMDocument",
+          "XMLReader",
+          "simplexml_load"
+        ],
+        "go": [
+          "encoding/xml"
+        ],
+        "javascript": [
+          "DOMParser",
+          "xml2js"
+        ],
+        "typescript": [
+          "DOMParser",
+          "xml2js"
+        ],
+        "rust": [
+          "quick_xml",
+          "serde_xml_rs"
+        ]
+      }
+    },
+    {
+      "condition": "xpath",
+      "note": "XPath usually rides along with an XML library, and is in several standard libraries.",
+      "packages": {
+        "npm": [
+          "xpath",
+          "xmldom-xpath"
+        ],
+        "Python": [
+          "elementpath"
+        ],
+        "Ruby": [
+          "nokogiri"
+        ],
+        "Java (Maven)": [
+          "jaxen"
+        ],
+        "Java (Gradle)": [
+          "jaxen"
+        ],
+        "Go": [
+          "xmlquery",
+          "htmlquery"
+        ],
+        "Rust": [
+          "sxd-xpath"
+        ]
+      },
+      "source": {
+        "python": [
+          "xpath("
+        ],
+        "java": [
+          "XPathFactory",
+          "javax.xml.xpath",
+          "selectNodes"
+        ],
+        "kotlin": [
+          "XPathFactory",
+          "javax.xml.xpath"
+        ],
+        "csharp": [
+          "SelectSingleNode",
+          "SelectNodes",
+          "XPathNavigator"
+        ],
+        "php": [
+          "DOMXPath",
+          "->xpath("
+        ],
+        "ruby": [
+          ".xpath("
+        ],
+        "javascript": [
+          "document.evaluate"
+        ],
+        "typescript": [
+          "document.evaluate"
+        ],
+        "go": [
+          "xmlquery.Find",
+          "htmlquery.Find"
+        ]
+      }
+    },
+    {
+      "condition": "ldap",
+      "note": "LDAP always needs a client, so the dependency list is a good answer here.",
+      "packages": {
+        "npm": [
+          "ldapjs",
+          "ldapts",
+          "activedirectory2",
+          "passport-ldapauth"
+        ],
+        "Python": [
+          "ldap3",
+          "python-ldap",
+          "pyldap",
+          "flask-ldap3-login"
+        ],
+        "Ruby": [
+          "net-ldap"
+        ],
+        "PHP": [
+          "symfony/ldap"
+        ],
+        "Go": [
+          "go-ldap"
+        ],
+        "Rust": [
+          "ldap3"
+        ],
+        "Java (Maven)": [
+          "spring-ldap-core",
+          "unboundid-ldapsdk"
+        ],
+        "Java (Gradle)": [
+          "spring-ldap-core",
+          "unboundid-ldapsdk"
+        ]
+      },
+      "source": {
+        "java": [
+          "javax.naming.directory",
+          "InitialDirContext",
+          "LdapContext"
+        ],
+        "kotlin": [
+          "javax.naming.directory",
+          "InitialDirContext"
+        ],
+        "python": [
+          "ldap3",
+          "import ldap"
+        ],
+        "csharp": [
+          "DirectoryEntry",
+          "DirectorySearcher",
+          "System.DirectoryServices"
+        ],
+        "php": [
+          "ldap_connect",
+          "ldap_bind"
+        ],
+        "javascript": [
+          "ldapjs",
+          "ldapts"
+        ],
+        "typescript": [
+          "ldapjs",
+          "ldapts"
+        ]
+      }
+    },
+    {
+      "condition": "latex",
+      "note": "LaTeX processing is always an external tool or library.",
+      "packages": {
+        "npm": [
+          "node-latex",
+          "katex",
+          "mathjax"
+        ],
+        "Python": [
+          "pylatex",
+          "latexcodec"
+        ],
+        "Ruby": [
+          "latex-decode"
+        ],
+        "Rust": [
+          "tectonic"
+        ]
+      },
+      "source": {
+        "python": [
+          "pylatex",
+          "pdflatex",
+          "xelatex",
+          "lualatex"
+        ],
+        "javascript": [
+          "katex",
+          "MathJax"
+        ],
+        "typescript": [
+          "katex",
+          "MathJax"
+        ],
+        "java": [
+          "pdflatex"
+        ],
+        "go": [
+          "pdflatex"
+        ],
+        "ruby": [
+          "pdflatex"
+        ],
+        "php": [
+          "pdflatex"
+        ],
+        "csharp": [
+          "pdflatex"
+        ],
+        "rust": [
+          "tectonic"
+        ]
+      }
+    },
+    {
+      "condition": "memcache",
+      "note": "memcache always needs a client library.",
+      "packages": {
+        "npm": [
+          "memcached",
+          "memjs",
+          "memcache-plus"
+        ],
+        "Python": [
+          "pymemcache",
+          "python-memcached",
+          "pylibmc"
+        ],
+        "Ruby": [
+          "dalli"
+        ],
+        "PHP": [
+          "memcached"
+        ],
+        "Go": [
+          "gomemcache"
+        ],
+        "Rust": [
+          "memcache"
+        ],
+        "Java (Maven)": [
+          "spymemcached",
+          "xmemcached"
+        ],
+        "Java (Gradle)": [
+          "spymemcached",
+          "xmemcached"
+        ]
+      },
+      "source": {
+        "python": [
+          "pymemcache",
+          "memcache"
+        ],
+        "javascript": [
+          "memjs",
+          "memcached"
+        ],
+        "typescript": [
+          "memjs",
+          "memcached"
+        ],
+        "java": [
+          "MemcachedClient"
+        ],
+        "kotlin": [
+          "MemcachedClient"
+        ],
+        "go": [
+          "gomemcache"
+        ],
+        "php": [
+          "Memcached("
+        ],
+        "ruby": [
+          "Dalli::"
+        ],
+        "csharp": [
+          "Enyim.Caching"
+        ],
+        "rust": [
+          "memcache::"
+        ]
+      }
+    },
+    {
+      "condition": "websockets",
+      "note": "Some frameworks ship WebSocket support in their standard library, so source is scanned too.",
+      "packages": {
+        "npm": [
+          "ws",
+          "socket.io",
+          "socket.io-client",
+          "sockjs",
+          "@fastify/websocket",
+          "engine.io"
+        ],
+        "Python": [
+          "websockets",
+          "websocket-client",
+          "channels",
+          "flask-socketio",
+          "python-socketio"
+        ],
+        "Ruby": [
+          "faye-websocket"
+        ],
+        "PHP": [
+          "cboden/ratchet"
+        ],
+        "Go": [
+          "gorilla/websocket",
+          "nhooyr.io/websocket",
+          "gobwas/ws"
+        ],
+        "Rust": [
+          "tokio-tungstenite",
+          "tungstenite",
+          "actix-web-actors"
+        ],
+        "Java (Maven)": [
+          "spring-websocket",
+          "java-websocket"
+        ],
+        "Java (Gradle)": [
+          "spring-websocket",
+          "java-websocket"
+        ]
+      },
+      "source": {
+        "javascript": [
+          "new WebSocket(",
+          "socket.io",
+          "WebSocketServer"
+        ],
+        "typescript": [
+          "new WebSocket(",
+          "socket.io",
+          "WebSocketServer"
+        ],
+        "python": [
+          "websocket",
+          "WebSocket"
+        ],
+        "go": [
+          "websocket.Upgrader"
+        ],
+        "java": [
+          "@ServerEndpoint",
+          "WebSocketHandler"
+        ],
+        "kotlin": [
+          "@ServerEndpoint",
+          "WebSocketHandler"
+        ],
+        "csharp": [
+          "AcceptWebSocketAsync"
+        ],
+        "php": [
+          "Ratchet"
+        ],
+        "ruby": [
+          "ActionCable"
+        ],
+        "rust": [
+          "tungstenite",
+          "WebSocketStream"
+        ],
+        "html": [
+          "new WebSocket("
+        ]
+      }
+    },
+    {
+      "condition": "graphql",
+      "note": "GraphQL always arrives as a library.",
+      "packages": {
+        "npm": [
+          "graphql",
+          "apollo-server",
+          "@apollo/server",
+          "@apollo/client",
+          "type-graphql",
+          "graphql-yoga",
+          "mercurius",
+          "urql"
+        ],
+        "Python": [
+          "graphene",
+          "strawberry-graphql",
+          "ariadne",
+          "graphql-core"
+        ],
+        "Ruby": [
+          "graphql"
+        ],
+        "PHP": [
+          "webonyx/graphql-php"
+        ],
+        "Go": [
+          "graphql-go",
+          "gqlgen"
+        ],
+        "Rust": [
+          "async-graphql",
+          "juniper"
+        ],
+        "Java (Maven)": [
+          "graphql-java",
+          "spring-boot-starter-graphql"
+        ],
+        "Java (Gradle)": [
+          "graphql-java",
+          "spring-boot-starter-graphql"
+        ]
+      },
+      "source": {
+        "javascript": [
+          "graphql",
+          "ApolloServer"
+        ],
+        "typescript": [
+          "graphql",
+          "ApolloServer"
+        ],
+        "python": [
+          "graphene",
+          "strawberry",
+          "ariadne"
+        ],
+        "go": [
+          "graphql."
+        ],
+        "java": [
+          "GraphQL"
+        ],
+        "kotlin": [
+          "GraphQL"
+        ],
+        "ruby": [
+          "GraphQL::"
+        ],
+        "rust": [
+          "async_graphql",
+          "juniper"
+        ],
+        "csharp": [
+          "HotChocolate",
+          "GraphQL"
+        ]
+      }
+    },
+    {
+      "condition": "postmessage",
+      "note": "A browser feature, so only front-end files can carry it.",
+      "packages": {},
+      "source": {
+        "javascript": [
+          "postMessage(",
+          "onmessage"
+        ],
+        "typescript": [
+          "postMessage(",
+          "onmessage"
+        ],
+        "html": [
+          "postMessage("
+        ]
+      }
+    },
+    {
+      "condition": "jndi",
+      "note": "JNDI is a JVM technology. No JVM source means no JNDI, and that is a complete answer.",
+      "packages": {
+        "Java (Maven)": [
+          "log4j-core"
+        ],
+        "Java (Gradle)": [
+          "log4j-core"
+        ]
+      },
+      "source": {
+        "java": [
+          "javax.naming",
+          "InitialContext",
+          "jndi:"
+        ],
+        "kotlin": [
+          "javax.naming",
+          "InitialContext"
+        ]
+      }
+    },
+    {
+      "condition": "format-strings",
+      "languages": [
+        "c",
+        "cpp",
+        "python",
+        "go",
+        "ruby",
+        "php",
+        "java",
+        "kotlin",
+        "csharp"
+      ],
+      "note": "A property of the language, not of any dependency. C, C++, Python, Go, Ruby, PHP, Java, Kotlin and C# all have format strings that attacker-controlled input can reach; JavaScript, TypeScript and Rust do not, because Rust requires its format string to be a literal.",
+      "packages": {},
+      "source": {}
+    },
+    {
+      "condition": "unmanaged-code",
+      "languages": [
+        "c",
+        "cpp"
+      ],
+      "note": "C and C++ files are unmanaged outright. Everything else reaches unmanaged code through a foreign-function interface, which is what the source patterns look for.",
+      "packages": {
+        "Python": [
+          "cffi",
+          "pycparser"
+        ],
+        "Rust": [
+          "libc",
+          "bindgen"
+        ]
+      },
+      "source": {
+        "python": [
+          "import ctypes",
+          "from ctypes",
+          "cffi",
+          "FFI()"
+        ],
+        "go": [
+          "import \"C\""
+        ],
+        "java": [
+          "System.loadLibrary",
+          "JNI"
+        ],
+        "kotlin": [
+          "System.loadLibrary",
+          "external fun"
+        ],
+        "csharp": [
+          "DllImport"
+        ],
+        "rust": [
+          "extern \"C\"",
+          "libc::"
+        ],
+        "javascript": [
+          "node-gyp",
+          "ffi-napi"
+        ],
+        "typescript": [
+          "ffi-napi"
+        ],
+        "ruby": [
+          "Fiddle::"
+        ],
+        "php": [
+          "FFI::"
+        ]
+      }
+    }
+  ]
+}

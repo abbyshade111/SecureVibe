@@ -351,6 +351,26 @@ pub fn resolve(
         });
     }
 
+    // Conditions the manifest never claims — the `derived` ones, which the code answers rather
+    // than the owner — still need their answer carried through. Without this the scanner runs,
+    // finds things, and nothing downstream ever hears about it.
+    let claimed: Vec<Condition> = resolved.iter().map(|r| r.condition).collect();
+    for condition in Condition::ALL.iter().copied() {
+        if claimed.contains(&condition) {
+            continue;
+        }
+        if let Some(value) = corroboration(condition) {
+            ctx.set(condition, value);
+            resolved.push(ResolvedClaim {
+                condition,
+                claimed: None,
+                found_in_code: Some(value),
+                state: ClaimState::Confirmed,
+                effective: Some(value),
+            });
+        }
+    }
+
     // `no-auth` is the inverse of the resolved `auth`, never an independent claim: an app cannot be
     // both, and deriving it here keeps the two from drifting apart. Unknown `auth` leaves `no-auth`
     // unknown too, rather than quietly asserting the app has no sign-in.
@@ -496,6 +516,27 @@ mod tests {
         assert_eq!(m.target_level(), 1);
         m.data.categories = vec!["health".into()];
         assert_eq!(m.target_level(), 2);
+    }
+
+    #[test]
+    fn the_scanner_answers_conditions_the_manifest_never_claims() {
+        // The `derived` conditions are not claims, so they never appear in `claims()`. Without
+        // carrying them through, the scanner runs, finds an XML parser, and nothing downstream
+        // ever hears about it — the requirement stays not-assessed while the evidence sits there.
+        let m = Manifest::default();
+        let (ctx, resolved) = resolve(&m, &|c| (c == Condition::Xml).then_some(true));
+        assert_eq!(ctx.get(Condition::Xml), Some(true));
+        assert!(
+            resolved.iter().any(|r| r.condition == Condition::Xml),
+            "a scanner answer must be recorded, not only applied"
+        );
+    }
+
+    #[test]
+    fn an_unanswered_derived_condition_stays_unanswered() {
+        let m = Manifest::default();
+        let (ctx, _) = resolve(&m, &|_| None);
+        assert_eq!(ctx.get(Condition::Xml), None);
     }
 
     fn state_of(resolved: &[ResolvedClaim], c: Condition) -> ClaimState {

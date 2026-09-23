@@ -1,15 +1,11 @@
 [package]
-name = "sv-cli"
+name = "sv-scan"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[[bin]]
-name = "sv"
-path = "src/main.rs"
-
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
 anyhow.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
-sv-manifest = { path = "../sv-manifest" }
-sv-scan = { path = "../sv-scan" }

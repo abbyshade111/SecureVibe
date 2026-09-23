@@ -6,6 +6,7 @@ use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
 use sv_frameworks::{Condition, Source};
 use sv_manifest::{ClaimState, Manifest, spec};
+use sv_scan::{Evidence, Signatures, scan};
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -55,6 +56,11 @@ fn overlay_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/applicability-v2.json")
 }
 
+/// What each `derived` condition looks like in real code.
+fn signatures_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
+}
+
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -72,9 +78,11 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let overlay = overlay_path();
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay)?;
 
-    // No corroborators are wired up yet, so every claim is unverifiable and says so. This is the
-    // honest state of the tool today, not a placeholder that reads as a clean result.
-    let (ctx, resolved) = sv_manifest::resolve(&manifest, &|_| None);
+    // The scanner answers the `derived` conditions. It answers nothing a claim is responsible
+    // for, so every claim is still unverifiable — corroborators are the next piece of work.
+    let signatures = Signatures::load(&signatures_path())?;
+    let report = scan(&app_dir, &signatures)?;
+    let (ctx, resolved) = sv_manifest::resolve(&manifest, &report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
 
     println!(
@@ -86,6 +94,38 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         },
         manifest.target_level()
     );
+    if !report.ecosystems.is_empty() {
+        let names: Vec<&str> = report.ecosystems.iter().map(|e| e.name.as_str()).collect();
+        println!(
+            "\nRead {} source files in {}; package manifests: {}.",
+            report.files_read,
+            report
+                .languages
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", "),
+            names.join(", ")
+        );
+    }
+    for eco in &report.unpinned {
+        println!(
+            "  {} pins no versions ({} has no lockfile), so what is actually installed cannot be known.",
+            eco.name, eco.manifest
+        );
+    }
+    if !report.unread_extensions.is_empty() {
+        let exts: Vec<&str> = report
+            .unread_extensions
+            .iter()
+            .map(String::as_str)
+            .collect();
+        println!(
+            "  `sv` has no reader for these file types, so it cannot say a technology is absent: {}.",
+            exts.join(", ")
+        );
+    }
+
     println!(
         "\n{} apply, {} do not, {} not assessed, {} above this level ({} loaded).",
         buckets.applicable.len(),
@@ -135,6 +175,25 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         .iter()
         .filter(|na| na.source == Source::Claim)
         .count();
+    let found: Vec<&sv_scan::Answer> = report
+        .answers
+        .iter()
+        .filter(|a| a.value == Some(true))
+        .collect();
+    if !found.is_empty() {
+        println!("\nRead from the code, so nobody had to be believed:");
+        for a in &found {
+            let how = match &a.evidence {
+                Evidence::Dependency { name, manifest } => {
+                    format!("`{name}` declared in {manifest}")
+                }
+                Evidence::Source { pattern, file } => format!("`{pattern}` in {file}"),
+                Evidence::Language { language } => format!("the app contains {language}"),
+                _ => String::new(),
+            };
+            println!("  {:<16} {how}", a.condition.name());
+        }
+    }
     println!(
         "\nDoes not apply: {} in total — {} because the manifest says so, {} read from the code.",
         buckets.not_applicable.len(),
