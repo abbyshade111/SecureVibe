@@ -3,7 +3,9 @@
  * from the content rules (it is expected to hold real generated secrets) but still checked for being
  * next to an uninitialised `.git` repository without `.gitignore` coverage.
  */
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { redact, runSecrets, SECRETS_TOOL } from '../../src/scanners/secrets/index.js';
 import { fixtureDir, makeScanContext } from './helpers.js';
 import { connectionStringPassword, passwordAssignment } from '../../src/scanners/secrets/rules.js';
@@ -23,6 +25,17 @@ const ALL_SECRET_RULE_IDS = [
   'secrets.connection-string-password',
   'secrets.env-file-committed',
 ];
+
+// `secrets.env-file-committed` only fires for a .env sitting beside a .git folder, so this fixture needs one.
+// Git refuses to track any path under a directory named .git, so it cannot be committed and has only ever
+// existed on the machine that first created it. On a clean checkout the rule fired nowhere, and the test below
+// reported it as a rule that never fires - green here, red on every runner, for as long as the workflow has
+// existed. Creating it here makes the fixture say what it needs out loud instead of inheriting it.
+beforeAll(() => {
+  const gitDir = join(fixtureDir('secrets-app'), '.git');
+  mkdirSync(gitDir, { recursive: true });
+  writeFileSync(join(gitDir, 'HEAD'), '', 'utf8');
+});
 
 describe('redact', () => {
   it('shows only the first 4 and last 2 characters of a matched secret', () => {
