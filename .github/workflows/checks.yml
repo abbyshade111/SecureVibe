@@ -54,47 +54,30 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN, temporary. One file at a time, in a loop that says which file it is about to run.
+      # DIAGNOSTIC RUN 2, temporary. The first run named the file: tests/llm/safety.test.ts printed vitest's
+      # banner and then nothing at all for ninety seconds. It takes 331ms on the owner's machine.
       #
-      # The suite dies at the same place whether the files run one at a time or all at once: seven fast files
-      # pass in the first six seconds and then there is no output at all until the timeout. That rules out the
-      # runner simply being small - starving on memory would slow everything down, not stop dead at the same
-      # point twice - and points at one file that blocks forever. vitest only prints a file once it has
-      # finished, so a file that never finishes is never named, which is why two runs have told us nothing.
-      #
-      # This loop names each file before running it and gives each one ninety seconds, so the log ends on the
-      # name of whatever is stuck. It is slower than a single run and is here to answer that question; once the
-      # file is known this goes back to one `vitest run` and this branch is deleted.
-      - name: Run SecureVibe's own tests
+      # The dot reporter flushes its dots at the end, so "no dots" does not mean "no test ran" - it means the
+      # file never finished, and we still cannot see how far it got. This run answers that. --reporter=verbose
+      # prints each test as it completes rather than at the end, and --testTimeout gives vitest its own limit
+      # below the shell's, so a test that blocks is failed and named by vitest itself. If nothing at all prints,
+      # the block is in the imports rather than in a test, which is equally worth knowing.
+      - name: Name the stalling test, not just the file
         working-directory: server
         run: |
           set +e
-          stalled=""
-          for f in $(find tests -name '*.test.ts' | sort); do
-            echo "--- $f"
-            timeout --signal=TERM --kill-after=15s 90s ../node_modules/.bin/vitest run "$f" --no-file-parallelism --reporter=dot
-            code=$?
-            if [ $code -eq 124 ] || [ $code -eq 137 ]; then
-              echo "STALLED $f"
-              stalled="$stalled $f"
-            elif [ $code -ne 0 ]; then
-              echo "FAILED $f"
-              stalled="$stalled $f"
-            fi
-            # Three is enough to see the shape of it. Without this, a suite where many files stall would spend
-            # ninety seconds on each and be killed by the job timeout before printing anything.
-            if [ $(echo $stalled | wc -w) -ge 3 ]; then
-              echo "Stopping after three; that is enough to go on."
-              break
-            fi
-          done
-          if [ -n "$stalled" ]; then
-            echo "Files that stalled or failed:$stalled"
-            exit 1
-          fi
+          timeout --signal=TERM --kill-after=15s 4m ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
+            --no-file-parallelism --reporter=verbose --testTimeout=15000 --hookTimeout=15000
+          echo "vitest exit: $?"
+          echo "--- node processes still alive:"
+          ps -eo pid,etime,args | grep -i [n]ode | head -20
+          exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
+        # Off for the diagnostic run only, so the answer comes back in three minutes rather than eighteen.
+        # Restored with the rest of this step when the diagnostic comes out.
+        if: false
         working-directory: templates/secure-web-app
         run: |
           node -e "require('fs').writeFileSync('securevibe.features.json', JSON.stringify({auth:true,adminMfa:true,userMfa:true,uploads:true,ai:true,aiActions:true,aiModeration:true,aiHistory:true,email:true,scheduler:true,publicApi:true,payments:true,fieldEncryption:true,retentionJobs:true,lanBinding:false,tlsMode:'off',example:true}))"
