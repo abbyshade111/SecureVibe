@@ -119,6 +119,7 @@ dependencies = [
  "anyhow",
  "sv-frameworks",
  "sv-manifest",
+ "sv-scan",
 ]
 
 [[package]]
@@ -138,6 +139,16 @@ dependencies = [
  "serde",
  "sv-frameworks",
  "toml",
+]
+
+[[package]]
+name = "sv-scan"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "sv-frameworks",
 ]
 
 [[package]]

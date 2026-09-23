@@ -5,20 +5,15 @@ another session is not a claim.
 
 ## Next
 
-- **The dependency scanner.** **[taken: keen-meninsky-691a27, 22 September 2026]** It is which is now what 17 not-assessed requirements are waiting on. It answers the
-  eleven `derived` conditions — WebSockets, GraphQL, LDAP, XPath, XML, LaTeX, JNDI, memcache, format strings,
-  unmanaged code, postMessage — by reading dependency manifests and detected languages. Until it exists those
-  requirements are honestly unanswered, which is correct but not useful.
-
 - **Corroborators.** Nothing checks a claim against the code yet, so every claim resolves `unverifiable` and
   says so. First ones worth having, because they are the claims most often wrong in the safe-looking direction:
   `auth`, `payments`, `uploads`, `external-apis`, `jwt`, `oauth`. Each is a grep-plus-manifest check over
   dependency files and route definitions. The interface already exists — `resolve` takes a
   `Fn(Condition) -> Option<bool>` — and `None` must keep meaning "no corroborator", never "not found".
 
-- **`sv check`.** The language-agnostic scanners: secrets, config, lockfile/SBOM, and AST rules via tree-sitter.
-  Port `scanners/ecosystems.ts` first — it is already multi-language and it is what tells the adapters which
-  tools to run.
+- **`sv check`.** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
+  tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on
+  them rather than starting over.
 
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
