@@ -54,45 +54,34 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN 6, temporary, and narrowed to one question.
+      # The recipe tests build a real application and type-check it, which needs the template's own packages.
+      # The root `npm ci` installs the workspaces (server, web) and the template is not one of them, so on a
+      # runner that folder simply is not there: three tests that prove generated code compiles were failing with
+      # ENOENT on every run, unseen, because the suite died before reaching them.
+      - name: Install the app template's packages
+        working-directory: templates/secure-web-app
+        run: npm ci
+
+      # One file at a time, and a hard stop from the shell as well as the job.
       #
-      # Run 5 wedged for eight minutes on a five-iteration loop capped at forty-five seconds, which cannot
-      # happen - unless `timeout --signal=KILL` failed to kill something. SIGKILL cannot end a process sitting
-      # in an uninterruptible kernel wait, and the first thing that loop ran was the test that calls mkdirSync
-      # on /proc/definitely/not/writable.
+      # This suite starts real applications, each in its own process, and on a developer's machine vitest runs
+      # many files at once. Running them one at a time keeps the number of live applications small.
       #
-      # If that is right it explains everything at once: the block is synchronous, so vitest's timers and
-      # reporter never get a turn; it is uninterruptible, so the shell's own kill does not end it either; and it
-      # cannot happen on the owner's Mac, where /proc does not exist and the call fails instantly with EPERM.
+      # Called directly rather than through `npm test`: the root script is `npm run test -w server`, so flags
+      # passed to it are read by npm as its own configuration and never reach vitest. An earlier attempt at this
+      # said so in the log - "Unknown cli config --reporter" - and ran exactly as before, which is why two runs
+      # looked like a fix and changed nothing.
       #
-      # So ask that one question, and ask it in a way that cannot wedge this step: run the probe in the
-      # background writing to a file, watch it for fifteen seconds, and report whether it ever came back. A
-      # probe for a hang must not be able to hang the thing asking.
-      - name: Does mkdirSync under /proc return at all
+      # The `timeout` wrapper stays. The hang it was added for is fixed (a test asked mkdirSync to write into
+      # /proc, which on Linux spins for ever instead of failing), but a synchronous spin in a worker survives
+      # the death of its parent, so the wrapper is not enough on its own either. --no-file-parallelism keeps the
+      # worker count at one so there is only ever one thing to orphan.
+      - name: Run SecureVibe's own tests
         working-directory: server
-        run: |
-          set +e
-          node -e "const {mkdirSync}=require('node:fs');const t=Date.now();try{mkdirSync('/proc/definitely/not/writable',{recursive:true});console.log('RETURNED: mkdir succeeded after',Date.now()-t,'ms')}catch(e){console.log('RETURNED: mkdir threw',e.code,'after',Date.now()-t,'ms')}" > /tmp/mkdir.out 2>&1 &
-          probe=$!
-          for i in $(seq 1 15); do kill -0 $probe 2>/dev/null || break; sleep 1; done
-          if kill -0 $probe 2>/dev/null; then
-            echo "VERDICT: mkdirSync did not return within 15 seconds. It blocks; it does not fail."
-            echo "Its state, from the kernel (D means an uninterruptible wait, which SIGKILL cannot end):"
-            ps -o pid,stat,wchan:32,args -p $probe
-          else
-            echo "VERDICT: it returned, so this is not the cause:"
-            cat /tmp/mkdir.out
-          fi
-          echo "--- for contrast, the same call one directory up:"
-          timeout --signal=KILL 10s node -e "const {mkdirSync}=require('node:fs');try{mkdirSync('/proc/x',{recursive:true});console.log('/proc/x succeeded')}catch(e){console.log('/proc/x threw',e.code)}"
-          echo "contrast exit: $?"
-          exit 0
+        run: timeout --signal=TERM --kill-after=30s 15m ../node_modules/.bin/vitest run --reporter=verbose --no-file-parallelism
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
-        # Off for the diagnostic run only, so the answer comes back in three minutes rather than eighteen.
-        # Restored with the rest of this step when the diagnostic comes out.
-        if: false
         working-directory: templates/secure-web-app
         run: |
           node -e "require('fs').writeFileSync('securevibe.features.json', JSON.stringify({auth:true,adminMfa:true,userMfa:true,uploads:true,ai:true,aiActions:true,aiModeration:true,aiHistory:true,email:true,scheduler:true,publicApi:true,payments:true,fieldEncryption:true,retentionJobs:true,lanBinding:false,tlsMode:'off',example:true}))"
