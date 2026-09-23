@@ -22,7 +22,7 @@ another session is not a claim.
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **The container runner.** A backend is now available here (Colima 0.10.3, Docker 29.8.1, linux/aarch64), so
+- **The container runner.** **[taken: keen-meninsky-691a27, 22 September 2026]** A backend is now available here (Colima 0.10.3, Docker 29.8.1, linux/aarch64), so
   this is no longer blocked. Still build the trait and the honest `not assessed` path first: a machine without a
   backend is the normal case for everyone else, and a runner that assumes one would report their apps as failing
   rather than as unrun. Colima's defaults are two CPUs and 2 GB, which a real test suite can exhaust — the
