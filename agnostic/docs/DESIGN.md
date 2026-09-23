@@ -100,9 +100,14 @@ v1 gets its strongest evidence by running the app: seeded users, DAST probes, th
 that across arbitrary stacks means the manifest declares build/start/test, and `sv` runs them in a container with
 the network fenced to loopback, exactly as `pipeline/net-fence.ts` does for a child process today.
 
-**Docker is not installed on this machine.** `sv-run` is built behind a trait with a container backend, and until
-a backend is available every dynamic requirement reports `not assessed` — not `pass`, and not `fail`. The reports
-say which applied, as v1's do.
+A container backend is available on this machine as of 22 September 2026: Colima 0.10.3 with Docker 29.8.1,
+serving a linux/aarch64 daemon on two CPUs and 2 GB of memory. Those are Colima's defaults and they are modest —
+an app whose test suite wants more will need `colima start --cpu 4 --memory 8`, and `sv-run` should say that a
+run was resource-starved rather than report it as a failing one.
+
+`sv-run` is still built behind a trait, because a machine with no backend is the normal case for anyone else
+running `sv`. Where none is present, every dynamic requirement reports `not assessed` — not `pass`, and not
+`fail` — and the reports say which applied, as v1's do.
 
 ## Handover
 
