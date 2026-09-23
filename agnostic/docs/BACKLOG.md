@@ -5,7 +5,7 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators.** Nothing checks a claim against the code yet, so every claim resolves `unverifiable` and
+- **Corroborators.** **[taken: keen-meninsky-691a27, 22 September 2026]** Nothing checks a claim against the code yet, so every claim resolves `unverifiable` and
   says so. First ones worth having, because they are the claims most often wrong in the safe-looking direction:
   `auth`, `payments`, `uploads`, `external-apis`, `jwt`, `oauth`. Each is a grep-plus-manifest check over
   dependency files and route definitions. The interface already exists — `resolve` takes a
