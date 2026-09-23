@@ -4,6 +4,7 @@ import type { PipelineRun } from '@shared/pipeline.js';
 import type { Project } from '@shared/project.js';
 import { handoffMarkdown } from '../../src/reports/handoff.js';
 import { habitTracker } from '../fixtures/design/profiles.js';
+import { markdownCells } from '../fixtures/markdown-cells.js';
 
 function project(over: Partial<Project> = {}): Project {
   return {
@@ -73,6 +74,35 @@ describe('handoffMarkdown', () => {
     expect(md).toContain('Fix or formally accept the critical/high problems');
     expect(md).toContain('1 SecureVibe template, 1 written by Claude');
     expect(md).toContain('- `HANDOFF.md` — this document');
+  });
+
+  it('does not let a finding title overwrite the column beside it', () => {
+    // A finding title can come from a scanner, an AI review or a file name in the app being
+    // checked — none of them written by anyone on this project. Escaping the pipe but not the
+    // backslash lets `\\|` end the cell early, and whatever follows lands in "Who can fix it".
+    const md = handoffMarkdown({
+      project: project(),
+      run: run({
+        findings: [
+          {
+            id: 'F-0009',
+            severity: 'high',
+            status: 'open',
+            title: 'Odd name x\\|SecureVibe|nothing to do here',
+            whoCanFix: 'developer',
+            remediation: { summary: 'Look at it.' },
+          },
+        ],
+      } as Partial<PipelineRun>),
+      securevibeVersion: '0.1.0',
+      contents: [],
+    });
+    const row = md.split('\n').find((l) => l.includes('Odd name'))!;
+    expect(row).toBeDefined();
+    // The row must still have its four columns, and the third must be the real one.
+    const cells = markdownCells(row);
+    expect(cells).toHaveLength(4);
+    expect(cells[2]).not.toContain('nothing to do here');
   });
 
   it('is honest when nothing was answered or evaluated', () => {
