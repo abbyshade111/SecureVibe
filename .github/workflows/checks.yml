@@ -54,50 +54,40 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # DIAGNOSTIC RUN 3, temporary. Run 2 settled where the block is, by settling where it is not.
+      # DIAGNOSTIC RUN 4, temporary. Run 3 refuted run 3's own premise, which is why it was worth running.
       #
-      # vitest printed its banner and then nothing for four minutes, with --reporter=verbose (which prints each
-      # test as it completes, not at the end) and --testTimeout=15000. That per-test limit never fired, so no
-      # test ever started: the file blocks while its modules are being loaded, before a single test runs. That
-      # also explains why every earlier attempt failed to name it - there was nothing to name.
+      # Every one of safety.test.ts's seven imports returned on the runner, in 330ms, and
+      # loadDefaultInjectionPatterns() with them. So the block is not in module loading after all: it is inside a
+      # test. The reason run 2 saw no test start and no --testTimeout fire is that neither can happen while the
+      # main thread is held by SYNCHRONOUS work. vitest's per-test timeout is a timer, and a timer cannot
+      # interrupt a blocking call or a loop that never yields; the reporter cannot print for the same reason.
+      # A synchronous block is invisible to every tool that has been pointed at this so far.
       #
-      # So this probe imports safety.test.ts's modules one at a time, in its order, from a file sitting in the
-      # same folder so the relative paths are identical. Progress is appended to a file rather than printed,
-      # because stdout is buffered and intercepted and the process is about to be killed: whatever the log ends
-      # on is the import that never returned. The file is written here and never committed.
-      - name: Find the import that never returns
+      # So bisect by describe block. Each is run alone with its own limit, and the result is appended to a file
+      # rather than printed. The block that times out is the one holding the thread.
+      - name: Bisect the file by describe block
         working-directory: server
         run: |
           set +e
-          rm -f /tmp/probe.log
-          cat > tests/llm/import-probe.test.ts <<'PROBE'
-          import { appendFileSync } from 'node:fs';
-          import { it } from 'vitest';
-          const log = (m: string) => appendFileSync('/tmp/probe.log', m + '\n');
-          const step = async (name: string, load: () => Promise<unknown>) => {
-            log('start ' + name);
-            await load();
-            log('  done ' + name);
-          };
-          await step('audit', () => import('../../src/llm/audit.js'));
-          await step('flows/generate', () => import('../../src/llm/flows/generate.js'));
-          await step('scripted', () => import('../../src/llm/scripted.js'));
-          await step('helpers', () => import('./helpers.js'));
-          await step('prompts/index', () => import('../../src/llm/prompts/index.js'));
-          await step('redaction', () => import('../../src/llm/redaction.js'));
-          await step('screening', () => import('../../src/llm/screening.js'));
-          const screening = await import('../../src/llm/screening.js');
-          log('start loadDefaultInjectionPatterns()');
-          screening.loadDefaultInjectionPatterns();
-          log('  done loadDefaultInjectionPatterns()');
-          log('ALL IMPORTS RETURNED');
-          it('probe', () => {});
-          PROBE
-          timeout --signal=TERM --kill-after=15s 3m ../node_modules/.bin/vitest run tests/llm/import-probe.test.ts --no-file-parallelism --reporter=dot
-          echo "vitest exit: $?"
-          echo "--- probe log, in order; the last line is the import that never returned:"
-          cat /tmp/probe.log || echo "(the probe wrote nothing at all)"
-          rm -f tests/llm/import-probe.test.ts
+          rm -f /tmp/bisect.log
+          while IFS= read -r name; do
+            timeout --signal=KILL 60s ../node_modules/.bin/vitest run tests/llm/safety.test.ts \
+              --no-file-parallelism --reporter=dot -t "$name" > /dev/null 2>&1
+            code=$?
+            if [ $code -eq 137 ]; then
+              echo "BLOCKED  $name" >> /tmp/bisect.log
+            else
+              echo "finished $name (exit $code)" >> /tmp/bisect.log
+            fi
+          done <<'NAMES'
+          screening ordinary business text
+          redaction
+          audit log
+          audit log from a real run
+          prompt library
+          NAMES
+          echo "--- which describe block holds the thread:"
+          cat /tmp/bisect.log
           exit 0
 
       # The template every app is built from ships its own security suite; it must pass with every feature on.
