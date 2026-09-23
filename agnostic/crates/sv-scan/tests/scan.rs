@@ -4,11 +4,30 @@ use std::path::PathBuf;
 use sv_frameworks::Condition;
 use sv_scan::{Evidence, ScanReport, Signatures, scan};
 
+fn data(file: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .join(file)
+}
+
 fn signatures() -> Signatures {
-    Signatures::load(
-        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json"),
-    )
+    Signatures::load(&data("tech-signatures.json")).expect("signatures load")
+}
+
+/// Both sets, as the CLI loads them.
+fn all_signatures() -> Signatures {
+    Signatures::load_all(&[
+        &data("tech-signatures.json"),
+        &data("claim-corroborators.json"),
+    ])
     .expect("signatures load")
+}
+
+fn scan_fixture_with(name: &str, sigs: &Signatures) -> ScanReport {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name);
+    scan(&dir, sigs).expect("scan")
 }
 
 fn scan_fixture(name: &str) -> ScanReport {
@@ -273,4 +292,131 @@ fn a_folder_of_only_skipped_directories_answers_nothing_either() {
         concluded, 0,
         "everything here was skipped, so nothing was read"
     );
+}
+
+// ---- corroborators: checking the manifest's claims against the code ----
+
+#[test]
+fn a_claim_that_can_be_hand_rolled_is_never_called_absent() {
+    // The rule the corroborators exist under. Sign-in can be built from a hash function and a
+    // database table, leaving no library behind. `pinned-clean` is an Express app with no auth
+    // package at all — and `sv` must answer "I could not tell", not "this app has no sign-in".
+    // Answering false here would exclude fifty-three ASVS requirements on the strength of a
+    // missing dependency.
+    let report = scan_fixture_with("pinned-clean", &all_signatures());
+    let auth = answer(&report, Condition::Auth);
+    assert_eq!(
+        auth.value, None,
+        "no auth library is not the same as no sign-in"
+    );
+    assert!(matches!(
+        auth.evidence,
+        Evidence::NotFoundButNotDecisive { .. }
+    ));
+}
+
+#[test]
+fn a_payment_sdk_contradicts_a_manifest_that_denies_payments() {
+    let report = scan_fixture_with("stripe-checkout", &all_signatures());
+    let payments = answer(&report, Condition::Payments);
+    assert_eq!(payments.value, Some(true));
+    assert!(
+        matches!(&payments.evidence, Evidence::Dependency { name, .. } if name == "stripe"),
+        "expected the stripe dependency as evidence, got {:?}",
+        payments.evidence
+    );
+}
+
+#[test]
+fn configuration_in_the_repository_can_be_ruled_out_because_it_is_a_file() {
+    // The exception to the rule above, and the reason `absenceIsEvidence` exists. A CI pipeline
+    // is a file in the repository: if it is not there, there is no pipeline.
+    let with_ci = scan_fixture_with("stripe-checkout", &all_signatures());
+    assert_eq!(answer(&with_ci, Condition::CiCd).value, Some(true));
+    assert!(matches!(
+        answer(&with_ci, Condition::CiCd).evidence,
+        Evidence::File { .. }
+    ));
+
+    let without = scan_fixture_with("pinned-clean", &all_signatures());
+    assert_eq!(
+        answer(&without, Condition::CiCd).value,
+        Some(false),
+        "no workflow file means no pipeline, and that is an answer"
+    );
+}
+
+#[test]
+fn a_dot_directory_is_not_skipped_when_the_pipeline_lives_in_one() {
+    // `.github` is a dot-directory and is exactly where CI lives. A blanket dot-skip in the walk
+    // would answer "no CI/CD" for every repository that has one — a wrong statement in a report
+    // produced by an optimisation.
+    let report = scan_fixture_with("stripe-checkout", &all_signatures());
+    assert!(
+        report.all_paths.iter().any(|p| p.contains(".github")),
+        "the walk must see .github, saw: {:?}",
+        report.all_paths
+    );
+}
+
+#[test]
+fn every_claim_corroborator_names_a_condition_that_exists() {
+    // A typo in the data file would otherwise sit there doing nothing, looking like a claim that
+    // simply never corroborates.
+    let sigs = all_signatures();
+    let unknown: Vec<&str> = sigs
+        .signatures
+        .iter()
+        .map(|s| s.condition.as_str())
+        .filter(|n| Condition::from_name(n).is_none())
+        .collect();
+    assert!(
+        unknown.is_empty(),
+        "signatures naming no known condition: {unknown:?}"
+    );
+}
+
+#[test]
+fn only_file_based_claims_treat_absence_as_evidence() {
+    // If a future edit sets absenceIsEvidence on a library-based claim, fifty-three requirements
+    // quietly switch off the next time an app has hand-rolled sign-in. This is the guard.
+    let sigs = Signatures::load(&data("claim-corroborators.json")).unwrap();
+    let decisive: Vec<&str> = sigs
+        .signatures
+        .iter()
+        .filter(|s| s.absence_is_evidence)
+        .map(|s| s.condition.as_str())
+        .collect();
+    assert_eq!(
+        decisive,
+        vec!["ci-cd", "iac"],
+        "only configuration that must be a file in the repository may be ruled out by its absence"
+    );
+    for sig in sigs.signatures.iter().filter(|s| s.absence_is_evidence) {
+        assert!(
+            !sig.files.is_empty(),
+            "{} rules itself out by absence but names no files to look for",
+            sig.condition
+        );
+    }
+}
+
+#[test]
+fn no_hand_rollable_claim_is_ever_ruled_out_on_a_real_app() {
+    // The general form of the rule, rather than `auth`'s version of it. `pinned-clean` is a plain
+    // Express app: it has no auth, no uploads, no payments, no email, no scheduler and no AI. The
+    // tempting answer is "false" to all of them, and that answer is wrong for every one, because
+    // each can be written by hand and leave nothing behind. Only the two file-based claims may be
+    // ruled out here.
+    let sigs = Signatures::load(&data("claim-corroborators.json")).unwrap();
+    let report = scan_fixture_with("pinned-clean", &all_signatures());
+    for sig in sigs.signatures.iter().filter(|s| !s.absence_is_evidence) {
+        let condition = Condition::from_name(&sig.condition).unwrap();
+        assert_ne!(
+            answer(&report, condition).value,
+            Some(false),
+            "{} was ruled out although it can be written by hand",
+            sig.condition
+        );
+    }
 }

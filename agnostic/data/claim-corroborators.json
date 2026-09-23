@@ -1,0 +1,1016 @@
+{
+  "_comment": "How a manifest claim is checked against the code. Same shape as tech-signatures.json, with one field that changes everything: absenceIsEvidence. A technology like XML always leaves a trace, so not finding it is an answer. A claim like `auth` does not: sign-in can be hand-rolled from a hash function and a database table, leaving no library behind, and concluding 'no sign-in' from 'no auth library' would be the over-confident exclusion this project exists to avoid. Only ci-cd and iac set it true, because those are files in the repository and a file that is not there is not there. Everywhere else, finding something proves it is used and finding nothing proves nothing.",
+  "signatures": [
+    {
+      "condition": "ci-cd",
+      "absenceIsEvidence": true,
+      "note": "CI configuration is a file in the repository. If it is not there, there is no pipeline, and that is a complete answer rather than a failure to find one.",
+      "files": [
+        ".github/workflows",
+        ".gitlab-ci.yml",
+        ".circleci/config.yml",
+        "Jenkinsfile",
+        "azure-pipelines.yml",
+        ".drone.yml",
+        "bitbucket-pipelines.yml",
+        ".woodpecker.yml",
+        "buildkite.yml",
+        ".teamcity"
+      ]
+    },
+    {
+      "condition": "iac",
+      "absenceIsEvidence": true,
+      "note": "Infrastructure configuration is likewise a file. Its absence is an answer.",
+      "files": [
+        "*.tf",
+        "*.tfvars",
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "cloudformation.yml",
+        "template.yaml",
+        "serverless.yml",
+        "Pulumi.yaml",
+        "*.bicep",
+        "kustomization.yaml",
+        "Chart.yaml",
+        "k8s",
+        "helm"
+      ]
+    },
+    {
+      "condition": "auth",
+      "absenceIsEvidence": false,
+      "note": "Sign-in can be hand-rolled from a hash function and a database table, leaving no library behind. Finding one is evidence; not finding one is not.",
+      "packages": {
+        "npm": [
+          "passport",
+          "next-auth",
+          "@auth/core",
+          "express-session",
+          "lucia",
+          "better-auth",
+          "@clerk/nextjs",
+          "supertokens-node"
+        ],
+        "Python": [
+          "flask-login",
+          "django",
+          "fastapi-users",
+          "flask-security-too",
+          "django-allauth",
+          "authlib"
+        ],
+        "Ruby": [
+          "devise"
+        ],
+        "PHP": [
+          "symfony/security-bundle",
+          "laravel/sanctum"
+        ],
+        "Go": [
+          "goth",
+          "gorilla/sessions"
+        ],
+        "Rust": [
+          "axum-login",
+          "actix-identity"
+        ],
+        "Java (Maven)": [
+          "spring-boot-starter-security"
+        ],
+        "Java (Gradle)": [
+          "spring-boot-starter-security"
+        ]
+      },
+      "source": {
+        "python": [
+          "login_required",
+          "current_user",
+          "check_password_hash",
+          "generate_password_hash",
+          "session["
+        ],
+        "javascript": [
+          "req.session",
+          "passport.authenticate",
+          "getServerSession",
+          "bcrypt.compare"
+        ],
+        "typescript": [
+          "req.session",
+          "passport.authenticate",
+          "getServerSession",
+          "bcrypt.compare"
+        ],
+        "ruby": [
+          "before_action :authenticate",
+          "current_user"
+        ],
+        "php": [
+          "Auth::",
+          "password_verify("
+        ],
+        "go": [
+          "session.Get",
+          "bcrypt.CompareHashAndPassword"
+        ],
+        "java": [
+          "@PreAuthorize",
+          "SecurityFilterChain"
+        ],
+        "kotlin": [
+          "@PreAuthorize",
+          "SecurityFilterChain"
+        ],
+        "csharp": [
+          "[Authorize]",
+          "SignInManager"
+        ],
+        "rust": [
+          "argon2",
+          "bcrypt"
+        ]
+      }
+    },
+    {
+      "condition": "oauth",
+      "absenceIsEvidence": false,
+      "note": "Sign-in through another provider needs a client library or a well-known endpoint.",
+      "packages": {
+        "npm": [
+          "passport-google-oauth20",
+          "passport-github2",
+          "next-auth",
+          "@auth/core",
+          "openid-client",
+          "simple-oauth2"
+        ],
+        "Python": [
+          "authlib",
+          "oauthlib",
+          "requests-oauthlib",
+          "django-allauth",
+          "python-social-auth"
+        ],
+        "Ruby": [
+          "omniauth"
+        ],
+        "PHP": [
+          "league/oauth2-client"
+        ],
+        "Go": [
+          "golang.org/x/oauth2"
+        ],
+        "Rust": [
+          "oauth2",
+          "openidconnect"
+        ],
+        "Java (Maven)": [
+          "spring-boot-starter-oauth2-client"
+        ],
+        "Java (Gradle)": [
+          "spring-boot-starter-oauth2-client"
+        ]
+      },
+      "source": {
+        "python": [
+          "authlib",
+          "oauth",
+          "openid"
+        ],
+        "javascript": [
+          "oauth",
+          "openid",
+          "/.well-known/openid-configuration"
+        ],
+        "typescript": [
+          "oauth",
+          "openid"
+        ],
+        "go": [
+          "oauth2.Config"
+        ],
+        "java": [
+          "OAuth2",
+          "OidcUser"
+        ],
+        "kotlin": [
+          "OAuth2"
+        ],
+        "ruby": [
+          "OmniAuth"
+        ],
+        "php": [
+          "OAuth2"
+        ],
+        "csharp": [
+          "AddOpenIdConnect"
+        ],
+        "rust": [
+          "oauth2::"
+        ]
+      }
+    },
+    {
+      "condition": "jwt",
+      "absenceIsEvidence": false,
+      "note": "Self-contained tokens arrive as a library almost without exception.",
+      "packages": {
+        "npm": [
+          "jsonwebtoken",
+          "jose",
+          "jwt-decode",
+          "@fastify/jwt"
+        ],
+        "Python": [
+          "pyjwt",
+          "python-jose",
+          "flask-jwt-extended",
+          "djangorestframework-simplejwt"
+        ],
+        "Ruby": [
+          "jwt"
+        ],
+        "PHP": [
+          "firebase/php-jwt",
+          "lcobucci/jwt"
+        ],
+        "Go": [
+          "golang-jwt",
+          "github.com/golang-jwt/jwt"
+        ],
+        "Rust": [
+          "jsonwebtoken"
+        ],
+        "Java (Maven)": [
+          "jjwt-api",
+          "java-jwt",
+          "nimbus-jose-jwt"
+        ],
+        "Java (Gradle)": [
+          "jjwt-api",
+          "java-jwt",
+          "nimbus-jose-jwt"
+        ]
+      },
+      "source": {
+        "python": [
+          "import jwt",
+          "jwt.encode",
+          "jwt.decode"
+        ],
+        "javascript": [
+          "jwt.sign",
+          "jwt.verify",
+          "jsonwebtoken"
+        ],
+        "typescript": [
+          "jwt.sign",
+          "jwt.verify"
+        ],
+        "go": [
+          "jwt.NewWithClaims"
+        ],
+        "java": [
+          "Jwts."
+        ],
+        "kotlin": [
+          "Jwts."
+        ],
+        "ruby": [
+          "JWT.encode"
+        ],
+        "php": [
+          "JWT::encode"
+        ],
+        "csharp": [
+          "JwtSecurityToken"
+        ],
+        "rust": [
+          "jsonwebtoken::"
+        ]
+      }
+    },
+    {
+      "condition": "uploads",
+      "absenceIsEvidence": false,
+      "note": "File upload handling is sometimes written against the raw request body, which no library records.",
+      "packages": {
+        "npm": [
+          "multer",
+          "busboy",
+          "formidable",
+          "@fastify/multipart",
+          "express-fileupload"
+        ],
+        "Python": [
+          "python-multipart",
+          "django-storages"
+        ],
+        "Ruby": [
+          "carrierwave",
+          "shrine"
+        ],
+        "PHP": [
+          "symfony/mime"
+        ],
+        "Go": [
+          "gabriel-vasile/mimetype"
+        ],
+        "Rust": [
+          "multer",
+          "actix-multipart"
+        ],
+        "Java (Maven)": [
+          "commons-fileupload"
+        ],
+        "Java (Gradle)": [
+          "commons-fileupload"
+        ]
+      },
+      "source": {
+        "python": [
+          "request.files",
+          "FileStorage",
+          "UploadFile",
+          "save(os.path"
+        ],
+        "javascript": [
+          "multipart/form-data",
+          "upload.single(",
+          "FormData"
+        ],
+        "typescript": [
+          "multipart/form-data",
+          "upload.single("
+        ],
+        "go": [
+          "r.FormFile",
+          "multipart.Reader"
+        ],
+        "java": [
+          "MultipartFile"
+        ],
+        "kotlin": [
+          "MultipartFile"
+        ],
+        "ruby": [
+          "ActionDispatch::Http::UploadedFile"
+        ],
+        "php": [
+          "$_FILES",
+          "move_uploaded_file"
+        ],
+        "csharp": [
+          "IFormFile"
+        ],
+        "rust": [
+          "Multipart"
+        ],
+        "html": [
+          "type=\"file\""
+        ]
+      }
+    },
+    {
+      "condition": "payments",
+      "absenceIsEvidence": false,
+      "note": "Taking money nearly always means a processor SDK, but an invoice-and-bank-transfer flow is still taking payments and leaves nothing to find.",
+      "packages": {
+        "npm": [
+          "stripe",
+          "@stripe/stripe-js",
+          "braintree",
+          "@paypal/checkout-server-sdk",
+          "square",
+          "@adyen/api-library"
+        ],
+        "Python": [
+          "stripe",
+          "braintree",
+          "paypalrestsdk",
+          "squareup"
+        ],
+        "Ruby": [
+          "stripe",
+          "braintree"
+        ],
+        "PHP": [
+          "stripe/stripe-php",
+          "omnipay/common"
+        ],
+        "Go": [
+          "stripe-go"
+        ],
+        "Rust": [
+          "stripe-rust",
+          "async-stripe"
+        ],
+        "Java (Maven)": [
+          "stripe-java"
+        ],
+        "Java (Gradle)": [
+          "stripe-java"
+        ]
+      },
+      "source": {
+        "python": [
+          "stripe.",
+          "checkout.session"
+        ],
+        "javascript": [
+          "stripe(",
+          "Stripe(",
+          "checkout.sessions.create"
+        ],
+        "typescript": [
+          "stripe(",
+          "Stripe("
+        ],
+        "go": [
+          "stripe."
+        ],
+        "java": [
+          "com.stripe"
+        ],
+        "kotlin": [
+          "com.stripe"
+        ],
+        "ruby": [
+          "Stripe::"
+        ],
+        "php": [
+          "\\\\Stripe\\\\"
+        ],
+        "csharp": [
+          "Stripe."
+        ],
+        "rust": [
+          "stripe::"
+        ]
+      }
+    },
+    {
+      "condition": "email",
+      "absenceIsEvidence": false,
+      "note": "Sending email can be a raw SMTP socket, which no dependency records.",
+      "packages": {
+        "npm": [
+          "nodemailer",
+          "@sendgrid/mail",
+          "mailgun.js",
+          "postmark",
+          "resend"
+        ],
+        "Python": [
+          "flask-mail",
+          "sendgrid",
+          "django-anymail",
+          "yagmail",
+          "mailgun"
+        ],
+        "Ruby": [
+          "mail"
+        ],
+        "PHP": [
+          "symfony/mailer",
+          "swiftmailer/swiftmailer"
+        ],
+        "Go": [
+          "gomail"
+        ],
+        "Rust": [
+          "lettre"
+        ],
+        "Java (Maven)": [
+          "spring-boot-starter-mail"
+        ],
+        "Java (Gradle)": [
+          "spring-boot-starter-mail"
+        ]
+      },
+      "source": {
+        "python": [
+          "smtplib",
+          "send_mail",
+          "EmailMessage"
+        ],
+        "javascript": [
+          "nodemailer",
+          "sendMail("
+        ],
+        "typescript": [
+          "nodemailer",
+          "sendMail("
+        ],
+        "go": [
+          "smtp.SendMail"
+        ],
+        "java": [
+          "JavaMailSender"
+        ],
+        "kotlin": [
+          "JavaMailSender"
+        ],
+        "ruby": [
+          "ActionMailer"
+        ],
+        "php": [
+          "mail(",
+          "Mailer"
+        ],
+        "csharp": [
+          "SmtpClient"
+        ],
+        "rust": [
+          "lettre::"
+        ]
+      }
+    },
+    {
+      "condition": "scheduler",
+      "absenceIsEvidence": false,
+      "note": "A background job can be a bare thread and a sleep, which nothing declares.",
+      "packages": {
+        "npm": [
+          "node-cron",
+          "bull",
+          "bullmq",
+          "agenda",
+          "node-schedule"
+        ],
+        "Python": [
+          "celery",
+          "apscheduler",
+          "rq",
+          "django-q",
+          "huey"
+        ],
+        "Ruby": [
+          "sidekiq",
+          "resque",
+          "whenever"
+        ],
+        "PHP": [
+          "symfony/scheduler"
+        ],
+        "Go": [
+          "robfig/cron"
+        ],
+        "Rust": [
+          "tokio-cron-scheduler"
+        ],
+        "Java (Maven)": [
+          "quartz",
+          "spring-boot-starter-quartz"
+        ],
+        "Java (Gradle)": [
+          "quartz"
+        ]
+      },
+      "source": {
+        "python": [
+          "@celery.task",
+          "@scheduled_job",
+          "BackgroundScheduler",
+          "crontab"
+        ],
+        "javascript": [
+          "cron.schedule",
+          "setInterval("
+        ],
+        "typescript": [
+          "cron.schedule"
+        ],
+        "go": [
+          "cron.New"
+        ],
+        "java": [
+          "@Scheduled"
+        ],
+        "kotlin": [
+          "@Scheduled"
+        ],
+        "ruby": [
+          "Sidekiq::Worker"
+        ],
+        "php": [
+          "Schedule::"
+        ],
+        "csharp": [
+          "IHostedService",
+          "BackgroundService"
+        ],
+        "rust": [
+          "JobScheduler"
+        ]
+      }
+    },
+    {
+      "condition": "webrtc",
+      "absenceIsEvidence": false,
+      "note": "WebRTC is a browser API as well as a library, so source matters.",
+      "packages": {
+        "npm": [
+          "simple-peer",
+          "peerjs",
+          "mediasoup",
+          "livekit-client",
+          "@daily-co/daily-js"
+        ],
+        "Python": [
+          "aiortc"
+        ],
+        "Go": [
+          "pion/webrtc"
+        ],
+        "Rust": [
+          "webrtc"
+        ]
+      },
+      "source": {
+        "javascript": [
+          "RTCPeerConnection",
+          "getUserMedia",
+          "createOffer("
+        ],
+        "typescript": [
+          "RTCPeerConnection",
+          "getUserMedia"
+        ],
+        "html": [
+          "RTCPeerConnection",
+          "getUserMedia"
+        ],
+        "python": [
+          "RTCPeerConnection"
+        ],
+        "go": [
+          "webrtc.NewPeerConnection"
+        ],
+        "rust": [
+          "RTCPeerConnection"
+        ]
+      }
+    },
+    {
+      "condition": "ai",
+      "absenceIsEvidence": false,
+      "note": "A model can be called with a plain HTTP request and no SDK at all.",
+      "packages": {
+        "npm": [
+          "openai",
+          "@anthropic-ai/sdk",
+          "@google/generative-ai",
+          "langchain",
+          "ai",
+          "@mistralai/mistralai",
+          "ollama"
+        ],
+        "Python": [
+          "openai",
+          "anthropic",
+          "google-generativeai",
+          "langchain",
+          "litellm",
+          "transformers",
+          "ollama"
+        ],
+        "Ruby": [
+          "ruby-openai"
+        ],
+        "PHP": [
+          "openai-php/client"
+        ],
+        "Go": [
+          "go-openai"
+        ],
+        "Rust": [
+          "async-openai"
+        ],
+        "Java (Maven)": [
+          "spring-ai-core",
+          "langchain4j"
+        ],
+        "Java (Gradle)": [
+          "langchain4j"
+        ]
+      },
+      "source": {
+        "python": [
+          "openai",
+          "anthropic",
+          "chat.completions",
+          "generate_content"
+        ],
+        "javascript": [
+          "openai",
+          "anthropic",
+          "chat.completions"
+        ],
+        "typescript": [
+          "openai",
+          "anthropic"
+        ],
+        "go": [
+          "openai."
+        ],
+        "java": [
+          "ChatClient",
+          "ChatLanguageModel"
+        ],
+        "kotlin": [
+          "ChatClient"
+        ],
+        "ruby": [
+          "OpenAI::"
+        ],
+        "php": [
+          "OpenAI\\\\"
+        ],
+        "csharp": [
+          "OpenAIClient"
+        ],
+        "rust": [
+          "async_openai"
+        ]
+      }
+    },
+    {
+      "condition": "rag",
+      "absenceIsEvidence": false,
+      "note": "Retrieval can be a SQL LIKE query feeding a prompt, with no vector database anywhere.",
+      "packages": {
+        "npm": [
+          "@pinecone-database/pinecone",
+          "chromadb",
+          "weaviate-ts-client",
+          "@qdrant/js-client-rest",
+          "llamaindex",
+          "faiss-node"
+        ],
+        "Python": [
+          "pinecone-client",
+          "chromadb",
+          "weaviate-client",
+          "qdrant-client",
+          "llama-index",
+          "faiss-cpu",
+          "pgvector",
+          "sentence-transformers"
+        ],
+        "Go": [
+          "qdrant"
+        ],
+        "Rust": [
+          "qdrant-client"
+        ],
+        "Java (Maven)": [
+          "langchain4j-pinecone"
+        ],
+        "Java (Gradle)": [
+          "langchain4j-pinecone"
+        ]
+      },
+      "source": {
+        "python": [
+          "embeddings.create",
+          "vectorstore",
+          "similarity_search",
+          "pgvector"
+        ],
+        "javascript": [
+          "embeddings.create",
+          "vectorStore",
+          "similaritySearch"
+        ],
+        "typescript": [
+          "embeddings.create",
+          "vectorStore"
+        ],
+        "java": [
+          "EmbeddingStore"
+        ],
+        "kotlin": [
+          "EmbeddingStore"
+        ],
+        "go": [
+          "Embeddings"
+        ],
+        "rust": [
+          "embeddings"
+        ]
+      }
+    },
+    {
+      "condition": "mcp",
+      "absenceIsEvidence": false,
+      "note": "MCP arrives as a library or a server configuration file.",
+      "packages": {
+        "npm": [
+          "@modelcontextprotocol/sdk"
+        ],
+        "Python": [
+          "mcp",
+          "fastmcp"
+        ],
+        "Rust": [
+          "rmcp"
+        ],
+        "Go": [
+          "mcp-go"
+        ]
+      },
+      "source": {
+        "python": [
+          "modelcontextprotocol",
+          "from mcp"
+        ],
+        "javascript": [
+          "modelcontextprotocol"
+        ],
+        "typescript": [
+          "modelcontextprotocol"
+        ],
+        "go": [
+          "mcp."
+        ],
+        "rust": [
+          "rmcp::"
+        ]
+      }
+    },
+    {
+      "condition": "training",
+      "absenceIsEvidence": false,
+      "note": "Training needs a framework, but a fine-tuning job can also be one HTTP call to a vendor.",
+      "packages": {
+        "Python": [
+          "torch",
+          "tensorflow",
+          "jax",
+          "transformers",
+          "peft",
+          "trl",
+          "accelerate",
+          "scikit-learn"
+        ],
+        "npm": [
+          "@tensorflow/tfjs-node"
+        ],
+        "Rust": [
+          "candle-core",
+          "burn"
+        ]
+      },
+      "source": {
+        "python": [
+          "Trainer(",
+          ".fit(",
+          "backward()",
+          "optimizer.step",
+          "fine_tune",
+          "fine-tuning"
+        ],
+        "javascript": [
+          "model.fit("
+        ],
+        "typescript": [
+          "model.fit("
+        ],
+        "rust": [
+          "candle_core"
+        ]
+      }
+    },
+    {
+      "condition": "self-hosted-model",
+      "absenceIsEvidence": false,
+      "note": "A model the app runs itself shows up as a runtime library or as model files on disk.",
+      "packages": {
+        "Python": [
+          "torch",
+          "transformers",
+          "vllm",
+          "llama-cpp-python",
+          "onnxruntime",
+          "ctransformers"
+        ],
+        "npm": [
+          "onnxruntime-node",
+          "node-llama-cpp",
+          "@xenova/transformers"
+        ],
+        "Rust": [
+          "candle-core",
+          "llm"
+        ],
+        "Go": [
+          "ollama"
+        ]
+      },
+      "files": [
+        "*.gguf",
+        "*.safetensors",
+        "*.onnx",
+        "*.pt",
+        "*.pth",
+        "*.bin",
+        "models"
+      ],
+      "source": {
+        "python": [
+          "from_pretrained(",
+          "AutoModel",
+          "llama_cpp",
+          "ollama"
+        ],
+        "javascript": [
+          "node-llama-cpp",
+          "onnxruntime"
+        ],
+        "typescript": [
+          "onnxruntime"
+        ],
+        "go": [
+          "ollama."
+        ],
+        "rust": [
+          "candle_core"
+        ]
+      }
+    },
+    {
+      "condition": "out-of-band-auth",
+      "absenceIsEvidence": false,
+      "note": "Sending a code by SMS or push needs a provider, but could be any HTTP call.",
+      "packages": {
+        "npm": [
+          "twilio",
+          "@vonage/server-sdk",
+          "firebase-admin"
+        ],
+        "Python": [
+          "twilio",
+          "vonage",
+          "firebase-admin"
+        ],
+        "Ruby": [
+          "twilio-ruby"
+        ],
+        "PHP": [
+          "twilio/sdk"
+        ],
+        "Go": [
+          "twilio-go"
+        ],
+        "Rust": [
+          "twilio"
+        ],
+        "Java (Maven)": [
+          "twilio"
+        ],
+        "Java (Gradle)": [
+          "twilio"
+        ]
+      },
+      "source": {
+        "python": [
+          "twilio",
+          "send_sms",
+          "messages.create"
+        ],
+        "javascript": [
+          "twilio",
+          "sendSms"
+        ],
+        "typescript": [
+          "twilio"
+        ],
+        "go": [
+          "twilio."
+        ],
+        "java": [
+          "Twilio."
+        ],
+        "kotlin": [
+          "Twilio."
+        ],
+        "ruby": [
+          "Twilio::"
+        ],
+        "php": [
+          "Twilio\\\\"
+        ],
+        "csharp": [
+          "TwilioClient"
+        ],
+        "rust": [
+          "twilio::"
+        ]
+      }
+    }
+  ]
+}
