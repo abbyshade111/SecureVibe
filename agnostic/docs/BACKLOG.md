@@ -22,9 +22,11 @@ another session is not a claim.
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **The container runner.** Docker is not installed on the development machine, so `sv-run` needs its backend
-  trait and an honest `not assessed` path before anything else. Build the trait and the reporting first; the
-  backend can follow.
+- **The container runner.** A backend is now available here (Colima 0.10.3, Docker 29.8.1, linux/aarch64), so
+  this is no longer blocked. Still build the trait and the honest `not assessed` path first: a machine without a
+  backend is the normal case for everyone else, and a runner that assumes one would report their apps as failing
+  rather than as unrun. Colima's defaults are two CPUs and 2 GB, which a real test suite can exhaust — the
+  runner has to tell a starved run apart from a broken one.
 
 - **Reports.** Port `reports/` once the exclusions above are honest. Not before: a report is where a wrong
   exclusion does its damage.
