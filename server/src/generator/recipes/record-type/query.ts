@@ -27,6 +27,7 @@
  *    the columns the spec names, so a field left out of the spec is a field that silently vanishes from the page.
  */
 import type { EntityPlan, FieldPlan } from './fields.js';
+import { commentText } from '../js-literal.js';
 
 /** The kinds the template's query engine understands. */
 export type ColumnKind = 'text' | 'number' | 'date' | 'boolean' | 'choice';
@@ -133,7 +134,7 @@ export function emitSpecLiteral(plan: EntityPlan, query: QueryPlan): string {
     return `    { ${parts.join(', ')} },`;
   });
   return `/**
- * What a list of ${(plan.entity.pluralLabel ?? `${plan.entity.label}s`).toLowerCase()} may be searched, sorted and narrowed down by.
+ * What a list of ${commentText((plan.entity.pluralLabel ?? `${plan.entity.label}s`).toLowerCase())} may be searched, sorted and narrowed down by.
  *
  * Settled when this app was built, from the fields the person described. Nothing here is read from a request: the
  * engine looks the sort column up in this list and binds every value, so a name that is not here cannot reach the
@@ -165,9 +166,9 @@ export function emitScopeFunction(plan: EntityPlan, query: QueryPlan): string {
   return { kind: 'everyone', because: ${JSON.stringify(query.everyoneBecause)} };`
     : `  return { kind: 'everyone', because: ${JSON.stringify(query.everyoneBecause)} };`;
   return `/**
- * Whose ${plural} a list may return, decided here and nowhere else.
+ * Whose ${commentText(plural)} a list may return, decided here and nowhere else.
  *
- * Every route that lists ${plural} calls this. It takes no argument it could be given wrongly beyond the signed-in
+ * Every route that lists ${commentText(plural)} calls this. It takes no argument it could be given wrongly beyond the signed-in
  * person, and it has no default: the engine will not build a query without a scope.
  */
 export function ${plan.camelName}Scope(user: { id: string; isAdmin: boolean } | undefined): QueryScope {
