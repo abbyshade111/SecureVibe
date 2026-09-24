@@ -11,8 +11,10 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **Grammars for Ruby, PHP and Java.** Named as unread today. Each is a dependency line and an entry
-  per rule; the machinery does not change.
+- **Grammars for Ruby, PHP and Java.** **[taken: keen-meninsky-691a27, 24 September 2026]** Named as
+  unread today, which is worse than it sounds: one Ruby file stops *every* code rule claiming anything
+  about the whole app, because a rule may not speak while a language goes unparsed. Each is a
+  dependency line and an entry per rule; the machinery does not change.
 
 - **More AST rules.** Four cover code execution, shell, SQL and deserialization. Path traversal, weak
   cryptography and unvalidated redirects are the obvious next ones, and each is a data entry.
