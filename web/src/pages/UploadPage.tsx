@@ -111,7 +111,21 @@ export function UploadPage() {
           />
         </div>
 
-        {plan && !plan.problem && (
+        <p className="sv-faint">
+          Or choose one .zip of the app: SecureVibe unpacks it, leaves out the same things, and checks what comes
+          out.{' '}
+          <input
+            type="file"
+            accept=".zip,application/zip"
+            disabled={uploading}
+            onChange={(e) => {
+              setUploadError(null);
+              setPlan(e.target.files && e.target.files.length > 0 ? planUpload(e.target.files) : null);
+            }}
+          />
+        </p>
+
+        {plan && !plan.problem && !plan.archive && (
           /**
            * What this app will actually get, said before the upload rather than discovered in the report.
            * The first person to hand SecureVibe somebody else's code uploaded a Python app, waited through a
@@ -135,7 +149,8 @@ export function UploadPage() {
               <p style={{ marginBottom: 0 }}>{plan.problem}</p>
             ) : (
               <p style={{ marginBottom: 0 }}>
-                <strong>{plan.folderName || 'Folder'}:</strong> {plan.files.length} files ({size(plan.bytes)}) will be uploaded.
+                <strong>{plan.folderName || 'Folder'}:</strong>{' '}
+                {plan.archive ? `one zip (${size(plan.bytes)}) will be uploaded and unpacked.` : `${plan.files.length} files (${size(plan.bytes)}) will be uploaded.`}
               </p>
             )}
             {skippedByReason.size > 0 && (
@@ -147,7 +162,10 @@ export function UploadPage() {
         )}
 
         {uploading && plan && (
-          <ProgressBar percent={Math.round((done / plan.files.length) * 100)} label={`${done} of ${plan.files.length} files uploaded`} />
+          <ProgressBar
+            percent={plan.archive ? (done > 0 ? 100 : 10) : Math.round((done / plan.files.length) * 100)}
+            label={plan.archive ? (done > 0 ? 'Unpacked' : 'Uploading and unpacking the zip…') : `${done} of ${plan.files.length} files uploaded`}
+          />
         )}
         {uploadError && <ErrorNotice message={uploadError} />}
 

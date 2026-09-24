@@ -163,17 +163,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **Take a zip, since that is what people have.** **[taken: restored first session, 24 September 2026]** The first person to hand SecureVibe somebody else's code on
-  20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
-  complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
-  nothing, and read as a clean result. It now refuses a lone archive and says to unpack it first, which is the
-  honest stop-gap and still asks the person to do something SecureVibe could do for them. Unpacking server-side
-  is the real answer and needs care rather than a library call: every entry's path checked before it is written
-  (no `..`, no absolute paths, no symlinks, no links out of the staging folder), the uncompressed size capped
-  before extracting rather than after, and the same skip list applied to what comes out. A zip from outside is
-  untrusted input in exactly the way ADR-011 means, so whatever lands should also be what the virus scanner is
-  pointed at.
-
 - **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
   left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
   demand against an app SecureVibe built — the uploaded-app case runs by itself, and the built-app case has

@@ -21,6 +21,7 @@ const { skipReason, UPLOADED_SKIPPED_STAGES } = await import('../../src/api/uplo
 const { reviewScope, reviewTree } = await import('../../src/verification/index.js');
 const { habitTracker } = await import('../fixtures/design/profiles.js');
 const { buildHarness, signIn } = await import('./helpers.js');
+const { writeZip } = await import('../fixtures/zip-writer.js');
 type TestHarness = Awaited<ReturnType<typeof buildHarness>>;
 
 describe('upload skip rules', () => {
@@ -130,6 +131,50 @@ describe('uploading and checking an app', () => {
     await request(harness.server).post(`/api/projects/${id}/upload/finish`).set(headers).send({});
     expect(existsSync(join(dir, 'app-v1', 'src', 'app.js'))).toBe(true);
     expect(existsSync(join(appDir, 'index.js'))).toBe(true);
+  });
+
+  it('takes a whole app as one zip, unpacks it safely, and leaves out what it always leaves out', async () => {
+    const { id } = await uploadedProject(false);
+    const zip = writeZip([
+      { name: 'shop/', data: '' },
+      { name: 'shop/src/app.js', data: 'console.log(1)' },
+      { name: 'shop/src/auth/login.js', data: 'export {}', method: 'store' },
+      { name: 'shop/.env', data: 'SECRET=1' },
+      { name: 'shop/../escape.js', data: 'x' },
+      { name: 'shop/link', data: '/etc/passwd', mode: 0o120777 },
+    ]);
+    const send = () =>
+      request(harness.server).put(`/api/projects/${id}/upload/archive`).set(headers).set('Content-Type', 'application/octet-stream').send(zip);
+    expect((await send()).status).toBe(409); // not started yet
+    expect((await request(harness.server).post(`/api/projects/${id}/upload/begin`).set(headers).send({})).status).toBe(200);
+    const res = await send();
+    expect(res.status).toBe(200);
+    expect(res.body.stored).toBe(2);
+    expect(res.body.skipped.map((s: { reason: string }) => s.reason)).toEqual(['a secrets file (.env)', 'a path that points outside the app folder', 'a symbolic link']);
+
+    const finish = await request(harness.server).post(`/api/projects/${id}/upload/finish`).set(headers).send({});
+    expect(finish.status).toBe(200);
+    expect(finish.body.project.origin.upload).toMatchObject({ files: 2, skipped: 3 });
+    const { appDir, dir } = harness.store.paths(id);
+    expect(readFileSync(join(appDir, 'src', 'app.js'), 'utf8')).toBe('console.log(1)');
+    expect(readFileSync(join(appDir, 'src', 'auth', 'login.js'), 'utf8')).toBe('export {}');
+    expect(existsSync(join(appDir, '.env'))).toBe(false);
+    expect(existsSync(join(appDir, 'link'))).toBe(false);
+    expect(existsSync(join(dir, 'escape.js'))).toBe(false);
+    expect(existsSync(join(dir, '..', 'escape.js'))).toBe(false);
+
+    // A zip that is not one is refused with a plain reason, and a password-protected one likewise.
+    await request(harness.server).post(`/api/projects/${id}/upload/begin`).set(headers).send({});
+    const notZip = await request(harness.server).put(`/api/projects/${id}/upload/archive`).set(headers).set('Content-Type', 'application/octet-stream').send(Buffer.from('hello'));
+    expect(notZip.status).toBe(400);
+    expect(notZip.body.error.message).toMatch(/not a zip/);
+    const locked = await request(harness.server)
+      .put(`/api/projects/${id}/upload/archive`)
+      .set(headers)
+      .set('Content-Type', 'application/octet-stream')
+      .send(writeZip([{ name: 'a.js', data: 'x', encrypted: true }]));
+    expect(locked.status).toBe(400);
+    expect(locked.body.error.message).toMatch(/password-protected/);
   });
 
   it('refuses uploads for apps SecureVibe builds, and an empty upload', async () => {
