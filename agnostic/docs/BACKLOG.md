@@ -15,9 +15,9 @@ another session is not a claim.
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
 
-- **A lockfile check.** **[taken: keen-meninsky-691a27, 24 September 2026]** `sv-scan::ecosystems::unpinned` already works out which ecosystems pin nothing,
-  and nothing reports it yet. It is the cheapest remaining finding: an ecosystem in use that pins no
-  versions means nobody can say what is actually installed.
+- **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
+  pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
+  would turn an open question into an answer.
 
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.

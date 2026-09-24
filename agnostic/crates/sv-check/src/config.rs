@@ -54,6 +54,7 @@ pub fn check_dir(app_dir: &Path) -> ConfigReport {
     );
     report.record("config.gitignore-covers-env", gitignore_covers_env(app_dir));
     report.record("config.security-contact", security_contact(app_dir));
+    report.record("config.versions-pinned", versions_pinned(app_dir));
     report
 }
 
@@ -201,6 +202,68 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
             .into(),
         fix: "Add `.env` and `.env.*` to .gitignore, with an exception for `.env.example`.".into(),
     }
+}
+
+/// Whether the app pins what it installs.
+///
+/// An ecosystem in use with no lockfile means nobody can say what is actually installed — not the
+/// developer, not a reviewer, and not `sv`. The same build on a different day is a different app.
+///
+/// The trap here is worth naming, because it was one function call away. `pom.xml` has no lockfile to
+/// look for: Maven pins in the manifest itself. A check that asked "is there a lockfile?" would report
+/// every Maven project as pinning nothing — not a coverage gap but a wrong statement in a report, which
+/// is exactly what ADR-012 is about. So Maven is *not assessed* here, with a reason, until something can
+/// read its version ranges.
+fn versions_pinned(app_dir: &Path) -> Outcome {
+    let detected = sv_scan::ecosystems::detect(app_dir);
+    if detected.is_empty() {
+        return Outcome::NotAssessed(
+            "No package manifest was found, so there is nothing whose versions could be pinned. If this \
+             app installs dependencies some other way, that is not something `sv` can see."
+                .to_owned(),
+        );
+    }
+
+    let unpinned = sv_scan::ecosystems::unpinned(app_dir);
+    let unknown = sv_scan::ecosystems::pinning_unknown(app_dir);
+
+    if let Some(first) = unpinned.first() {
+        let names: Vec<&str> = unpinned.iter().map(|e| e.name.as_str()).collect();
+        return Outcome::Failed(Box::new(Finding {
+            rule_id: "config.versions-pinned".into(),
+            title: format!("{} does not pin the versions it installs", names.join(" and ")),
+            severity: Severity::Medium,
+            confidence: Confidence::High,
+            location: Location { file: first.manifest.clone(), line: 1 },
+            secret: None,
+            requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
+            cwe: vec!["CWE-1104".into()],
+            description: format!(
+                "`{}` is in use and there is no lockfile beside it, so the versions installed today and \
+                 the versions installed tomorrow can differ.",
+                first.manifest
+            ),
+            impact: "Nobody can say what is actually running, which means nobody can say whether a known \
+                     vulnerability applies to it — and a dependency that is compromised upstream arrives \
+                     on the next install without anything changing here."
+                .into(),
+            fix: "Install once and commit the lockfile that produces, then install from it from then on."
+                .into(),
+        }));
+    }
+
+    if let Some(first) = unknown.first() {
+        let names: Vec<&str> = unknown.iter().map(|e| e.name.as_str()).collect();
+        return Outcome::NotAssessed(format!(
+            "{} does not use a lockfile at all — versions live in `{}` — and `sv` does not read version \
+             ranges out of it yet. Whether this app pins what it installs is still an open question, not \
+             a passed check.",
+            names.join(" and "),
+            first.manifest
+        ));
+    }
+
+    Outcome::Passed
 }
 
 /// Whether there is a way to report a security problem. Not a vulnerability; an absence.
@@ -400,6 +463,100 @@ mod tests {
                 "{pattern} should count as covering .env"
             );
         }
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ecosystem_with_no_lockfile_is_reported() {
+        let dir = scratch("nolock");
+        fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
+        let report = check_dir(&dir);
+        let f = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.versions-pinned")
+            .unwrap_or_else(|| panic!("{report:?}"));
+        assert_eq!(f.severity, Severity::Medium);
+        assert!(f.title.contains("npm"), "{}", f.title);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ecosystem_with_a_lockfile_passes() {
+        let dir = scratch("locked");
+        fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
+        fs::write(dir.join("package-lock.json"), "{}").unwrap();
+        assert!(
+            check_dir(&dir)
+                .passed
+                .contains(&"config.versions-pinned".to_string())
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn maven_is_not_reported_as_pinning_nothing() {
+        // The trap. Maven has no lockfile to be missing — versions are in pom.xml — so asking "is there
+        // a lockfile?" reports every Maven project as unpinned. That is a wrong statement in a report,
+        // not a coverage gap, and it is what ADR-012 is about.
+        let dir = scratch("maven");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project><artifactId>x</artifactId></project>",
+        )
+        .unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.versions-pinned"),
+            "Maven was reported as unpinned: {report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn maven_is_an_open_question_rather_than_a_pass() {
+        // The other half, and a different assertion: not reporting it must not mean approving it.
+        let dir = scratch("maven2");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project><artifactId>x</artifactId></project>",
+        )
+        .unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .contains(&"config.versions-pinned".to_string()),
+            "Maven must not pass a check nothing performed: {report:?}"
+        );
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.versions-pinned")
+            .unwrap_or_else(|| panic!("{report:?}"));
+        assert!(why.contains("does not use a lockfile"), "{why}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_with_no_manifest_is_not_assessed() {
+        let dir = scratch("nomanifest");
+        fs::write(dir.join("README.md"), "hello\n").unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .contains(&"config.versions-pinned".to_string())
+        );
+        assert!(
+            report
+                .not_assessed
+                .iter()
+                .any(|(id, _)| id == "config.versions-pinned")
+        );
         fs::remove_dir_all(&dir).ok();
     }
 

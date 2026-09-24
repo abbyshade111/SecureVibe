@@ -456,3 +456,19 @@ be checked *before* what was found, for the same reason the secrets scanner prin
 
 Both ways the question can go unanswered have their own test — a missing `.git`, and a `.git` that git
 refuses to read — because they are different code paths and the first one alone left the second untested.
+
+### The lockfile check, and the wrong statement it was one call away from
+
+`sv-scan::ecosystems::unpinned` already worked out which ecosystems have no lockfile, so reporting it
+looked like wiring. It was not. Maven has no lockfile to be missing — versions live in `pom.xml` — so
+`unpinned` returned "Java (Maven)" for every Maven project, and a check that asked "is there a lockfile?"
+would have told every Java owner their app pins nothing.
+
+That is not a coverage gap, which is honest and visible. It is a wrong statement in a report, and an owner
+acting on it would go looking for a lockfile Maven does not have. The same shape as telling a Flask app it
+was missing `package-lock.json`, which is the incident ADR-012 was written for.
+
+So `DetectedEcosystem` now carries `pins_with_lockfile`, `unpinned` only returns ecosystems that pin with
+one, and Maven comes back **not assessed** with a reason: versions live in the manifest and `sv` does not
+read ranges out of it yet. Removing that distinction fails two tests — one that Maven produces no finding,
+and one that it does not silently pass either, because not reporting something must not mean approving it.
