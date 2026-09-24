@@ -78,6 +78,8 @@ export interface RunPipelineOptions {
   plan?: import('@shared/project.js').BuildPlan;
   /** Check ids (finding rule ids and evidence refs) whose results are dropped (uploaded apps: template-only checks). */
   excludedChecks?: string[];
+  /** Why those checks do not apply to this target, shown beside the stage summary. */
+  excludedChecksReason?: string;
   /** Steps not to run, with the reason shown in the results (uploaded apps: nothing that runs their code). */
   skipStages?: Partial<Record<StageId, string>>;
   /**
@@ -262,6 +264,7 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     ...(opts.extraIgnore ? { extraIgnore: opts.extraIgnore } : {}),
     ...(opts.ruleDecisions ? { ruleDecisions: opts.ruleDecisions } : {}),
     ...(opts.excludedChecks ? { excludedChecks: new Set(opts.excludedChecks) } : {}),
+    ...(opts.excludedChecksReason ? { excludedChecksReason: opts.excludedChecksReason } : {}),
     ...(opts.plan ? { plan: opts.plan } : {}),
     ...(opts.importedTests ? { importedTests: opts.importedTests } : {}),
     ...(opts.dastExtra ? { dastExtra: opts.dastExtra } : {}),

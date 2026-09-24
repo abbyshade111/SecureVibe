@@ -21,11 +21,14 @@ export const runConfig: Scanner = async (ctx) => {
   const evidence: Evidence[] = [];
 
   const notApplicable: string[] = [];
+  const notApplicableWhy = new Map<string, number>();
   for (const check of ALL_CONFIG_CHECKS) {
     if (ctx.abort.aborted) break;
     // A check with nothing to say about this app is recorded as not applicable, never as failed (ADR-012).
     if (check.applies && !check.applies(ctx)) {
       notApplicable.push(check.meta.id);
+      const why = check.notApplicableReason ?? 'they do not apply to this kind of app';
+      notApplicableWhy.set(why, (notApplicableWhy.get(why) ?? 0) + 1);
       continue;
     }
     let outcome;
@@ -81,7 +84,7 @@ export const runConfig: Scanner = async (ctx) => {
   const notApplicableText =
     notApplicable.length === 0
       ? ''
-      : ` ${notApplicable.length} check${notApplicable.length === 1 ? '' : 's'} did not apply to this app and ${notApplicable.length === 1 ? 'was' : 'were'} not counted either way (they are about npm, which this app does not use).`;
+      : ` ${notApplicable.length} check${notApplicable.length === 1 ? '' : 's'} did not apply to this app and ${notApplicable.length === 1 ? 'was' : 'were'} not counted either way: ${[...notApplicableWhy.entries()].map(([why, n]) => `${n} because ${why}`).join('; ')}.`;
   const summary =
     findings.length === 0
       ? `All ${ranCount} configuration and documentation checks passed.${notApplicableText}`

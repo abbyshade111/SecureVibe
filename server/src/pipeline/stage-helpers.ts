@@ -61,7 +61,10 @@ export function absorbScanResult(ctx: PipelineCtx, stage: StageId, started: Date
   if (dropped === 0) return finishStage(ctx, stage, result.status, result.summary, started, { details: result.details });
   // The scanner's own counts include the checks left out; say so, and do not fail the step on them alone.
   const status = findings.length === 0 && (result.status === 'failed' || result.status === 'warning') ? 'passed' : result.status;
-  const summary = `${result.summary} (Includes ${dropped} check(s) that only apply to apps built by SecureVibe; their results were left out.)`;
+  // Rules assume a kind of target: an uploaded app is not built from our template, and SecureVibe itself is a
+  // build tool, not a generated application. Say which, so the reader knows why the results were left out.
+  const why = ctx.excludedChecksReason ?? 'only apply to apps built by SecureVibe';
+  const summary = `${result.summary} (Includes ${dropped} check(s) that ${why}; their results were left out.)`;
   return finishStage(ctx, stage, status, summary, started, { details: result.details });
 }
 

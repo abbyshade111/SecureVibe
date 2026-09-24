@@ -84,23 +84,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **Nine more findings that are artifacts of assuming SecureVibe built the app.** ADR-012 gated the two worst
-  (`deps.lockfile-missing`, `config.ignore-scripts`) and the Flask app's re-run on 20 September 2026 showed
-  three more classes still firing:
-  `config.node-engine-pinned` says "package.json has no engines.node requirement" to an app with no
-  package.json — clear-cut, same gate, simply missed.
-  `config.readme-run-instructions` greps the README for the literal strings `npm run setup` and `npm start`.
-  The question it is asking — does the README say how to run this safely — is fair for any app; the test is
-  ours. It needs to ask the question in a way that a Python app can pass.
-  The seven `docs.*` checks look for `docs/validation.md`, `docs/logging.md` and their siblings, which is the
-  documentation layout SecureVibe's own template generates. This is the subtle one and worth getting right
-  rather than fast: "your validation rules are not documented" may well be true of somebody else's app, but
-  concluding it from the absence of *our* file paths is checking for our convention and reporting it as their
-  failure. The honest result for an app we did not build is "could not verify", which is the same not-assessed
-  distinction the compliance score just learnt, applied one level down at the individual check.
-  Deliberately not fixed during the comparison runs: changing the checks between arms would have left the three
-  apps measured against different rules, which is the one thing that experiment cannot survive.
-
 - **The AI review cites nothing at all on an app it is the only checker for.** Measured on 20 September 2026,
   the same reviewer, days apart: SecureFit, a Node app SecureVibe built, 132 of 192 requirements reviewed and
   **231 places cited in the code**. The uploaded Python app, 139 of 139 reviewed and **0 places cited**, twice,
@@ -129,25 +112,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   hand-off pack rather than beside it, since that is already the thing somebody sends to another person.
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
-
-- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.**
-  A self-assessment on 20 September 2026 returned 31 of 161 requirements verified, 4 critical, 113 high. Checked
-  one by one, the bulk is SecureVibe's own rules misfiring on SecureVibe: 62 `route-outside-registry`,
-  13 `child-process-exec`, 17 `fs-user-path`, 11 `path-join-user-input`. Those rules assume the thing being
-  scanned is a generated application, which is meant to declare its routes in a registry and never spawn a
-  process. SecureVibe is a build tool: spawning processes and joining paths is its job. Same class as asking a
-  Python app about its npm lockfile, one level up — the target is not what the rules assume, and the report says
-  so in the language of failure.
-  The six findings that are *not* explained by that were checked individually and are all legitimate: three
-  "hardcoded secrets" are deliberately-wrong passwords (`not-a-real-password-1`) that DAST posts to a login form
-  to prove it rejects them, and three `tls-reject-unauthorized-false` are the runtime probes connecting to the
-  app under test over its own self-signed certificate — including the probe whose entire purpose is to attempt a
-  TLS 1.1 handshake and confirm it is refused.
-  So the self-assessment is currently unusable as a signal: its true findings are buried under a hundred false
-  ones, and an owner or a reviewer reading it would reasonably conclude the opposite of the truth. It needs the
-  same treatment the uploaded-app case just got — rules that declare what kind of target they apply to, and a
-  report that says "this check does not apply to this thing" rather than failing it.
-
 
 - **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved

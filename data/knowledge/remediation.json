@@ -2184,12 +2184,13 @@
   "cwe": [
    "CWE-1059"
   ],
-  "description": "README.md does not describe how to set up and run the app safely (npm ci, npm run setup, npm start).",
+  "description": "README.md does not describe how to set up and run the app.",
   "impact": "Someone may skip the setup step that generates secrets and creates the first administrator.",
   "remediation": {
-   "summary": "Restore the run instructions section in README.md.",
+   "summary": "Add a short \"How to run\" section to README.md with the exact install, setup and start commands for this app.",
    "steps": [
-    "Add the steps: npm ci --ignore-scripts, npm run setup, npm start, first login from FIRST-LOGIN.txt."
+    "For an app SecureVibe built, the steps are: npm ci --ignore-scripts, npm run setup, npm start, first login from FIRST-LOGIN.txt.",
+    "For any other app, name the commands that install its dependencies and start it, and any setup step that creates secrets or the first account."
    ],
    "references": [
     "https://owasp.org/www-project-secure-by-design-framework/",
