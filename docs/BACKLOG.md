@@ -64,12 +64,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   them money, and coming back recovers only the figure from the last completed stage. That is the moment a
   first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
   they are, which is more than a line of code: something has to hold the run's state above the page.
-- **A stopped build can only be resumed from the build page, and nothing points there.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** "Carry on from where it
-  stopped" lives on the build page for that specific run, and the Results page offers no way back to it — so an
-  owner whose build stopped part-way has the option, cannot reach it, and is left with a rebuild that pays again
-  for work already done. It happened the night an owner's AI credit ran out mid-build: the only route was a URL
-  typed by hand. The Results page should offer it directly whenever the last run is a full build that did not
-  finish, with the same wording about keeping what was already written.
 - **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
   already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
   has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
@@ -321,11 +315,6 @@ building from nothing.
 - **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
   rest. Multiple selection where the question allows it, and the answers it may set must still come from the
   same allow-list, so this widens what an owner can say without widening what the flow may change.
-- **Make resume reachable, and pin the fix with a test.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** The resume bug — a continued build reaching the writing
-  step with no manifest and refusing — is fixed but has no test, and nothing in either suite or the five sample
-  apps exercises resuming an interrupted build. That is why it survived a day of green checks. A test that
-  continues a run whose writing step failed, and asserts it writes rather than refuses, is the guard that should
-  have existed first.
 - **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
   different set of records, or to see what a rebuild does, currently risks the app they already have.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
