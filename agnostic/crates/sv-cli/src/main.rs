@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use sv_check::advisories;
 use sv_check::ast;
 use sv_check::config::check_dir;
+use sv_check::probes;
 use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
 use sv_frameworks::Frameworks;
@@ -374,13 +375,55 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
         "Starting {} with {} behind the network fence…",
         manifest.app.name, plan.image
     );
-    match backend.run(&plan) {
+    let requests = probes::requests(&plan.health_path);
+    match backend.run(&plan, &requests) {
         Err(reason) => {
             println!("\nNot assessed.\n\n{}", reason.explain());
         }
         Ok(outcome) => {
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
+            let findings = probes::evaluate(&outcome.probe_responses);
+            println!(
+                "\nAsked it {} question{}, as somebody who has not signed in.",
+                outcome.probe_responses.len(),
+                if outcome.probe_responses.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            );
+            if outcome.probe_responses.len() < requests.len() {
+                println!(
+                    "  {} got no answer at all, so nothing is claimed about them.",
+                    requests.len() - outcome.probe_responses.len()
+                );
+            }
+
+            // What the probes cannot reach comes before what they found, for the usual reason.
+            println!("\nNot assessed by these probes:");
+            for (requirements, why) in probes::unassessed_requirements() {
+                println!("  {requirements} — {why}");
+            }
+
+            if findings.is_empty() {
+                println!("\nNothing wrong in what was asked.");
+            } else {
+                println!(
+                    "\n{} thing{} the running app got wrong:",
+                    findings.len(),
+                    if findings.len() == 1 { "" } else { "s" }
+                );
+                for f in &findings {
+                    println!("\n  [{}] {}", f.severity.name(), f.title);
+                    println!("     {}", f.description);
+                    println!("     what to do: {}", f.fix);
+                    if !f.requirement_ids.is_empty() {
+                        println!("     evidence about: {}", f.requirement_ids.join(", "));
+                    }
+                }
+            }
+
             match outcome.tests {
                 None => println!(
                     "\nsecurevibe.toml declares no test command, so no test evidence was \

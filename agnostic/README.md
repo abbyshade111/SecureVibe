@@ -30,7 +30,13 @@ running reports *not assessed* — never a pass, and never a failure.
 `sv` opens no network connection. Advisory data is something you download and point it at; the list of
 packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
 
-Not built yet: the DAST probes, the reports, the MCP server.
+`sv run` also asks the running app four questions, as somebody who has not signed in: what headers it
+sends, what it says when asked for a page that is not there, whether it accepts a site it has never heard
+of, and whether it echoes requests back. What those questions cannot reach — anything behind a login — is
+printed as *not assessed* before any finding, because a suite that only tries the front door and says
+nothing reads exactly like one that found nothing wrong.
+
+Not built yet: the reports, the MCP server.
 
 ## Building
 

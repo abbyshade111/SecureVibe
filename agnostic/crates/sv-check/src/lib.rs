@@ -10,6 +10,7 @@ pub mod ast;
 pub mod config;
 pub mod cvss;
 pub mod finding;
+pub mod probes;
 pub mod sbom;
 pub mod secrets;
 

@@ -23,11 +23,13 @@ another session is not a claim.
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **DAST probes.** **[taken: keen-meninsky-691a27, 24 September 2026]** The runner starts the app and confirms it answers; nothing probes it yet. The probes run
-  from a sidecar on the fenced network — `sv-run` already does exactly that for the health check, so the
-  mechanism is proven and what is missing is the probe suite itself. Port v1's `scanners/dast/probes`.
+- **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
+  can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
+  handling per route and anything that sends data need either a manifest describing the app's routes or a
+  session — both of which are their own items below.
 
-- **Seeded users.** v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
+- **Seeded users.** The probes sign in as nobody, so authorisation, session handling and CSRF are reported
+  as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
 - **Reports.** Port `reports/` once the exclusions above are honest. Not before: a report is where a wrong

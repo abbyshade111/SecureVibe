@@ -61,7 +61,11 @@ impl Backend for DockerBackend {
         }
     }
 
-    fn run(&self, plan: &RunPlan) -> Result<RunOutcome, CannotRun> {
+    fn run(
+        &self,
+        plan: &RunPlan,
+        probes: &[sv_check::probes::ProbeRequest],
+    ) -> Result<RunOutcome, CannotRun> {
         let run_id = format!("sv-{}", std::process::id());
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
@@ -142,7 +146,15 @@ impl Backend for DockerBackend {
             });
         }
 
-        // 4. The declared tests, inside the app container so they see what the app sees.
+        // 4. The probes, while the app is up and the fence is in place. A request that gets no
+        //    answer is left out rather than recorded as an empty response: "the app said nothing"
+        //    and "the app has no Content-Security-Policy" are not the same sentence.
+        let probe_responses = probes
+            .iter()
+            .filter_map(|request| self.probe(&network, &app, plan.port, request))
+            .collect();
+
+        // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
             self.docker(&["exec", &app, "sh", "-c", test_command])
                 .ok()
@@ -154,6 +166,7 @@ impl Backend for DockerBackend {
             healthy,
             tests,
             fence: Fence::DockerInternalNetwork,
+            probe_responses,
         })
     }
 }
@@ -273,5 +286,271 @@ mod tests {
         assert_eq!(first_line(""), "no detail");
         assert_eq!(first_line("\n\n  \n"), "no detail");
         assert_eq!(first_line("\n  real message  \nsecond"), "real message");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Probing the running app
+
+/// Base64, written out rather than taken as a dependency.
+///
+/// The request is handed to the sidecar encoded so that nothing in a header value can end the shell
+/// command it travels in. A probe that sends `Origin: https://x.invalid` is harmless; one that can be
+/// made to send a quote and a semicolon is a command injection in the security scanner, which would be
+/// a poor advertisement.
+fn base64(input: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in input.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(ALPHABET[((n >> (18 - i * 6)) & 0x3f) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Writes out the request to send, or refuses to send one at all.
+///
+/// The path comes from the app's own manifest (`health_path`), so it is not something `sv` wrote. A
+/// newline anywhere in a request line or a header lets that text add headers, or a second request,
+/// of its own. There is no safe repair for that — a stripped path is a different request from the
+/// one asked for — so the whole request is refused, and a probe with no answer is already reported
+/// as unanswered rather than as a pass.
+fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<String> {
+    let unsafe_text = |s: &str| s.contains(['\r', '\n', ' ', '\t']);
+    if unsafe_text(&request.method) || unsafe_text(&request.path) || unsafe_text(host) {
+        return None;
+    }
+    if request
+        .headers
+        .iter()
+        .any(|(name, value)| name.contains([':', '\r', '\n']) || value.contains(['\r', '\n']))
+    {
+        return None;
+    }
+    let mut raw = format!(
+        "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
+        request.method, request.path
+    );
+    for (name, value) in &request.headers {
+        raw.push_str(&format!("{name}: {value}\r\n"));
+    }
+    raw.push_str("\r\n");
+    Some(raw)
+}
+
+/// Turns a raw HTTP response into the shape the probes read.
+fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse> {
+    // A header block ends at the first blank line; tolerate a server that uses bare newlines.
+    let (head, body) = raw
+        .split_once("\r\n\r\n")
+        .or_else(|| raw.split_once("\n\n"))
+        .unwrap_or((raw, ""));
+    let mut lines = head.lines();
+    let status = lines
+        .next()?
+        .split_whitespace()
+        .nth(1)?
+        .parse::<u16>()
+        .ok()?;
+    let headers = lines
+        .filter_map(|line| line.split_once(':'))
+        .map(|(k, v)| (k.trim().to_lowercase(), v.trim().to_owned()))
+        .collect();
+    Some(sv_check::probes::ProbeResponse {
+        id: id.to_owned(),
+        status,
+        headers,
+        // Enough to recognise a stack trace, not enough to copy a page out of somebody's app.
+        body: body.chars().take(4000).collect(),
+    })
+}
+
+impl DockerBackend {
+    /// Makes one request to the app from a throw-away container on the same fenced network.
+    ///
+    /// HTTP is spoken directly over a socket rather than through a client, for two reasons found by
+    /// trying the alternative: `wget` returns no body at all for a 404 or a 500, which is exactly the
+    /// response the error-page probe needs to read, and it cannot send a method other than GET or POST.
+    pub fn probe(
+        &self,
+        network: &str,
+        app: &str,
+        port: u16,
+        request: &sv_check::probes::ProbeRequest,
+    ) -> Option<sv_check::probes::ProbeResponse> {
+        let raw = request_bytes(request, app)?;
+        let script = format!(
+            "echo {} | base64 -d | nc -w 5 {app} {port}",
+            base64(raw.as_bytes())
+        );
+        let (code, out) = self
+            .docker(&[
+                "run",
+                "--rm",
+                "--network",
+                network,
+                PROBE_IMAGE,
+                "sh",
+                "-c",
+                &script,
+            ])
+            .ok()?;
+        if code != 0 && out.trim().is_empty() {
+            return None;
+        }
+        parse_response(&request.id, &out)
+    }
+}
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+
+    fn req(method: &str, path: &str, headers: &[(&str, &str)]) -> sv_check::probes::ProbeRequest {
+        sv_check::probes::ProbeRequest {
+            id: "t".into(),
+            method: method.into(),
+            path: path.into(),
+            headers: headers
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn an_ordinary_request_is_written_out_in_full() {
+        let raw = request_bytes(
+            &req("GET", "/healthz", &[("Origin", "https://x.invalid")]),
+            "app",
+        )
+        .expect("nothing wrong with this one");
+        assert_eq!(
+            raw,
+            "GET /healthz HTTP/1.0\r\nHost: app\r\nConnection: close\r\nOrigin: https://x.invalid\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn a_newline_in_the_path_sends_nothing() {
+        // The path is the app's own `health_path`, out of its manifest. Sending it as given would
+        // let it add headers, or a whole second request, to what `sv` asked.
+        assert!(request_bytes(&req("GET", "/a\r\nX-Injected: 1", &[]), "app").is_none());
+        assert!(request_bytes(&req("GET", "/a\nX-Injected: 1", &[]), "app").is_none());
+        // A space would break the request line into a different request just as effectively.
+        assert!(request_bytes(&req("GET", "/a HTTP/1.1", &[]), "app").is_none());
+    }
+
+    #[test]
+    fn a_newline_in_a_header_sends_nothing_either() {
+        // Second witness, of a different shape: the header block rather than the request line, and
+        // the name as well as the value.
+        assert!(
+            request_bytes(&req("GET", "/", &[("Origin", "a\r\nX-Injected: 1")]), "app").is_none()
+        );
+        assert!(request_bytes(&req("GET", "/", &[("X\r\nY", "z")]), "app").is_none());
+        assert!(request_bytes(&req("GET", "/", &[("X: Y", "z")]), "app").is_none());
+        // And the method, which is the third place text reaches the request line.
+        assert!(request_bytes(&req("GET /x HTTP/1.1\r\n", "/", &[]), "app").is_none());
+        // The container name too, though `sv` chooses that one.
+        assert!(request_bytes(&req("GET", "/", &[]), "app\r\nX: 1").is_none());
+    }
+
+    #[test]
+    fn every_request_the_suite_makes_goes_out_and_none_of_them_would_if_tampered_with() {
+        // Second witness for the header check, of a different shape: the real suite rather than a
+        // hand-written request, and a loop rather than one case — so a header `sv` adds later is
+        // covered the day it is added.
+        let requests = sv_check::probes::requests("/healthz");
+        assert!(requests.len() >= 4);
+        for request in &requests {
+            assert!(
+                request_bytes(request, "app").is_some(),
+                "the suite's own request must be sendable: {request:?}"
+            );
+            let mut tampered = request.clone();
+            tampered
+                .headers
+                .push(("X-Added".to_owned(), "value\r\nX-Injected: 1".to_owned()));
+            assert!(
+                request_bytes(&tampered, "app").is_none(),
+                "a header carrying a newline must stop the whole request: {tampered:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_refused_request_never_reaches_the_encoder() {
+        // What the refusal is for: whatever is encoded is what the sidecar's shell will run. This
+        // asserts the dangerous text is absent from the thing that gets sent, not merely that some
+        // Option was None.
+        let bad = req("GET", "/a\r\nX-Injected: 1", &[]);
+        assert!(request_bytes(&bad, "app").is_none());
+        let good = req("GET", "/healthz", &[]);
+        let encoded = base64(request_bytes(&good, "app").unwrap().as_bytes());
+        assert!(!encoded.is_empty());
+        assert!(
+            !encoded.contains(['\'', ';', '|', '`', '$', ' ']),
+            "{encoded}"
+        );
+    }
+
+    #[test]
+    fn base64_matches_the_known_encodings() {
+        // Checked against values anybody can verify, rather than against this function's own output.
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foob"), "Zm9vYg==");
+        assert_eq!(base64(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+        assert_eq!(
+            base64(b"GET / HTTP/1.0\r\n\r\n"),
+            "R0VUIC8gSFRUUC8xLjANCg0K"
+        );
+    }
+
+    #[test]
+    fn a_raw_response_is_split_into_status_headers_and_body() {
+        let raw = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nSet-Cookie: a=b; HttpOnly\r\n\r\n<h1>nope</h1>";
+        let parsed = parse_response("missing", raw).expect("parses");
+        assert_eq!(parsed.status, 404);
+        assert_eq!(parsed.header("content-type"), Some("text/html"));
+        assert_eq!(parsed.body, "<h1>nope</h1>");
+    }
+
+    #[test]
+    fn a_header_value_containing_a_colon_keeps_it() {
+        // `Location: https://x/y` splits on the wrong colon if the split is not limited to the first.
+        let raw = "HTTP/1.1 302 Found\r\nLocation: https://example.com/next\r\n\r\n";
+        let parsed = parse_response("r", raw).expect("parses");
+        assert_eq!(parsed.header("location"), Some("https://example.com/next"));
+    }
+
+    #[test]
+    fn a_response_using_bare_newlines_is_still_read() {
+        let parsed = parse_response("r", "HTTP/1.0 200 OK\nX-A: b\n\nbody here").expect("parses");
+        assert_eq!(parsed.status, 200);
+        assert_eq!(parsed.header("x-a"), Some("b"));
+        assert_eq!(parsed.body, "body here");
+    }
+
+    #[test]
+    fn something_that_is_not_http_is_not_invented_into_a_response() {
+        assert!(parse_response("r", "").is_none());
+        assert!(parse_response("r", "connection refused").is_none());
+        assert!(parse_response("r", "HTTP/1.1 notanumber OK\r\n\r\n").is_none());
     }
 }

@@ -38,7 +38,7 @@ fn an_app_runs_inside_the_fence_or_sv_says_it_was_not_assessed() {
         Ok(()) => {
             println!("container backend present; running the fixture app for real");
             let outcome = backend
-                .run(&plan())
+                .run(&plan(), &[])
                 .expect("the fixture app should come up");
             assert!(outcome.healthy, "the app answered its health path");
             assert_eq!(outcome.fence, Fence::DockerInternalNetwork);
@@ -58,7 +58,7 @@ fn an_app_that_never_starts_is_not_assessed_rather_than_failed() {
     // shown to be insecure, and must never be reported as though it had failed a check.
     let mut p = plan();
     p.start = "false".to_owned();
-    let err = backend.run(&p).unwrap_err();
+    let err = backend.run(&p, &[]).unwrap_err();
     match &err {
         CannotRun::NeverReady { .. } => {}
         other => panic!("expected NeverReady, got {other:?}"),

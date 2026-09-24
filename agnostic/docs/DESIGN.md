@@ -323,6 +323,34 @@ used `alpine:3`, whose busybox has no `httpd` applet: every container exited imm
 made the *default bridge* look fenced too. The table above comes from a run with a live target and a host
 baseline confirming this machine can reach the outside at all — without that line, "blocked" means nothing.
 
+### What the probes ask, and what they cannot
+
+Four requests, made from the sidecar over a plain socket rather than through an HTTP client. `wget` was
+tried first and rejected for two reasons found by trying it: it returns no body at all for a 404 or a 500,
+which is exactly the response the error-page probe has to read, and it cannot send a method other than GET
+or POST, which rules out the TRACE question. `nc` returns the raw response whatever the status and whatever
+the verb.
+
+| question | what a wrong answer means |
+|---|---|
+| the health path, plain | missing `Content-Security-Policy`, `X-Content-Type-Options`, framing rule or `Referrer-Policy`; a cookie without `HttpOnly` or `SameSite` |
+| the health path with an `Origin` that does not exist | the app echoing it back, or `*` — worse if credentials are allowed with it |
+| a path that is not there | a stack trace naming the framework, its version and the file layout |
+| `TRACE`, carrying a header this probe invented | that header coming back in the body |
+
+**The probes sign in as nobody.** `sv` does not know how to log in to an app it did not write. So
+authorisation, session handling, CSRF and anything that needs data sent into a form are **not assessed**,
+and `unassessed_requirements()` names each one with the reason. The CLI prints that list *before* any
+finding. A suite that quietly covers only the front door, and reports nothing, reads exactly like one that
+found nothing wrong.
+
+The request is built by `request_bytes`, which **refuses to send anything** whose method, path, header name
+or header value carries a newline, rather than stripping it. The path is the app's own `health_path`, out
+of its manifest, so it is not text `sv` wrote; a stripped path is a different request from the one asked
+for, and a probe with no answer is already reported as unanswered. The finished request is base64-encoded
+before it reaches the sidecar's shell, so nothing in a header value can end the command it travels in — a
+scanner that can be made to run a shell command by the app it is scanning would be a poor advertisement.
+
 ### Not trusting the flag
 
 The runner asks the daemon whether the network really is internal before starting any untrusted code, and

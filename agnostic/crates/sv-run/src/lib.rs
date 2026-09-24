@@ -152,6 +152,8 @@ pub struct RunOutcome {
     pub tests: Option<TestResult>,
     /// Which fence actually applied, for the reports to state.
     pub fence: Fence,
+    /// What the probes asked the app while it was up, and what it answered.
+    pub probe_responses: Vec<sv_check::probes::ProbeResponse>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,7 +193,15 @@ pub trait Backend {
     /// Whether this backend is usable right now. Checked by using it, not by finding a binary:
     /// `docker` on the PATH with no daemon behind it is not a backend.
     fn available(&self) -> Result<(), CannotRun>;
-    fn run(&self, plan: &RunPlan) -> Result<RunOutcome, CannotRun>;
+    /// Starts the app, waits for it, asks it `probes`, runs the declared tests, and tears it down.
+    ///
+    /// The probes belong inside this call rather than beside it: they need the app up and the fence
+    /// in place, and both of those exist only between the health check and the teardown.
+    fn run(
+        &self,
+        plan: &RunPlan,
+        probes: &[sv_check::probes::ProbeRequest],
+    ) -> Result<RunOutcome, CannotRun>;
 }
 
 /// The backend to use, or why there is none.
