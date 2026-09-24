@@ -1,0 +1,117 @@
+{
+  "_comment": "Rules that read the code rather than the text of it. Each carries one tree-sitter query per language, so teaching a rule about another language is an entry here rather than a change in Rust. What a query cannot express is judgement — whether the argument is a literal, which decides between an ugly call and a dangerous one — and that lives in ast.rs where it can be tested. Captures: @hit is what gets reported, @arg is the argument judged for literalness.",
+  "rules": [
+    {
+      "id": "ast.dynamic-code-execution",
+      "title": "Code is built at run time and executed",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.2.1",
+        "V1.3.1",
+        "AC-08"
+      ],
+      "cwe": [
+        "CWE-95",
+        "CWE-94"
+      ],
+      "description": "A value decided while the app is running is handed to something that executes it as code.",
+      "impact": "If any part of that value can be influenced from outside, whoever influences it chooses what the app does next.",
+      "fix": "Work out what the code is actually for. A lookup table, a match on a fixed set of names, or a small parser will do the job without running text as code.",
+      "literalArgumentIsSafe": true,
+      "queries": {
+        "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (new_expression constructor: (identifier) @fn arguments: (arguments . (_) @arg))] @hit",
+        "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (new_expression constructor: (identifier) @fn arguments: (arguments . (_) @arg))] @hit"
+      },
+      "functionPatterns": {
+        "python": "^(eval|exec|compile)$",
+        "javascript": "^(eval|Function)$",
+        "typescript": "^(eval|Function)$"
+      }
+    },
+    {
+      "id": "ast.shell-command",
+      "title": "A shell command is built from a value",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.2.2",
+        "AC-08"
+      ],
+      "cwe": [
+        "CWE-78"
+      ],
+      "description": "A command line is assembled from something other than fixed text and handed to the shell.",
+      "impact": "A semicolon or a backtick in the wrong place turns one command into two, and the second one is whatever the attacker wanted.",
+      "fix": "Pass the program and its arguments as a list instead of a string, so the shell never parses them. Where a shell is genuinely needed, validate the value against a fixed set first.",
+      "literalArgumentIsSafe": true,
+      "queries": {
+        "python": "[(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)\n              arguments: (argument_list . (_) @arg))\n       (call function: (identifier) @fn arguments: (argument_list . (_) @arg))] @hit",
+        "javascript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
+        "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit"
+      },
+      "functionPatterns": {
+        "python": "^(system|popen|getoutput|getstatusoutput)$",
+        "javascript": "^(exec|execSync)$",
+        "typescript": "^(exec|execSync)$"
+      }
+    },
+    {
+      "id": "ast.sql-built-by-hand",
+      "title": "A database query is built by joining text together",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.2.1",
+        "V1.3.1",
+        "AC-08"
+      ],
+      "cwe": [
+        "CWE-89"
+      ],
+      "description": "A query is assembled from pieces rather than sent with its values kept separate.",
+      "impact": "A quote in someone's name is enough to change what the query does, and a deliberate one can read or delete any table the app can reach.",
+      "fix": "Send the query with placeholders and pass the values alongside it. Every database library supports this, and it is shorter than building the string.",
+      "literalArgumentIsSafe": true,
+      "queries": {
+        "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg)) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(execute|executemany|executescript|raw)$",
+        "javascript": "^(query|execute|raw|unsafe)$",
+        "typescript": "^(query|execute|raw|unsafe)$",
+        "go": "^(Query|QueryRow|Exec|QueryContext|ExecContext)$"
+      }
+    },
+    {
+      "id": "ast.unsafe-deserialization",
+      "title": "Data from outside is turned back into objects unsafely",
+      "severity": "high",
+      "confidence": "high",
+      "requirementIds": [
+        "V1.5.2",
+        "AC-08"
+      ],
+      "cwe": [
+        "CWE-502"
+      ],
+      "description": "A format that can describe arbitrary objects is being read with the reader that builds them.",
+      "impact": "Reading the data is enough to run code: the attacker does not need the app to use the result, only to load it.",
+      "fix": "Use the safe reader — yaml.safe_load rather than yaml.load — and prefer a format that carries data only, such as JSON, for anything that arrives from outside.",
+      "literalArgumentIsSafe": false,
+      "queries": {
+        "python": "(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(load|loads|Unpickler)$"
+      },
+      "modulePatterns": {
+        "python": "^(pickle|cPickle|dill|shelve|yaml|marshal)$"
+      }
+    }
+  ]
+}

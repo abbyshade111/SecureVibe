@@ -3,6 +3,7 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_check::advisories;
+use sv_check::ast;
 use sv_check::config::check_dir;
 use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
@@ -73,6 +74,11 @@ fn overlay_path() -> PathBuf {
 /// What each `derived` condition looks like in real code.
 fn signatures_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
+}
+
+/// Rules that read the code itself.
+fn ast_rules_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json")
 }
 
 /// Well-known credential formats.
@@ -408,16 +414,21 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     let rules = SecretRules::load(&secret_rules_path())?;
     let scan = scan_dir(&rules, &app_dir);
     let config = check_dir(&app_dir);
+    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
+    let code = ast::scan_dir(&ast_rules, &app_dir);
 
     println!(
-        "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.",
+        "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.\n\
+         Parsed {} of them against {} rules that read the code itself.",
         scan.coverage.files_read,
         if scan.coverage.files_read == 1 {
             ""
         } else {
             "s"
         },
-        rules.len()
+        rules.len(),
+        code.files_parsed,
+        ast_rules.len()
     );
 
     // What was not read comes before what was found. A short list of findings under a long list of
@@ -447,6 +458,16 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
 
     // What could not be checked comes before what was: these are the questions still open, and an
     // owner reading only the findings would think they had been answered.
+    if !code.unread_languages.is_empty() {
+        let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
+        names.sort_unstable();
+        println!(
+            "\nNot assessed — there is no grammar for {}, so the rules that read code said nothing\n\
+             about those files.",
+            names.join(", ")
+        );
+    }
+
     if !config.not_assessed.is_empty() {
         println!("\nNot assessed — these could not be checked here:");
         for (id, why) in &config.not_assessed {
@@ -457,6 +478,7 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     let mut findings = scan.findings;
     findings.extend(config.findings);
     findings.extend(sbom::incompleteness_finding(&sbom::build(&app_dir)));
+    findings.extend(code.findings.clone());
     findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)

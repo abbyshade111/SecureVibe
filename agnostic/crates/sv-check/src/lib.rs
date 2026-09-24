@@ -6,6 +6,7 @@
 //! looks exactly like a clean result unless something says otherwise. `Coverage` is that something.
 
 pub mod advisories;
+pub mod ast;
 pub mod config;
 pub mod cvss;
 pub mod finding;

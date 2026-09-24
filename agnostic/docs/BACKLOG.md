@@ -10,10 +10,11 @@ another session is not a claim.
   `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
   in the reports is a better answer than a weak one.
 
-- **The rest of `sv check`.** Secrets, the universal configuration checks and the SBOM are done. Still
-  missing: **[taken: keen-meninsky-691a27, 24 September 2026]** AST rules via tree-sitter. `sv-scan` holds the ecosystem detector and the dependency readers,
-  and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
-  so these build on what is there.
+- **Grammars for Ruby, PHP and Java.** Named as unread today. Each is a dependency line and an entry
+  per rule; the machinery does not change.
+
+- **More AST rules.** Four cover code execution, shell, SQL and deserialization. Path traversal, weak
+  cryptography and unvalidated redirects are the obvious next ones, and each is a data entry.
 
 - **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
