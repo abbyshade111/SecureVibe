@@ -18,7 +18,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
+- **"Not applicable", with a reason, instead of a control an owner cannot act on.** **[taken: restored first session, 24 September 2026]** AC-02 begins "if your
   organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
   for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
   the overstatement this whole project exists to avoid. Two parts instead. Where the control is really asking a
