@@ -113,7 +113,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
 
-- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.**
+- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.** **[taken: restored first session, 24 September 2026]**
   A self-assessment on 20 September 2026 returned 31 of 161 requirements verified, 4 critical, 113 high. Checked
   one by one, the bulk is SecureVibe's own rules misfiring on SecureVibe: 62 `route-outside-registry`,
   13 `child-process-exec`, 17 `fs-user-path`, 11 `path-join-user-input`. Those rules assume the thing being
