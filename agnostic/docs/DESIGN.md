@@ -537,3 +537,29 @@ counted as clean.
 
 A version that cannot be compared with any range — a Go commit pseudo-version against a `GIT` range, a
 build tag — is listed as uncomparable rather than quietly passed.
+
+### pnpm, and a dependency not taken
+
+`pnpm-lock.yaml` is the last common lockfile, and it is YAML. The obvious move is a YAML crate; the
+established serde one has been archived since 2024, and putting an unmaintained parser into a tool whose
+subject is supply-chain hygiene is a poor trade for one file format.
+
+The only YAML actually needed is the set of keys directly under `packages:`, so that is what is read and
+nothing else is guessed at. Both key shapes are handled — `express@4.18.2` and `/express/4.18.2` — and
+scoped names keep their scope, because the version is what follows the *last* separator. A peer variant
+like `vite@5.0.0(terser@5.0.0)` is one package and the peer is not a second one, and `snapshots:` repeats
+every key from `packages:`, so reading both blocks would double the list.
+
+A file this reader does not understand produces no packages, and the caller turns that into "read, and no
+packages could be taken from it". That guard is what makes hand-parsing acceptable: an empty list is
+otherwise indistinguishable from an app with no dependencies, which is the one wrong answer available.
+
+**It also closed a hole that had nothing to do with pnpm.** Any reader returning an empty list left the
+ecosystem present and the document silent about it — `package-lock.json` holding `{"lockfileVersion":3}`
+and nothing else produced a bill of materials with no components and no caveat. That is now reported, and
+breaking it fails three tests.
+
+Worth recording how it got to one guard: the first version had two, one inside the pnpm reader and one in
+the caller. Deleting the inner one failed no test at all, because the outer one already covered it — a
+guard that survives being deleted. It went, and the remaining one is asserted by the message it produces
+rather than by the fact that something was reported.

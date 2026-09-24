@@ -110,6 +110,7 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("gradle.lockfile") => read("gradle.lockfile").as_deref().map(from_gradle_lockfile),
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
+        Some("pnpm-lock.yaml") => read("pnpm-lock.yaml").as_deref().map(from_pnpm_lock),
         Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
         Some("requirements.lock") => read("requirements.lock")
             .as_deref()
@@ -125,6 +126,20 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
     };
 
     if let Some(pairs) = locked {
+        if pairs.is_empty() {
+            // The file was read and nothing came out of it: a format that changed under us, or one this
+            // reader does not understand as well as it thinks. Either way the ecosystem is present, and
+            // saying nothing about it reads exactly like having nothing to say.
+            sbom.unread.push((
+                eco.name.clone(),
+                format!(
+                    "`{}` was read and no packages could be taken from it, so nothing from {} is listed",
+                    eco.lockfile.as_deref().unwrap_or("the lockfile"),
+                    eco.name
+                ),
+            ));
+            return;
+        }
         sbom.components
             .extend(pairs.into_iter().map(|(name, version)| Component {
                 name,
@@ -312,6 +327,74 @@ fn from_composer_lock(text: &str) -> Vec<(String, String)> {
             }
         }
     }
+    out
+}
+
+/// pnpm's lockfile, read without a YAML parser.
+///
+/// Deliberate. The only YAML needed here is the set of keys directly under `packages:`, and the
+/// established serde YAML crate has been archived since 2024 — putting an unmaintained parser into a tool
+/// whose subject is supply-chain hygiene is a poor trade for one file format. So this reads the one block
+/// it needs and refuses to guess at anything else.
+///
+/// Returns an empty list when the file does not look like a pnpm lockfile it understands. The caller
+/// turns that into "read, and no packages could be taken from it", which is the honest thing to tell
+/// somebody and is checked one place rather than two — an inner guard here duplicated it and could be
+/// deleted without any test noticing.
+///
+/// Two key shapes, and peer suffixes on either:
+///   v9:  `express@4.18.2:` and `@babel/core@7.23.0:`, sometimes `vite@5.0.0(terser@5.0.0):`
+///   v6:  `/express/4.18.2:` and `/@babel/core/7.23.0:`
+fn from_pnpm_lock(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut in_packages = false;
+
+    for line in text.lines() {
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        // A key at column zero ends whatever block we were in.
+        if !line.starts_with(' ') {
+            in_packages = line.trim_end() == "packages:";
+            continue;
+        }
+        if !in_packages {
+            continue;
+        }
+        // Only the block's own keys, which are indented one level; anything deeper describes a package.
+        let indent = line.len() - line.trim_start().len();
+        if indent != 2 {
+            continue;
+        }
+        let key = line.trim();
+        let Some(key) = key.strip_suffix(':') else {
+            continue;
+        };
+        let key = key.trim_matches(|c| c == '\'' || c == '"');
+        // `vite@5.0.0(terser@5.0.0)` is one package with a peer variant, not two.
+        let key = key.split('(').next().unwrap_or(key);
+
+        let parsed = if let Some(rest) = key.strip_prefix('/') {
+            // v6: /name/version, where the name may itself contain a slash when scoped.
+            rest.rsplit_once('/')
+                .map(|(name, version)| (name.to_owned(), version.to_owned()))
+        } else {
+            // v9: name@version, where a scoped name contains its own @.
+            key.rsplit_once('@')
+                .filter(|(name, _)| !name.is_empty())
+                .map(|(name, version)| (name.to_owned(), version.to_owned()))
+        };
+        // A version starts with a digit. Anything else means this is not the key shape expected, and
+        // inventing a package out of it would be worse than admitting the file was not understood.
+        if let Some((name, version)) = parsed
+            && version.starts_with(|c: char| c.is_ascii_digit())
+        {
+            out.push((name, version));
+        }
+    }
+
+    out.sort();
+    out.dedup();
     out
 }
 
@@ -701,12 +784,101 @@ mod tests {
     }
 
     #[test]
+    fn pnpm_lock_v9_is_read_including_scopes_and_peer_variants() {
+        let dir = scratch("pnpm9");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("pnpm-lock.yaml"),
+            "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers: true\n\npackages:\n\n  express@4.18.2:\n    resolution: {integrity: sha512-x}\n    engines: {node: '>= 0.10.0'}\n\n  '@babel/core@7.23.0':\n    resolution: {integrity: sha512-y}\n\n  vite@5.0.0(terser@5.0.0):\n    resolution: {integrity: sha512-z}\n\nsnapshots:\n\n  express@4.18.2:\n    dependencies:\n      body-parser: 1.20.1\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["@babel/core", "express", "vite"], "{sbom:?}");
+        // A peer variant is one package, and the peer is not a second one.
+        assert!(
+            sbom.components.iter().all(|c| c.name != "terser"),
+            "{sbom:?}"
+        );
+        assert!(
+            sbom.components
+                .iter()
+                .any(|c| c.purl() == "pkg:npm/@babel/core@7.23.0")
+        );
+        // `snapshots:` repeats the same keys; reading both blocks would double the list.
+        assert_eq!(sbom.components.len(), 3, "{sbom:?}");
+        assert!(sbom.is_complete(), "{sbom:?}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pnpm_lock_v6_uses_slashes_and_is_read_too() {
+        let dir = scratch("pnpm6");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("pnpm-lock.yaml"),
+            "lockfileVersion: 6.0\n\npackages:\n\n  /express/4.18.2:\n    resolution: {integrity: sha512-x}\n\n  /@babel/core/7.23.0:\n    resolution: {integrity: sha512-y}\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["@babel/core", "express"], "{sbom:?}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_pnpm_file_this_reader_does_not_understand_is_named_not_emptied() {
+        // The guard that makes hand-parsing acceptable. A future lockfile version, or a file that is
+        // not really a pnpm lock, must come back as "not read" — an empty list is indistinguishable
+        // from an app with no dependencies, which is the one wrong answer available here.
+        let dir = scratch("pnpmfuture");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("pnpm-lock.yaml"),
+            "lockfileVersion: '99.0'\n\nmodules:\n  something: else\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert!(sbom.components.is_empty());
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(eco, why)| eco == "npm" && why.contains("no packages could be taken")),
+            "an unrecognised pnpm lockfile must be named, and say why: {sbom:?}"
+        );
+        assert!(!sbom.is_complete());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_lockfile_that_parses_to_nothing_is_named_rather_than_silently_empty() {
+        // Not pnpm-specific: any reader that returns an empty list leaves the ecosystem present and
+        // the document silent about it, which reads exactly like having nothing to say.
+        let dir = scratch("emptylock");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(dir.join("package-lock.json"), r#"{"lockfileVersion":3}"#).unwrap();
+        let sbom = build(&dir);
+        assert!(sbom.components.is_empty());
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(eco, why)| eco == "npm" && why.contains("no packages")),
+            "{sbom:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn an_ecosystem_is_never_silently_nothing() {
         // The invariant behind every "named rather than dropped" test, stated once: if an ecosystem is
         // in use, the document either lists something from it or says why it does not. Silence about an
         // ecosystem that is present is the one outcome that reads like an answer and is not.
         let cases: &[(&str, &str, &str)] = &[
-            ("package.json", "pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+            (
+                "package.json",
+                "pnpm-lock.yaml",
+                "lockfileVersion: '99.0'\nmodules:\n  x: y\n",
+            ),
             (
                 "package.json",
                 "package-lock.json",
@@ -737,24 +909,6 @@ mod tests {
             );
             fs::remove_dir_all(&dir).ok();
         }
-    }
-
-    #[test]
-    fn a_format_still_unread_is_named_rather_than_dropped() {
-        // pnpm's lockfile is YAML and nothing here parses it. The point of this test is that adding
-        // readers has not quietly turned "unread" into "absent" for the ones still missing.
-        let dir = scratch("pnpm");
-        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
-        fs::write(dir.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
-        let sbom = build(&dir);
-        assert!(sbom.components.is_empty());
-        assert!(
-            sbom.unread
-                .iter()
-                .any(|(eco, why)| eco == "npm" && why.contains("cannot read yet")),
-            "{sbom:?}"
-        );
-        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
