@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
+use sv_check::secrets::{SecretRules, scan_dir};
 use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket, requirements_gated_on};
 use sv_frameworks::{Condition, Source};
@@ -19,6 +20,7 @@ fn main() -> Result<()> {
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
+        Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -36,7 +38,8 @@ fn print_help() {
          USAGE:\n  \
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
-         sv run [PATH]      start the app behind the network fence and check it answers\n"
+         sv run [PATH]      start the app behind the network fence and check it answers\n  \
+         sv check [PATH]    look for credentials left in the code\n"
     );
 }
 
@@ -62,6 +65,11 @@ fn overlay_path() -> PathBuf {
 /// What each `derived` condition looks like in real code.
 fn signatures_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
+}
+
+/// Well-known credential formats.
+fn secret_rules_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json")
 }
 
 /// How each manifest claim is checked against the code.
@@ -378,6 +386,89 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
                         .join("\n")
                 ),
             }
+        }
+    }
+    Ok(())
+}
+
+/// Looks for credentials left in the code.
+fn cmd_check(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    if !app_dir.is_dir() {
+        bail!("{} is not a folder", app_dir.display());
+    }
+    let rules = SecretRules::load(&secret_rules_path())?;
+    let scan = scan_dir(&rules, &app_dir);
+
+    println!(
+        "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.",
+        scan.coverage.files_read,
+        if scan.coverage.files_read == 1 {
+            ""
+        } else {
+            "s"
+        },
+        rules.len()
+    );
+
+    // What was not read comes before what was found. A short list of findings under a long list of
+    // skipped files is a different result from a short list of findings.
+    if !scan.coverage.skipped.is_empty() {
+        println!(
+            "\n{} file{} not read, so nothing is claimed about {}:",
+            scan.coverage.skipped.len(),
+            if scan.coverage.skipped.len() == 1 {
+                " was"
+            } else {
+                "s were"
+            },
+            if scan.coverage.skipped.len() == 1 {
+                "it"
+            } else {
+                "them"
+            }
+        );
+        for (file, why) in scan.coverage.skipped.iter().take(10) {
+            println!("  {file} — {why}");
+        }
+        if scan.coverage.skipped.len() > 10 {
+            println!("  … and {} more", scan.coverage.skipped.len() - 10);
+        }
+    }
+
+    if scan.findings.is_empty() {
+        println!(
+            "\nNo credentials found in what was read. That is not the same as none being there: these \n\
+             rules know a list of well-known formats and one heuristic, and a credential in a shape \n\
+             nobody listed would not be found."
+        );
+        return Ok(());
+    }
+
+    println!(
+        "\n{} thing{} to look at:",
+        scan.findings.len(),
+        if scan.findings.len() == 1 { "" } else { "s" }
+    );
+    for f in &scan.findings {
+        println!(
+            "\n  [{}] {}\n     {}:{}",
+            f.severity.name(),
+            f.title,
+            f.location.file,
+            f.location.line
+        );
+        if let Some(secret) = &f.secret {
+            println!("     found: {}", secret.as_str());
+        }
+        if !f.impact.is_empty() {
+            println!("     why it matters: {}", f.impact);
+        }
+        if !f.fix.is_empty() {
+            println!("     what to do: {}", f.fix);
+        }
+        if !f.requirement_ids.is_empty() {
+            println!("     evidence about: {}", f.requirement_ids.join(", "));
         }
     }
     Ok(())

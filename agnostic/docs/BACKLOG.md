@@ -10,9 +10,10 @@ another session is not a claim.
   `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
   in the reports is a better answer than a weak one.
 
-- **`sv check`.** **[taken: keen-meninsky-691a27, 24 September 2026]** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
-  tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on
-  them rather than starting over.
+- **The rest of `sv check`.** Secrets are done (`sv-check`, `data/secret-rules.json`). Still missing:
+  configuration checks, an SBOM, and AST rules via tree-sitter. `sv-scan` holds the ecosystem detector and
+  the dependency readers, and `sv-check` holds the finding type and the coverage-aware walk, so these build
+  on what is there.
 
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.

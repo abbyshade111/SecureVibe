@@ -1,17 +1,13 @@
 [package]
-name = "sv-cli"
+name = "sv-check"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[[bin]]
-name = "sv"
-path = "src/main.rs"
-
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
 anyhow.workspace = true
+regex = "1"
 sv-frameworks = { path = "../sv-frameworks" }
-sv-manifest = { path = "../sv-manifest" }
 sv-scan = { path = "../sv-scan" }
-sv-run = { path = "../sv-run" }
-sv-check = { path = "../sv-check" }

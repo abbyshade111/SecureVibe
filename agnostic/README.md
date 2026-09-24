@@ -19,12 +19,13 @@ code itself, and says which OWASP requirements apply, which do not, and which no
 cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
 cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and check it answers
+cargo run -p sv-cli -- check ./my-app    # look for credentials left in the code
 ```
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.
 
-Not built yet: the remaining scanners (secrets, config, SBOM, AST rules), the DAST probes, the reports, the
+Not built yet: the rest of the scanners (config, SBOM, AST rules), the DAST probes, the reports, the
 MCP server.
 
 ## Building

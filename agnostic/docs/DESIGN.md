@@ -381,3 +381,53 @@ answer that gates a great deal:
 These are questions, not corrections: `sv` does not edit the manifest or quietly raise the level on the owner's
 behalf. And each states its real consequence — an app already at level 2 is told that adding the category
 changes no requirement, because saying otherwise would be the same small overstatement in a new place.
+
+## `sv check`: the first findings
+
+`sv check ./app` looks for credentials left in the code. It is the first part of `sv` that produces findings
+rather than scope, which makes it the first part where being wrong costs an owner something directly.
+
+Two kinds of rule, split on purpose. The **pattern** rules live in `data/secret-rules.json` — ported from
+v1's `scanners/secrets/rules.ts`, with their ASVS, AISVS and SbD ids intact — because a well-known credential
+format is data, and adding Azure or Twilio should be a data-file entry rather than a Rust change. The
+**judgement** rules are Rust, because deciding whether a high-entropy string is a credential or a content
+hash is not something a regex can do.
+
+### What stops it being noise
+
+A scanner people ignore is worse than no scanner, so three things are load-bearing:
+
+* **A placeholder is not a secret.** `your-api-key-here`, `changeme`, `${SESSION_SECRET}`, `<your token>` are
+  what a template looks like. An owner whose first run shouts at `.env.example` learns on day one that the
+  findings are noise. There is a test that runs a whole realistic example file and requires silence.
+* **`.env` is meant to hold real credentials**, so the judgement rules do not run there. The pattern rules
+  still do, because a vendor key is exactly what matters if that file turns out to be committed.
+* **One secret is one finding.** A vendor key assigned to a well-named variable matches both the vendor rule
+  and the generic assignment rule; the vendor rule wins, because it can say what the credential is and how to
+  revoke it. This showed up on the first real run, reporting the same Stripe key twice.
+
+### Two things it refuses to do
+
+**A secret never travels in a finding.** `Secret` cannot be built with the value visible — it redacts on
+construction and there is no accessor that gives the original back, so a report, a log or a SARIF file
+cannot carry the credential onward. Removing the redaction fails five tests.
+
+**Nothing unread is counted as clean.** Files that are binary, too large, or unreadable are listed with the
+reason, and `sv check` prints that list *before* the findings, because a short list of findings under a long
+list of skipped files is a different result from a short list of findings. Where nothing is found at all it
+says so in as many words: these rules know a list of formats and one heuristic, and a credential in a shape
+nobody listed would not be found.
+
+### What it looked like on a planted key
+
+    Read 5 files looking for credentials, against 8 known formats plus the assignment rule.
+
+    1 file was not read, so nothing is claimed about it:
+      src/logo.png — not a text file
+
+    2 things to look at:
+
+      [critical] Stripe key found in a file
+         src/config.py:5
+         found: sk_l… (32 more characters)
+         evidence about: V13.3.1, AC-05, AC-06

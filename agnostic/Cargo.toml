@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/sv-frameworks", "crates/sv-manifest", "crates/sv-scan", "crates/sv-run", "crates/sv-cli"]
+members = ["crates/sv-frameworks", "crates/sv-manifest", "crates/sv-scan", "crates/sv-run", "crates/sv-check", "crates/sv-cli"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,4 +11,5 @@ license = "MIT"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1"
+regex = "1"
 anyhow = "1"
