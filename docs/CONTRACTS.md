@@ -783,6 +783,10 @@ controllers per project) and records `performedBy: 'skipped'` with "Skipped at y
 Apps: `POST /api/projects/:id/archive` sets `archivedAt` (hidden from the main list, nothing removed);
 `POST /api/projects/:id/restore` clears it; `DELETE /api/projects/:id` removes the project folder and is refused (409)
 while that app's build is running. The web list confirms deletion by typing the app's name.
+`POST /api/projects/:id/copy` (`CopyProjectRequestSchema`, optional `name`) makes a new app from the answers and
+the design of another (`ProjectStore.copy`), with `copiedFrom` naming the source; the built app, runs, reports,
+attestations and decisions are not copied, so a copy is somewhere to try a change without touching the original.
+Refused (400) for an uploaded app, which has no answers to copy.
 
 AI switch: `settings.aiEnabled` (default true, "Use AI" in Settings) and `SECUREVIBE_AI=off` both force the null
 provider (`llm/active-provider.ts`), checked on every request; `GET /api/status` reports `llm.switchedOff`

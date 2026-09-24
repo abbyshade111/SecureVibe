@@ -232,8 +232,6 @@ building from nothing.
 - **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
   rest. Multiple selection where the question allows it, and the answers it may set must still come from the
   same allow-list, so this widens what an owner can say without widening what the flow may change.
-- **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
-  different set of records, or to see what a rebuild does, currently risks the app they already have.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
   `UX-01 …`, and `UX-01` appears in no framework file and no knowledge file — so it is credited to nothing, screened
   by nothing, and reads to anyone else as a citation. Either it becomes a real entry somewhere with wording the

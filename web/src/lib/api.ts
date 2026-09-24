@@ -197,6 +197,11 @@ export function archiveProject(id: string): Promise<Project> {
   return j<{ project: Project }>(`/projects/${id}/archive`, { method: 'POST' }).then((r) => r.project);
 }
 
+/** A new app with the same answers and design; nothing built comes with it. */
+export function copyProject(id: string): Promise<Project> {
+  return j<{ project: Project }>(`/projects/${id}/copy`, { method: 'POST', body: '{}' }).then((r) => r.project);
+}
+
 export function restoreProject(id: string): Promise<Project> {
   return j<{ project: Project }>(`/projects/${id}/restore`, { method: 'POST' }).then((r) => r.project);
 }
