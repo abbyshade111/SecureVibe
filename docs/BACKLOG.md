@@ -187,13 +187,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   same treatment the uploaded-app case just got — rules that declare what kind of target they apply to, and a
   report that says "this check does not apply to this thing" rather than failing it.
 
-- **The runtime probe's HTTP client accepts any certificate from any host.** `scanners/dast/http.ts:244` sets
-  `rejectUnauthorized: false`, which is correct for what it does — connecting to a freshly built app on
-  loopback with a self-signed certificate — and is enforced by nothing. The two other places that disable
-  certificate checking both pin `127.0.0.1` at the call site; this one takes whatever URL it is handed. The
-  guarantee holds because of who calls it rather than because of what it enforces, which is the shape this
-  project has spent a week finding in other places. Refusing a non-loopback host in the client would make it
-  true by construction and cost one line.
 
 - **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
