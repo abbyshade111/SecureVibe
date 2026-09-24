@@ -321,6 +321,121 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+## Eleven languages, and why the twelfth silences everything
+
+The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
+Kotlin, Rust and C. Each one is worth more than one more entry suggests, because of how the fail-closed
+rule works: **no rule may speak while a language present in the app goes unparsed.** One Ruby file used
+to silence every rule for the whole app — correct behaviour on an app `sv` could not read, and a lot of
+silence. Every language added is one fewer kind of app that gets nothing.
+
+### A page of markup is not a hole in the coverage
+
+`html` covers `.html`, `.vue` and `.svelte`, and almost every web application has at least one. Counting
+every page as unread therefore silenced every rule for nearly every real app — a great deal of silence
+bought by a file that in most cases hides nothing at all. So the script is taken out of the page and
+read as what it is. `<script>` elements go to the JavaScript grammar — or TypeScript, when the page
+says `lang="ts"` — and so do `on…=` handler attributes and `javascript:` URLs, whose values are
+statements that parse on their own once their HTML entities and percent escapes are put back. A
+`<script src="app.js">` with nothing between its tags holds no code at all: the file it names is
+parsed like any other.
+
+A `javascript:` URL is read only from a quoted attribute, where its end is not in doubt. An unquoted
+value ends at whitespace by one reading and at the tag by another, and guessing between them is how a
+fragment ends up half a statement — so those are named rather than read. So is a scheme written around
+a control character: a browser runs `java<tab>script:`, this does not read it, and every occurrence of
+the scheme is counted against what was taken so one written that way cannot slip past as ordinary text.
+
+A finding in a page names the line **in the page**. The fragment's offset is added back before the
+finding is written, because a reader sent to line 3 of something they cannot see is worse off than one
+given nothing.
+
+**Anything taken out has to parse.** Tree-sitter always returns a tree, so a fragment of something
+that is not JavaScript comes back as a wreck that matches no rule and reports nothing — which reads
+exactly like a fragment that was clean. A page whose fragments do not parse is left unread. That catches
+less than it looks like it does, and the reason is worth knowing: the JavaScript grammar includes JSX,
+so a Vue or React template parses cleanly and reaches the rules as markup. Handlebars, ERB and Jinja do
+not. Both halves of that were measured, not assumed.
+
+One function decides both what a page holds and what comes out of it. When "does this page hold code"
+and "what code does this page hold" are answered by two pieces of code they drift, and the direction
+they drift in is a page declared read whose code nobody extracted. So `html_fragments` returns the
+fragments *and* whatever it could not take — an unclosed `<script`, a `javascript:` URL — and while
+anything was left behind the page is still unread and every rule stays silent about the whole app. A
+page that cannot be opened at all counts as left behind too.
+
+The terminal's wording followed the behaviour twice: it said *there is no grammar for html* when every
+page was unread, then *a page with a script written into it* when only those were, and now says what is
+actually true — that something in the page could not be taken out of it.
+
+Not every rule covers every language, and that is deliberate rather than unfinished. Rust has no `eval`
+and its `Command` takes an argument list, so it has the SQL rule and nothing else; C has shell and SQL
+and neither of the others. A rule with no query for a language says nothing about it and claims no
+coverage of it, which is what keeps the clean-coverage claim honest.
+
+The queries were written against dumped parse trees rather than against what the grammars plausibly
+produce, which is two minutes' work and settled three things guessing would have got wrong. Ruby uses
+one `call` node whether or not there is a receiver, so one pattern covers both. PHP splits them into
+`function_call_expression` and `member_call_expression` and wraps each argument in an `argument` node.
+Java matches Go's shape exactly.
+
+Three things these languages needed that the others did not:
+
+- **Ruby's backticks are a `subshell` node with no method name.** The name filter drops any match that
+  cannot offer a name, which is what keeps a rule from firing on every call in a file — so rather than
+  teach that filter to let unnamed matches through, the backtick form is its own rule. `ls` is as fixed
+  as any string and `ls #{dir}` is not, and the literal check tells them apart once `subshell` is on the
+  list of things that can be literal.
+- **PHP interpolates a bare `$name` inside a double-quoted string**, with no wrapper node to recognise.
+  A check that only knows `${…}` and `#{…}` reads `"select … $name"` as a written-out constant, which
+  is the exact case the SQL rule exists for.
+
+- **Kotlin's grammar gives an interpolated string no node at all.** `"select $n"` is three plain
+  `string_content` children with the bare `$` standing alone as one of them, and that last part is the
+  whole discriminator — measured, because the obvious alternatives are both wrong. Counting children
+  reports `"cost \$5"`, where an escaped dollar leaves two of them either side of an `escape_sequence`.
+  Without this, the most natural way to write a Kotlin query reads as a written-out constant.
+
+Ruby's `load` is too common a method name to report on its own, so the receiver has to be one of the
+classes that really deserialises. Breaking that check is what showed the test for it was passing for the
+wrong reason: `config.load(path)` was being excluded by the query's own shape, because a lower-case
+receiver is an `identifier` and the query asks for a `constant`. The receiver pattern could have been
+deleted with every test still green. `Settings.load(path)` is the case that actually exercises it.
+
+## The language's own tool
+
+Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already
+has a tool that knows its own traps, and the useful thing `sv` can do is run it and read the result
+rather than re-implement a hundred rules badly in Rust. `data/adapters.json` describes bandit, gosec,
+brakeman and semgrep; adding a fifth is a data change. `sv report --tools` runs the ones that suit the
+app, opt-in for the same reason as `--run` and one more: one of them fetches its rules over the network
+the first time it runs, and that is stated in the file rather than discovered from a firewall log.
+
+Three decisions, each a way of not lying:
+
+- **A tool that is not installed reports *not run*, with how to install it.** Never a clean pass. This
+  is the whole reason the adapters are a data file with a gap attached rather than a shell script: a
+  script that skips a missing binary produces a report identical to one where the tool ran and found
+  nothing, and the second is the one everybody assumes.
+- **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
+  right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
+  bandit's install line names two packages, since its SARIF formatter is a separate one.
+- **Rule ids map to requirements one at a time.** Crediting everything a tool knows about to every run
+  of it would make one clean bandit run look like an assessment of injection, secrets, weak hashing and
+  debug mode at once. A finding whose rule id is not in the map carries no requirement, which is a fair
+  thing to be and is shown as such.
+
+Running it is what taught it the distinction it was missing. Semgrep is installed on the machine this
+was written on and cannot start under the sandbox, and the first version reported it as *not installed*
+and told the owner to install a tool they already had. `presence` now tells **missing** from **here and
+will not start**, and prints what the tool said instead of an install line that would not help. The same
+run showed adapter findings carrying absolute paths while `sv`'s own are relative: a report is something
+an owner may send on, and the layout of their home directory is not part of what they meant to share.
+
+Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands on the same line as
+`sv`'s own SQL rule — two independent tools agreeing, which is worth more than either alone — while
+`bandit.B104` and a semgrep rule are reported carrying no requirement, because nothing has mapped them.
+
 ### A report from a run
 
 `sv report --run` starts the app behind the same fence `sv run` uses and folds what it answered into the

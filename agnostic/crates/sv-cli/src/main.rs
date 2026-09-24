@@ -51,7 +51,7 @@ fn print_help() {
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
              match what the app ships against a local OSV database\n  \
-         sv report [PATH] [--out DIR] [--run]\n                     \
+         sv report [PATH] [--out DIR] [--run] [--tools]\n                     \
              write the reports: what applies, what was found, what nobody has answered\n"
     );
 }
@@ -83,6 +83,11 @@ fn signatures_path() -> PathBuf {
 /// Rules that read the code itself.
 fn ast_rules_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json")
+}
+
+/// Per-language security tools `sv` can run.
+fn adapters_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json")
 }
 
 /// Well-known credential formats.
@@ -572,10 +577,18 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
         names.sort_unstable();
         println!(
-            "\nNot assessed — there is no grammar for {}, so the rules that read code said nothing\n\
-             about those files.",
+            "\nNot assessed — nothing here reads {}, so the rules that read code said nothing about\n\
+             those files, and nothing they look for can be ruled out anywhere in this app.",
             names.join(", ")
         );
+        if names.contains(&"html") {
+            // `html` on this list means a page holding script, not any page at all. Saying so
+            // matters, because the two have different remedies: one is a language `sv` cannot read,
+            // the other is code that could be moved into a file it can.
+            println!("  For html that means something in a page that could not be taken out of");
+            println!("  it and read: a script with no end, or a `javascript:` link. A page whose");
+            println!("  script is written normally is read like any other file.");
+        }
     }
 
     if !config.not_assessed.is_empty() {
@@ -827,6 +840,9 @@ fn cmd_report(args: &[String]) -> Result<()> {
     // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
     // computer — and it is still their decision to make rather than a default.
     let mut run_the_app = false;
+    // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
+    // of them fetches its rules over the network the first time it runs.
+    let mut run_tools = false;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -836,6 +852,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                 ));
             }
             "--run" => run_the_app = true,
+            "--tools" => run_tools = true,
             other if other.starts_with('-') => bail!("unknown option: {other}"),
             other => app_dir = PathBuf::from(other),
         }
@@ -866,10 +883,41 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let code = ast::scan_dir(&ast_rules, &app_dir);
 
     let mut probe_verified = Vec::new();
+    let mut tool_verified = Vec::new();
     let mut findings = Vec::new();
     findings.extend(secrets.findings.iter().cloned());
     findings.extend(config.findings.iter().cloned());
     findings.extend(code.findings.iter().cloned());
+
+    // The language's own tool, where there is one and it is here. A tool that is not installed is
+    // recorded as not run, with how to install it — never as having found nothing.
+    let mut tool_gaps = Vec::new();
+    if run_tools {
+        let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
+        let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
+        let outcome = sv_check::adapters::run_all(
+            &adapters,
+            &app_dir,
+            &languages,
+            &sv_check::adapters::scratch_dir(),
+        );
+        findings.extend(outcome.findings);
+        tool_verified = outcome.verified;
+        for (id, why) in outcome.not_run {
+            tool_gaps.push(sv_report::Gap {
+                what: format!("what `{id}` would have found"),
+                why,
+            });
+        }
+    } else {
+        tool_gaps.push(sv_report::Gap {
+            what: "the security tool this language already has".to_owned(),
+            why: "`sv report` does not run other people's tools unless you pass --tools. bandit, \
+                  gosec and brakeman each know their own language far better than the handful of \
+                  rules built in here."
+                .to_owned(),
+        });
+    }
 
     // Every limit `sv` knows about, said out loud. This list existing is the difference between a
     // report about an app and a report about the part of an app somebody happened to look at.
@@ -938,6 +986,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                 .to_owned(),
         });
     }
+    gaps.extend(tool_gaps);
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -998,6 +1047,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     verified.extend(secrets.verified.iter().cloned());
     verified.extend(code.verified.iter().cloned());
     verified.extend(probe_verified.iter().cloned());
+    verified.extend(tool_verified.iter().cloned());
 
     let report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {

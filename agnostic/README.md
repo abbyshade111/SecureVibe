@@ -8,21 +8,25 @@ with your own AI tool until the app is what you wanted, and then `sv` picks up t
 
 ## Where it is
 
-Early. The compliance engine is ported and runs against the real OWASP data; the scanners, the container runner
-and the reports are not built yet.
-
-Working today: `sv scope` reads the app's manifests and source, answers every technology question from the
-code itself, and says which OWASP requirements apply, which do not, and which nothing has yet answered.
-
+The compliance engine, the scanners, the container runner, the checks and the reports all run. What is not
+built is listed in `docs/BACKLOG.md`, and the reports say plainly which parts of an app nothing has examined.
 
 ```bash
 cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
-cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and check it answers
+cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and ask it questions
 cargo run -p sv-cli -- check ./my-app    # credentials, configuration, and rules that read the code
 cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
 cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
+cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
 ```
+
+The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
+Rust and C. A language
+outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
+anything about the app at all, and the report says which language stopped it. A script written into a web page —
+in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
+is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.
@@ -37,7 +41,7 @@ printed as *not assessed* before any finding, because a suite that only tries th
 nothing reads exactly like one that found nothing wrong.
 
 `sv report` writes the whole thing out (add `--run` to start the app behind the fence and include what
-it answers): one HTML file you can open by double-clicking it, the same
+it answers, and `--tools` to run the security tool your language already has): one HTML file you can open by double-clicking it, the same
 thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
 what was **not** examined, say what each check covered when it found nothing wrong, and nothing in them
 says a requirement passed — `sv` is not able to establish

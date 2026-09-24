@@ -1,0 +1,231 @@
+{
+  "_comment": "Per-language security tools `sv` can run, described here rather than in Rust, so adding one is a data change. Three rules shape every entry. First, SARIF only: each tool is asked for SARIF 2.1.0 and nothing else, because one output parser that is trusted is worth more than five that are nearly right, and a tool that cannot emit SARIF is simply not listed yet. Second, a tool that is not installed reports NOT RUN and how to install it — never a clean pass, which is the whole reason this file exists rather than a shell script. Third, `rules` maps the tool's own rule ids to requirements one at a time. A blanket list per tool would credit bandit's SQL rule with everything bandit knows about; a finding whose rule id is not in the map carries no requirement at all, which is a fair thing to be and is shown as such.",
+  "adapters": [
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "language": "python",
+      "version": {
+        "command": "bandit",
+        "args": [
+          "--version"
+        ]
+      },
+      "run": {
+        "command": "bandit",
+        "args": [
+          "--recursive",
+          "--format",
+          "sarif",
+          "--output",
+          "{output}",
+          "--quiet",
+          "{dir}"
+        ]
+      },
+      "install": "pip install bandit bandit-sarif-formatter",
+      "note": "Bandit has no SARIF formatter of its own; `bandit-sarif-formatter` registers one, which is why the install line names two packages. Bandit installed without it exits with `invalid choice: 'sarif'` and writes nothing, which is reported as not run with that message attached rather than as a clean scan. Bandit also exits non-zero when it finds something, which is not a failure to run: only a missing report counts as that.",
+      "rules": {
+        "B608": [
+          "V1.2.1"
+        ],
+        "B609": [
+          "V1.2.2"
+        ],
+        "B602": [
+          "V1.2.2"
+        ],
+        "B603": [
+          "V1.2.2"
+        ],
+        "B604": [
+          "V1.2.2"
+        ],
+        "B605": [
+          "V1.2.2"
+        ],
+        "B606": [
+          "V1.2.2"
+        ],
+        "B307": [
+          "V1.2.1"
+        ],
+        "B301": [
+          "V1.5.2"
+        ],
+        "B302": [
+          "V1.5.2"
+        ],
+        "B506": [
+          "V1.5.2"
+        ],
+        "B105": [
+          "V13.3.1"
+        ],
+        "B106": [
+          "V13.3.1"
+        ],
+        "B107": [
+          "V13.3.1"
+        ],
+        "B303": [
+          "V11.3.1"
+        ],
+        "B324": [
+          "V11.3.1"
+        ],
+        "B501": [
+          "V13.1.1"
+        ],
+        "B201": [
+          "V13.4.2"
+        ]
+      }
+    },
+    {
+      "id": "gosec",
+      "name": "gosec",
+      "language": "go",
+      "version": {
+        "command": "gosec",
+        "args": [
+          "--version"
+        ]
+      },
+      "run": {
+        "command": "gosec",
+        "args": [
+          "-fmt",
+          "sarif",
+          "-out",
+          "{output}",
+          "-quiet",
+          "./..."
+        ]
+      },
+      "working_directory": "{dir}",
+      "install": "go install github.com/securego/gosec/v2/cmd/gosec@latest",
+      "note": "gosec resolves `./...` against the working directory, so it is run from inside the app folder rather than given a path.",
+      "rules": {
+        "G201": [
+          "V1.2.1"
+        ],
+        "G202": [
+          "V1.2.1"
+        ],
+        "G204": [
+          "V1.2.2"
+        ],
+        "G101": [
+          "V13.3.1"
+        ],
+        "G401": [
+          "V11.3.1"
+        ],
+        "G501": [
+          "V11.3.1"
+        ],
+        "G502": [
+          "V11.3.1"
+        ],
+        "G503": [
+          "V11.3.1"
+        ],
+        "G504": [
+          "V11.3.1"
+        ],
+        "G505": [
+          "V11.3.1"
+        ],
+        "G402": [
+          "V13.1.1"
+        ],
+        "G404": [
+          "V11.4.1"
+        ],
+        "G304": [
+          "V1.2.3"
+        ],
+        "G107": [
+          "V1.2.4"
+        ]
+      }
+    },
+    {
+      "id": "brakeman",
+      "name": "Brakeman",
+      "language": "ruby",
+      "version": {
+        "command": "brakeman",
+        "args": [
+          "--version"
+        ]
+      },
+      "run": {
+        "command": "brakeman",
+        "args": [
+          "--format",
+          "sarif",
+          "--output",
+          "{output}",
+          "--no-progress",
+          "--quiet",
+          "{dir}"
+        ]
+      },
+      "install": "gem install brakeman",
+      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found.",
+      "rules": {
+        "BRAKE0001": [
+          "V1.2.1"
+        ],
+        "BRAKE0002": [
+          "V1.2.1"
+        ],
+        "BRAKE0013": [
+          "V1.2.2"
+        ],
+        "BRAKE0014": [
+          "V1.2.2"
+        ],
+        "BRAKE0015": [
+          "V1.2.3"
+        ],
+        "BRAKE0016": [
+          "V1.2.1"
+        ],
+        "BRAKE0102": [
+          "V13.3.1"
+        ]
+      }
+    },
+    {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "language": "*",
+      "version": {
+        "command": "semgrep",
+        "args": [
+          "--version"
+        ]
+      },
+      "run": {
+        "command": "semgrep",
+        "args": [
+          "scan",
+          "--config",
+          "p/security-audit",
+          "--sarif",
+          "--output",
+          "{output}",
+          "--quiet",
+          "{dir}"
+        ]
+      },
+      "install": "pip install semgrep",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered.",
+      "network": true,
+      "rules": {}
+    }
+  ]
+}

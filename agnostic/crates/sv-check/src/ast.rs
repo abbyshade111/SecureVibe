@@ -110,8 +110,234 @@ fn grammar(language: &str) -> Option<Language> {
         "javascript" => tree_sitter_javascript::LANGUAGE.into(),
         "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         "go" => tree_sitter_go::LANGUAGE.into(),
+        "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
+        "kotlin" => tree_sitter_kotlin_ng::LANGUAGE.into(),
+        "rust" => tree_sitter_rust::LANGUAGE.into(),
+        "c" => tree_sitter_c::LANGUAGE.into(),
+        "ruby" => tree_sitter_ruby::LANGUAGE.into(),
+        "php" => tree_sitter_php::LANGUAGE_PHP.into(),
+        "java" => tree_sitter_java::LANGUAGE.into(),
         _ => return None,
     })
+}
+
+/// A piece of script taken out of a page, and where it sat.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fragment {
+    /// The language to parse it as: `javascript`, or `typescript` when the page says so.
+    pub language: &'static str,
+    pub code: String,
+    /// How many lines came before it, so a finding can name the line in the page rather than in
+    /// the fragment. A reader given line 3 of something they cannot see is worse off than one
+    /// given nothing.
+    pub line_offset: usize,
+}
+
+/// What a page holds, and what could not be taken out of it.
+#[derive(Debug, Default)]
+pub struct HtmlScan {
+    pub fragments: Vec<Fragment>,
+    /// Something code-shaped that the extractor did not take. While this is true the page is still
+    /// unread, and every rule stays silent about the whole app.
+    ///
+    /// One function decides both halves on purpose. When "does this page hold code" and "what code
+    /// does this page hold" are answered by two pieces of code, they drift, and the direction they
+    /// drift in is a page declared read whose code nobody extracted.
+    pub left_behind: Option<String>,
+}
+
+/// Takes the script out of a page.
+///
+/// Handles the two places code really lives in markup: a `<script>` element, and an `on…=` handler
+/// attribute. A `<script src=…>` with nothing between its tags holds no code — the file it names is
+/// parsed like any other. Anything else code-shaped is left behind by name rather than ignored.
+pub fn html_fragments(source: &str) -> HtmlScan {
+    let mut out = HtmlScan::default();
+    let lower = source.to_lowercase();
+
+    // Script elements.
+    let mut at = 0usize;
+    while let Some(found) = lower[at..].find("<script") {
+        let tag_start = at + found;
+        let Some(tag_end) = lower[tag_start..].find('>').map(|i| tag_start + i) else {
+            out.left_behind = Some("a `<script` tag that is never closed".to_owned());
+            return out;
+        };
+        let attributes = &lower[tag_start..tag_end];
+        let body_start = tag_end + 1;
+        let Some(close) = lower[body_start..].find("</script").map(|i| body_start + i) else {
+            out.left_behind = Some("a `<script>` with no `</script>` after it".to_owned());
+            return out;
+        };
+        let body = &source[body_start..close];
+        if !body.trim().is_empty() {
+            // `lang="ts"` is how a Vue component says so; `type="text/typescript"` is the older way.
+            let language = if attributes.contains("lang=\"ts\"")
+                || attributes.contains("lang='ts'")
+                || attributes.contains("typescript")
+            {
+                "typescript"
+            } else {
+                "javascript"
+            };
+            out.fragments.push(Fragment {
+                language,
+                code: body.to_owned(),
+                line_offset: source[..body_start].matches('\n').count(),
+            });
+        }
+        at = close;
+    }
+
+    // Handler attributes. The value is a statement, which parses as JavaScript on its own.
+    let handler = regex::Regex::new("(?i)[\\s\"']on[a-z]+\\s*=\\s*(\"[^\"]*\"|'[^']*')")
+        .expect("a fixed pattern compiles");
+    for m in handler.captures_iter(source) {
+        let quoted = m.get(1).expect("the group is not optional");
+        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
+        out.fragments.push(Fragment {
+            language: "javascript",
+            code: unescape_html(inner),
+            line_offset: source[..quoted.start()].matches('\n').count(),
+        });
+    }
+
+    // A URL that is a program. Taken when it sits in a quoted attribute, where its end is not in
+    // doubt, and named otherwise: an unquoted value ends at whitespace by one reading and at the
+    // tag by another, and guessing between them is how a fragment ends up half a statement.
+    let url = regex::Regex::new("(?i)=\\s*(\"[^\"]*\"|'[^']*')").expect("a fixed pattern compiles");
+    let mut quoted_urls = 0usize;
+    for m in url.captures_iter(source) {
+        let quoted = m.get(1).expect("the group is not optional");
+        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
+        let decoded = unescape_html(inner);
+        let Some(program) = strip_javascript_scheme(&decoded) else {
+            // A browser reads `java<tab>script:` as the scheme; this does not, and a value that
+            // becomes one once its control characters are taken out is named rather than read.
+            // Reading it would mean deciding what the rest of it means too.
+            if looks_like_a_disguised_scheme(&decoded) {
+                out.left_behind =
+                    Some("a `javascript:` URL with characters written into the scheme".to_owned());
+                return out;
+            }
+            continue;
+        };
+        quoted_urls += 1;
+        out.fragments.push(Fragment {
+            language: "javascript",
+            code: percent_decode(program),
+            line_offset: source[..quoted.start()].matches('\n').count(),
+        });
+    }
+    // Every occurrence has to be accounted for. One that the pattern above did not take is one
+    // written some way this does not read — unquoted, or with the scheme spelled around a newline,
+    // both of which a browser accepts — and the page keeps its silence rather than pretend.
+    if lower.matches("javascript:").count() > quoted_urls {
+        out.left_behind = Some(
+            "a `javascript:` URL that is not in a quoted attribute, so where it ends is a guess"
+                .to_owned(),
+        );
+        return out;
+    }
+
+    // Finally: anything taken out has to be code the grammar can actually read. A fragment that
+    // does not parse yields no findings, which is indistinguishable from a fragment that was clean
+    // — so a page holding a `<script>` full of a template language, or a URL this decoded wrongly,
+    // is left unread rather than counted as examined.
+    //
+    // This catches less than it looks like it does, and the reason is worth knowing: the JavaScript
+    // grammar includes JSX, so a Vue or React template parses cleanly and reaches the rules as
+    // markup rather than being refused. Handlebars, ERB and Jinja do not.
+    if let Some(bad) = out
+        .fragments
+        .iter()
+        .find(|f| !parses_cleanly(f.language, &f.code))
+    {
+        out.left_behind = Some(format!(
+            "something taken out of this page is not {} the grammar can read",
+            bad.language
+        ));
+    }
+    out
+}
+
+/// The program in a `javascript:` URL, if that is what this attribute value is.
+///
+/// Leading whitespace is skipped because a browser does. The scheme is matched only when it is
+/// written plainly: a browser also accepts `java\tscript:` and other spellings with control
+/// characters inside the word, and a reader of this code should not have to wonder whether those
+/// were handled — they are not, and the count above turns each one into a page that stays unread.
+fn strip_javascript_scheme(value: &str) -> Option<&str> {
+    let trimmed = value.trim_start();
+    let head: String = trimmed.chars().take("javascript:".len()).collect();
+    head.eq_ignore_ascii_case("javascript:")
+        .then(|| &trimmed["javascript:".len()..])
+}
+
+/// Whether a value is a `javascript:` URL written so that only a browser would see it.
+///
+/// A browser drops ASCII control characters and whitespace from inside a scheme, so
+/// `java&#9;script:` runs. This does not read those, and the point of noticing them is to keep the
+/// page unread rather than to pretend the value was ordinary.
+fn looks_like_a_disguised_scheme(value: &str) -> bool {
+    let collapsed: String = value
+        .chars()
+        .take(64)
+        .filter(|c| !c.is_whitespace() && !c.is_control())
+        .collect();
+    collapsed.len() >= "javascript:".len()
+        && collapsed[.."javascript:".len()].eq_ignore_ascii_case("javascript:")
+}
+
+/// Turns `%20` back into a space, and leaves anything that is not a complete escape alone.
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    // A decode that does not produce text is a decode this had no business doing.
+    String::from_utf8(out).unwrap_or_else(|_| text.to_owned())
+}
+
+/// Whether the grammar can read this fragment without falling over.
+///
+/// `has_error` is the whole point. Tree-sitter always returns a tree, so a fragment of something
+/// that is not this language parses into a wreck that matches no rule and reports nothing — which
+/// reads exactly like a fragment that was clean.
+fn parses_cleanly(language: &str, code: &str) -> bool {
+    let Some(grammar) = grammar(language) else {
+        return false;
+    };
+    let mut parser = Parser::new();
+    if parser.set_language(&grammar).is_err() {
+        return false;
+    }
+    match parser.parse(code, None) {
+        Some(tree) => !tree.root_node().has_error(),
+        None => false,
+    }
+}
+
+/// The five entities that can hide a quote or a bracket in an attribute value.
+fn unescape_html(text: &str) -> String {
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        // Last, so it cannot go back over an entity it has just written.
+        .replace("&amp;", "&")
 }
 
 /// Whether `sv` can read this language at all.
@@ -198,7 +424,7 @@ impl AstRules {
 ///
 /// A template string is only a literal when nothing is interpolated, which is exactly the distinction
 /// that matters: `` `SELECT 1` `` is a constant and `` `SELECT ${id}` `` is the bug this looks for.
-fn is_literal(node: tree_sitter::Node) -> bool {
+fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
     const LITERAL_KINDS: &[&str] = &[
         "string",
         "string_literal",
@@ -213,12 +439,23 @@ fn is_literal(node: tree_sitter::Node) -> bool {
         "false",
         "none",
         "null",
+        // Ruby's backtick form. `ls -la` is as fixed as any string; `ls #{dir}` is not, and the
+        // interpolation check below is what tells them apart — the same test every other kind gets.
+        "subshell",
+        // C#'s plain strings and Kotlin's, whose grammar gives an interpolated one no node of its
+        // own — see `has_interpolation` for how those two are told apart.
+        "verbatim_string_literal",
+        // PHP's double-quoted strings, which interpolate `$name` without any `{}` around it.
+        "encapsed_string",
+        "string_value",
     ];
 
     // `"a" + "b"` is still a constant; `"a" + name` is not.
     if matches!(node.kind(), "binary_operator" | "binary_expression") {
         let mut cursor = node.walk();
-        return node.named_children(&mut cursor).all(is_literal);
+        return node
+            .named_children(&mut cursor)
+            .all(|c| is_literal(c, source));
     }
     if !LITERAL_KINDS.contains(&node.kind()) {
         return false;
@@ -227,17 +464,45 @@ fn is_literal(node: tree_sitter::Node) -> bool {
     // with `${…}` and a Python f-string with `{…}` are the same thing under different node names, and
     // an f-string is still a plain `string` node in its grammar. Missing this reports every SQL query
     // built with an f-string as a constant, which is the case the rule exists for.
-    !has_interpolation(node)
+    !has_interpolation(node, source)
 }
 
 /// Whether anything is substituted into this literal, however deeply.
-fn has_interpolation(node: tree_sitter::Node) -> bool {
+fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
+    // Kotlin's `"select $n"` has no interpolation node at all: the grammar splits it into plain
+    // `string_content` children and the bare `$` becomes one of them. Measured rather than guessed,
+    // because the obvious discriminators are both wrong — a plain string has one `string_content`
+    // and so does nothing else, while `"cost \$5"` has two of them either side of an
+    // `escape_sequence`. The `$` standing alone as its own node is what actually distinguishes
+    // them, and an escaped one never does.
+    if node.kind() == "string_literal" {
+        let mut cursor = node.walk();
+        if node
+            .named_children(&mut cursor)
+            .any(|c| c.kind() == "string_content" && c.utf8_text(source).map(str::trim) == Ok("$"))
+        {
+            return true;
+        }
+    }
+
+    // PHP puts a plain `variable_name` inside a double-quoted string, with no wrapper node to
+    // recognise: `"select ... $name"` is a built string that looks like a literal to the list below.
+    if node.kind() == "encapsed_string" {
+        let mut cursor = node.walk();
+        if node
+            .named_children(&mut cursor)
+            .any(|c| c.kind() != "string_content" && c.kind() != "escape_sequence")
+        {
+            return true;
+        }
+    }
+
     let mut cursor = node.walk();
     node.children(&mut cursor).any(|child| {
         matches!(
             child.kind(),
             "interpolation" | "template_substitution" | "string_interpolation" | "format_specifier"
-        ) || has_interpolation(child)
+        ) || has_interpolation(child, source)
     })
 }
 
@@ -304,7 +569,7 @@ pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             if compiled.rule.literal_argument_is_safe
                 && let Some(index) = arg_index
                 && let Some(capture) = m.captures.iter().find(|c| c.index == index)
-                && is_literal(capture.node)
+                && is_literal(capture.node, source.as_bytes())
             {
                 continue;
             }
@@ -392,6 +657,50 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     out
 }
 
+/// Reads the script out of a page and scans it as the language it is.
+///
+/// The page counts as read only when nothing code-shaped was left behind. A page whose script all
+/// came out is one nothing is hiding in; a page with a `javascript:` URL still silences every rule,
+/// because the extractor did not take that and saying otherwise would be the whole failure this
+/// guards against.
+fn read_page(rules: &AstRules, root: &std::path::Path, path: &std::path::Path, scan: &mut AstScan) {
+    let Ok(source) = std::fs::read_to_string(path) else {
+        // A page that cannot be opened is the one case where nothing at all is known about it.
+        scan.unread_languages.insert("html".to_owned());
+        return;
+    };
+    let page = html_fragments(&source);
+    if page.left_behind.is_some() {
+        scan.unread_languages.insert("html".to_owned());
+        return;
+    }
+    if page.fragments.is_empty() {
+        // A page of markup. Nothing to read, and nothing hidden.
+        return;
+    }
+
+    let relative = path
+        .strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+    scan.files_parsed += 1;
+    for fragment in &page.fragments {
+        // Counted under the language actually parsed. A page holding JavaScript is a file in which
+        // JavaScript was read, and the rules that claim coverage of JavaScript really did read it.
+        *scan
+            .parsed_by_language
+            .entry(fragment.language.to_owned())
+            .or_default() += 1;
+        for mut finding in scan_file(rules, fragment.language, &relative, &fragment.code) {
+            // Back to the line in the page. Without this a reader is sent to line 3 of something
+            // that does not exist as a file.
+            finding.location.line += fragment.line_offset;
+            scan.findings.push(finding);
+        }
+    }
+}
+
 fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &mut AstScan) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -415,6 +724,15 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
         if !is_supported(language) {
             // Present, and not read. The rules have nothing to say about this file and the report
             // should say that rather than let its silence be read as approval.
+            //
+            // Except for a page that holds no code. `html` covers `.html`, `.vue` and `.svelte`,
+            // and almost every web application has at least one — so counting every page as unread
+            // silenced every rule for nearly every real app, which is a great deal of silence
+            // bought by a file that in most cases hides nothing at all.
+            if language == "html" {
+                read_page(rules, root, &path, scan);
+                continue;
+            }
             scan.unread_languages.insert(language.to_owned());
             continue;
         }
@@ -498,8 +816,10 @@ mod tests {
 
     #[test]
     fn a_rule_naming_a_language_with_no_grammar_is_refused_at_load() {
-        // Quietly dropping it would leave a rule that claims to cover Ruby and never runs.
-        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"ruby\""));
+        // Quietly dropping it would leave a rule that claims to cover a language and never runs.
+        // C++ stands in for that here. This test has named Ruby and then C#, each until the
+        // language got a grammar, which is the right way round for a test like this to break.
+        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"cpp\""));
         let error = match refused {
             Ok(_) => panic!("an unknown language must be refused"),
             Err(e) => format!("{e:#}"),
@@ -649,8 +969,349 @@ mod tests {
 
     #[test]
     fn a_language_with_no_grammar_yields_nothing_rather_than_pretending() {
-        assert!(scan_file(&rules(), "ruby", "app.rb", "eval(params[:x])").is_empty());
-        assert!(!is_supported("ruby"));
+        // C++ is read by `sv-scan` — it counts towards what an app is written in — and has no
+        // grammar here, which is the combination that has to stay silent rather than guess.
+        assert!(scan_file(&rules(), "cpp", "app.cpp", "system(argv[1]);").is_empty());
+        assert!(!is_supported("cpp"));
         assert!(is_supported("python") && is_supported("typescript"));
+    }
+
+    #[test]
+    fn the_three_new_grammars_read_their_own_languages() {
+        // The point of adding them. Each snippet is the shape somebody would really write.
+        for (language, file, source, expected) in [
+            (
+                "ruby",
+                "app.rb",
+                "db.execute(\"select * from t where n = \" + name)",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "ruby",
+                "app.rb",
+                "Marshal.load(params[:blob])",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php $db->query(\"select * from t where n = \" . $name);",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php unserialize($_GET[\"blob\"]);",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "java",
+                "App.java",
+                "class A { void f(String n) { stmt.executeQuery(\"select * from t where n = \" + n); } }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "java",
+                "App.java",
+                "class A { void f() { new ObjectInputStream(in).readObject(); } }",
+                "ast.unsafe-deserialization",
+            ),
+        ] {
+            let findings = scan_file(&rules(), language, file, source);
+            assert!(
+                ids(&findings).contains(&expected),
+                "{language}: expected {expected}, got {:?}",
+                ids(&findings)
+            );
+        }
+    }
+
+    #[test]
+    fn ruby_backticks_are_a_shell_command_and_a_fixed_one_is_not_reported() {
+        // The backtick form has no method name to match, so it is its own pattern. `ls` cannot be
+        // made to run anything else; `ls #{dir}` can, and the literal check is what tells them
+        // apart — the same rule the rest of this file runs on.
+        let dangerous = scan_file(&rules(), "ruby", "app.rb", "`ls #{params[:dir]}`");
+        assert!(
+            ids(&dangerous).contains(&"ast.shell-command-backticks"),
+            "{dangerous:?}"
+        );
+        let fixed = scan_file(&rules(), "ruby", "app.rb", "`ls -la`");
+        assert!(
+            !ids(&fixed).contains(&"ast.shell-command-backticks"),
+            "a fixed command cannot be made to run anything else: {fixed:?}"
+        );
+    }
+
+    #[test]
+    fn what_comes_out_of_a_page_and_what_is_left_behind() {
+        // One function answers both halves on purpose. When "does this page hold code" and "what
+        // code does this page hold" are decided separately they drift, and the direction they
+        // drift in is a page declared read whose code nobody extracted.
+        let markup = html_fragments("<html><body><h1>Notes</h1></body></html>");
+        assert!(markup.fragments.is_empty() && markup.left_behind.is_none());
+
+        let external = html_fragments("<html><script src=\"app.js\"></script></html>");
+        assert!(
+            external.fragments.is_empty() && external.left_behind.is_none(),
+            "the file it names is parsed like any other: {external:?}"
+        );
+
+        let whitespace = html_fragments("<html><script src=\"a.js\">\n  \n</script></html>");
+        assert!(whitespace.fragments.is_empty() && whitespace.left_behind.is_none());
+
+        let inline = html_fragments("<html><script>eval(x)</script></html>");
+        assert_eq!(inline.fragments.len(), 1);
+        assert_eq!(inline.fragments[0].language, "javascript");
+        assert_eq!(inline.fragments[0].code, "eval(x)");
+        assert!(inline.left_behind.is_none());
+
+        let shouting = html_fragments("<html><SCRIPT>eval(x)</SCRIPT></html>");
+        assert_eq!(
+            shouting.fragments.len(),
+            1,
+            "tags match whatever their case"
+        );
+        assert_eq!(
+            shouting.fragments[0].code, "eval(x)",
+            "and the code comes out with its own case intact"
+        );
+
+        let typed = html_fragments("<script lang=\"ts\">const x: string = y</script>");
+        assert_eq!(typed.fragments[0].language, "typescript");
+
+        let handler = html_fragments("<button onclick=\"go(location.hash)\">go</button>");
+        assert_eq!(handler.fragments.len(), 1);
+        assert_eq!(handler.fragments[0].code, "go(location.hash)");
+
+        let entities = html_fragments("<button onclick=\"go(&quot;a&quot; &amp; b)\">go</button>");
+        assert_eq!(
+            entities.fragments[0].code, "go(\"a\" & b)",
+            "an entity can hide a quote, and must be put back before parsing"
+        );
+
+        let unclosed = html_fragments("<html><script>eval(x)");
+        assert!(
+            unclosed.left_behind.is_some(),
+            "a script with no end cannot be bounded, so the page stays unread"
+        );
+
+        let url = html_fragments("<a href=\"javascript:go()\">go</a>");
+        assert_eq!(url.fragments.len(), 1, "{url:?}");
+        assert_eq!(url.fragments[0].code, "go()");
+        assert!(url.left_behind.is_none());
+
+        let shouting_url = html_fragments("<a href=\"JavaScript: go()\">go</a>");
+        assert_eq!(
+            shouting_url.fragments[0].code, " go()",
+            "the scheme is matched whatever its case, and a browser skips the space"
+        );
+
+        let escaped_url = html_fragments("<a href=\"javascript:go(%22x%22)\">go</a>");
+        assert_eq!(
+            escaped_url.fragments[0].code, "go(\"x\")",
+            "a percent escape has to come back before the grammar sees it"
+        );
+
+        let unquoted = html_fragments("<a href=javascript:go()>go</a>");
+        assert!(
+            unquoted.left_behind.is_some(),
+            "where an unquoted value ends is a guess, so this one is named: {unquoted:?}"
+        );
+
+        let split_scheme = html_fragments("<a href=\"java\tscript:go()\">go</a>");
+        assert!(
+            split_scheme.left_behind.is_some(),
+            "a browser reads this and this does not, so it is named: {split_scheme:?}"
+        );
+
+        let not_code = html_fragments(
+            "<script type=\"text/x-template\">{{#each i}}<li>{{this}}</li>{{/each}}</script>",
+        );
+        assert!(
+            not_code.left_behind.is_some(),
+            "a fragment the grammar cannot read reports nothing, which must not read as clean: \
+             {not_code:?}"
+        );
+
+        // And the limit of that, measured rather than assumed: the JavaScript grammar includes JSX,
+        // so a Vue template parses cleanly and is not refused. It reaches the rules as markup.
+        let jsx_shaped =
+            html_fragments("<script type=\"text/x-template\"><div v-if=\"a\">x</div></script>");
+        assert!(jsx_shaped.left_behind.is_none(), "{jsx_shaped:?}");
+
+        let two = html_fragments("<script src=\"a.js\"></script><script>eval(x)</script>");
+        assert_eq!(
+            two.fragments.len(),
+            1,
+            "the second one is the one with code"
+        );
+    }
+
+    #[test]
+    fn a_finding_in_a_page_names_the_line_in_the_page() {
+        // A reader sent to line 3 of a fragment they cannot see is worse off than one given
+        // nothing at all.
+        let page = "<html>\n<body>\n<h1>Notes</h1>\n<script>\neval(location.hash)\n</script>\n</body>\n</html>\n";
+        let extracted = html_fragments(page);
+        assert_eq!(extracted.fragments.len(), 1);
+        let fragment = &extracted.fragments[0];
+        let findings = scan_file(&rules(), fragment.language, "index.html", &fragment.code);
+        assert_eq!(ids(&findings), vec!["ast.dynamic-code-execution"]);
+        assert_eq!(
+            findings[0].location.line + fragment.line_offset,
+            5,
+            "`eval` is on line 5 of the page"
+        );
+    }
+
+    #[test]
+    fn the_four_newest_grammars_read_their_own_languages() {
+        for (language, file, source, expected) in [
+            (
+                "csharp",
+                "App.cs",
+                "class A { void F(string n) { cmd.ExecuteReader(\"select * from t where n = \" + n); } }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "csharp",
+                "App.cs",
+                "class A { void F() { BinaryFormatter.Deserialize(stream); } }",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "kotlin",
+                "App.kt",
+                "fun f(n: String) { db.rawQuery(\"select * from t where n = \" + n, null) }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "rust",
+                "app.rs",
+                "fn f(n: &str) { conn.execute(&format!(\"select * from t where n = {n}\"), []); }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "c",
+                "app.c",
+                "void f(char *d) { char b[99]; sprintf(b, \"ls %s\", d); system(b); }",
+                "ast.shell-command",
+            ),
+        ] {
+            let findings = scan_file(&rules(), language, file, source);
+            assert!(
+                ids(&findings).contains(&expected),
+                "{language}: expected {expected}, got {:?}",
+                ids(&findings)
+            );
+        }
+    }
+
+    #[test]
+    fn a_kotlin_string_template_is_not_a_literal_but_an_escaped_dollar_is() {
+        // Kotlin's grammar gives an interpolated string no node of its own: `"select $n"` is three
+        // plain `string_content` children with the `$` standing alone as one of them, and that last
+        // part is the whole discriminator. Measured rather than guessed: counting the children
+        // instead would report an escaped `\$`, which leaves two of them either side of an
+        // `escape_sequence`.
+        let built = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f(n: String) { db.execSQL(\"select * from t where n = $n\") }",
+        );
+        assert!(
+            ids(&built).contains(&"ast.sql-built-by-hand"),
+            "a Kotlin template is a built string: {built:?}"
+        );
+
+        let escaped = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f() { db.execSQL(\"select * from prices where label = 'cost \\$5'\") }",
+        );
+        assert!(
+            !ids(&escaped).contains(&"ast.sql-built-by-hand"),
+            "an escaped dollar is written out, not substituted: {escaped:?}"
+        );
+
+        let plain = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f() { db.execSQL(\"select 1\") }",
+        );
+        assert!(!ids(&plain).contains(&"ast.sql-built-by-hand"), "{plain:?}");
+    }
+
+    #[test]
+    fn a_csharp_json_deserialise_is_not_reported() {
+        // `Deserialize` is what every JSON library is called with. Only the receiver makes it the
+        // dangerous one, and reporting the safe case would teach somebody to skip the rule.
+        let safe = scan_file(
+            &rules(),
+            "csharp",
+            "App.cs",
+            "class A { void F() { JsonSerializer.Deserialize(body); } }",
+        );
+        assert!(
+            !ids(&safe).contains(&"ast.unsafe-deserialization"),
+            "{safe:?}"
+        );
+    }
+
+    #[test]
+    fn a_php_string_that_interpolates_a_variable_is_not_a_literal() {
+        // PHP puts a bare `$name` inside a double-quoted string with no wrapper node, so the string
+        // looks exactly like a written-out one to a check that only knows about `${…}` and `#{…}`.
+        // Missing this reports every PHP query built the most natural way as a constant, which is
+        // the case the rule exists for.
+        let built = scan_file(
+            &rules(),
+            "php",
+            "app.php",
+            "<?php $db->query(\"select * from t where n = $name\");",
+        );
+        assert!(
+            ids(&built).contains(&"ast.sql-built-by-hand"),
+            "an interpolated PHP string is a built string: {built:?}"
+        );
+        let fixed = scan_file(
+            &rules(),
+            "php",
+            "app.php",
+            "<?php $db->query(\"select * from t where n = ?\");",
+        );
+        assert!(
+            !ids(&fixed).contains(&"ast.sql-built-by-hand"),
+            "a written-out query is not a finding: {fixed:?}"
+        );
+    }
+
+    #[test]
+    fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
+        // `load` is far too common a method name to report on its own. The receiver is what makes
+        // it a deserialisation, and over-reporting here would teach somebody to skip the rule.
+        // A lower-case receiver is an `identifier`, which the query's own shape excludes.
+        let findings = scan_file(&rules(), "ruby", "app.rb", "config.load(path)");
+        assert!(
+            !ids(&findings).contains(&"ast.unsafe-deserialization"),
+            "{findings:?}"
+        );
+        // A capitalised one is a `constant`, which the query does match — so only the receiver
+        // pattern stops it. Without this case the pattern could be deleted and every test here
+        // would still pass, because the one above was being excluded by the node kind instead.
+        let other_constant = scan_file(&rules(), "ruby", "app.rb", "Settings.load(path)");
+        assert!(
+            !ids(&other_constant).contains(&"ast.unsafe-deserialization"),
+            "a constant that is not a deserialiser must not be reported: {other_constant:?}"
+        );
+        let real = scan_file(&rules(), "ruby", "app.rb", "YAML.load(untrusted)");
+        assert!(
+            ids(&real).contains(&"ast.unsafe-deserialization"),
+            "{real:?}"
+        );
     }
 }
