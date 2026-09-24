@@ -31,7 +31,8 @@ export interface EvalMetrics {
   openFindings: Record<Severity, number>;
   asvs?: StandardMetrics;
   aisvs?: StandardMetrics;
-  tests: { total: number; passed: number; failed: number };
+  /** Skipped tests are for features the golden app does not have; they are counted so nobody reads them as failures. */
+  tests: { total: number; passed: number; failed: number; skipped?: number };
   costUsd: number;
   planCoverage?: { built: number; partly: number; notBuilt: number };
 }
@@ -54,7 +55,7 @@ export function metricsOf(run: PipelineRun, caseName: string, mode: EvalMetrics[
   for (const f of run.findings) if (f.status === 'open' || f.status === 'fix-attempted') openFindings[f.severity] += 1;
 
   const unitTests = run.stages.find((s) => s.id === 'unit-tests');
-  const details = (unitTests?.details ?? {}) as { total?: number; passed?: number; failed?: number };
+  const details = (unitTests?.details ?? {}) as { total?: number; passed?: number; failed?: number; skipped?: number };
   const started = Date.parse(run.startedAt);
   const finished = run.finishedAt ? Date.parse(run.finishedAt) : Date.now();
 
@@ -70,7 +71,7 @@ export function metricsOf(run: PipelineRun, caseName: string, mode: EvalMetrics[
     openFindings,
     ...(run.compliance ? { asvs: standardMetrics(run.compliance.asvs) } : {}),
     ...(run.compliance?.aisvs ? { aisvs: standardMetrics(run.compliance.aisvs) } : {}),
-    tests: { total: details.total ?? 0, passed: details.passed ?? 0, failed: details.failed ?? 0 },
+    tests: { total: details.total ?? 0, passed: details.passed ?? 0, failed: details.failed ?? 0, skipped: details.skipped ?? 0 },
     costUsd: Math.round((run.llmUsage?.estimatedCostUsd ?? 0) * 100) / 100,
     ...(coverage
       ? {
@@ -176,7 +177,7 @@ export function summaryLine(m: EvalMetrics): string {
   const open = `${m.openFindings.critical}/${m.openFindings.high}/${m.openFindings.medium} open critical/high/medium`;
   const asvs = m.asvs ? `ASVS ${m.asvs.verifiedPassPercent}% verified (${m.asvs.pass}/${m.asvs.applicable})` : 'ASVS not assessed';
   const aisvs = m.aisvs ? `, AISVS ${m.aisvs.verifiedPassPercent}%` : '';
-  const tests = `${m.tests.passed}/${m.tests.total} app tests passing`;
+  const tests = `app tests: ${m.tests.passed} passed, ${m.tests.failed} failed, ${m.tests.skipped ?? 0} skipped of ${m.tests.total}`;
   const cost = m.mode === 'ai' ? `, $${m.costUsd.toFixed(2)}` : '';
   return `${m.status}; ${open}; ${asvs}${aisvs}; ${tests}; ${Math.round(m.durationMs / 1000)}s${cost}`;
 }
