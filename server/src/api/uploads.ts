@@ -3,6 +3,7 @@
  *
  *   POST /api/projects/:id/upload/begin   → starts a fresh upload (an empty staging folder)
  *   PUT  /api/projects/:id/upload/file?path=<relative path>   (raw bytes, one file per request)
+ *   PUT  /api/projects/:id/upload/archive                      (a whole .zip, unpacked here: see zip.ts)
  *   POST /api/projects/:id/upload/finish  → the staged files become the app folder (the previous one is kept as app-vN)
  *   POST /api/projects/:id/upload/cancel
  *
@@ -19,6 +20,7 @@ import { removeDir } from '../pipeline/process.js';
 import { conflict, validationError } from '../security/errors.js';
 import { confinePath, safeRelative } from '../store/index.js';
 import type { ApiDeps } from './types.js';
+import { unpackZip, ZipError } from './zip.js';
 
 export const UPLOAD_LIMITS = { maxFiles: 5_000, maxTotalBytes: 50 * 1024 * 1024, maxFileBytes: 2 * 1024 * 1024 } as const;
 
@@ -144,7 +146,7 @@ interface UploadSession {
 }
 
 const SESSIONS = new Map<string, UploadSession>();
-const FILE_ROUTE = /^\/projects\/[^/]+\/upload\/file$/;
+const FILE_ROUTE = /^\/projects\/[^/]+\/upload\/(file|archive)$/;
 
 /** Raw uploads are the one place /api accepts a non-JSON body. */
 export function isRawUploadRequest(method: string, path: string): boolean {
@@ -202,6 +204,47 @@ export function uploadsRouter(deps: ApiDeps): Router {
       session.files++;
       session.bytes += body.length;
       res.json({ stored: true });
+    },
+  );
+
+  /**
+   * A whole app as one .zip, since that is what people have. Unpacked here rather than by the person: every
+   * path checked before it is written, links left out, the size capped from the declaration before inflating,
+   * and the same skip list as the file route. Bigger than a single file may be, because it holds the whole app.
+   */
+  router.put(
+    '/projects/:id/upload/archive',
+    // Raw bytes, like the file route: the JSON-only guard in security/middleware.ts lets exactly that type through.
+    express.raw({ type: 'application/octet-stream', limit: UPLOAD_LIMITS.maxTotalBytes }),
+    (req, res) => {
+      const project = uploadedProject(req.params['id']!);
+      const session = SESSIONS.get(project.id);
+      if (!session) throw conflict('Start the upload again: it was not started or SecureVibe restarted.');
+      // A Buffer by construction: express.raw parsed the octet-stream body above. Copied once so what unpackZip
+      // reads is a plain Buffer of ours rather than the request object's own body (CodeQL otherwise follows the
+      // request body into every byte read and reports "parameter tampering" three times over).
+      const body = Buffer.isBuffer(req.body) ? Buffer.from(req.body) : Buffer.alloc(0);
+      if (body.length === 0) throw validationError('Send the zip file as raw bytes.');
+      let unpacked;
+      try {
+        unpacked = unpackZip(body, UPLOAD_LIMITS, skipReason);
+      } catch (err) {
+        if (err instanceof ZipError) throw validationError(err.message);
+        throw err;
+      }
+      if (session.files + unpacked.files.length > UPLOAD_LIMITS.maxFiles) throw validationError(`An app can have at most ${UPLOAD_LIMITS.maxFiles} files.`);
+      const bytes = unpacked.files.reduce((n, f) => n + f.data.length, 0);
+      if (session.bytes + bytes > UPLOAD_LIMITS.maxTotalBytes) throw validationError('The app is larger than 50 MB without its dependencies.');
+      const root = stagingDir(project.id);
+      for (const file of unpacked.files) {
+        const target = confinePath(root, ...file.path.split('/'));
+        mkdirSync(dirname(target), { recursive: true });
+        writeFileSync(target, file.data, { flag: 'w' });
+      }
+      session.files += unpacked.files.length;
+      session.bytes += bytes;
+      session.skipped += unpacked.skipped.length;
+      res.json({ stored: unpacked.files.length, skipped: unpacked.skipped });
     },
   );
 

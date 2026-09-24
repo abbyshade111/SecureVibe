@@ -379,6 +379,11 @@ export function uploadFile(id: string, path: string, file: Blob): Promise<{ stor
   });
 }
 
+/** A whole app as one .zip; the server unpacks it with the same rules as single files. */
+export function uploadArchive(id: string, file: Blob): Promise<{ stored: number; skipped: { path: string; reason: string }[] }> {
+  return j(`/projects/${id}/upload/archive`, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/octet-stream' } });
+}
+
 export function finishUpload(id: string): Promise<Project> {
   return j<{ project: Project }>(`/projects/${id}/upload/finish`, { method: 'POST', body: '{}' }).then((r) => r.project);
 }

@@ -855,7 +855,9 @@ questions · Human review pack · Rebuild banner); `/settings` (Advanced, with r
 * Build approval: `GET /estimate` returns a one-time `approvalCode`; `POST /runs` requires it (server/src/api/approvals.ts).
 * Uploaded apps (`project.origin.kind === 'uploaded'`, created with `POST /projects` `{ uploaded: { aiAssisted } }`):
   `POST /projects/:id/upload/begin`, `PUT /projects/:id/upload/file?path=` (raw `application/octet-stream`, ≤ 2 MB,
-  own rate limit), `POST /projects/:id/upload/finish` (staging → app/, previous app kept as app-vN), `.../cancel`
+  own rate limit), `PUT /projects/:id/upload/archive` (one `.zip` as raw bytes, ≤ 50 MB, unpacked by
+  `api/zip.ts`: paths checked before writing, links left out, size capped from the declaration before inflating,
+  the same skip list, ZIP64 and password-protected archives refused), `POST /projects/:id/upload/finish` (staging → app/, previous app kept as app-vN), `.../cancel`
   (server/src/api/uploads.ts). Dependencies, build output, `.env*` (except examples), keys and databases are skipped.
   Runs are always `verify-only` with `skipStages` (install, typecheck, unit-tests, dast: uploaded code is never run),
   `manifestOverride: uploadedManifest()`, and `excludedChecks` (template-only SAST/config checks, dropped in
