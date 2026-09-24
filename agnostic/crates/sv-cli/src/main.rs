@@ -92,6 +92,28 @@ fn corroborators_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/claim-corroborators.json")
 }
 
+/// Breaks a paragraph into lines that fit a terminal.
+///
+/// These reasons are written as prose, for a reader who is not a programmer, and a single
+/// five-hundred-character line is prose nobody reads.
+fn wrap(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        if !current.is_empty() && current.chars().count() + 1 + word.chars().count() > width {
+            lines.push(std::mem::take(&mut current));
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(word);
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
 /// Evidence in the words a person would use.
 fn describe(evidence: &Evidence) -> String {
     match evidence {
@@ -106,6 +128,7 @@ fn describe(evidence: &Evidence) -> String {
             "nothing found, which settles nothing".to_owned()
         }
         Evidence::Incomplete { reason } => reason.clone(),
+        Evidence::NoCheckExists { .. } => "no check for this is possible".to_owned(),
     }
 }
 
@@ -233,6 +256,29 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
             "\n{unverifiable} of the manifest's claims are asserted and not verified: `sv` looked \
              and found nothing,\nwhich for these is not the same as finding they are absent."
         );
+    }
+
+    // Claims nothing could check, said out loud. Silence here would read as a clean scan.
+    let uncheckable: Vec<(&str, &str)> = report
+        .answers
+        .iter()
+        .filter_map(|a| match &a.evidence {
+            Evidence::NoCheckExists { reason } => Some((a.condition.name(), reason.as_str())),
+            _ => None,
+        })
+        .collect();
+    if !uncheckable.is_empty() {
+        println!(
+            "\n{} of the manifest's claims cannot be checked from the code at all, by anything, \
+             ever:",
+            uncheckable.len()
+        );
+        for (name, why) in &uncheckable {
+            println!("  {name} —");
+            for line in wrap(why, 94) {
+                println!("      {line}");
+            }
+        }
     }
 
     let mut blocked: std::collections::BTreeMap<Condition, usize> = Default::default();
