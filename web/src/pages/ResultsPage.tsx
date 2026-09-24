@@ -295,6 +295,24 @@ export function ResultsPage() {
         </div>
       )}
 
+      {/* A build that stopped part-way can be continued, and until now the only way to that button was the
+          Build page for that exact run — a URL typed by hand. The night an owner's AI credit ran out mid-build,
+          that was the route they did not find, and a rebuild would have paid again for work already done. */}
+      {!uploaded && run.mode === 'full' && (run.status === 'failed' || run.status === 'cancelled' || run.status === 'interrupted') && (
+        <div className="sv-banner sv-banner-warn">
+          <h3>This build stopped part-way</h3>
+          <p>
+            {run.stages.find((s) => s.id === 'generate')?.status === 'passed'
+              ? 'Your app was already written before the build stopped. Carrying on keeps all of that work and only runs the checks again, so it costs nothing to write.'
+              : 'The parts of your app that were written before the build stopped are still there. Carrying on keeps them and writes only the rest, so you do not pay twice for the same work.'}{' '}
+            A fresh build would start over and pay for everything again.
+          </p>
+          <button type="button" className="sv-btn" onClick={() => navigate(`/projects/${id}/build?run=${encodeURIComponent(run.id)}`)}>
+            Carry on from where it stopped
+          </button>
+        </div>
+      )}
+
       {project.templateOutdated && !uploaded && (
         <div className="sv-banner">
           <h3>A newer SecureVibe template is available</h3>

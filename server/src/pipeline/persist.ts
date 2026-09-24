@@ -60,7 +60,8 @@ export function reconcileProjectStatusAtStartup(store: ProjectStore): string[] {
     const succeeded = project.runs.some((r) => r.status === 'succeeded');
     const next = succeeded ? 'built' : project.status === 'building' ? 'designed' : project.status;
     // "Rebuild needed" only means something when the answers changed after the build that is on disk.
-    const lastRun = project.lastRunId ? store.readRun(project.id, project.lastRunId) : undefined;
+    // A damaged record (a lastRunId that is not a run id) must not stop SecureVibe from starting at all.
+    const lastRun = project.lastRunId && isRunId(project.lastRunId) ? store.readRun(project.id, project.lastRunId) : undefined;
     const builtFromCurrentAnswers =
       lastRun?.status === 'succeeded' && lastRun.provenance?.designProfileHash !== undefined && lastRun.provenance.designProfileHash === project.profileHash;
     const stale = builtFromCurrentAnswers ? false : project.buildStale;
