@@ -328,6 +328,16 @@ export function ResultsPage() {
         </div>
       )}
 
+      {run.status === 'running' && (
+        <div className="sv-banner">
+          <h3>{run.mode === 'verify-only' ? 'A check is running for this app' : 'A build is running for this app'}</h3>
+          <p>The results below are from the last finished run; the new ones replace them when it ends.</p>
+          <Link className="sv-btn" to={`/projects/${id}/build?run=${encodeURIComponent(run.id)}`}>
+            Watch it
+          </Link>
+        </div>
+      )}
+
       {/* A build that stopped part-way can be continued, and until now the only way to that button was the
           Build page for that exact run — a URL typed by hand. The night an owner's AI credit ran out mid-build,
           that was the route they did not find, and a rebuild would have paid again for work already done. */}

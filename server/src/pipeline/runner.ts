@@ -526,6 +526,10 @@ export function prepareRun(project: Project, opts: Omit<RunPipelineOptions, 'exi
       : {}),
   });
   store.writeRunSync(run);
+  // The project points at this run from the moment it exists, not from the moment it finishes. Until 24 September
+  // 2026 lastRunId was set only by finish(), so for the whole of a build the record named the previous run: the
+  // Results page showed old results, "Continue" opened an old build, and nothing anywhere could find the live one.
+  store.recordRunSummary(project.id, summaryOf(run));
   store.update(project.id, (p) => {
     p.status = 'building';
   });
