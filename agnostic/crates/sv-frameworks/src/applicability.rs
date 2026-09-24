@@ -247,3 +247,27 @@ fn not_applicable_for(req: &RequirementInfo, matching: &[&Rule]) -> NotApplicabl
         source: rule.source(),
     }
 }
+
+/// How many in-scope requirements turn on a condition.
+///
+/// Some conditions gate nothing at all: `payments` and `scheduler` are asked about, have
+/// plain-language reasons written for them, and no rule in the OWASP data keys on either. Anything
+/// reporting a claim as wrong needs this, or it announces a consequence that does not exist.
+pub fn requirements_gated_on(
+    frameworks: &Frameworks,
+    config: &ApplicabilityConfig,
+    condition: Condition,
+    target_level: u8,
+) -> usize {
+    frameworks
+        .requirements
+        .values()
+        .filter(|r| r.level <= target_level)
+        .filter(|r| {
+            config
+                .rules_for(&r.id)
+                .iter()
+                .any(|rule| rule.condition == condition)
+        })
+        .count()
+}

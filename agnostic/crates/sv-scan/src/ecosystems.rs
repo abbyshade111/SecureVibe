@@ -78,6 +78,13 @@ pub struct DetectedEcosystem {
     pub manifest: String,
     /// The lockfile found, when one was.
     pub lockfile: Option<String>,
+    /// Whether this ecosystem pins versions with a lockfile at all.
+    ///
+    /// Maven does not: versions live in `pom.xml` and there is no lockfile to look for. Without this
+    /// flag `unpinned` reports every Maven project as pinning nothing, which is not a coverage gap but
+    /// a wrong statement in a report — the thing ADR-012 exists to stop. A caller that wants to say
+    /// "this app pins nothing" has to check this first.
+    pub pins_with_lockfile: bool,
 }
 
 /// Every ecosystem whose manifest is in the app folder, in the order listed above.
@@ -93,15 +100,27 @@ pub fn detect(app_dir: &Path) -> Vec<DetectedEcosystem> {
                 .iter()
                 .find(|f| app_dir.join(f).exists())
                 .map(|f| (*f).to_owned()),
+            pins_with_lockfile: !eco.lockfiles.is_empty(),
         })
         .collect()
 }
 
 /// Ecosystems in use that pin nothing, so what is actually installed cannot be known.
+///
+/// Only ecosystems that pin with a lockfile can be missing one. Maven is in use here and has no lockfile
+/// to be missing; reporting it would be a wrong statement rather than a finding.
 pub fn unpinned(app_dir: &Path) -> Vec<DetectedEcosystem> {
     detect(app_dir)
         .into_iter()
-        .filter(|e| e.lockfile.is_none())
+        .filter(|e| e.pins_with_lockfile && e.lockfile.is_none())
+        .collect()
+}
+
+/// Ecosystems in use whose pinning `sv` cannot judge, because they do not use a lockfile at all.
+pub fn pinning_unknown(app_dir: &Path) -> Vec<DetectedEcosystem> {
+    detect(app_dir)
+        .into_iter()
+        .filter(|e| !e.pins_with_lockfile)
         .collect()
 }
 

@@ -14,6 +14,7 @@ use std::path::Path;
 use sv_frameworks::Condition;
 use sv_frameworks::applicability::ConditionContext;
 
+pub mod consistency;
 pub mod spec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]

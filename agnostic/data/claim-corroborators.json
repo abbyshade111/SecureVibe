@@ -1011,6 +1011,773 @@
           "twilio::"
         ]
       }
+    },
+    {
+      "condition": "external-apis",
+      "absenceIsEvidence": false,
+      "note": "An HTTP client is how nearly every outbound call is made, and most languages have one in the standard library, so this looks for the call rather than for a dependency. It over-matches on purpose: a browser-side `fetch` to the app's own API counts here, and the cost of that is requirements applying that might not have had to.",
+      "packages": {
+        "npm": [
+          "axios",
+          "node-fetch",
+          "got",
+          "undici",
+          "superagent",
+          "ky"
+        ],
+        "Python": [
+          "requests",
+          "httpx",
+          "aiohttp",
+          "urllib3"
+        ],
+        "Ruby": [
+          "faraday",
+          "httparty",
+          "rest-client",
+          "typhoeus"
+        ],
+        "PHP": [
+          "guzzlehttp/guzzle",
+          "symfony/http-client"
+        ],
+        "Go": [
+          "resty"
+        ],
+        "Rust": [
+          "reqwest",
+          "ureq",
+          "isahc"
+        ],
+        "Java (Maven)": [
+          "okhttp",
+          "retrofit",
+          "httpclient"
+        ],
+        "Java (Gradle)": [
+          "okhttp",
+          "retrofit",
+          "httpclient"
+        ]
+      },
+      "source": {
+        "python": [
+          "requests.get",
+          "requests.post",
+          "requests.request",
+          "httpx.",
+          "aiohttp.clientsession",
+          "urllib.request",
+          "http.client"
+        ],
+        "javascript": [
+          "fetch(",
+          "axios.",
+          "node-fetch",
+          "xmlhttprequest",
+          "http.request("
+        ],
+        "typescript": [
+          "fetch(",
+          "axios.",
+          "node-fetch",
+          "xmlhttprequest"
+        ],
+        "go": [
+          "http.get(",
+          "http.post(",
+          "http.newrequest",
+          "http.client{"
+        ],
+        "java": [
+          "httpclient",
+          "okhttpclient",
+          "resttemplate",
+          "webclient.create"
+        ],
+        "kotlin": [
+          "httpclient",
+          "okhttpclient",
+          "webclient.create"
+        ],
+        "ruby": [
+          "net::http",
+          "faraday.",
+          "httparty."
+        ],
+        "php": [
+          "curl_init",
+          "guzzlehttp\\\\client",
+          "file_get_contents('http"
+        ],
+        "csharp": [
+          "httpclient",
+          "webrequest.create"
+        ],
+        "rust": [
+          "reqwest::",
+          "ureq::"
+        ]
+      }
+    },
+    {
+      "condition": "public-api",
+      "absenceIsEvidence": false,
+      "note": "An interface meant for other programs usually comes with a description of itself and a key to call it with. A key checked by hand against a query parameter leaves almost nothing behind, which is why absence settles nothing.",
+      "packages": {
+        "npm": [
+          "swagger-ui-express",
+          "@nestjs/swagger",
+          "express-rate-limit",
+          "@fastify/rate-limit",
+          "swagger-jsdoc"
+        ],
+        "Python": [
+          "drf-spectacular",
+          "flasgger",
+          "flask-limiter",
+          "slowapi",
+          "djangorestframework-api-key"
+        ],
+        "Ruby": [
+          "rswag",
+          "rack-attack"
+        ],
+        "PHP": [
+          "zircote/swagger-php",
+          "darkaonline/l5-swagger"
+        ],
+        "Go": [
+          "swaggo"
+        ],
+        "Rust": [
+          "utoipa"
+        ],
+        "Java (Maven)": [
+          "springdoc-openapi-starter-webmvc-ui",
+          "springfox-swagger2"
+        ],
+        "Java (Gradle)": [
+          "springdoc-openapi-starter-webmvc-ui",
+          "springfox-swagger2"
+        ]
+      },
+      "files": [
+        "openapi.yaml",
+        "openapi.yml",
+        "openapi.json",
+        "swagger.yaml",
+        "swagger.yml",
+        "swagger.json",
+        "api-docs",
+        "docs/openapi.yaml",
+        "docs/openapi.json"
+      ],
+      "source": {
+        "python": [
+          "x-api-key",
+          "api_key_header",
+          "apikeyheader",
+          "ratelimit(",
+          "@limiter."
+        ],
+        "javascript": [
+          "x-api-key",
+          "apikeyauth",
+          "ratelimit({"
+        ],
+        "typescript": [
+          "x-api-key",
+          "apikeyauth",
+          "ratelimit({"
+        ],
+        "go": [
+          "x-api-key"
+        ],
+        "java": [
+          "x-api-key",
+          "@securityscheme"
+        ],
+        "kotlin": [
+          "x-api-key"
+        ],
+        "ruby": [
+          "x-api-key"
+        ],
+        "php": [
+          "x-api-key"
+        ],
+        "csharp": [
+          "x-api-key"
+        ],
+        "rust": [
+          "x-api-key"
+        ]
+      }
+    },
+    {
+      "condition": "multi-tenant",
+      "absenceIsEvidence": false,
+      "note": "Several customer organisations sharing one system shows up as a column every query has to carry, or as a database feature that carries it for them. It over-matches on an app that merely models organisations as data, and that error adds requirements rather than removing them.",
+      "packages": {
+        "Python": [
+          "django-tenants",
+          "django-tenant-schemas",
+          "sqlalchemy-continuum"
+        ],
+        "Ruby": [
+          "acts_as_tenant",
+          "ros-apartment",
+          "apartment"
+        ],
+        "npm": [
+          "@nestjs/cls",
+          "typeorm-multi-tenant"
+        ],
+        "PHP": [
+          "stancl/tenancy",
+          "spatie/laravel-multitenancy"
+        ]
+      },
+      "source": {
+        "python": [
+          "tenant_id",
+          "tenant-id",
+          "organization_id",
+          "workspace_id",
+          "row level security",
+          "current_setting('app.",
+          "set_config('app."
+        ],
+        "javascript": [
+          "tenantid",
+          "tenant_id",
+          "organizationid",
+          "organization_id",
+          "workspaceid",
+          "workspace_id"
+        ],
+        "typescript": [
+          "tenantid",
+          "tenant_id",
+          "organizationid",
+          "organization_id",
+          "workspaceid",
+          "workspace_id"
+        ],
+        "go": [
+          "tenantid",
+          "tenant_id",
+          "organizationid",
+          "organization_id",
+          "workspaceid"
+        ],
+        "java": [
+          "tenantid",
+          "tenant_id",
+          "organizationid"
+        ],
+        "kotlin": [
+          "tenantid",
+          "organizationid"
+        ],
+        "ruby": [
+          "tenant_id",
+          "organization_id",
+          "workspace_id",
+          "acts_as_tenant"
+        ],
+        "php": [
+          "tenant_id",
+          "organization_id",
+          "workspace_id"
+        ],
+        "csharp": [
+          "tenantid",
+          "organizationid"
+        ],
+        "rust": [
+          "tenant_id",
+          "organization_id",
+          "workspace_id"
+        ]
+      }
+    },
+    {
+      "condition": "tls",
+      "absenceIsEvidence": false,
+      "note": "The manifest answers this from `tls = ...`, which defaults to the safe side, so this corroborator exists to contradict an app that claims no HTTPS while shipping a certificate or a server that terminates one. `sv` has no reader for nginx or Caddy config, so those are recognised by their path rather than their contents.",
+      "packages": {
+        "Python": [
+          "pyopenssl",
+          "certbot"
+        ],
+        "Rust": [
+          "rustls",
+          "native-tls",
+          "openssl"
+        ],
+        "npm": [
+          "https-proxy-agent",
+          "greenlock",
+          "node-forge"
+        ],
+        "Go": [
+          "autocert"
+        ]
+      },
+      "files": [
+        "nginx.conf",
+        "Caddyfile",
+        "traefik.yml",
+        "traefik.yaml",
+        "*.pem",
+        "*.crt",
+        "*.cer",
+        "fullchain.pem",
+        "certs",
+        "ssl"
+      ],
+      "source": {
+        "python": [
+          "ssl.sslcontext",
+          "ssl_context=",
+          "load_cert_chain",
+          "ssl_keyfile"
+        ],
+        "javascript": [
+          "https.createserver",
+          "ssl_cert",
+          "key: fs.readfilesync"
+        ],
+        "typescript": [
+          "https.createserver",
+          "ssl_cert"
+        ],
+        "go": [
+          "listenandservetls",
+          "tls.config{",
+          "tls.loadx509keypair"
+        ],
+        "java": [
+          "server.ssl.",
+          "sslcontext",
+          "keystore"
+        ],
+        "kotlin": [
+          "server.ssl.",
+          "sslcontext"
+        ],
+        "ruby": [
+          "openssl::ssl",
+          "ssl_certificate"
+        ],
+        "php": [
+          "ssl_cert",
+          "curlopt_ssl"
+        ],
+        "csharp": [
+          "usehttpsredirection",
+          "x509certificate"
+        ],
+        "rust": [
+          "rustls::",
+          "tlsacceptor"
+        ]
+      }
+    },
+    {
+      "condition": "internet",
+      "absenceIsEvidence": false,
+      "note": "Being reachable from the internet is a deployment fact rather than a code one, so this looks for the files that put an app somewhere, and for a server told to listen on every interface. A repository with none of them may still be deployed by hand, which is why absence settles nothing.",
+      "files": [
+        "Procfile",
+        "vercel.json",
+        "netlify.toml",
+        "fly.toml",
+        "render.yaml",
+        "app.yaml",
+        "railway.json",
+        "heroku.yml",
+        "k8s",
+        "kubernetes",
+        "helm",
+        "serverless.yml",
+        "serverless.yaml",
+        ".platform.app.yaml"
+      ],
+      "source": {
+        "python": [
+          "0.0.0.0",
+          "allowed_hosts"
+        ],
+        "javascript": [
+          "0.0.0.0"
+        ],
+        "typescript": [
+          "0.0.0.0"
+        ],
+        "go": [
+          "0.0.0.0",
+          ":8080\""
+        ],
+        "java": [
+          "0.0.0.0"
+        ],
+        "kotlin": [
+          "0.0.0.0"
+        ],
+        "ruby": [
+          "0.0.0.0"
+        ],
+        "php": [
+          "0.0.0.0"
+        ],
+        "csharp": [
+          "0.0.0.0"
+        ],
+        "rust": [
+          "0.0.0.0"
+        ]
+      }
+    },
+    {
+      "condition": "hosted-scm",
+      "absenceIsEvidence": false,
+      "note": "A source-control server leaves its own folder in the repository. An app on one with none of these files is perfectly ordinary, though, so nothing is concluded from their absence.",
+      "files": [
+        ".github",
+        ".gitlab",
+        ".gitea",
+        ".azuredevops",
+        "CODEOWNERS",
+        ".github/CODEOWNERS",
+        "docs/CODEOWNERS",
+        ".github/dependabot.yml",
+        ".gitlab-ci.yml"
+      ]
+    },
+    {
+      "condition": "outside-contributors",
+      "absenceIsEvidence": false,
+      "note": "These files exist for the benefit of people who are not already on the team; a repository carrying them is expecting code from outside. A project that takes outside patches without any of them is common, so their absence is not an answer.",
+      "files": [
+        "CONTRIBUTING.md",
+        ".github/CONTRIBUTING.md",
+        "docs/CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        ".github/CODE_OF_CONDUCT.md",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE",
+        "AUTHORS",
+        "CONTRIBUTORS"
+      ]
+    },
+    {
+      "condition": "ai-actions",
+      "absenceIsEvidence": false,
+      "note": "An assistant that can do things rather than only answer is given tools, and the way tools are handed to a model is recognisable. A tool called through a hand-written loop over the model's text output leaves nothing standard behind.",
+      "packages": {
+        "Python": [
+          "langgraph",
+          "crewai",
+          "pyautogen",
+          "autogen-agentchat",
+          "smolagents",
+          "llama-index-agent-openai",
+          "openai-agents"
+        ],
+        "npm": [
+          "@langchain/langgraph",
+          "@openai/agents",
+          "ai"
+        ]
+      },
+      "source": {
+        "python": [
+          "tool_calls",
+          "tool_choice",
+          "tools=[",
+          "functions=[",
+          "function_call",
+          "@tool",
+          "bind_tools",
+          "agentexecutor",
+          "create_react_agent",
+          "toolnode"
+        ],
+        "javascript": [
+          "tool_calls",
+          "tool_choice",
+          "tools: [",
+          "function_call",
+          "bindtools",
+          "agentexecutor"
+        ],
+        "typescript": [
+          "tool_calls",
+          "tool_choice",
+          "tools: [",
+          "function_call",
+          "bindtools",
+          "agentexecutor"
+        ],
+        "go": [
+          "tool_calls",
+          "toolchoice"
+        ],
+        "java": [
+          "tool_calls",
+          "functioncallback"
+        ],
+        "kotlin": [
+          "tool_calls"
+        ],
+        "ruby": [
+          "tool_calls"
+        ],
+        "php": [
+          "tool_calls"
+        ],
+        "csharp": [
+          "tool_calls",
+          "kernelfunction"
+        ],
+        "rust": [
+          "tool_calls"
+        ]
+      }
+    },
+    {
+      "condition": "ai-history",
+      "absenceIsEvidence": false,
+      "note": "Conversation kept between visits has to be stored somewhere and handed back to the model. This over-matches on a transcript the browser keeps for the length of one page, which is not history between visits — and that error adds requirements rather than removing them.",
+      "packages": {
+        "Python": [
+          "langchain-community",
+          "langgraph-checkpoint",
+          "langgraph-checkpoint-sqlite",
+          "langgraph-checkpoint-postgres"
+        ],
+        "npm": [
+          "@langchain/community",
+          "@langchain/langgraph-checkpoint"
+        ]
+      },
+      "source": {
+        "python": [
+          "conversationbuffermemory",
+          "chatmessagehistory",
+          "runnablewithmessagehistory",
+          "chat_history",
+          "conversation_id",
+          "thread_id",
+          "checkpointer"
+        ],
+        "javascript": [
+          "chatmessagehistory",
+          "chat_history",
+          "chathistory",
+          "conversationid",
+          "conversation_id",
+          "threadid",
+          "thread_id"
+        ],
+        "typescript": [
+          "chatmessagehistory",
+          "chat_history",
+          "chathistory",
+          "conversationid",
+          "conversation_id",
+          "threadid",
+          "thread_id"
+        ],
+        "go": [
+          "conversationid",
+          "conversation_id",
+          "chathistory"
+        ],
+        "java": [
+          "chatmemory",
+          "conversationid"
+        ],
+        "kotlin": [
+          "chatmemory",
+          "conversationid"
+        ],
+        "ruby": [
+          "conversation_id",
+          "chat_history"
+        ],
+        "php": [
+          "conversation_id",
+          "chat_history"
+        ],
+        "csharp": [
+          "chathistory",
+          "conversationid"
+        ],
+        "rust": [
+          "conversation_id",
+          "chat_history"
+        ]
+      }
+    },
+    {
+      "condition": "ai-moderation",
+      "absenceIsEvidence": false,
+      "note": "Moderation means something screens what goes into or comes out of the model, and the screens in common use are named. A prompt that merely asks the model to behave is not moderation and is not looked for.",
+      "packages": {
+        "Python": [
+          "detoxify",
+          "azure-ai-contentsafety",
+          "better-profanity",
+          "profanity-check",
+          "nemoguardrails",
+          "guardrails-ai"
+        ],
+        "npm": [
+          "@azure-rest/ai-content-safety",
+          "bad-words",
+          "obscenity",
+          "leo-profanity"
+        ]
+      },
+      "source": {
+        "python": [
+          "moderations.create",
+          "omni-moderation",
+          "text-moderation",
+          "contentsafety",
+          "llamaguard",
+          "llama-guard",
+          "detoxify",
+          "commentanalyzer"
+        ],
+        "javascript": [
+          "moderations.create",
+          "omni-moderation",
+          "text-moderation",
+          "contentsafety",
+          "llamaguard",
+          "commentanalyzer"
+        ],
+        "typescript": [
+          "moderations.create",
+          "omni-moderation",
+          "text-moderation",
+          "contentsafety",
+          "llamaguard"
+        ],
+        "go": [
+          "moderations",
+          "contentsafety"
+        ],
+        "java": [
+          "contentsafety",
+          "moderation"
+        ],
+        "kotlin": [
+          "contentsafety",
+          "moderation"
+        ],
+        "ruby": [
+          "moderations",
+          "content_safety"
+        ],
+        "php": [
+          "moderations",
+          "content_safety"
+        ],
+        "csharp": [
+          "contentsafety",
+          "moderation"
+        ],
+        "rust": [
+          "moderations",
+          "content_safety"
+        ]
+      }
+    },
+    {
+      "condition": "multimodal-ai",
+      "absenceIsEvidence": false,
+      "note": "An assistant given a picture or a recording has to carry it in the request, and the field names for that are fixed by each vendor's API. An app that only shows images to people, and never to the model, is not multimodal and none of these appear.",
+      "packages": {
+        "Python": [
+          "openai-whisper",
+          "faster-whisper",
+          "speechrecognition"
+        ],
+        "npm": [
+          "@google/generative-ai"
+        ]
+      },
+      "source": {
+        "python": [
+          "image_url",
+          "input_audio",
+          "transcriptions.create",
+          "speech.create",
+          "inlinedata",
+          "inline_data",
+          "\"type\": \"image\"",
+          "'type': 'image'",
+          "media_type"
+        ],
+        "javascript": [
+          "image_url",
+          "imageurl",
+          "input_audio",
+          "transcriptions.create",
+          "inlinedata",
+          "type: \"image\""
+        ],
+        "typescript": [
+          "image_url",
+          "imageurl",
+          "input_audio",
+          "transcriptions.create",
+          "inlinedata",
+          "type: \"image\""
+        ],
+        "go": [
+          "image_url",
+          "inputaudio",
+          "inlinedata"
+        ],
+        "java": [
+          "image_url",
+          "inlinedata"
+        ],
+        "kotlin": [
+          "image_url",
+          "inlinedata"
+        ],
+        "ruby": [
+          "image_url",
+          "input_audio"
+        ],
+        "php": [
+          "image_url",
+          "input_audio"
+        ],
+        "csharp": [
+          "imageurl",
+          "inputaudio"
+        ],
+        "rust": [
+          "image_url",
+          "input_audio"
+        ]
+      }
+    },
+    {
+      "condition": "shared-hostname",
+      "noCorroborator": true,
+      "absenceIsEvidence": false,
+      "note": "Whether another application answers on the same hostname is a fact about where this app is deployed, not about how it is written. Nothing in the repository records it: the same code is one site on its own address in one deployment and one of five behind a shared proxy in another, and a reverse-proxy configuration that would show it is almost never in the app's own repository. `sv` has no way to check this claim and says so rather than looking in the wrong place and reporting nothing found."
     }
   ]
 }

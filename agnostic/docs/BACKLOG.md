@@ -5,31 +5,52 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators for the ten claims that still have none**: `public-api`, `multi-tenant`, `shared-hostname`,
-  `external-apis`, `tls`, `internet`, `ai-actions`, `ai-history`, `ai-moderation`, `multimodal-ai`,
-  `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
-  in the reports is a better answer than a weak one.
+- **Corroborators for the remaining claims.** Eleven of the twelve were written on 24 September 2026;
+  `shared-hostname` is recorded as uncheckable instead (`noCorroborator`), because it is a fact about
+  deployment that the repository does not hold. What is left is the weaker half of what was written:
+  `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
+  a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **`payments` and `scheduler` gate no requirements.** They are asked about, they have reasons written for
-  them, and nothing in the OWASP data keys on either. Either they earn rules in the v2 overlay, or they stop
-  being conditions and become what they really are — a prompt to check the data categories. Right now `sv`
-  reports a contradiction it then has to explain away.
+- **Grammars for Ruby, PHP and Java.** Named as unread today. Each is a dependency line and an entry
+  per rule; the machinery does not change.
 
-- **`sv check`.** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
-  tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on
-  them rather than starting over.
+- **More AST rules.** Four cover code execution, shell, SQL and deserialization. Path traversal, weak
+  cryptography and unvalidated redirects are the obvious next ones, and each is a data entry.
+
+- **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
+  pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
+  would turn an open question into an answer.
 
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **The container runner.** A backend is now available here (Colima 0.10.3, Docker 29.8.1, linux/aarch64), so
-  this is no longer blocked. Still build the trait and the honest `not assessed` path first: a machine without a
-  backend is the normal case for everyone else, and a runner that assumes one would report their apps as failing
-  rather than as unrun. Colima's defaults are two CPUs and 2 GB, which a real test suite can exhaust — the
-  runner has to tell a starved run apart from a broken one.
+- **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
+  can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
+  handling per route and anything that sends data need either a manifest describing the app's routes or a
+  session — both of which are their own items below.
 
-- **Reports.** Port `reports/` once the exclusions above are honest. Not before: a report is where a wrong
-  exclusion does its damage.
+- **Seeded users.** The probes sign in as nobody, so authorisation, session handling and CSRF are reported
+  as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
+  declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
+
+- **Load the Secure by Design checklist.** `sv --help` and the README say `sv` checks against it, and
+  `Frameworks::load` reads ASVS, AISVS and Appendix C only — the checklist contributes nothing. Found on
+  24 September 2026 while chasing bad citations. It is a third schema (`checklistDomains` → `controls`,
+  with a `statement` and no level), so it needs a level decided per control and applicability rules
+  written, which is why it is its own item and not a one-line fix. Until it is done, the help text and
+  README overstate what runs.
+
+- **Clean coverage from the remaining checks.** The credential scan, the rules that read code and the
+  probes now report what they examined and found nothing wrong; the SBOM and advisory checks do not, and
+  neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
+  which is the pattern to follow.
+
+- **Credit the app's own test suite.** `sv run` runs the tests the manifest declares, and a passing
+  suite is real evidence; `sv report --run` records that they passed and takes no credit, because
+  nothing yet decides which requirement a given test is about. v1's `compliance/test-name-match.ts`
+  compares a test's name and body with a requirement's wording and is honest about its limits — about a
+  third of its flags are honest tests phrased differently, and it is blind to a swap between neighbouring
+  requirements that share vocabulary. Port that shape, not a stricter one.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.
