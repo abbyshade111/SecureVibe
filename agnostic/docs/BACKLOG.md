@@ -5,12 +5,12 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators for the ten claims that still have none**: `public-api`, `multi-tenant`, `shared-hostname`,
+- **Corroborators for the twelve claims that still have none**: `public-api`, `multi-tenant`, `shared-hostname`,
   `external-apis`, `tls`, `internet`, `ai-actions`, `ai-history`, `ai-moderation`, `multimodal-ai`,
   `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
   in the reports is a better answer than a weak one.
 
-- **`sv check`.** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
+- **`sv check`.** **[taken: keen-meninsky-691a27, 24 September 2026]** The remaining language-agnostic scanners: secrets, config, SBOM, and AST rules via
   tree-sitter. `sv-scan` already holds the ecosystem detector and the dependency readers, so this builds on
   them rather than starting over.
 
