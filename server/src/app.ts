@@ -130,7 +130,9 @@ export function createApp(deps: AppDeps): Express {
   app.use(nonceMiddleware());
   app.use(
     helmet({
-      contentSecurityPolicy: false, // set explicitly by cspMiddleware (needs the per-request nonce)
+      // Helmet's static policy is switched off because cspMiddleware sets a stricter, per-request nonce policy on
+      // every response (see the CSP middleware); this is not a missing CSP.
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
       permittedCrossDomainPolicies: false,

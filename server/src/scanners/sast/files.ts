@@ -97,6 +97,7 @@ export function readTextFile(absPath: string): string | undefined {
   return buf.toString('utf8');
 }
 
+/** Content hashes for files and fingerprints, never for passwords (those use argon2/scrypt in the template). */
 export function sha256(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }

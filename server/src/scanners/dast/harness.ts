@@ -150,6 +150,8 @@ export function probeHealth(port: number, tls: boolean): Promise<boolean> {
   return new Promise((resolveHealth) => {
     const mod = tls ? https : http;
     const req = mod.request(
+      // The app under test was started by SecureVibe on this computer with a self-signed certificate; the
+      // certificate is not what is being checked here, only whether the app answers. Never used for anything else.
       { host: '127.0.0.1', port, path: '/healthz', method: 'GET', timeout: 2_000, rejectUnauthorized: false } as http.RequestOptions,
       (res) => {
         res.resume();
