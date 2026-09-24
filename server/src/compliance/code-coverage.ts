@@ -35,7 +35,7 @@ export interface CodeCoverage {
   /**
    * Whether it is honest to give this application a compliance score at all. False when most of its code was
    * never read: the requirements were not assessed, and reporting them as unmet would be a verdict we did not
-   * earn. Not a quality judgement about the app — a statement about this run.
+   * earn. Not a quality judgment about the app — a statement about this run.
    */
   assessable: boolean;
   /** One plain sentence for the reports, always present. */

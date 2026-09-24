@@ -1,7 +1,7 @@
 /**
  * "What this changes": the plain-language controls each wizard answer turns on. Works on a partial profile so the
  * wizard can show it live while the person is still answering. Sentences come from data/knowledge/wizard-copy.json
- * (`whatThisChanges` keyed by condition id) when present, otherwise from the built-in catalogue below.
+ * (`whatThisChanges` keyed by condition id) when present, otherwise from the built-in catalog below.
  *
  * Output keys are the wizard step ids from shared/src/api.ts WIZARD_STEPS: about, users, data, features, deployment.
  */

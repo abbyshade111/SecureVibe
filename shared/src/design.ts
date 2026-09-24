@@ -232,7 +232,7 @@ export const ThreatSchema = z.object({
 });
 export type Threat = z.infer<typeof ThreatSchema>;
 
-/** The threats array doubles as the prioritised risk register (sorted by riskLevel). */
+/** The threats array doubles as the prioritized risk register (sorted by riskLevel). */
 export const ThreatModelSchema = z.object({
   method: z.literal('STRIDE'),
   performedBy: z.enum(['claude', 'rules']),

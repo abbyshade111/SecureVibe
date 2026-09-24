@@ -255,7 +255,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
     : 'skipped';
   const summary = outcome.performed
     ? `${skippedNote}${filesNote} Claude reviewed ${outcome.reviewedRequirementIds.length} of ${requested} requirement(s) and cited ${outcome.totalCitations} place(s) in the code (${outcome.unverifiedCitations} citation(s) could not be verified).${notReviewedNote(outcome.batches)}`
-    : (outcome.skippedReason ?? (ctx.abort.signal.aborted ? 'The AI review was stopped because the build was cancelled; nothing it had started counts as evidence.' : 'The AI review did not run.'));
+    : (outcome.skippedReason ?? (ctx.abort.signal.aborted ? 'The AI review was stopped because the build was canceled; nothing it had started counts as evidence.' : 'The AI review did not run.'));
   return finishStage(ctx, 'ai-review', status, summary, started, {
     ...(outcome.skippedReason ? { skippedReason: outcome.skippedReason } : {}),
     details: { assessments: outcome.assessments.length, hallucinationRate: outcome.hallucinationRate, batches: outcome.batches },

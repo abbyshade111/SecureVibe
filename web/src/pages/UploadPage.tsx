@@ -193,7 +193,7 @@ export function UploadPage() {
             Next comes the check itself: secrets, dependencies, configuration and the virus scan read the code as it
             is. To get the compliance report and the AI review as well, answer a few questions about what this app
             does (whether it takes payments, whether it holds health or financial information, whether your
-            organisation has a central sign-in): they decide which rules apply to it. If you did not write this
+            organization has a central sign-in): they decide which rules apply to it. If you did not write this
             app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an answer SecureVibe
             understands and it never counts as evidence either way.
           </p>

@@ -150,7 +150,7 @@ export const LINT_RULE_META: Record<string, RuleMeta> = {
     sbd: [],
     exploitability: 'theoretical',
     description: 'An object or array is indexed with a variable instead of a fixed key.',
-    impact: 'If the key comes from outside the program it can, in rare cases, reach properties like __proto__ and modify behaviour app-wide.',
+    impact: 'If the key comes from outside the program it can, in rare cases, reach properties like __proto__ and modify behavior app-wide.',
     fix: 'Validate the key against an allow-list, or use a Map instead of a plain object for dynamic keys.',
     references: REF,
   }),

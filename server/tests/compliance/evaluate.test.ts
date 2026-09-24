@@ -54,7 +54,7 @@ function buildInput(overrides: Partial<EvaluateInput> = {}): { input: EvaluateIn
 
   const testResults: TestResult[] = [
     { name: 'V8.2.2 ownership is enforced for owner-scoped entities', ok: true, file: 'tests/security/authz.test.ts' },
-    { name: 'C2.1.1 normalises AI input to NFKC', ok: true, file: 'tests/security/ai.test.ts' },
+    { name: 'C2.1.1 normalizes AI input to NFKC', ok: true, file: 'tests/security/ai.test.ts' },
   ];
   const probeResults: ProbeResultLike[] = [
     { id: 'dast.headers.csp', passed: true, observed: 'Content-Security-Policy present with a per-request nonce.', requirementIds: ['V3.4.3', 'V3.4.6'] },
@@ -328,8 +328,8 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
 
   it('puts what can be done now above what waits for something that has not happened', () => {
     // An owner running her app on her own computer was told, as her top two actions, to connect it to her
-    // organisation's central sign-in system and to move its secrets into a hosting provider's secret manager.
-    // She has neither an organisation nor a host. Both actions are real and are kept; they are just not what she
+    // organization's central sign-in system and to move its secrets into a hosting provider's secret manager.
+    // She has neither an organization nor a host. Both actions are real and are kept; they are just not what she
     // does next, and a list read top-down had buried everything she could act on today underneath them.
     const { input } = buildInput();
     input.manifestResults = [];

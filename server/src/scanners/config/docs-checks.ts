@@ -5,7 +5,7 @@
  *
  * What a machine can and cannot say is kept honest: these checks verify that the document is there and that the
  * facts in it (session times, allowed hosts, kinds of data, log location) are the app's real ones. Whether the
- * wording is *right for your business* is still a person's judgement, and those questions stay in the wizard.
+ * wording is *right for your business* is still a person's judgment, and those questions stay in the wizard.
  */
 import { join } from 'node:path';
 import type { RuleMeta } from '../sast/findings.js';

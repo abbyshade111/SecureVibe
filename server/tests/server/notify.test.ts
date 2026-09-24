@@ -6,7 +6,7 @@ const project = { name: 'Habit Log' };
 const base = { mode: 'full' as const, findings: [], compliance: undefined, failure: undefined };
 
 describe('finishMessage', () => {
-  it('summarises a good build in one line', () => {
+  it('summarizes a good build in one line', () => {
     const m = finishMessage(project, { ...base, status: 'succeeded', compliance: { overall: { rating: 'needs-attention' } } as never, findings: [{ status: 'open', severity: 'low' }, { status: 'fixed', severity: 'high' }] as never });
     expect(m.title).toBe('SecureVibe: Habit Log');
     expect(m.body).toBe('The build finished. Verdict: needs attention. 1 minor item(s) to look at.');
@@ -19,7 +19,7 @@ describe('finishMessage', () => {
 
   it('explains a failure and a cancellation plainly', () => {
     expect(finishMessage(project, { ...base, status: 'failed', failure: { message: 'The packages could not be installed.', options: [] } }).body).toBe('The build did not finish: The packages could not be installed.');
-    expect(finishMessage(project, { ...base, status: 'cancelled' }).body).toBe('The build was cancelled.');
+    expect(finishMessage(project, { ...base, status: 'canceled' }).body).toBe('The build was canceled.');
   });
 });
 

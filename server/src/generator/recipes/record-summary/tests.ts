@@ -18,7 +18,7 @@ export interface EmittedTest {
   requirement?: Omit<RecipeRequirement, 'test'>;
 }
 
-/** Fields that would have been summarised but are left out because the person marked them sensitive. */
+/** Fields that would have been summarized but are left out because the person marked them sensitive. */
 export function excludedSensitiveFields(plan: SummaryPlan): EntityField[] {
   const kinds = new Set(['number', 'money', 'choice', 'boolean']);
   return plan.entity.entity.fields.filter((f) => f.sensitive && kinds.has(f.type));

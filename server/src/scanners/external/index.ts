@@ -309,7 +309,7 @@ export async function runExternal(ctx: ScanContext, opts: RunExternalOptions = {
       continue;
     }
     if (ctx.abort.aborted) {
-      const result: ExternalToolResult = { name, installed: true, ran: false, version: detected.version, reason: 'skipped: the run was cancelled', findingCount: 0, durationMs: 0 };
+      const result: ExternalToolResult = { name, installed: true, ran: false, version: detected.version, reason: 'skipped: the run was canceled', findingCount: 0, durationMs: 0 };
       tools.push(result);
       coverageRows.push(coverageRow(result, covers));
       continue;

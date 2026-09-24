@@ -6,9 +6,9 @@
  * is "the ownership clause is in the statement, and nothing a visitor typed is in the statement". Both are
  * things you can only see by reading the SQL.
  *
- * Only tests that really are evidence for the requirement they name live here. The builder's other behaviour —
+ * Only tests that really are evidence for the requirement they name live here. The builder's other behavior —
  * how it escapes a search, what it refuses to be configured as, what it reports back to the page — is tested in
- * `tests/query-behaviour.test.ts`, with no requirement id, because a test that names a requirement it does not
+ * `tests/query-behavior.test.ts`, with no requirement id, because a test that names a requirement it does not
  * check credits the wrong control. Eight of these tests used to be in this file and were moved out for exactly
  * that reason, after SecureVibe's own test-name-match checker flagged them.
  */

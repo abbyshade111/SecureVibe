@@ -24,7 +24,7 @@ export function jsString(value: string): string {
   // The two separators are written as regex escapes, never as the raw characters: a raw U+2028 in this file
   // is itself a line terminator, and the bug this helper exists to prevent is perfectly capable of biting
   // the helper. Written as three replace() calls rather than split/join because that is the one shape CodeQL's
-  // "bad code sanitization" rule recognises as the fix; split/join did the same thing and left seventeen
+  // "bad code sanitization" rule recognizes as the fix; split/join did the same thing and left seventeen
   // alerts standing on the emitter (24 September 2026). The three-replace shape is load-bearing for the scanner:
   // the rule fires once per call site, so tidying this into anything else reopens every alert on the emitter.
   // Keep the file free of raw U+2028/U+2029 characters, tests included (build one with String.fromCharCode).

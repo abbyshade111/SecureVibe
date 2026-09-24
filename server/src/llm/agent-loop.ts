@@ -92,7 +92,7 @@ const MESSAGES = {
     'The AI declined to continue with this request. Nothing was written in this step. You can change your answers and try again.',
   maxTokens:
     'The AI ran out of room in the middle of a step, so SecureVibe stopped it rather than save a half-written file.',
-  aborted: 'The build was cancelled, so the AI was stopped.',
+  aborted: 'The build was canceled, so the AI was stopped.',
 };
 
 export const WRAP_UP_NOTICE =

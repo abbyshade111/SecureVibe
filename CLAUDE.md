@@ -116,6 +116,9 @@ whatever you touch before changing it.
 ## Working style the owner expects
 
 - Plain language in the UI and reports: the owner is not a programmer. No jargon without an explanation.
+- One spelling standard: American English (color, behavior, organization, recognize) with the Oxford comma, in
+  everything a person reads: the UI, the reports, the wizard copy, the knowledge files, comments. Identifiers and
+  JSON keys keep their names (`notSure.behaviour` is a key, not prose). Swept on 24 September 2026.
 - Say what was verified and what was not. Report test results as they are.
 - Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once
   its checks are green, without asking first. Say what went in afterwards; a short, honest account of each change

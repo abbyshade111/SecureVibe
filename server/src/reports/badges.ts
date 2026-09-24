@@ -1,6 +1,6 @@
 /**
- * Status as icon + word, never colour alone (DESIGN §13.12). Every badge function returns a self-contained
- * `<span>` whose text alone tells you the status; CSS colour is decoration, not the only signal.
+ * Status as icon + word, never color alone (DESIGN §13.12). Every badge function returns a self-contained
+ * `<span>` whose text alone tells you the status; CSS color is decoration, not the only signal.
  */
 import type { RequirementStatus, StandardSummary } from '@shared/compliance.js';
 import type { Confidence, Priority, Severity } from '@shared/findings.js';

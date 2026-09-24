@@ -14,7 +14,7 @@ function waitingProvider(seen: { aborted: boolean; effort?: string }): LlmProvid
         seen.effort = req.effort;
         req.abort?.addEventListener('abort', () => {
           seen.aborted = true;
-          resolve({ ok: false, reason: 'error', message: 'The step was cancelled.', usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0, servedModel: 'claude-opus-5', fallbackUsed: false, refused: false } });
+          resolve({ ok: false, reason: 'error', message: 'The step was canceled.', usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0, servedModel: 'claude-opus-5', fallbackUsed: false, refused: false } });
         });
       }),
   } as unknown as LlmProvider;

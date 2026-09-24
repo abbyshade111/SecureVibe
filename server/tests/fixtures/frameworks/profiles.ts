@@ -76,7 +76,7 @@ export const customersHealthAi = {
       uploadKinds: ['documents'],
       aiAssistant: {
         enabled: true,
-        purpose: 'help staff summarise notes',
+        purpose: 'help staff summarize notes',
         dataItCanSee: 'users-own-records',
         canTakeActions: false,
         storesHistory: true,

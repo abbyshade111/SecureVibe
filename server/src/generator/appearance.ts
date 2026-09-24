@@ -1,9 +1,9 @@
 /**
  * Changing how an app looks, without rebuilding it.
  *
- * A theme is colour and nothing else (see the template's `src/lib/themes.ts`), so switching one does not need the
+ * A theme is color and nothing else (see the template's `src/lib/themes.ts`), so switching one does not need the
  * code to be written again, checked again, or approved again: SecureVibe sets `APP_THEME` in the app's own `.env`
- * and the app renders the new colours the next time it starts. The design profile is updated to match, so a later
+ * and the app renders the new colors the next time it starts. The design profile is updated to match, so a later
  * rebuild keeps the look the owner chose.
  *
  * Only that one line of `.env` is touched. Everything else in the file — the app's secrets and its settings — is

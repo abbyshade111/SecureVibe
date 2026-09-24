@@ -82,7 +82,7 @@ function findingsForFile(ctx: ScanContext, relPath: string, text: string): Findi
   return findings;
 }
 
-/** `.env` next to an initialised git repository, not excluded by .gitignore: a real risk of it being committed. */
+/** `.env` next to an initialized git repository, not excluded by .gitignore: a real risk of it being committed. */
 function envFileCommittedFindings(ctx: ScanContext, envFiles: string[]): Finding[] {
   if (!existsSync(join(ctx.appDir, '.git'))) return [];
   const gitignore = readTextFile(join(ctx.appDir, '.gitignore')) ?? '';
@@ -135,9 +135,9 @@ export const runSecrets: Scanner = async (ctx) => {
     return {
       findings,
       evidence: [],
-      coverage: { tool: SECRETS_TOOL.name, ran: false, version: SECRETS_TOOL.version, reason: 'The run was cancelled before the secrets scan finished.' },
+      coverage: { tool: SECRETS_TOOL.name, ran: false, version: SECRETS_TOOL.version, reason: 'The run was canceled before the secrets scan finished.' },
       status: 'skipped',
-      summary: 'The secrets scan was cancelled before it finished.',
+      summary: 'The secrets scan was canceled before it finished.',
     };
   }
 

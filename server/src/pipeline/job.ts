@@ -103,7 +103,7 @@ export function runIsLive(store: ProjectStore, runId: string | undefined): boole
   return run !== undefined && run.status === 'running' && workerIsAlive(store, run.projectId, runId);
 }
 
-/** Asks a worker to stop; the worker aborts its run and records it as cancelled. */
+/** Asks a worker to stop; the worker aborts its run and records it as canceled. */
 export function signalWorker(store: ProjectStore, projectId: string, runId: string, signal: NodeJS.Signals = 'SIGTERM'): boolean {
   const worker = readWorker(store, projectId, runId);
   if (!worker || !isPidAlive(worker.pid)) return false;

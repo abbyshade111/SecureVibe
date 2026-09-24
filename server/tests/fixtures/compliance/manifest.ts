@@ -94,11 +94,11 @@ export const manifestFixture: TemplateManifest = {
     // AI feature control, gated on the "ai" feature.
     {
       id: 'TPL-AI-01',
-      title: 'AI input normalisation',
-      description: 'Untrusted text is normalised and screened before reaching the model.',
+      title: 'AI input normalization',
+      description: 'Untrusted text is normalized and screened before reaching the model.',
       requiresFeature: 'ai',
       asvs: [],
-      aisvs: [{ id: 'C2.1.1', proves: 'Input is normalised (NFKC) and control characters are stripped.', coverage: 'full' }],
+      aisvs: [{ id: 'C2.1.1', proves: 'Input is normalized (NFKC) and control characters are stripped.', coverage: 'full' }],
       sbd: [],
       checks: [{ type: 'test', name: 'C2.1.1' }],
       files: ['src/features/ai/index.ts'],

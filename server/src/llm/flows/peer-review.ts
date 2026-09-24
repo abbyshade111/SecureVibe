@@ -1,7 +1,7 @@
 /**
  * Secure by Design step 5: the AI second opinion on the design.
  *
- * It is labelled honestly (same model, different prompt — DESIGN §13 item 4) and it is fenced: a suggestion that
+ * It is labeled honestly (same model, different prompt — DESIGN §13 item 4) and it is fenced: a suggestion that
  * wants to change the profile may only touch a setting from a fixed allow-list, and only in the direction that makes
  * the design stricter. Anything else is recorded as advice for the report and changes nothing.
  */

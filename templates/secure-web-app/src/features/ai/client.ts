@@ -46,7 +46,7 @@ export interface ToolProposal {
 
 export interface CompletionRequest {
   system: string;
-  /** Oldest first. Content is already normalised, screened and wrapped. */
+  /** Oldest first. Content is already normalized, screened and wrapped. */
   messages: { role: 'user' | 'assistant'; content: string }[];
   /** The cleaned question on its own (the last message also contains the app data around it). */
   question: string;
@@ -118,7 +118,7 @@ function apiKey(): string | undefined {
 
 /** Never let a provider error carry the key, a URL with the key, or a stack trace into a log line. */
 function describeProviderError(err: unknown): string {
-  if (err instanceof Anthropic.APIUserAbortError) return 'the request was cancelled';
+  if (err instanceof Anthropic.APIUserAbortError) return 'the request was canceled';
   if (err instanceof Anthropic.APIConnectionTimeoutError) return `the model did not answer within ${Math.round(requestTimeoutMs() / 1000)} seconds`;
   if (err instanceof Anthropic.APIConnectionError) return 'the model service could not be reached';
   if (err instanceof Anthropic.AuthenticationError) return 'the API key was refused by the model service';

@@ -153,10 +153,6 @@ building from nothing.
   test-name checker can compare against, or the tests drop the prefix and say what they show in plain words, as the
   secrets tests do. Found while looking for a catalogue to file an assistant-progress test under, on 20 September
   2026. Same family as the mislabelled requirement names: an id is a claim, and a claim wants something behind it.
-- **One spelling standard, American English, with the Oxford comma.** The interface, the reports and the code
-  comments are written in British English today ("colour", "behaviour", "recognise"). Owner-facing text first —
-  the wizard copy, the reports, the finding descriptions — and the knowledge files that feed them, since a report
-  that mixes conventions reads as carelessly assembled whatever else is true of it.
 
 ## The recipe-library session's half
 

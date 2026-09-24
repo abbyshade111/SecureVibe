@@ -51,7 +51,7 @@ describe('which semgrep rules are worth asking for', () => {
     expect(semgrepPacks(['src/server.ts', 'src/views/list.ejs'])).toEqual(['p/owasp-top-ten', 'p/typescript']);
   });
 
-  it('still asks for the cross-language rules when it recognises no language at all', () => {
+  it('still asks for the cross-language rules when it recognizes no language at all', () => {
     // An app written in something we do not list is not left with nothing.
     expect(semgrepPacks(['main.erl', 'README.md'])).toEqual(['p/owasp-top-ten']);
   });

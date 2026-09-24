@@ -1,5 +1,5 @@
 {
-  "description": "Prompt-injection screening ruleset. highPrecision matches are blocked (ai.input.rejected); medium matches are flagged and logged (ai.input.flagged) but allowed. Patterns are JavaScript regex sources applied to NFKC-normalised text; use flags 'i' unless case matters. The key `high` duplicates `highPrecision` for the server loader; keep both identical.",
+  "description": "Prompt-injection screening ruleset. highPrecision matches are blocked (ai.input.rejected); medium matches are flagged and logged (ai.input.flagged) but allowed. Patterns are JavaScript regex sources applied to NFKC-normalized text; use flags 'i' unless case matters. The key `high` duplicates `highPrecision` for the server loader; keep both identical.",
   "highPrecision": [
     {
       "id": "inj.ignore-previous-instructions",
@@ -83,7 +83,7 @@
       "id": "inj.admin-override-claim",
       "pattern": "\\b(?:this\\s+is|i\\s+am|i'm|as)\\s+(?:your|the)\\s+(?:developer|creator|programmer)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass)\\b|\\b(?:i\\s+am|i'm|this\\s+is)\\s+(?:from\\s+)?(?:openai|anthropic)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass|authori[sz]e)\\b",
       "flags": "i",
-      "description": "Authority claim used to unlock behaviour."
+      "description": "Authority claim used to unlock behavior."
     },
     {
       "id": "inj.no-restrictions-answer",
@@ -181,7 +181,7 @@
       "id": "inj.admin-override-claim",
       "pattern": "\\b(?:this\\s+is|i\\s+am|i'm|as)\\s+(?:your|the)\\s+(?:developer|creator|programmer)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass)\\b|\\b(?:i\\s+am|i'm|this\\s+is)\\s+(?:from\\s+)?(?:openai|anthropic)\\b[^.\\n]{0,60}\\b(?:override|unlock|disable|ignore|bypass|authori[sz]e)\\b",
       "flags": "i",
-      "description": "Authority claim used to unlock behaviour."
+      "description": "Authority claim used to unlock behavior."
     },
     {
       "id": "inj.no-restrictions-answer",
@@ -219,7 +219,7 @@
       "id": "inj.m.from-now-on",
       "pattern": "\\bfrom\\s+now\\s+on\\s+(?:you|your)\\b",
       "flags": "i",
-      "description": "Attempts a lasting behaviour change."
+      "description": "Attempts a lasting behavior change."
     },
     {
       "id": "inj.m.pretend-you-are",

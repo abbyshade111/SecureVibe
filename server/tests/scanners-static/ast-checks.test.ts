@@ -9,7 +9,7 @@ import { isAstCheckName, runAstCheck } from '../../src/scanners/ast-checks.js';
 import { fixtureDir, makeScanContext } from './helpers.js';
 
 describe('isAstCheckName', () => {
-  it('recognises every declared check and rejects a typo', () => {
+  it('recognizes every declared check and rejects a typo', () => {
     expect(isAstCheckName('helmet-csp-configured')).toBe(true);
     expect(isAstCheckName('not-a-real-check')).toBe(false);
   });

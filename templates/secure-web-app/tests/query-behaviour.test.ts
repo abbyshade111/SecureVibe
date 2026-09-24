@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { assertUsableSpec, buildListQuery, likePattern, sortableColumns } from '../src/db/query.ts';
 import { spec, mine, everyone, clauses } from './helpers/query-spec.ts';
 
-describe('list query behaviour', () => {
+describe('list query behavior', () => {
   test('search wildcards are escaped, so looking for a per-cent sign does not match everything', () => {
     assert.equal(likePattern('100%'), '%100\\%%');
     assert.equal(likePattern('a_b'), '%a\\_b%');

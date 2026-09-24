@@ -104,7 +104,7 @@ export async function runUpload(projectId: string, plan: UploadPlan, onProgress:
   let done = 0;
   const worker = async () => {
     while (next < plan.files.length) {
-      if (signal.aborted) throw new Error('The upload was cancelled.');
+      if (signal.aborted) throw new Error('The upload was canceled.');
       const item = plan.files[next++]!;
       await uploadFile(projectId, item.path, item.file);
       onProgress(++done);

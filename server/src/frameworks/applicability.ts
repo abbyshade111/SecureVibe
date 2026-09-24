@@ -53,7 +53,7 @@ export const DEFAULT_NOT_APPLICABLE_REASONS: Record<ApplicabilityCondition, stri
   jwt: 'This app does not issue self-contained tokens such as JWTs; its API keys are opaque values checked against the database.',
   rag: 'The AI assistant does not search a document store or vector database (no retrieval-augmented generation).',
   mcp: 'The AI assistant does not use the Model Context Protocol (MCP) to talk to tools.',
-  'multi-tenant': 'This app serves one organisation, not several separate customer organisations sharing one system.',
+  'multi-tenant': 'This app serves one organization, not several separate customer organizations sharing one system.',
   training: 'This app does not train or fine-tune any AI model; it uses a ready-made model from a vendor.',
   'self-assessment': 'This is only evaluated when SecureVibe assesses itself.',
 };

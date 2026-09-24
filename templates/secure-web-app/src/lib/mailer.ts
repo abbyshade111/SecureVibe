@@ -4,7 +4,7 @@
  * to load, that caller already falls back to writing a `.eml` file itself. `sendMail()` here makes the same
  * choice explicitly: with `SMTP_URL` set it sends over a minimal SMTP client (STARTTLS when the server offers
  * it); otherwise — the default, "development" mode — it writes the message to `DATA_DIR/outbox` so a local owner
- * can open the file directly. Header values are sanitised again here (CR/LF stripped, length capped) so this
+ * can open the file directly. Header values are sanitized again here (CR/LF stripped, length capped) so this
  * module is safe to call on its own, not only through the caller that already does it.
  */
 import { randomBytes } from 'node:crypto';

@@ -110,7 +110,7 @@ async function writeEnvFile(appDir: string, profile: DesignProfile, buildSpec: B
   const base = existsSync(exampleFile) ? await readFile(exampleFile, 'utf8') : '';
   const overrides: Record<string, string> = {
     APP_NAME: profile.app.name,
-    // The chosen look. Colour only: the template checks the name against its own list before rendering it.
+    // The chosen look. Color only: the template checks the name against its own list before rendering it.
     APP_THEME: profile.app.theme,
     TLS_MODE: buildSpec.features.tlsMode,
     BIND_LAN: buildSpec.features.lanBinding ? '1' : '0',
@@ -184,10 +184,10 @@ const DesignProfileSubsetSchema = z.object({
     description: z.string().optional(),
     category: z.string(),
     // No theme. It is a runtime setting, not a design decision — every theme is contrast-tested in both modes,
-    // so a colour cannot change what the design means, which is why it is also out of the design hash. A frozen
-    // record of what was built that carries it makes a claim it cannot keep: an owner changed her app's colours
+    // so a color cannot change what the design means, which is why it is also out of the design hash. A frozen
+    // record of what was built that carries it makes a claim it cannot keep: an owner changed her app's colors
     // after the build and this file went on saying the old one. Keeping it in step would be worse, because a
-    // snapshot that changes after the build is not a snapshot. The colour lives in the owner's answers, and
+    // snapshot that changes after the build is not a snapshot. The color lives in the owner's answers, and
     // scaffold writes APP_THEME into the app's .env from them. Nothing writes back the other way; do not add it.
     entities: z.array(z.looseObject({ name: z.string() })),
   }),

@@ -111,12 +111,12 @@ const MODEL_PREFIX: Record<AiServiceId, RegExp> = { anthropic: /^claude-/, opena
 /**
  * The small steps, and the cheap model each service runs them on.
  *
- * Two of the AI steps are not judgement about your app: `classify` scores a piece of text for the moderation
+ * Two of the AI steps are not judgment about your app: `classify` scores a piece of text for the moderation
  * setting, and `summarize` rewrites technical wording in plain language. Both are short, both are checked by the
  * code around them, and neither decides anything about security, so paying the top rate for them is waste. They run
  * on the cheapest model of whichever service the step belongs to, whatever model is chosen for the rest.
  *
- * Writing your app, reviewing it, planning and second opinions are not in this list: those are judgement, and they
+ * Writing your app, reviewing it, planning and second opinions are not in this list: those are judgment, and they
  * use the model you chose. Every call's model and cost is recorded in the audit file either way.
  */
 export const SMALL_STEPS: ReadonlySet<LlmPurpose> = new Set<LlmPurpose>(['classify', 'summarize']);

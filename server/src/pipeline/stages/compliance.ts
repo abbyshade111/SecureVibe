@@ -57,7 +57,7 @@ export async function runComplianceStage(ctx: PipelineCtx): Promise<StageResult>
     buildSpec: ctx.buildSpec,
     testResults: ctx.acc.testResults,
     probeResults: ctx.acc.probeResults,
-    // Code checks are local and quick, so they still run when the build was cancelled (only AI and app runs stop).
+    // Code checks are local and quick, so they still run when the build was canceled (only AI and app runs stop).
     astCheck: (name, file) => runAstCheck(name, { ...scanCtx, abort: new AbortController().signal }, file),
     configResults,
     sastFindings: ctx.acc.findings.filter((f) => f.source === 'sast'),

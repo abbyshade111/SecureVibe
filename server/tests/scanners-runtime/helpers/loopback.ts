@@ -87,7 +87,7 @@ export class LoopbackHttpClient extends HttpClient {
     return new Promise<RawHttpResponse>((resolve, reject) => {
       const req = http.request(
         {
-          // Node only honours createConnection when no agent is set, so `agent` is deliberately left out.
+          // Node only honors createConnection when no agent is set, so `agent` is deliberately left out.
           createConnection: () => client as unknown as import('node:net').Socket,
           host: url.hostname,
           port: url.port || 80,

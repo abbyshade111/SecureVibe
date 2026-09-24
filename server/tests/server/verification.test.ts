@@ -118,7 +118,7 @@ describe('human verification', () => {
       requirementId: item.requirementId,
       standard: item.standard,
       result: 'not-applicable',
-      note: 'Nobody outside this household ever signs in; there is no organisation and no central sign-in system.',
+      note: 'Nobody outside this household ever signs in; there is no organization and no central sign-in system.',
       attestedBy: 'Sam Rivera',
     });
     const run = await refreshReportsWithAnswers({ store, config, knowledge, frameworks }, project.id);

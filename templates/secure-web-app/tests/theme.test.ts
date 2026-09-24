@@ -1,14 +1,14 @@
 /**
  * Themes: a choice of look that cannot make the app harder to use.
  *
- * Each theme in public/css/app.css is nothing but a set of colour values. This reads those values straight out of
- * the stylesheet and checks every pair of colours that ends up on top of another one against the WCAG 2.2 AA
+ * Each theme in public/css/app.css is nothing but a set of color values. This reads those values straight out of
+ * the stylesheet and checks every pair of colors that ends up on top of another one against the WCAG 2.2 AA
  * contrast ratios — 4.5:1 for text, 3:1 for the edge of a form field — in the light version and in the dark version
  * alike. A theme that reads badly fails the build, so "pick a different look" can never cost the person reading it.
  *
  * No requirement ids on these names, and that is the point of the file existing. They were named `UX-01`, which
  * appears in no framework file and no knowledge file — so it was credited to nothing, screened by nothing, and read
- * to anybody else as a citation. Readable colour is a real property worth testing and it is not an entry in ASVS,
+ * to anybody else as a citation. Readable color is a real property worth testing and it is not an entry in ASVS,
  * AISVS or the Secure by Design checklist, so the honest thing is to say what the test shows and claim nothing.
  * The one theme test that does cite a requirement, AS-07, stayed in `tests/security/theme.test.ts`.
  */
@@ -50,7 +50,7 @@ function channel(value: number): number {
 
 function luminance(hex: string): number {
   const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  assert.ok(m, `${hex} is not a six-digit hex colour; themes only use those so contrast can be measured`);
+  assert.ok(m, `${hex} is not a six-digit hex color; themes only use those so contrast can be measured`);
   const n = parseInt(m![1]!, 16);
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => channel(c / 255)) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -109,11 +109,11 @@ describe('themes', () => {
     assert.deepEqual(failures, [], `themes that would be hard to read:\n${failures.join('\n')}`);
   });
 
-  test('no colour is named outside a theme, so choosing one really does change everything', () => {
+  test('no color is named outside a theme, so choosing one really does change everything', () => {
     const themeBlocks = /(:root|html\[data-theme='[a-z]+'\])[^{]*\{[^}]*\}/g;
     const rest = CSS.replace(themeBlocks, '');
     const strays = [...rest.matchAll(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/g)].map((m) => m[0]);
-    assert.deepEqual(strays, [], 'colours must be tokens so every theme controls them');
+    assert.deepEqual(strays, [], 'colors must be tokens so every theme controls them');
   });
 
   describe('the rendered page', () => {
@@ -132,7 +132,7 @@ describe('themes', () => {
       // The second half of this is the interesting one, and it was unreachable in a generated app until the
       // design snapshot stopped carrying a theme. With a theme in that file the app fell back to it instead of
       // to the default, so "nothing was chosen" could never be true and this failed in every app SecureVibe
-      // built while passing in the bare template. If it fails here again, look for a third source of the colour
+      // built while passing in the bare template. If it fails here again, look for a third source of the color
       // before changing the assertion: the only ones that should exist are APP_THEME and this default.
       app = await startApp();
       const plain = await (await app.fetch('/login')).text();

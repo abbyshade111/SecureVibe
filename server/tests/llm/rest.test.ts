@@ -14,7 +14,7 @@ describe('llmErrorForStatus', () => {
 });
 
 describe('postJson', () => {
-  it('reports a failed connection as a network problem and a cancelled call as aborted', async () => {
+  it('reports a failed connection as a network problem and a canceled call as aborted', async () => {
     await expect(postJson('https://x', {}, {}, { service: 'OpenAI', timeoutMs: 1000, fetchImpl: async () => { throw new Error('ECONNREFUSED'); } })).rejects.toMatchObject({ kind: 'network' });
     const abort = new AbortController();
     abort.abort();

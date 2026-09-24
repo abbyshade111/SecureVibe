@@ -34,7 +34,7 @@ export interface RouteSpec<P = unknown, Q = unknown, B = unknown> {
   /** Default true for state-changing methods with session auth; false only for API-key routes. */
   csrf?: boolean;
   rateLimit?: RateLimitPreset;
-  /** JSON API mutations honour the Idempotency-Key header (stored response replay). */
+  /** JSON API mutations honor the Idempotency-Key header (stored response replay). */
   idempotent?: boolean;
   summary?: string;
   entity?: string;

@@ -309,7 +309,7 @@ export async function runProbes(ctx: ProbeContext, opts: RunProbesOptions = {}):
         passed: null,
         expected: '',
         observed: 'not attempted',
-        reason: 'the run was cancelled before this check could run',
+        reason: 'the run was canceled before this check could run',
         durationMs: 0,
       });
       continue;

@@ -433,7 +433,7 @@ export function userMessageForError(err: LlmError): string {
     case 'network':
       return 'SecureVibe could not reach the Anthropic API. Check your internet connection and try again.';
     case 'aborted':
-      return 'The step was cancelled.';
+      return 'The step was canceled.';
     case 'bad-request':
       return `The AI rejected the request: ${err.message}`;
     default:

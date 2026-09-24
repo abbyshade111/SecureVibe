@@ -76,7 +76,7 @@ export const inlineEventHandler = defineRule({
   exploitability: 'theoretical',
   description: 'A view uses an attribute like onclick="..." or href="javascript:...". The Content Security Policy blocks inline handlers.',
   impact: 'The handler will not run under the policy, and inline handlers are a classic place where injected data becomes script.',
-  fix: 'Attach the behaviour from a script in public/js/features/ with addEventListener().',
+  fix: 'Attach the behavior from a script in public/js/features/ with addEventListener().',
   appliesTo: ['ejs'],
   checkEjs(file, report) {
     const re = /<[a-zA-Z][^>]*?\s(on[a-z]+)\s*=|\bhref\s*=\s*["']\s*javascript:/gi;

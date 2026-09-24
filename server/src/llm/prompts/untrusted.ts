@@ -24,7 +24,7 @@ export const TURN_REMINDER = [
 
 /** Neutralises the delimiter so untrusted text cannot close its own block or open a new one. */
 export function neutralizeDelimiters(text: string): string {
-  // Rewritten so a scanner can see it is complete; the behaviour is unchanged. The earlier form (a global match
+  // Rewritten so a scanner can see it is complete; the behavior is unchanged. The earlier form (a global match
   // with an inner replace of the one '<' in each match) was already correct — the language-agnostic session
   // fuzzed the two against each other, 20,000 strings, no difference — but CodeQL read the inner call alone.
   return text.replace(/<(\/?untrusted_data)/gi, '\u2039$1');
@@ -38,7 +38,7 @@ export interface WrapOptions {
 }
 
 /**
- * Wraps untrusted text in a labelled block. `source` describes where the text came from
+ * Wraps untrusted text in a labeled block. `source` describes where the text came from
  * ("user-description", "file:src/features/notes/routes.ts", "tool-result:run_checks").
  */
 export function wrapUntrusted(source: string, text: string, opts: WrapOptions = {}): string {

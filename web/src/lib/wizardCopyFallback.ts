@@ -105,7 +105,7 @@ export const FALLBACK_WIZARD_COPY: WizardCopy = {
     {
       id: 'app.theme', step: 'about', inputType: 'single-choice', required: false, title: 'How it should look',
       question: 'Which look would you like for your app?',
-      whyWeAsk: 'Only the colours change. Every look is tested to stay readable, so the choice cannot make your app harder to use.',
+      whyWeAsk: 'Only the colors change. Every look is tested to stay readable, so the choice cannot make your app harder to use.',
       options: opts([
         ['calm', 'Calm (default)'], ['warm', 'Warm'], ['forest', 'Forest'], ['contrast', 'High contrast'],
       ]),

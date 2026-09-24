@@ -45,7 +45,7 @@ describe('provider selection', () => {
     expect(providerStatus(provider).configured).toBe(true);
   });
 
-  it('honours forceProvider', () => {
+  it('honors forceProvider', () => {
     expect(createProvider({ forceProvider: 'null' }, { env: { ANTHROPIC_API_KEY: 'sk-ant-x' } }).name).toBe('null');
     expect(createProvider({ forceProvider: 'anthropic' }, { env: emptyEnv }).name).toBe('anthropic');
   });

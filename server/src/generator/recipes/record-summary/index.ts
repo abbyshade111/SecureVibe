@@ -7,7 +7,7 @@
  *
  * What the profile decides:
  *  - **which figures appear** comes from the described fields (amounts, yes/no answers and choices), and a field the
- *    person marked sensitive is never summarised, because a total or a breakdown can give away as much as the
+ *    person marked sensitive is never summarized, because a total or a breakdown can give away as much as the
  *    values themselves;
  *  - **whose records are counted** comes from the record type's `access` answer: where records belong to one person
  *    the report is over that person's own records, and an administrator — who may already read every record — sees

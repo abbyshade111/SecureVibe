@@ -226,7 +226,7 @@ export function receiveUpload(req: Request): Promise<UploadOutcome> {
               tempPath = undefined;
               if (verdict.kind === 'infected') {
                 emit('upload.rejected', { req, reason: 'malware' });
-                return cleanupAndFinish(errOutcome(422, 'This file was recognised as a known virus, so it has not been kept.'));
+                return cleanupAndFinish(errOutcome(422, 'This file was recognized as a known virus, so it has not been kept.'));
               }
               emit('upload.rejected', { req, reason: 'unscannable' });
               return cleanupAndFinish(errOutcome(503, `${verdict.reason} Your file has not been kept.`));

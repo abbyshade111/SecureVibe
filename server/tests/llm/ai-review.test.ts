@@ -154,7 +154,7 @@ describe('citation checking', () => {
   it('accepts a quote within five lines of the cited line', () => {
     expect(verifyCitation(index, 'a.ts', 5, "auth: 'user'")).toBe(true);
     expect(verifyCitation(index, 'a.ts', 1, "auth: 'user'")).toBe(true); // within tolerance
-    expect(verifyCitation(index, 'a.ts', 5, "auth:   'user'")).toBe(true); // whitespace is normalised
+    expect(verifyCitation(index, 'a.ts', 5, "auth:   'user'")).toBe(true); // whitespace is normalized
   });
 
   it('rejects a quote that is not there, a file that was not sent, and an empty quote', () => {

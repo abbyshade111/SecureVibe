@@ -102,7 +102,7 @@ export function buildThreatModel(profile: DesignProfile, f: ProfileFacts, arch: 
   add({
     stride: 'tampering',
     target: FLOW_IDS.browserToApp,
-    description: 'Crafted input (injection, cross-site request forgery, oversized or unexpected fields) changes data or behaviour.',
+    description: 'Crafted input (injection, cross-site request forgery, oversized or unexpected fields) changes data or behavior.',
     likelihood: exposure,
     impact: dataImpact,
     mitigations: [
@@ -160,7 +160,7 @@ export function buildThreatModel(profile: DesignProfile, f: ProfileFacts, arch: 
       mitigations: [
         m('TPL-AI-03', 'Injection patterns are blocked and logged', ['C2.1.3', 'C12.2.1']),
         m('TPL-AI-04', 'Instruction hierarchy; records wrapped as untrusted data', ['C2.1.6']),
-        m('TPL-AI-01', 'Input normalised; control characters and reserved tokens rejected', ['C2.1.1', 'C2.1.5', 'C2.1.7']),
+        m('TPL-AI-01', 'Input normalized; control characters and reserved tokens rejected', ['C2.1.1', 'C2.1.5', 'C2.1.7']),
       ],
       status: 'mitigated',
     });
@@ -274,7 +274,7 @@ export function buildThreatModel(profile: DesignProfile, f: ProfileFacts, arch: 
       description: 'Someone adds hidden recipients or content to an email through a form field.',
       likelihood: 'low',
       impact: 'medium',
-      mitigations: [m('TPL-EMAIL-01', 'Mail headers sanitised; templates only from disk', ['V1.3.11'])],
+      mitigations: [m('TPL-EMAIL-01', 'Mail headers sanitized; templates only from disk', ['V1.3.11'])],
       status: 'mitigated',
     });
     add({

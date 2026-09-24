@@ -253,7 +253,7 @@ describe('data/knowledge/wizard-copy.json', () => {
         expect(['app.name', 'app.tagline', 'app.description', 'deployment.owner.name', 'deployment.owner.contactEmail'], `${q.id} must offer Not sure`).toContain(q.id);
         continue;
       }
-      expect(q.notSure.behaviour, `${q.id} Not sure behaviour`).toMatch(/^We will /);
+      expect(q.notSure.behaviour, `${q.id} Not sure behavior`).toMatch(/^We will /);
       expect(q.notSure.behaviour, `${q.id} Not sure records an assumption`).toMatch(/note it|assumption/);
       if (q.options && q.notSure.choosesValue !== undefined) {
         const chosen = Array.isArray(q.notSure.choosesValue) ? q.notSure.choosesValue : [q.notSure.choosesValue];

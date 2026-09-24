@@ -109,7 +109,7 @@ describe('uploads', () => {
     if (!enabled) return t.skip(skipReason('uploads'));
     const hostile = '../../../evil<script>.png';
     const r = await upload(member, { name: hostile, type: 'image/png', bytes: png() });
-    assert.ok(r.res.status < 400, `upload with a hostile name must still be accepted (sanitised): ${r.res.status} ${r.text.slice(0, 200)}`);
+    assert.ok(r.res.status < 400, `upload with a hostile name must still be accepted (sanitized): ${r.res.status} ${r.text.slice(0, 200)}`);
     assert.ok(r.id);
     const files = walk(join(app.dataDir, 'uploads'));
     assert.ok(files.length >= 1, 'files must be stored under DATA_DIR/uploads');
@@ -122,7 +122,7 @@ describe('uploads', () => {
     assert.ok(!walk(publicDir).some((f) => /uploads/.test(f)), 'uploads must not be written into the web root');
     const row = app.dbAll<{ original_name: string; mime: string; size: number; sha256: string }>('SELECT original_name, mime, size, sha256 FROM uploads WHERE id = ?', r.id)[0];
     assert.ok(row, 'a database row must describe the upload');
-    assert.ok(!row.original_name.includes('/') && !row.original_name.includes('\\') && !row.original_name.includes('..'), `original_name must be sanitised: ${row.original_name}`);
+    assert.ok(!row.original_name.includes('/') && !row.original_name.includes('\\') && !row.original_name.includes('..'), `original_name must be sanitized: ${row.original_name}`);
     assert.ok(row.original_name.length <= 120);
     assert.equal(row.mime, 'image/png');
     assert.match(row.sha256, /^[0-9a-f]{64}$/);
