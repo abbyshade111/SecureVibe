@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
+use sv_check::config::check_dir;
 use sv_check::secrets::{SecretRules, scan_dir};
 use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket, requirements_gated_on};
@@ -399,6 +400,7 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     }
     let rules = SecretRules::load(&secret_rules_path())?;
     let scan = scan_dir(&rules, &app_dir);
+    let config = check_dir(&app_dir);
 
     println!(
         "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.",
@@ -434,6 +436,32 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         if scan.coverage.skipped.len() > 10 {
             println!("  … and {} more", scan.coverage.skipped.len() - 10);
         }
+    }
+
+    // What could not be checked comes before what was: these are the questions still open, and an
+    // owner reading only the findings would think they had been answered.
+    if !config.not_assessed.is_empty() {
+        println!("\nNot assessed — these could not be checked here:");
+        for (id, why) in &config.not_assessed {
+            println!("  {id}\n     {why}");
+        }
+    }
+
+    let mut findings = scan.findings;
+    findings.extend(config.findings);
+    findings.sort_by(|a, b| {
+        a.severity
+            .cmp(&b.severity)
+            .then_with(|| a.location.file.cmp(&b.location.file))
+            .then_with(|| a.location.line.cmp(&b.location.line))
+    });
+    let scan = sv_check::SecretScan {
+        findings,
+        coverage: scan.coverage,
+    };
+
+    if !config.passed.is_empty() {
+        println!("\nChecked and fine: {}.", config.passed.join(", "));
     }
 
     if scan.findings.is_empty() {

@@ -431,3 +431,28 @@ nobody listed would not be found.
          src/config.py:5
          found: sk_l… (32 more characters)
          evidence about: V13.3.1, AC-05, AC-06
+
+### Configuration checks, and the one that matters most
+
+v1 has nineteen configuration checks and most are about its own template: whether `package.json` was
+modified, whether the session policy matches the profile, how many proxy hops to trust. None of that means
+anything for an app somebody else wrote. What survives being language-agnostic is small, and one of it is
+worth more than everything in the secrets scanner:
+
+**A credential in a file is a problem. A credential in version control is a different problem.** History
+keeps it after the file is fixed, and every clone, fork and backup already has a copy. `sv check` can find
+a key in `.env`; only git can say whether `.env` was ever committed — so it asks, and the finding's fix
+leads with *change the credential*, because that is the part that actually protects anybody.
+
+Three checks so far: a secrets file in version control (critical), nothing in `.gitignore` stopping one
+getting there (high), and no way to report a security problem (low).
+
+### A check reports one of three things
+
+Passed, failed, or **not assessed** — never two, and never the third folded into the first. A folder that
+is not a git repository is the ordinary case for an app somebody handed over, not an error, and answering
+"no committed secrets" there would be a claim about history nobody read. `sv check` prints what could not
+be checked *before* what was found, for the same reason the secrets scanner prints skipped files first.
+
+Both ways the question can go unanswered have their own test — a missing `.git`, and a `.git` that git
+refuses to read — because they are different code paths and the first one alone left the second untested.

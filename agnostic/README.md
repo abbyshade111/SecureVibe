@@ -19,7 +19,7 @@ code itself, and says which OWASP requirements apply, which do not, and which no
 cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
 cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and check it answers
-cargo run -p sv-cli -- check ./my-app    # look for credentials left in the code
+cargo run -p sv-cli -- check ./my-app    # credentials left in the code, and how it is set up
 ```
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
