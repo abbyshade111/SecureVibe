@@ -84,23 +84,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **The AI review cites nothing at all on an app it is the only checker for.** Measured on 20 September 2026,
-  the same reviewer, days apart: SecureFit, a Node app SecureVibe built, 132 of 192 requirements reviewed and
-  **231 places cited in the code**. The uploaded Python app, 139 of 139 reviewed and **0 places cited**, twice,
-  at twenty cents a time. Nothing in the prompt is about TypeScript, and the review is handed the files
-  whatever they are written in.
-  This matters more than the static-analysis gap it sits behind. Our own rules not reading Python is a stated
-  limit with a report line that now says so. The AI review is what tier 2 in ADR-012 *is* — it is the whole
-  substance of "an app in another language still gets a real check" — and on this evidence it is contributing
-  nothing to it. Until somebody finds out why, the honest position is that an uploaded app in an unsupported
-  language gets the secrets scan, the virus scan, the dependency check and the external scanners, and should
-  not be described as getting the AI review in any meaningful sense.
-  Worth checking first: whether the file-selection step hands it any Python at all, whether the citation
-  verifier is rejecting citations it cannot resolve to a known file type, and whether "cited 0 places" is
-  distinguishable in the data from "made no findings" — the third possibility being another check that cannot
-  tell its two zeroes apart.
-
-
 - **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
   report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,
   so no PDF exists on disk until a person saves one, one report and one dialog at a time. On 20 September 2026
