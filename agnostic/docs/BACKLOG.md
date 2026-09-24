@@ -5,10 +5,12 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators for the twelve claims that still have none**: `public-api`, `multi-tenant`, `shared-hostname`,
-  `external-apis`, `tls`, `internet`, `ai-actions`, `ai-history`, `ai-moderation`, `multimodal-ai`,
-  `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
-  in the reports is a better answer than a weak one.
+- **Corroborators for the twelve claims that still have none.** **[taken: keen-meninsky-691a27, 24 September 2026]**
+  `public-api`, `multi-tenant`, `shared-hostname`, `external-apis`, `tls`, `internet`, `ai-actions`,
+  `ai-history`, `ai-moderation`, `multimodal-ai`, `hosted-scm`, `outside-contributors`. Several of these may
+  have no honest corroborator at all, and saying so in the reports is a better answer than a weak one.
+  This blocks **Reports**: a claim nobody reads the code for drops requirements silently, and a report is
+  where that does its damage.
 
 - **Grammars for Ruby, PHP and Java.** Named as unread today. Each is a dependency line and an entry
   per rule; the machinery does not change.
