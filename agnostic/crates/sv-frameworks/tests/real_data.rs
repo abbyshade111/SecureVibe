@@ -264,3 +264,49 @@ fn every_requirement_lands_in_exactly_one_bucket() {
         "a requirement is in two buckets at once"
     );
 }
+
+#[test]
+fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
+    // `payments` and `scheduler` are asked about in securevibe.toml, have plain-language reasons
+    // written for them, and no rule in the OWASP data keys on either. That is worth pinning: it
+    // is surprising, `sv` tells the owner about it, and if a future data update gives one of them
+    // a rule, or takes a rule away from something else, somebody should have to notice.
+    use sv_frameworks::applicability::requirements_gated_on;
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+
+    let inert: Vec<&str> = Condition::ALL
+        .iter()
+        .filter(|c| requirements_gated_on(&f, &config, **c, 2) == 0)
+        .map(|c| c.name())
+        .collect();
+
+    assert_eq!(
+        inert,
+        vec![
+            "never",
+            "no-auth",
+            "public-api",
+            "payments",
+            "scheduler",
+            "internet",
+            "level2",
+            "self-assessment",
+        ],
+        "the set of conditions that decide nothing has changed"
+    );
+}
+
+#[test]
+fn the_conditions_that_do_gate_things_gate_a_sensible_number_of_them() {
+    // The other half: a condition that gates a great deal is where a wrong answer is expensive,
+    // and `auth` is the most expensive of all. This is why no corroborator may ever rule it out.
+    use sv_frameworks::applicability::requirements_gated_on;
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let auth = requirements_gated_on(&f, &config, Condition::Auth, 2);
+    assert!(
+        auth > 40,
+        "auth should gate a large part of ASVS; it gates {auth}"
+    );
+}

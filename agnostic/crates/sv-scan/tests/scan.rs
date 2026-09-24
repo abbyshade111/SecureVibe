@@ -1,5 +1,6 @@
 //! Scanner tests against fixture apps that each exist to break one assumption.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use sv_frameworks::Condition;
 use sv_scan::{Evidence, ScanReport, Signatures, scan};
@@ -416,6 +417,255 @@ fn no_hand_rollable_claim_is_ever_ruled_out_on_a_real_app() {
             answer(&report, condition).value,
             Some(false),
             "{} was ruled out although it can be written by hand",
+            sig.condition
+        );
+    }
+}
+
+#[test]
+fn every_signature_speaks_a_language_and_an_ecosystem_the_scanner_knows() {
+    // A misspelled key is the worst kind of mistake this data file can hold, because nothing goes
+    // wrong: `evaluate` looks the language up, finds nothing, and moves on. The corroborator is
+    // dead, the claim comes back unverified, and that is indistinguishable from an app that simply
+    // does not do the thing. Every key is checked against what the scanner actually dispatches on.
+    let sigs = all_signatures();
+    let known_languages: BTreeSet<&str> = [
+        "js", "ts", "py", "java", "kt", "go", "rs", "rb", "php", "cs", "c", "cpp", "html",
+    ]
+    .iter()
+    .filter_map(|ext| sv_scan::ecosystems::language_of(ext))
+    .collect();
+    let known_ecosystems: BTreeSet<&str> = sv_scan::ecosystems::ECOSYSTEMS
+        .iter()
+        .map(|e| e.name)
+        .collect();
+
+    let mut wrong = Vec::new();
+    for sig in &sigs.signatures {
+        for language in sig.source.keys() {
+            if !known_languages.contains(language.as_str()) {
+                wrong.push(format!("{}: source language `{language}`", sig.condition));
+            }
+        }
+        for ecosystem in sig.packages.keys() {
+            if !known_ecosystems.contains(ecosystem.as_str()) {
+                wrong.push(format!("{}: ecosystem `{ecosystem}`", sig.condition));
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "these keys match nothing the scanner dispatches on, so they can never fire: {wrong:#?}"
+    );
+}
+
+/// One realistic file per claim, written the way somebody would actually write it rather than as a
+/// copy of the pattern out of the data file. A corroborator that only matches its own spelling is
+/// not a corroborator, and a test that pastes the pattern back in cannot tell the difference.
+const WITNESSES: &[(&str, &str, &str)] = &[
+    (
+        "external-apis",
+        "rates.py",
+        "import requests\n\ndef latest():\n    r = requests.get(\"https://example.test/v1/rates\", timeout=5)\n    return r.json()\n",
+    ),
+    (
+        "public-api",
+        "middleware.js",
+        "function requireKey(req, res, next) {\n  const key = req.header('X-API-Key');\n  if (!key) return res.status(401).end();\n  next();\n}\n",
+    ),
+    (
+        "multi-tenant",
+        "queries.py",
+        "def invoices_for(db, tenant_id):\n    return db.query(\"select * from invoices where tenant_id = ?\", [tenant_id])\n",
+    ),
+    (
+        "tls",
+        "serve.go",
+        "func main() {\n\tlog.Fatal(http.ListenAndServeTLS(\":443\", \"cert.pem\", \"key.pem\", nil))\n}\n",
+    ),
+    (
+        "internet",
+        "app.py",
+        "if __name__ == \"__main__\":\n    app.run(host=\"0.0.0.0\", port=8000)\n",
+    ),
+    (
+        "ai-actions",
+        "assistant.py",
+        "reply = client.chat.completions.create(\n    model=\"gpt-4o\",\n    messages=messages,\n    tools=[book_table, cancel_booking],\n)\nfor call in reply.choices[0].message.tool_calls:\n    dispatch(call)\n",
+    ),
+    (
+        "ai-history",
+        "chat.ts",
+        "const previous = await db.messages.findMany({ where: { conversationId } });\nconst messages = [...previous, { role: 'user', content: input }];\n",
+    ),
+    (
+        "ai-moderation",
+        "screen.py",
+        "flagged = client.moderations.create(input=user_text).results[0].flagged\nif flagged:\n    return refuse()\n",
+    ),
+    (
+        "multimodal-ai",
+        "describe.py",
+        "content = [\n    {\"type\": \"text\", \"text\": prompt},\n    {\"type\": \"image_url\", \"image_url\": {\"url\": data_url}},\n]\n",
+    ),
+];
+
+#[test]
+fn every_new_corroborator_fires_on_code_somebody_would_really_write() {
+    let sigs = all_signatures();
+    for (condition_name, file, contents) in WITNESSES {
+        let dir = scratch(&format!("witness-{condition_name}"));
+        std::fs::write(dir.join(file), contents).unwrap();
+        let report = scan(&dir, &sigs).unwrap();
+        let condition = Condition::from_name(condition_name).unwrap();
+        let found = answer(&report, condition);
+        let value = found.value;
+        let evidence = format!("{:?}", found.evidence);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            value,
+            Some(true),
+            "{condition_name} did not fire on {file}; evidence was {evidence}"
+        );
+    }
+}
+
+#[test]
+fn the_file_based_corroborators_fire_on_the_paths_they_name() {
+    // The other half of the same coverage: four of the new claims are answered by a path rather
+    // than by anything inside a file, and `WITNESSES` above cannot reach them.
+    let cases: &[(&str, &str)] = &[
+        ("hosted-scm", "CODEOWNERS"),
+        ("outside-contributors", "CONTRIBUTING.md"),
+        ("public-api", "openapi.yaml"),
+        ("tls", "Caddyfile"),
+        ("internet", "fly.toml"),
+    ];
+    let sigs = all_signatures();
+    for (condition_name, file) in cases {
+        let dir = scratch(&format!("path-witness-{condition_name}-{file}"));
+        std::fs::write(dir.join(file), "# placeholder\n").unwrap();
+        // Something readable, so the scan is not the empty-folder case.
+        std::fs::write(dir.join("main.py"), "print('hello')\n").unwrap();
+        let report = scan(&dir, &sigs).unwrap();
+        let condition = Condition::from_name(condition_name).unwrap();
+        let value = answer(&report, condition).value;
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(value, Some(true), "{condition_name} did not fire on {file}");
+    }
+}
+
+#[test]
+fn every_claim_corroborator_has_a_witness() {
+    // Deliberate rather than accidental coverage: adding a corroborator to the data file without a
+    // witness above fails here, rather than shipping a pattern nobody has ever seen match.
+    let sigs = Signatures::load(&data("claim-corroborators.json")).unwrap();
+    let witnessed: BTreeSet<&str> = WITNESSES
+        .iter()
+        .map(|(c, _, _)| *c)
+        .chain(["hosted-scm", "outside-contributors"])
+        // Checked by `a_claim_nothing_can_check_says_so_rather_than_finding_nothing` instead:
+        // there is nothing for a witness to contain.
+        .chain(["shared-hostname"])
+        // These six predate this work and are covered by the fixture apps above.
+        .chain([
+            "ci-cd",
+            "iac",
+            "auth",
+            "oauth",
+            "jwt",
+            "uploads",
+            "payments",
+            "email",
+            "scheduler",
+            "webrtc",
+            "ai",
+            "rag",
+            "mcp",
+            "training",
+            "self-hosted-model",
+            "out-of-band-auth",
+        ])
+        .collect();
+    let unwitnessed: Vec<&str> = sigs
+        .signatures
+        .iter()
+        .map(|s| s.condition.as_str())
+        .filter(|c| !witnessed.contains(c))
+        .collect();
+    assert!(
+        unwitnessed.is_empty(),
+        "corroborators with nothing showing they ever match: {unwitnessed:?}"
+    );
+}
+
+#[test]
+fn a_dockerfile_is_infrastructure_configuration() {
+    // `iac` names `Dockerfile` and rules itself out by absence, so an app whose only infrastructure
+    // configuration is a Dockerfile was being reported as having none — a false exclusion on a
+    // file-based claim, which is the one place absence is allowed to be an answer at all.
+    let dir = scratch("dockerfile-only");
+    std::fs::write(
+        dir.join("Dockerfile"),
+        "FROM node:22\nCOPY . /app\nCMD [\"node\", \"server.js\"]\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("server.js"), "console.log('hi');\n").unwrap();
+    let report = scan(&dir, &all_signatures()).unwrap();
+    let value = answer(&report, Condition::Iac).value;
+    let seen: Vec<String> = report.all_paths.iter().cloned().collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(
+        value,
+        Some(true),
+        "a Dockerfile is infrastructure configuration; paths seen were {seen:?}"
+    );
+}
+
+#[test]
+fn a_claim_nothing_can_check_says_so_rather_than_finding_nothing() {
+    // `shared-hostname` is a fact about deployment, not about code. The distinction this test
+    // guards is between "I looked and found nothing" and "there was never anywhere to look": the
+    // first invites somebody to go and look harder, the second is the final answer. Reporting the
+    // second as the first is how a gap in the checks turns into a quiet clean bill of health.
+    let sigs = all_signatures();
+    let dir = scratch("no-check-exists");
+    std::fs::write(dir.join("main.py"), "print('hello')\n").unwrap();
+    let report = scan(&dir, &sigs).unwrap();
+    let found = answer(&report, Condition::SharedHostname);
+    let value = found.value;
+    let evidence = found.evidence.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(value, None, "nothing may be concluded about it either way");
+    match evidence {
+        Evidence::NoCheckExists { reason } => {
+            assert!(
+                reason.contains("deployed"),
+                "the reason must say why no check is possible: {reason}"
+            );
+        }
+        other => panic!("expected NoCheckExists, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_signature_that_cannot_check_anything_carries_no_patterns() {
+    // Otherwise `noCorroborator` becomes a way of switching a real corroborator off while leaving
+    // its patterns in the file, where they read as though they still run.
+    let sigs = all_signatures();
+    for sig in sigs.signatures.iter().filter(|s| s.no_corroborator) {
+        assert!(
+            sig.packages.is_empty()
+                && sig.source.is_empty()
+                && sig.files.is_empty()
+                && sig.languages.is_empty(),
+            "{} says no check is possible but names things to look for",
+            sig.condition
+        );
+        assert!(
+            sig.note.len() > 80,
+            "{} must explain why nothing can check it",
             sig.condition
         );
     }

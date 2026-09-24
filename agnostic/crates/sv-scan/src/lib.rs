@@ -44,6 +44,14 @@ pub struct Signature {
     /// Paths whose presence settles the condition: an exact relative path, or `*.ext`.
     #[serde(default)]
     pub files: Vec<String>,
+    /// Set when no check is possible at all, rather than merely inconclusive.
+    ///
+    /// A claim about how the app is *deployed* — what else answers on its hostname — is not written
+    /// down anywhere in the app's own code, so there is nothing to look for and no amount of
+    /// scanning would change the answer. Saying that in as many words is a better answer than a
+    /// signature that pretends to look. Such a signature carries a `note` and no patterns.
+    #[serde(default)]
+    pub no_corroborator: bool,
     /// Whether finding nothing is itself an answer.
     ///
     /// True for a technology that always leaves a trace, and for configuration that has to be a
@@ -106,6 +114,9 @@ pub enum Evidence {
     NothingFound { files_read: usize },
     /// Nothing matched, but files that could have carried it were not read.
     Incomplete { reason: String },
+    /// No check for this claim is possible, and this is why. Distinct from `NothingFound`, which
+    /// means `sv` looked: this one means there was never anywhere to look.
+    NoCheckExists { reason: String },
 }
 
 #[derive(Debug, Clone)]
@@ -168,6 +179,19 @@ fn evaluate(
     report: &ScanReport,
     files: &[(String, String, String)],
 ) -> Answer {
+    // 0. Some claims cannot be checked from the code at all. Answering "not found" for those would
+    // be a kind of lie by omission: it reads as a search that came up empty rather than as a
+    // question nobody here can answer.
+    if sig.no_corroborator {
+        return Answer {
+            condition,
+            value: None,
+            evidence: Evidence::NoCheckExists {
+                reason: sig.note.clone(),
+            },
+        };
+    }
+
     // 1. The language being present at all settles some of these outright.
     for lang in &sig.languages {
         if report.languages.contains(lang) {
@@ -362,15 +386,20 @@ fn walk(
             walk(root, &path, files, report)?;
             continue;
         }
-        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-            continue;
-        };
         let relative = path
             .strip_prefix(root)
             .unwrap_or(&path)
             .to_string_lossy()
             .to_string();
+        // Recorded before anything is decided about reading it. A file with no extension — a
+        // `Dockerfile`, a `Jenkinsfile`, a `CODEOWNERS` — used to be skipped here, before its path
+        // was ever written down, so signatures that name those files could not match. For `iac`,
+        // which rules itself out by absence, that turned "I did not look" into "there is no
+        // infrastructure configuration", on an app whose Dockerfile was sitting next to the source.
         report.all_paths.insert(relative.clone());
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
         match ecosystems::language_of(&ext.to_lowercase()) {
             Some(language) => match std::fs::read_to_string(&path) {
                 Ok(contents) => files.push((language.to_owned(), relative, contents)),
