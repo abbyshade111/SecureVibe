@@ -10,7 +10,7 @@ import {
   AppearanceRequestSchema,
   AppearanceResponseSchema,
   AttestationRequestSchema,
-  CreateProjectRequestSchema,
+  CopyProjectRequestSchema, CreateProjectRequestSchema,
   DeriveDesignResponseSchema,
   EstimateResponseSchema,
   FindingDecisionRequestSchema,
@@ -194,6 +194,15 @@ export function projectsRouter(deps: ApiDeps): Router {
     deps.previews.stop(project.id);
     deps.store.delete(project.id);
     res.status(204).end();
+  });
+
+  // A copy carries the answers and the design, never the built app: see ProjectStore.copy.
+  router.post('/projects/:id/copy', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const body = CopyProjectRequestSchema.parse(req.body ?? {});
+    if (isUploadedApp(project)) throw validationError('An uploaded app has no answers to copy. Upload the code again as a new app instead.');
+    const copy = deps.store.copy(project.id, body.name);
+    res.status(201).json({ project: copy });
   });
 
   // Archive hides an app from the main list without deleting anything; restore brings it back.

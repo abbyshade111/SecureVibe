@@ -174,6 +174,8 @@ export const ProjectSchema = z.object({
   archivedAt: z.string().optional(),
   /** Absent for apps SecureVibe built before uploads existed (they are "generated"). */
   origin: ProjectOriginSchema.optional(),
+  /** Set on an app made with "Copy": the answers and design came from another app, nothing built did. */
+  copiedFrom: z.object({ projectId: z.string(), name: z.string(), at: z.string() }).optional(),
   /** Claude's follow-up questions about the answers, and what the owner decided (absent until asked for). */
   refinement: RefinementSchema.optional(),
   /** The feature plan for the next build, once prepared (and approved) — see BuildPlanSchema. */

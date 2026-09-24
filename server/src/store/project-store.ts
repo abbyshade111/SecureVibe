@@ -136,6 +136,29 @@ export class ProjectStore {
     return project;
   }
 
+  /**
+   * A new app with the same answers (and design, when there is one) as another, and nothing else: no built
+   * code, no runs, no reports, no attestations, no decisions. Somewhere to try a different set of records or see
+   * what a rebuild does without touching the app the owner already has. The built app is not copied on purpose:
+   * its .env holds secrets and its database holds data, and a build makes both fresh.
+   */
+  copy(sourceId: string, name?: string, now: Date = new Date()): Project {
+    const source = this.mustGet(sourceId);
+    const copyName = (name ?? `${source.name} (copy)`).slice(0, 60);
+    const profile: Project['profile'] = structuredClone(source.profile);
+    profile.app = { ...(profile.app ?? {}), name: copyName };
+    const created = this.create({ name: copyName, mode: source.profile.meta?.mode ?? 'guided', profile, ...(source.origin ? { origin: structuredClone(source.origin) } : {}) }, now);
+    return this.update(created.id, (p) => {
+      if (source.profileHash !== undefined) p.profileHash = source.profileHash;
+      if (source.design !== undefined) p.design = structuredClone(source.design);
+      p.wizardStep = source.wizardStep;
+      p.designStale = source.designStale;
+      p.status = source.design ? 'designed' : 'draft';
+      if (source.spendingCapUsd !== undefined) p.spendingCapUsd = source.spendingCapUsd;
+      p.copiedFrom = { projectId: source.id, name: source.name, at: now.toISOString() };
+    });
+  }
+
   save(project: Project, now: Date = new Date()): Project {
     const validated = ProjectSchema.parse({ ...project, updatedAt: now.toISOString() });
     const { projectJson, dir } = this.paths(validated.id);

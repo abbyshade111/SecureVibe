@@ -160,6 +160,13 @@ export const CreateProjectRequestSchema = z.object({
 });
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 
+/** POST /api/projects/:id/copy — a new app with the same answers and design, and nothing built */
+export const CopyProjectRequestSchema = z.object({
+  /** The copy's name; "<name> (copy)" when left out. */
+  name: z.string().min(1).max(60).optional(),
+});
+export type CopyProjectRequest = z.infer<typeof CopyProjectRequestSchema>;
+
 /** GET /api/examples */
 export const ExampleProjectSchema = z.object({
   id: z.string(),
