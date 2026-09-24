@@ -36,24 +36,11 @@ building the query recipe: each read this file, each correctly saw the item uncl
   same app passes 107 of 159. Both true, and read together they look like a contradiction. The rating needs to
   carry which standard it comes from, and the ASVS section needs to say that a good score there does not lift a
   critical control elsewhere.
-- **The authorization tests cannot see an admin area that is not called "admin".** `tests/security/authz.test.ts`
-  looks for routes whose auth is the literal `role:admin`, while the neighbouring assertion resolves the member
-  role from the config. An app whose admin role is named `owner` — as a real owner's app was — has sixteen
-  properly restricted admin routes and reports three failing authorization tests, because the check cannot find
-  what it is looking for. Worse than the false failure is the silent version: the evidence those tests provide is
-  only as good as the role happening to be named "admin". Resolve the role from the config, as line 86 already
-  does.
-- **"Files in place" instead of "built".** planCoverage called "See graphs and summaries of trends over time"
-  *built* on the evidence that a page existed at the planned path and tests named as planned passed — while
-  nothing drew anything. Where the only evidence is that files exist, the row should say that in those words.
 - **A check for damaged saved answers.** A record type with no fields cannot have come from someone describing a
   record: offer to remove it. A name that looks like a truncated sentence, and a description that reads as an
   answer to a different question, are questions rather than offers — the owner decides. Removing one must set
   `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
   rebuild recreates them from the answers.
-- **Live spending during a build.** The run's own record carries no `llmUsage` while it runs, so the page has
-  nothing to show, while `workspace/llm-audit.jsonl` has every call. An owner watching a slow, paid build lost
-  the one number that said it was still working.
 - **A build in progress is invisible from anywhere but the build page.** The live spending figure and the
   activity feed arrive on the run's event stream, which only that page listens to. An owner who wanders off
   mid-build — to their project list, to another app — sees nothing to say that something is running and costing
@@ -239,12 +226,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
     20 September 2026: it solves wanting to run simultaneously, and what we have is wanting not to collide. Use
     `--only <app>` when one app answers the question — four and a half minutes rather than fourteen — and the lock
     for the rest.
-- **The harness should clear its own leftovers when it starts.** It removes its scratch workspace when a run
-  finishes normally and not when a run is killed, and a run gets killed whenever someone spots a problem early —
-  which is the harness working as intended. Fifteen abandoned workspaces reached 18GB on a disk with 17GB free
-  on 19 September 2026, one run away from failing. A disk-full failure mid-build is the worst kind, because it
-  reads as a regression in whatever changed last and sends both sessions hunting in the wrong place. Removing any
-  `securevibe-eval-*` older than a few hours before starting costs nothing and needs nobody to remember.
 
 ## From the first two people to use SecureVibe (19-20 September 2026)
 
