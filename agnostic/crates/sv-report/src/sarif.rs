@@ -99,6 +99,7 @@ mod tests {
             app_name: "test".into(),
             target_level: 1,
             generated: None,
+            run_note: None,
             counts: Counts::default(),
             requirements: vec![],
             excluded: vec![],
@@ -106,7 +107,7 @@ mod tests {
             claims: vec![],
             findings: vec![],
             out_of_scope: vec![],
-            satisfied_about_nothing: vec![],
+            satisfied_elsewhere: vec![],
             gaps,
         }
     }

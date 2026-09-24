@@ -321,6 +321,27 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+### A report from a run
+
+`sv report --run` starts the app behind the same fence `sv run` uses and folds what it answered into the
+report. Opt-in, not automatic: everything else `sv report` does reads files, and this starts somebody's
+code. Both commands go through one `probe_the_running_app`, because two call sites each deciding when an
+app is runnable would drift, and the one that drifts quietly is the report.
+
+What changes when it runs is not only that findings appear. The standing gap — *the app was never
+started* — is replaced by the probes' own list of what asking it could not reach: authorisation, session
+handling, CSRF, anything that needs data sent into a form. An app that ran is not an app fully examined,
+and the gap list has to say which of the two happened. The app's declared tests are recorded the same
+way: failed means nothing can be concluded from them, passed means no credit is taken, because deciding
+which requirements a passing test is evidence about is its own piece of work.
+
+Running it found a fault in the report itself. The probes verified three requirements that are above the
+fixture's target level, so every one of those positive claims fell outside the applicable table and
+disappeared — the count read *0 checked* on a run where the probes had just checked three things, and a
+reader would have concluded they never ran. Findings already had a section for this case; satisfied
+checks did not. A vanishing positive claim is safer than a vanishing finding and still tells the reader
+something untrue.
+
 ### Saying a check looked and found nothing
 
 A finding is a claim about something that is there. `Verified` is the mirror: a claim about something

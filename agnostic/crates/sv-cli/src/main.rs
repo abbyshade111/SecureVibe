@@ -51,7 +51,7 @@ fn print_help() {
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
              match what the app ships against a local OSV database\n  \
-         sv report [PATH] [--out DIR]\n                     \
+         sv report [PATH] [--out DIR] [--run]\n                     \
              write the reports: what applies, what was found, what nobody has answered\n"
     );
 }
@@ -393,6 +393,22 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
 }
 
 /// Starts the app behind the fence, so the checks that need it running have something to check.
+/// Starts the app behind the fence and asks it the probe questions, or says why it could not.
+///
+/// Shared by `sv run` and `sv report --run` on purpose. Two call sites each deciding when an app is
+/// runnable would drift, and the one that drifts quietly is the report — where "not assessed" and
+/// "nothing found" look the same to a reader who was not there.
+fn probe_the_running_app(
+    manifest: &Manifest,
+    app_dir: &Path,
+) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), String> {
+    let plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
+    let backend = sv_run::detect().map_err(|e| e.explain())?;
+    let requests = probes::requests(&plan.health_path);
+    let outcome = backend.run(&plan, &requests).map_err(|e| e.explain())?;
+    Ok((outcome, plan))
+}
+
 fn cmd_run(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -404,32 +420,17 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
     }
     let manifest = Manifest::load(&manifest_path)?;
 
-    let plan = match RunPlan::from_manifest(&manifest, &app_dir) {
-        Ok(plan) => plan,
-        Err(reason) => {
-            println!("Not assessed.\n\n{}", reason.explain());
-            return Ok(());
-        }
-    };
-
-    let backend = match sv_run::detect() {
-        Ok(backend) => backend,
-        Err(reason) => {
-            println!("Not assessed.\n\n{}", reason.explain());
-            return Ok(());
-        }
-    };
-
-    println!(
-        "Starting {} with {} behind the network fence…",
-        manifest.app.name, plan.image
+    println!("Starting {} behind the network fence…", manifest.app.name);
+    let requests = probes::requests(
+        &RunPlan::from_manifest(&manifest, &app_dir)
+            .map(|p| p.health_path)
+            .unwrap_or_default(),
     );
-    let requests = probes::requests(&plan.health_path);
-    match backend.run(&plan, &requests) {
+    match probe_the_running_app(&manifest, &app_dir) {
         Err(reason) => {
-            println!("\nNot assessed.\n\n{}", reason.explain());
+            println!("\nNot assessed.\n\n{reason}");
         }
-        Ok(outcome) => {
+        Ok((outcome, plan)) => {
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
             let findings = probes::evaluate(&outcome.probe_responses);
@@ -822,6 +823,10 @@ fn cmd_audit(args: &[String]) -> Result<()> {
 fn cmd_report(args: &[String]) -> Result<()> {
     let mut app_dir = PathBuf::from(".");
     let mut out_dir: Option<PathBuf> = None;
+    // Opt-in. Everything else `sv report` does reads files; this starts somebody's code. It runs
+    // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
+    // computer — and it is still their decision to make rather than a default.
+    let mut run_the_app = false;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -830,6 +835,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                     rest.next().context("--out needs a directory")?,
                 ));
             }
+            "--run" => run_the_app = true,
             other if other.starts_with('-') => bail!("unknown option: {other}"),
             other => app_dir = PathBuf::from(other),
         }
@@ -859,6 +865,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let ast_rules = ast::AstRules::load(&ast_rules_path())?;
     let code = ast::scan_dir(&ast_rules, &app_dir);
 
+    let mut probe_verified = Vec::new();
     let mut findings = Vec::new();
     findings.extend(secrets.findings.iter().cloned());
     findings.extend(config.findings.iter().cloned());
@@ -866,12 +873,71 @@ fn cmd_report(args: &[String]) -> Result<()> {
 
     // Every limit `sv` knows about, said out loud. This list existing is the difference between a
     // report about an app and a report about the part of an app somebody happened to look at.
-    let mut gaps = vec![sv_report::Gap {
-        what: "the running app".to_owned(),
-        why: "`sv report` does not start the app. Run `sv run` for the questions that can only be \
-              answered by asking it, and note that those sign in as nobody."
-            .to_owned(),
-    }];
+    let mut gaps = Vec::new();
+    let mut run_note = None;
+
+    if run_the_app {
+        match probe_the_running_app(&manifest, &app_dir) {
+            Ok((outcome, plan)) => {
+                findings.extend(probes::evaluate(&outcome.probe_responses));
+                probe_verified = probes::verified(&outcome.probe_responses);
+                run_note = Some(format!(
+                    "This app was started with {} and asked {} question{} while it ran, as \
+                     somebody who had not signed in. It answered on {}. {}",
+                    plan.image,
+                    outcome.probe_responses.len(),
+                    if outcome.probe_responses.len() == 1 {
+                        ""
+                    } else {
+                        "s"
+                    },
+                    plan.health_path,
+                    outcome.fence.explain()
+                ));
+                // What asking it could not reach. These replace the "it was never started" gap
+                // rather than removing it: the app running answers some questions and not others,
+                // and the ones it cannot answer are the ones behind a login.
+                for (requirements, why) in probes::unassessed_requirements() {
+                    gaps.push(sv_report::Gap {
+                        what: format!("{requirements}, by asking the running app"),
+                        why: why.to_owned(),
+                    });
+                }
+                match &outcome.tests {
+                    Some(result) if result.exit_code != 0 => gaps.push(sv_report::Gap {
+                        what: "anything the app's own tests would have shown".to_owned(),
+                        why: format!(
+                            "they failed (exit {}), so nothing can be concluded from them either \
+                             way",
+                            result.exit_code
+                        ),
+                    }),
+                    Some(_) => gaps.push(sv_report::Gap {
+                        what: "what the app's own tests cover".to_owned(),
+                        why: "they passed, and `sv` does not yet decide which requirements a \
+                              passing test is evidence about, so no credit is taken for them"
+                            .to_owned(),
+                    }),
+                    None => gaps.push(sv_report::Gap {
+                        what: "the app's own tests".to_owned(),
+                        why: "securevibe.toml declares no test command".to_owned(),
+                    }),
+                }
+            }
+            Err(reason) => gaps.push(sv_report::Gap {
+                what: "the running app".to_owned(),
+                why: format!("--run was given and the app could not be run. {reason}"),
+            }),
+        }
+    } else {
+        gaps.push(sv_report::Gap {
+            what: "the running app".to_owned(),
+            why: "`sv report` does not start the app unless you pass --run. Without it, nothing \
+                  here has asked the app anything — what it sends to a browser, what it says when \
+                  something goes wrong, which sites it accepts."
+                .to_owned(),
+        });
+    }
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -931,6 +997,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let mut verified = config.passed.clone();
     verified.extend(secrets.verified.iter().cloned());
     verified.extend(code.verified.iter().cloned());
+    verified.extend(probe_verified.iter().cloned());
 
     let report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
@@ -940,6 +1007,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         },
         target_level: manifest.target_level(),
         generated: None,
+        run_note,
         frameworks: &frameworks,
         buckets: &buckets,
         claims: &resolved,

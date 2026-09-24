@@ -115,6 +115,15 @@ pub struct OutOfScopeFinding {
     pub landed_in: &'static str,
 }
 
+/// A check that was satisfied about nothing the tables above can hold.
+#[derive(Debug, Clone, Serialize)]
+pub struct SatisfiedElsewhere {
+    pub check_id: String,
+    pub scope: String,
+    /// Why it is here rather than against a requirement.
+    pub why: String,
+}
+
 /// Something `sv` did not examine, and why. Never folded into a clean result.
 #[derive(Debug, Clone, Serialize)]
 pub struct Gap {
@@ -139,6 +148,13 @@ pub struct Report {
     pub target_level: u8,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
+    /// One sentence about the app having been started, and under which fence.
+    ///
+    /// Absent when it was not started, in which case the gap list says so. Present and prominent
+    /// when it was, because a report whose evidence came from a *running* app is a different kind
+    /// of document from one that only read files, and the reader should not have to work that out
+    /// from which sections happen to be populated.
+    pub run_note: Option<String>,
     pub counts: Counts,
     pub requirements: Vec<RequirementLine>,
     pub excluded: Vec<ExcludedRequirement>,
@@ -146,11 +162,15 @@ pub struct Report {
     pub claims: Vec<ClaimLine>,
     pub findings: Vec<Finding>,
     pub out_of_scope: Vec<OutOfScopeFinding>,
-    /// Checks that ran, were satisfied, and are evidence about no requirement in any loaded
-    /// framework. Shown rather than dropped: work that was done and produced nothing the tables
-    /// above can hold is still work that was done, and leaving it out makes the tool look like it
-    /// ran fewer checks than it did.
-    pub satisfied_about_nothing: Vec<String>,
+    /// Checks that ran, were satisfied, and whose requirements are not in the tables above —
+    /// because they name no requirement at all, or name ones this app is not being assessed against.
+    ///
+    /// Shown rather than dropped. The first version of this held only the first case, and the
+    /// consequence showed up the moment the probes were folded in: they verified three requirements
+    /// that are above this app's target level, the count said "0 checked", and a reader would have
+    /// concluded the probes never ran. A vanishing positive claim is safer than a vanishing finding
+    /// and still tells the reader something untrue.
+    pub satisfied_elsewhere: Vec<SatisfiedElsewhere>,
     pub gaps: Vec<Gap>,
 }
 
@@ -159,6 +179,7 @@ pub struct Inputs<'a> {
     pub app_name: &'a str,
     pub target_level: u8,
     pub generated: Option<String>,
+    pub run_note: Option<String>,
     pub frameworks: &'a Frameworks,
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
@@ -272,34 +293,10 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             {
                 continue;
             }
-            let landed_in = if inputs
-                .buckets
-                .not_applicable
-                .iter()
-                .any(|na| &na.id == requirement_id)
-            {
-                "excluded as not applicable"
-            } else if inputs
-                .buckets
-                .not_assessed
-                .iter()
-                .any(|na| &na.id == requirement_id)
-            {
-                "not assessed — nobody answered the question that places it"
-            } else if inputs
-                .buckets
-                .out_of_level
-                .iter()
-                .any(|o| o == requirement_id)
-            {
-                "above the ASVS level this app targets"
-            } else {
-                "not a requirement in any loaded framework"
-            };
             out_of_scope.push(OutOfScopeFinding {
                 rule_id: finding.rule_id.clone(),
                 requirement_id: requirement_id.clone(),
-                landed_in,
+                landed_in: where_it_landed(inputs.buckets, requirement_id),
             });
         }
     }
@@ -309,11 +306,39 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .then_with(|| a.rule_id.cmp(&b.rule_id))
     });
 
-    let satisfied_about_nothing: Vec<String> = inputs
+    let satisfied_elsewhere: Vec<SatisfiedElsewhere> = inputs
         .verified
         .iter()
-        .filter(|v| v.requirement_ids.is_empty())
-        .map(|v| format!("{} ({})", v.check_id, v.scope))
+        .filter(|v| {
+            !v.requirement_ids
+                .iter()
+                .any(|id| inputs.buckets.applicable.iter().any(|a| a == id))
+        })
+        .map(|v| SatisfiedElsewhere {
+            check_id: v.check_id.clone(),
+            scope: v.scope.clone(),
+            why: if v.requirement_ids.is_empty() {
+                "it names no requirement in any loaded framework".to_owned()
+            } else {
+                // Grouped by where each one landed, not by where the first one did. A check that
+                // names three requirements can easily have them in three different buckets, and
+                // reporting the first one's fate as though it were all of theirs is the kind of
+                // small untruth a reader has no way to catch.
+                let mut by_place: Vec<(&str, Vec<&str>)> = Vec::new();
+                for id in &v.requirement_ids {
+                    let place = where_it_landed(inputs.buckets, id);
+                    match by_place.iter_mut().find(|(p, _)| *p == place) {
+                        Some((_, ids)) => ids.push(id),
+                        None => by_place.push((place, vec![id])),
+                    }
+                }
+                by_place
+                    .into_iter()
+                    .map(|(place, ids)| format!("{} — {place}", ids.join(", ")))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            },
+        })
         .collect();
 
     let mut findings = inputs.findings;
@@ -327,6 +352,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,
+        run_note: inputs.run_note,
         counts,
         requirements,
         excluded,
@@ -334,8 +360,29 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         claims,
         findings,
         out_of_scope,
-        satisfied_about_nothing,
+        satisfied_elsewhere,
         gaps: inputs.gaps,
+    }
+}
+
+/// Which bucket a requirement ended up in, for saying so beside a claim about it.
+fn where_it_landed(buckets: &Buckets, requirement_id: &str) -> &'static str {
+    if buckets
+        .not_applicable
+        .iter()
+        .any(|na| na.id == requirement_id)
+    {
+        "excluded as not applicable"
+    } else if buckets
+        .not_assessed
+        .iter()
+        .any(|na| na.id == requirement_id)
+    {
+        "not assessed — nobody answered the question that places it"
+    } else if buckets.out_of_level.iter().any(|o| o == requirement_id) {
+        "above the ASVS level this app targets"
+    } else {
+        "not a requirement in any loaded framework"
     }
 }
 

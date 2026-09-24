@@ -45,10 +45,12 @@ another session is not a claim.
   neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
   which is the pattern to follow.
 
-- **A report from a run.** **[taken: keen-meninsky-691a27, 24 September 2026]** `sv report` never starts
-  the app, so the probe findings and the probe evidence — the only direct observation of the app doing
-  the right thing that anything here produces — never reach the document people actually read. Opt-in
-  rather than automatic: running somebody's code, even fenced, is a thing to be explicit about.
+- **Credit the app's own test suite.** `sv run` runs the tests the manifest declares, and a passing
+  suite is real evidence; `sv report --run` records that they passed and takes no credit, because
+  nothing yet decides which requirement a given test is about. v1's `compliance/test-name-match.ts`
+  compares a test's name and body with a requirement's wording and is honest about its limits — about a
+  third of its flags are honest tests phrased differently, and it is blind to a swap between neighbouring
+  requirements that share vocabulary. Port that shape, not a stricter one.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.

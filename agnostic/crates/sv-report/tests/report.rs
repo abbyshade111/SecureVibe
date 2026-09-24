@@ -48,6 +48,7 @@ fn inputs<'a>(
         app_name: "Test",
         target_level: 1,
         generated: None,
+        run_note: None,
         frameworks,
         buckets,
         claims: &[],
@@ -382,5 +383,109 @@ fn the_rendered_pages_tell_the_same_story_as_the_model() {
             .find("Requirements that apply")
             .expect("the requirements table");
         assert!(gaps_at < table_at, "the gaps must come first");
+    }
+}
+
+#[test]
+fn a_satisfied_check_outside_the_tables_is_shown_rather_than_vanishing() {
+    // Found by running it: the probes verified three requirements that are above the app's target
+    // level, the count said "0 checked", and a reader would have concluded the probes never ran.
+    // A vanishing positive claim is safer than a vanishing finding and still says something untrue.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        out_of_level: vec!["V13.4.4".into()],
+        not_assessed: vec![NotAssessed {
+            id: "V16.5.1".into(),
+            blocked_on: vec![Condition::Auth],
+        }],
+        ..Default::default()
+    };
+    let verified = vec![
+        Verified::new(
+            "probe.trace-enabled",
+            &["V13.4.4"],
+            "a TRACE request".to_owned(),
+        ),
+        Verified::new("config.security-contact", &[], "SECURITY.md".to_owned()),
+    ];
+    let report = build(inputs(&f, &buckets, vec![], &verified));
+
+    assert_eq!(report.counts.checked, 0, "neither is in scope");
+    assert_eq!(
+        report.satisfied_elsewhere.len(),
+        2,
+        "{:?}",
+        report.satisfied_elsewhere
+    );
+
+    let trace = &report.satisfied_elsewhere[0];
+    assert!(trace.why.contains("above the ASVS level"), "{}", trace.why);
+    let contact = &report.satisfied_elsewhere[1];
+    assert!(contact.why.contains("no requirement"), "{}", contact.why);
+
+    for rendered in [
+        sv_report::markdown::compliance(&report),
+        sv_report::html::page(&report),
+    ] {
+        assert!(
+            rendered.contains("probe.trace-enabled"),
+            "a check that ran must appear somewhere:\n{rendered}"
+        );
+    }
+}
+
+#[test]
+fn a_check_whose_requirements_landed_in_different_places_says_so_for_each() {
+    // Second witness, of a different shape: one check, three requirements, three fates. Reporting
+    // the first one's fate as though it were all of theirs is a small untruth a reader cannot catch.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec![],
+        out_of_level: vec!["V13.4.4".into()],
+        not_assessed: vec![NotAssessed {
+            id: "V16.5.1".into(),
+            blocked_on: vec![Condition::Auth],
+        }],
+        not_applicable: vec![NotApplicable {
+            id: "V13.4.2".into(),
+            reason: "claimed no sign-in".into(),
+            condition: Condition::Auth,
+            source: Source::Claim,
+        }],
+    };
+    let verified = vec![Verified::new(
+        "probe.several",
+        &["V13.4.4", "V16.5.1", "V13.4.2"],
+        "one request".to_owned(),
+    )];
+    let report = build(inputs(&f, &buckets, vec![], &verified));
+    let why = &report.satisfied_elsewhere[0].why;
+    assert!(why.contains("above the ASVS level"), "{why}");
+    assert!(why.contains("not assessed"), "{why}");
+    assert!(why.contains("excluded"), "{why}");
+}
+
+#[test]
+fn a_report_from_a_run_says_it_was_a_run() {
+    // A report whose evidence came from a running app is a different kind of document from one that
+    // only read files, and the reader should not have to work that out from which sections happen
+    // to be populated.
+    let f = frameworks();
+    let buckets = Buckets::default();
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.run_note = Some("This app was started with busybox:1.36 and asked 4 questions.".to_owned());
+    let report = build(i);
+    for rendered in [
+        sv_report::markdown::compliance(&report),
+        sv_report::html::page(&report),
+    ] {
+        let at = rendered
+            .find("asked 4 questions")
+            .expect("the run note must appear");
+        let table_at = rendered
+            .find("Requirements that apply")
+            .unwrap_or(rendered.len());
+        assert!(at < table_at, "the run note belongs near the top");
     }
 }

@@ -60,6 +60,9 @@ pub fn page(report: &Report) -> String {
     ));
 
     b.push_str("<h2>Read this first</h2>\n");
+    if let Some(note) = &report.run_note {
+        b.push_str(&format!("<p>{}</p>\n", escape(note)));
+    }
     b.push_str(&format!(
         "<p class=\"lede\">{} requirements apply to this app. \
          <strong>{} have been looked at by something</strong> and <strong>{} have not</strong>.</p>\n",
@@ -205,6 +208,28 @@ pub fn page(report: &Report) -> String {
                 "<tr><td><code>{}</code></td><td>{}</td></tr>\n",
                 escape(&un.id),
                 escape(&un.blocked_on.join(" — or — "))
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
+    if !report.satisfied_elsewhere.is_empty() {
+        b.push_str(
+            "<h2>Checks that ran and found nothing, against nothing in the tables above</h2>\n",
+        );
+        b.push_str(
+            "<p>These were satisfied. They appear here rather than beside a requirement because \
+             what they look at is not something this app is being assessed on.</p>\n",
+        );
+        b.push_str(
+            "<table>\n<tr><th>check</th><th>what it covered</th><th>why it is here</th></tr>\n",
+        );
+        for line in &report.satisfied_elsewhere {
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                escape(&line.check_id),
+                escape(&line.scope),
+                escape(&line.why)
             ));
         }
         b.push_str("</table>\n");

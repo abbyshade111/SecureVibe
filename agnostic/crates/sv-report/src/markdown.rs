@@ -36,6 +36,9 @@ pub fn compliance(report: &Report) -> String {
     }
 
     out.push_str("## Read this first\n\n");
+    if let Some(note) = &report.run_note {
+        out.push_str(&format!("{note}\n\n"));
+    }
     out.push_str(&format!(
         "{} requirements apply to this app. Of those, **{} have been looked at by something** and \
          **{} have not**.\n\n",
@@ -176,14 +179,22 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
-    if !report.satisfied_about_nothing.is_empty() {
-        out.push_str("## Checks that ran and found nothing to report\n\n");
+    if !report.satisfied_elsewhere.is_empty() {
         out.push_str(
-            "These were satisfied, and no requirement in ASVS, AISVS or Appendix C turns on what \
-             they look at, so they appear against nothing in the tables above.\n\n",
+            "## Checks that ran and found nothing, against nothing in the tables above\n\n",
         );
-        for id in &report.satisfied_about_nothing {
-            out.push_str(&format!("- `{id}`\n"));
+        out.push_str(
+            "These were satisfied. They appear here rather than beside a requirement because what \
+             they look at is not something this app is being assessed on.\n\n\
+             | check | what it covered | why it is here |\n|---|---|---|\n",
+        );
+        for line in &report.satisfied_elsewhere {
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.check_id),
+                cell(&line.scope),
+                cell(&line.why)
+            ));
         }
         out.push('\n');
     }
