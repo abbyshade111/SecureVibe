@@ -503,7 +503,10 @@ export function projectsRouter(deps: ApiDeps): Router {
     const project = deps.store.mustGet(req.params['id']!);
     if (!project.design) throw validationError('Finish your design before estimating the build.');
     const settings = deps.config.settings.get();
-    const full = estimateForProject(project.profile as DesignProfile, project.design.buildSpec, settings, { reviewOnly: isUploadedApp(project) });
+    // An uploaded app is only ever reviewed; a built app can ask for a review-only figure too ("check again with
+    // the AI review"), which is the AI review's cost alone, not a rebuild's.
+    const reviewOnly = isUploadedApp(project) || req.query['reviewOnly'] === '1';
+    const full = estimateForProject(project.profile as DesignProfile, project.design.buildSpec, settings, { reviewOnly });
     // Without AI nothing is sent to Anthropic, so the build is free and much quicker.
     const estimate =
       deps.getProvider().name === 'null'
@@ -513,7 +516,7 @@ export function projectsRouter(deps: ApiDeps): Router {
             usdHigh: 0,
             minutesLow: Math.max(2, Math.round(full.minutesLow / 4)),
             minutesHigh: Math.max(5, Math.round(full.minutesHigh / 4)),
-            note: isUploadedApp(project)
+            note: reviewOnly
               ? 'This check runs without AI, so it uses no Anthropic credit. SecureVibe scans your code and writes the reports; the AI code review is skipped.'
               : 'This build runs without AI, so it uses no Anthropic credit. It builds the hardened starter app with your records, then runs every security check and writes the reports.',
           }
