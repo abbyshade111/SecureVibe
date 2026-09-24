@@ -21,8 +21,10 @@ another session is not a claim.
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
   would turn an open question into an answer.
 
-- **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
-  installed reports *not run*, never a clean pass.
+- **The adapter data file.** **[taken: keen-meninsky-691a27, 24 September 2026]** Per-language tooling
+  driven by a manifest, not by Rust: bandit for Python, gosec for Go, brakeman for Ruby. A tool that is
+  not installed reports *not run*, never a clean pass, and says how to install it. This is what makes
+  "language-agnostic" mean more than four tree-sitter rules.
 
 - **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
   can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
