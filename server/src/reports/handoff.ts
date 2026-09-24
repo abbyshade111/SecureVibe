@@ -85,6 +85,7 @@ export function handoffMarkdown(input: HandoffInput): string {
   lines.push('## How the checks came out', '');
   if (compliance) {
     lines.push(`**${compliance.overall.rating.replace('-', ' ').toUpperCase()}** — ${compliance.overall.headline}`, '');
+    if (compliance.overall.ratingReason) lines.push(compliance.overall.ratingReason, '');
     lines.push(compliance.overall.canIUseIt, '');
     lines.push(`- OWASP ASVS ${compliance.asvs.summary.version}, level ${compliance.asvs.summary.targetLevel}: **${pct(compliance.asvs.summary.verifiedPassPercent)}** of applicable requirements verified by automated checks (${compliance.asvs.summary.counts.pass} of ${compliance.asvs.summary.applicableCount}).`);
     if (compliance.aisvs) lines.push(`- OWASP AISVS ${compliance.aisvs.summary.version}: **${pct(compliance.aisvs.summary.verifiedPassPercent)}** verified (${compliance.aisvs.summary.counts.pass} of ${compliance.aisvs.summary.applicableCount}).`);

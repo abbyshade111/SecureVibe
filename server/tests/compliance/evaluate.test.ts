@@ -342,6 +342,24 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     }
   });
 
+  it('says which standard the rating comes from, so a red rating above a green count is not a contradiction', () => {
+    // "At risk" from one unmet critical Secure by Design control, above "107 of 159 ASVS verified passing": both
+    // true, and read together a contradiction unless the rating names its source.
+    const { design, input } = buildInput({ findings: [] });
+    const withCritical = evaluateCompliance({ ...input, design: { ...design, riskTriage: { ...design.riskTriage, criticalNo: ['SBD-03'] } } });
+    expect(withCritical.overall.rating).toBe('at-risk');
+    expect(withCritical.overall.ratingReason).toContain('Secure by Design');
+    expect(withCritical.overall.ratingReason).toContain('SBD-03');
+    expect(withCritical.overall.ratingReason).toMatch(/does not lift a critical control/);
+    // The ASVS chapter's own rating is about its own count, and never at-risk for a Secure by Design reason.
+    expect(withCritical.asvs.summary.ratingReason).not.toContain('Secure by Design');
+
+    // The fixture design has an unmet critical control of its own; clear it to see the count-based reason.
+    const clean = evaluateCompliance({ ...input, design: { ...design, riskTriage: { ...design.riskTriage, criticalNo: [] } } });
+    expect(clean.overall.rating).not.toBe('at-risk');
+    expect(clean.overall.ratingReason).toMatch(/comes from the ASVS(?: and AISVS)? count/);
+  });
+
   it('recommendations are sorted high, then medium, then low priority, and top 5 mirrors overall.topActions', async () => {
     const { input } = buildInput();
     input.manifestResults = [];
