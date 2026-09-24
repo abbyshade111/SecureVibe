@@ -41,8 +41,11 @@ export function runsRouter(deps: ApiDeps): Router {
     const body = StartRunRequestSchema.parse(req.body);
     const uploaded = isUploadedApp(project);
     if (uploaded && !project.origin?.upload) throw validationError("Upload your app's code before checking it.");
-    if (uploaded && !project.design) throw validationError('Answer the questions about your app before checking it.');
-    if (body.mode !== 'verify-only' && !project.design) throw validationError('Finish your design before starting a build.');
+    // An uploaded app is checked whether or not the questions are answered: secrets, dependencies, configuration
+    // and the virus scan read the code as it is. What the answers decide is which rules apply, so without them
+    // the compliance step says the rules are undecided rather than pretending, and the AI review, which needs the
+    // list of applicable rules, waits for them (see stages/compliance.ts and stages/ai-review.ts).
+    if (!uploaded && body.mode !== 'verify-only' && !project.design) throw validationError('Finish your design before starting a build.');
     if (project.name === SELF_PROJECT_NAME) throw validationError('SecureVibe checks itself from the command line (npm run self-assess), not from here.');
     // Without AI, a full build writes the starter app from the answers (pages for every record, no AI-written
     // features) — free, and the way to see the whole process before spending anything; a re-check re-runs the checks.

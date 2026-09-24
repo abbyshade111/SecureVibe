@@ -36,7 +36,12 @@ async function staleDocFiles(ctx: PipelineCtx): Promise<Set<string>> {
 export async function runComplianceStage(ctx: PipelineCtx): Promise<StageResult> {
   const started = startStage(ctx, 'compliance');
   if (!ctx.design || !ctx.manifest || !ctx.buildSpec) {
-    return finishStage(ctx, 'compliance', 'skipped', 'There is nothing to evaluate yet.', started, { skippedReason: 'no design/manifest' });
+    // Without the answers, which rules apply to this app is undecided: the checks that read the code as it is
+    // have run and their findings stand; the rules are neither met nor failed, because nobody has said which apply.
+    const reason = !ctx.design
+      ? 'Which rules apply to this app is not decided yet: the questions about it have not been answered. The checks that read the code as it is have run and their findings stand. Answer the questions and check again, and the compliance report will say which rules apply and whether they are met.'
+      : 'There is nothing to evaluate yet.';
+    return finishStage(ctx, 'compliance', 'skipped', reason, started, { skippedReason: !ctx.design ? 'questions not answered' : 'no design/manifest' });
   }
 
   const scanCtx = buildScanContext(ctx, 'compliance');

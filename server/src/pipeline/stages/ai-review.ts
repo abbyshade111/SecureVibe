@@ -209,7 +209,10 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
 
   const requirements = buildBatches(ctx);
   if (requirements.length === 0) {
-    return finishStage(ctx, 'ai-review', 'skipped', 'No requirements applied to this build, so there was nothing to review.', started, { skippedReason: 'no applicable requirements' });
+    const reason = ctx.design
+      ? 'No requirements applied to this build, so there was nothing to review.'
+      : 'The AI review reads the code against the rules that apply to this app, and which rules apply is not decided until the questions are answered. Nothing was sent to the AI and nothing was spent. Answer the questions and check again to get the review.';
+    return finishStage(ctx, 'ai-review', 'skipped', reason, started, { skippedReason: ctx.design ? 'no applicable requirements' : 'questions not answered' });
   }
 
   const remaining = stageBudgetUsd(ctx, 'ai-review');
