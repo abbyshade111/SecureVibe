@@ -178,6 +178,8 @@ export function uploadsRouter(deps: ApiDeps): Router {
       const project = uploadedProject(req.params['id']!);
       const session = SESSIONS.get(project.id);
       if (!session) throw conflict('Start the upload again: it was not started or SecureVibe restarted.');
+      // A repeated ?path= arrives as an array; only a single string is a file name. (CodeQL reads the raw body
+      // below as "parameter tampering"; it is a Buffer by construction and the length checks are on that Buffer.)
       const raw = typeof req.query['path'] === 'string' ? req.query['path'] : '';
       const rel = raw.startsWith('/') ? undefined : safeRelative(raw);
       if (!rel || rel.length > 512 || rel.split('/').some((p) => p.length > 255 || p.startsWith('..'))) {

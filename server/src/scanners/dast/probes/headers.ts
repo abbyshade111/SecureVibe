@@ -309,6 +309,7 @@ export const tlsMinVersion: ProbeModule = {
     const expected = 'TLS 1.2 or newer only (a TLS 1.1 handshake is refused)';
     const connectWith = (max: tls.SecureVersion): Promise<{ ok: boolean; protocol?: string; error?: string }> =>
       new Promise((resolveConn) => {
+        // This probe tests which TLS versions the local app accepts, not whether its self-signed certificate chains.
         const socket = tls.connect({ host: '127.0.0.1', port: ctx.app.port, rejectUnauthorized: false, minVersion: 'TLSv1', maxVersion: max, timeout: 5_000 }, () => {
           resolveConn({ ok: true, protocol: socket.getProtocol() ?? undefined });
           socket.destroy();

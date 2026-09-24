@@ -24,7 +24,8 @@ export const TURN_REMINDER = [
 
 /** Neutralises the delimiter so untrusted text cannot close its own block or open a new one. */
 export function neutralizeDelimiters(text: string): string {
-  return text.replace(/<\/?untrusted_data/gi, (m) => m.replace('<', '\u2039'));
+  // One global replace of the opening bracket, so nothing is left for a second tag to reuse.
+  return text.replace(/<(\/?untrusted_data)/gi, '\u2039$1');
 }
 
 export interface WrapOptions {

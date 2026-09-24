@@ -241,6 +241,8 @@ export function sendOverNodeHttp(
         method,
         headers,
         timeout: timeoutMs,
+        // Probes talk only to an app SecureVibe started on 127.0.0.1, usually with a self-signed certificate that
+        // the probes themselves inspect elsewhere; trusting it here is deliberate and local.
         rejectUnauthorized: false,
       } as http.RequestOptions,
       (res) => resolveRequest(collectResponse(res)),
