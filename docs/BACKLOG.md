@@ -84,7 +84,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **The AI review cites nothing at all on an app it is the only checker for.** Measured on 20 September 2026,
+- **The AI review cites nothing at all on an app it is the only checker for.** **[taken: restored first session, 24 September 2026]** Measured on 20 September 2026,
   the same reviewer, days apart: SecureFit, a Node app SecureVibe built, 132 of 192 requirements reviewed and
   **231 places cited in the code**. The uploaded Python app, 139 of 139 reviewed and **0 places cited**, twice,
   at twenty cents a time. Nothing in the prompt is about TypeScript, and the review is handed the files
