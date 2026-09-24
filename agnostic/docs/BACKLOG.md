@@ -15,7 +15,7 @@ another session is not a claim.
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
 
-- **Read `pnpm-lock.yaml`.** The last common lockfile `sv` names as unread. It is YAML and nothing in the
+- **Read `pnpm-lock.yaml`.** **[taken: keen-meninsky-691a27, 24 September 2026]** The last common lockfile `sv` names as unread. It is YAML and nothing in the
   workspace parses YAML yet, which is the decision to make rather than the work.
 
 - **Severity from the advisory's own CVSS vector.** `sv audit` reports medium unless the record says
