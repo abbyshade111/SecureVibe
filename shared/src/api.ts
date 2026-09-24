@@ -135,7 +135,17 @@ export const RefineResponseSchema = z.object({ project: ProjectSchema, refinemen
 
 /** POST /api/projects/:id/refine/decisions — the owner's answers and which suggested features to add */
 export const RefineDecisionsRequestSchema = z.object({
-  answers: z.array(z.object({ questionId: z.string(), value: z.string().max(400) })).max(20).default([]),
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string(),
+        value: z.string().max(400).optional(),
+        /** Several chosen options, for a question that takes several; ignored by a question that takes one. */
+        values: z.array(z.string().max(400)).max(8).optional(),
+      }),
+    )
+    .max(20)
+    .default([]),
   features: z.array(z.object({ suggestionId: z.string(), accepted: z.boolean() })).max(20).default([]),
   /** Move on without answering the rest; recorded in the reports. */
   dismiss: z.boolean().optional(),
