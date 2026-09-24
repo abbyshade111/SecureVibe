@@ -213,3 +213,128 @@ fn the_fence_the_runner_creates_is_the_fenced_kind() {
         "an --internal network must pass: {verdict:?}"
     );
 }
+
+fn probe_plan() -> RunPlan {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/probe-app");
+    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("probe fixture manifest");
+    RunPlan::from_manifest(&manifest, &dir).expect("probe fixture declares how to run")
+}
+
+#[test]
+fn the_probes_reach_the_app_through_the_fence_or_sv_says_it_was_not_assessed() {
+    // The one test that exercises the transport: a real container, a real socket, a real response
+    // read back. Everything else about the probes is judged against recorded answers, which cannot
+    // tell whether a single byte ever left.
+    let backend = DockerBackend::new();
+    let plan = probe_plan();
+    let requests = sv_check::probes::requests(&plan.health_path);
+
+    if let Err(absent) = backend.available() {
+        println!("no container backend here; checking the honest-absence path instead");
+        assert!(matches!(absent, CannotRun::NoBackend { .. }));
+        assert!(
+            absent.explain().contains("not assessed"),
+            "{}",
+            absent.explain()
+        );
+        return;
+    }
+
+    println!("container backend present; probing the fixture app for real");
+    let outcome = backend
+        .run(&plan, &requests)
+        .expect("the fixture app should come up");
+    assert!(outcome.healthy);
+    assert_eq!(outcome.fence, Fence::DockerInternalNetwork);
+
+    let answer = |id: &str| {
+        outcome
+            .probe_responses
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap_or_else(|| panic!("no answer to `{id}`: {:?}", outcome.probe_responses))
+    };
+
+    // First, that the setup worked. A probe suite whose requests silently went nowhere would pass
+    // every assertion below by finding nothing, which is the failure this whole file exists to
+    // prevent.
+    let home = answer("home");
+    assert_eq!(home.status, 200, "{home:?}");
+    assert!(
+        home.body.contains("probe fixture"),
+        "the body came back: {home:?}"
+    );
+    assert!(
+        home.header("set-cookie")
+            .is_some_and(|c| c.contains("session=abc")),
+        "the fixture's cookie came back: {home:?}"
+    );
+
+    // The proof that the request carried what it was asked to carry: the fixture only sends this
+    // header when it received an Origin, and it sends back the value it was given.
+    let sent_origin = requests
+        .iter()
+        .find(|r| r.id == "cors")
+        .and_then(|r| r.headers.iter().find(|(k, _)| k == "Origin"))
+        .map(|(_, v)| v.clone())
+        .expect("the suite asks with an Origin");
+    let cors = answer("cors");
+    assert_eq!(
+        cors.header("access-control-allow-origin"),
+        Some(sent_origin.as_str()),
+        "the Origin this probe sent came back, so the header really travelled: {cors:?}"
+    );
+
+    // And that a body is read for a status a client library would have thrown away. This is the
+    // reason the probes speak HTTP over a socket rather than through `wget`, which returns no body
+    // at all for a 404 — so the thing to check here is that one arrived, whatever it says. Whether
+    // a body *looks like* a stack trace is judged offline, against recorded answers; busybox's
+    // error page is its own, and this build ignores the `E404:` directive that would replace it.
+    let missing = answer("missing");
+    assert_eq!(missing.status, 404, "{missing:?}");
+    assert!(
+        missing.body.contains("404 Not Found"),
+        "a body came back with an error status: {missing:?}"
+    );
+
+    let findings = sv_check::probes::evaluate(&outcome.probe_responses);
+    let ids: Vec<&str> = findings.iter().map(|f| f.rule_id.as_str()).collect();
+    for expected in [
+        "probe.security-headers",
+        "probe.cookie-attributes",
+        "probe.cors-any-origin",
+    ] {
+        assert!(ids.contains(&expected), "expected {expected} in {ids:?}");
+    }
+    // The two this fixture cannot provoke must stay silent rather than guess: busybox's own error
+    // page carries no stack trace, and busybox does not echo a TRACE. Both are exercised against
+    // recorded answers in `sv-check`; what is verified here is the transport underneath them.
+    assert!(!ids.contains(&"probe.error-detail-leak"), "{ids:?}");
+    assert!(!ids.contains(&"probe.trace-enabled"), "{ids:?}");
+}
+
+#[test]
+fn two_runs_in_one_process_do_not_collide() {
+    // The names were the process id alone, so the second run asked the daemon for a network that
+    // already existed and failed. Deliberate rather than accidental: without this, the only thing
+    // catching it is running the other tests in this file on more than one thread, which is a
+    // property of how they happen to be invoked.
+    let backend = DockerBackend::new();
+    if let Err(absent) = backend.available() {
+        println!("no container backend here; checking the honest-absence path instead");
+        assert!(matches!(absent, CannotRun::NoBackend { .. }));
+        assert!(
+            absent.explain().contains("not assessed"),
+            "{}",
+            absent.explain()
+        );
+        return;
+    }
+    println!("container backend present; running the same app twice in this process");
+    for attempt in 1..=2 {
+        let outcome = backend
+            .run(&plan(), &[])
+            .unwrap_or_else(|e| panic!("run {attempt} of 2 should come up: {e:?}"));
+        assert!(outcome.healthy, "run {attempt} of 2 answered");
+    }
+}

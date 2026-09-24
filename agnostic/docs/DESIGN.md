@@ -351,6 +351,31 @@ for, and a probe with no answer is already reported as unanswered. The finished 
 before it reaches the sidecar's shell, so nothing in a header value can end the command it travels in — a
 scanner that can be made to run a shell command by the app it is scanning would be a poor advertisement.
 
+### Verified against a real container
+
+`tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets
+`session=abc` with neither `HttpOnly` nor `SameSite`, and it echoes back whatever `Origin` it is given,
+with credentials. The second is what makes the end-to-end test a test of the *transport*: the fixture
+only sends that header if the request really carried one, and it sends back the value it was given. On
+24 September 2026 the run reported the cookie, the reflected origin and the missing headers, with the
+fence verified as `--internal`.
+
+Breaking the transport three ways confirms the test is what catches it, each at a different assertion:
+`probe()` answering nothing, the header loop removed from `request_bytes`, and the response body
+discarded in `parse_response` — all three go red.
+
+Running the suite on more than one thread also found a real defect the single-threaded run had hidden:
+the network and container names were the process id alone, so a second run in the same process asked
+the daemon for a network that already existed and failed. A process that checks two apps, or rebuilds
+one, hit it the same way. The names now carry a per-run counter, and a test runs the same app twice in
+one process so that is checked deliberately rather than by how the tests happen to be invoked.
+
+Two checks are **not** exercised end to end, and the test asserts they stay silent rather than guess:
+busybox's own error page carries no stack trace, and busybox does not echo a `TRACE`. The `E404:`
+directive that would have supplied a traceback is read from the config file and then ignored by this
+build — asked directly in a throw-away container rather than reasoned about, which took two minutes and
+settled it. Both checks are exercised against recorded answers in `sv-check`.
+
 ### Not trusting the flag
 
 The runner asks the daemon whether the network really is internal before starting any untrusted code, and

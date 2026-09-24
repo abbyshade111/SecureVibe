@@ -66,7 +66,7 @@ impl Backend for DockerBackend {
         plan: &RunPlan,
         probes: &[sv_check::probes::ProbeRequest],
     ) -> Result<RunOutcome, CannotRun> {
-        let run_id = format!("sv-{}", std::process::id());
+        let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
         let guard = Teardown {
@@ -287,6 +287,18 @@ mod tests {
         assert_eq!(first_line("\n\n  \n"), "no detail");
         assert_eq!(first_line("\n  real message  \nsecond"), "real message");
     }
+}
+
+/// A number that is different for every run in this process.
+///
+/// The names were the process id alone, which is unique between processes and constant within one.
+/// Two runs in the same process therefore asked the daemon for a network that already existed, and
+/// the second failed — found by running the fence tests without `--test-threads=1`, where three of
+/// them went red at once with `network with name sv-37867-net already exists`. It is not only a test
+/// problem: a single process that checks two apps, or rebuilds one, hits it the same way.
+fn next_run_number() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 // ---------------------------------------------------------------------------------------------
