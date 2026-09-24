@@ -97,7 +97,17 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
 
     let locked: Option<Vec<(String, String)>> = match eco.lockfile.as_deref() {
         Some("package-lock.json") => read("package-lock.json").as_deref().map(from_package_lock),
-        Some("Cargo.lock") => read("Cargo.lock").as_deref().map(from_cargo_lock),
+        // npm-shrinkwrap.json is package-lock.json under another name.
+        Some("npm-shrinkwrap.json") => read("npm-shrinkwrap.json")
+            .as_deref()
+            .map(from_package_lock),
+        Some("Cargo.lock") => read("Cargo.lock").as_deref().map(from_package_table_toml),
+        Some("poetry.lock") => read("poetry.lock").as_deref().map(from_package_table_toml),
+        Some("pdm.lock") => read("pdm.lock").as_deref().map(from_package_table_toml),
+        Some("uv.lock") => read("uv.lock").as_deref().map(from_package_table_toml),
+        Some("Pipfile.lock") => read("Pipfile.lock").as_deref().map(from_pipfile_lock),
+        Some("yarn.lock") => read("yarn.lock").as_deref().map(from_yarn_lock),
+        Some("gradle.lockfile") => read("gradle.lockfile").as_deref().map(from_gradle_lockfile),
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
         Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
@@ -194,7 +204,8 @@ fn from_package_lock(text: &str) -> Vec<(String, String)> {
     out
 }
 
-fn from_cargo_lock(text: &str) -> Vec<(String, String)> {
+/// TOML lockfiles built from `[[package]]` tables: Cargo, Poetry, PDM and uv all use this shape.
+fn from_package_table_toml(text: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let (mut name, mut version) = (None, None);
     for line in text.lines().map(str::trim) {
@@ -215,6 +226,73 @@ fn from_cargo_lock(text: &str) -> Vec<(String, String)> {
         }
     }
     out
+}
+
+/// `Pipfile.lock` is JSON, and its versions carry the `==` with them.
+fn from_pipfile_lock(text: &str) -> Vec<(String, String)> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for section in ["default", "develop"] {
+        if let Some(map) = v.get(section).and_then(|p| p.as_object()) {
+            for (name, entry) in map {
+                if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
+                    // "==3.0.0" is a pin written as a specifier; the version is what follows it.
+                    out.push((name.clone(), version.trim_start_matches("==").to_owned()));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Yarn's classic lockfile: a header line naming one or more ranges, then an indented `version "x"`.
+///
+/// The header is the *range* that was asked for, which is not the package name — `lodash@^4.17.0` and
+/// `lodash@~4.17.20` are two headers for one package. The name is everything before the last `@`, so a
+/// scoped package like `@babel/core@^7` keeps its scope.
+fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut pending: Option<String> = None;
+    for line in text.lines() {
+        if line.trim_start().starts_with('#') || line.trim().is_empty() {
+            continue;
+        }
+        if !line.starts_with(' ') && !line.starts_with('\t') {
+            // A header may list several ranges separated by commas; they are all the same package.
+            let first = line.trim_end_matches(':').split(',').next().unwrap_or(line);
+            let spec = first.trim().trim_matches('"');
+            pending = spec
+                .rfind('@')
+                .filter(|i| *i > 0)
+                .map(|i| spec[..i].to_owned());
+            continue;
+        }
+        if let Some(rest) = line.trim().strip_prefix("version ")
+            && let Some(name) = pending.take()
+        {
+            out.push((name, rest.trim().trim_matches('"').to_owned()));
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Gradle's lockfile: `group:artifact:version=configuration,configuration`.
+fn from_gradle_lockfile(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter_map(|l| l.split('=').next())
+        .filter_map(|coord| {
+            // `group:artifact:version`; the version follows the last colon. A line with no colon at
+            // all is Gradle's `empty=configuration` marker, which is not a package.
+            let (name, version) = coord.rsplit_once(':')?;
+            (!version.is_empty() && !name.is_empty()).then(|| (name.to_owned(), version.to_owned()))
+        })
+        .collect()
 }
 
 fn from_composer_lock(text: &str) -> Vec<(String, String)> {
@@ -501,21 +579,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_lockfile_format_is_named_rather_than_dropped() {
-        // An SBOM that quietly omits a whole ecosystem reads exactly like one with nothing to omit.
-        let dir = scratch("poetry");
-        fs::write(dir.join("pyproject.toml"), "[project]\nname='x'\n").unwrap();
-        fs::write(dir.join("poetry.lock"), "# lock\n").unwrap();
-        let sbom = build(&dir);
-        assert!(sbom.components.is_empty());
-        let (eco, why) = sbom.unread.first().expect("must be named");
-        assert_eq!(eco, "Python");
-        assert!(why.contains("cannot read yet"), "{why}");
-        assert!(!sbom.is_complete());
-        fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
     fn the_caveats_travel_with_the_document() {
         // The terminal is not where an SBOM ends up. Someone receives this file and asks it a question.
         let dir = scratch("caveats");
@@ -541,6 +604,156 @@ mod tests {
         assert!(sbom.is_complete(), "{sbom:?}");
         assert!(incompleteness_finding(&sbom).is_none());
         assert_eq!(sbom.components[0].purl(), "pkg:cargo/serde@1.0.229");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn poetry_pdm_and_uv_share_cargos_shape() {
+        for (manifest, lock) in [
+            ("pyproject.toml", "poetry.lock"),
+            ("pyproject.toml", "pdm.lock"),
+            ("pyproject.toml", "uv.lock"),
+        ] {
+            let dir = scratch(&format!("toml-{lock}"));
+            fs::write(dir.join(manifest), "[project]\nname='x'\n").unwrap();
+            fs::write(
+                dir.join(lock),
+                "[[package]]\nname = \"flask\"\nversion = \"3.0.0\"\ndescription = \"web\"\n",
+            )
+            .unwrap();
+            let sbom = build(&dir);
+            assert_eq!(sbom.components.len(), 1, "{lock}: {sbom:?}");
+            assert_eq!(sbom.components[0].purl(), "pkg:pypi/flask@3.0.0", "{lock}");
+            assert!(sbom.is_complete(), "{lock} should be a complete read");
+            fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn pipfile_lock_strips_the_pin_from_the_version() {
+        // Pipfile.lock writes "==3.0.0": the specifier travels with the value, and a purl carrying
+        // `@==3.0.0` matches no advisory anywhere.
+        let dir = scratch("pipfile");
+        fs::write(dir.join("requirements.txt"), "flask\n").unwrap();
+        fs::write(
+            dir.join("Pipfile.lock"),
+            r#"{"default":{"flask":{"version":"==3.0.0"}},"develop":{"pytest":{"version":"==8.0.0"}}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let flask = sbom
+            .components
+            .iter()
+            .find(|c| c.name == "flask")
+            .expect("flask");
+        assert_eq!(
+            flask.version, "3.0.0",
+            "the == must not survive into the version"
+        );
+        assert_eq!(flask.purl(), "pkg:pypi/flask@3.0.0");
+        assert_eq!(
+            sbom.components.len(),
+            2,
+            "development packages ship too: {sbom:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn yarn_lock_reads_one_package_from_several_ranges() {
+        // The header is the range that was asked for, not the name, and one package can have several
+        // headers. Treating each header as a package would invent packages and double the list.
+        let dir = scratch("yarn");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("yarn.lock"),
+            "# yarn lockfile v1\n\nlodash@^4.17.0, lodash@~4.17.20:\n  version \"4.17.21\"\n  resolved \"https://x\"\n\n\"@babel/core@^7.0.0\":\n  version \"7.23.0\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["@babel/core", "lodash"], "{sbom:?}");
+        // A scoped package keeps its scope: the name is everything before the LAST @.
+        assert!(
+            sbom.components
+                .iter()
+                .any(|c| c.purl() == "pkg:npm/@babel/core@7.23.0")
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gradle_lockfile_skips_its_empty_configuration_line() {
+        // A real gradle.lockfile ends with `empty=someConfiguration` for configurations that resolved
+        // nothing. Reading it as a coordinate would put a package called "empty" in the document.
+        let dir = scratch("gradle");
+        fs::write(dir.join("build.gradle"), "plugins { id 'java' }\n").unwrap();
+        fs::write(
+            dir.join("gradle.lockfile"),
+            "# This is a Gradle generated file for dependency locking.\norg.springframework:spring-core:6.1.0=compileClasspath,runtimeClasspath\nempty=annotationProcessor\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert_eq!(sbom.components.len(), 1, "{sbom:?}");
+        assert_eq!(sbom.components[0].name, "org.springframework:spring-core");
+        assert_eq!(sbom.components[0].version, "6.1.0");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ecosystem_is_never_silently_nothing() {
+        // The invariant behind every "named rather than dropped" test, stated once: if an ecosystem is
+        // in use, the document either lists something from it or says why it does not. Silence about an
+        // ecosystem that is present is the one outcome that reads like an answer and is not.
+        let cases: &[(&str, &str, &str)] = &[
+            ("package.json", "pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+            (
+                "package.json",
+                "package-lock.json",
+                r#"{"packages":{"node_modules/x":{"version":"1.0.0"}}}"#,
+            ),
+            (
+                "Gemfile",
+                "Gemfile.lock",
+                "GEM\n  specs:\n    rake (13.0.6)\n",
+            ),
+            ("requirements.txt", "", "flask>=2\n"),
+            ("go.mod", "go.sum", "example.com/m v1.0.0 h1:x=\n"),
+        ];
+        for (manifest, lock, contents) in cases {
+            let dir = scratch(&format!("invariant-{manifest}-{lock}"));
+            if lock.is_empty() {
+                fs::write(dir.join(manifest), contents).unwrap();
+            } else {
+                fs::write(dir.join(manifest), "placeholder\n").unwrap();
+                fs::write(dir.join(lock), contents).unwrap();
+            }
+            let detected = sv_scan::ecosystems::detect(&dir);
+            assert!(!detected.is_empty(), "{manifest} should be detected");
+            let sbom = build(&dir);
+            assert!(
+                !sbom.components.is_empty() || !sbom.unread.is_empty(),
+                "{manifest}/{lock}: an ecosystem was present and the document says nothing about it: {sbom:?}"
+            );
+            fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn a_format_still_unread_is_named_rather_than_dropped() {
+        // pnpm's lockfile is YAML and nothing here parses it. The point of this test is that adding
+        // readers has not quietly turned "unread" into "absent" for the ones still missing.
+        let dir = scratch("pnpm");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(dir.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+        let sbom = build(&dir);
+        assert!(sbom.components.is_empty());
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(eco, why)| eco == "npm" && why.contains("cannot read yet")),
+            "{sbom:?}"
+        );
         fs::remove_dir_all(&dir).ok();
     }
 
