@@ -18,7 +18,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **Ask the wizard question behind AC-02, so the applicability rules can mark it not applicable.** The second
+- **Ask the wizard question behind AC-02, so the applicability rules can mark it not applicable.** **[taken: restored first session, 24 September 2026]** The second
   half landed on 24 September 2026: an owner can answer "does not apply" with a reason on the human-checks
   page, the control stays visible and reads "not applicable, because ...", the rating reflects it, and the
   reports name who decided and when. What remains is the first half: where a control is really asking a
