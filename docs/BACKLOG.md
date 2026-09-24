@@ -8,6 +8,12 @@ to its first line and commit that on its own; release it the same way if you sto
 invisible to a session that is not running, which is how two sessions spent two hours of 20 September 2026 both
 building the query recipe: each read this file, each correctly saw the item unclaimed, and neither was wrong.
 
+## In progress right now
+
+- **The evaluation harness is in use** by session keen-meninsky-691a27 from 23 September 2026, on branch
+  `claude/report-table-escaping`'s successor `claude/generated-code-escaping`, checking a recipe change: every
+  owner label that reaches emitted code now goes through an escape. Removed when the run finishes.
+
 ## Mine (this session's half of the split agreed on 19 September 2026)
 
 - **The test job hangs on a runner, and nobody knows which file.** **[taken: this session, 22 Sep 2026]** Seven
