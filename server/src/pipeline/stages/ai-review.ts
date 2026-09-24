@@ -116,14 +116,24 @@ export function reviewOrder(batch: RequirementBatch, troubled: Set<string>): [nu
   return [troubled.has(batch.chapterId) ? 0 : 1, risk, lowestLevel];
 }
 
+/**
+ * What to review when the questions have not been answered: ASVS Level 1, the floor every app is meant to meet.
+ * The answers decide which rules apply above that floor (Level 2, the AI rules, the AI-assisted-coding rules),
+ * so those wait; the floor does not depend on them.
+ */
+export function requirementIdsWithoutAnswers(frameworks: Pick<PipelineCtx['frameworks'], 'listRequirements'>): string[] {
+  return frameworks.listRequirements('asvs').filter((r) => r.level === 1).map((r) => r.id);
+}
+
 function buildBatches(ctx: PipelineCtx): RequirementBatch[] {
-  if (!ctx.design) return [];
-  const applicability = ctx.design.applicability;
-  const ids: { id: string; standard: 'asvs' | 'aisvs' | 'aisvs-appendix-c' }[] = [
-    ...applicability.asvs.applicable.map((id) => ({ id, standard: 'asvs' as const })),
-    ...(applicability.aisvs.enabled ? applicability.aisvs.applicable.map((id) => ({ id, standard: 'aisvs' as const })) : []),
-    ...applicability.appendixC.applicable.map((id) => ({ id, standard: 'aisvs-appendix-c' as const })),
-  ];
+  const applicability = ctx.design?.applicability;
+  const ids: { id: string; standard: 'asvs' | 'aisvs' | 'aisvs-appendix-c' }[] = applicability
+    ? [
+        ...applicability.asvs.applicable.map((id) => ({ id, standard: 'asvs' as const })),
+        ...(applicability.aisvs.enabled ? applicability.aisvs.applicable.map((id) => ({ id, standard: 'aisvs' as const })) : []),
+        ...applicability.appendixC.applicable.map((id) => ({ id, standard: 'aisvs-appendix-c' as const })),
+      ]
+    : requirementIdsWithoutAnswers(ctx.frameworks).map((id) => ({ id, standard: 'asvs' as const }));
   const byChapter = new Map<string, RequirementBatch>();
   for (const { id, standard } of ids) {
     if (ctx.aiReviewSkip?.has(id)) continue;
@@ -176,9 +186,9 @@ function previousRunFor(ctx: PipelineCtx): PipelineRun | undefined {
 
 export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   const started = startStage(ctx, 'ai-review');
-  if (!ctx.design) {
-    return finishStage(ctx, 'ai-review', 'skipped', 'The design was not available, so nothing could be reviewed.', started, { skippedReason: 'no design' });
-  }
+  // No design: a check made before the questions were answered. The review still runs, against ASVS Level 1
+  // (see requirementIdsWithoutAnswers), when the owner asked for it and AI is on; its findings go to the security
+  // report. Its per-requirement answers are kept on the run and become evidence once the answers exist.
   const provider = ctx.providerFor('ai-review');
   if (provider.name === 'null') {
     return finishStage(ctx, 'ai-review', 'skipped', 'AI is not configured, so no AI review was performed. Nothing in this run was assessed by AI.', started, {
@@ -200,7 +210,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
    * byte-for-byte the same are carried forward (see pipeline/diff-aware.ts), so the money goes on what changed.
    * Anything without a verified citation, or whose file has changed, is reviewed again.
    */
-  const carried = carryForwardReview(previousRunFor(ctx), ctx.appDir, ctx.design.profileHash);
+  const carried = carryForwardReview(previousRunFor(ctx), ctx.appDir, ctx.design?.profileHash ?? '');
   if (carried.skip.size > 0) {
     ctx.aiReviewSkip = new Set([...(ctx.aiReviewSkip ?? []), ...carried.skip]);
     ctx.acc.evidence.push(...carried.evidence);
@@ -209,10 +219,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
 
   const requirements = buildBatches(ctx);
   if (requirements.length === 0) {
-    const reason = ctx.design
-      ? 'No requirements applied to this build, so there was nothing to review.'
-      : 'The AI review reads the code against the rules that apply to this app, and which rules apply is not decided until the questions are answered. Nothing was sent to the AI and nothing was spent. Answer the questions and check again to get the review.';
-    return finishStage(ctx, 'ai-review', 'skipped', reason, started, { skippedReason: ctx.design ? 'no applicable requirements' : 'questions not answered' });
+    return finishStage(ctx, 'ai-review', 'skipped', 'No requirements applied to this build, so there was nothing to review.', started, { skippedReason: 'no applicable requirements' });
   }
 
   const remaining = stageBudgetUsd(ctx, 'ai-review');
@@ -225,7 +232,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
     appDir: ctx.appDir,
     files,
     requirements,
-    design: ctx.design,
+    ...(ctx.design ? { design: ctx.design } : {}),
     budget: { ...DEFAULT_BUDGETS.review, maxUsd: Math.min(DEFAULT_BUDGETS.review.maxUsd, remaining) },
     projectId: ctx.project.id,
     runId: ctx.run.id,
@@ -245,6 +252,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   const requested = requirements.reduce((n, b) => n + b.requirements.length, 0);
   const alreadyVerified = (ctx.aiReviewSkip?.size ?? 0) - carried.skip.size;
   const skippedNote =
+    (ctx.design ? '' : 'Reviewed against ASVS Level 1, the floor every app is meant to meet, because the questions about this app have not been answered; its findings are in the security report. ') +
     (alreadyVerified > 0 ? `${alreadyVerified} requirement(s) already verified by automated checks were not sent to the AI (to save cost). ` : '') +
     (carried.note ? `${carried.note} ` : '');
   // Mostly unreviewed (spending limit, no credit, failed calls) is a warning, not a pass.

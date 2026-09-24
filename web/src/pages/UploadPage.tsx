@@ -191,7 +191,8 @@ export function UploadPage() {
         {!hasAnswers && (
           <p className="sv-faint" style={{ marginTop: 12, marginBottom: 0 }}>
             Next comes the check itself: secrets, dependencies, configuration and the virus scan read the code as it
-            is. To get the compliance report and the AI review as well, answer a few questions about what this app
+            is, and the AI review, if you choose it, reads the code against ASVS Level 1. To get the compliance report
+            and a review that goes beyond that floor, answer a few questions about what this app
             does (whether it takes payments, whether it holds health or financial information, whether your
             organization has a central sign-in): they decide which rules apply to it. If you did not write this
             app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an answer SecureVibe
