@@ -64,7 +64,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   them money, and coming back recovers only the figure from the last completed stage. That is the moment a
   first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
   they are, which is more than a line of code: something has to hold the run's state above the page.
-- **A stopped build can only be resumed from the build page, and nothing points there.** "Carry on from where it
+- **A stopped build can only be resumed from the build page, and nothing points there.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** "Carry on from where it
   stopped" lives on the build page for that specific run, and the Results page offers no way back to it — so an
   owner whose build stopped part-way has the option, cannot reach it, and is left with a rebuild that pays again
   for work already done. It happened the night an owner's AI credit ran out mid-build: the only route was a URL
@@ -321,7 +321,7 @@ building from nothing.
 - **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
   rest. Multiple selection where the question allows it, and the answers it may set must still come from the
   same allow-list, so this widens what an owner can say without widening what the flow may change.
-- **Make resume reachable, and pin the fix with a test.** The resume bug — a continued build reaching the writing
+- **Make resume reachable, and pin the fix with a test.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** The resume bug — a continued build reaching the writing
   step with no manifest and refusing — is fixed but has no test, and nothing in either suite or the five sample
   apps exercises resuming an interrupted build. That is why it survived a day of green checks. A test that
   continues a run whose writing step failed, and asserts it writes rather than refuses, is the guard that should
