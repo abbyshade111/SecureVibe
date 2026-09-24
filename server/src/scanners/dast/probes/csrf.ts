@@ -42,7 +42,7 @@ export const csrfCrossOriginRejected: ProbeModule = {
     severity: 'high',
     cwe: ['CWE-352'],
     description: 'A POST with a valid token but a foreign Origin (or Sec-Fetch-Site: cross-site) was processed.',
-    impact: 'The Origin check is the second line of defence when a token leaks; without it one leak is enough.',
+    impact: 'The Origin check is the second line of defense when a token leaks; without it one leak is enough.',
     fix: 'Refuse state-changing requests whose Origin is not this site or whose Sec-Fetch-Site is cross-site.',
   },
   async run(ctx) {

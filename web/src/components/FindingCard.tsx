@@ -56,7 +56,7 @@ export function FindingCard({
   /**
    * A decision that did not save. It used to be swallowed: the promise was voided, the panel stayed open with no
    * explanation, and a person could believe they had recorded something that was never recorded. Saying so is the
-   * least a page owes someone who has just made a judgement about a risk.
+   * least a page owes someone who has just made a judgment about a risk.
    */
   const [decisionError, setDecisionError] = useState<string | null>(null);
 

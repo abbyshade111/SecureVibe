@@ -297,7 +297,7 @@ function ItemStep({
             type="button"
             className="sv-btn sv-btn-secondary"
             disabled={busy}
-            title="For a rule about something your app does not have, such as a central sign-in system your organisation does not run. Needs a reason in the note."
+            title="For a rule about something your app does not have, such as a central sign-in system your organization does not run. Needs a reason in the note."
             onClick={() => void answer('not-applicable')}
           >
             Does not apply

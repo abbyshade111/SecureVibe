@@ -21,7 +21,7 @@ export interface UploadRow {
   created_at: string;
 }
 
-/** The recognised file types: sniffed magic bytes, the extensions that may carry them, and their exact byte tests. */
+/** The recognized file types: sniffed magic bytes, the extensions that may carry them, and their exact byte tests. */
 export type AllowedMime = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'application/pdf';
 
 const EXTENSIONS_FOR_TYPE: Record<AllowedMime, string[]> = {

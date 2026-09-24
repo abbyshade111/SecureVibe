@@ -272,7 +272,7 @@
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Open src/lib/mailer.ts and confirm subject and addresses are sanitised (no newline characters).",
+    "Open src/lib/mailer.ts and confirm subject and addresses are sanitized (no newline characters).",
     "Send a test message with a subject containing a line break and confirm it is removed or rejected."
    ],
    "whatCountsAsEvidence": "The mailer strips or rejects line breaks in headers; test evidence in data/outbox.",
@@ -589,7 +589,7 @@
  },
  {
   "id": "V3.4.3",
-  "plain": "Every page carries a Content Security Policy, a browser rule that only allows scripts the app itself provided. Injected scripts are blocked even if some other defence fails.",
+  "plain": "Every page carries a Content Security Policy, a browser rule that only allows scripts the app itself provided. Injected scripts are blocked even if some other defense fails.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -854,7 +854,7 @@
    "steps": [
     "Open docs/uploads.md in the app folder."
    ],
-   "whatCountsAsEvidence": "The document lists types, extensions, size limits and rejection behaviour.",
+   "whatCountsAsEvidence": "The document lists types, extensions, size limits and rejection behavior.",
    "estimatedEffort": "minutes"
   }
  },
@@ -971,7 +971,7 @@
    "steps": [
     "Open docs/SECURITY.md and read the 'Login protection' section."
    ],
-   "whatCountsAsEvidence": "The section lists the limits and the temporary lock behaviour.",
+   "whatCountsAsEvidence": "The section lists the limits and the temporary lock behavior.",
    "estimatedEffort": "minutes"
   }
  },
@@ -1097,7 +1097,7 @@
   "plain": "The app checks the password exactly as typed. It does not trim spaces or ignore capital letters.",
   "manual": {
    "whoCanDo": "owner",
-   "question": "If you sign in with your password typed in different capitalisation, is it refused?",
+   "question": "If you sign in with your password typed in different capitalization, is it refused?",
    "steps": [
     "Try signing in with the same password with one letter changed from lower to upper case."
    ],
@@ -1436,7 +1436,7 @@
    "steps": [
     "Open docs/sessions.md."
    ],
-   "whatCountsAsEvidence": "The document states the limit and the behaviour.",
+   "whatCountsAsEvidence": "The document states the limit and the behavior.",
    "estimatedEffort": "minutes"
   }
  },
@@ -1720,7 +1720,7 @@
  },
  {
   "id": "V8.4.1",
-  "plain": "Applies to apps that serve several separate organisations from one installation. Your app serves one organisation.",
+  "plain": "Applies to apps that serve several separate organizations from one installation. Your app serves one organization.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -2454,7 +2454,7 @@
   "plain": "Every outside service the app talks to is written down, including any case where a user can make the app connect somewhere. The app generates docs/communications.md.",
   "manual": {
    "whoCanDo": "owner",
-   "question": "Does docs/communications.md list every outside service you expect (and nothing you do not recognise)?",
+   "question": "Does docs/communications.md list every outside service you expect (and nothing you do not recognize)?",
    "steps": [
     "Open docs/communications.md."
    ],
@@ -2869,12 +2869,12 @@
  },
  {
   "id": "V15.3.6",
-  "plain": "The code avoids a JavaScript weakness (prototype pollution) where crafted input can change the behaviour of all objects.",
+  "plain": "The code avoids a JavaScript weakness (prototype pollution) where crafted input can change the behavior of all objects.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
     "Send JSON containing a __proto__ key to any API route.",
-    "Confirm a 400 response and no change in behaviour."
+    "Confirm a 400 response and no change in behavior."
    ],
    "whatCountsAsEvidence": "__proto__ input is rejected.",
    "estimatedEffort": "minutes"
@@ -3159,11 +3159,11 @@
  },
  {
   "id": "V17.3.1",
-  "plain": "Applies to a WebRTC signalling server surviving a flood of connection messages. The app has no calling features.",
+  "plain": "Applies to a WebRTC signaling server surviving a flood of connection messages. The app has no calling features.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no signalling server is used."
+    "Confirm no signaling server is used."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -3171,11 +3171,11 @@
  },
  {
   "id": "V17.3.2",
-  "plain": "Applies to a WebRTC signalling server surviving malformed connection messages. The app has no calling features.",
+  "plain": "Applies to a WebRTC signaling server surviving malformed connection messages. The app has no calling features.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no signalling server is used."
+    "Confirm no signaling server is used."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -3231,11 +3231,11 @@
  },
  {
   "id": "C1.2.1",
-  "plain": "Applies to data-labelling platforms used for training. Your app does not label training data.",
+  "plain": "Applies to data-labeling platforms used for training. Your app does not label training data.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no labelling tooling exists."
+    "Confirm no labeling tooling exists."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -3243,11 +3243,11 @@
  },
  {
   "id": "C1.2.2",
-  "plain": "Applies to protecting labelled training data. Your app does not label training data.",
+  "plain": "Applies to protecting labeled training data. Your app does not label training data.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no labelling tooling exists."
+    "Confirm no labeling tooling exists."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -3259,7 +3259,7 @@
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no labelling tooling exists."
+    "Confirm no labeling tooling exists."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -3319,9 +3319,9 @@
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Open src/features/ai and confirm input is normalised with normalize('NFKC') before any other check."
+    "Open src/features/ai and confirm input is normalized with normalize('NFKC') before any other check."
    ],
-   "whatCountsAsEvidence": "NFKC normalisation at the start of the AI request pipeline.",
+   "whatCountsAsEvidence": "NFKC normalization at the start of the AI request pipeline.",
    "estimatedEffort": "minutes"
   }
  },
@@ -3386,7 +3386,7 @@
     "Open src/features/ai/prompt.ts and confirm the system prompt states the hierarchy and that user and record content is wrapped in <untrusted_data> blocks.",
     "Ask the assistant to change its rules and confirm it declines."
    ],
-   "whatCountsAsEvidence": "The system prompt text and a refusal to change behaviour.",
+   "whatCountsAsEvidence": "The system prompt text and a refusal to change behavior.",
    "estimatedEffort": "minutes"
   }
  },
@@ -3397,7 +3397,7 @@
    "whoCanDo": "developer",
    "steps": [
     "Send a message containing <|im_start|> and [INST] to the assistant.",
-    "Confirm it is escaped or refused and does not change behaviour."
+    "Confirm it is escaped or refused and does not change behavior."
    ],
    "whatCountsAsEvidence": "The reserved sequences are neutralised.",
    "estimatedEffort": "minutes"
@@ -3700,7 +3700,7 @@
  },
  {
   "id": "C5.3.1",
-  "plain": "Applies to serving several separate organisations from one AI system. Your app serves one organisation.",
+  "plain": "Applies to serving several separate organizations from one AI system. Your app serves one organization.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -3748,11 +3748,11 @@
  },
  {
   "id": "C6.1.4",
-  "plain": "Applies to acceptance testing of self-hosted models. Your app uses a provider-hosted model; its behaviour tests are in tests/security/ai.test.ts.",
+  "plain": "Applies to acceptance testing of self-hosted models. Your app uses a provider-hosted model; its behavior tests are in tests/security/ai.test.ts.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Run npm test and confirm the AI behaviour tests pass."
+    "Run npm test and confirm the AI behavior tests pass."
    ],
    "whatCountsAsEvidence": "A passing test run.",
    "estimatedEffort": "minutes"
@@ -3821,7 +3821,7 @@
  },
  {
   "id": "C7.2.1",
-  "plain": "The assistant should estimate how reliable each answer is. The generated app does not do this automatically; its answers are labelled as AI-generated and users are told to check important facts.",
+  "plain": "The assistant should estimate how reliable each answer is. The generated app does not do this automatically; its answers are labeled as AI-generated and users are told to check important facts.",
   "manual": {
    "whoCanDo": "owner",
    "question": "Does the assistant page tell users that answers are AI-generated and may be wrong?",
@@ -3921,7 +3921,7 @@
  },
  {
   "id": "C8.1.1",
-  "plain": "Applies to vector databases shared by several organisations. Your app has no vector database.",
+  "plain": "Applies to vector databases shared by several organizations. Your app has no vector database.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -4137,7 +4137,7 @@
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "If an AI review step exists, confirm its input passes through the same normalisation and injection screening."
+    "If an AI review step exists, confirm its input passes through the same normalization and injection screening."
    ],
    "whatCountsAsEvidence": "Shared screening code path.",
    "estimatedEffort": "hour"
@@ -4802,7 +4802,7 @@
  },
  {
   "id": "C12.2.2",
-  "plain": "Unusual conversation behaviour (many retries, probing) should be spotted. The app records counts per user; a person should review them regularly.",
+  "plain": "Unusual conversation behavior (many retries, probing) should be spotted. The app records counts per user; a person should review them regularly.",
   "manual": {
    "whoCanDo": "owner",
    "question": "Do you review Admin > AI usage for users with many blocked or flagged messages?",
@@ -4865,7 +4865,7 @@
  },
  {
   "id": "C12.3.2",
-  "plain": "Applies to automated hallucination monitoring. Not built into the generated app; answers are labelled as AI-generated.",
+  "plain": "Applies to automated hallucination monitoring. Not built into the generated app; answers are labeled as AI-generated.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -4939,11 +4939,11 @@
  },
  {
   "id": "C12.5.2",
-  "plain": "Applies to logging data-labelling work. Your app does not label training data.",
+  "plain": "Applies to logging data-labeling work. Your app does not label training data.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
-    "Confirm no labelling tooling exists."
+    "Confirm no labeling tooling exists."
    ],
    "whatCountsAsEvidence": "Not applicable.",
    "estimatedEffort": "minutes"
@@ -5141,7 +5141,7 @@
  },
  {
   "id": "AC.4.3",
-  "plain": "A build with a critical open finding must not be used until it is fixed or an authorised person writes down an exception. SecureVibe's results page says 'do not use yet' in that case.",
+  "plain": "A build with a critical open finding must not be used until it is fixed or an authorized person writes down an exception. SecureVibe's results page says 'do not use yet' in that case.",
   "manual": {
    "whoCanDo": "owner",
    "question": "Does the 'Can I use it?' box on the results page say the app is ready, with no open critical findings?",
@@ -5218,7 +5218,7 @@
  },
  {
   "id": "AC.7.1",
-  "plain": "Anything the AI generated or changed is clearly labelled as AI-made. Generated code files start with a provenance comment, and securevibe.provenance.json lists them.",
+  "plain": "Anything the AI generated or changed is clearly labeled as AI-made. Generated code files start with a provenance comment, and securevibe.provenance.json lists them.",
   "manual": {
    "whoCanDo": "developer",
    "steps": [
@@ -5601,7 +5601,7 @@
   "plain": "The AI's credentials can be revoked quickly, and the target time is written down and rehearsed yearly.",
   "manual": {
    "whoCanDo": "owner",
-   "question": "Have you practised revoking and replacing your AI provider key, and written down how long it took?",
+   "question": "Have you practiced revoking and replacing your AI provider key, and written down how long it took?",
    "steps": [
     "Revoke a test key in the provider console and create a new one."
    ],

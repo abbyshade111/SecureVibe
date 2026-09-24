@@ -157,7 +157,7 @@ export function findingsForTests(tests: TestResult[]): Finding[] {
       impact: 'A protection that was tested and is now failing is a protection you cannot rely on.',
       evidence: test.detail ? `The test runner reported: ${test.detail}` : 'The test runner reported a failure with no further detail.',
       remediation: {
-        summary: 'Run the app\'s tests, read the failure, and restore the behaviour the test expects.',
+        summary: 'Run the app\'s tests, read the failure, and restore the behavior the test expects.',
         steps: [
           'Open a terminal in your app folder.',
           'Run `npm test` and find this test in the output.',

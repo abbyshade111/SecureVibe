@@ -10,7 +10,7 @@
  *  - the message carries the date and a link and nothing else. Mail sits on disks and servers the app does not
  *    control, so no record content travels in it.
  *
- * Sending goes through the template's own mailer (`src/lib/mailer.ts`), which sanitises the headers and writes to a
+ * Sending goes through the template's own mailer (`src/lib/mailer.ts`), which sanitizes the headers and writes to a
  * local outbox when no SMTP server is configured; the job itself is declared in code and registered through
  * `src/lib/scheduler.ts`, which gives it a lease so two ticks cannot run it at once.
  */

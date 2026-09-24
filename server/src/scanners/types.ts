@@ -52,6 +52,6 @@ export type Scanner = (ctx: ScanContext) => Promise<ScanResult>;
 export interface AstCheckResult {
   passed: boolean;
   detail: string;
-  /** Set when the check did not run (the build was cancelled); it is then neither a pass nor a failure. */
+  /** Set when the check did not run (the build was canceled); it is then neither a pass nor a failure. */
   skippedReason?: string;
 }

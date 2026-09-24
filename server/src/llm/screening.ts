@@ -66,7 +66,7 @@ function rulesFor(patterns: InjectionPatterns): { high: CompiledRule[]; medium: 
   return c;
 }
 
-/** NFKC-normalise and drop zero-width / bidi control characters that are used to hide instructions. */
+/** NFKC-normalize and drop zero-width / bidi control characters that are used to hide instructions. */
 export function normalizeForScreening(text: string): string {
   return text.normalize('NFKC').replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, '');
 }

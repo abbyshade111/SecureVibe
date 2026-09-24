@@ -1,6 +1,6 @@
 /**
  * The dependency scanner: lockfile reading, `npm audit` parsing and caching, the deps.* checks from CONTRACTS §4,
- * the licence inventory and the CycloneDX bill of materials (including the fallback built from the lockfile).
+ * the license inventory and the CycloneDX bill of materials (including the fallback built from the lockfile).
  *
  * The offline path is exercised for real by pointing npm at a port nothing is listening on.
  */
@@ -59,7 +59,7 @@ afterEach(() => rmSync(projectDir, { recursive: true, force: true }));
 describe('package-lock.json', () => {
   const lock = parseLockfile(DEPS_APP_DIR)!;
 
-  it('reads the packages with their versions, licences and flags', () => {
+  it('reads the packages with their versions, licenses and flags', () => {
     expect(lock.rootName).toBe('securevibe-deps-fixture');
     expect(lock.lockfileVersion).toBe(3);
     expect(lock.packages.map((p) => p.name).sort()).toEqual(['copyleft-lib', 'left-pad', 'nested-helper', 'sharp-like', 'tiny-test-helper']);
@@ -122,8 +122,8 @@ describe('npm audit output', () => {
   });
 });
 
-describe('licences', () => {
-  it('recognises the licences that come with sharing obligations', () => {
+describe('licenses', () => {
+  it('recognizes the licenses that come with sharing obligations', () => {
     expect(isCopyleft('GPL-3.0-or-later')).toBe(true);
     expect(isCopyleft('AGPL-3.0')).toBe(true);
     expect(isCopyleft('MIT')).toBe(false);

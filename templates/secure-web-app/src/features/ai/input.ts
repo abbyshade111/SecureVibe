@@ -1,7 +1,7 @@
 /**
  * Everything that happens to a message before any of it reaches the model (contract §1.11, steps 1 and 2).
  *
- * The order matters: normalise to one standard form first, then take out the invisible characters that exist
+ * The order matters: normalize to one standard form first, then take out the invisible characters that exist
  * only to hide text, then refuse anything that is still not plain readable text, then refuse the sequences and
  * encodings that are used to smuggle instructions past a screen. Over-long input is refused outright — it is
  * never shortened, because a silent cut is a silent change of meaning.

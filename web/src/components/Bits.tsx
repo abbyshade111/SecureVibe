@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 
 export type BadgeTone = 'good' | 'warn' | 'bad' | 'info' | 'neutral';
 
-/** Always pairs an icon shape with a word — status is never colour alone. */
+/** Always pairs an icon shape with a word — status is never color alone. */
 export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
   const icon: Record<BadgeTone, string> = { good: '✓', warn: '▲', bad: '✕', info: 'ℹ', neutral: '●' };
   return (

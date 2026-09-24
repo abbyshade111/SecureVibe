@@ -10,7 +10,7 @@ const Body = z.strictObject({
   startsAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/),
   day: optional(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)),
   dueOn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
-  service: z.enum(['Cut', 'Colour']),
+  service: z.enum(['Cut', 'Color']),
   price: number(z.coerce.number().finite().min(0).max(99999999)),
   colour: z.union([z.enum(['Red', 'Blue']), z.literal('')]).optional(),
   reminder: z.boolean().optional().default(false),

@@ -90,9 +90,9 @@ export const runSast: Scanner = async (ctx) => {
     return {
       findings,
       evidence: [],
-      coverage: { tool: SAST_TOOL.name, ran: false, version: SAST_TOOL.version, reason: 'The run was cancelled before static analysis finished.' },
+      coverage: { tool: SAST_TOOL.name, ran: false, version: SAST_TOOL.version, reason: 'The run was canceled before static analysis finished.' },
       status: 'skipped',
-      summary: 'Static analysis was cancelled before it finished.',
+      summary: 'Static analysis was canceled before it finished.',
     };
   }
 

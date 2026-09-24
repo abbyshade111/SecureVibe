@@ -64,7 +64,7 @@ describe('the virus scanner adapter', () => {
     expect(denied.kind === 'error' && denied.reason).toContain('could not read the files');
   });
 
-  it('recognises the scanner that is installed but has no virus signatures yet', () => {
+  it('recognizes the scanner that is installed but has no virus signatures yet', () => {
     // Taken from the real binary on 20 September 2026, immediately after "brew install clamav" and before
     // freshclam had ever run. Note the second line: ClamAV says it cannot open the file, when the truth is it
     // has no signatures. Anything reading the last line concludes the file was unreadable and moves on, which

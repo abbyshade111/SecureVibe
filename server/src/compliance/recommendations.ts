@@ -1,5 +1,5 @@
 /**
- * Prioritised, de-duplicated recommendations (CONTRACTS §9.4, DESIGN §13.12): gathered from failing/partial/
+ * Prioritized, de-duplicated recommendations (CONTRACTS §9.4, DESIGN §13.12): gathered from failing/partial/
  * owner-facing not-verified requirements, unresolved SbD checklist actions and open findings.
  */
 import type { Recommendation, RequirementResult, SbdEvaluatedEntry } from '@shared/compliance.js';
@@ -123,8 +123,8 @@ export function buildRecommendations(results: RequirementResult[], sbdEntries: S
     .sort(
       (a, b) =>
         // Anything blocking use, then everything due now, then what is waiting on something that has not
-        // happened yet. Severity alone put "if your organisation has a central sign-in system" and "when the app
-        // is hosted online" at the top of the list for an owner with neither an organisation nor a host, which
+        // happened yet. Severity alone put "if your organization has a central sign-in system" and "when the app
+        // is hosted online" at the top of the list for an owner with neither an organization nor a host, which
         // buries the things she could actually do today under two she cannot.
         blocksUse(a) - blocksUse(b) ||
         waitsForSomething(a) - waitsForSomething(b) ||

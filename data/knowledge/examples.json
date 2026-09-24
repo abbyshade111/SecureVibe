@@ -108,7 +108,7 @@
       "app": {
         "name": "Bella's Salon Bookings",
         "tagline": "Online booking for a hair and beauty salon",
-        "description": "Customers choose a service (cut, colour, manicure), pick a stylist and a free time slot, and book it online. They can see their upcoming bookings and cancel up to 24 hours before. Staff sign in to see the day's schedule, mark appointments as done or no-show, and add short notes. The owner manages services, prices, opening hours and staff accounts. A reminder email goes out the day before each appointment.",
+        "description": "Customers choose a service (cut, color, manicure), pick a stylist and a free time slot, and book it online. They can see their upcoming bookings and cancel up to 24 hours before. Staff sign in to see the day's schedule, mark appointments as done or no-show, and add short notes. The owner manages services, prices, opening hours and staff accounts. A reminder email goes out the day before each appointment.",
         "category": "booking",
         "entities": [
           {
@@ -192,7 +192,7 @@
                   "Confirmed",
                   "Done",
                   "No-show",
-                  "Cancelled"
+                  "Canceled"
                 ],
                 "sensitive": false
               },

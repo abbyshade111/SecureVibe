@@ -176,8 +176,8 @@
  },
  {
   "term": "CWE",
-  "definition": "Common Weakness Enumeration: a public catalogue that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up.",
-  "plain": "Common Weakness Enumeration: a public catalogue that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up."
+  "definition": "Common Weakness Enumeration: a public catalog that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up.",
+  "plain": "Common Weakness Enumeration: a public catalog that gives every type of software weakness a number (for example CWE-79 is script injection). Findings reference these numbers so a developer can look them up."
  },
  {
   "term": "CVSS",
@@ -251,8 +251,8 @@
  },
  {
   "term": "Cookie",
-  "definition": "A small piece of data the app stores in your browser to recognise you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it.",
-  "plain": "A small piece of data the app stores in your browser to recognise you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it."
+  "definition": "A small piece of data the app stores in your browser to recognize you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it.",
+  "plain": "A small piece of data the app stores in your browser to recognize you between page loads. Your app's session cookie is protected so scripts and other sites cannot read or send it."
  },
  {
   "term": "Rate limiting",
@@ -301,8 +301,8 @@
  },
  {
   "term": "STRIDE",
-  "definition": "A checklist of six threat types used in threat modelling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege.",
-  "plain": "A checklist of six threat types used in threat modelling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege."
+  "definition": "A checklist of six threat types used in threat modeling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege.",
+  "plain": "A checklist of six threat types used in threat modeling: Spoofing (pretending to be someone), Tampering, Repudiation (denying you did something), Information disclosure, Denial of service, Elevation of privilege."
  },
  {
   "term": "Trust zones",
@@ -371,8 +371,8 @@
  },
  {
   "term": "Demo / preview mode",
-  "definition": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customisation and no AI review; those items show as not verified.",
-  "plain": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customisation and no AI review; those items show as not verified."
+  "definition": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customization and no AI review; those items show as not verified.",
+  "plain": "Running SecureVibe without an AI key. You get the baseline app and all the scanners, but no AI customization and no AI review; those items show as not verified."
  },
  {
   "term": "Template (secure baseline)",

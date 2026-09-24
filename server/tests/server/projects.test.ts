@@ -189,7 +189,7 @@ describe('project CRUD, profile save and validation', () => {
     const bare = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: '   ', attestedBy: 'Sam' });
     expect(bare.status).toBe(400);
     expect(bare.body.error.message).toMatch(/Say why this does not apply/);
-    const reasoned = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: 'No organisation, no central sign-in system.', attestedBy: 'Sam' });
+    const reasoned = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: 'No organization, no central sign-in system.', attestedBy: 'Sam' });
     expect(reasoned.status).toBe(201);
     expect(reasoned.body.attestation.result).toBe('not-applicable');
   });

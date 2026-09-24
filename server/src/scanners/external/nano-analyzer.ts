@@ -274,7 +274,7 @@ export interface NanoRunContext {
 export async function runNanoAnalyzer(ctx: NanoRunContext, opts: NanoAnalyzerOptions): Promise<NanoRunResult> {
   const resolved = resolveNanoAnalyzer(opts);
   if ('reason' in resolved) return { ran: false, reason: resolved.reason, seeds: [] };
-  if (ctx.abort.aborted) return { ran: false, reason: 'skipped: the run was cancelled', seeds: [] };
+  if (ctx.abort.aborted) return { ran: false, reason: 'skipped: the run was canceled', seeds: [] };
 
   const outputDir = join(ctx.workDir, 'nano-analyzer');
   const staging = stageSources(ctx.appDir, join(ctx.workDir, 'sources'), ctx.ignore ?? []);

@@ -52,7 +52,7 @@ export interface ProposalRow {
   tool: string;
   input_json: string;
   summary: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
+  status: 'pending' | 'confirmed' | 'canceled' | 'expired';
   created_at: string;
   expires_at: string;
   confirmed_at: string | null;
@@ -237,7 +237,7 @@ export function pendingProposalsForUser(userId: string): ProposalRow[] {
 }
 
 /**
- * Marks the proposal as confirmed. Returns false when it was already used, cancelled or has expired, so a
+ * Marks the proposal as confirmed. Returns false when it was already used, canceled or has expired, so a
  * proposal can never be carried out twice.
  */
 export function markConfirmed(id: string, userId: string, resultSummary: string): boolean {
@@ -252,7 +252,7 @@ export function markConfirmed(id: string, userId: string, resultSummary: string)
 }
 
 export function cancelProposal(id: string, userId: string): boolean {
-  return run("UPDATE ai_proposals SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'", [id, userId]).changes === 1;
+  return run("UPDATE ai_proposals SET status = 'canceled' WHERE id = ? AND user_id = ? AND status = 'pending'", [id, userId]).changes === 1;
 }
 
 export function expireOldProposals(): void {

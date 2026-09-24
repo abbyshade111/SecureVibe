@@ -409,7 +409,7 @@ function confirmationQuestion(field: string): string {
   return questions[field] ?? `We guessed this from your description. Is it right? (${field})`;
 }
 
-/** A quote counts only when it really appears in the description (whitespace-normalised, case-insensitive). */
+/** A quote counts only when it really appears in the description (whitespace-normalized, case-insensitive). */
 export function evidenceIndex(evidence: { field: string; quote: string }[], description: string): Map<string, string> {
   const haystack = normalizeForMatch(description);
   const map = new Map<string, string>();

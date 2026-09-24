@@ -221,7 +221,7 @@ export function projectsRouter(deps: ApiDeps): Router {
   });
 
   /**
-   * Change how the app looks. Colour only, so nothing is generated and nothing is checked again: the answer is
+   * Change how the app looks. Color only, so nothing is generated and nothing is checked again: the answer is
    * saved with the design (a later rebuild keeps it) and written into the built app's settings file, where the app
    * picks it up the next time it starts.
    */
@@ -248,8 +248,8 @@ export function projectsRouter(deps: ApiDeps): Router {
         applied,
         message: applied
           // Not "reload the page": APP_THEME is read once when the app starts and the layout renders a constant,
-          // so a reload serves the old colours and an owner who follows the advice concludes the feature is broken.
-          ? 'Your app has the new look. Stop your app and start it again to see it — reloading the page is not enough, because an app reads its colours when it starts.'
+          // so a reload serves the old colors and an owner who follows the advice concludes the feature is broken.
+          ? 'Your app has the new look. Stop your app and start it again to see it — reloading the page is not enough, because an app reads its colors when it starts.'
           : 'Saved. Your app will be built with this look.',
       }),
     );

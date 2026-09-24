@@ -65,7 +65,7 @@ export const SENSITIVE_PARAM =
 /** Names of security questions / password hints (V6.4.2). */
 export const SECRET_QUESTION = /^(security|secret)[_-]?(question|answer)s?$|^(password|pwd|pass)[_-]?hint$|^hint$/i;
 
-/** Context words meaning a value is a security artefact (used by weak-hash and Math.random rules). */
+/** Context words meaning a value is a security artifact (used by weak-hash and Math.random rules). */
 export const SECURITY_CONTEXT =
   /(token|secret|passw|session|nonce|otp|salt|csrf|recovery|verif|api_?key|private_?key|signature|hmac|credential|\bkey\b|\bpin\b|\bcode\b|auth)/i;
 

@@ -93,7 +93,7 @@ export function whatWeCanSay(relPaths: string[]): { headline: string; detail: st
   if (totalFiles === 0) {
     return {
       headline: 'No code was found in this folder.',
-      detail: `SecureVibe could not see any files it recognises as code, so there may be nothing here to check — make sure you picked the folder that holds the app itself. ${everythingElse}`,
+      detail: `SecureVibe could not see any files it recognizes as code, so there may be nothing here to check — make sure you picked the folder that holds the app itself. ${everythingElse}`,
     };
   }
   if (unanalysed.length === 0) {

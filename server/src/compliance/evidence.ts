@@ -265,7 +265,7 @@ function appendixCFacts(id: string, runMeta: RunMeta, design: DesignArtifacts): 
           type: 'design',
           passed: design.peerReview?.performedBy === 'claude' || design.peerReview?.performedBy === 'rules',
           summary: design.peerReview
-            ? `The design's second opinion is labelled as performed by "${design.peerReview.performedBy}"${design.peerReview.model ? ` (${design.peerReview.model})` : ''}; ${design.peerReview.suggestions.filter((s) => s.accepted === true).length} suggestion(s) were accepted and recorded.`
+            ? `The design's second opinion is labeled as performed by "${design.peerReview.performedBy}"${design.peerReview.model ? ` (${design.peerReview.model})` : ''}; ${design.peerReview.suggestions.filter((s) => s.accepted === true).length} suggestion(s) were accepted and recorded.`
             : 'No second-opinion review is recorded for this design.',
         },
       ];

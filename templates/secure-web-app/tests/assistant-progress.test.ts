@@ -38,7 +38,7 @@ describe('a form that takes a while', () => {
     const { res, html } = await app.page('/ai', jar);
     assert.equal(res.status, 200, 'the assistant page must be readable');
 
-    // The sentence, not the behaviour: this is what somebody with no JavaScript has to go on.
+    // The sentence, not the behavior: this is what somebody with no JavaScript has to go on.
     assert.match(html, /can take up to a minute/i, 'the page must say that an answer takes a while');
     assert.match(html, /do not need to press Ask again/i, 'and that pressing again is not required');
 
@@ -59,11 +59,11 @@ describe('a form that takes a while', () => {
   });
 
   test('the shared script reads the attribute, disables the button once and changes nothing else', () => {
-    // Read rather than executed: this suite has no browser. What matters is that the behaviour is declarative —
+    // Read rather than executed: this suite has no browser. What matters is that the behavior is declarative —
     // any form, including one the generation agent writes, gets it by carrying the attribute — and that it never
     // calls preventDefault, because a form that stops submitting is a broken button rather than a slow one.
     const script = readFileSync(join(templateRoot, 'public', 'js', 'app.js'), 'utf8');
-    assert.match(script, /getAttribute\('data-working'\)/, 'the behaviour must be driven by the attribute');
+    assert.match(script, /getAttribute\('data-working'\)/, 'the behavior must be driven by the attribute');
     assert.match(script, /button\.disabled = true/, 'and must stop a second press');
     const working = script.slice(script.indexOf("data-working'"));
     assert.doesNotMatch(working, /preventDefault/, 'it must not stop the form submitting');

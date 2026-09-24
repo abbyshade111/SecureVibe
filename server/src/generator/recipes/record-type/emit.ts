@@ -32,7 +32,7 @@ ${indexes.join('\n')}
 
 export function emitSchema(plan: EntityPlan, runId: string): string {
   const query = queryPlanOf(plan);
-  // One optional key per field a list may be narrowed down by, named after the column so the engine recognises it.
+  // One optional key per field a list may be narrowed down by, named after the column so the engine recognizes it.
   const filterKeys = query.filterable.map((c) => `  ${c.column}: z.string().trim().max(120).optional(),\n`).join('');
   const create = plan.fields.map((f) => `  ${f.prop}: ${f.zod},`).join('\n');
   const patch = plan.fields.map((f) => `  ${f.prop}: ${f.zodOptional},`).join('\n');

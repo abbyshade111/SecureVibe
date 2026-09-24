@@ -72,9 +72,9 @@ export const runConfig: Scanner = async (ctx) => {
     return {
       findings,
       evidence: [],
-      coverage: { tool: CONFIG_TOOL.name, ran: false, version: CONFIG_TOOL.version, reason: 'The run was cancelled before the configuration check finished.' },
+      coverage: { tool: CONFIG_TOOL.name, ran: false, version: CONFIG_TOOL.version, reason: 'The run was canceled before the configuration check finished.' },
       status: 'skipped',
-      summary: 'Configuration checks were cancelled before they finished.',
+      summary: 'Configuration checks were canceled before they finished.',
     };
   }
 

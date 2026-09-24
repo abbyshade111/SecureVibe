@@ -1,7 +1,7 @@
 /**
  * Delivery of account emails (reset links, invitations). When the optional mailer module is installed it is used;
  * otherwise messages are written as .eml files to DATA_DIR/outbox so a local owner can open them. Header values
- * are sanitised so nobody can inject extra headers through their email address or name.
+ * are sanitized so nobody can inject extra headers through their email address or name.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';

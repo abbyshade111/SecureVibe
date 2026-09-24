@@ -1,7 +1,7 @@
 /**
  * Route paths, form field names and header names the security tests rely on.
  *
- * docs/CONTRACTS.md fixes the HTTP behaviour of the template but not every concrete path or field name.
+ * docs/CONTRACTS.md fixes the HTTP behavior of the template but not every concrete path or field name.
  * Everything the tests assume beyond the contract lives here, so aligning the template with the tests
  * (or the tests with the template) is a one-file change. Anything discoverable at runtime is taken from
  * `GET /__securevibe/routes` instead (see helpers/app.ts).

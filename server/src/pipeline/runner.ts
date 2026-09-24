@@ -387,7 +387,7 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     } else if (!crashedAt && !abort.signal.aborted) {
       await push(await runFixLoop(ctx));
     } else {
-      await push(finishStage(ctx, 'fix', 'skipped', abort.signal.aborted ? 'The build was cancelled.' : 'Skipped because an earlier step stopped unexpectedly.', new Date()));
+      await push(finishStage(ctx, 'fix', 'skipped', abort.signal.aborted ? 'The build was canceled.' : 'Skipped because an earlier step stopped unexpectedly.', new Date()));
     }
 
     finalizeRunProvenance(ctx);
@@ -404,7 +404,7 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
       await push(await runReportsStage(ctx));
     }
 
-      const finalStatus = abort.signal.aborted ? 'cancelled' : run.failure || crashedAt ? 'failed' : 'succeeded';
+      const finalStatus = abort.signal.aborted ? 'canceled' : run.failure || crashedAt ? 'failed' : 'succeeded';
       return finish(ctx, run, deps, finalStatus);
     } finally {
       ACTIVE_ABORTS.delete(runId);
@@ -487,7 +487,7 @@ function finalizeRunProvenance(ctx: PipelineCtx): void {
 const SCAN_STAGES: StageId[] = ['lint', 'sast', 'secrets', 'deps', 'config', 'dast'];
 
 /**
- * Scanner stages summarise their raw findings. When saved decisions marked some of them accepted or false
+ * Scanner stages summarize their raw findings. When saved decisions marked some of them accepted or false
  * positive, say so in the stage line and base the stage status on what is still open.
  */
 function noteReviewedFindings(ctx: PipelineCtx): void {
@@ -564,12 +564,12 @@ async function finish(ctx: PipelineCtx, run: PipelineRun, deps: RunPipelineDeps,
     } else if (status === 'failed') {
       p.status = 'failed';
     } else if (p.status === 'building') {
-      // Cancelled or interrupted: back to where it was, so the buttons make sense again.
+      // Canceled or interrupted: back to where it was, so the buttons make sense again.
       p.status = p.runs.some((r) => r.status === 'succeeded') ? 'built' : 'designed';
     }
   });
   ctx.bus.done(
-    status === 'succeeded' ? 'The build finished.' : status === 'cancelled' ? 'The build was cancelled.' : (run.failure?.message ?? 'The build did not finish.'),
+    status === 'succeeded' ? 'The build finished.' : status === 'canceled' ? 'The build was canceled.' : (run.failure?.message ?? 'The build did not finish.'),
   );
   return run;
 }

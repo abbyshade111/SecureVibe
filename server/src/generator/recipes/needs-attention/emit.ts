@@ -67,7 +67,7 @@ export interface AttentionPlan {
 export function titleOf(entity: EntityPlan): { title: AttentionSection['title']; withheld: string | undefined } {
   const field = entity.titleField;
   if (!field) return { title: undefined, withheld: undefined };
-  // Text, a paragraph or an email address: something a person typed and would recognise the record by.
+  // Text, a paragraph or an email address: something a person typed and would recognize the record by.
   const namesTheRecord = field.control === 'text' || field.control === 'textarea' || field.control === 'email';
   if (!namesTheRecord) return { title: undefined, withheld: undefined };
   if (field.field.sensitive) return { title: undefined, withheld: field.field.label };

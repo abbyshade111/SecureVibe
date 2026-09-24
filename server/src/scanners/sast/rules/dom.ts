@@ -87,7 +87,7 @@ export const dangerouslySetInnerHtml = defineRule({
   exploitability: 'requires-auth',
   description: 'A component uses dangerouslySetInnerHTML, which bypasses React’s automatic escaping.',
   impact: 'User-controlled text in that HTML runs as script in other people’s browsers.',
-  fix: 'Render the value as text ({value}) or sanitise it with an allow-list HTML sanitiser first.',
+  fix: 'Render the value as text ({value}) or sanitize it with an allow-list HTML sanitiser first.',
   appliesTo: ['react'],
   visit(node, _file, report) {
     if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.name.text === 'dangerouslySetInnerHTML') report(node);

@@ -308,7 +308,7 @@ export type CheckStatus = z.infer<typeof CheckStatusSchema>;
 export type ChecksResponse = z.infer<typeof ChecksResponseSchema>;
 
 /**
- * PUT /api/projects/:id/appearance — change how an app looks without rebuilding it. A theme is colour only, so
+ * PUT /api/projects/:id/appearance — change how an app looks without rebuilding it. A theme is color only, so
  * nothing is generated, nothing is checked again and no approval is needed.
  */
 export const AppearanceRequestSchema = z.object({ theme: z.enum(['calm', 'warm', 'forest', 'contrast']) });

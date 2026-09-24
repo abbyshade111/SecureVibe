@@ -1,5 +1,5 @@
 /**
- * Reading `package-lock.json`: the package inventory the dependency checks, the licence inventory and the
+ * Reading `package-lock.json`: the package inventory the dependency checks, the license inventory and the
  * fallback SBOM all work from. Only the lockfile is parsed here — nothing is fetched.
  */
 import { createHash } from 'node:crypto';

@@ -24,7 +24,7 @@ function result(overrides: Partial<ProbeResult> & Pick<ProbeResult, 'id' | 'pass
   };
 }
 
-describe('probe catalogue', () => {
+describe('probe catalog', () => {
   it('every probe id is unique and namespaced dast.*', () => {
     const ids = ALL_PROBES.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);

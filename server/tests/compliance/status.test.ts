@@ -53,12 +53,12 @@ function baseCtx(overrides: Partial<StatusContext> = {}): StatusContext {
 }
 
 describe('decideStatus: "not applicable", with a reason', () => {
-  const decided = { id: 'AT-1', requirementId: 'V6.1.1', standard: 'asvs' as const, result: 'not-applicable' as const, note: 'We have no organisation-wide sign-in system; this app has three users on one computer.', attestedBy: 'Sam Rivera', attestedAt: '2026-09-24T10:00:00.000Z', evidenceLink: undefined };
+  const decided = { id: 'AT-1', requirementId: 'V6.1.1', standard: 'asvs' as const, result: 'not-applicable' as const, note: 'We have no organization-wide sign-in system; this app has three users on one computer.', attestedBy: 'Sam Rivera', attestedAt: '2026-09-24T10:00:00.000Z', evidenceLink: undefined };
 
   it('marks the requirement not applicable and says who decided, when and why', () => {
     const d = decideStatus(baseCtx({ attestation: decided }));
     expect(d.status).toBe('not-applicable');
-    expect(d.rationale).toContain('because We have no organisation-wide sign-in system');
+    expect(d.rationale).toContain('because We have no organization-wide sign-in system');
     expect(d.rationale).toContain('Sam Rivera');
     expect(d.rationale).toContain('2026-09-24');
     expect(d.rationale).toMatch(/owner's decision, not verified/);

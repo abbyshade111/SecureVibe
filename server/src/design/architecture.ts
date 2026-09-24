@@ -126,7 +126,7 @@ export function deriveArchitecture(profile: DesignProfile, f: ProfileFacts): Arc
       purpose: 'Delivers account emails. Optional: without it, emails are saved to a local folder.',
       trust: 'vendor',
       dataShared: ['email addresses', 'one-time links'],
-      mitigations: ['Headers are sanitised', 'Only configured server is used', 'Reset links expire in 15 minutes'],
+      mitigations: ['Headers are sanitized', 'Only configured server is used', 'Reset links expire in 15 minutes'],
     });
   }
   if (f.payments) {
@@ -423,7 +423,7 @@ function walkthrough(profile: DesignProfile, f: ProfileFacts, components: Compon
   }
   const crossing = flows.filter((fl) => fl.crossesTrustBoundary);
   p.push(
-    `${crossing.length} connection${crossing.length === 1 ? '' : 's'} cross${crossing.length === 1 ? 'es' : ''} a trust boundary (${listWords(crossing.map((c) => c.id))}). Each one is labelled on the diagram with the protections that guard it. The ids starting with TPL- are protections already built and tested in the base template.`,
+    `${crossing.length} connection${crossing.length === 1 ? '' : 's'} cross${crossing.length === 1 ? 'es' : ''} a trust boundary (${listWords(crossing.map((c) => c.id))}). Each one is labeled on the diagram with the protections that guard it. The ids starting with TPL- are protections already built and tested in the base template.`,
   );
   if (f.scheduler) p.push('Background jobs run inside the same program, one at a time, so they cannot pile up.');
   if (f.publicApi) p.push('Other programs can call the API with a key that a signed-in person creates. Keys can be revoked at any time.');

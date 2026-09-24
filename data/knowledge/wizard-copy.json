@@ -390,13 +390,13 @@
       "required": false,
       "title": "How it should look",
       "question": "Which look would you like for your app?",
-      "helpText": "Just the colours. You can change your mind later and build again.",
-      "whyWeAsk": "People use an app more happily when it looks the way they want. Each of these is only a set of colours, so none of them changes what your app does or how it protects your data.",
+      "helpText": "Just the colors. You can change your mind later and build again.",
+      "whyWeAsk": "People use an app more happily when it looks the way they want. Each of these is only a set of colors, so none of them changes what your app does or how it protects your data.",
       "options": [
         {
           "value": "calm",
           "label": "Calm (default)",
-          "description": "Quiet greys with a blue for links and buttons."
+          "description": "Quiet grays with a blue for links and buttons."
         },
         {
           "value": "warm",
@@ -421,7 +421,7 @@
       },
       "whatThisChanges": {
         "*": [
-          "Only the colours of your app's pages change.",
+          "Only the colors of your app's pages change.",
           "Every look is tested to stay readable: the text, links and buttons keep enough contrast against their background, in light and in dark mode, so the choice cannot make your app harder to use.",
           "Nothing about security depends on this answer."
         ]
@@ -709,9 +709,9 @@
       "inputType": "single-choice",
       "required": false,
       "title": "Central sign-in",
-      "question": "Does your organisation have a central sign-in system?",
+      "question": "Does your organization have a central sign-in system?",
       "helpText": "A central sign-in system is one account that works across many apps: Microsoft Entra (Microsoft 365), Google Workspace, Okta and the like. A household, a solo business or a small club usually has none.",
-      "whyWeAsk": "One of the Secure by Design controls asks whether the app uses your organisation's central sign-in. If you have none, that control does not apply to you, and the reports say so instead of marking your app at risk for something you cannot do.",
+      "whyWeAsk": "One of the Secure by Design controls asks whether the app uses your organization's central sign-in. If you have none, that control does not apply to you, and the reports say so instead of marking your app at risk for something you cannot do.",
       "options": [
         {
           "value": "no",
@@ -781,7 +781,7 @@
         {
           "value": "government-id",
           "label": "Government ID numbers",
-          "description": "Passport numbers, national ID, tax or social-security numbers, driving licence numbers."
+          "description": "Passport numbers, national ID, tax or social-security numbers, driving license numbers."
         },
         {
           "value": "credentials",
@@ -885,7 +885,7 @@
       "title": "Information about other people",
       "question": "Does the app store information about people other than its users?",
       "helpText": "For example: customers who never log in, patients, pupils, suppliers' staff, job applicants.",
-      "whyWeAsk": "People who are described in the app but never use it cannot check their own data. Privacy rules give them rights (to see, correct or delete it), so the app needs a way for you to honour those.",
+      "whyWeAsk": "People who are described in the app but never use it cannot check their own data. Privacy rules give them rights (to see, correct or delete it), so the app needs a way for you to honor those.",
       "options": [
         {
           "value": true,
@@ -931,7 +931,7 @@
         {
           "value": "auto-delete-after-period",
           "label": "Delete it automatically after a period",
-          "description": "Old records are removed (or anonymised) on a schedule you set.",
+          "description": "Old records are removed (or anonymized) on a schedule you set.",
           "recommended": true
         }
       ],
@@ -945,7 +945,7 @@
           "Records stay until deleted by hand. Users and administrators get delete buttons, and the data-retention document says so."
         ],
         "auto-delete-after-period": [
-          "A scheduled job removes or anonymises personal records after the period you choose, and writes what it did to the audit log.",
+          "A scheduled job removes or anonymizes personal records after the period you choose, and writes what it did to the audit log.",
           "The data-retention document states the period."
         ]
       }
@@ -974,7 +974,7 @@
       },
       "whatThisChanges": {
         "*": [
-          "Records untouched for this many months are removed or anonymised by the scheduled clean-up job."
+          "Records untouched for this many months are removed or anonymized by the scheduled clean-up job."
         ]
       }
     },
@@ -1404,7 +1404,7 @@
       "title": "Email notifications",
       "question": "Should the app send emails (reminders, confirmations, invitations)?",
       "helpText": "While the app runs on your computer, emails are written to a folder so you can see them. To really send them you connect an email service later.",
-      "whyWeAsk": "Email is how password resets and invitations reach people. It is also a way attackers try to send spam through your app, so we limit and sanitise what it sends.",
+      "whyWeAsk": "Email is how password resets and invitations reach people. It is also a way attackers try to send spam through your app, so we limit and sanitize what it sends.",
       "options": [
         {
           "value": true,
@@ -1816,7 +1816,7 @@
       "Because outside people can talk to the assistant, messages and answers pass through a content filter."
     ],
     "email": [
-      "Outgoing emails use fixed templates and sanitised addresses so nobody can add hidden recipients."
+      "Outgoing emails use fixed templates and sanitized addresses so nobody can add hidden recipients."
     ],
     "external-apis": [
       "The app may only contact the outside services you listed; every other address is blocked."
@@ -1831,7 +1831,7 @@
       "Scheduled tasks have fixed schedules, cannot run twice at once, and log what they did."
     ],
     "retention": [
-      "A scheduled job removes or anonymises personal records after the period you chose."
+      "A scheduled job removes or anonymizes personal records after the period you chose."
     ],
     "local-only": [
       "The app only listens on this computer; nobody else can connect to it."

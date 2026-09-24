@@ -80,7 +80,7 @@ export const vmModule = defineRule({
   exploitability: 'requires-auth',
   description: "Node's vm module runs scripts from text. It is not a security sandbox: code inside it can escape and reach the whole app.",
   impact: 'Anyone who controls the script text can run their own code on the server.',
-  fix: 'Remove the vm module; implement the behaviour in normal code and validate inputs with zod.',
+  fix: 'Remove the vm module; implement the behavior in normal code and validate inputs with zod.',
   appliesTo: ['ts'],
   checkFile(file, report) {
     for (const imp of importsOf(file, ['vm', 'node:vm'])) report(imp.node, { evidence: `${file.relPath} imports "${imp.specifier}"` });
@@ -138,7 +138,7 @@ export const deserializeUntrusted = defineRule({
   cwe: ['CWE-502'],
   asvs: ['V1.5.2'],
   exploitability: 'trivial',
-  description: 'A serialisation library that can rebuild functions or arbitrary objects is used on data the app did not create.',
+  description: 'A serialization library that can rebuild functions or arbitrary objects is used on data the app did not create.',
   impact: 'Crafted input can execute code on the server when it is deserialised.',
   fix: 'Use JSON.parse plus a zod schema for untrusted data; remove libraries such as node-serialize.',
   appliesTo: ['ts'],
@@ -152,7 +152,7 @@ export const deserializeUntrusted = defineRule({
         const tainted = node.arguments.some((a) => isTainted(a, file, REQ_TAINT));
         if (fn && UNSAFE_DESERIALIZE_FUNCTIONS.has(fn) && fn !== 'load' && fn !== 'loadAll' && fn !== 'parse') {
           calls += 1;
-          report(node, { confidence: tainted ? 'high' : 'medium', evidence: `${fn}() ${tainted ? 'receives request data' : 'rebuilds objects from serialised text'}` });
+          report(node, { confidence: tainted ? 'high' : 'medium', evidence: `${fn}() ${tainted ? 'receives request data' : 'rebuilds objects from serialized text'}` });
         } else if (fn && (fn === 'load' || fn === 'loadAll' || fn === 'parse') && tainted) {
           // js-yaml / yaml: only dangerous when untrusted text is parsed with a custom (function-capable) schema.
           const optsText = node.arguments[1] ? text(node.arguments[1], file) : '';

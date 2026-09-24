@@ -166,7 +166,7 @@ export async function aiReview(provider: LlmProvider, input: AiReviewInput): Pro
   for (const batch of splitBatches(input.requirements, requirementsPerCall(input.effort ?? 'low'))) {
     part++;
     if (input.abort?.aborted) {
-      base.batches.push({ chapterId: batch.chapterId, ok: false, message: 'The review was cancelled.' });
+      base.batches.push({ chapterId: batch.chapterId, ok: false, message: 'The review was canceled.' });
       continue;
     }
     if (stoppedFor) {

@@ -1,5 +1,5 @@
 /**
- * Changing how an app looks: colour only, so it needs no rebuild and no approval — and it must leave every other
+ * Changing how an app looks: color only, so it needs no rebuild and no approval — and it must leave every other
  * line of the app's settings file, including its secrets, exactly as it was.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';

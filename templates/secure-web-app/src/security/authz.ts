@@ -25,7 +25,7 @@ export interface EntityDefinition {
   sampleId?: (ownerId: string) => string | undefined;
   /** Account data export: everything this entity stores about the user. */
   exportForUser?: (userId: string) => unknown;
-  /** Account deletion: remove or anonymise this entity's records for the user. */
+  /** Account deletion: remove or anonymize this entity's records for the user. */
   deleteForUser?: (userId: string) => void;
 }
 

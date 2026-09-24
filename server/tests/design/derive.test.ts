@@ -208,7 +208,7 @@ describe('deriveDesign: team inventory (local network, invitations, uploads, con
   });
 
   it('marks AC-02 not applicable, with the answer as the reason, when the owner has no central sign-in system', () => {
-    // An owner with no organisation was rated at risk on AC-02 for ever. The wizard now asks, and "no" answers it.
+    // An owner with no organization was rated at risk on AC-02 for ever. The wizard now asks, and "no" answers it.
     const withoutIdp = DesignProfileSchema.parse({ ...teamInventory, users: { ...teamInventory.users, centralSignIn: 'no' } });
     const design = deriveDesign(withoutIdp, { knowledge, frameworks, now: NOW });
     const entry = design.checklist.find((e) => e.id === 'AC-02')!;
@@ -229,7 +229,7 @@ describe('deriveDesign: team inventory (local network, invitations, uploads, con
     expect(byId.get('AC-02')?.mitigationPlan).toEqual({
       owner: 'owner:Priya Nair',
       dueBy: 'before multi-team use',
-      action: 'Adopt a central identity provider (OIDC) if the organisation has one.',
+      action: 'Adopt a central identity provider (OIDC) if the organization has one.',
     });
     expect(byId.get('AC-06')?.status).toBe('yes');
     expect(byId.get('RR-02')?.status).toBe('yes');

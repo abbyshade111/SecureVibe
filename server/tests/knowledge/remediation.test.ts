@@ -230,7 +230,7 @@ describe('data/knowledge/remediation.json', () => {
       for (const ref of e.remediation.references) expect(ref, `${e.ruleId} reference`).toMatch(/^https:\/\//);
       expect(e.howToConfirmFixed, `${e.ruleId} howToConfirmFixed`).toBeTruthy();
       expect(e.exploitability, `${e.ruleId} exploitability`).toBeDefined();
-      // Informational notices (e.g. a copyleft licence) are not weaknesses and need no CWE.
+      // Informational notices (e.g. a copyleft license) are not weaknesses and need no CWE.
       if (e.severity !== 'info') expect(e.cwe.length, `${e.ruleId} cwe`).toBeGreaterThan(0);
       for (const c of e.cwe) expect(c, `${e.ruleId} cwe format`).toMatch(/^CWE-\d+$/);
     }

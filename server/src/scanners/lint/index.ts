@@ -111,9 +111,9 @@ export const runLint: Scanner = async (ctx) => {
     return {
       findings,
       evidence: [],
-      coverage: { tool: LINT_TOOL.name, ran: false, version: LINT_TOOL.version, reason: 'The run was cancelled before linting finished.' },
+      coverage: { tool: LINT_TOOL.name, ran: false, version: LINT_TOOL.version, reason: 'The run was canceled before linting finished.' },
       status: 'skipped',
-      summary: 'Linting was cancelled before it finished.',
+      summary: 'Linting was canceled before it finished.',
     };
   }
 

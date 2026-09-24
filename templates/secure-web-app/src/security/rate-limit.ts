@@ -1,5 +1,5 @@
 /**
- * Rate-limit presets (in-memory, fixed windows). Keys are the client IP as Express reports it (which honours
+ * Rate-limit presets (in-memory, fixed windows). Keys are the client IP as Express reports it (which honors
  * TRUST_PROXY_HOPS and nothing else), the signed-in user, or the account being targeted. Account presets add an
  * exponential soft lock that grows with repeated failures and always expires — never a permanent lockout.
  * 429 responses always carry Retry-After.

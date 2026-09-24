@@ -30,8 +30,8 @@ export function finishMessage(project: Pick<Project, 'name'>, run: Pick<Pipeline
     }
     case 'failed':
       return { title, body: `The ${what} did not finish: ${run.failure?.message ?? 'open SecureVibe for details.'}`.slice(0, 200) };
-    case 'cancelled':
-      return { title, body: `The ${what} was cancelled.` };
+    case 'canceled':
+      return { title, body: `The ${what} was canceled.` };
     case 'interrupted':
       return { title, body: `The ${what} was interrupted; start it again when you are ready.` };
     default:

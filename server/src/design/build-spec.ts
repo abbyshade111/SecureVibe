@@ -179,7 +179,7 @@ function featuresToBuild(profile: DesignProfile, f: ProfileFacts): string[] {
   }
   if (f.email) {
     lines.push(
-      `- Email: send notifications only through lib/mailer (templates from disk, header sanitisation). ${caps.email ? 'Add the notifications the requested features need.' : 'Only the account emails the template already sends (invitations, password reset) are required.'}`,
+      `- Email: send notifications only through lib/mailer (templates from disk, header sanitization). ${caps.email ? 'Add the notifications the requested features need.' : 'Only the account emails the template already sends (invitations, password reset) are required.'}`,
     );
   }
   if (f.scheduler) {
@@ -237,8 +237,8 @@ function providedByTemplate(f: ProfileFacts): string[] {
   }
   if (f.adminMfa) items.push('Authenticator-app (TOTP) enrolment, enforced for administrators' + (f.userMfa ? ' and available to every person' : ''));
   if (f.uploads) items.push('Uploads module: streaming size cap, magic-byte type checks, random names outside the web root, attachment downloads, quotas');
-  if (f.ai) items.push('AI module: input normalisation and screening, instruction hierarchy, output validation, usage logging, budgets, kill switch' + (f.aiModeration ? ', content moderation' : '') + (f.aiActions ? ', confirmed tool proposals' : '') + (f.aiHistory ? ', per-person conversation history' : ''));
-  if (f.email) items.push('Mailer (local outbox in development, SMTP via env) with header sanitisation');
+  if (f.ai) items.push('AI module: input normalization and screening, instruction hierarchy, output validation, usage logging, budgets, kill switch' + (f.aiModeration ? ', content moderation' : '') + (f.aiActions ? ', confirmed tool proposals' : '') + (f.aiHistory ? ', per-person conversation history' : ''));
+  if (f.email) items.push('Mailer (local outbox in development, SMTP via env) with header sanitization');
   if (f.scheduler) items.push('Scheduler with a jobs table, locking and overlap protection' + (f.retentionJobs ? ', including the data-retention job' : ''));
   if (f.publicApi) items.push('API keys feature (/api/v1 Bearer keys, hashed at rest, revocable, per-key rate limit)');
   if (f.payments) items.push('Payments placeholder checkout page and provider setup guide');

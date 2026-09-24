@@ -90,7 +90,7 @@ describe('evaluateManifestControls', () => {
   it('credits the AI control once the feature is on and its test passes', async () => {
     const ctx = makeManifestCheckContext({
       buildSpec: buildSpecFixture({ ai: true }),
-      testResults: [{ name: 'C2.1.1 normalises input', ok: true }],
+      testResults: [{ name: 'C2.1.1 normalizes input', ok: true }],
     });
     const results = await evaluateManifestControls(manifestFixture, ctx);
     const r = resultFor(results, 'TPL-AI-01');

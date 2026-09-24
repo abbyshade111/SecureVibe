@@ -194,7 +194,7 @@ function limitationsFor(input: EvaluateInput): string[] {
   );
   if (input.runMeta.provider === null) {
     out.push(
-      'This was a preview build: the AI did not customise the code and did not perform a review, so more requirements than usual rely on automated checks alone or are marked "Not verified".',
+      'This was a preview build: the AI did not customize the code and did not perform a review, so more requirements than usual rely on automated checks alone or are marked "Not verified".',
     );
   }
   if (input.aiReview?.performed) {

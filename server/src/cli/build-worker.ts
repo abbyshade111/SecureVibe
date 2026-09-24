@@ -4,7 +4,7 @@
  *
  * Started by the API (pipeline/job.ts) as a detached process, it reads the job written for the run, executes the
  * pipeline against the run record the API created, appends every progress event to the run's `events.jsonl`, and
- * exits. SIGTERM (from "Cancel" in the UI, or the owner) aborts the run, which is then recorded as cancelled.
+ * exits. SIGTERM (from "Cancel" in the UI, or the owner) aborts the run, which is then recorded as canceled.
  * Everything else — settings, keys, the audit log — comes from the same workspace and `.env` the server uses.
  */
 import { join } from 'node:path';
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   );
 
   const stop = (signal: NodeJS.Signals): void => {
-    process.stdout.write(`${new Date().toISOString()} received ${signal}: cancelling the build\n`);
+    process.stdout.write(`${new Date().toISOString()} received ${signal}: canceling the build\n`);
     cancelRun(runId);
   };
   process.on('SIGTERM', () => stop('SIGTERM'));

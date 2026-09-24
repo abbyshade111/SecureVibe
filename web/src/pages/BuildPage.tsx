@@ -631,9 +631,9 @@ export function BuildPage() {
         </Card>
       )}
 
-      {run.status === 'cancelled' && (
+      {run.status === 'canceled' && (
         <div className="sv-banner sv-banner-warn">
-          <p style={{ marginBottom: 0 }}>The build was cancelled.</p>
+          <p style={{ marginBottom: 0 }}>The build was canceled.</p>
         </div>
       )}
 

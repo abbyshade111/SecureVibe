@@ -102,7 +102,7 @@ export function handoffMarkdown(input: HandoffInput): string {
   if (tests && typeof tests.total === 'number') lines.push(`- Built-in security and feature tests: ${tests.passed ?? 0} of ${tests.total} passed${tests.failed ? `, ${tests.failed} failed` : ''}.`);
   const failedStages = run.stages.filter((s) => s.status === 'failed');
   if (failedStages.length) lines.push(`- Steps that did not pass: ${failedStages.map((s) => s.id).join(', ')} (see \`reports/run-log.txt\`).`);
-  lines.push('', 'The full detail is in `reports/compliance-report.html` and `reports/security-report.html`. "Verified" means an automated check passed; anything assessed only by AI or confirmed only by a person is labelled as such in those reports and never counted as verified.', '');
+  lines.push('', 'The full detail is in `reports/compliance-report.html` and `reports/security-report.html`. "Verified" means an automated check passed; anything assessed only by AI or confirmed only by a person is labeled as such in those reports and never counted as verified.', '');
 
   lines.push('## What is still open', '');
   if (open.length === 0) {

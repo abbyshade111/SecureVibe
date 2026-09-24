@@ -81,7 +81,7 @@ describe('renderComplianceReport', () => {
       '## 8. AI-assisted development process',
       '## 9. Findings affecting compliance',
       '## 10. Manual verification',
-      '## 11. Prioritised recommendations',
+      '## 11. Prioritized recommendations',
       '## 12. Human sign-off',
       '## 13. Provenance',
     ];
