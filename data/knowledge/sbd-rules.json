@@ -415,6 +415,16 @@
       "severityIfNo": "high",
       "outcomes": [
         {
+          "when": "no-central-sign-in",
+          "status": "n-a",
+          "justification": "You said your organisation has no central sign-in system, so there is nothing to connect the app to. The parts of this control that still matter are checked on their own: administrators use two-factor authentication with an authenticator app, and sessions expire after inactivity and after a fixed time.",
+          "evidence": ["template:TPL-MFA-04", "template:TPL-MFA-01", "template:TPL-SESSION-03"],
+          "actions": [],
+          "deploymentTimeStatus": "n-a",
+          "deploymentNote": "Stays not applicable unless your organisation adopts a central sign-in system; change the answer in the wizard if that happens.",
+          "note": "Your organisation has no central sign-in system, so this control does not apply. Administrators still use two-factor authentication."
+        },
+        {
           "when": "auth",
           "status": "no",
           "justification": "The app keeps its own accounts instead of using a central sign-in system (identity provider). The most important parts of this control are still in place: administrators must use two-factor authentication with an authenticator app, sessions expire after inactivity and after a fixed time, and every user may turn on two-factor authentication.",

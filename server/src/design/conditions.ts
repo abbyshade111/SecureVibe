@@ -24,6 +24,8 @@ export interface ProfileFacts {
   auth: boolean;
   /** Why sign-in is on (plain language fragments), empty when sign-in is off. */
   authReasons: string[];
+  /** Whether the owner's organisation runs a central sign-in system, as answered in the wizard. */
+  centralSignIn: 'yes' | 'no' | 'not-sure';
   level: 1 | 2;
   levelRule: string;
   personalData: boolean;
@@ -104,6 +106,7 @@ export function profileFacts(profile: DesignProfile): ProfileFacts {
     appName: profile.app.name,
     auth,
     authReasons,
+    centralSignIn: users.centralSignIn,
     level: level.level,
     levelRule: level.rule,
     personalData,
@@ -220,6 +223,9 @@ export function matchesSbdWhen(when: SbdWhen, f: ProfileFacts, attested: boolean
       return f.auth;
     case 'no-auth':
       return !f.auth;
+    case 'no-central-sign-in':
+      // Answered in the wizard: there is no organisation-wide sign-in system to connect the app to.
+      return f.centralSignIn === 'no';
     case 'sensitive-data':
       return f.sensitiveData || f.sensitiveFields;
     case 'personal-data':

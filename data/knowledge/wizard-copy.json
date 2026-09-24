@@ -704,6 +704,51 @@
       }
     },
     {
+      "id": "users.centralSignIn",
+      "step": "users",
+      "inputType": "single-choice",
+      "required": false,
+      "title": "Central sign-in",
+      "question": "Does your organisation have a central sign-in system?",
+      "helpText": "A central sign-in system is one account that works across many apps: Microsoft Entra (Microsoft 365), Google Workspace, Okta and the like. A household, a solo business or a small club usually has none.",
+      "whyWeAsk": "One of the Secure by Design controls asks whether the app uses your organisation's central sign-in. If you have none, that control does not apply to you, and the reports say so instead of marking your app at risk for something you cannot do.",
+      "options": [
+        {
+          "value": "no",
+          "label": "No, there is no central sign-in system",
+          "description": "The app keeps its own accounts. The control about connecting to a central system is marked not applicable."
+        },
+        {
+          "value": "yes",
+          "label": "Yes, we have one",
+          "description": "The app still keeps its own accounts to start with; connecting it is listed as a developer's action before it is used across teams."
+        },
+        {
+          "value": "not-sure",
+          "label": "Not sure",
+          "description": "Treated like \"yes\": the connection stays listed as a later action."
+        }
+      ],
+      "notSure": {
+        "available": true,
+        "choosesValue": "not-sure",
+        "behaviour": "We will keep the connection to a central sign-in system as a later action for a developer, which is the cautious reading, and note it."
+      },
+      "whatThisChanges": {
+        "no": [
+          "The Secure by Design control about central sign-in (AC-02) is marked not applicable, with this answer as the reason.",
+          "Administrators still use two-factor authentication and sessions still expire; those are checked on their own."
+        ],
+        "yes": [
+          "The app keeps its own accounts for now.",
+          "Connecting it to your central sign-in system with OpenID Connect is listed as a developer's action before multi-team use."
+        ],
+        "not-sure": [
+          "Same as \"yes\": the connection stays listed as a later action."
+        ]
+      }
+    },
+    {
       "id": "data.categories",
       "step": "data",
       "inputType": "multi-choice",

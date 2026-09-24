@@ -202,6 +202,13 @@ export const UsersSectionSchema = z.object({
   registration: z.enum(['invite-only', 'admin-created', 'open']).default('admin-created'),
   /** Two-factor authentication for administrator accounts (recommended; forced on for sensitive data). */
   adminMfa: z.boolean().default(true),
+  /**
+   * Whether the owner's organisation runs a central sign-in system (Microsoft Entra, Google Workspace, Okta).
+   * The Secure by Design control AC-02 begins "if your organisation has a central sign-in system": an owner with
+   * no organisation was rated at risk on it for ever. "no" lets the rules mark AC-02 not applicable; "yes" and
+   * "not-sure" keep it as an action for a developer.
+   */
+  centralSignIn: z.enum(['yes', 'no', 'not-sure']).default('not-sure'),
 });
 
 export const DataSectionSchema = z.object({

@@ -225,6 +225,7 @@ export const SbdRuleSchema = z.object({
         'internet-later',
         'auth',
         'no-auth',
+        'no-central-sign-in',
         'sensitive-data',
         'personal-data',
         'ai',
