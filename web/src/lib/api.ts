@@ -357,11 +357,7 @@ export function requestRefinement(id: string): Promise<{ project: Project; refin
 
 export function saveRefinementDecisions(
   id: string,
-  body: {
-    answers?: { questionId: string; value?: string; values?: string[] }[];
-    features?: { suggestionId: string; accepted: boolean }[];
-    dismiss?: boolean;
-  },
+  body: { answers?: { questionId: string; value: string }[]; features?: { suggestionId: string; accepted: boolean }[]; dismiss?: boolean },
 ): Promise<{ project: Project; refinement?: Project['refinement'] }> {
   return j(`/projects/${id}/refine/decisions`, { method: 'POST', body: JSON.stringify(body) });
 }

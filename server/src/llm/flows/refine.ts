@@ -79,15 +79,6 @@ export interface RefineOutcome {
 }
 
 /** True when a suggested change is one SecureVibe will let the owner accept. */
-/**
- * Whether a question setting this field may take several answers at once. Only the two fields that append to a
- * list can: picking three record types adds three records, and nothing else on the allow-list is a list. A
- * question setting anything else takes exactly one answer, however many the owner is offered.
- */
-export function answerFieldTakesMany(field: string): boolean {
-  return field === 'app.keyFeatures.add' || field === 'app.entities.add';
-}
-
 export function answerFieldAllowed(field: string, value: string): boolean {
   const allowed = REFINE_ANSWER_FIELDS[field];
   if (allowed === undefined) return false;
@@ -105,9 +96,6 @@ function toQuestions(output: RefineOutput): RefinementQuestion[] {
       // A question whose answers SecureVibe cannot apply is still worth asking; it just records the answer as a note.
       ...(q.field !== '' && options.length > 0 ? { field: q.field } : {}),
       options: options.map((o) => ({ label: o.label, value: o.value })),
-      // Decided by the field, never by the model: it can offer several options, but only a field that appends
-      // to a list may take several answers.
-      multiple: q.field !== '' && options.length > 1 && answerFieldTakesMany(q.field),
       answered: false,
     };
   });
@@ -159,8 +147,6 @@ export async function refineProfile(provider: LlmProvider, profile: PartialDesig
     ...Object.entries(REFINE_ANSWER_FIELDS).map(([k, v]) => `  ${k} = ${v === 'text' ? 'text' : v.join(' | ')}`),
     '',
     'Ask at most six questions, and only where the answers are missing or could mean two different things.',
-    'A question setting app.keyFeatures.add or app.entities.add may offer up to four options and the owner can pick',
-    'several of them; every other question takes one answer.',
     'Suggest at most eight features, each one thing the app clearly needs to do what they described.',
   ].join('\n');
 

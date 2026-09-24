@@ -78,12 +78,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   not write cannot honestly answer half the wizard, and guessing puts made-up facts into a report. A shorter set
   of questions for uploaded apps is probably part of the answer.
 
-- **One test in `web/` and nothing runs it.** `web/src/pages/plainActivity.test.ts` exists, passes when run by
-  hand, and is executed by no suite: the root `npm test` script is `npm run test -w server`, the server's vitest
-  only includes `tests/**`, and `web/` has no vitest configuration at all. So it has never guarded anything, and
-  a change that broke it would go unnoticed. Either give `web/` a test run of its own and put it in the checks, or
-  move the file where the server suite will pick it up — but not leave a file that looks like coverage and is not.
-
 - **A report that says 0 of 106 when the truth is "we did not look".** The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
@@ -221,13 +215,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
     `--only <app>` when one app answers the question — four and a half minutes rather than fourteen — and the lock
     for the rest.
 
-- **A check that no source file holds a raw U+2028 or U+2029.** `recipes/js-literal.ts` exists because a raw
-  line separator in emitted code breaks the app, and the same character in the *helper's own file* broke the
-  helper when it was first written: it is a line terminator to the parser and invisible to a reader, so review
-  cannot catch a reintroduction. Suggested by the language-agnostic session on 24 September 2026 after fuzzing
-  the two escape forms: a grep for the raw bytes (`\xe2\x80\xa8`, `\xe2\x80\xa9`) over `server/`, `shared/`,
-  `web/src` and the template, run with the other checks, failing with the file and line. Tests build the
-  character with `String.fromCharCode(0x2028)` and stay clean by construction.
 
 ## From the first two people to use SecureVibe (19-20 September 2026)
 
@@ -252,6 +239,9 @@ building from nothing.
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
   app.
+- **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
+  rest. Multiple selection where the question allows it, and the answers it may set must still come from the
+  same allow-list, so this widens what an owner can say without widening what the flow may change.
 - **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
   different set of records, or to see what a rebuild does, currently risks the app they already have.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests

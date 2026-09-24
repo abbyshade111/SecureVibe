@@ -3,7 +3,7 @@
  * suggestion only ever adds to the owner's answers.
  */
 import { describe, expect, it } from 'vitest';
-import { answerFieldAllowed, answerFieldTakesMany, refineProfile } from '../../src/llm/flows/refine.js';
+import { answerFieldAllowed, refineProfile } from '../../src/llm/flows/refine.js';
 import { applyRefinement, entityName } from '../../src/design/refine-apply.js';
 import { NullProvider } from '../../src/llm/null.js';
 import { ScriptedProvider } from '../../src/llm/scripted.js';
@@ -16,17 +16,11 @@ describe('follow-up questions', () => {
   it('keeps the questions it can act on and drops answers that are not allowed', async () => {
     const { refinement } = await refineProfile(provider(), { app: { description: 'A place to keep what I find out about a health problem.' } }, { projectId: 'p1' });
     expect(refinement.performedBy).toBe('claude');
-    expect(refinement.questions).toHaveLength(4);
+    expect(refinement.questions).toHaveLength(3);
 
-    const [audience, backups, aboutOthers, records] = refinement.questions;
+    const [audience, backups, aboutOthers] = refinement.questions;
     expect(audience!.field).toBe('users.audience');
     expect(audience!.options.map((o) => o.value)).toEqual(['just-me', 'my-team']);
-    // Two options, but the answer it sets holds one value: the owner picks one.
-    expect(audience!.multiple).toBe(false);
-    // Record types are a list, so this question takes several answers.
-    expect(records!.field).toBe('app.entities.add');
-    expect(records!.multiple).toBe(true);
-    expect(records!.options).toHaveLength(4);
     // A question with nothing to set is still asked; the answer is recorded as a note.
     expect(backups!.field).toBeUndefined();
     // "maybe-later" is not a value this answer accepts, so that option is gone — and with no usable option left,
@@ -58,16 +52,6 @@ describe('follow-up questions', () => {
     expect(answerFieldAllowed('users.registration', 'open')).toBe(false);
     expect(answerFieldAllowed('app.keyFeatures.add', 'Keep a note')).toBe(true);
     expect(answerFieldAllowed('app.keyFeatures.add', '')).toBe(false);
-  });
-
-  it('lets only the two list fields take several answers', () => {
-    // Every field on the allow-list is either a list to append to or one setting; only the lists take several.
-    expect(answerFieldTakesMany('app.keyFeatures.add')).toBe(true);
-    expect(answerFieldTakesMany('app.entities.add')).toBe(true);
-    expect(answerFieldTakesMany('users.audience')).toBe(false);
-    expect(answerFieldTakesMany('data.retention')).toBe(false);
-    expect(answerFieldTakesMany('capabilities.email')).toBe(false);
-    expect(answerFieldTakesMany('app.description')).toBe(false);
   });
 });
 
