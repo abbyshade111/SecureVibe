@@ -87,6 +87,37 @@ export function artifactsRouter(deps: ApiDeps): Router {
     serveArtifact(req.params['id']!, req.params['name']!, req.query['run'], res);
   });
 
+  /**
+   * Every app's latest reports in one zip, one folder per app, with an index. For an appendix, an auditor, a
+   * handover: on 20 September 2026 the owner wanted the reports of seven apps and had to open each app in turn.
+   * Archived apps are left out; an app that has never been checked is listed in the index as such.
+   */
+  router.get('/reports/all.zip', (_req, res) => {
+    const projects = deps.store.list().filter((p) => !p.archivedAt);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.status(200);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="securevibe-reports-${stamp}.zip"`);
+    const archive = new ZipArchive({ zlib: { level: 9 } });
+    archive.on('error', (err: Error) => res.destroy(err));
+    archive.pipe(res);
+    const lines = [`# Every app's reports, ${stamp}`, '', 'One folder per app, holding the reports of its latest check. Apps with no check yet are listed but have no folder.', ''];
+    for (const item of projects) {
+      const project = deps.store.get(item.id);
+      const run = project?.lastRunId && isRunId(project.lastRunId) ? deps.store.readRun(project.id, project.lastRunId) : undefined;
+      const reportsDir = run ? deps.store.reportsDir(project!.id, run.id) : undefined;
+      const folder = `${item.name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'app'}-${item.id}`;
+      if (run && reportsDir && existsSync(reportsDir)) {
+        archive.directory(reportsDir, folder);
+        lines.push(`- ${item.name}: \`${folder}/\` (check ${run.id}, ${run.status}, ${(run.finishedAt ?? run.startedAt).slice(0, 10)})`);
+      } else {
+        lines.push(`- ${item.name}: not checked yet, no reports.`);
+      }
+    }
+    archive.append(`${lines.join('\n')}\n`, { name: 'INDEX.md' });
+    void archive.finalize();
+  });
+
   function serveArtifact(projectId: string, name: string, runQuery: unknown, res: Response): void {
     const project = deps.store.mustGet(projectId);
 
