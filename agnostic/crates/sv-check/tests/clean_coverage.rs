@@ -375,3 +375,92 @@ fn a_clean_ruby_php_and_java_app_can_now_say_it_was_read() {
         );
     }
 }
+
+// ---- a page of markup is not a hole in the coverage ----
+
+#[test]
+fn a_plain_html_page_does_not_silence_the_rules() {
+    // The case this exists for. `html` covers `.html`, `.vue` and `.svelte`, almost every web app
+    // has one, and counting every page as unread silenced every rule for nearly every real app —
+    // a great deal of silence bought by a file that in this case hides nothing at all.
+    let dir = scratch("html-plain");
+    std::fs::write(
+        dir.join("app.py"),
+        "def find(db, n):\n    return db.execute('select 1 where t = ?', [n])\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><h1>Notes</h1><script src=\"app.js\"></script></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(
+        unread.is_empty(),
+        "a page of markup, and a script file that is itself parsed, hide nothing: {unread:?}"
+    );
+    assert!(
+        !verified.is_empty(),
+        "so the rules that read the Python may say they read it"
+    );
+}
+
+#[test]
+fn a_page_with_a_script_in_it_still_silences_them() {
+    // The other half, and the reason the first half is safe. An inline script can hold the very
+    // calls these rules look for, and nothing here parses it.
+    let dir = scratch("html-script");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><script>eval(location.hash)</script></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(unread, vec!["html".to_owned()]);
+    assert!(
+        verified.is_empty(),
+        "an unparsed script means nothing has been established: {verified:?}"
+    );
+}
+
+#[test]
+fn an_inline_handler_counts_as_code_too() {
+    // Second witness of a different shape: no script element at all, and code all the same.
+    let dir = scratch("html-handler");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><button onclick=\"go(location.hash)\">go</button></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(unread, vec!["html".to_owned()]);
+}
+
+#[test]
+fn a_vue_component_is_judged_the_same_way_as_a_page() {
+    // `.vue` and `.svelte` are the same language to the scanner, and a component's whole point is
+    // usually the script block — so this must not become a way of slipping past the rule.
+    let dir = scratch("html-vue");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("App.vue"),
+        "<template><p>hi</p></template>\n<script>export default { mounted() { eval(x) } }</script>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(unread, vec!["html".to_owned()]);
+}

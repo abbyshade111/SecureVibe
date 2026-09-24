@@ -11,9 +11,9 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **HTML silences every code rule, and almost every web app has HTML.**
-  **[taken: keen-meninsky-691a27, 24 September 2026]** `index.html` beside a clean `app.py` puts `html`
-  in the unread list, and no code rule may speak while a language goes unparsed.
+- **Read the script inside a page.** A page with a script written into it is still unread, which is
+  correct and still silences every rule for the app. Extracting the script block and handing it to the
+  JavaScript grammar would end that honestly, rather than by declaring the page read.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find

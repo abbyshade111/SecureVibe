@@ -329,6 +329,24 @@ rule works: **no rule may speak while a language present in the app goes unparse
 to silence every rule for the whole app — correct behaviour on an app `sv` could not read, and a lot of
 silence. Every language added is one fewer kind of app that gets nothing.
 
+### A page of markup is not a hole in the coverage
+
+`html` covers `.html`, `.vue` and `.svelte`, and almost every web application has at least one. Counting
+every page as unread therefore silenced every rule for nearly every real app — a great deal of silence
+bought by a file that in most cases hides nothing at all. A page is now treated as unread only when it
+**holds code**: a script element with something between its tags, an `on…=` handler, or a
+`javascript:` URL. A page of markup with `<script src="app.js">` hides nothing, because `app.js` is
+parsed like any other file.
+
+The two mistakes available here do not cost the same, so every uncertain case is resolved as code: a
+file that cannot be read, a `<script` that is never closed, and a `<script type="application/json">`
+full of data all count as holding code. Calling a page code when it is not buys some unnecessary
+silence; calling it markup when it holds code ends the silence over a file nothing read.
+
+The terminal used to say *there is no grammar for html*, which is no longer what happened, so it now
+says a page with a script written into it — and that a page whose script lives in its own file is read
+like any other. The two have different remedies and should not read the same.
+
 Not every rule covers every language, and that is deliberate rather than unfinished. Rust has no `eval`
 and its `Command` takes an argument list, so it has the SQL rule and nothing else; C has shell and SQL
 and neither of the others. A rule with no query for a language says nothing about it and claims no

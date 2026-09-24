@@ -24,7 +24,9 @@ cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read 
 The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
 Rust and C. A language
 outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
-anything about the app at all, and the report says which language stopped it.
+anything about the app at all, and the report says which language stopped it. A web page counts as
+unreadable only if it has a script written into it — a page of markup, with its script in its own
+file, is read like any other.
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.

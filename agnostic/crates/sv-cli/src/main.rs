@@ -577,10 +577,17 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
         names.sort_unstable();
         println!(
-            "\nNot assessed — there is no grammar for {}, so the rules that read code said nothing\n\
-             about those files.",
+            "\nNot assessed — nothing here reads {}, so the rules that read code said nothing about\n\
+             those files, and nothing they look for can be ruled out anywhere in this app.",
             names.join(", ")
         );
+        if names.contains(&"html") {
+            // `html` on this list means a page holding script, not any page at all. Saying so
+            // matters, because the two have different remedies: one is a language `sv` cannot read,
+            // the other is code that could be moved into a file it can.
+            println!("  For html that means a page with a script written into it. A page whose");
+            println!("  script lives in its own file is read like any other.");
+        }
     }
 
     if !config.not_assessed.is_empty() {

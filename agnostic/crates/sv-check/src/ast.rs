@@ -121,6 +121,55 @@ fn grammar(language: &str) -> Option<Language> {
     })
 }
 
+/// Whether a page could be hiding a call the rules look for.
+///
+/// Deliberately generous about what counts as code, because the cost of the two mistakes is not
+/// symmetrical: saying a page holds code when it does not buys some unnecessary silence, while
+/// saying it holds none when it does ends the silence over a file nothing read. So an unreadable
+/// file counts as holding code, an unclosed `<script` counts, and a `<script type="application/json">`
+/// full of data counts too.
+///
+/// What does not count is the common case this exists for: a page of markup, and a `<script src=…>`
+/// pointing at a file that is itself parsed.
+fn html_holds_code(path: &std::path::Path) -> bool {
+    let Ok(source) = std::fs::read_to_string(path) else {
+        return true;
+    };
+    html_source_holds_code(&source)
+}
+
+fn html_source_holds_code(source: &str) -> bool {
+    let lower = source.to_lowercase();
+
+    // An attribute handler is code sitting in the markup itself.
+    if lower.contains("javascript:") {
+        return true;
+    }
+    let handler = regex::Regex::new(r#"[\s"']on[a-z]+\s*="#).expect("a fixed pattern compiles");
+    if handler.is_match(&lower) {
+        return true;
+    }
+
+    // A script element counts when there is something between its tags.
+    let mut rest = lower.as_str();
+    while let Some(at) = rest.find("<script") {
+        rest = &rest[at + "<script".len()..];
+        let Some(open_end) = rest.find('>') else {
+            // A `<script` that never opens properly is a file this cannot reason about.
+            return true;
+        };
+        rest = &rest[open_end + 1..];
+        let Some(close) = rest.find("</script") else {
+            return true;
+        };
+        if !rest[..close].trim().is_empty() {
+            return true;
+        }
+        rest = &rest[close..];
+    }
+    false
+}
+
 /// Whether `sv` can read this language at all.
 pub fn is_supported(language: &str) -> bool {
     grammar(language).is_some()
@@ -461,6 +510,14 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
         if !is_supported(language) {
             // Present, and not read. The rules have nothing to say about this file and the report
             // should say that rather than let its silence be read as approval.
+            //
+            // Except for a page that holds no code. `html` covers `.html`, `.vue` and `.svelte`,
+            // and almost every web application has at least one — so counting every page as unread
+            // silenced every rule for nearly every real app, which is a great deal of silence
+            // bought by a file that in most cases hides nothing at all.
+            if language == "html" && !html_holds_code(&path) {
+                continue;
+            }
             scan.unread_languages.insert(language.to_owned());
             continue;
         }
@@ -769,6 +826,80 @@ mod tests {
             !ids(&fixed).contains(&"ast.shell-command-backticks"),
             "a fixed command cannot be made to run anything else: {fixed:?}"
         );
+    }
+
+    #[test]
+    fn what_counts_as_a_page_holding_code() {
+        // The two mistakes here do not cost the same. Calling a page code when it is not buys some
+        // unnecessary silence; calling it markup when it holds code ends the silence over a file
+        // nothing read. Every uncertain case below is therefore resolved as code.
+        for (holds_code, source, why) in [
+            (
+                false,
+                "<html><body><h1>Notes</h1></body></html>",
+                "plain markup",
+            ),
+            (
+                false,
+                "<html><script src=\"app.js\"></script></html>",
+                "a script file that is itself parsed",
+            ),
+            (
+                false,
+                "<html><script src=\"a.js\">\n  \n</script></html>",
+                "whitespace between the tags is not code",
+            ),
+            (
+                true,
+                "<html><script>eval(x)</script></html>",
+                "an inline script",
+            ),
+            (
+                true,
+                "<html><SCRIPT>eval(x)</SCRIPT></html>",
+                "tags are matched whatever their case",
+            ),
+            (
+                true,
+                "<button onclick=\"go()\">go</button>",
+                "a handler is code sitting in the markup",
+            ),
+            (
+                true,
+                "<a href=\"javascript:go()\">go</a>",
+                "so is a javascript: URL",
+            ),
+            (
+                true,
+                "<html><script>eval(x)",
+                "a script that is never closed cannot be reasoned about",
+            ),
+            (
+                true,
+                "<html><script type=\"application/json\">{\"a\":1}</script></html>",
+                "data in a script tag is not code, and is counted as code anyway",
+            ),
+            (
+                true,
+                "<html><script src=\"a.js\"></script><script>eval(x)</script></html>",
+                "the second script is the one that matters",
+            ),
+        ] {
+            assert_eq!(
+                html_source_holds_code(source),
+                holds_code,
+                "{why}: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_page_that_cannot_be_read_counts_as_holding_code() {
+        // Fail closed. A file `sv` could not open is the one case where it knows nothing at all,
+        // and that must not be the case that ends the silence.
+        assert!(html_holds_code(std::path::Path::new(
+            "/no/such/file/index.html"
+        )));
     }
 
     #[test]
