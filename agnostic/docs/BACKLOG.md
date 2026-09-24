@@ -33,8 +33,9 @@ another session is not a claim.
   as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
-- **Reports.** Port `reports/` once the exclusions above are honest. Not before: a report is where a wrong
-  exclusion does its damage.
+- **Reports.** **[taken: keen-meninsky-691a27, 24 September 2026]** Port `reports/` now that the
+  exclusions are honest: every claim either has a corroborator or is recorded as uncheckable. A report is
+  where a wrong exclusion does its damage, which is why this waited.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.
