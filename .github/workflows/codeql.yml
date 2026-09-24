@@ -11,6 +11,15 @@
 # GitHub refuses to run this workflow while default setup is still switched on. Turning it off is a repository
 # setting (Settings → Code security → CodeQL) and is the owner's to change; until then this file is inert.
 #
+# Two things learnt on 23 September 2026, by running it rather than reading about it:
+#  - Suppression comments are NOT honoured by these packs. `// codeql[js/...]` and `// lgtm[js/...]` on the
+#    flagged line (harness.ts and http.ts, headers.ts as the control) left every alert in place. A deliberate
+#    choice is therefore recorded two ways: the reason in a comment beside the code, and a dismissal with the
+#    same reason in the Security tab. Neither alone is enough.
+#  - A dismissal is tied to the alert's fingerprint, which includes the line's text: edit or move the flagged
+#    line (even to add that comment) and the alert returns as a new one, "in code changed by this pull request".
+#    Expect to dismiss it again; it is the same finding.
+#
 # Every action is pinned to an exact commit fingerprint, as in checks.yml: a version name can be moved, a
 # fingerprint cannot. The comment beside each says which release it is.
 
