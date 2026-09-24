@@ -11,9 +11,10 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **`javascript:` URLs.** **[taken: keen-meninsky-691a27, 24 September 2026]** Named as left behind,
-  which keeps the page unread and every rule silent for the whole app. Bounding the attribute value is
-  the work.
+- **Script in a page written the way a browser reads it and a parser does not.** An unquoted
+  attribute value, and a scheme written around a control character, are both named as left behind —
+  correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
+  which is a question with two defensible answers.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find

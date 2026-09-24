@@ -335,13 +335,27 @@ silence. Every language added is one fewer kind of app that gets nothing.
 every page as unread therefore silenced every rule for nearly every real app — a great deal of silence
 bought by a file that in most cases hides nothing at all. So the script is taken out of the page and
 read as what it is. `<script>` elements go to the JavaScript grammar — or TypeScript, when the page
-says `lang="ts"` — and so do `on…=` handler attributes, whose values are statements that parse on
-their own once their HTML entities are put back. A `<script src="app.js">` with nothing between its
-tags holds no code at all: the file it names is parsed like any other.
+says `lang="ts"` — and so do `on…=` handler attributes and `javascript:` URLs, whose values are
+statements that parse on their own once their HTML entities and percent escapes are put back. A
+`<script src="app.js">` with nothing between its tags holds no code at all: the file it names is
+parsed like any other.
+
+A `javascript:` URL is read only from a quoted attribute, where its end is not in doubt. An unquoted
+value ends at whitespace by one reading and at the tag by another, and guessing between them is how a
+fragment ends up half a statement — so those are named rather than read. So is a scheme written around
+a control character: a browser runs `java<tab>script:`, this does not read it, and every occurrence of
+the scheme is counted against what was taken so one written that way cannot slip past as ordinary text.
 
 A finding in a page names the line **in the page**. The fragment's offset is added back before the
 finding is written, because a reader sent to line 3 of something they cannot see is worse off than one
 given nothing.
+
+**Anything taken out has to parse.** Tree-sitter always returns a tree, so a fragment of something
+that is not JavaScript comes back as a wreck that matches no rule and reports nothing — which reads
+exactly like a fragment that was clean. A page whose fragments do not parse is left unread. That catches
+less than it looks like it does, and the reason is worth knowing: the JavaScript grammar includes JSX,
+so a Vue or React template parses cleanly and reaches the rules as markup. Handlebars, ERB and Jinja do
+not. Both halves of that were measured, not assumed.
 
 One function decides both what a page holds and what comes out of it. When "does this page hold code"
 and "what code does this page hold" are answered by two pieces of code they drift, and the direction

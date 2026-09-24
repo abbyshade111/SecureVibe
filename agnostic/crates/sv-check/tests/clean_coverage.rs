@@ -486,14 +486,15 @@ fn a_vue_component_is_read_like_a_page() {
 
 #[test]
 fn a_page_holding_something_the_extractor_cannot_take_still_silences_them() {
-    // The half that keeps the other half honest. A `javascript:` URL is code this extractor does
-    // not take, so the page is still unread — declaring it read would be the exact failure the
-    // whole arrangement guards against.
+    // The half that keeps the other half honest. An unquoted attribute value ends at whitespace by
+    // one reading and at the tag by another, so this extractor will not guess — and while anything
+    // is left in the page, the page is unread. Declaring it read is the exact failure the whole
+    // arrangement guards against.
     let dir = scratch("html-left-behind");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("index.html"),
-        "<html><body><a href=\"javascript:go(location.hash)\">go</a></body></html>\n",
+        "<html><body><a href=javascript:go(location.hash)>go</a></body></html>\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
@@ -564,5 +565,92 @@ fn a_handler_whose_quotes_are_entities_still_parses() {
     assert!(
         ids.contains(&"ast.dynamic-code-execution"),
         "the eval inside the entities: {ids:?}"
+    );
+}
+
+#[test]
+fn a_javascript_url_is_read_and_what_is_in_it_reported() {
+    // The last place code could sit in a page and be named rather than read.
+    let dir = scratch("html-url");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html>\n<body>\n<a href=\"javascript:eval(location.hash)\">go</a>\n</body>\n</html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let findings = scan.findings.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(unread.is_empty(), "{unread:?}");
+    let found = findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("the eval in the URL: {findings:?}"));
+    assert_eq!(found.location.file, "index.html");
+    assert_eq!(found.location.line, 3);
+}
+
+#[test]
+fn a_script_the_grammar_cannot_read_still_silences_them() {
+    // The guard that makes the rest of this safe to trust. Tree-sitter always returns a tree, so a
+    // block of some template language parses into a wreck that matches no rule and reports nothing
+    // — which reads exactly like a block that was clean. A page holding one stays unread.
+    let dir = scratch("html-not-js");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body>\n<script type=\"text/x-template\">\n{{#each i}}<li>{{this}}</li>{{/each}}\n</script>\n</body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(unread, vec!["html".to_owned()]);
+    assert!(verified.is_empty(), "{verified:?}");
+}
+
+#[test]
+fn a_scheme_written_around_a_tab_still_silences_them() {
+    // Second witness for noticing a disguised scheme, of a different shape: the consequence for the
+    // app rather than what the extractor returns. A browser reads `java<tab>script:` and runs it;
+    // this does not read it, and a page holding one must not be counted as examined.
+    let dir = scratch("html-disguised");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><a href=\"java\tscript:eval(location.hash)\">go</a></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(unread, vec!["html".to_owned()]);
+    assert!(verified.is_empty(), "{verified:?}");
+}
+
+#[test]
+fn a_url_whose_quotes_are_percent_escaped_still_parses() {
+    // Second witness for decoding, of a different shape: not what the string equals afterwards but
+    // whether the result is code at all. Left as it is, `eval(%22a%22 + x)` parses as something
+    // else and the finding inside it is lost without a sound.
+    let dir = scratch("html-percent");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><a href=\"javascript:eval(%22a%22 + location.hash)\">go</a></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let ids: Vec<&str> = scan.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(unread.is_empty(), "{unread:?}");
+    assert!(
+        ids.contains(&"ast.dynamic-code-execution"),
+        "the eval behind the escapes: {ids:?}"
     );
 }

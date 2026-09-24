@@ -24,8 +24,8 @@ cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read 
 The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
 Rust and C. A language
 outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
-anything about the app at all, and the report says which language stopped it. A script written into a web page is
-taken out and read as JavaScript, and anything found in it is reported against the page and the line it
+anything about the app at all, and the report says which language stopped it. A script written into a web page —
+in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
 is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app

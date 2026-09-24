@@ -202,11 +202,131 @@ pub fn html_fragments(source: &str) -> HtmlScan {
         });
     }
 
-    // A URL that is a program. Rare, fiddly to bound, and named rather than quietly dropped.
-    if lower.contains("javascript:") {
-        out.left_behind = Some("a `javascript:` URL".to_owned());
+    // A URL that is a program. Taken when it sits in a quoted attribute, where its end is not in
+    // doubt, and named otherwise: an unquoted value ends at whitespace by one reading and at the
+    // tag by another, and guessing between them is how a fragment ends up half a statement.
+    let url = regex::Regex::new("(?i)=\\s*(\"[^\"]*\"|'[^']*')").expect("a fixed pattern compiles");
+    let mut quoted_urls = 0usize;
+    for m in url.captures_iter(source) {
+        let quoted = m.get(1).expect("the group is not optional");
+        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
+        let decoded = unescape_html(inner);
+        let Some(program) = strip_javascript_scheme(&decoded) else {
+            // A browser reads `java<tab>script:` as the scheme; this does not, and a value that
+            // becomes one once its control characters are taken out is named rather than read.
+            // Reading it would mean deciding what the rest of it means too.
+            if looks_like_a_disguised_scheme(&decoded) {
+                out.left_behind =
+                    Some("a `javascript:` URL with characters written into the scheme".to_owned());
+                return out;
+            }
+            continue;
+        };
+        quoted_urls += 1;
+        out.fragments.push(Fragment {
+            language: "javascript",
+            code: percent_decode(program),
+            line_offset: source[..quoted.start()].matches('\n').count(),
+        });
+    }
+    // Every occurrence has to be accounted for. One that the pattern above did not take is one
+    // written some way this does not read — unquoted, or with the scheme spelled around a newline,
+    // both of which a browser accepts — and the page keeps its silence rather than pretend.
+    if lower.matches("javascript:").count() > quoted_urls {
+        out.left_behind = Some(
+            "a `javascript:` URL that is not in a quoted attribute, so where it ends is a guess"
+                .to_owned(),
+        );
+        return out;
+    }
+
+    // Finally: anything taken out has to be code the grammar can actually read. A fragment that
+    // does not parse yields no findings, which is indistinguishable from a fragment that was clean
+    // — so a page holding a `<script>` full of a template language, or a URL this decoded wrongly,
+    // is left unread rather than counted as examined.
+    //
+    // This catches less than it looks like it does, and the reason is worth knowing: the JavaScript
+    // grammar includes JSX, so a Vue or React template parses cleanly and reaches the rules as
+    // markup rather than being refused. Handlebars, ERB and Jinja do not.
+    if let Some(bad) = out
+        .fragments
+        .iter()
+        .find(|f| !parses_cleanly(f.language, &f.code))
+    {
+        out.left_behind = Some(format!(
+            "something taken out of this page is not {} the grammar can read",
+            bad.language
+        ));
     }
     out
+}
+
+/// The program in a `javascript:` URL, if that is what this attribute value is.
+///
+/// Leading whitespace is skipped because a browser does. The scheme is matched only when it is
+/// written plainly: a browser also accepts `java\tscript:` and other spellings with control
+/// characters inside the word, and a reader of this code should not have to wonder whether those
+/// were handled — they are not, and the count above turns each one into a page that stays unread.
+fn strip_javascript_scheme(value: &str) -> Option<&str> {
+    let trimmed = value.trim_start();
+    let head: String = trimmed.chars().take("javascript:".len()).collect();
+    head.eq_ignore_ascii_case("javascript:")
+        .then(|| &trimmed["javascript:".len()..])
+}
+
+/// Whether a value is a `javascript:` URL written so that only a browser would see it.
+///
+/// A browser drops ASCII control characters and whitespace from inside a scheme, so
+/// `java&#9;script:` runs. This does not read those, and the point of noticing them is to keep the
+/// page unread rather than to pretend the value was ordinary.
+fn looks_like_a_disguised_scheme(value: &str) -> bool {
+    let collapsed: String = value
+        .chars()
+        .take(64)
+        .filter(|c| !c.is_whitespace() && !c.is_control())
+        .collect();
+    collapsed.len() >= "javascript:".len()
+        && collapsed[.."javascript:".len()].eq_ignore_ascii_case("javascript:")
+}
+
+/// Turns `%20` back into a space, and leaves anything that is not a complete escape alone.
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    // A decode that does not produce text is a decode this had no business doing.
+    String::from_utf8(out).unwrap_or_else(|_| text.to_owned())
+}
+
+/// Whether the grammar can read this fragment without falling over.
+///
+/// `has_error` is the whole point. Tree-sitter always returns a tree, so a fragment of something
+/// that is not this language parses into a wreck that matches no rule and reports nothing — which
+/// reads exactly like a fragment that was clean.
+fn parses_cleanly(language: &str, code: &str) -> bool {
+    let Some(grammar) = grammar(language) else {
+        return false;
+    };
+    let mut parser = Parser::new();
+    if parser.set_language(&grammar).is_err() {
+        return false;
+    }
+    match parser.parse(code, None) {
+        Some(tree) => !tree.root_node().has_error(),
+        None => false,
+    }
 }
 
 /// The five entities that can hide a quote or a bracket in an attribute value.
@@ -977,10 +1097,48 @@ mod tests {
         );
 
         let url = html_fragments("<a href=\"javascript:go()\">go</a>");
-        assert!(
-            url.left_behind.is_some(),
-            "this extractor does not take these, and says so rather than dropping it"
+        assert_eq!(url.fragments.len(), 1, "{url:?}");
+        assert_eq!(url.fragments[0].code, "go()");
+        assert!(url.left_behind.is_none());
+
+        let shouting_url = html_fragments("<a href=\"JavaScript: go()\">go</a>");
+        assert_eq!(
+            shouting_url.fragments[0].code, " go()",
+            "the scheme is matched whatever its case, and a browser skips the space"
         );
+
+        let escaped_url = html_fragments("<a href=\"javascript:go(%22x%22)\">go</a>");
+        assert_eq!(
+            escaped_url.fragments[0].code, "go(\"x\")",
+            "a percent escape has to come back before the grammar sees it"
+        );
+
+        let unquoted = html_fragments("<a href=javascript:go()>go</a>");
+        assert!(
+            unquoted.left_behind.is_some(),
+            "where an unquoted value ends is a guess, so this one is named: {unquoted:?}"
+        );
+
+        let split_scheme = html_fragments("<a href=\"java\tscript:go()\">go</a>");
+        assert!(
+            split_scheme.left_behind.is_some(),
+            "a browser reads this and this does not, so it is named: {split_scheme:?}"
+        );
+
+        let not_code = html_fragments(
+            "<script type=\"text/x-template\">{{#each i}}<li>{{this}}</li>{{/each}}</script>",
+        );
+        assert!(
+            not_code.left_behind.is_some(),
+            "a fragment the grammar cannot read reports nothing, which must not read as clean: \
+             {not_code:?}"
+        );
+
+        // And the limit of that, measured rather than assumed: the JavaScript grammar includes JSX,
+        // so a Vue template parses cleanly and is not refused. It reaches the rules as markup.
+        let jsx_shaped =
+            html_fragments("<script type=\"text/x-template\"><div v-if=\"a\">x</div></script>");
+        assert!(jsx_shaped.left_behind.is_none(), "{jsx_shaped:?}");
 
         let two = html_fragments("<script src=\"a.js\"></script><script>eval(x)</script>");
         assert_eq!(
