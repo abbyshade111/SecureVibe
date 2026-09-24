@@ -284,6 +284,14 @@ building the query recipe: each read this file, each correctly saw the item uncl
   reads as a regression in whatever changed last and sends both sessions hunting in the wrong place. Removing any
   `securevibe-eval-*` older than a few hours before starting costs nothing and needs nobody to remember.
 
+- **A check that no source file holds a raw U+2028 or U+2029.** `recipes/js-literal.ts` exists because a raw
+  line separator in emitted code breaks the app, and the same character in the *helper's own file* broke the
+  helper when it was first written: it is a line terminator to the parser and invisible to a reader, so review
+  cannot catch a reintroduction. Suggested by the language-agnostic session on 24 September 2026 after fuzzing
+  the two escape forms: a grep for the raw bytes (`\xe2\x80\xa8`, `\xe2\x80\xa9`) over `server/`, `shared/`,
+  `web/src` and the template, run with the other checks, failing with the file and line. Tests build the
+  character with `String.fromCharCode(0x2028)` and stay clean by construction.
+
 ## From the first two people to use SecureVibe (19-20 September 2026)
 
 Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
