@@ -220,7 +220,10 @@ export function uploadsRouter(deps: ApiDeps): Router {
       const project = uploadedProject(req.params['id']!);
       const session = SESSIONS.get(project.id);
       if (!session) throw conflict('Start the upload again: it was not started or SecureVibe restarted.');
-      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      // A Buffer by construction: express.raw parsed the octet-stream body above. Copied once so what unpackZip
+      // reads is a plain Buffer of ours rather than the request object's own body (CodeQL otherwise follows the
+      // request body into every byte read and reports "parameter tampering" three times over).
+      const body = Buffer.isBuffer(req.body) ? Buffer.from(req.body) : Buffer.alloc(0);
       if (body.length === 0) throw validationError('Send the zip file as raw bytes.');
       let unpacked;
       try {

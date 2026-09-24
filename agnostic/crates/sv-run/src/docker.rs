@@ -1,0 +1,568 @@
+//! The Docker backend.
+//!
+//! Shape of a run, and why each step is the way it is:
+//!
+//! 1. Create a per-run network with `--internal`. Measured: no outbound, no DNS, and unreachable
+//!    from this computer. That last part is the reason there is no published port anywhere below.
+//! 2. Start the app on it, with its folder mounted read-only and no credentials in its environment.
+//! 3. Wait for it to answer its health path — from a **sidecar container on the same network**,
+//!    because the host cannot reach it.
+//! 4. Run the declared test command inside the app container.
+//! 5. Tear everything down, whatever happened.
+
+use crate::{Backend, CannotRun, Fence, RunOutcome, RunPlan, TestResult, output_of};
+use std::process::Command;
+
+/// How long to wait for the app to answer before calling it not assessed.
+const READY_TIMEOUT_SECONDS: u64 = 60;
+/// The image the probes run from. Tiny, and already needed for the health check.
+const PROBE_IMAGE: &str = "busybox:1.36";
+
+pub struct DockerBackend {
+    binary: String,
+}
+
+impl Default for DockerBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DockerBackend {
+    pub fn new() -> Self {
+        Self {
+            binary: "docker".to_owned(),
+        }
+    }
+
+    fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
+        let mut c = Command::new(&self.binary);
+        c.args(args);
+        output_of(&mut c)
+    }
+}
+
+impl Backend for DockerBackend {
+    fn name(&self) -> String {
+        "Docker".to_owned()
+    }
+
+    fn available(&self) -> Result<(), CannotRun> {
+        // `docker info` and not `docker --version`: the version prints happily with no daemon
+        // behind it, and a backend that cannot run anything is not a backend.
+        match self.docker(&["info", "--format", "{{.ServerVersion}}"]) {
+            Ok((0, _)) => Ok(()),
+            Ok((_, detail)) => Err(CannotRun::NoBackend {
+                checked: format!("`docker info` failed: {}", first_line(&detail)),
+            }),
+            Err(e) => Err(CannotRun::NoBackend {
+                checked: format!("`docker` could not be started: {e}"),
+            }),
+        }
+    }
+
+    fn run(
+        &self,
+        plan: &RunPlan,
+        probes: &[sv_check::probes::ProbeRequest],
+    ) -> Result<RunOutcome, CannotRun> {
+        let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
+        let network = format!("{run_id}-net");
+        let app = format!("{run_id}-app");
+        let guard = Teardown {
+            backend: self,
+            network: network.clone(),
+            container: app.clone(),
+        };
+
+        // 1. The fence.
+        self.docker(&["network", "create", "--internal", &network])
+            .map_err(|e| CannotRun::BackendFailed { detail: e })
+            .and_then(|(code, out)| {
+                if code == 0 {
+                    Ok(())
+                } else {
+                    Err(CannotRun::BackendFailed {
+                        detail: first_line(&out),
+                    })
+                }
+            })?;
+
+        // 1b. Do not take the flag's word for it. Asking Docker whether the network really is
+        // internal costs one call and turns "we passed --internal" into "the fence is there".
+        // If a future edit drops the flag, or a daemon ignores it, this stops the run before any
+        // untrusted code starts, rather than running it unfenced and reporting a clean result.
+        self.verify_fenced(&network)?;
+
+        // 2. The app. Its folder is mounted read-only: `sv` reads code, it does not let the code
+        //    it is checking rewrite itself mid-check. No port is published — nothing on this
+        //    computer could reach it anyway, and saying so in the arguments keeps that honest.
+        let mount = format!("{}:/app:ro", plan.app_dir.display());
+        let port_env = format!("PORT={}", plan.port);
+        let command = match &plan.build {
+            Some(build) => format!("cd /app && {build} && {}", plan.start),
+            None => format!("cd /app && {}", plan.start),
+        };
+        let (code, out) = self
+            .docker(&[
+                "run",
+                "-d",
+                "--name",
+                &app,
+                "--network",
+                &network,
+                "-v",
+                &mount,
+                "-w",
+                "/app",
+                "-e",
+                &port_env,
+                // Nothing of the owner's reaches the app: no API keys, no home directory.
+                "--env-file",
+                "/dev/null",
+                &plan.image,
+                "sh",
+                "-c",
+                &command,
+            ])
+            .map_err(|e| CannotRun::BackendFailed { detail: e })?;
+        if code != 0 {
+            return Err(CannotRun::BackendFailed {
+                detail: first_line(&out),
+            });
+        }
+
+        // 3. Ready, judged from inside the fence.
+        let healthy = self.wait_until_ready(&network, &app, plan);
+        if !healthy {
+            let logs = self
+                .docker(&["logs", "--tail", "20", &app])
+                .map(|(_, o)| o)
+                .unwrap_or_default();
+            drop(guard);
+            return Err(CannotRun::NeverReady {
+                waited_seconds: READY_TIMEOUT_SECONDS,
+                detail: format!("Its last output was: {}", first_line(&logs)),
+            });
+        }
+
+        // 4. The probes, while the app is up and the fence is in place. A request that gets no
+        //    answer is left out rather than recorded as an empty response: "the app said nothing"
+        //    and "the app has no Content-Security-Policy" are not the same sentence.
+        let probe_responses = probes
+            .iter()
+            .filter_map(|request| self.probe(&network, &app, plan.port, request))
+            .collect();
+
+        // 5. The declared tests, inside the app container so they see what the app sees.
+        let tests = plan.test.as_ref().and_then(|test_command| {
+            self.docker(&["exec", &app, "sh", "-c", test_command])
+                .ok()
+                .map(|(exit_code, output)| TestResult { exit_code, output })
+        });
+
+        drop(guard);
+        Ok(RunOutcome {
+            healthy,
+            tests,
+            fence: Fence::DockerInternalNetwork,
+            probe_responses,
+        })
+    }
+}
+
+impl DockerBackend {
+    /// Confirms with the daemon that the network really is internal. Fail secure: anything other
+    /// than a clear "true" stops the run.
+    pub fn verify_fenced(&self, network: &str) -> Result<(), CannotRun> {
+        match self.docker(&["network", "inspect", "-f", "{{.Internal}}", network]) {
+            Ok((0, out)) if out.trim() == "true" => Ok(()),
+            Ok((0, out)) => Err(CannotRun::BackendFailed {
+                detail: format!(
+                    "the network `{network}` is not internal (Docker reports Internal={}), so the \
+                     app would have been able to reach the internet while it ran",
+                    out.trim()
+                ),
+            }),
+            Ok((_, out)) => Err(CannotRun::BackendFailed {
+                detail: format!("could not confirm the fence: {}", first_line(&out)),
+            }),
+            Err(e) => Err(CannotRun::BackendFailed {
+                detail: format!("could not confirm the fence: {e}"),
+            }),
+        }
+    }
+
+    /// Polls the health path from a throw-away container on the same internal network.
+    ///
+    /// This is the part that could not be done from the host. An `--internal` network is
+    /// unreachable from this computer whether or not a port is published, so the probe has to live
+    /// inside the fence with the app.
+    fn wait_until_ready(&self, network: &str, app: &str, plan: &RunPlan) -> bool {
+        let url = format!("http://{app}:{}{}", plan.port, plan.health_path);
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(READY_TIMEOUT_SECONDS);
+        while std::time::Instant::now() < deadline {
+            // If the app has already given up, waiting the full minute tells nobody anything.
+            if let Ok((_, status)) = self.docker(&["inspect", "-f", "{{.State.Status}}", app])
+                && status.trim() == "exited"
+            {
+                return false;
+            }
+            if let Ok((0, _)) = self.docker(&[
+                "run",
+                "--rm",
+                "--network",
+                network,
+                PROBE_IMAGE,
+                "wget",
+                "-q",
+                "-T",
+                "3",
+                "-O",
+                "/dev/null",
+                &url,
+            ]) {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
+        false
+    }
+}
+
+/// Removes the container and the network however the run ended, including on an early return.
+struct Teardown<'a> {
+    backend: &'a DockerBackend,
+    network: String,
+    container: String,
+}
+
+impl Drop for Teardown<'_> {
+    fn drop(&mut self) {
+        let _ = self.backend.docker(&["rm", "-f", &self.container]);
+        let _ = self.backend.docker(&["network", "rm", &self.network]);
+    }
+}
+
+fn first_line(text: &str) -> String {
+    text.lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("no detail")
+        .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn availability_is_judged_by_the_daemon_not_the_binary() {
+        // `docker --version` prints happily with no daemon behind it. A backend that cannot run
+        // anything must not report itself as available, or every app on such a machine is reported
+        // as failing rather than as unrun.
+        let backend = DockerBackend {
+            binary: "definitely-not-a-real-binary-xyz".to_owned(),
+        };
+        let err = backend.available().unwrap_err();
+        match err {
+            CannotRun::NoBackend { checked } => {
+                assert!(checked.contains("could not be started"), "{checked}")
+            }
+            other => panic!("expected NoBackend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_fence_explains_itself_without_overstating() {
+        let text = Fence::DockerInternalNetwork.explain();
+        assert!(text.contains("could not reach the internet"));
+        assert!(Fence::None.explain().contains("No network fence"));
+    }
+
+    #[test]
+    fn first_line_survives_empty_and_blank_output() {
+        assert_eq!(first_line(""), "no detail");
+        assert_eq!(first_line("\n\n  \n"), "no detail");
+        assert_eq!(first_line("\n  real message  \nsecond"), "real message");
+    }
+}
+
+/// A number that is different for every run in this process.
+///
+/// The names were the process id alone, which is unique between processes and constant within one.
+/// Two runs in the same process therefore asked the daemon for a network that already existed, and
+/// the second failed — found by running the fence tests without `--test-threads=1`, where three of
+/// them went red at once with `network with name sv-37867-net already exists`. It is not only a test
+/// problem: a single process that checks two apps, or rebuilds one, hits it the same way.
+fn next_run_number() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Probing the running app
+
+/// Base64, written out rather than taken as a dependency.
+///
+/// The request is handed to the sidecar encoded so that nothing in a header value can end the shell
+/// command it travels in. A probe that sends `Origin: https://x.invalid` is harmless; one that can be
+/// made to send a quote and a semicolon is a command injection in the security scanner, which would be
+/// a poor advertisement.
+fn base64(input: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in input.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(ALPHABET[((n >> (18 - i * 6)) & 0x3f) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Writes out the request to send, or refuses to send one at all.
+///
+/// The path comes from the app's own manifest (`health_path`), so it is not something `sv` wrote. A
+/// newline anywhere in a request line or a header lets that text add headers, or a second request,
+/// of its own. There is no safe repair for that — a stripped path is a different request from the
+/// one asked for — so the whole request is refused, and a probe with no answer is already reported
+/// as unanswered rather than as a pass.
+fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<String> {
+    let unsafe_text = |s: &str| s.contains(['\r', '\n', ' ', '\t']);
+    if unsafe_text(&request.method) || unsafe_text(&request.path) || unsafe_text(host) {
+        return None;
+    }
+    if request
+        .headers
+        .iter()
+        .any(|(name, value)| name.contains([':', '\r', '\n']) || value.contains(['\r', '\n']))
+    {
+        return None;
+    }
+    let mut raw = format!(
+        "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
+        request.method, request.path
+    );
+    for (name, value) in &request.headers {
+        raw.push_str(&format!("{name}: {value}\r\n"));
+    }
+    raw.push_str("\r\n");
+    Some(raw)
+}
+
+/// Turns a raw HTTP response into the shape the probes read.
+fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse> {
+    // A header block ends at the first blank line; tolerate a server that uses bare newlines.
+    let (head, body) = raw
+        .split_once("\r\n\r\n")
+        .or_else(|| raw.split_once("\n\n"))
+        .unwrap_or((raw, ""));
+    let mut lines = head.lines();
+    let status = lines
+        .next()?
+        .split_whitespace()
+        .nth(1)?
+        .parse::<u16>()
+        .ok()?;
+    let headers = lines
+        .filter_map(|line| line.split_once(':'))
+        .map(|(k, v)| (k.trim().to_lowercase(), v.trim().to_owned()))
+        .collect();
+    Some(sv_check::probes::ProbeResponse {
+        id: id.to_owned(),
+        status,
+        headers,
+        // Enough to recognise a stack trace, not enough to copy a page out of somebody's app.
+        body: body.chars().take(4000).collect(),
+    })
+}
+
+impl DockerBackend {
+    /// Makes one request to the app from a throw-away container on the same fenced network.
+    ///
+    /// HTTP is spoken directly over a socket rather than through a client, for two reasons found by
+    /// trying the alternative: `wget` returns no body at all for a 404 or a 500, which is exactly the
+    /// response the error-page probe needs to read, and it cannot send a method other than GET or POST.
+    pub fn probe(
+        &self,
+        network: &str,
+        app: &str,
+        port: u16,
+        request: &sv_check::probes::ProbeRequest,
+    ) -> Option<sv_check::probes::ProbeResponse> {
+        let raw = request_bytes(request, app)?;
+        let script = format!(
+            "echo {} | base64 -d | nc -w 5 {app} {port}",
+            base64(raw.as_bytes())
+        );
+        let (code, out) = self
+            .docker(&[
+                "run",
+                "--rm",
+                "--network",
+                network,
+                PROBE_IMAGE,
+                "sh",
+                "-c",
+                &script,
+            ])
+            .ok()?;
+        if code != 0 && out.trim().is_empty() {
+            return None;
+        }
+        parse_response(&request.id, &out)
+    }
+}
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+
+    fn req(method: &str, path: &str, headers: &[(&str, &str)]) -> sv_check::probes::ProbeRequest {
+        sv_check::probes::ProbeRequest {
+            id: "t".into(),
+            method: method.into(),
+            path: path.into(),
+            headers: headers
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn an_ordinary_request_is_written_out_in_full() {
+        let raw = request_bytes(
+            &req("GET", "/healthz", &[("Origin", "https://x.invalid")]),
+            "app",
+        )
+        .expect("nothing wrong with this one");
+        assert_eq!(
+            raw,
+            "GET /healthz HTTP/1.0\r\nHost: app\r\nConnection: close\r\nOrigin: https://x.invalid\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn a_newline_in_the_path_sends_nothing() {
+        // The path is the app's own `health_path`, out of its manifest. Sending it as given would
+        // let it add headers, or a whole second request, to what `sv` asked.
+        assert!(request_bytes(&req("GET", "/a\r\nX-Injected: 1", &[]), "app").is_none());
+        assert!(request_bytes(&req("GET", "/a\nX-Injected: 1", &[]), "app").is_none());
+        // A space would break the request line into a different request just as effectively.
+        assert!(request_bytes(&req("GET", "/a HTTP/1.1", &[]), "app").is_none());
+    }
+
+    #[test]
+    fn a_newline_in_a_header_sends_nothing_either() {
+        // Second witness, of a different shape: the header block rather than the request line, and
+        // the name as well as the value.
+        assert!(
+            request_bytes(&req("GET", "/", &[("Origin", "a\r\nX-Injected: 1")]), "app").is_none()
+        );
+        assert!(request_bytes(&req("GET", "/", &[("X\r\nY", "z")]), "app").is_none());
+        assert!(request_bytes(&req("GET", "/", &[("X: Y", "z")]), "app").is_none());
+        // And the method, which is the third place text reaches the request line.
+        assert!(request_bytes(&req("GET /x HTTP/1.1\r\n", "/", &[]), "app").is_none());
+        // The container name too, though `sv` chooses that one.
+        assert!(request_bytes(&req("GET", "/", &[]), "app\r\nX: 1").is_none());
+    }
+
+    #[test]
+    fn every_request_the_suite_makes_goes_out_and_none_of_them_would_if_tampered_with() {
+        // Second witness for the header check, of a different shape: the real suite rather than a
+        // hand-written request, and a loop rather than one case — so a header `sv` adds later is
+        // covered the day it is added.
+        let requests = sv_check::probes::requests("/healthz");
+        assert!(requests.len() >= 4);
+        for request in &requests {
+            assert!(
+                request_bytes(request, "app").is_some(),
+                "the suite's own request must be sendable: {request:?}"
+            );
+            let mut tampered = request.clone();
+            tampered
+                .headers
+                .push(("X-Added".to_owned(), "value\r\nX-Injected: 1".to_owned()));
+            assert!(
+                request_bytes(&tampered, "app").is_none(),
+                "a header carrying a newline must stop the whole request: {tampered:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_refused_request_never_reaches_the_encoder() {
+        // What the refusal is for: whatever is encoded is what the sidecar's shell will run. This
+        // asserts the dangerous text is absent from the thing that gets sent, not merely that some
+        // Option was None.
+        let bad = req("GET", "/a\r\nX-Injected: 1", &[]);
+        assert!(request_bytes(&bad, "app").is_none());
+        let good = req("GET", "/healthz", &[]);
+        let encoded = base64(request_bytes(&good, "app").unwrap().as_bytes());
+        assert!(!encoded.is_empty());
+        assert!(
+            !encoded.contains(['\'', ';', '|', '`', '$', ' ']),
+            "{encoded}"
+        );
+    }
+
+    #[test]
+    fn base64_matches_the_known_encodings() {
+        // Checked against values anybody can verify, rather than against this function's own output.
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foob"), "Zm9vYg==");
+        assert_eq!(base64(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+        assert_eq!(
+            base64(b"GET / HTTP/1.0\r\n\r\n"),
+            "R0VUIC8gSFRUUC8xLjANCg0K"
+        );
+    }
+
+    #[test]
+    fn a_raw_response_is_split_into_status_headers_and_body() {
+        let raw = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nSet-Cookie: a=b; HttpOnly\r\n\r\n<h1>nope</h1>";
+        let parsed = parse_response("missing", raw).expect("parses");
+        assert_eq!(parsed.status, 404);
+        assert_eq!(parsed.header("content-type"), Some("text/html"));
+        assert_eq!(parsed.body, "<h1>nope</h1>");
+    }
+
+    #[test]
+    fn a_header_value_containing_a_colon_keeps_it() {
+        // `Location: https://x/y` splits on the wrong colon if the split is not limited to the first.
+        let raw = "HTTP/1.1 302 Found\r\nLocation: https://example.com/next\r\n\r\n";
+        let parsed = parse_response("r", raw).expect("parses");
+        assert_eq!(parsed.header("location"), Some("https://example.com/next"));
+    }
+
+    #[test]
+    fn a_response_using_bare_newlines_is_still_read() {
+        let parsed = parse_response("r", "HTTP/1.0 200 OK\nX-A: b\n\nbody here").expect("parses");
+        assert_eq!(parsed.status, 200);
+        assert_eq!(parsed.header("x-a"), Some("b"));
+        assert_eq!(parsed.body, "body here");
+    }
+
+    #[test]
+    fn something_that_is_not_http_is_not_invented_into_a_response() {
+        assert!(parse_response("r", "").is_none());
+        assert!(parse_response("r", "connection refused").is_none());
+        assert!(parse_response("r", "HTTP/1.1 notanumber OK\r\n\r\n").is_none());
+    }
+}

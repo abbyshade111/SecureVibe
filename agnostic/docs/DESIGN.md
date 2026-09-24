@@ -298,3 +298,524 @@ payment-specific requirements. Announcing that the manifest is wrong about payme
 changes no requirement would be its own small overstatement, so `sv` says both — and points at the answer that
 does matter, which is that an app taking money should probably be declaring `payment-card` or `financial` in
 its data categories, and that *does* raise the target level.
+
+## The reports
+
+Everything else here prints to a terminal, where a line scrolls past and is gone. A report is kept, sent
+to somebody, and read by a person who was not there when it ran — which is why it is the most dangerous
+thing in the workspace to get wrong. A terminal line saying *not assessed* that nobody reads costs
+nothing; the same omission in a document somebody files as evidence of a security review is how an app
+ships believing it was checked.
+
+`sv report` writes `report.html` (one file, no external requests), `compliance.md`, `security.md`,
+`findings.sarif` and `report.json`. Three rules, each with a test that fails when it is broken:
+
+- **There is no pass.** An applicable requirement is *needs attention*, *checked*, or *not verified*.
+  `Checked` means one automated check looked at it and was satisfied — deliberately not called a pass,
+  because one config check being happy is not an ASVS requirement met, and the report says so in the
+  words around the number. A finding always outranks a satisfied check on the same requirement.
+- **What was not examined comes first.** In both the security report and the compliance report, before
+  anything that was found. A list of findings read on its own reads as the whole truth about the app,
+  and it is only the truth about the part that was looked at.
+- **A finding about a requirement the app is not being assessed against gets its own section** rather
+  than being dropped. It means either the requirement was excluded when it should not have been, or a
+  check is citing a requirement that has nothing to do with it, and both are worth a look.
+
+### A report from a run
+
+`sv report --run` starts the app behind the same fence `sv run` uses and folds what it answered into the
+report. Opt-in, not automatic: everything else `sv report` does reads files, and this starts somebody's
+code. Both commands go through one `probe_the_running_app`, because two call sites each deciding when an
+app is runnable would drift, and the one that drifts quietly is the report.
+
+What changes when it runs is not only that findings appear. The standing gap — *the app was never
+started* — is replaced by the probes' own list of what asking it could not reach: authorisation, session
+handling, CSRF, anything that needs data sent into a form. An app that ran is not an app fully examined,
+and the gap list has to say which of the two happened. The app's declared tests are recorded the same
+way: failed means nothing can be concluded from them, passed means no credit is taken, because deciding
+which requirements a passing test is evidence about is its own piece of work.
+
+Running it found a fault in the report itself. The probes verified three requirements that are above the
+fixture's target level, so every one of those positive claims fell outside the applicable table and
+disappeared — the count read *0 checked* on a run where the probes had just checked three things, and a
+reader would have concluded they never ran. Findings already had a section for this case; satisfied
+checks did not. A vanishing positive claim is safer than a vanishing finding and still tells the reader
+something untrue.
+
+### Saying a check looked and found nothing
+
+A finding is a claim about something that is there. `Verified` is the mirror: a claim about something
+that is *not*, which is only worth the coverage behind it, and which fails in a direction nobody
+notices — a green line in a report is not something a reader goes back to question.
+
+Three rules hold wherever one is produced. **Fail closed**: a check says nothing unless it read
+everything it would have needed to. **Say the scope**, in a person's words, beside the claim, because
+"checked" means nothing without "over what". **Claim no more than the check tests**: the requirement ids
+are the same ones it cites when it fails, which is the one direction this must never move in.
+
+What that rules out is more interesting than what it allows:
+
+- No rule that reads code says anything at all while a language present in the app goes unparsed. The
+  injection it looks for could be sitting in the Ruby nobody read, so a clean Python scan of a
+  Python-and-Ruby app has established nothing about that app.
+- A rule says nothing about a language it never saw. A SQL rule that never met a line of Python has not
+  shown the app builds no queries by hand.
+- A credential scan that skipped one file claims nothing. "Forty-eight of fifty-two files were clean"
+  belongs in the gap list, not beside a requirement, and the skipped one is exactly where a key would
+  be. An empty folder claims nothing either: reading no files is the one case where "found no
+  credentials" is true and means nothing.
+- An app that set **no cookie** is not credited with setting good ones, and an app that sent **no
+  `Access-Control-Allow-Origin`** is not credited with checking origins. Both rules return "no finding"
+  for the careful app and for the app that was never really asked, and reading that as correctness hands
+  a green line to every app that does neither.
+
+The probes are the only place anything here observes the app doing the right thing rather than failing
+to catch it doing the wrong one, and a probe with no answer credits nothing — otherwise a run against an
+app that would not start reads as a run against an app that passed.
+
+### What the reports found in the checks themselves
+
+Building the first one turned up two faults that nothing else could have shown, because both were
+invisible until something tried to resolve a citation:
+
+Five checkers cited `AC-05`, `AC-08`, `AC-09`, `AC-10` and `AC-13` — Appendix C *family* ids, written
+with a hyphen and a leading zero instead of a dot, matching no requirement at all. Worse, they were not
+near-misses in meaning either: `config.secrets-file-committed` cited the family for *Explainability &
+Traceability of Code Suggestions*, and had the spelling been right, a .gitignore would have marked an
+AI-explainability family as looked-at.
+
+Every probe citation was wrong in the same way. `security_headers` cited Strict-Transport-Security for a
+rule that checks CSP, nosniff, framing and referrer policy — over plain HTTP, where there is no TLS
+policy to have. `cookie_attributes` cited the CORS and CSP requirements. `trace_enabled` cited HSTS when
+V13.4.4 names TRACE outright. They were invented rather than looked up. They are now the ids the rules
+actually test, and `every_requirement_a_check_cites_is_a_requirement_that_exists` walks both `crates/`
+and `data/` and fails on any citation that resolves to nothing.
+
+That guard was itself wrong twice before it was right, which is the useful part. Its first version
+scanned for anything id-shaped and reported ninety failures, none of them citations — the probes name
+whole ASVS chapters in prose when saying which ones they cannot reach. Its second version read only
+`crates/`, found fourteen ids, and passed, while every id in `ast-rules.json` and `secret-rules.json`
+went unchecked. A guard that silently covers half of what it names is worse than none, because the half
+it misses now looks guarded. It ends by asserting it reached a Rust source and both JSON rule files by
+name, rather than by counting.
+
+## Claims nothing can check
+
+Every capability in `securevibe.toml` is a claim, and `data/claim-corroborators.json` says how each one
+is checked against the code. Twenty-six claims have a corroborator. One does not, and that is written
+down rather than left to look like a search that found nothing.
+
+`shared-hostname` asks whether another application answers on the same address. That is a fact about
+where the app is deployed: the same repository is one site on its own hostname in one deployment and one
+of five behind a shared proxy in another, and the reverse-proxy configuration that would settle it is
+almost never in the app's own repository. A signature that went looking would report "nothing found" on
+every app, forever, which reads as a search rather than as a question nobody here can answer. So the
+signature carries `noCorroborator` and a reason, `sv` reports it as *no check for this is possible*, and
+a test refuses any such signature that also names things to look for.
+
+The corroborators are checked three ways, because a corroborator that never matches anything fails
+silently: every language and ecosystem key must be one the scanner actually dispatches on (a misspelled
+key is simply skipped, leaving a dead rule that looks like an honest "not found"); every corroborator
+must have a witness; and each witness is a file written the way somebody would really write it, not a
+copy of the pattern out of the data file.
+
+Writing those witnesses found a fault older than this work. Files with no extension — `Dockerfile`,
+`Jenkinsfile`, `CODEOWNERS`, `Procfile` — were skipped by the walk *before* their path was recorded, so
+no signature naming one could ever match. For `iac`, which is allowed to rule itself out by absence, that
+turned "I did not look" into `Some(false)`: an app whose only infrastructure configuration was a
+Dockerfile sitting beside its source was reported as having none at all.
+
+## The container runner
+
+`sv run ./app` starts the app behind a network fence and checks it answers. The fence design was
+**measured rather than reasoned about**, and the measurement overturned the obvious translation of v1's.
+
+v1 fences a child process with `sandbox-exec` or a network namespace and probes it over `127.0.0.1`. The
+obvious container equivalent — publish a port to loopback, probe from the host — does not work:
+
+| | `--internal` network | default bridge |
+|---|---|---|
+| sidecar on the same network reaches the app | yes | yes |
+| app can reach `1.1.1.1:53` | **blocked** | succeeded |
+| host reaches a published port | **no** | yes |
+
+An `--internal` network is exactly the fence wanted, and is unreachable from the host whether or not a port is
+published. Moving to a bridge to make host probing work removes the fence entirely. So the probes run from a
+**sidecar container on the same internal network**, and nothing is published to this computer at all.
+
+Two earlier attempts at that measurement proved nothing, which is the more useful half of the story. The first
+used `alpine:3`, whose busybox has no `httpd` applet: every container exited immediately and dutifully reported
+"outbound blocked" while not running. The second used `example.com`'s old address, decommissioned in 2024, which
+made the *default bridge* look fenced too. The table above comes from a run with a live target and a host
+baseline confirming this machine can reach the outside at all — without that line, "blocked" means nothing.
+
+### What the probes ask, and what they cannot
+
+Four requests, made from the sidecar over a plain socket rather than through an HTTP client. `wget` was
+tried first and rejected for two reasons found by trying it: it returns no body at all for a 404 or a 500,
+which is exactly the response the error-page probe has to read, and it cannot send a method other than GET
+or POST, which rules out the TRACE question. `nc` returns the raw response whatever the status and whatever
+the verb.
+
+| question | what a wrong answer means |
+|---|---|
+| the health path, plain | missing `Content-Security-Policy`, `X-Content-Type-Options`, framing rule or `Referrer-Policy`; a cookie without `HttpOnly` or `SameSite` |
+| the health path with an `Origin` that does not exist | the app echoing it back, or `*` — worse if credentials are allowed with it |
+| a path that is not there | a stack trace naming the framework, its version and the file layout |
+| `TRACE`, carrying a header this probe invented | that header coming back in the body |
+
+**The probes sign in as nobody.** `sv` does not know how to log in to an app it did not write. So
+authorisation, session handling, CSRF and anything that needs data sent into a form are **not assessed**,
+and `unassessed_requirements()` names each one with the reason. The CLI prints that list *before* any
+finding. A suite that quietly covers only the front door, and reports nothing, reads exactly like one that
+found nothing wrong.
+
+The request is built by `request_bytes`, which **refuses to send anything** whose method, path, header name
+or header value carries a newline, rather than stripping it. The path is the app's own `health_path`, out
+of its manifest, so it is not text `sv` wrote; a stripped path is a different request from the one asked
+for, and a probe with no answer is already reported as unanswered. The finished request is base64-encoded
+before it reaches the sidecar's shell, so nothing in a header value can end the command it travels in — a
+scanner that can be made to run a shell command by the app it is scanning would be a poor advertisement.
+
+### Verified against a real container
+
+`tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets
+`session=abc` with neither `HttpOnly` nor `SameSite`, and it echoes back whatever `Origin` it is given,
+with credentials. The second is what makes the end-to-end test a test of the *transport*: the fixture
+only sends that header if the request really carried one, and it sends back the value it was given. On
+24 September 2026 the run reported the cookie, the reflected origin and the missing headers, with the
+fence verified as `--internal`.
+
+Breaking the transport three ways confirms the test is what catches it, each at a different assertion:
+`probe()` answering nothing, the header loop removed from `request_bytes`, and the response body
+discarded in `parse_response` — all three go red.
+
+Running the suite on more than one thread also found a real defect the single-threaded run had hidden:
+the network and container names were the process id alone, so a second run in the same process asked
+the daemon for a network that already existed and failed. A process that checks two apps, or rebuilds
+one, hit it the same way. The names now carry a per-run counter, and a test runs the same app twice in
+one process so that is checked deliberately rather than by how the tests happen to be invoked.
+
+Two checks are **not** exercised end to end, and the test asserts they stay silent rather than guess:
+busybox's own error page carries no stack trace, and busybox does not echo a `TRACE`. The `E404:`
+directive that would have supplied a traceback is read from the config file and then ignored by this
+build — asked directly in a throw-away container rather than reasoned about, which took two minutes and
+settled it. Both checks are exercised against recorded answers in `sv-check`.
+
+### Not trusting the flag
+
+The runner asks the daemon whether the network really is internal before starting any untrusted code, and
+refuses the run if the answer is anything but `true`. Passing `--internal` and verifying `--internal` are
+different claims, and only the second survives a future edit that drops the flag.
+
+Removing the flag was tried: the runner refuses to run at all and two tests fail. The failure mode is "refuses
+to start" rather than "runs unfenced and reports a clean result", which is the fail-secure principle v1 lists
+and the only acceptable direction for this particular mistake.
+
+### Everything that cannot run is not assessed
+
+No backend, no run command in the manifest, a backend that refuses, an app that never answers — every one
+reports **not assessed**, never `pass` and never `fail`. A test enforces that each reason says so in those
+words, because an app that will not start under `sv` has not been shown to be insecure. That test failed on its
+first run against a message reading "could not be attempted", and the message was changed rather than the test.
+
+The empty strings `sv init` prints (`image = ""`) are treated as unanswered, not as commands, so an AI tool that
+leaves the placeholders produces "not assessed" rather than a container failing for reasons nobody can read.
+
+## The conditions that decide nothing
+
+Wiring up the corroborators produced a contradiction banner that announced the manifest was wrong about
+`payments` — and then had nothing to report, because no applicability rule keys on `payments`. Checking properly
+found **seven** such conditions, not two:
+
+| condition | why it decides nothing |
+|---|---|
+| `payments`, `scheduler`, `public-api`, `internet` | asked in the manifest; no rule in ASVS 5.0, AISVS 1.0 or Appendix C keys on them |
+| `level2` | redundant — the target level is applied by bucketing requirements, not by a rule |
+| `no-auth` | derived from `auth`, and nothing currently uses it |
+| `self-assessment` | v1's notion of checking itself, which has no meaning in `sv` |
+
+The tempting fix is to write overlay rules so these gate something. That would be inventing ASVS scoping, which
+is the same over-reach as the inherited reasons. They stay inert, and `sv` says so:
+
+    Answered in securevibe.toml but gating nothing: public-api, payments, scheduler, internet.
+    No requirement in ASVS 5.0, AISVS 1.0 or Appendix C turns on these, so answering them
+    differently changes no result.
+
+A test pins that exact set, so a future OWASP data update that gives one of them a rule — or quietly takes a
+rule away from something else — has to be noticed by somebody.
+
+### Where being wrong about payments does cost something
+
+Not in the requirements, but one step along: an app taking money holds financial data, and the data categories
+set the target level. v1's profile already says the equivalent about sign-in — `credentials` is described there
+as "always present when sign-in is on". So `consistency::check` connects a claim that gates nothing to the
+answer that gates a great deal:
+
+    Worth checking in securevibe.toml:
+      This app takes payments, but `financial` is not in its data categories. …
+      This app has sign-in, but `credentials` is not in its data categories. …
+      This app accepts file uploads, but `files` is not in its data categories. …
+
+These are questions, not corrections: `sv` does not edit the manifest or quietly raise the level on the owner's
+behalf. And each states its real consequence — an app already at level 2 is told that adding the category
+changes no requirement, because saying otherwise would be the same small overstatement in a new place.
+
+## `sv check`: the first findings
+
+`sv check ./app` looks for credentials left in the code. It is the first part of `sv` that produces findings
+rather than scope, which makes it the first part where being wrong costs an owner something directly.
+
+Two kinds of rule, split on purpose. The **pattern** rules live in `data/secret-rules.json` — ported from
+v1's `scanners/secrets/rules.ts`, with their ASVS, AISVS and SbD ids intact — because a well-known credential
+format is data, and adding Azure or Twilio should be a data-file entry rather than a Rust change. The
+**judgement** rules are Rust, because deciding whether a high-entropy string is a credential or a content
+hash is not something a regex can do.
+
+### What stops it being noise
+
+A scanner people ignore is worse than no scanner, so three things are load-bearing:
+
+* **A placeholder is not a secret.** `your-api-key-here`, `changeme`, `${SESSION_SECRET}`, `<your token>` are
+  what a template looks like. An owner whose first run shouts at `.env.example` learns on day one that the
+  findings are noise. There is a test that runs a whole realistic example file and requires silence.
+* **`.env` is meant to hold real credentials**, so the judgement rules do not run there. The pattern rules
+  still do, because a vendor key is exactly what matters if that file turns out to be committed.
+* **One secret is one finding.** A vendor key assigned to a well-named variable matches both the vendor rule
+  and the generic assignment rule; the vendor rule wins, because it can say what the credential is and how to
+  revoke it. This showed up on the first real run, reporting the same Stripe key twice.
+
+### Two things it refuses to do
+
+**A secret never travels in a finding.** `Secret` cannot be built with the value visible — it redacts on
+construction and there is no accessor that gives the original back, so a report, a log or a SARIF file
+cannot carry the credential onward. Removing the redaction fails five tests.
+
+**Nothing unread is counted as clean.** Files that are binary, too large, or unreadable are listed with the
+reason, and `sv check` prints that list *before* the findings, because a short list of findings under a long
+list of skipped files is a different result from a short list of findings. Where nothing is found at all it
+says so in as many words: these rules know a list of formats and one heuristic, and a credential in a shape
+nobody listed would not be found.
+
+### What it looked like on a planted key
+
+    Read 5 files looking for credentials, against 8 known formats plus the assignment rule.
+
+    1 file was not read, so nothing is claimed about it:
+      src/logo.png — not a text file
+
+    2 things to look at:
+
+      [critical] Stripe key found in a file
+         src/config.py:5
+         found: sk_l… (32 more characters)
+         evidence about: V13.3.1, AC-05, AC-06
+
+### Configuration checks, and the one that matters most
+
+v1 has nineteen configuration checks and most are about its own template: whether `package.json` was
+modified, whether the session policy matches the profile, how many proxy hops to trust. None of that means
+anything for an app somebody else wrote. What survives being language-agnostic is small, and one of it is
+worth more than everything in the secrets scanner:
+
+**A credential in a file is a problem. A credential in version control is a different problem.** History
+keeps it after the file is fixed, and every clone, fork and backup already has a copy. `sv check` can find
+a key in `.env`; only git can say whether `.env` was ever committed — so it asks, and the finding's fix
+leads with *change the credential*, because that is the part that actually protects anybody.
+
+Three checks so far: a secrets file in version control (critical), nothing in `.gitignore` stopping one
+getting there (high), and no way to report a security problem (low).
+
+### A check reports one of three things
+
+Passed, failed, or **not assessed** — never two, and never the third folded into the first. A folder that
+is not a git repository is the ordinary case for an app somebody handed over, not an error, and answering
+"no committed secrets" there would be a claim about history nobody read. `sv check` prints what could not
+be checked *before* what was found, for the same reason the secrets scanner prints skipped files first.
+
+Both ways the question can go unanswered have their own test — a missing `.git`, and a `.git` that git
+refuses to read — because they are different code paths and the first one alone left the second untested.
+
+### The lockfile check, and the wrong statement it was one call away from
+
+`sv-scan::ecosystems::unpinned` already worked out which ecosystems have no lockfile, so reporting it
+looked like wiring. It was not. Maven has no lockfile to be missing — versions live in `pom.xml` — so
+`unpinned` returned "Java (Maven)" for every Maven project, and a check that asked "is there a lockfile?"
+would have told every Java owner their app pins nothing.
+
+That is not a coverage gap, which is honest and visible. It is a wrong statement in a report, and an owner
+acting on it would go looking for a lockfile Maven does not have. The same shape as telling a Flask app it
+was missing `package-lock.json`, which is the incident ADR-012 was written for.
+
+So `DetectedEcosystem` now carries `pins_with_lockfile`, `unpinned` only returns ecosystems that pin with
+one, and Maven comes back **not assessed** with a reason: versions live in the manifest and `sv` does not
+read ranges out of it yet. Removing that distinction fails two tests — one that Maven produces no finding,
+and one that it does not silently pass either, because not reporting something must not mean approving it.
+
+## The bill of materials
+
+`sv sbom ./app` writes CycloneDX 1.5 JSON to standard output and everything else to standard error, so
+`sv sbom ./app > sbom.cdx.json` gives a clean file and still tells the person what it is worth.
+
+An SBOM is worth exactly the completeness of its list. The whole reason to hand one to somebody is that
+they can ask "is the compromised version of that library in here?" and trust the answer, so a partial one
+is more dangerous than none. Two things follow, and both are recorded on the document rather than only in
+the terminal — a caveat that stays behind in a terminal is not a caveat.
+
+**A range is not a version.** A lockfile says what is installed; a manifest says what was asked for, and
+`^4.18.0` is a different thing on a different day and a different machine. Components read from a manifest
+are marked `declared`, the count appears in `metadata.properties`, and `flask>=2.0` produces no component
+at all — listing it as though the range were a version is the failure this module is arranged around.
+
+**An ecosystem that could not be read is named.** `poetry.lock` is a format `sv` cannot parse yet, so it
+appears in the document as an unread ecosystem rather than being silently dropped. An SBOM that quietly
+omits a whole ecosystem reads exactly like one that had nothing to omit.
+
+Lockfile readers so far: `package-lock.json` (v1 and v2/v3 shapes), `Cargo.lock`, `composer.lock`,
+`Gemfile.lock`, `go.sum` and exact `==` pins in requirements files. `Gemfile.lock` indentation matters —
+specs are indented four spaces and their own dependencies six, and reading both would invent packages the
+app does not ship.
+
+Where the list is not complete, `sv check` says so as a medium finding, because the gap is the point: asked
+whether a compromised library is in this app, nobody could answer from an incomplete document.
+
+## Matching the list against advisories
+
+`sv audit ./app --advisories ./osv` compares what the app ships with a local OSV database.
+
+### `sv` does not fetch anything
+
+A deliberate decision rather than an unfinished one, for three reasons. **Checking code is not a reason to
+phone home**: the list of packages an app depends on is business-confidential, and sending it to a service
+to be checked is a disclosure the owner did not ask for — v1 fences generated code to loopback on the same
+argument. **A fetch is a dependency on somebody else's uptime**, and a check that silently degrades when a
+service is slow is a check that reports a clean result on a bad day. And **`sv` runs where there may be no
+network at all** — an air-gapped review, a CI runner with egress rules, a laptop on a train.
+
+So getting the data is the owner's step, done deliberately and visible in their shell history.
+
+### No data is not a clean result
+
+With no database, `audit` reports **not assessed** and says what to do about it. It never prints "no known
+vulnerabilities", because that sentence is equally true of an empty directory, a stale one and a healthy
+app, and only one of those is good news. The same holds per-ecosystem: a database of npm advisories says
+nothing whatever about the Python packages beside them, so those are named as unchecked rather than
+counted as clean.
+
+### Three things the comparison has to get right
+
+* **The fixed version is not affected.** An off-by-one here reports every upgraded app as vulnerable,
+  which is the fastest way to teach somebody to ignore the check. Ignoring the `fixed` event fails three
+  tests.
+* **A pre-release comes before its release.** `4.17.20-beta` does not contain the fix that landed in
+  `4.17.20`. Treating them as equal reports a genuinely vulnerable install as clean — a false negative,
+  and the worst mistake this file can make. My first version did exactly that, by dropping the
+  pre-release when parsing; the unit test caught it and an end-to-end test now catches it too.
+* **Same name, different ecosystem, different package.** `lodash` on PyPI is not `lodash` on npm, and
+  matching on the name alone invents vulnerabilities.
+
+A version that cannot be compared with any range — a Go commit pseudo-version against a `GIT` range, a
+build tag — is listed as uncomparable rather than quietly passed.
+
+### pnpm, and a dependency not taken
+
+`pnpm-lock.yaml` is the last common lockfile, and it is YAML. The obvious move is a YAML crate; the
+established serde one has been archived since 2024, and putting an unmaintained parser into a tool whose
+subject is supply-chain hygiene is a poor trade for one file format.
+
+The only YAML actually needed is the set of keys directly under `packages:`, so that is what is read and
+nothing else is guessed at. Both key shapes are handled — `express@4.18.2` and `/express/4.18.2` — and
+scoped names keep their scope, because the version is what follows the *last* separator. A peer variant
+like `vite@5.0.0(terser@5.0.0)` is one package and the peer is not a second one, and `snapshots:` repeats
+every key from `packages:`, so reading both blocks would double the list.
+
+A file this reader does not understand produces no packages, and the caller turns that into "read, and no
+packages could be taken from it". That guard is what makes hand-parsing acceptable: an empty list is
+otherwise indistinguishable from an app with no dependencies, which is the one wrong answer available.
+
+**It also closed a hole that had nothing to do with pnpm.** Any reader returning an empty list left the
+ecosystem present and the document silent about it — `package-lock.json` holding `{"lockfileVersion":3}`
+and nothing else produced a bill of materials with no components and no caveat. That is now reported, and
+breaking it fails three tests.
+
+Worth recording how it got to one guard: the first version had two, one inside the pnpm reader and one in
+the caller. Deleting the inner one failed no test at all, because the outer one already covered it — a
+guard that survives being deleted. It went, and the remaining one is asserted by the message it produces
+rather than by the fact that something was reported.
+
+### Severity from the advisory, not from a guess
+
+`sv audit` used to decide seriousness by looking for the word CRITICAL and for a substring of a v3.1
+vector, and calling everything else medium. That is not a severity, it is a placeholder wearing one's
+clothes — and a placeholder reading "medium" is believed by anyone sorting a list by how bad things are.
+
+The vector is now parsed and the base score computed to the specification, so a finding says what the
+advisory says:
+
+    [medium] lodash 4.17.15 has a known vulnerability: GHSA-p6mc-m468-83gg (CVE-2020-8203)
+       Prototype pollution in lodash. The advisory rates this 5.9 out of 10, which is medium.
+
+Two deliberate limits. **v3.0 and v3.1 only**, because they share the base formula and v2 and v4 do not —
+scoring a v4 vector with the v3 formula produces a confident number that is wrong. **Base metrics only**,
+because temporal and environmental metrics describe somebody's particular deployment, which is not
+something `sv` knows; a vector carrying them is scored on its base and the extras ignored rather than
+refused.
+
+Where no vector can be read, the finding says the seriousness shown is a placeholder rather than the
+advisory's own rating. A genuinely low-rated advisory and an unrated one used to look identical; they are
+different facts.
+
+#### A guard with no test, and why it keeps its place
+
+The specification defines its own rounding in integer arithmetic, because `(x * 10).ceil() / 10` can
+disagree with a published score when a value lands exactly on a tenth. Replacing it with the naive
+version failed no test — so the question was whether it earns its place.
+
+Every one of the 2,592 base-metric combinations was checked, and **none distinguishes the two**. That is
+why no test can catch the substitution, and the equivalence is now recorded in a test of its own so the
+next reader finds the answer rather than the puzzle. The specification's version stays: it is what the
+specification says, and temporal scoring — if this ever grows it — produces intermediate values the
+equivalence does not cover.
+
+## Rules that read the code
+
+Everything else in `sv-check` works on text. That is right for credentials, where the thing being looked
+for *is* a string, and wrong for "is this SQL built by pasting a variable into it" — a regex either
+misses the case split over two lines or fires on the word `execute` inside a comment. Both are in the
+tests, because both are what a text rule gets wrong.
+
+tree-sitter was taken as a dependency where a YAML crate was not, on the argument that decides these:
+there is no honest hand-rolled alternative to a parser, it is actively maintained, and four grammars
+build in about four seconds. Python, JavaScript, TypeScript and Go today; Ruby, PHP and Java are named as
+unread rather than silently producing nothing.
+
+Four rules so far: code built and executed at run time, a shell command assembled from a value, a
+database query joined together from pieces, and data from outside deserialised with a reader that builds
+objects. Each is a tree-sitter query per language in `data/ast-rules.json`, so teaching one about Ruby is
+a data entry.
+
+### What a query cannot decide
+
+Whether the argument is a literal. `eval("1 + 1")` cannot be made to run anything its author did not
+write, and reporting it beside `eval(request.args["code"])` at the same seriousness is how a rule teaches
+people to skip its findings. That judgement is Rust, where it is tested — the same split as the secrets
+scanner, patterns as data and meaning as code.
+
+It is subtler than it looks. A template string is a literal only when nothing is interpolated, and a
+Python f-string is still a plain `string` node in its grammar — so `f"… WHERE id = {user_id}"` looked
+like a constant, and the SQL rule reported nothing for the case it exists for. The check now asks whether
+anything is substituted in, at any depth, whatever the grammar calls it. Breaking that fails four tests.
+
+### A predicate that parses and does nothing
+
+Every rule was first written with tree-sitter's own `(#match? @fn "^eval$")` predicates. **The Rust
+binding parses them and does not apply them**, so every rule matched every call in the file — the
+deserialization rule fired on `os.system`, the shell rule on `eval`. Nothing about the queries looked
+wrong, and the only reason it surfaced is that the tests assert what must *not* be reported as well as
+what must.
+
+Name matching moved into Rust, per language, because the dangerous names differ — `eval`, `exec` and
+`compile` in Python against `eval` and `Function` in JavaScript, which one shared pattern would get
+wrong. And a query containing `#match?` is now **refused at load**, with a test that feeds one in and
+expects the refusal, because a guard against a mistake nobody is currently making has no witness
+otherwise.

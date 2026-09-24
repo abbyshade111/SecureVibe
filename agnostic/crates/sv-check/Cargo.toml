@@ -1,0 +1,18 @@
+[package]
+name = "sv-check"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+regex = "1"
+tree-sitter.workspace = true
+tree-sitter-python.workspace = true
+tree-sitter-javascript.workspace = true
+tree-sitter-typescript.workspace = true
+tree-sitter-go.workspace = true
+sv-frameworks = { path = "../sv-frameworks" }
+sv-scan = { path = "../sv-scan" }

@@ -1,0 +1,703 @@
+//! Configuration checks: the things that are wrong about an app's setup rather than its code.
+//!
+//! These are the checks that survive being language-agnostic. v1 has nineteen, and most are about its own
+//! template — whether `package.json` was modified, whether the session policy matches the profile, whether
+//! `trust proxy` is set to the right number of hops. Those mean nothing for an app somebody else wrote.
+//! What is left is small and universal, and one of it matters more than everything in `secrets.rs`:
+//!
+//! **A credential in a file is a problem. A credential in version control is a different problem**, because
+//! history keeps it after the file is fixed, and every clone, fork and backup has a copy. `sv check` can
+//! find a key in `.env`; only git can say whether `.env` was committed.
+//!
+//! Every check here reports one of three things, never two. It passed, it failed, or **it could not be
+//! run** — and the third is a first-class answer with a reason attached, because a check that did not run
+//! is not a check that passed. Asking git about a folder that is not a repository is the ordinary case for
+//! an app somebody uploaded, not an error.
+
+use crate::finding::{Confidence, Finding, Location, Severity};
+use crate::verified::Verified;
+use std::path::Path;
+use std::process::Command;
+
+/// What a configuration check concluded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Outcome {
+    /// Passed, and the requirements this check is evidence about.
+    ///
+    /// The list is not decoration. A check that names its requirements when it fails and drops them
+    /// when it passes can only ever subtract: the report can say a requirement needs attention but
+    /// never that anything looked at it and was satisfied, so every requirement reads as unchecked
+    /// however many checks ran. The failing side of each check below already knew these ids.
+    Passed(&'static [&'static str]),
+    Failed(Box<Finding>),
+    /// The check could not run. The string says why, in words an owner can act on.
+    NotAssessed(String),
+}
+
+#[derive(Debug, Default)]
+pub struct ConfigReport {
+    pub findings: Vec<Finding>,
+    pub passed: Vec<Verified>,
+    /// Check id and why it could not run. Never folded into "passed".
+    pub not_assessed: Vec<(String, String)>,
+}
+
+impl ConfigReport {
+    fn record(&mut self, id: &str, outcome: Outcome) {
+        match outcome {
+            Outcome::Passed(requirement_ids) => self.passed.push(Verified::new(
+                id,
+                requirement_ids,
+                "the files this check reads".to_owned(),
+            )),
+            Outcome::Failed(f) => self.findings.push(*f),
+            Outcome::NotAssessed(why) => self.not_assessed.push((id.to_owned(), why)),
+        }
+    }
+}
+
+/// Runs every configuration check over the app folder.
+pub fn check_dir(app_dir: &Path) -> ConfigReport {
+    let mut report = ConfigReport::default();
+    report.record(
+        "config.secrets-file-committed",
+        secrets_file_committed(app_dir),
+    );
+    report.record("config.gitignore-covers-env", gitignore_covers_env(app_dir));
+    report.record("config.security-contact", security_contact(app_dir));
+    report.record("config.versions-pinned", versions_pinned(app_dir));
+    report
+}
+
+/// Files whose whole job is to hold credentials.
+const SECRET_FILES: &[&str] = &[
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.development",
+    "secrets.json",
+    "credentials.json",
+    "service-account.json",
+    "id_rsa",
+    "id_ed25519",
+    ".npmrc",
+    ".pypirc",
+    ".netrc",
+];
+
+/// Names that are meant to be committed: a template showing which settings exist, with no values in it.
+fn is_example_file(name: &str) -> bool {
+    name.ends_with(".example") || name.ends_with(".sample") || name.ends_with(".template")
+}
+
+/// Asks git which files it is tracking. `None` when git cannot answer — not a repository, not installed.
+fn tracked_files(app_dir: &Path) -> Option<Vec<String>> {
+    if !app_dir.join(".git").exists() {
+        return None;
+    }
+    let out = Command::new("git")
+        .args(["-C", app_dir.to_str()?, "ls-files"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(
+        String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(str::to_owned)
+            .collect(),
+    )
+}
+
+/// The check that matters most: a file whose job is holding credentials, committed to version control.
+fn secrets_file_committed(app_dir: &Path) -> Outcome {
+    let Some(tracked) = tracked_files(app_dir) else {
+        return Outcome::NotAssessed(
+            "This folder is not a git repository that `sv` could read, so it cannot say whether a \
+             secrets file was ever committed. If the app is kept in version control somewhere else, \
+             that question is still open."
+                .to_owned(),
+        );
+    };
+
+    let committed: Vec<&String> = tracked
+        .iter()
+        .filter(|path| {
+            let name = path.rsplit('/').next().unwrap_or(path);
+            !is_example_file(name) && (SECRET_FILES.contains(&name) || name.starts_with(".env."))
+        })
+        .collect();
+
+    match committed.first() {
+        None => Outcome::Passed(&["V13.3.1"]),
+        Some(first) => Outcome::Failed(Box::new(Finding {
+            rule_id: "config.secrets-file-committed".into(),
+            title: format!("A file that holds credentials is in version control (`{first}`)"),
+            severity: Severity::Critical,
+            confidence: Confidence::High,
+            location: Location { file: (*first).clone(), line: 1 },
+            secret: None,
+            requirement_ids: vec!["V13.3.1".into()],
+            cwe: vec!["CWE-540".into(), "CWE-538".into()],
+            description: if committed.len() == 1 {
+                format!("`{first}` is tracked by git, and files with that name hold credentials.")
+            } else {
+                format!(
+                    "`{first}` and {} other file(s) that hold credentials are tracked by git.",
+                    committed.len() - 1
+                )
+            },
+            impact: "Deleting the file does not help: version control keeps its history, and every \
+                     clone, fork and backup already has a copy. Treat every credential in it as known \
+                     to anyone who has ever had access to the repository."
+                .into(),
+            fix: "Change every credential in the file first — that is the part that actually protects \
+                  you. Then stop tracking it (`git rm --cached`), add it to .gitignore, and keep a \
+                  .env.example with the names and no values."
+                .into(),
+        })),
+    }
+}
+
+/// Whether `.gitignore` excludes the environment file, so the next person does not commit it.
+fn gitignore_covers_env(app_dir: &Path) -> Outcome {
+    let path = app_dir.join(".gitignore");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        // No .gitignore is only a problem if this is a repository at all.
+        if app_dir.join(".git").exists() {
+            return Outcome::Failed(Box::new(env_not_ignored_finding(
+                ".gitignore",
+                "This app is in version control and has no .gitignore, so nothing stops `.env` being \
+                 committed."
+                    .to_owned(),
+            )));
+        }
+        return Outcome::NotAssessed(
+            "There is no .gitignore and this folder is not a git repository, so there is nothing for \
+             this check to read."
+                .to_owned(),
+        );
+    };
+
+    let covered = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .any(|l| matches!(l, ".env" | ".env*" | ".env.*" | "*.env" | "**/.env"));
+
+    if covered {
+        Outcome::Passed(&["V13.3.1"])
+    } else {
+        Outcome::Failed(Box::new(env_not_ignored_finding(
+            ".gitignore",
+            "The .gitignore file does not list `.env`, so nothing stops it being committed."
+                .to_owned(),
+        )))
+    }
+}
+
+fn env_not_ignored_finding(file: &str, description: String) -> Finding {
+    Finding {
+        rule_id: "config.gitignore-covers-env".into(),
+        title: "Nothing stops the environment file being committed".into(),
+        severity: Severity::High,
+        confidence: Confidence::High,
+        location: Location { file: file.to_owned(), line: 1 },
+        secret: None,
+        requirement_ids: vec!["V13.3.1".into()],
+        cwe: vec!["CWE-540".into()],
+        description,
+        impact: "Once a credential reaches a repository it is effectively known to everyone with \
+                 access to it, including any host or backup, and deleting it later does not undo that."
+            .into(),
+        fix: "Add `.env` and `.env.*` to .gitignore, with an exception for `.env.example`.".into(),
+    }
+}
+
+/// Whether the app pins what it installs.
+///
+/// An ecosystem in use with no lockfile means nobody can say what is actually installed — not the
+/// developer, not a reviewer, and not `sv`. The same build on a different day is a different app.
+///
+/// The trap here is worth naming, because it was one function call away. `pom.xml` has no lockfile to
+/// look for: Maven pins in the manifest itself. A check that asked "is there a lockfile?" would report
+/// every Maven project as pinning nothing — not a coverage gap but a wrong statement in a report, which
+/// is exactly what ADR-012 is about. So Maven is *not assessed* here, with a reason, until something can
+/// read its version ranges.
+fn versions_pinned(app_dir: &Path) -> Outcome {
+    let detected = sv_scan::ecosystems::detect(app_dir);
+    if detected.is_empty() {
+        return Outcome::NotAssessed(
+            "No package manifest was found, so there is nothing whose versions could be pinned. If this \
+             app installs dependencies some other way, that is not something `sv` can see."
+                .to_owned(),
+        );
+    }
+
+    let unpinned = sv_scan::ecosystems::unpinned(app_dir);
+    let unknown = sv_scan::ecosystems::pinning_unknown(app_dir);
+
+    if let Some(first) = unpinned.first() {
+        let names: Vec<&str> = unpinned.iter().map(|e| e.name.as_str()).collect();
+        return Outcome::Failed(Box::new(Finding {
+            rule_id: "config.versions-pinned".into(),
+            title: format!("{} does not pin the versions it installs", names.join(" and ")),
+            severity: Severity::Medium,
+            confidence: Confidence::High,
+            location: Location { file: first.manifest.clone(), line: 1 },
+            secret: None,
+            requirement_ids: vec!["V1.3.5".into()],
+            cwe: vec!["CWE-1104".into()],
+            description: format!(
+                "`{}` is in use and there is no lockfile beside it, so the versions installed today and \
+                 the versions installed tomorrow can differ.",
+                first.manifest
+            ),
+            impact: "Nobody can say what is actually running, which means nobody can say whether a known \
+                     vulnerability applies to it — and a dependency that is compromised upstream arrives \
+                     on the next install without anything changing here."
+                .into(),
+            fix: "Install once and commit the lockfile that produces, then install from it from then on."
+                .into(),
+        }));
+    }
+
+    if let Some(first) = unknown.first() {
+        let names: Vec<&str> = unknown.iter().map(|e| e.name.as_str()).collect();
+        return Outcome::NotAssessed(format!(
+            "{} does not use a lockfile at all — versions live in `{}` — and `sv` does not read version \
+             ranges out of it yet. Whether this app pins what it installs is still an open question, not \
+             a passed check.",
+            names.join(" and "),
+            first.manifest
+        ));
+    }
+
+    Outcome::Passed(&["V1.3.5"])
+}
+
+/// Whether there is a way to report a security problem. Not a vulnerability; an absence.
+fn security_contact(app_dir: &Path) -> Outcome {
+    const PLACES: &[&str] = &[
+        "SECURITY.md",
+        "security.md",
+        ".github/SECURITY.md",
+        "docs/SECURITY.md",
+    ];
+    if PLACES.iter().any(|p| app_dir.join(p).exists()) {
+        // Deliberately empty. Nothing in ASVS, AISVS or Appendix C requires a way to report a
+        // vulnerability; it is an organisational control rather than an application one. This check
+        // is worth running and is evidence about no requirement in particular, which the reports
+        // show rather than hide.
+        return Outcome::Passed(&[]);
+    }
+    Outcome::Failed(Box::new(Finding {
+        rule_id: "config.security-contact".into(),
+        title: "There is no way to report a security problem".into(),
+        severity: Severity::Low,
+        confidence: Confidence::High,
+        location: Location {
+            file: "SECURITY.md".into(),
+            line: 1,
+        },
+        secret: None,
+        requirement_ids: vec![],
+        cwe: vec![],
+        description: "No SECURITY.md was found, so somebody who finds a problem in this app has \
+                      nowhere obvious to say so."
+            .into(),
+        impact: "Problems found by outsiders get reported publicly, or not at all.".into(),
+        fix: "Add a SECURITY.md saying where to send a report and how long a reply should take."
+            .into(),
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-config-{name}-{}", std::process::id()));
+        fs::remove_dir_all(&dir).ok();
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git_repo(name: &str) -> Option<std::path::PathBuf> {
+        let dir = scratch(name);
+        let ok = Command::new("git")
+            .args(["-C", dir.to_str().unwrap(), "init", "-q"])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !ok {
+            return None;
+        }
+        for (k, v) in [("user.email", "t@example.com"), ("user.name", "t")] {
+            let _ = Command::new("git")
+                .args(["-C", dir.to_str().unwrap(), "config", k, v])
+                .status();
+        }
+        Some(dir)
+    }
+
+    fn commit_all(dir: &Path) {
+        let d = dir.to_str().unwrap();
+        let _ = Command::new("git").args(["-C", d, "add", "-A"]).status();
+        let _ = Command::new("git")
+            .args(["-C", d, "commit", "-q", "-m", "t"])
+            .status();
+    }
+
+    #[test]
+    fn a_committed_env_file_is_critical() {
+        let Some(dir) = git_repo("committed") else {
+            // Never a silent skip: if git is missing the test says so and checks nothing else.
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        fs::write(dir.join(".env"), "SESSION_SECRET=Xk7mQ92vLpR4sTz\n").unwrap();
+        commit_all(&dir);
+        let report = check_dir(&dir);
+        let found = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.secrets-file-committed")
+            .unwrap_or_else(|| panic!("no finding; report was {report:?}"));
+        assert_eq!(found.severity, Severity::Critical);
+        // The fix has to lead with changing the credential, because that is the part that helps.
+        assert!(
+            found.fix.starts_with("Change every credential"),
+            "{}",
+            found.fix
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_example_file_is_meant_to_be_committed() {
+        let Some(dir) = git_repo("example") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        fs::write(dir.join(".env.example"), "SESSION_SECRET=\n").unwrap();
+        fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        commit_all(&dir);
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.secrets-file-committed"),
+            "a .env.example was reported as a committed secrets file: {report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_that_is_not_a_repository_is_not_assessed_rather_than_passed() {
+        // The ordinary case for an app somebody uploaded. Saying "no committed secrets" here would be
+        // a claim `sv` cannot support: it has not seen the history, only a copy of the files.
+        let dir = scratch("norepo");
+        fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.secrets-file-committed"),
+            "a folder with no git history must not pass this check"
+        );
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.secrets-file-committed")
+            .expect("must be recorded as not assessed");
+        assert!(why.contains("not a git repository"), "{why}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_repository_git_cannot_read_is_not_assessed_either() {
+        // The other way the question goes unanswered, and a different code path from a missing .git:
+        // the marker is there but git refuses — a broken worktree pointer, a corrupt repository, git not
+        // installed. The tempting answer is "no tracked secrets found", and it would be a claim made
+        // about history nobody read.
+        let dir = scratch("brokenrepo");
+        fs::write(dir.join(".git"), "gitdir: /nowhere/that/exists\n").unwrap();
+        fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.secrets-file-committed"),
+            "a repository git cannot read must not pass: {report:?}"
+        );
+        assert!(
+            report
+                .not_assessed
+                .iter()
+                .any(|(id, _)| id == "config.secrets-file-committed"),
+            "it must be recorded as not assessed: {report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gitignore_that_covers_env_passes_and_one_that_does_not_fails() {
+        let dir = scratch("ignore");
+        fs::write(dir.join(".gitignore"), "node_modules\n.env\n").unwrap();
+        assert!(
+            check_dir(&dir)
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.gitignore-covers-env")
+        );
+
+        fs::write(dir.join(".gitignore"), "node_modules\ndist\n").unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.gitignore-covers-env"),
+            "{report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_wildcard_env_entry_counts() {
+        let dir = scratch("wildcard");
+        for pattern in [".env*", ".env.*", "*.env", "**/.env"] {
+            fs::write(dir.join(".gitignore"), format!("{pattern}\n")).unwrap();
+            assert!(
+                check_dir(&dir)
+                    .passed
+                    .iter()
+                    .any(|p| p.check_id == "config.gitignore-covers-env"),
+                "{pattern} should count as covering .env"
+            );
+        }
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ecosystem_with_no_lockfile_is_reported() {
+        let dir = scratch("nolock");
+        fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
+        let report = check_dir(&dir);
+        let f = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.versions-pinned")
+            .unwrap_or_else(|| panic!("{report:?}"));
+        assert_eq!(f.severity, Severity::Medium);
+        assert!(f.title.contains("npm"), "{}", f.title);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ecosystem_with_a_lockfile_passes() {
+        let dir = scratch("locked");
+        fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
+        fs::write(dir.join("package-lock.json"), "{}").unwrap();
+        assert!(
+            check_dir(&dir)
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.versions-pinned")
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn maven_is_not_reported_as_pinning_nothing() {
+        // The trap. Maven has no lockfile to be missing — versions are in pom.xml — so asking "is there
+        // a lockfile?" reports every Maven project as unpinned. That is a wrong statement in a report,
+        // not a coverage gap, and it is what ADR-012 is about.
+        let dir = scratch("maven");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project><artifactId>x</artifactId></project>",
+        )
+        .unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.versions-pinned"),
+            "Maven was reported as unpinned: {report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn maven_is_an_open_question_rather_than_a_pass() {
+        // The other half, and a different assertion: not reporting it must not mean approving it.
+        let dir = scratch("maven2");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project><artifactId>x</artifactId></project>",
+        )
+        .unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.versions-pinned"),
+            "Maven must not pass a check nothing performed: {report:?}"
+        );
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.versions-pinned")
+            .unwrap_or_else(|| panic!("{report:?}"));
+        assert!(why.contains("does not use a lockfile"), "{why}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_with_no_manifest_is_not_assessed() {
+        let dir = scratch("nomanifest");
+        fs::write(dir.join("README.md"), "hello\n").unwrap();
+        let report = check_dir(&dir);
+        assert!(
+            !report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.versions-pinned")
+        );
+        assert!(
+            report
+                .not_assessed
+                .iter()
+                .any(|(id, _)| id == "config.versions-pinned")
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_missing_security_file_is_low_and_a_present_one_passes() {
+        let dir = scratch("security");
+        let report = check_dir(&dir);
+        let f = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.security-contact")
+            .unwrap();
+        assert_eq!(f.severity, Severity::Low);
+
+        fs::create_dir_all(dir.join(".github")).unwrap();
+        fs::write(
+            dir.join(".github/SECURITY.md"),
+            "mail security@example.com\n",
+        )
+        .unwrap();
+        assert!(
+            check_dir(&dir)
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.security-contact")
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn nothing_is_both_passed_and_found() {
+        let dir = scratch("disjoint");
+        fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        let report = check_dir(&dir);
+        for passed in &report.passed {
+            let id = &passed.check_id;
+            assert!(
+                !report.findings.iter().any(|f| &f.rule_id == id),
+                "{id} is reported as both passed and failed"
+            );
+            assert!(
+                !report.not_assessed.iter().any(|(n, _)| n == id),
+                "{id} is reported as both passed and not assessed"
+            );
+        }
+        fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod passed_evidence_tests {
+    use super::*;
+
+    #[test]
+    fn a_check_that_names_requirements_when_it_fails_names_them_when_it_passes_too() {
+        // The asymmetry this guards against is invisible from either side on its own: the failing
+        // branch cites V13.3.1, the passing branch cited nothing, and a report built from that can
+        // only ever say a requirement needs attention — never that anything looked and was
+        // satisfied. Every requirement then reads as unchecked however many checks ran.
+        let dir = tempdir("passed-cites");
+        std::fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        std::fs::write(dir.join("SECURITY.md"), "mail security@example.test\n").unwrap();
+        let report = check_dir(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(!report.passed.is_empty(), "nothing passed: {report:?}");
+
+        // A check may honestly be evidence about no requirement in any loaded framework, and one
+        // is: nothing in ASVS, AISVS or Appendix C asks for a way to report a vulnerability. That
+        // has to be a decision somebody wrote down, not a forgotten field, so it is listed here
+        // and every other check has to say what it is evidence about.
+        const CITES_NOTHING_ON_PURPOSE: &[&str] = &["config.security-contact"];
+        let silent: Vec<&str> = report
+            .passed
+            .iter()
+            .filter(|p| p.requirement_ids.is_empty())
+            .map(|p| p.check_id.as_str())
+            .filter(|id| !CITES_NOTHING_ON_PURPOSE.contains(id))
+            .collect();
+        assert!(
+            silent.is_empty(),
+            "these checks pass without saying what they are evidence about: {silent:?}"
+        );
+    }
+
+    #[test]
+    fn the_ids_a_check_cites_are_the_same_whichever_way_it_goes() {
+        // Second witness, of a different shape: not that the passing side says *something*, but
+        // that it says the *same* thing. A pass citing a requirement its failure does not would
+        // credit a requirement nothing actually examined.
+        let clean = tempdir("same-ids-clean");
+        std::fs::write(clean.join(".gitignore"), ".env\n").unwrap();
+        let passed = check_dir(&clean);
+        std::fs::remove_dir_all(&clean).ok();
+
+        let dirty = tempdir("same-ids-dirty");
+        std::fs::write(dirty.join(".gitignore"), "node_modules\n").unwrap();
+        let failed = check_dir(&dirty);
+        std::fs::remove_dir_all(&dirty).ok();
+
+        let on_pass: Vec<String> = passed
+            .passed
+            .iter()
+            .find(|p| p.check_id == "config.gitignore-covers-env")
+            .map(|p| p.requirement_ids.clone())
+            .expect("the clean app passes this check");
+        let on_fail: Vec<String> = failed
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.gitignore-covers-env")
+            .map(|f| f.requirement_ids.clone())
+            .expect("the dirty app fails this check");
+        assert_eq!(on_pass, on_fail);
+    }
+
+    fn tempdir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-config-{name}"));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+}

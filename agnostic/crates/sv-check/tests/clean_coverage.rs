@@ -1,0 +1,324 @@
+//! When a check may say it looked and found nothing — and, mostly, when it may not.
+//!
+//! A finding is a claim about something that is there and can be checked by looking at it. These are
+//! claims about something that is *not* there, which are only worth the coverage behind them, and
+//! which fail in a direction nobody notices: a green line in a report is not something a reader goes
+//! back to question. Every test here is a way of arriving at one that was not earned.
+
+use std::path::PathBuf;
+use sv_check::{ast, probes, secrets};
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("sv-clean-{name}"));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn data(file: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .join(file)
+}
+
+fn ast_rules() -> ast::AstRules {
+    ast::AstRules::load(&data("ast-rules.json")).expect("the rules load")
+}
+
+fn secret_rules() -> secrets::SecretRules {
+    secrets::SecretRules::load(&data("secret-rules.json")).expect("the rules load")
+}
+
+fn verified_ids(verified: &[sv_check::Verified]) -> Vec<&str> {
+    verified.iter().map(|v| v.check_id.as_str()).collect()
+}
+
+// ---- the rules that read code ----
+
+#[test]
+fn clean_python_lets_the_rules_that_read_it_say_so() {
+    // The positive case, first, because a check that can never say anything is not a check.
+    let dir = scratch("ast-clean");
+    std::fs::write(
+        dir.join("app.py"),
+        "import sqlite3\n\ndef find(db, q):\n    return db.execute('select 1 where t = ?', [q])\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(
+        !scan.verified.is_empty(),
+        "a rule that read a file and found nothing must be able to say so"
+    );
+    for v in &scan.verified {
+        assert!(
+            v.scope.contains("python"),
+            "the scope has to say what was read: {}",
+            v.scope
+        );
+    }
+}
+
+#[test]
+fn a_language_nothing_can_parse_silences_every_rule() {
+    // The important one. The app has clean Python and a Ruby file no grammar reads. The injection
+    // these rules look for could be in the Ruby, so none of them has established anything about
+    // this app — not even the ones whose own language was fully read.
+    let dir = scratch("ast-unread");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(dir.join("worker.rb"), "puts 'hello'\n").unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        !scan.unread_languages.is_empty(),
+        "the setup is wrong: ruby was expected to be unread"
+    );
+    assert!(
+        scan.verified.is_empty(),
+        "nothing may be claimed while a language goes unread: {:?}",
+        verified_ids(&scan.verified)
+    );
+}
+
+#[test]
+fn a_rule_says_nothing_about_a_language_it_never_saw() {
+    // Second witness for the same principle, of a different shape: nothing unread, but a rule whose
+    // languages are simply absent from the app. A SQL rule that never met a line of Python has not
+    // shown that this app builds no queries by hand.
+    let dir = scratch("ast-absent");
+    std::fs::write(dir.join("main.go"), "package main\n\nfunc main() {}\n").unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let rules = ast_rules();
+    let go_rules: Vec<&str> = rules
+        .coverage()
+        .into_iter()
+        .filter(|(_, languages, _)| languages.contains(&"go"))
+        .map(|(id, _, _)| id)
+        .collect();
+    std::fs::remove_dir_all(&dir).ok();
+    for v in &scan.verified {
+        assert!(
+            go_rules.contains(&v.check_id.as_str()),
+            "{} claims coverage of an app with only Go in it, and has no Go query",
+            v.check_id
+        );
+    }
+}
+
+#[test]
+fn a_rule_that_found_something_does_not_also_report_itself_clean() {
+    let dir = scratch("ast-dirty");
+    std::fs::write(
+        dir.join("app.py"),
+        "def run(user):\n    q = \"select * from t where n = '\" + user + \"'\"\n    return db.execute(q)\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let fired: Vec<String> = scan.findings.iter().map(|f| f.rule_id.clone()).collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(!fired.is_empty(), "the setup is wrong: nothing fired");
+    for id in &fired {
+        assert!(
+            !verified_ids(&scan.verified).contains(&id.as_str()),
+            "{id} found something and also reported itself clean"
+        );
+    }
+}
+
+// ---- the credential scan ----
+
+#[test]
+fn a_file_that_could_not_be_read_stops_the_credential_scan_claiming_anything() {
+    // "48 of 52 files were clean" belongs in the gap list, not beside a requirement. The one file
+    // that was skipped is exactly where a key would be.
+    let dir = scratch("secrets-skipped");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("photo.png"),
+        [0x89u8, 0x50, 0x4e, 0x47, 0x00, 0xff],
+    )
+    .unwrap();
+    let scan = secrets::scan_dir(&secret_rules(), &dir);
+    let skipped = scan.coverage.skipped.clone();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        !skipped.is_empty(),
+        "the setup is wrong: something was expected to be skipped"
+    );
+    assert!(
+        verified.is_empty(),
+        "a scan that skipped a file has not shown the app holds no credentials"
+    );
+}
+
+#[test]
+fn a_credential_scan_that_read_everything_and_found_nothing_says_so() {
+    let dir = scratch("secrets-clean");
+    std::fs::write(dir.join("app.py"), "import os\nkey = os.environ['KEY']\n").unwrap();
+    let scan = secrets::scan_dir(&secret_rules(), &dir);
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(verified.len(), 1, "{verified:?}");
+    assert!(
+        verified[0].scope.contains("credential formats"),
+        "the scope must say the rules are a list and not everything: {}",
+        verified[0].scope
+    );
+}
+
+#[test]
+fn an_empty_folder_is_not_a_clean_credential_scan() {
+    // Second witness of a different shape: nothing skipped, because nothing was there. Reading no
+    // files is the one case where "found no credentials" is true and means nothing at all.
+    let dir = scratch("secrets-empty");
+    let scan = secrets::scan_dir(&secret_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(scan.findings.is_empty());
+    assert!(
+        scan.verified.is_empty(),
+        "a scan that read nothing has established nothing"
+    );
+}
+
+// ---- the probes ----
+
+fn response(id: &str, status: u16, headers: &[(&str, &str)], body: &str) -> probes::ProbeResponse {
+    probes::ProbeResponse {
+        id: id.into(),
+        status,
+        headers: headers
+            .iter()
+            .map(|(k, v)| (k.to_lowercase(), (*v).to_owned()))
+            .collect(),
+        body: body.into(),
+    }
+}
+
+fn careful_home() -> probes::ProbeResponse {
+    response(
+        "home",
+        200,
+        &[
+            (
+                "Content-Security-Policy",
+                "default-src 'self'; frame-ancestors 'none'",
+            ),
+            ("X-Content-Type-Options", "nosniff"),
+            ("Referrer-Policy", "no-referrer"),
+            ("Set-Cookie", "session=abc; HttpOnly; SameSite=Strict"),
+        ],
+        "<html>hi</html>",
+    )
+}
+
+#[test]
+fn an_app_that_answered_correctly_gets_the_credit_for_it() {
+    // The one place anything here observes the running app doing the right thing, rather than
+    // failing to observe it doing the wrong one.
+    let verified = probes::verified(&[careful_home()]);
+    let ids = verified_ids(&verified);
+    assert!(ids.contains(&"probe.security-headers"), "{ids:?}");
+    assert!(ids.contains(&"probe.cookie-attributes"), "{ids:?}");
+}
+
+#[test]
+fn a_probe_with_no_answer_credits_nothing() {
+    // An app that never replied has not been shown to be careful. Without this, a run against an
+    // app that would not start reads as a run against an app that passed.
+    let verified = probes::verified(&[]);
+    assert!(verified.is_empty(), "{:?}", verified_ids(&verified));
+}
+
+#[test]
+fn an_app_that_sets_no_cookie_is_not_credited_with_setting_good_ones() {
+    // The subtle one, and the reason the cookie arm looks for a cookie first. `cookie_attributes`
+    // returns None both for an app with careful cookies and for an app with no cookies at all, so
+    // reading "no finding" as "correct" hands a green line to every app that never set one.
+    let home = response(
+        "home",
+        200,
+        &[
+            (
+                "Content-Security-Policy",
+                "default-src 'self'; frame-ancestors 'none'",
+            ),
+            ("X-Content-Type-Options", "nosniff"),
+            ("Referrer-Policy", "no-referrer"),
+        ],
+        "hi",
+    );
+    let verified = probes::verified(&[home]);
+    let ids = verified_ids(&verified);
+    assert!(
+        !ids.contains(&"probe.cookie-attributes"),
+        "no cookie is not a correct cookie: {ids:?}"
+    );
+    // The headers were there, though, so that half is still earned.
+    assert!(ids.contains(&"probe.security-headers"), "{ids:?}");
+}
+
+#[test]
+fn an_app_that_never_answers_the_cors_question_is_not_credited_with_checking_origins() {
+    // Second witness for the same trap, on a different rule: `reflected_origin` returns None when
+    // the app sends no Access-Control-Allow-Origin at all. That app has not been shown to check
+    // origins — it has been shown not to have been asked in a way it answered.
+    let silent = response("cors", 200, &[], "");
+    let verified = probes::verified(&[silent]);
+    let ids = verified_ids(&verified);
+    assert!(
+        !ids.contains(&"probe.cors-any-origin"),
+        "silence is not an origin check: {ids:?}"
+    );
+}
+
+#[test]
+fn an_app_that_gets_it_wrong_is_not_also_credited() {
+    let bare = response("home", 200, &[("Set-Cookie", "session=abc")], "hi");
+    let verified = probes::verified(&[bare]);
+    let ids = verified_ids(&verified);
+    assert!(ids.is_empty(), "{ids:?}");
+}
+
+// ---- the rule that holds across all of them ----
+
+#[test]
+fn nothing_claims_more_when_it_passes_than_it_cites_when_it_fails() {
+    // The direction this whole file exists to prevent movement in. A check that names three
+    // requirements on the way out and five on the way through is claiming credit for work it did
+    // not do, and the report has no way to tell.
+    let rules = ast_rules();
+    let dir = scratch("ast-symmetry");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    let clean = ast::scan_dir(&rules, &dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(!clean.verified.is_empty(), "the setup checks nothing");
+    for v in &clean.verified {
+        let (_, _, cited) = rules
+            .coverage()
+            .into_iter()
+            .find(|(id, _, _)| *id == v.check_id)
+            .expect("the rule exists");
+        assert_eq!(
+            v.requirement_ids, cited,
+            "{} verifies a different set of requirements from the ones it cites",
+            v.check_id
+        );
+    }
+
+    // And the same for the probes, whose ids live in Rust rather than in the data file.
+    let careful = probes::verified(&[careful_home()]);
+    assert!(!careful.is_empty());
+    let bare = probes::evaluate(&[response("home", 200, &[("Set-Cookie", "s=1")], "")]);
+    for v in &careful {
+        if let Some(f) = bare.iter().find(|f| f.rule_id == v.check_id) {
+            assert_eq!(
+                v.requirement_ids, f.requirement_ids,
+                "{} verifies a different set from the one it cites when it fails",
+                v.check_id
+            );
+        }
+    }
+}
