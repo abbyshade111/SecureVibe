@@ -1,0 +1,580 @@
+//! The software bill of materials: what this app actually ships.
+//!
+//! An SBOM is only worth the completeness of the list. A partial one is more dangerous than none,
+//! because the whole point of handing it to somebody is that they can ask "is the compromised version of
+//! that library in here?" and trust the answer. So two things are recorded on every component and on the
+//! document itself.
+//!
+//! **Where the version came from.** A lockfile says what is installed. A manifest says what was asked
+//! for, and `^4.18.0` is not a version — the thing installed under it changes over time and differs
+//! between machines. Components built from a manifest are marked `declared`, and the document says how
+//! many of them there are, because "we ship express 4.18.2" and "we asked for some express 4" are
+//! different sentences.
+//!
+//! **What was not read.** An ecosystem whose lockfile format `sv` cannot parse yet is named in the
+//! document rather than silently omitted. An SBOM that quietly drops a whole ecosystem reads exactly like
+//! one that had nothing to drop.
+
+use crate::finding::{Confidence, Finding, Location, Severity};
+use serde::Serialize;
+use std::path::Path;
+use sv_scan::ecosystems::{DetectedEcosystem, detect};
+
+/// Whether a version is what is installed, or only what was requested.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VersionSource {
+    /// Read from a lockfile: this is what is installed.
+    Locked,
+    /// Read from a manifest: this is what was asked for, and may be a range.
+    Declared,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Component {
+    pub name: String,
+    pub version: String,
+    pub ecosystem: String,
+    pub source: VersionSource,
+}
+
+impl Component {
+    /// A package URL, the identifier an SBOM reader matches advisories against.
+    pub fn purl(&self) -> String {
+        let kind = match self.ecosystem.as_str() {
+            "npm" => "npm",
+            "Python" => "pypi",
+            "Rust" => "cargo",
+            "Ruby" => "gem",
+            "PHP" => "composer",
+            "Go" => "golang",
+            _ => "generic",
+        };
+        format!("pkg:{kind}/{}@{}", self.name, self.version)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Sbom {
+    pub components: Vec<Component>,
+    /// Ecosystems that are present and whose contents `sv` could not read, with the reason.
+    pub unread: Vec<(String, String)>,
+}
+
+impl Sbom {
+    /// How many components are only as good as the range that was asked for.
+    pub fn declared_count(&self) -> usize {
+        self.components
+            .iter()
+            .filter(|c| c.source == VersionSource::Declared)
+            .count()
+    }
+
+    /// Whether this document can be relied on as a complete list.
+    pub fn is_complete(&self) -> bool {
+        self.unread.is_empty() && self.declared_count() == 0
+    }
+}
+
+/// Builds the bill of materials for an app folder.
+pub fn build(app_dir: &Path) -> Sbom {
+    let mut sbom = Sbom::default();
+    for eco in detect(app_dir) {
+        read_ecosystem(app_dir, &eco, &mut sbom);
+    }
+    sbom.components.sort_by(|a, b| {
+        a.ecosystem
+            .cmp(&b.ecosystem)
+            .then_with(|| a.name.cmp(&b.name))
+            .then_with(|| a.version.cmp(&b.version))
+    });
+    sbom.components.dedup();
+    sbom
+}
+
+fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
+    let read = |name: &str| std::fs::read_to_string(app_dir.join(name)).ok();
+
+    let locked: Option<Vec<(String, String)>> = match eco.lockfile.as_deref() {
+        Some("package-lock.json") => read("package-lock.json").as_deref().map(from_package_lock),
+        Some("Cargo.lock") => read("Cargo.lock").as_deref().map(from_cargo_lock),
+        Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
+        Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
+        Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
+        Some("requirements.lock") => read("requirements.lock")
+            .as_deref()
+            .map(from_pinned_requirements),
+        Some(other) => {
+            sbom.unread.push((
+                eco.name.clone(),
+                format!("`{other}` is a lockfile format `sv` cannot read yet, so nothing from {} is listed", eco.name),
+            ));
+            return;
+        }
+        None => None,
+    };
+
+    if let Some(pairs) = locked {
+        sbom.components
+            .extend(pairs.into_iter().map(|(name, version)| Component {
+                name,
+                version,
+                ecosystem: eco.name.clone(),
+                source: VersionSource::Locked,
+            }));
+        return;
+    }
+
+    // No lockfile, or one that produced nothing. Fall back to the manifest and say what that means.
+    let declared = match eco.manifest.as_str() {
+        "requirements.txt" => read("requirements.txt")
+            .as_deref()
+            .map(from_pinned_requirements),
+        _ => None,
+    };
+    match declared {
+        Some(pairs) if !pairs.is_empty() => {
+            sbom.components.extend(pairs.into_iter().map(|(name, version)| Component {
+                name,
+                version,
+                ecosystem: eco.name.clone(),
+                source: VersionSource::Declared,
+            }));
+        }
+        _ => sbom.unread.push((
+            eco.name.clone(),
+            format!(
+                "{} is in use but nothing readable says which versions are installed, so none of its \
+                 packages are listed",
+                eco.name
+            ),
+        )),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lockfile readers. Each returns (name, version) pairs; none guesses.
+
+fn from_package_lock(text: &str) -> Vec<(String, String)> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    // Lockfile v2/v3: a "packages" map keyed by path, where "" is the app itself.
+    if let Some(map) = v.get("packages").and_then(|p| p.as_object()) {
+        for (path, entry) in map {
+            if path.is_empty() {
+                continue;
+            }
+            let name = entry
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map(str::to_owned)
+                .unwrap_or_else(|| {
+                    path.rsplit("node_modules/")
+                        .next()
+                        .unwrap_or(path)
+                        .to_owned()
+                });
+            if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
+                out.push((name, version.to_owned()));
+            }
+        }
+    }
+    // Lockfile v1: a nested "dependencies" map.
+    if out.is_empty()
+        && let Some(map) = v.get("dependencies").and_then(|p| p.as_object())
+    {
+        for (name, entry) in map {
+            if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
+                out.push((name.clone(), version.to_owned()));
+            }
+        }
+    }
+    out
+}
+
+fn from_cargo_lock(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let (mut name, mut version) = (None, None);
+    for line in text.lines().map(str::trim) {
+        if line == "[[package]]" {
+            name = None;
+            version = None;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("name = ") {
+            name = Some(rest.trim_matches('"').to_owned());
+        } else if let Some(rest) = line.strip_prefix("version = ") {
+            version = Some(rest.trim_matches('"').to_owned());
+        }
+        if let (Some(n), Some(v)) = (&name, &version) {
+            out.push((n.clone(), v.clone()));
+            name = None;
+            version = None;
+        }
+    }
+    out
+}
+
+fn from_composer_lock(text: &str) -> Vec<(String, String)> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for key in ["packages", "packages-dev"] {
+        if let Some(list) = v.get(key).and_then(|p| p.as_array()) {
+            for entry in list {
+                if let (Some(n), Some(ver)) = (
+                    entry.get("name").and_then(|x| x.as_str()),
+                    entry.get("version").and_then(|x| x.as_str()),
+                ) {
+                    out.push((n.to_owned(), ver.to_owned()));
+                }
+            }
+        }
+    }
+    out
+}
+
+fn from_gemfile_lock(text: &str) -> Vec<(String, String)> {
+    // Specs are indented four spaces under `specs:`; their dependencies are indented six and are not
+    // separate packages.
+    let mut out = Vec::new();
+    let mut in_specs = false;
+    for line in text.lines() {
+        let trimmed = line.trim_end();
+        if trimmed.trim() == "specs:" {
+            in_specs = true;
+            continue;
+        }
+        if in_specs && !trimmed.starts_with("    ") {
+            in_specs = false;
+        }
+        if !in_specs || trimmed.starts_with("      ") {
+            continue;
+        }
+        let entry = trimmed.trim();
+        if let Some((name, rest)) = entry.split_once(" (")
+            && let Some(version) = rest.strip_suffix(')')
+        {
+            out.push((name.to_owned(), version.to_owned()));
+        }
+    }
+    out
+}
+
+fn from_go_sum(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let mut parts = line.split_whitespace();
+        let (Some(name), Some(version)) = (parts.next(), parts.next()) else {
+            continue;
+        };
+        // `module v1.2.3/go.mod h1:…` repeats the module; keep the one naming the module itself.
+        if version.ends_with("/go.mod") {
+            continue;
+        }
+        out.push((name.to_owned(), version.to_owned()));
+    }
+    out
+}
+
+/// Exact pins only. `flask>=2` says which versions are acceptable, not which one is there.
+fn from_pinned_requirements(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('-'))
+        .filter_map(|l| l.split_once("=="))
+        .map(|(name, version)| {
+            (
+                name.trim().to_owned(),
+                version
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(version)
+                    .trim()
+                    .to_owned(),
+            )
+        })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------------------------
+// CycloneDX
+
+#[derive(Serialize)]
+struct CycloneComponent {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    #[serde(rename = "bom-ref")]
+    bom_ref: String,
+    name: String,
+    version: String,
+    purl: String,
+    properties: Vec<Property>,
+}
+
+#[derive(Serialize)]
+struct Property {
+    name: String,
+    value: String,
+}
+
+#[derive(Serialize)]
+struct Metadata {
+    tools: Vec<Tool>,
+    properties: Vec<Property>,
+}
+
+#[derive(Serialize)]
+struct Tool {
+    vendor: &'static str,
+    name: &'static str,
+}
+
+#[derive(Serialize)]
+pub struct CycloneDx {
+    #[serde(rename = "bomFormat")]
+    bom_format: &'static str,
+    #[serde(rename = "specVersion")]
+    spec_version: &'static str,
+    version: u32,
+    metadata: Metadata,
+    components: Vec<CycloneComponent>,
+}
+
+/// Renders the bill of materials as CycloneDX 1.5 JSON.
+///
+/// The completeness caveats go in `metadata.properties` rather than only in the terminal, because the
+/// document is the thing that gets sent to somebody else, and a caveat that stays behind is not a caveat.
+pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
+    let mut properties = vec![Property {
+        name: "securevibe:complete".into(),
+        value: sbom.is_complete().to_string(),
+    }];
+    if sbom.declared_count() > 0 {
+        properties.push(Property {
+            name: "securevibe:declared-versions".into(),
+            value: format!(
+                "{} component(s) carry the version that was asked for, not the version installed",
+                sbom.declared_count()
+            ),
+        });
+    }
+    for (eco, why) in &sbom.unread {
+        properties.push(Property {
+            name: format!("securevibe:unread:{eco}"),
+            value: why.clone(),
+        });
+    }
+
+    CycloneDx {
+        bom_format: "CycloneDX",
+        spec_version: "1.5",
+        version: 1,
+        metadata: Metadata {
+            tools: vec![Tool {
+                vendor: "SecureVibe",
+                name: "sv",
+            }],
+            properties,
+        },
+        components: sbom
+            .components
+            .iter()
+            .map(|c| CycloneComponent {
+                kind: "library",
+                bom_ref: c.purl(),
+                name: c.name.clone(),
+                version: c.version.clone(),
+                purl: c.purl(),
+                properties: vec![Property {
+                    name: "securevibe:version-source".into(),
+                    value: match c.source {
+                        VersionSource::Locked => "locked: this is what is installed".into(),
+                        VersionSource::Declared => {
+                            "declared: this is what was asked for, and may be a range".to_string()
+                        }
+                    },
+                }],
+            })
+            .collect(),
+    }
+}
+
+/// A finding when the bill of materials cannot be trusted as a complete list.
+pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
+    if sbom.is_complete() {
+        return None;
+    }
+    let mut reasons: Vec<String> = sbom.unread.iter().map(|(_, why)| why.clone()).collect();
+    if sbom.declared_count() > 0 {
+        reasons.push(format!(
+            "{} package(s) are listed at the version asked for rather than the version installed",
+            sbom.declared_count()
+        ));
+    }
+    Some(Finding {
+        rule_id: "sbom.incomplete".into(),
+        title: "The list of what this app ships is not complete".into(),
+        severity: Severity::Medium,
+        confidence: Confidence::High,
+        location: Location { file: "sbom.cdx.json".into(), line: 1 },
+        secret: None,
+        requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
+        cwe: vec!["CWE-1104".into()],
+        description: reasons.join("; "),
+        impact: "A bill of materials is worth the completeness of its list. Asked whether a compromised \
+                 version of some library is in this app, nobody could answer from this document."
+            .into(),
+        fix: "Commit a lockfile for every ecosystem in use, and install from it.".into(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-sbom-{name}-{}", std::process::id()));
+        fs::remove_dir_all(&dir).ok();
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_locked_npm_app_lists_what_is_installed() {
+        let dir = scratch("npm");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("package-lock.json"),
+            r#"{"packages":{"":{"name":"app"},"node_modules/express":{"version":"4.18.2"}}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert_eq!(sbom.components.len(), 1);
+        assert_eq!(sbom.components[0].name, "express");
+        assert_eq!(sbom.components[0].version, "4.18.2");
+        assert_eq!(sbom.components[0].source, VersionSource::Locked);
+        assert_eq!(sbom.components[0].purl(), "pkg:npm/express@4.18.2");
+        assert!(sbom.is_complete());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_range_is_not_a_version_and_the_document_says_so() {
+        // requirements.txt with no lockfile: `flask>=2` tells nobody what is installed. Listing it as
+        // though it were a version is the failure this whole module is arranged around.
+        let dir = scratch("ranges");
+        fs::write(dir.join("requirements.txt"), "flask>=2.0\ngunicorn\n").unwrap();
+        let sbom = build(&dir);
+        assert!(
+            sbom.components.is_empty(),
+            "a range must not become a component: {sbom:?}"
+        );
+        assert!(!sbom.is_complete());
+        assert!(!sbom.unread.is_empty());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn exact_pins_are_read_and_marked_as_declared() {
+        let dir = scratch("pins");
+        fs::write(
+            dir.join("requirements.txt"),
+            "flask==3.0.0\nstripe==7.8.0\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert_eq!(sbom.components.len(), 2);
+        assert!(
+            sbom.components
+                .iter()
+                .all(|c| c.source == VersionSource::Declared)
+        );
+        // Declared is not complete: nothing has confirmed that is what is installed.
+        assert!(!sbom.is_complete());
+        assert_eq!(sbom.declared_count(), 2);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_unreadable_lockfile_format_is_named_rather_than_dropped() {
+        // An SBOM that quietly omits a whole ecosystem reads exactly like one with nothing to omit.
+        let dir = scratch("poetry");
+        fs::write(dir.join("pyproject.toml"), "[project]\nname='x'\n").unwrap();
+        fs::write(dir.join("poetry.lock"), "# lock\n").unwrap();
+        let sbom = build(&dir);
+        assert!(sbom.components.is_empty());
+        let (eco, why) = sbom.unread.first().expect("must be named");
+        assert_eq!(eco, "Python");
+        assert!(why.contains("cannot read yet"), "{why}");
+        assert!(!sbom.is_complete());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_caveats_travel_with_the_document() {
+        // The terminal is not where an SBOM ends up. Someone receives this file and asks it a question.
+        let dir = scratch("caveats");
+        fs::write(dir.join("requirements.txt"), "flask==3.0.0\n").unwrap();
+        let sbom = build(&dir);
+        let json = serde_json::to_string(&to_cyclonedx(&sbom)).unwrap();
+        assert!(json.contains("securevibe:complete"), "{json}");
+        assert!(json.contains("\"value\":\"false\""), "{json}");
+        assert!(json.contains("asked for"), "{json}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_complete_document_does_not_carry_a_warning_it_has_not_earned() {
+        let dir = scratch("clean");
+        fs::write(dir.join("Cargo.toml"), "[package]\nname='x'\n").unwrap();
+        fs::write(
+            dir.join("Cargo.lock"),
+            "[[package]]\nname = \"serde\"\nversion = \"1.0.229\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert!(sbom.is_complete(), "{sbom:?}");
+        assert!(incompleteness_finding(&sbom).is_none());
+        assert_eq!(sbom.components[0].purl(), "pkg:cargo/serde@1.0.229");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn go_sum_lists_each_module_once() {
+        let dir = scratch("go");
+        fs::write(dir.join("go.mod"), "module x\n").unwrap();
+        fs::write(
+            dir.join("go.sum"),
+            "github.com/gorilla/websocket v1.5.0 h1:abc=\ngithub.com/gorilla/websocket v1.5.0/go.mod h1:def=\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        assert_eq!(sbom.components.len(), 1, "{sbom:?}");
+        assert_eq!(sbom.components[0].version, "v1.5.0");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gemfile_lock_reads_specs_and_not_their_dependencies() {
+        let dir = scratch("gem");
+        fs::write(dir.join("Gemfile"), "source 'x'\n").unwrap();
+        fs::write(
+            dir.join("Gemfile.lock"),
+            "GEM\n  remote: https://rubygems.org/\n  specs:\n    rails (7.1.0)\n      actionpack (= 7.1.0)\n    rake (13.0.6)\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["rails", "rake"],
+            "nested dependencies are not separate packages"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+}

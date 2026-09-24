@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+serde_json.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-manifest = { path = "../sv-manifest" }
 sv-scan = { path = "../sv-scan" }

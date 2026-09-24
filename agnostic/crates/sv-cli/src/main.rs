@@ -3,6 +3,7 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_check::config::check_dir;
+use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
 use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket, requirements_gated_on};
@@ -22,6 +23,7 @@ fn main() -> Result<()> {
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
+        Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -40,7 +42,8 @@ fn print_help() {
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv run [PATH]      start the app behind the network fence and check it answers\n  \
-         sv check [PATH]    look for credentials left in the code\n"
+         sv check [PATH]    credentials left in the code, and how it is set up\n  \
+         sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n"
     );
 }
 
@@ -449,6 +452,7 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
 
     let mut findings = scan.findings;
     findings.extend(config.findings);
+    findings.extend(sbom::incompleteness_finding(&sbom::build(&app_dir)));
     findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -499,5 +503,46 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             println!("     evidence about: {}", f.requirement_ids.join(", "));
         }
     }
+    Ok(())
+}
+
+/// Writes the list of what the app ships.
+///
+/// The document goes to standard output and everything else to standard error, so
+/// `sv sbom ./app > sbom.cdx.json` gives a clean file and still tells the person what it is worth.
+fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    if !app_dir.is_dir() {
+        bail!("{} is not a folder", app_dir.display());
+    }
+    let sbom = sbom::build(&app_dir);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom))?
+    );
+
+    eprintln!(
+        "{} package{} listed.",
+        sbom.components.len(),
+        if sbom.components.len() == 1 { "" } else { "s" }
+    );
+    if sbom.is_complete() {
+        eprintln!("Every ecosystem in use was read from a lockfile, so this is what is installed.");
+        return Ok(());
+    }
+    eprintln!("\nThis list is NOT complete, and the document says so too:");
+    if sbom.declared_count() > 0 {
+        eprintln!(
+            "  {} package(s) carry the version that was asked for, not the version installed.",
+            sbom.declared_count()
+        );
+    }
+    for (_, why) in &sbom.unread {
+        eprintln!("  {why}");
+    }
+    eprintln!(
+        "\nAsked whether a compromised version of some library is in this app, nobody could answer\n\
+         from this document. Commit a lockfile for every ecosystem in use, and install from it."
+    );
     Ok(())
 }

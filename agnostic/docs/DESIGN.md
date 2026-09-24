@@ -472,3 +472,30 @@ So `DetectedEcosystem` now carries `pins_with_lockfile`, `unpinned` only returns
 one, and Maven comes back **not assessed** with a reason: versions live in the manifest and `sv` does not
 read ranges out of it yet. Removing that distinction fails two tests — one that Maven produces no finding,
 and one that it does not silently pass either, because not reporting something must not mean approving it.
+
+## The bill of materials
+
+`sv sbom ./app` writes CycloneDX 1.5 JSON to standard output and everything else to standard error, so
+`sv sbom ./app > sbom.cdx.json` gives a clean file and still tells the person what it is worth.
+
+An SBOM is worth exactly the completeness of its list. The whole reason to hand one to somebody is that
+they can ask "is the compromised version of that library in here?" and trust the answer, so a partial one
+is more dangerous than none. Two things follow, and both are recorded on the document rather than only in
+the terminal — a caveat that stays behind in a terminal is not a caveat.
+
+**A range is not a version.** A lockfile says what is installed; a manifest says what was asked for, and
+`^4.18.0` is a different thing on a different day and a different machine. Components read from a manifest
+are marked `declared`, the count appears in `metadata.properties`, and `flask>=2.0` produces no component
+at all — listing it as though the range were a version is the failure this module is arranged around.
+
+**An ecosystem that could not be read is named.** `poetry.lock` is a format `sv` cannot parse yet, so it
+appears in the document as an unread ecosystem rather than being silently dropped. An SBOM that quietly
+omits a whole ecosystem reads exactly like one that had nothing to omit.
+
+Lockfile readers so far: `package-lock.json` (v1 and v2/v3 shapes), `Cargo.lock`, `composer.lock`,
+`Gemfile.lock`, `go.sum` and exact `==` pins in requirements files. `Gemfile.lock` indentation matters —
+specs are indented four spaces and their own dependencies six, and reading both would invent packages the
+app does not ship.
+
+Where the list is not complete, `sv check` says so as a medium finding, because the gap is the point: asked
+whether a compromised library is in this app, nobody could answer from an incomplete document.

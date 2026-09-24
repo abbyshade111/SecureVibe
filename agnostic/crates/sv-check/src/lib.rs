@@ -7,7 +7,9 @@
 
 pub mod config;
 pub mod finding;
+pub mod sbom;
 pub mod secrets;
 
 pub use finding::{Confidence, Finding, Location, Secret, Severity};
+pub use sbom::{Sbom, build as build_sbom, to_cyclonedx};
 pub use secrets::{SecretRules, SecretScan, scan_text};
