@@ -62,17 +62,20 @@ fn clean_python_lets_the_rules_that_read_it_say_so() {
 
 #[test]
 fn a_language_nothing_can_parse_silences_every_rule() {
-    // The important one. The app has clean Python and a Ruby file no grammar reads. The injection
-    // these rules look for could be in the Ruby, so none of them has established anything about
+    // The important one. The app has clean Python and a C# file no grammar reads. The injection
+    // these rules look for could be in the C#, so none of them has established anything about
     // this app — not even the ones whose own language was fully read.
+    //
+    // This used to use Ruby, until Ruby got a grammar. The list of languages that silence
+    // everything is meant to shrink; what must not change is that a language on it still does.
     let dir = scratch("ast-unread");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
-    std::fs::write(dir.join("worker.rb"), "puts 'hello'\n").unwrap();
+    std::fs::write(dir.join("Worker.cs"), "class W { }\n").unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !scan.unread_languages.is_empty(),
-        "the setup is wrong: ruby was expected to be unread"
+        "the setup is wrong: C# was expected to be unread"
     );
     assert!(
         scan.verified.is_empty(),
@@ -320,5 +323,54 @@ fn nothing_claims_more_when_it_passes_than_it_cites_when_it_fails() {
                 v.check_id
             );
         }
+    }
+}
+
+#[test]
+fn a_clean_ruby_php_and_java_app_can_now_say_it_was_read() {
+    // The other half of what the grammars bought. Before them, a single Ruby file silenced every
+    // rule for the whole app — the fail-closed behaviour working correctly on an app `sv` could not
+    // read. Three more languages read means three fewer apps that get nothing but silence.
+    let dir = scratch("polyglot-clean");
+    std::fs::write(
+        dir.join("worker.rb"),
+        "def find(db, name)\n  db.execute(\"select * from notes where title = ?\", [name])\nend\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("index.php"),
+        "<?php\n$stmt = $db->prepare(\"select * from notes where title = ?\");\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("App.java"),
+        "class App { void f() { System.out.println(\"hi\"); } }\n",
+    )
+    .unwrap();
+
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
+    let findings = scan.findings.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(
+        findings.is_empty(),
+        "this app is written carefully: {findings:?}"
+    );
+    assert!(
+        unread.is_empty(),
+        "nothing here should be unreadable any more: {unread:?}"
+    );
+    assert!(
+        !verified.is_empty(),
+        "a fully-read app must be able to report clean coverage"
+    );
+    let scopes: Vec<&str> = verified.iter().map(|v| v.scope.as_str()).collect();
+    for language in ["ruby", "php", "java"] {
+        assert!(
+            scopes.iter().any(|s| s.contains(language)),
+            "{language} is read now and must appear in what was covered: {scopes:?}"
+        );
     }
 }

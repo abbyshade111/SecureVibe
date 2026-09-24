@@ -110,6 +110,9 @@ fn grammar(language: &str) -> Option<Language> {
         "javascript" => tree_sitter_javascript::LANGUAGE.into(),
         "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         "go" => tree_sitter_go::LANGUAGE.into(),
+        "ruby" => tree_sitter_ruby::LANGUAGE.into(),
+        "php" => tree_sitter_php::LANGUAGE_PHP.into(),
+        "java" => tree_sitter_java::LANGUAGE.into(),
         _ => return None,
     })
 }
@@ -213,6 +216,12 @@ fn is_literal(node: tree_sitter::Node) -> bool {
         "false",
         "none",
         "null",
+        // Ruby's backtick form. `ls -la` is as fixed as any string; `ls #{dir}` is not, and the
+        // interpolation check below is what tells them apart — the same test every other kind gets.
+        "subshell",
+        // PHP's double-quoted strings, which interpolate `$name` without any `{}` around it.
+        "encapsed_string",
+        "string_value",
     ];
 
     // `"a" + "b"` is still a constant; `"a" + name` is not.
@@ -232,6 +241,18 @@ fn is_literal(node: tree_sitter::Node) -> bool {
 
 /// Whether anything is substituted into this literal, however deeply.
 fn has_interpolation(node: tree_sitter::Node) -> bool {
+    // PHP puts a plain `variable_name` inside a double-quoted string, with no wrapper node to
+    // recognise: `"select ... $name"` is a built string that looks like a literal to the list below.
+    if node.kind() == "encapsed_string" {
+        let mut cursor = node.walk();
+        if node
+            .named_children(&mut cursor)
+            .any(|c| c.kind() != "string_content" && c.kind() != "escape_sequence")
+        {
+            return true;
+        }
+    }
+
     let mut cursor = node.walk();
     node.children(&mut cursor).any(|child| {
         matches!(
@@ -498,8 +519,10 @@ mod tests {
 
     #[test]
     fn a_rule_naming_a_language_with_no_grammar_is_refused_at_load() {
-        // Quietly dropping it would leave a rule that claims to cover Ruby and never runs.
-        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"ruby\""));
+        // Quietly dropping it would leave a rule that claims to cover a language and never runs.
+        // C# stands in for that here; this test used to name Ruby, until Ruby got a grammar — which
+        // is the right way round for a test like this to break.
+        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"csharp\""));
         let error = match refused {
             Ok(_) => panic!("an unknown language must be refused"),
             Err(e) => format!("{e:#}"),
@@ -649,8 +672,130 @@ mod tests {
 
     #[test]
     fn a_language_with_no_grammar_yields_nothing_rather_than_pretending() {
-        assert!(scan_file(&rules(), "ruby", "app.rb", "eval(params[:x])").is_empty());
-        assert!(!is_supported("ruby"));
+        // C# is read by `sv-scan` — it counts towards what an app is written in — and has no
+        // grammar here, which is the combination that has to stay silent rather than guess.
+        assert!(scan_file(&rules(), "csharp", "App.cs", "Eval(Request.Query[\"x\"]);").is_empty());
+        assert!(!is_supported("csharp"));
         assert!(is_supported("python") && is_supported("typescript"));
+    }
+
+    #[test]
+    fn the_three_new_grammars_read_their_own_languages() {
+        // The point of adding them. Each snippet is the shape somebody would really write.
+        for (language, file, source, expected) in [
+            (
+                "ruby",
+                "app.rb",
+                "db.execute(\"select * from t where n = \" + name)",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "ruby",
+                "app.rb",
+                "Marshal.load(params[:blob])",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php $db->query(\"select * from t where n = \" . $name);",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php unserialize($_GET[\"blob\"]);",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "java",
+                "App.java",
+                "class A { void f(String n) { stmt.executeQuery(\"select * from t where n = \" + n); } }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "java",
+                "App.java",
+                "class A { void f() { new ObjectInputStream(in).readObject(); } }",
+                "ast.unsafe-deserialization",
+            ),
+        ] {
+            let findings = scan_file(&rules(), language, file, source);
+            assert!(
+                ids(&findings).contains(&expected),
+                "{language}: expected {expected}, got {:?}",
+                ids(&findings)
+            );
+        }
+    }
+
+    #[test]
+    fn ruby_backticks_are_a_shell_command_and_a_fixed_one_is_not_reported() {
+        // The backtick form has no method name to match, so it is its own pattern. `ls` cannot be
+        // made to run anything else; `ls #{dir}` can, and the literal check is what tells them
+        // apart — the same rule the rest of this file runs on.
+        let dangerous = scan_file(&rules(), "ruby", "app.rb", "`ls #{params[:dir]}`");
+        assert!(
+            ids(&dangerous).contains(&"ast.shell-command-backticks"),
+            "{dangerous:?}"
+        );
+        let fixed = scan_file(&rules(), "ruby", "app.rb", "`ls -la`");
+        assert!(
+            !ids(&fixed).contains(&"ast.shell-command-backticks"),
+            "a fixed command cannot be made to run anything else: {fixed:?}"
+        );
+    }
+
+    #[test]
+    fn a_php_string_that_interpolates_a_variable_is_not_a_literal() {
+        // PHP puts a bare `$name` inside a double-quoted string with no wrapper node, so the string
+        // looks exactly like a written-out one to a check that only knows about `${…}` and `#{…}`.
+        // Missing this reports every PHP query built the most natural way as a constant, which is
+        // the case the rule exists for.
+        let built = scan_file(
+            &rules(),
+            "php",
+            "app.php",
+            "<?php $db->query(\"select * from t where n = $name\");",
+        );
+        assert!(
+            ids(&built).contains(&"ast.sql-built-by-hand"),
+            "an interpolated PHP string is a built string: {built:?}"
+        );
+        let fixed = scan_file(
+            &rules(),
+            "php",
+            "app.php",
+            "<?php $db->query(\"select * from t where n = ?\");",
+        );
+        assert!(
+            !ids(&fixed).contains(&"ast.sql-built-by-hand"),
+            "a written-out query is not a finding: {fixed:?}"
+        );
+    }
+
+    #[test]
+    fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
+        // `load` is far too common a method name to report on its own. The receiver is what makes
+        // it a deserialisation, and over-reporting here would teach somebody to skip the rule.
+        // A lower-case receiver is an `identifier`, which the query's own shape excludes.
+        let findings = scan_file(&rules(), "ruby", "app.rb", "config.load(path)");
+        assert!(
+            !ids(&findings).contains(&"ast.unsafe-deserialization"),
+            "{findings:?}"
+        );
+        // A capitalised one is a `constant`, which the query does match — so only the receiver
+        // pattern stops it. Without this case the pattern could be deleted and every test here
+        // would still pass, because the one above was being excluded by the node kind instead.
+        let other_constant = scan_file(&rules(), "ruby", "app.rb", "Settings.load(path)");
+        assert!(
+            !ids(&other_constant).contains(&"ast.unsafe-deserialization"),
+            "a constant that is not a deserialiser must not be reported: {other_constant:?}"
+        );
+        let real = scan_file(&rules(), "ruby", "app.rb", "YAML.load(untrusted)");
+        assert!(
+            ids(&real).contains(&"ast.unsafe-deserialization"),
+            "{real:?}"
+        );
     }
 }

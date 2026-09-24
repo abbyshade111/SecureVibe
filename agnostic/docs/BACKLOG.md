@@ -11,13 +11,13 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **Grammars for Ruby, PHP and Java.** **[taken: keen-meninsky-691a27, 24 September 2026]** Named as
-  unread today, which is worse than it sounds: one Ruby file stops *every* code rule claiming anything
-  about the whole app, because a rule may not speak while a language goes unparsed. Each is a
-  dependency line and an entry per rule; the machinery does not change.
+- **Grammars for C#, Kotlin, Rust and C.** Seven languages are read; these four are recognised by the
+  scanner, counted towards what an app is written in, and have no grammar — so a file in any of them
+  still silences every code rule for the whole app. Each is a dependency line and an entry per rule.
 
-- **More AST rules.** Four cover code execution, shell, SQL and deserialization. Path traversal, weak
-  cryptography and unvalidated redirects are the obvious next ones, and each is a data entry.
+- **More AST rules.** Five cover code execution, shell, backticks, SQL and deserialization, across seven
+  languages. Path traversal, weak cryptography and unvalidated redirects are the obvious next ones, and
+  each is a data entry per language.
 
 - **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
