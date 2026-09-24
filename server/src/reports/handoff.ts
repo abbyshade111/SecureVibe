@@ -82,6 +82,13 @@ export function handoffMarkdown(input: HandoffInput): string {
   lines.push('```', 'npm install', 'npm run setup      # creates .env with fresh secrets, the database and the first administrator', 'npm start', '```', '');
   lines.push('`app/README.md` explains every folder and setting. The one-time administrator password is printed by `npm run setup`.', '');
 
+  if (run.ownerTasks && run.ownerTasks.length > 0) {
+    lines.push('## What only the owner can do', '');
+    lines.push('Worked out from the app itself and the answers, not from prose. Each says what stays switched off until it is done.', '');
+    for (const t of run.ownerTasks) lines.push(`- **${t.title}** ${t.because} ${t.staysOff}`);
+    lines.push('');
+  }
+
   lines.push('## How the checks came out', '');
   if (compliance) {
     lines.push(`**${compliance.overall.rating.replace('-', ' ').toUpperCase()}** — ${compliance.overall.headline}`, '');

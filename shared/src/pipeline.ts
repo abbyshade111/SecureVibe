@@ -424,6 +424,26 @@ export const PipelineRunSchema = z.object({
       }),
     )
     .optional(),
+  /**
+   * "What only you can do": things SecureVibe cannot finish for the owner, worked out from facts rather than
+   * prose. A setting left empty in the app's .env, an outside service named without an address or a key, a
+   * planned feature that came back not built. Each says what the owner must do and what stays switched off
+   * until they do. Values from .env are never copied here, only whether a key is empty.
+   */
+  ownerTasks: z
+    .array(
+      z.object({
+        id: z.string(),
+        source: z.enum(['setting', 'service', 'feature']),
+        /** What the owner must do, in plain words. */
+        title: z.string(),
+        /** The fact it was worked out from. */
+        because: z.string(),
+        /** What stays switched off or unfinished until they do. */
+        staysOff: z.string(),
+      }),
+    )
+    .optional(),
   /** When the reports were last rewritten with people's answers (without running the checks again). */
   reportsRefreshedAt: z.string().optional(),
   /** What the owner approved on the build page (absent for CLI runs, which record no approval). */

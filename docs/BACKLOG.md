@@ -18,10 +18,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **"What only you can do".** A list on the Results page and in the reports, derived from facts rather than
-  prose: settings left unset, named outside services with no address, planned features that came back not-built.
-  For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
-  has this shape for deployment, so it extends a pattern rather than inventing a third list.
 - **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
   organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
   for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
@@ -229,9 +225,6 @@ building from nothing.
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
   app.
-- **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
-  rest. Multiple selection where the question allows it, and the answers it may set must still come from the
-  same allow-list, so this widens what an owner can say without widening what the flow may change.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
   `UX-01 …`, and `UX-01` appears in no framework file and no knowledge file — so it is credited to nothing, screened
   by nothing, and reads to anyone else as a citation. Either it becomes a real entry somewhere with wording the
