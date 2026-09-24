@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import { signOut } from '../lib/api';
+import { ActiveBuildBar } from './ActiveBuildBar';
 
 async function handleSignOut() {
   await signOut();
@@ -33,6 +34,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
+      <ActiveBuildBar />
       <main id="sv-main-content" className="sv-main" tabIndex={-1}>
         {children}
       </main>

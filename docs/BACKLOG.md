@@ -41,12 +41,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   answer to a different question, are questions rather than offers — the owner decides. Removing one must set
   `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
   rebuild recreates them from the answers.
-- **A build in progress is invisible from anywhere but the build page.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** The live spending figure and the
-  activity feed arrive on the run's event stream, which only that page listens to. An owner who wanders off
-  mid-build — to their project list, to another app — sees nothing to say that something is running and costing
-  them money, and coming back recovers only the figure from the last completed stage. That is the moment a
-  first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
-  they are, which is more than a line of code: something has to hold the run's state above the page.
 - **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
   `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
   refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an

@@ -236,6 +236,21 @@ img {
   color: var(--color-text);
   text-decoration: none;
 }
+.sv-active-builds {
+  background: var(--color-warn-bg);
+  color: var(--color-warn-text);
+  border-bottom: 2px solid var(--color-warn-border);
+}
+.sv-active-build {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
 .sv-verdict {
   display: inline-flex;
   align-items: center;

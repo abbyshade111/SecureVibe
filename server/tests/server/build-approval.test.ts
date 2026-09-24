@@ -104,6 +104,8 @@ describe('starting a build over the API', () => {
     // The run record exists before the worker starts, so the page can follow it straight away.
     expect(harness.store.findRun(ok.body.run.id as string)?.status).toBe('running');
     expect(harness.store.mustGet(project.id).status).toBe('building');
+    // The project points at the new run from the moment it exists, so every page can find the live build.
+    expect(harness.store.mustGet(project.id).lastRunId).toBe(ok.body.run.id);
 
     // The code works once.
     const reused = await request(harness.server).post(`/api/projects/${project.id}/runs`).set(headers).send({ mode: 'full', approved: true, approvalCode });
