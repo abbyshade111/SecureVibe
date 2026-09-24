@@ -11,9 +11,9 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **Grammars for C#, Kotlin, Rust and C.** Seven languages are read; these four are recognised by the
-  scanner, counted towards what an app is written in, and have no grammar — so a file in any of them
-  still silences every code rule for the whole app. Each is a dependency line and an entry per rule.
+- **Grammars for C#, Kotlin, Rust and C.** **[taken: keen-meninsky-691a27, 24 September 2026]** Seven
+  languages are read; these four are recognised by the scanner, counted towards what an app is written
+  in, and have no grammar — so a file in any of them still silences every code rule for the whole app.
 
 - **More AST rules.** Five cover code execution, shell, backticks, SQL and deserialization, across seven
   languages. Path traversal, weak cryptography and unvalidated redirects are the obvious next ones, and
