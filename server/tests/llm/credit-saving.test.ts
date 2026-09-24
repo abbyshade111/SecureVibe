@@ -50,7 +50,7 @@ describe('Save credits', () => {
 describe('the small steps', () => {
   it('run on the cheap model of their service, whatever model is chosen for the rest', () => {
     const chosen = { ...DEFAULT_SETTINGS, saveCredits: false, model: 'claude-opus-5' };
-    // Scoring a piece of text and rewriting wording in plain language are not judgement about the app.
+    // Scoring a piece of text and rewriting wording in plain language are not judgment about the app.
     expect(effectiveAiSettings(chosen, 'classify').model).toBe(SMALL_STEP_MODELS.anthropic);
     expect(effectiveAiSettings(chosen, 'summarize').model).toBe(SMALL_STEP_MODELS.anthropic);
     // Writing and reviewing keep the model the owner chose.

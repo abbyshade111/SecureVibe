@@ -171,8 +171,8 @@ export async function runDast(ctx: ScanContext, opts: DastOptions = {}): Promise
     phases.push({ phase: 'production', started: production.started, reason: production.reason, sandboxMode: production.sandboxMode });
     sandboxMode ??= production.sandboxMode;
   } else {
-    results.push(...notAttemptedForPhase('production', 'the run was cancelled before the production-mode checks'));
-    phases.push({ phase: 'production', started: false, reason: 'the run was cancelled' });
+    results.push(...notAttemptedForPhase('production', 'the run was canceled before the production-mode checks'));
+    phases.push({ phase: 'production', started: false, reason: 'the run was canceled' });
   }
 
   if (ctx.buildSpec.features.tlsMode === 'selfsigned' && hasCertificates(ctx.appDir) && !ctx.abort.aborted) {

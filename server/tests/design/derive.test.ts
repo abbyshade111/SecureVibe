@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DesignArtifactsSchema, type DesignArtifacts } from '@shared/design.js';
+import { DesignProfileSchema } from '@shared/profile.js';
 import type { Attestation } from '@shared/project.js';
 import { deriveDesign, profileHash } from '../../src/design/index.js';
 import { frameworksForTests, makeKnowledge } from '../fixtures/design/knowledge.js';
@@ -206,6 +207,20 @@ describe('deriveDesign: team inventory (local network, invitations, uploads, con
     ]);
   });
 
+  it('marks AC-02 not applicable, with the answer as the reason, when the owner has no central sign-in system', () => {
+    // An owner with no organization was rated at risk on AC-02 for ever. The wizard now asks, and "no" answers it.
+    const withoutIdp = DesignProfileSchema.parse({ ...teamInventory, users: { ...teamInventory.users, centralSignIn: 'no' } });
+    const design = deriveDesign(withoutIdp, { knowledge, frameworks, now: NOW });
+    const entry = design.checklist.find((e) => e.id === 'AC-02')!;
+    expect(entry.status).toBe('n-a');
+    expect(entry.justification).toContain('no central sign-in system');
+    expect(entry.actions).toEqual([]);
+    expect(design.riskTriage.criticalNo).not.toContain('AC-02');
+    // "not sure" is read as "yes": the connection stays a later action, and the control stays "no".
+    const unsure = deriveDesign(DesignProfileSchema.parse({ ...teamInventory, users: { ...teamInventory.users, centralSignIn: 'not-sure' } }), { knowledge, frameworks, now: NOW });
+    expect(unsure.checklist.find((e) => e.id === 'AC-02')!.status).toBe('no');
+  });
+
   it('answers AC-01 and DM-02 yes on the local network and AC-02 no with a plan', () => {
     const byId = new Map(design.checklist.map((e) => [e.id, e]));
     expect(byId.get('AC-01')?.status).toBe('yes');
@@ -214,7 +229,7 @@ describe('deriveDesign: team inventory (local network, invitations, uploads, con
     expect(byId.get('AC-02')?.mitigationPlan).toEqual({
       owner: 'owner:Priya Nair',
       dueBy: 'before multi-team use',
-      action: 'Adopt a central identity provider (OIDC) if the organisation has one.',
+      action: 'Adopt a central identity provider (OIDC) if the organization has one.',
     });
     expect(byId.get('AC-06')?.status).toBe('yes');
     expect(byId.get('RR-02')?.status).toBe('yes');

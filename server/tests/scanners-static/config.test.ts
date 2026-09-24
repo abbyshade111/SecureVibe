@@ -4,13 +4,20 @@
  * TLS_MODE/BIND_LAN combination the other two fixtures don't use, so they get their own small fixture.
  */
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { uploadedManifest } from '../../src/api/uploads.js';
 import { describe, expect, it } from 'vitest';
 import type { Provenance } from '@shared/pipeline.js';
 import { CONFIG_CHECKS } from '../../src/scanners/config/checks.js';
 import { ALL_CONFIG_CHECKS, CONFIG_TOOL, runConfig } from '../../src/scanners/config/index.js';
 import { fixtureDir, makeScanContext } from './helpers.js';
+
+/** The manifest of an app SecureVibe built: the fixture's own, which is the template's shape. */
+function readManifestForBuiltApp() {
+  return makeScanContext(fixtureDir('config-app-good')).manifest;
+}
 
 function fileHash(appDir: string, relPath: string): string {
   return createHash('sha256').update(readFileSync(join(appDir, relPath))).digest('hex');
@@ -133,6 +140,60 @@ describe('config-app (bad): most checks fail with a plain-language reason', () =
     ];
     for (const id of expectedToFail) expect(failed.has(id), id).toBe(true);
     expect(result.status).toBe('failed');
+  });
+});
+
+describe('an app SecureVibe did not build is not measured against its own conventions (ADR-012)', () => {
+  function pythonApp(readme: string | undefined): string {
+    const dir = mkdtempSync(join(tmpdir(), 'sv-flask-'));
+    writeFileSync(join(dir, 'app.py'), 'from flask import Flask\napp = Flask(__name__)\n');
+    writeFileSync(join(dir, 'requirements.txt'), 'flask==3.0.0\n');
+    if (readme !== undefined) writeFileSync(join(dir, 'README.md'), readme);
+    return dir;
+  }
+  const uploaded = (appDir: string) => makeScanContext(appDir, { manifest: uploadedManifest() });
+
+  it('does not ask npm questions of a Python app, and does not fail it for lacking our documents', async () => {
+    const result = await runConfig(uploaded(pythonApp('# Notes\n\n## Running\n\n    pip install -r requirements.txt\n    flask run\n')));
+    const failed = result.findings.map((f) => f.ruleId);
+    // The three classes the Flask re-run on 20 September 2026 still showed firing.
+    expect(failed).not.toContain('config.node-engine-pinned');
+    expect(failed).not.toContain('config.readme-run-instructions');
+    expect(failed.filter((id) => id.startsWith('docs.'))).toEqual([]);
+    expect(failed).not.toContain('config.lockfile-present');
+    expect(failed).not.toContain('config.ignore-scripts');
+    const notApplicable = (result.details as { notApplicable: string[] }).notApplicable;
+    expect(notApplicable).toEqual(expect.arrayContaining(['config.node-engine-pinned', 'config.lockfile-present', 'config.ignore-scripts']));
+    expect(notApplicable.filter((id) => id.startsWith('docs.'))).toHaveLength(7);
+    // No evidence either: a document that could not be looked for verifies nothing.
+    expect(result.evidence.some((e) => e.ref.startsWith('docs.'))).toBe(false);
+    // The summary says why, in two groups, rather than calling everything "about npm".
+    expect(result.summary).toMatch(/3 because they are about npm/);
+    expect(result.summary).toMatch(/7 because they look for the documents SecureVibe writes/);
+  });
+
+  it('still asks whether the README says how to run the app, in that app\'s own terms', async () => {
+    const ok = await runConfig(uploaded(pythonApp('Start it with `gunicorn app:app`.')));
+    expect(ok.findings.map((f) => f.ruleId)).not.toContain('config.readme-run-instructions');
+    expect(ok.evidence.find((e) => e.ref === 'config.readme-run-instructions')?.summary).toMatch(/says how to set up and run/);
+
+    const silent = await runConfig(uploaded(pythonApp('A small app. Enjoy.')));
+    const finding = silent.findings.find((f) => f.ruleId === 'config.readme-run-instructions');
+    expect(finding).toBeDefined();
+    // What it says about this app names no npm command; the remediation steps say which apps npm applies to.
+    expect(finding!.evidence).not.toContain('npm');
+    expect(finding!.description).not.toContain('npm');
+
+    const missing = await runConfig(uploaded(pythonApp(undefined)));
+    expect(missing.findings.find((f) => f.ruleId === 'config.readme-run-instructions')?.evidence).toMatch(/missing or empty/);
+  });
+
+  it('keeps the strict template question for an app SecureVibe built', async () => {
+    const dir = pythonApp('## Getting started\n\nnpm install\nnpm start\n');
+    writeFileSync(join(dir, 'package.json'), '{}');
+    // Built apps are read with the template manifest; the README must name the setup step that makes the secrets.
+    const result = await runConfig(makeScanContext(dir, { manifest: readManifestForBuiltApp() }));
+    expect(result.findings.find((f) => f.ruleId === 'config.readme-run-instructions')?.evidence).toMatch(/npm run setup/);
   });
 });
 

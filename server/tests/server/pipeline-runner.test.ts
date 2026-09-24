@@ -138,7 +138,7 @@ describe('pipeline runner', () => {
       id: 'r_20260920000000_cccccc',
       projectId: project.id,
       mode: 'full',
-      status: 'cancelled',
+      status: 'canceled',
       startedAt: '2026-09-20T00:00:00.000Z',
       stages: [{ id: 'generate', status: 'failed', summary: 'the AI could not be reached', round: 0 }],
       findings: [],
@@ -164,7 +164,7 @@ describe('pipeline runner', () => {
       id: 'r_20260918130000_bbbbbb',
       projectId: project.id,
       mode: 'full',
-      status: 'cancelled',
+      status: 'canceled',
       startedAt: '2026-09-18T13:00:00.000Z',
       stages: [{ id: 'generate', status: 'passed', summary: 'written', round: 0 }],
       findings: [],
@@ -268,7 +268,7 @@ describe('pipeline runner', () => {
     expect(run.status).toBe('failed');
   });
 
-  it('cancelling mid-run stops the remaining core stages and marks the run cancelled', async () => {
+  it('canceling mid-run stops the remaining core stages and marks the run canceled', async () => {
     const project = makeProject();
     const started = startRun(project, { mode: 'full', spendingCapUsd: 15 }, deps);
     vi.mocked(stages.runInstall).mockImplementationOnce(async () => {
@@ -277,7 +277,7 @@ describe('pipeline runner', () => {
     });
 
     const run = await started.execute();
-    expect(run.status).toBe('cancelled');
+    expect(run.status).toBe('canceled');
     expect(stages.runTypecheck).not.toHaveBeenCalled();
     expect(fixLoop.runFixLoop).not.toHaveBeenCalled();
     expect(stages.runComplianceStage).toHaveBeenCalledTimes(1); // still evaluated with whatever was found

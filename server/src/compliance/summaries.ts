@@ -1,6 +1,6 @@
 /**
  * Standard-level summaries (CONTRACTS §9.4, DESIGN §13.1): counts, coverage percentages and the plain three-way
- * rating shown at the top of the compliance report. Never a single colour — always the four headline numbers.
+ * rating shown at the top of the compliance report. Never a single color — always the four headline numbers.
  */
 import type { ChapterSummary, RequirementResult, StandardId, StandardSummary } from '@shared/compliance.js';
 import { emptyCounts } from '@shared/compliance.js';

@@ -86,7 +86,7 @@ describe('db', () => {
     assert.equal((await listNotes(jar)).length, after);
   });
 
-  test('RR-05 JSON API mutations honour Idempotency-Key: a retried create returns the stored response and writes once', async (t) => {
+  test('RR-05 JSON API mutations honor Idempotency-Key: a retried create returns the stored response and writes once', async (t) => {
     if (!hasNotes) return t.skip('reference notes API not mounted (EXAMPLE_FEATURE=0)');
     const route = await app.findRoute('POST', /^\/api\/notes$/);
     if (!route?.idempotent) return t.skip('the notes create route does not declare idempotent: true');

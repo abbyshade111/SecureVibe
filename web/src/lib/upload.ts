@@ -3,7 +3,7 @@
  * again); filtering here just saves sending files that would be refused.
  */
 import type { Project } from '@shared/project.js';
-import { beginUpload, finishUpload, uploadFile } from './api';
+import { beginUpload, finishUpload, uploadArchive, uploadFile } from './api';
 
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 export const MAX_FILES = 5_000;
@@ -41,6 +41,8 @@ export interface PlannedFile {
 
 export interface UploadPlan {
   folderName: string;
+  /** Set when the choice was one .zip: it is sent whole and unpacked by SecureVibe. */
+  archive?: File;
   files: PlannedFile[];
   bytes: number;
   skipped: { path: string; reason: string }[];
@@ -66,18 +68,24 @@ export function planUpload(list: FileList | File[]): UploadPlan {
     bytes += file.size;
   }
   /**
-   * A single archive is the one wrong choice that looks right. The picker will accept a .zip, it uploads as one
-   * file without complaint, and the check then runs over a folder containing one lump of compressed bytes: it
-   * completes, finds almost nothing, and reads as a clean result. Refusing it with an instruction is the whole
-   * fix, because the person is one step away from the right answer and does not know it.
+   * A single archive is the one wrong choice that looks right: it uploads as one file without complaint, and
+   * the check then runs over a folder containing one lump of compressed bytes, finds almost nothing, and reads
+   * as a clean result. A .zip is now sent whole and unpacked by SecureVibe, with every path checked and the
+   * size capped before anything is written; other archive formats are still refused with the instruction.
    */
-  const ARCHIVES = ['.zip', '.tar', '.tar.gz', '.tgz', '.gz', '.rar', '.7z'];
+  const ARCHIVES = ['.tar', '.tar.gz', '.tgz', '.gz', '.rar', '.7z'];
   const onlyArchive =
     files.length === 1 && ARCHIVES.some((ext) => (files[0]!.path.toLowerCase().endsWith(ext)));
+  const onlyZip = files.length === 1 && files[0]!.path.toLowerCase().endsWith('.zip') && !files[0]!.path.includes('/');
 
   let problem: string | undefined;
+  if (onlyZip) {
+    const archive = files[0]!.file;
+    if (archive.size > MAX_TOTAL_BYTES) problem = 'That zip is larger than 50 MB. Zip the app’s own folder, without its dependencies.';
+    return { folderName: archive.name, archive, files: [], bytes: archive.size, skipped, ...(problem ? { problem } : {}) };
+  }
   if (onlyArchive) {
-    problem = `That is a compressed archive (${files[0]!.path}), and SecureVibe checks code rather than the box it arrives in. Unpack it first, then choose the folder that comes out.`;
+    problem = `That is a compressed archive (${files[0]!.path}), and SecureVibe can only unpack a .zip. Unpack it first, then choose the folder that comes out.`;
   } else if (files.length === 0) problem = 'There is nothing to check in that folder. Choose the folder that holds your app’s code.';
   else if (files.length > MAX_FILES) problem = `That folder has ${files.length} files to check; the limit is ${MAX_FILES}. Choose the app’s own folder, not a folder above it.`;
   else if (bytes > MAX_TOTAL_BYTES) problem = 'That folder is larger than 50 MB without its dependencies. Choose the app’s own folder, not a folder above it.';
@@ -87,11 +95,16 @@ export function planUpload(list: FileList | File[]): UploadPlan {
 /** Sends the planned files (four at a time) and finishes the upload. */
 export async function runUpload(projectId: string, plan: UploadPlan, onProgress: (done: number) => void, signal: AbortSignal): Promise<Project> {
   await beginUpload(projectId);
+  if (plan.archive) {
+    await uploadArchive(projectId, plan.archive);
+    onProgress(1);
+    return finishUpload(projectId);
+  }
   let next = 0;
   let done = 0;
   const worker = async () => {
     while (next < plan.files.length) {
-      if (signal.aborted) throw new Error('The upload was cancelled.');
+      if (signal.aborted) throw new Error('The upload was canceled.');
       const item = plan.files[next++]!;
       await uploadFile(projectId, item.path, item.file);
       onProgress(++done);

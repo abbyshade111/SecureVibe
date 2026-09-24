@@ -37,7 +37,7 @@
           "status": "yes",
           "justification": "One program owns its one database. Each feature (accounts, admin, uploads, the assistant, your own records) is a separate module that talks to the database through the same shared helpers, with no circular dependencies between modules.",
           "evidence": ["design:architecture"],
-          "note": "Your app is organised so that each feature is self-contained and easy to check."
+          "note": "Your app is organized so that each feature is self-contained and easy to check."
         }
       ]
     },
@@ -187,7 +187,7 @@
         {
           "when": "always",
           "status": "yes",
-          "justification": "API requests that change data honour an Idempotency-Key header (a repeated request returns the stored answer instead of acting twice), and the database has unique constraints that prevent duplicate records.",
+          "justification": "API requests that change data honor an Idempotency-Key header (a repeated request returns the stored answer instead of acting twice), and the database has unique constraints that prevent duplicate records.",
           "evidence": ["template:TPL-IDEMPOTENCY-01", "design:PAT-IDEMPOTENT-MUTATIONS"],
           "note": "If a request is accidentally sent twice (for example after a network hiccup), the app does not create two records."
         }
@@ -322,7 +322,7 @@
         {
           "when": "always",
           "status": "yes",
-          "justification": "API requests that change data honour an Idempotency-Key header, and edits check the record's updated_at value so two people cannot silently overwrite each other's change.",
+          "justification": "API requests that change data honor an Idempotency-Key header, and edits check the record's updated_at value so two people cannot silently overwrite each other's change.",
           "evidence": ["template:TPL-IDEMPOTENCY-01", "design:PAT-IDEMPOTENT-MUTATIONS"],
           "note": "Repeated or overlapping edits are handled safely."
         }
@@ -415,12 +415,22 @@
       "severityIfNo": "high",
       "outcomes": [
         {
+          "when": "no-central-sign-in",
+          "status": "n-a",
+          "justification": "You said your organization has no central sign-in system, so there is nothing to connect the app to. The parts of this control that still matter are checked on their own: administrators use two-factor authentication with an authenticator app, and sessions expire after inactivity and after a fixed time.",
+          "evidence": ["template:TPL-MFA-04", "template:TPL-MFA-01", "template:TPL-SESSION-03"],
+          "actions": [],
+          "deploymentTimeStatus": "n-a",
+          "deploymentNote": "Stays not applicable unless your organization adopts a central sign-in system; change the answer in the wizard if that happens.",
+          "note": "Your organization has no central sign-in system, so this control does not apply. Administrators still use two-factor authentication."
+        },
+        {
           "when": "auth",
           "status": "no",
           "justification": "The app keeps its own accounts instead of using a central sign-in system (identity provider). The most important parts of this control are still in place: administrators must use two-factor authentication with an authenticator app, sessions expire after inactivity and after a fixed time, and every user may turn on two-factor authentication.",
           "evidence": ["template:TPL-MFA-04", "template:TPL-MFA-01", "template:TPL-SESSION-03", "design:PAT-ADMIN-MFA"],
           "actions": [
-            { "text": "If your organisation has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams.", "owner": "developer", "dueBy": "before multi-team use" }
+            { "text": "If your organization has a central sign-in system (for example Microsoft Entra, Google Workspace or Okta), have a developer connect the app to it with OpenID Connect before it is used across several teams.", "owner": "developer", "dueBy": "before multi-team use" }
           ],
           "deploymentTimeStatus": "no",
           "deploymentNote": "Stays 'no' until the app is connected to a central sign-in system; admin two-factor authentication remains in place either way.",
@@ -429,7 +439,7 @@
         {
           "when": "no-auth",
           "status": "n-a",
-          "justification": "The app has no accounts and is used by one person on this computer, so there is no sign-in to centralise and no privileged path to protect with multi-factor authentication.",
+          "justification": "The app has no accounts and is used by one person on this computer, so there is no sign-in to centralize and no privileged path to protect with multi-factor authentication.",
           "deploymentTimeStatus": "no",
           "deploymentNote": "If the app is ever shared with other people, add sign-in first (change the 'Who will use it?' answer and rebuild).",
           "note": "Your app has no sign-in because only you use it on this computer."
@@ -463,9 +473,9 @@
         {
           "when": "always",
           "status": "n-a",
-          "justification": "There is no API gateway or service mesh; the app is a single program. As a compensating control, authorisation is centralised in the app's route registry rather than scattered across the code.",
+          "justification": "There is no API gateway or service mesh; the app is a single program. As a compensating control, authorization is centralized in the app's route registry rather than scattered across the code.",
           "evidence": ["template:TPL-AUTHZ-01"],
-          "note": "This control is for systems with many services behind a gateway. Your app centralises access rules in one place instead."
+          "note": "This control is for systems with many services behind a gateway. Your app centralizes access rules in one place instead."
         }
       ]
     },
@@ -525,7 +535,7 @@
         {
           "when": "always",
           "status": "yes",
-          "justification": "The app writes structured (JSON) logs with a request id on every line, so one request can be followed end to end. Sign-ins, denied access, administrator actions and unexpected errors are all recorded. Centralised log collection does not apply on a single computer.",
+          "justification": "The app writes structured (JSON) logs with a request id on every line, so one request can be followed end to end. Sign-ins, denied access, administrator actions and unexpected errors are all recorded. Centralized log collection does not apply on a single computer.",
           "evidence": ["template:TPL-LOG-01", "template:TPL-LOG-03", "design:PAT-OBSERVABILITY-EVENTS"],
           "deploymentTimeStatus": "deferred",
           "deploymentNote": "When hosting online, send the logs to a central log service so they survive if the server is compromised.",

@@ -783,6 +783,10 @@ controllers per project) and records `performedBy: 'skipped'` with "Skipped at y
 Apps: `POST /api/projects/:id/archive` sets `archivedAt` (hidden from the main list, nothing removed);
 `POST /api/projects/:id/restore` clears it; `DELETE /api/projects/:id` removes the project folder and is refused (409)
 while that app's build is running. The web list confirms deletion by typing the app's name.
+`POST /api/projects/:id/copy` (`CopyProjectRequestSchema`, optional `name`) makes a new app from the answers and
+the design of another (`ProjectStore.copy`), with `copiedFrom` naming the source; the built app, runs, reports,
+attestations and decisions are not copied, so a copy is somewhere to try a change without touching the original.
+Refused (400) for an uploaded app, which has no answers to copy.
 
 AI switch: `settings.aiEnabled` (default true, "Use AI" in Settings) and `SECUREVIBE_AI=off` both force the null
 provider (`llm/active-provider.ts`), checked on every request; `GET /api/status` reports `llm.switchedOff`
@@ -841,7 +845,11 @@ questions · Human review pack · Rebuild banner); `/settings` (Advanced, with r
   (re-evaluates compliance from `pipeline/<run>/compliance-inputs.json`, saved by the compliance stage, with the
   current attestations and human review, and re-renders the reports; nothing is re-run). Review scope:
   `reviewScope()` (server/src/verification) — the manifest's protectedPaths, or `SECUREVIBE_REVIEW_GLOBS` for the
-  self-assessment project. A "not sure" attestation adds no evidence (the requirement stays unverified). Web:
+  self-assessment project. A "not sure" attestation adds no evidence (the requirement stays unverified). A
+  "not-applicable" attestation needs a note (the route refuses it without one) and turns the requirement, or the
+  SbD control, into `not-applicable` / `n-a` with a rationale that names the reason, who decided and when; it is
+  the owner's decision, never overrides failing evidence, and an SbD critical control decided this way leaves
+  `criticalNo` (escalation is recomputed). The latest attestation for a requirement is the one that counts. Web:
   `/projects/:id/verify?step=start|code|owner|developer|specialist|finish`.
 * App preview: `GET|POST|DELETE /api/projects/:id/preview` (server/src/preview). Fresh data dir and secrets per start
   under `<project>/tmp/preview-*`, sandboxed, `SMTP_URL`/`OUTBOUND_ALLOWED_HOSTS`/`ANTHROPIC_API_KEY` emptied,
@@ -851,7 +859,9 @@ questions · Human review pack · Rebuild banner); `/settings` (Advanced, with r
 * Build approval: `GET /estimate` returns a one-time `approvalCode`; `POST /runs` requires it (server/src/api/approvals.ts).
 * Uploaded apps (`project.origin.kind === 'uploaded'`, created with `POST /projects` `{ uploaded: { aiAssisted } }`):
   `POST /projects/:id/upload/begin`, `PUT /projects/:id/upload/file?path=` (raw `application/octet-stream`, ≤ 2 MB,
-  own rate limit), `POST /projects/:id/upload/finish` (staging → app/, previous app kept as app-vN), `.../cancel`
+  own rate limit), `PUT /projects/:id/upload/archive` (one `.zip` as raw bytes, ≤ 50 MB, unpacked by
+  `api/zip.ts`: paths checked before writing, links left out, size capped from the declaration before inflating,
+  the same skip list, ZIP64 and password-protected archives refused), `POST /projects/:id/upload/finish` (staging → app/, previous app kept as app-vN), `.../cancel`
   (server/src/api/uploads.ts). Dependencies, build output, `.env*` (except examples), keys and databases are skipped.
   Runs are always `verify-only` with `skipStages` (install, typecheck, unit-tests, dast: uploaded code is never run),
   `manifestOverride: uploadedManifest()`, and `excludedChecks` (template-only SAST/config checks, dropped in

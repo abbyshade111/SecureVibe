@@ -3,7 +3,7 @@
  *
  * Everything else SecureVibe runs reads source and reasons about it. None of that notices a genuine JPEG that
  * carries a known exploit, or a document with a malicious macro: those files are not badly written, they are
- * hostile, and the only practical way to recognise them is a signature database somebody else maintains.
+ * hostile, and the only practical way to recognize them is a signature database somebody else maintains.
  *
  * Where it runs, and why the answer differs by case (ADR-011):
  *  - **An uploaded application** — code an owner handed us and which we will never run — is scanned as part of
@@ -149,7 +149,7 @@ export function toClamavSeed(detection: ClamavDetection, version: ClamavVersion)
     severity: clamavSeverity(),
     file: detection.file,
     description:
-      `The virus scanner recognised this file as ${detection.signature}, which is a signature for content that is known to be malicious. ` +
+      `The virus scanner recognized this file as ${detection.signature}, which is a signature for content that is known to be malicious. ` +
       'This is not a guess about how the code is written: the file itself matched a known bad sample. ' +
       'Do not open it, and do not copy it anywhere else. ' +
       `${signatureNote(version)}`,

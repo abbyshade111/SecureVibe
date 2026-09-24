@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 /**
  * The six faces of the padlock, one per state the app already computes (../securevibe-brand, drawn 19 Sep 2026).
- * A state with a face is recognisable at a glance and the same face everywhere stops "at risk" on one page reading
+ * A state with a face is recognizable at a glance and the same face everywhere stops "at risk" on one page reading
  * as a different thing from "at risk" on another. The picture never replaces the sentence beside it: the image is
  * decorative to assistive technology, and the words carry the meaning.
  */
@@ -15,7 +15,7 @@ export function mascotForRunStatus(status: string): MascotState | undefined {
       return 'building';
     case 'failed':
       return 'failed';
-    case 'cancelled':
+    case 'canceled':
     case 'interrupted':
       return 'stopped';
     default:

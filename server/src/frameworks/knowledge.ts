@@ -24,7 +24,7 @@ import {
 import { KNOWLEDGE_DIR } from './load.js';
 
 /**
- * glossary.json: [{ term, plain }], [{ term, definition }] or { "<term>": "<plain>" } — normalised to entries
+ * glossary.json: [{ term, plain }], [{ term, definition }] or { "<term>": "<plain>" } — normalized to entries
  * that always carry `plain` (the writer of the file may call the field `definition`).
  */
 export const GlossaryEntrySchema = z.preprocess(

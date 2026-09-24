@@ -49,7 +49,7 @@ const SCAN_STAGES: { id: StageId; file: string; what: string }[] = [
   { id: 'unit-tests', file: 'unit-tests.json', what: 'every test that ran, and whether it passed' },
   { id: 'sast', file: 'sast.json', what: 'static analysis: the rules that ran and what they matched' },
   { id: 'secrets', file: 'secrets.json', what: 'the search for passwords and keys written into the code' },
-  { id: 'deps', file: 'deps.json', what: 'the package check: lockfile, advisories, licences, bill of materials' },
+  { id: 'deps', file: 'deps.json', what: 'the package check: lockfile, advisories, licenses, bill of materials' },
   { id: 'config', file: 'config.json', what: 'the configuration checks' },
   { id: 'dast', file: 'dast.json', what: 'the running app probes: every request made and what came back' },
   { id: 'external', file: 'external.json', what: 'extra scanners found on this computer (semgrep, trivy, …)' },

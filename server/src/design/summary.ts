@@ -131,9 +131,9 @@ interface FieldPhrase {
   value: (p: DesignProfile) => string;
 }
 
-/** Plain words for the look that was chosen; the colours are all a theme changes. */
+/** Plain words for the look that was chosen; the colors are all a theme changes. */
 const THEME_PHRASES: Record<DesignProfile['app']['theme'], string> = {
-  calm: 'the calm look (quiet greys and blue)',
+  calm: 'the calm look (quiet grays and blue)',
   warm: 'the warm look (cream and amber)',
   forest: 'the forest look (greens)',
   contrast: 'the high-contrast look (black on white)',

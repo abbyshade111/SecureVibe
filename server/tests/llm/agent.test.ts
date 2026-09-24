@@ -159,7 +159,7 @@ describe('generation agent', () => {
     expect(readFileSync(join(app.dir, 'src/security/authz.ts'), 'utf8')).toContain('return false');
   });
 
-  it('can be cancelled', async () => {
+  it('can be canceled', async () => {
     const controller = new AbortController();
     controller.abort();
     const result = await generateApp(providerFor('generate-happy-path'), {

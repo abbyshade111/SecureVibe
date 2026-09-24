@@ -10,7 +10,7 @@ import {
   AppearanceRequestSchema,
   AppearanceResponseSchema,
   AttestationRequestSchema,
-  CreateProjectRequestSchema,
+  CopyProjectRequestSchema, CreateProjectRequestSchema,
   DeriveDesignResponseSchema,
   EstimateResponseSchema,
   FindingDecisionRequestSchema,
@@ -42,7 +42,7 @@ import { AppearanceError, setAppTheme } from '../generator/appearance.js';
 import { SELF_PROJECT_NAME, loadComplianceInputs, refreshReportsWithAnswers, RefreshUnavailableError, reviewIsCurrent, reviewScope, reviewTree } from '../verification/index.js';
 import { effectiveAiSettings } from '../config.js';
 import { PreviewError } from '../preview/index.js';
-import { estimateForProject } from '../pipeline/estimate.js';
+import { estimateForProject, estimateReviewWithoutAnswers } from '../pipeline/estimate.js';
 import type { SessionRecord } from '../security/token.js';
 import { runIsLive } from '../pipeline/job.js';
 import { templateOutdated } from '../generator/template-hash.js';
@@ -196,6 +196,15 @@ export function projectsRouter(deps: ApiDeps): Router {
     res.status(204).end();
   });
 
+  // A copy carries the answers and the design, never the built app: see ProjectStore.copy.
+  router.post('/projects/:id/copy', (req, res) => {
+    const project = deps.store.mustGet(req.params['id']!);
+    const body = CopyProjectRequestSchema.parse(req.body ?? {});
+    if (isUploadedApp(project)) throw validationError('An uploaded app has no answers to copy. Upload the code again as a new app instead.');
+    const copy = deps.store.copy(project.id, body.name);
+    res.status(201).json({ project: copy });
+  });
+
   // Archive hides an app from the main list without deleting anything; restore brings it back.
   router.post('/projects/:id/archive', (req, res) => {
     const saved = deps.store.update(req.params['id']!, (p) => {
@@ -212,7 +221,7 @@ export function projectsRouter(deps: ApiDeps): Router {
   });
 
   /**
-   * Change how the app looks. Colour only, so nothing is generated and nothing is checked again: the answer is
+   * Change how the app looks. Color only, so nothing is generated and nothing is checked again: the answer is
    * saved with the design (a later rebuild keeps it) and written into the built app's settings file, where the app
    * picks it up the next time it starts.
    */
@@ -239,8 +248,8 @@ export function projectsRouter(deps: ApiDeps): Router {
         applied,
         message: applied
           // Not "reload the page": APP_THEME is read once when the app starts and the layout renders a constant,
-          // so a reload serves the old colours and an owner who follows the advice concludes the feature is broken.
-          ? 'Your app has the new look. Stop your app and start it again to see it — reloading the page is not enough, because an app reads its colours when it starts.'
+          // so a reload serves the old colors and an owner who follows the advice concludes the feature is broken.
+          ? 'Your app has the new look. Stop your app and start it again to see it — reloading the page is not enough, because an app reads its colors when it starts.'
           : 'Saved. Your app will be built with this look.',
       }),
     );
@@ -501,6 +510,30 @@ export function projectsRouter(deps: ApiDeps): Router {
 
   router.get('/projects/:id/estimate', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
+    if (!project.design && isUploadedApp(project)) {
+      // A check before the questions are answered: nothing is generated and the AI review waits for the answers,
+      // so it costs nothing. The approval code is still issued, tied to "no design" (an empty hash), so the run
+      // route's check that the design has not changed since the estimate still holds.
+      const session = res.locals['session'] as SessionRecord;
+      const withAi = deps.getProvider('ai-review').name !== 'null';
+      const estimate = withAi
+        ? {
+            ...estimateReviewWithoutAnswers(deps.config.settings.get()),
+            note: 'The checks that read the code as it is (secrets, dependencies, configuration, virus scan) are free. With the AI review, the code is read against ASVS Level 1, the floor every app is meant to meet, because which rules apply above that is decided by the questions about your app, which have not been answered; that review is what costs. Without AI the check is free.',
+          }
+        : {
+            minutesLow: 1,
+            minutesHigh: 5,
+            usdLow: 0,
+            usdHigh: 0,
+            spendingCapUsd: deps.config.settings.get().defaultSpendingCapUsd,
+            note: 'This check reads the code as it is (secrets, dependencies, configuration, virus scan) and uses no AI credit. Which rules apply is decided by the questions about your app, so the compliance report comes once those are answered.',
+          };
+      const approvalCode = deps.approvals.issue({ projectId: project.id, sessionId: session.id, designHash: '', estimateUsdHigh: estimate.usdHigh });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(EstimateResponseSchema.parse({ estimate, approvalCode }));
+      return;
+    }
     if (!project.design) throw validationError('Finish your design before estimating the build.');
     const settings = deps.config.settings.get();
     // An uploaded app is only ever reviewed; a built app can ask for a review-only figure too ("check again with
@@ -594,6 +627,8 @@ export function projectsRouter(deps: ApiDeps): Router {
   router.post('/projects/:id/attestations', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     const body = AttestationRequestSchema.parse(req.body);
+    // Not applicable is an answer with a reason, never a way to turn a red rating green by clicking.
+    if (body.result === 'not-applicable' && body.note.trim() === '') throw validationError('Say why this does not apply to your app. The reason is kept with the answer and shown in the reports.');
     const attestation = deps.store.addAttestation(project.id, { ...body, attestedBy: body.attestedBy || 'owner' });
     res.status(201).json({ attestation });
   });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { ProjectListItem } from '@shared/api.js';
-import { archiveProject, deleteProject, restoreProject } from '../lib/api';
+import { archiveProject, copyProject, deleteProject, restoreProject } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { QUESTION_STEP_IDS, resumeStepId } from '../lib/wizardSteps';
 import { Badge, ErrorNotice } from './Bits';
@@ -42,6 +42,7 @@ export function AppList({ projects, onChanged }: { projects: ProjectListItem[]; 
   const [typedName, setTypedName] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const active = projects.filter((p) => !p.archivedAt);
   const archived = projects.filter((p) => p.archivedAt);
@@ -136,6 +137,27 @@ export function AppList({ projects, onChanged }: { projects: ProjectListItem[]; 
                 >
                   Edit app
                 </Link>
+              )}
+              {!isArchived && p.origin?.kind !== 'uploaded' && !isUnfinished(p) && (
+                <button
+                  type="button"
+                  className="sv-btn sv-btn-secondary sv-btn-sm"
+                  disabled={busy === p.id}
+                  title="A new app with the same answers and design, to try a change without touching this one. Nothing built comes with it."
+                  onClick={() =>
+                    void act(
+                      p,
+                      async () => {
+                        const copy = await copyProject(p.id);
+                        navigate(`/projects/${copy.id}/summary`);
+                      },
+                      'Could not copy this app.',
+                    )
+                  }
+                  aria-label={`Copy ${p.name}`}
+                >
+                  Copy
+                </button>
               )}
               {isArchived ? (
                 <button

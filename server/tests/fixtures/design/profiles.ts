@@ -93,7 +93,7 @@ export const clinicBookings: DesignProfile = DesignProfileSchema.parse({
         fields: [
           { name: 'starts-at', label: 'Starts at', type: 'datetime', required: true },
           { name: 'reason', label: 'Reason for visit', type: 'longtext', sensitive: true },
-          { name: 'status', label: 'Status', type: 'choice', choices: ['booked', 'done', 'cancelled'] },
+          { name: 'status', label: 'Status', type: 'choice', choices: ['booked', 'done', 'canceled'] },
         ],
         access: 'owner-only',
       },

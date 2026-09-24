@@ -262,7 +262,7 @@ export function isAstCheckName(name: string): name is AstCheckName {
 export async function runAstCheck(name: string, ctx: ScanContext, file?: string, tree?: ScanTree): Promise<AstCheckResult> {
   if (!isAstCheckName(name)) return { passed: false, detail: `Unknown AST check "${name}". Known checks: ${AST_CHECK_NAMES.join(', ')}.` };
   const scanTree = tree ?? buildScanTree(ctx);
-  if (ctx.abort.aborted) return { passed: false, detail: 'The run was cancelled before this check completed.', skippedReason: 'the build was cancelled' };
+  if (ctx.abort.aborted) return { passed: false, detail: 'The run was canceled before this check completed.', skippedReason: 'the build was canceled' };
   try {
     return CHECKS[name](scanTree, file);
   } catch (err) {

@@ -42,7 +42,7 @@
    "summary": "Replace new Function() with a normal function or a data lookup.",
    "steps": [
     "Identify the text being compiled.",
-    "Write the behaviour as a regular function or map of allowed operations.",
+    "Write the behavior as a regular function or map of allowed operations.",
     "Remove the new Function() call."
    ],
    "example": "// Before\nconst fn = new Function('row', body);\n// After\nconst formatters = { upper: (s: string) => s.toUpperCase(), lower: (s: string) => s.toLowerCase() };\nconst fn = formatters[FormatterSchema.parse(name)];",
@@ -68,7 +68,7 @@
   "description": "The code imports node:vm to run scripts at runtime. The vm module is not a security sandbox.",
   "impact": "A script that reaches vm can escape and run with the app's full permissions.",
   "remediation": {
-   "summary": "Remove the vm usage; implement the behaviour in ordinary code.",
+   "summary": "Remove the vm usage; implement the behavior in ordinary code.",
    "steps": [
     "Identify why dynamic scripts are run.",
     "Replace with fixed functions selected by validated input.",
@@ -365,7 +365,7 @@
    "summary": "Render text as children instead of raw HTML.",
    "steps": [
     "Replace dangerouslySetInnerHTML={{__html: value}} with {value} as element content.",
-    "If HTML is essential, sanitise it with a maintained library first."
+    "If HTML is essential, sanitize it with a maintained library first."
    ],
    "example": "// Before\n<div dangerouslySetInnerHTML={{ __html: body }} />\n// After\n<div>{body}</div>",
    "references": [
@@ -706,7 +706,7 @@
    "CWE-693"
   ],
   "description": "helmet is configured with contentSecurityPolicy: false or the CSP directives were relaxed with 'unsafe-inline' or 'unsafe-eval'.",
-  "impact": "The browser will run injected scripts, removing the last line of defence against cross-site scripting.",
+  "impact": "The browser will run injected scripts, removing the last line of defense against cross-site scripting.",
   "remediation": {
    "summary": "Restore the template's nonce-based policy from src/security/headers.ts.",
    "steps": [
@@ -1068,7 +1068,7 @@
   "cwe": [
    "CWE-93"
   ],
-  "description": "A value from a request is placed in an email subject, To, From or other header without sanitisation.",
+  "description": "A value from a request is placed in an email subject, To, From or other header without sanitization.",
   "impact": "Line breaks in the value can add extra recipients or headers, turning your app into a spam relay or leaking messages.",
   "remediation": {
    "summary": "Use the mailer's sendMail with validated fields; it strips header line breaks.",
@@ -1125,7 +1125,7 @@
    "CWE-1321"
   ],
   "description": "A recursive merge or a lookup by user-provided key touches __proto__ or constructor.",
-  "impact": "Crafted input can change the behaviour of every object in the app (prototype pollution), which can bypass checks or crash the app.",
+  "impact": "Crafted input can change the behavior of every object in the app (prototype pollution), which can bypass checks or crash the app.",
   "remediation": {
    "summary": "Use Map for dynamic keys and never merge untrusted objects recursively.",
    "steps": [
@@ -1663,14 +1663,14 @@
    "summary": "Finish or remove the item and record the decision.",
    "steps": [
     "Read the comment and implement the missing check, or remove it if already done.",
-    "Add a test for the behaviour."
+    "Add a test for the behavior."
    ],
    "example": "// TODO: check owner -> replace with owner: { entity: 'note', param: 'id' } in the route spec",
    "references": [
     "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
    ]
   },
-  "howToConfirmFixed": "The comment is gone and a test covers the behaviour.",
+  "howToConfirmFixed": "The comment is gone and a test covers the behavior.",
   "asvs": [],
   "aisvs": [],
   "sbd": [
@@ -2184,12 +2184,13 @@
   "cwe": [
    "CWE-1059"
   ],
-  "description": "README.md does not describe how to set up and run the app safely (npm ci, npm run setup, npm start).",
+  "description": "README.md does not describe how to set up and run the app.",
   "impact": "Someone may skip the setup step that generates secrets and creates the first administrator.",
   "remediation": {
-   "summary": "Restore the run instructions section in README.md.",
+   "summary": "Add a short \"How to run\" section to README.md with the exact install, setup and start commands for this app.",
    "steps": [
-    "Add the steps: npm ci --ignore-scripts, npm run setup, npm start, first login from FIRST-LOGIN.txt."
+    "For an app SecureVibe built, the steps are: npm ci --ignore-scripts, npm run setup, npm start, first login from FIRST-LOGIN.txt.",
+    "For any other app, name the commands that install its dependencies and start it, and any setup step that creates secrets or the first account."
    ],
    "references": [
     "https://owasp.org/www-project-secure-by-design-framework/",
@@ -2751,15 +2752,15 @@
  },
  {
   "ruleId": "deps.license-copyleft",
-  "title": "Copyleft licence in a dependency",
+  "title": "Copyleft license in a dependency",
   "severity": "info",
   "cwe": [],
-  "description": "A dependency uses a copyleft licence (for example GPL) that may impose obligations if you distribute the app.",
-  "impact": "Not a security issue, but distributing the app may require releasing your source code under the same licence.",
+  "description": "A dependency uses a copyleft license (for example GPL) that may impose obligations if you distribute the app.",
+  "impact": "Not a security issue, but distributing the app may require releasing your source code under the same license.",
   "remediation": {
-   "summary": "Check the licence obligations or replace the package.",
+   "summary": "Check the license obligations or replace the package.",
    "steps": [
-    "Read the licence in the SBOM entry.",
+    "Read the license in the SBOM entry.",
     "If you plan to distribute the app, ask a licensing adviser or choose an MIT/Apache alternative."
    ],
    "references": [
@@ -3484,7 +3485,7 @@
   "cwe": [
    "CWE-749"
   ],
-  "description": "Sending an unsupported method to a route produced a 500 or unexpected behaviour instead of 404/405.",
+  "description": "Sending an unsupported method to a route produced a 500 or unexpected behavior instead of 404/405.",
   "impact": "Unexpected methods may reach code paths that were never meant to be reachable.",
   "remediation": {
    "summary": "Register routes with explicit methods and let the router return 404/405 for others.",
@@ -3569,7 +3570,7 @@
    "CWE-1321"
   ],
   "description": "A JSON body containing __proto__ or constructor.prototype keys was accepted.",
-  "impact": "Crafted input may alter the behaviour of all objects in the process, bypassing checks or crashing the app.",
+  "impact": "Crafted input may alter the behavior of all objects in the process, bypassing checks or crashing the app.",
   "remediation": {
    "summary": "Use strict zod schemas (unknown keys rejected) and the template's prototype-pollution guard in src/app.ts.",
    "steps": [
@@ -3914,7 +3915,7 @@
    "summary": "Add the owner declaration to the route so requireOwner checks the record's owner.",
    "steps": [
     "Add owner: { entity: '<name>', param: 'id' } to the defineRoute spec.",
-    "Include owner_id = ? in the query as a second line of defence."
+    "Include owner_id = ? in the query as a second line of defense."
    ],
    "example": "defineRoute(router, { method: 'GET', path: '/api/orders/:id', auth: 'user', owner: { entity: 'order', param: 'id' } }, handler);",
    "references": [
@@ -4704,7 +4705,7 @@
   "description": "A message containing control characters was accepted by the AI endpoint instead of rejected.",
   "impact": "Invisible characters can hide instructions that steer the AI.",
   "remediation": {
-   "summary": "Restore the normalisation and allow-list step in src/features/ai.",
+   "summary": "Restore the normalization and allow-list step in src/features/ai.",
    "steps": [
     "Confirm the input pipeline strips Cc/Cf/Co/Cs characters and rejects leftovers.",
     "Do not add a second AI endpoint that skips the pipeline."

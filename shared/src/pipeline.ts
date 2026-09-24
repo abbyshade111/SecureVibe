@@ -130,7 +130,7 @@ export const STAGE_DESCRIPTIONS: Record<StageId, { title: string; running: strin
   'ai-review': {
     title: 'AI security review',
     running: 'Claude is reviewing the code against each applicable OWASP requirement and citing evidence…',
-    why: 'Some requirements need judgement, not just pattern matching. Every citation is checked to exist.',
+    why: 'Some requirements need judgment, not just pattern matching. Every citation is checked to exist.',
   },
   fix: {
     title: 'Fixing what was found',
@@ -376,7 +376,7 @@ export const PipelineRunSchema = z.object({
   mode: RunModeSchema,
   startedAt: z.string(),
   finishedAt: z.string().optional(),
-  status: z.enum(['running', 'succeeded', 'failed', 'cancelled', 'interrupted']),
+  status: z.enum(['running', 'succeeded', 'failed', 'canceled', 'interrupted']),
   /** Which stages were requested (verify-only runs skip design-freeze/scaffold/generate). */
   stages: z.array(StageResultSchema),
   findings: z.array(FindingSchema).default([]),
@@ -421,6 +421,26 @@ export const PipelineRunSchema = z.object({
         status: z.enum(['built', 'files-in-place', 'partly', 'not-built', 'left-out']),
         /** One plain sentence: what was found and what was not. */
         evidence: z.string(),
+      }),
+    )
+    .optional(),
+  /**
+   * "What only you can do": things SecureVibe cannot finish for the owner, worked out from facts rather than
+   * prose. A setting left empty in the app's .env, an outside service named without an address or a key, a
+   * planned feature that came back not built. Each says what the owner must do and what stays switched off
+   * until they do. Values from .env are never copied here, only whether a key is empty.
+   */
+  ownerTasks: z
+    .array(
+      z.object({
+        id: z.string(),
+        source: z.enum(['setting', 'service', 'feature']),
+        /** What the owner must do, in plain words. */
+        title: z.string(),
+        /** The fact it was worked out from. */
+        because: z.string(),
+        /** What stays switched off or unfinished until they do. */
+        staysOff: z.string(),
       }),
     )
     .optional(),

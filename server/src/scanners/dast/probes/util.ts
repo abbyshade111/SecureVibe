@@ -143,7 +143,7 @@ interface JsonSchema {
 /**
  * Builds a value that satisfies a JSON Schema (as exported by zod): every required property, the first enum
  * option, formats and the date patterns the generated forms use. `text` is used for free-text strings so the
- * caller can recognise (or inject into) them. Returns undefined when there is no usable schema.
+ * caller can recognize (or inject into) them. Returns undefined when there is no usable schema.
  */
 export function sampleFromSchema(schema: unknown, text: string, depth = 0): unknown {
   if (!schema || typeof schema !== 'object' || depth > 6) return undefined;

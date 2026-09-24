@@ -76,7 +76,7 @@ describe('the template’s own test names', () => {
    *
    * `UX-01` named four tests in the theme suite for weeks. It appears in no framework file, so it was credited to
    * nothing and screened by nothing — and the checker below could not see it either, because `requirementIdOf` only
-   * recognises the ASVS and AISVS shapes, so an unrecognised prefix is silently not-a-citation rather than a bad one.
+   * recognizes the ASVS and AISVS shapes, so an unrecognised prefix is silently not-a-citation rather than a bad one.
    * A citation to nothing was indistinguishable from no citation at all, which is the zero-for-two-reasons failure
    * in the very check built to catch mislabelled tests.
    *

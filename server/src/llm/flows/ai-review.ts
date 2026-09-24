@@ -96,11 +96,19 @@ export interface AiAssessment {
   citations: AiCitation[];
 }
 
+/** The contract handed to a review made without answers: nothing was promised, so nothing is held against the code. */
+const NO_ANSWERS_CONTRACT: DesignArtifacts['securityContract'] = { version: 'no-answers', rules: [] };
+
 export interface AiReviewInput {
   appDir?: string;
   files: ReviewFile[];
   requirements: RequirementBatch[];
-  design: DesignArtifacts;
+  /**
+   * The design's security contract goes into the system prompt. Absent for a check made before the questions
+   * were answered (an uploaded app reviewed against ASVS Level 1): the review then reads the code against the
+   * requirements alone, with no contract to hold it to.
+   */
+  design?: DesignArtifacts;
   budget?: Budget;
   projectId?: string;
   runId?: string;
@@ -166,7 +174,7 @@ export async function aiReview(provider: LlmProvider, input: AiReviewInput): Pro
   for (const batch of splitBatches(input.requirements, requirementsPerCall(input.effort ?? 'low'))) {
     part++;
     if (input.abort?.aborted) {
-      base.batches.push({ chapterId: batch.chapterId, ok: false, message: 'The review was cancelled.' });
+      base.batches.push({ chapterId: batch.chapterId, ok: false, message: 'The review was canceled.' });
       continue;
     }
     if (stoppedFor) {
@@ -189,7 +197,7 @@ export async function aiReview(provider: LlmProvider, input: AiReviewInput): Pro
     base.correlationIds.push(correlationId);
     const result = await provider.structured({
       purpose: 'ai-review',
-      system: aiReviewSystem(input.design.securityContract),
+      system: aiReviewSystem(input.design?.securityContract ?? NO_ANSWERS_CONTRACT),
       user,
       schema: AiReviewOutputSchema,
       // Reasoning shares the answer's token room, so reviews think briefly and get the largest allowed answer.

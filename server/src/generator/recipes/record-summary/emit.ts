@@ -44,7 +44,7 @@ export function reportAuth(plan: SummaryPlan): string {
   return plan.entity.publicRead ? "'user'" : plan.entity.readAuth;
 }
 
-/** Amounts and yes/no fields are totalled in one query; choice fields each need their own grouped query. */
+/** Amounts and yes/no fields are totaled in one query; choice fields each need their own grouped query. */
 function totalFields(plan: SummaryPlan): SummaryField[] {
   return plan.fields.filter((f) => f.kind !== 'choice');
 }
@@ -115,7 +115,7 @@ export function emitRoutes(plan: SummaryPlan, runId: string): string {
  * administrator, who may already read every record, sees the totals over all of them.`
      : ''
  }
- * Fields the person marked as sensitive are not summarised at all: a total or a breakdown can give away as much as
+ * Fields the person marked as sensitive are not summarized at all: a total or a breakdown can give away as much as
  * the values would.
  */
 import type { Request, Response, Router } from 'express';

@@ -48,7 +48,9 @@ export function UploadPage() {
    * not, and somebody checking code they did not write cannot answer half of them. That is on the backlog as a
    * decision to make rather than something to route around here.
    */
-  const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/wizard/about`;
+  // The check runs with or without the answers (24 September 2026): what the answers add is the compliance
+  // report and the AI review, because they decide which rules apply. So the check page comes next either way.
+  const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/security`;
 
   async function start() {
     if (!plan || plan.problem || !id) return;
@@ -111,7 +113,21 @@ export function UploadPage() {
           />
         </div>
 
-        {plan && !plan.problem && (
+        <p className="sv-faint">
+          Or choose one .zip of the app: SecureVibe unpacks it, leaves out the same things, and checks what comes
+          out.{' '}
+          <input
+            type="file"
+            accept=".zip,application/zip"
+            disabled={uploading}
+            onChange={(e) => {
+              setUploadError(null);
+              setPlan(e.target.files && e.target.files.length > 0 ? planUpload(e.target.files) : null);
+            }}
+          />
+        </p>
+
+        {plan && !plan.problem && !plan.archive && (
           /**
            * What this app will actually get, said before the upload rather than discovered in the report.
            * The first person to hand SecureVibe somebody else's code uploaded a Python app, waited through a
@@ -135,7 +151,8 @@ export function UploadPage() {
               <p style={{ marginBottom: 0 }}>{plan.problem}</p>
             ) : (
               <p style={{ marginBottom: 0 }}>
-                <strong>{plan.folderName || 'Folder'}:</strong> {plan.files.length} files ({size(plan.bytes)}) will be uploaded.
+                <strong>{plan.folderName || 'Folder'}:</strong>{' '}
+                {plan.archive ? `one zip (${size(plan.bytes)}) will be uploaded and unpacked.` : `${plan.files.length} files (${size(plan.bytes)}) will be uploaded.`}
               </p>
             )}
             {skippedByReason.size > 0 && (
@@ -147,7 +164,10 @@ export function UploadPage() {
         )}
 
         {uploading && plan && (
-          <ProgressBar percent={Math.round((done / plan.files.length) * 100)} label={`${done} of ${plan.files.length} files uploaded`} />
+          <ProgressBar
+            percent={plan.archive ? (done > 0 ? 100 : 10) : Math.round((done / plan.files.length) * 100)}
+            label={plan.archive ? (done > 0 ? 'Unpacked' : 'Uploading and unpacking the zip…') : `${done} of ${plan.files.length} files uploaded`}
+          />
         )}
         {uploadError && <ErrorNotice message={uploadError} />}
 
@@ -170,11 +190,13 @@ export function UploadPage() {
 
         {!hasAnswers && (
           <p className="sv-faint" style={{ marginTop: 12, marginBottom: 0 }}>
-            Next you will be asked a few questions about what this app does — whether it takes payments, whether
-            it holds health or financial information, whether your organisation has a central sign-in. They decide
-            which rules apply to it, so the check needs them before it can say whether the app meets them. If you
-            did not write this app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an
-            answer SecureVibe understands and it never counts as evidence either way.
+            Next comes the check itself: secrets, dependencies, configuration and the virus scan read the code as it
+            is, and the AI review, if you choose it, reads the code against ASVS Level 1. To get the compliance report
+            and a review that goes beyond that floor, answer a few questions about what this app
+            does (whether it takes payments, whether it holds health or financial information, whether your
+            organization has a central sign-in): they decide which rules apply to it. If you did not write this
+            app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an answer SecureVibe
+            understands and it never counts as evidence either way.
           </p>
         )}
 

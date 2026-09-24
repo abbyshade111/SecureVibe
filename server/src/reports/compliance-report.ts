@@ -254,7 +254,7 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
     }
   }
 
-  md.push('', '## 11. Prioritised recommendations', '');
+  md.push('', '## 11. Prioritized recommendations', '');
   md.push(mdTable(['Priority', 'Title', 'Who', 'Effort'], compliance.recommendations.map((r) => [priorityLabelForRec(r.priority), r.title, r.who, r.effort ?? ''])));
 
   md.push('', '## 12. Human sign-off', '');
@@ -298,7 +298,7 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
     { id: 'appendix-c', label: '8. AI-assisted development process' },
     { id: 'findings', label: '9. Findings affecting compliance' },
     { id: 'manual-verification', label: '10. Manual verification' },
-    { id: 'recommendations', label: '11. Prioritised recommendations' },
+    { id: 'recommendations', label: '11. Prioritized recommendations' },
     { id: 'sign-off', label: '12. Human sign-off' },
     { id: 'provenance', label: '13. Provenance' },
     { id: 'adrs', label: `${ADR_SECTION}. Architecture decision records` },
@@ -480,7 +480,7 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
   body.push(`<section id="manual-verification" class="chapter"><h2>10. Manual verification</h2>${manualSections || '<p class="muted">Nothing needs a manual check.</p>'}</section>`);
 
   body.push(
-    `<section id="recommendations" class="chapter"><h2>11. Prioritised recommendations</h2>${htmlTable(
+    `<section id="recommendations" class="chapter"><h2>11. Prioritized recommendations</h2>${htmlTable(
       ['Priority', 'Title', 'Who', 'Effort'],
       compliance.recommendations.map((r) => [escapeHtml(priorityLabelForRec(r.priority)), escapeHtml(r.title), escapeHtml(r.who), escapeHtml(r.effort ?? '')]),
     )}</section>`,

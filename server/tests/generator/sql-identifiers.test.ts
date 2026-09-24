@@ -6,7 +6,7 @@
  * created. Not a subtle failure, and not a rare name: an inventory with an "Order" field, a timesheet with "From"
  * and "To".
  *
- * The list of words that need escaping is not written by judgement, it is asked of the database. This test puts every
+ * The list of words that need escaping is not written by judgment, it is asked of the database. This test puts every
  * SQLite keyword through a real CREATE TABLE and a real SELECT and requires that `safeIdentifier` escapes exactly
  * those the database rejects — no more, because renaming a column that already works would change the schema of an
  * app that is running, and no fewer, because one missed word is a build that dies on a valid answer.

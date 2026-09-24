@@ -2,7 +2,7 @@
  * Chooses the provider for this installation (CONTRACTS §9.1):
  *   scripted   — a scenario folder is configured (tests, demos);
  *   anthropic  — a credential is present in the environment;
- *   null       — preview mode: everything that needs AI is skipped and labelled.
+ *   null       — preview mode: everything that needs AI is skipped and labeled.
  *
  * An explicitly configured scenario folder wins over a credential that merely happens to be in the environment, so a
  * test run on a developer's machine can never reach the real API by accident. `forceProvider` overrides both.

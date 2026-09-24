@@ -70,7 +70,7 @@ const PLAN_TONE: Record<string, 'good' | 'warn' | 'bad' | 'neutral'> = {
 };
 
 const RUN_KIND: Record<string, string> = { full: 'Build', demo: 'Demo build', 'verify-only': 'Re-check' };
-const RUN_STATUS: Record<string, string> = { succeeded: 'finished', failed: 'failed', cancelled: 'cancelled', interrupted: 'stopped', running: 'running' };
+const RUN_STATUS: Record<string, string> = { succeeded: 'finished', failed: 'failed', cancelled: 'canceled', interrupted: 'stopped', running: 'running' };
 
 function reportRunLabel(r: ReportRun): string {
   const when = new Date(r.startedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -136,7 +136,7 @@ export function ResultsPage() {
   const [themeMessage, setThemeMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const currentTheme = project?.profile?.app?.theme ?? 'calm';
 
-  // Colour only: no rebuild, no checks, no approval — the app reads the new value the next time it starts.
+  // Color only: no rebuild, no checks, no approval — the app reads the new value the next time it starts.
   async function chooseTheme(theme: string) {
     if (!id) return;
     setSavingTheme(true);
@@ -317,6 +317,21 @@ export function ResultsPage() {
         </div>
       )}
 
+      {uploaded && !compliance && !project.design && run.status !== 'running' && (
+        <div className="sv-banner sv-banner-warn">
+          <h3>Which rules apply to this app is not decided yet</h3>
+          <p>
+            The checks that read the code as it is have run, and what they found is below. Whether the app meets the
+            security rules is not scored, because which rules apply depends on a few questions about it that have not
+            been answered. Answering them adds the compliance report and widens the AI review beyond ASVS Level 1, the
+            floor it reads the code against until then.
+          </p>
+          <Link className="sv-btn" to={`/projects/${id}/wizard/about`}>
+            Answer the questions
+          </Link>
+        </div>
+      )}
+
       {(project.designStale || project.buildStale) && uploaded && (
         <div className="sv-banner sv-banner-warn">
           <h3>These results are out of date</h3>
@@ -341,7 +356,7 @@ export function ResultsPage() {
       {/* A build that stopped part-way can be continued, and until now the only way to that button was the
           Build page for that exact run — a URL typed by hand. The night an owner's AI credit ran out mid-build,
           that was the route they did not find, and a rebuild would have paid again for work already done. */}
-      {!uploaded && run.mode === 'full' && (run.status === 'failed' || run.status === 'cancelled' || run.status === 'interrupted') && (
+      {!uploaded && run.mode === 'full' && (run.status === 'failed' || run.status === 'canceled' || run.status === 'interrupted') && (
         <div className="sv-banner sv-banner-warn">
           <h3>This build stopped part-way</h3>
           <p>
@@ -566,6 +581,27 @@ export function ResultsPage() {
         </Card>
       )}
 
+      {run.ownerTasks && run.ownerTasks.length > 0 && (
+        <Card>
+          <h2>What only you can do</h2>
+          <p className="sv-muted">
+            Worked out from the app itself and your answers, not from what Claude said. Each one says what stays
+            switched off until it is done.
+          </p>
+          <ul>
+            {run.ownerTasks.map((t) => (
+              <li key={t.id} style={{ marginBottom: 8 }}>
+                <strong>{t.title}</strong>
+                <br />
+                <span className="sv-muted">{t.because}</span>
+                <br />
+                <span className="sv-faint">{t.staysOff}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {instructions && (
         <AppPreview
           projectId={id!}
@@ -732,7 +768,7 @@ export function ResultsPage() {
       <Card>
         <h2>How your app looks</h2>
         <p className="sv-help">
-          The colours only. Changing this does not rebuild your app, costs nothing, and cannot affect how your app
+          The colors only. Changing this does not rebuild your app, costs nothing, and cannot affect how your app
           protects your data: every look is tested to stay readable, in ordinary and in dark mode.
         </p>
         <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8 }}>

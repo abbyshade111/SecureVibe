@@ -43,7 +43,7 @@ export const aiControlCharsRejected: ProbeModule = {
   id: 'dast.ai.control-chars-rejected',
   group: 'ai',
   requirementIds: ['C2.1.1', 'C2.1.7'],
-  fallback: { title: 'Reserved sequences reach the model', severity: 'medium', cwe: ['CWE-20'], description: 'A message containing reserved model tokens (<<SYS>>, [INST]) was accepted as-is.', impact: 'Reserved sequences let a user forge system-level instructions.', fix: 'Normalise input (NFKC), strip control characters and reject or escape reserved sequences before the model sees them.' },
+  fallback: { title: 'Reserved sequences reach the model', severity: 'medium', cwe: ['CWE-20'], description: 'A message containing reserved model tokens (<<SYS>>, [INST]) was accepted as-is.', impact: 'Reserved sequences let a user forge system-level instructions.', fix: 'Normalize input (NFKC), strip control characters and reject or escape reserved sequences before the model sees them.' },
   async run(ctx) {
     const r = ready(ctx);
     if ('reason' in r) return NOT_ATTEMPTED(r.reason);

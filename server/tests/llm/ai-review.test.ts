@@ -45,6 +45,21 @@ const BATCHES: RequirementBatch[] = [
   },
 ];
 
+describe('ai review without answers', () => {
+  it('reviews the code with no design and no contract, and its citations still have to be real', async () => {
+    // An uploaded app checked before the questions were answered: reviewed against the floor, nothing promised.
+    const result = await aiReview(new ScriptedProvider({ dir: FIXTURE_DIR, scenario: 'ai-review' }), {
+      files: FILES,
+      requirements: BATCHES,
+      runId: 'run-test',
+      projectId: 'p1',
+    });
+    expect(result.performed).toBe(true);
+    expect(result.assessments.find((a) => a.id === 'V8.2.1')?.status).toBe('pass');
+    expect(result.unverifiedCitations).toBeGreaterThan(0);
+  });
+});
+
 describe('ai review', () => {
   const run = () =>
     aiReview(new ScriptedProvider({ dir: FIXTURE_DIR, scenario: 'ai-review' }), {
@@ -154,7 +169,7 @@ describe('citation checking', () => {
   it('accepts a quote within five lines of the cited line', () => {
     expect(verifyCitation(index, 'a.ts', 5, "auth: 'user'")).toBe(true);
     expect(verifyCitation(index, 'a.ts', 1, "auth: 'user'")).toBe(true); // within tolerance
-    expect(verifyCitation(index, 'a.ts', 5, "auth:   'user'")).toBe(true); // whitespace is normalised
+    expect(verifyCitation(index, 'a.ts', 5, "auth:   'user'")).toBe(true); // whitespace is normalized
   });
 
   it('rejects a quote that is not there, a file that was not sent, and an empty quote', () => {

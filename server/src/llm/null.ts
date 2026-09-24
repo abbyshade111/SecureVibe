@@ -1,5 +1,5 @@
 /**
- * Preview mode: SecureVibe runs with no AI credential. Everything that needs the model is skipped and labelled
+ * Preview mode: SecureVibe runs with no AI credential. Everything that needs the model is skipped and labeled
  * honestly — never silently faked, never counted as verified.
  */
 import { emptyLlmUsage } from './budget.js';

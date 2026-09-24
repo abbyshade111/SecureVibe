@@ -34,6 +34,20 @@ export interface ConfigCheckDef {
    * (ADR-012).
    */
   applies?(ctx: ScanContext): boolean;
+  /** Why it does not apply, for the stage summary: "they are about npm, which this app does not use". */
+  notApplicableReason?: string;
+}
+
+/** The reason every npm-only check gives when the app has no package.json. */
+export const NPM_ONLY = 'they are about npm, which this app does not use';
+
+/**
+ * Whether SecureVibe built this app from its own template. An uploaded app is checked with a stand-in manifest
+ * (api/uploads.ts, `uploadedManifest()`), and the checks that look for what the template writes — its
+ * documents, its README commands — would be checking for our convention and reporting it as their failure.
+ */
+export function builtBySecureVibe(ctx: Pick<ScanContext, 'manifest'>): boolean {
+  return ctx.manifest.name !== 'uploaded-app';
 }
 
 function meta(input: Omit<RuleMeta, 'remediation' | 'whoCanFix'> & { fix: string; steps?: string[]; references?: string[] }): RuleMeta {
@@ -231,6 +245,10 @@ export const nodeEnginePinned: ConfigCheckDef = {
     fix: 'Set "engines": { "node": ">=22.13.0" } in package.json.',
     references: ['https://nodejs.org/en/about/previous-releases'],
   }),
+  // "package.json has no engines.node" was said to a Flask app with no package.json: the same gate as the
+  // lockfile and ignore-scripts checks, simply missed (ADR-012).
+  applies: (ctx) => usesNpm(ctx.appDir),
+  notApplicableReason: NPM_ONLY,
   run: (ctx) => {
     const pkg = readJson<{ engines?: { node?: string } }>(ctx, 'package.json');
     const node = pkg?.engines?.node;
@@ -255,6 +273,7 @@ export const lockfilePresent: ConfigCheckDef = {
     references: ['https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html'],
   }),
   applies: (ctx) => usesNpm(ctx.appDir),
+  notApplicableReason: NPM_ONLY,
   run: (ctx) => {
     const exists = existsSync(join(ctx.appDir, 'package-lock.json'));
     return { passed: exists, summary: exists ? 'package-lock.json is present.' : 'package-lock.json was not found.', file: 'package-lock.json' };
@@ -278,6 +297,7 @@ export const ignoreScripts: ConfigCheckDef = {
     references: ['https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html'],
   }),
   applies: (ctx) => usesNpm(ctx.appDir),
+  notApplicableReason: NPM_ONLY,
   run: (ctx) => {
     const text = read(ctx, '.npmrc');
     const ok = !!text && /^\s*ignore-scripts\s*=\s*true\s*$/m.test(text);
@@ -574,17 +594,32 @@ export const readmeRunInstructions: ConfigCheckDef = {
     aisvs: [],
     sbd: ['MT-05'],
     exploitability: 'theoretical',
-    description: 'README.md does not describe how to set up and run the app safely.',
-    impact: 'Someone may skip the setup step that generates secrets and creates the first administrator.',
-    fix: 'Add the steps: npm install, npm run setup, npm start.',
+    description: 'README.md does not describe how to set up and run the app.',
+    impact: 'Someone may skip a setup step that matters, such as the one that generates secrets and creates the first administrator.',
+    fix: 'Add a short "How to run" section to README.md with the exact install, setup and start commands for this app.',
     references: ['https://owasp.org/www-project-secure-by-design-framework/'],
   }),
   run: (ctx) => {
     const text = read(ctx, 'README.md') ?? '';
-    const hasSetup = /npm run setup/.test(text);
-    const hasStart = /npm start/.test(text);
-    const ok = hasSetup && hasStart;
-    return { passed: ok, summary: ok ? 'README.md documents the setup and start commands.' : 'README.md does not mention both "npm run setup" and "npm start".', file: 'README.md' };
+    if (builtBySecureVibe(ctx)) {
+      // The template's own commands: the setup step is the one that makes the secrets, so it must be named.
+      const hasSetup = /npm run setup/.test(text);
+      const hasStart = /npm start/.test(text);
+      const ok = hasSetup && hasStart;
+      return { passed: ok, summary: ok ? 'README.md documents the setup and start commands.' : 'README.md does not mention both "npm run setup" and "npm start".', file: 'README.md' };
+    }
+    // Somebody else's app: the question is the same, does the README say how to run it, but the answer is not
+    // our commands. A Python app was failed for not mentioning "npm start". Any run or install command, in any
+    // of the usual ecosystems, or a heading that promises them, answers it.
+    const RUN_HINT =
+      /\b(npm (start|run|install|ci)|yarn|pnpm|python3? |pip install|flask run|uvicorn|gunicorn|django|manage\.py|docker (compose|run|build)|docker-compose|go run|cargo run|bundle exec|rails s|php artisan|mvn |gradle|dotnet run|make (run|start))\b/i;
+    const HEADING = /^#+\s*(how to run|running|getting started|setup|installation|usage|quick ?start)/im;
+    const ok = text.trim() !== '' && (RUN_HINT.test(text) || HEADING.test(text));
+    return {
+      passed: ok,
+      summary: ok ? 'README.md says how to set up and run the app.' : text.trim() === '' ? 'README.md is missing or empty, so nothing says how to set up and run the app.' : 'README.md does not say how to set up and run the app (no run or install command, and no section about it).',
+      file: 'README.md',
+    };
   },
 };
 

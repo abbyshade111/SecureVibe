@@ -60,3 +60,19 @@ export const NOT_APPLICABLE_TO_SECUREVIBE: Record<string, string> = Object.fromE
       ['dast.authz.unregistered-route', 'routes.manifest.json belongs to generated apps. The route list used for this scan is read from SecureVibe\'s running Express app, so it cannot miss a route.'],
     ]),
 );
+
+/**
+ * Rules that assume the thing being scanned is a generated application, which SecureVibe is not.
+ *
+ * A self-assessment on 20 September 2026 reported 4 critical and 113 high, and the bulk was these four rules
+ * misfiring on SecureVibe: 62 route-outside-registry, 13 child-process-exec, 17 fs-user-path and 11
+ * path-join-user-input. A generated app declares its routes in a registry and never spawns a process; a build
+ * tool's job is to spawn processes and join paths. Same class as asking a Python app about its npm lockfile,
+ * one level up: the target is not what the rules assume, and the report said so in the language of failure.
+ * Their results are left out of the self-assessment and the stage summary says why (excludedChecksReason).
+ * The findings that were not explained by this were checked one by one and are triaged in
+ * self-assessment/triage.json instead, because those are real matches with a reason each.
+ */
+export const SELF_ASSESS_EXCLUDED_CHECKS = ['sast.route-outside-registry', 'sast.child-process-exec', 'sast.fs-user-path', 'sast.path-join-user-input'];
+
+export const SELF_ASSESS_EXCLUDED_REASON = 'assume a generated application, which declares its routes in a registry and never spawns a process; SecureVibe is a build tool, whose job is to spawn processes and work with paths';

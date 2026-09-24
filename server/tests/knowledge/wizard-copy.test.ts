@@ -112,6 +112,7 @@ const EXPECTED_QUESTION_IDS = [
   'users.expectedUserCount',
   'users.registration',
   'users.adminMfa',
+  'users.centralSignIn',
   'data.categories',
   'data.aboutOtherPeople',
   'data.retention',
@@ -145,6 +146,7 @@ const ENUM_OPTIONS: Record<string, readonly (string | boolean)[]> = {
   'users.expectedUserCount': UsersSectionSchema.shape.expectedUserCount.unwrap().options,
   'users.registration': UsersSectionSchema.shape.registration.unwrap().options,
   'users.adminMfa': [true, false],
+  'users.centralSignIn': UsersSectionSchema.shape.centralSignIn.unwrap().options,
   'data.categories': DataCategorySchema.options,
   'data.aboutOtherPeople': [true, false],
   'data.retention': DataSectionSchema.shape.retention.unwrap().options,
@@ -251,7 +253,7 @@ describe('data/knowledge/wizard-copy.json', () => {
         expect(['app.name', 'app.tagline', 'app.description', 'deployment.owner.name', 'deployment.owner.contactEmail'], `${q.id} must offer Not sure`).toContain(q.id);
         continue;
       }
-      expect(q.notSure.behaviour, `${q.id} Not sure behaviour`).toMatch(/^We will /);
+      expect(q.notSure.behaviour, `${q.id} Not sure behavior`).toMatch(/^We will /);
       expect(q.notSure.behaviour, `${q.id} Not sure records an assumption`).toMatch(/note it|assumption/);
       if (q.options && q.notSure.choosesValue !== undefined) {
         const chosen = Array.isArray(q.notSure.choosesValue) ? q.notSure.choosesValue : [q.notSure.choosesValue];

@@ -104,7 +104,7 @@ export const STATUS_DEFINITIONS: Record<RequirementStatus, string> = {
 
 export const VerificationClassSchema = z.enum([
   'automatable', // a probe/test/manifest control can prove it
-  'ai-assistable', // needs judgement; AI review may assess, humans should confirm
+  'ai-assistable', // needs judgment; AI review may assess, humans should confirm
   'doc-generated', // a document generated from source-of-truth constants describes it
   'scanner-clean', // best evidence is "no issues detected" by rules with partial coverage
   'manual-only', // can never be automated; always not-verified until a human attests
@@ -257,7 +257,7 @@ export const RecommendationSchema = z.object({
   /**
    * When this has to be done, in the owner's terms — "before internet deployment", "before multi-team use".
    * Absent means now. An action waiting on something that has not happened must not sit above one that is due
-   * today: an owner running an app on her own computer was told first to connect it to an organisation's central
+   * today: an owner running an app on her own computer was told first to connect it to an organization's central
    * sign-in system, and second to move its secrets into a hosting provider's secret manager, neither of which
    * she has.
    */

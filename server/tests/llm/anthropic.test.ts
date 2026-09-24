@@ -68,7 +68,7 @@ describe('structured calls', () => {
   const request = {
     purpose: 'summarize' as const,
     system: [{ text: 'stable role block', cache: true }, { text: 'the volatile task' }],
-    user: 'summarise this',
+    user: 'summarize this',
     schema: OutputSchema,
     effort: 'medium' as const,
     maxTokens: 99_000,
@@ -184,7 +184,7 @@ describe('structured calls', () => {
     expect(JSON.parse(writes.at(-1)!).costUsd).toBeGreaterThan(0);
   });
 
-  it('recognises an account without credit and says what to do', () => {
+  it('recognizes an account without credit and says what to do', () => {
     const apiError = new Anthropic.BadRequestError(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }, 'Your credit balance is too low to access the Anthropic API.', new Headers());
     const mapped = toLlmError(apiError);
     expect(mapped.kind).toBe('billing');
@@ -199,7 +199,7 @@ describe('structured calls', () => {
       expect(result.reason).toBe('error');
       expect(result.message).not.toContain('sk-ant');
     }
-    expect(userMessageForError(toLlmError(new Error('abort')))).toBe('The step was cancelled.');
+    expect(userMessageForError(toLlmError(new Error('abort')))).toBe('The step was canceled.');
   });
 });
 

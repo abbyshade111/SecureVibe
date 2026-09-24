@@ -18,19 +18,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **"What only you can do".** A list on the Results page and in the reports, derived from facts rather than
-  prose: settings left unset, named outside services with no address, planned features that came back not-built.
-  For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
-  has this shape for deployment, so it extends a pattern rather than inventing a third list.
-- **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
-  organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
-  for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
-  the overstatement this whole project exists to avoid. Two parts instead. Where the control is really asking a
-  question, ask it in the wizard (does your organisation have a central sign-in system?) and let the existing
-  applicability rules mark it not applicable, as TLS requirements already are for a local-only app. Where no
-  question fits, let the owner record a **reason**: the control stays visible, reads "not applicable — because
-  …", the rating reflects it, and the reports name who decided and when. One hides a control; the other answers
-  it, and only the second can be audited.
 - **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
   `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
   refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an
@@ -55,20 +42,12 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **Let an uploaded app be checked without answering the questions first.** `POST /projects/:id/runs` refuses an
-  uploaded app that has no design: "Answer the questions about your app before checking it." The reason is real —
-  the answers decide which rules apply, and a compliance report written without them is guesswork — but it is the
-  wrong shape for what people actually do. The first person to hand SecureVibe somebody else's code on
-  20 September 2026 said plainly "I just want to check the code that's uploaded", and most of what would tell her
-  something does not need a single answer: secrets, dependencies, configuration, the AI review and the virus scan
-  all read the code as it is. What needs the answers is the ASVS mapping, and only the applicability part of it.
-  So the split to build is: run every check that does not depend on the answers straight away, and show the
-  compliance section as unanswered rather than absent — "these rules may or may not apply to your app; answer
-  eight questions and we will say". That also fixes the worse half, which is that somebody checking code they did
-  not write cannot honestly answer half the wizard, and guessing puts made-up facts into a report. A shorter set
-  of questions for uploaded apps is probably part of the answer.
-
-- **A report that says 0 of 106 when the truth is "we did not look".** The first app anybody handed SecureVibe
+- **A shorter set of questions for uploaded apps.** Somebody checking code they did not write cannot honestly
+  answer half the wizard (which records it keeps, what its features are), and guessing puts made-up facts into a
+  report. The check and the reports no longer wait for the answers, and the AI review reads against ASVS Level 1
+  without them (24 September 2026); what the answers still decide is the applicability of the rules above the
+  floor. A shorter set that asks only what applicability needs would make answering honest for an uploaded app.
+- ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
   verified**, one critical configuration problem and ten high/medium issues. Every one of those ten was in
@@ -88,40 +67,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **Nine more findings that are artifacts of assuming SecureVibe built the app.** ADR-012 gated the two worst
-  (`deps.lockfile-missing`, `config.ignore-scripts`) and the Flask app's re-run on 20 September 2026 showed
-  three more classes still firing:
-  `config.node-engine-pinned` says "package.json has no engines.node requirement" to an app with no
-  package.json — clear-cut, same gate, simply missed.
-  `config.readme-run-instructions` greps the README for the literal strings `npm run setup` and `npm start`.
-  The question it is asking — does the README say how to run this safely — is fair for any app; the test is
-  ours. It needs to ask the question in a way that a Python app can pass.
-  The seven `docs.*` checks look for `docs/validation.md`, `docs/logging.md` and their siblings, which is the
-  documentation layout SecureVibe's own template generates. This is the subtle one and worth getting right
-  rather than fast: "your validation rules are not documented" may well be true of somebody else's app, but
-  concluding it from the absence of *our* file paths is checking for our convention and reporting it as their
-  failure. The honest result for an app we did not build is "could not verify", which is the same not-assessed
-  distinction the compliance score just learnt, applied one level down at the individual check.
-  Deliberately not fixed during the comparison runs: changing the checks between arms would have left the three
-  apps measured against different rules, which is the one thing that experiment cannot survive.
-
-- **The AI review cites nothing at all on an app it is the only checker for.** Measured on 20 September 2026,
-  the same reviewer, days apart: SecureFit, a Node app SecureVibe built, 132 of 192 requirements reviewed and
-  **231 places cited in the code**. The uploaded Python app, 139 of 139 reviewed and **0 places cited**, twice,
-  at twenty cents a time. Nothing in the prompt is about TypeScript, and the review is handed the files
-  whatever they are written in.
-  This matters more than the static-analysis gap it sits behind. Our own rules not reading Python is a stated
-  limit with a report line that now says so. The AI review is what tier 2 in ADR-012 *is* — it is the whole
-  substance of "an app in another language still gets a real check" — and on this evidence it is contributing
-  nothing to it. Until somebody finds out why, the honest position is that an uploaded app in an unsupported
-  language gets the secrets scan, the virus scan, the dependency check and the external scanners, and should
-  not be described as getting the AI review in any meaningful sense.
-  Worth checking first: whether the file-selection step hands it any Python at all, whether the citation
-  verifier is rejecting citations it cannot resolve to a known file type, and whether "cited 0 places" is
-  distinguishable in the data from "made no findings" — the third possibility being another check that cannot
-  tell its two zeroes apart.
-
-
 - **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
   report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,
   so no PDF exists on disk until a person saves one, one report and one dialog at a time. On 20 September 2026
@@ -134,26 +79,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
 
-- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.**
-  A self-assessment on 20 September 2026 returned 31 of 161 requirements verified, 4 critical, 113 high. Checked
-  one by one, the bulk is SecureVibe's own rules misfiring on SecureVibe: 62 `route-outside-registry`,
-  13 `child-process-exec`, 17 `fs-user-path`, 11 `path-join-user-input`. Those rules assume the thing being
-  scanned is a generated application, which is meant to declare its routes in a registry and never spawn a
-  process. SecureVibe is a build tool: spawning processes and joining paths is its job. Same class as asking a
-  Python app about its npm lockfile, one level up — the target is not what the rules assume, and the report says
-  so in the language of failure.
-  The six findings that are *not* explained by that were checked individually and are all legitimate: three
-  "hardcoded secrets" are deliberately-wrong passwords (`not-a-real-password-1`) that DAST posts to a login form
-  to prove it rejects them, and three `tls-reject-unauthorized-false` are the runtime probes connecting to the
-  app under test over its own self-signed certificate — including the probe whose entire purpose is to attempt a
-  TLS 1.1 handshake and confirm it is refused.
-  So the self-assessment is currently unusable as a signal: its true findings are buried under a hundred false
-  ones, and an owner or a reviewer reading it would reasonably conclude the opposite of the truth. It needs the
-  same treatment the uploaded-app case just got — rules that declare what kind of target they apply to, and a
-  report that says "this check does not apply to this thing" rather than failing it.
-
-
-- **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
+- ~~**The template suite ran 30 of its 33 files and said it was green.**~~ **Done (list regenerated before each run, count printed); the durable half, moving the repository out of ~/Desktop, stays with the iCloud item.** Original text kept: The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
   every test of the work one session had just finished, were not run by the suite that reported on it. The list
@@ -166,17 +92,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   whose job is to notice failures.
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
-
-- **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
-  20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
-  complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
-  nothing, and read as a clean result. It now refuses a lone archive and says to unpack it first, which is the
-  honest stop-gap and still asks the person to do something SecureVibe could do for them. Unpacking server-side
-  is the real answer and needs care rather than a library call: every entry's path checked before it is written
-  (no `..`, no absolute paths, no symlinks, no links out of the staging folder), the uncompressed size capped
-  before extracting rather than after, and the same skip list applied to what comes out. A zip from outside is
-  untrusted input in exactly the way ADR-011 means, so whatever lands should also be what the virus scanner is
-  pointed at.
 
 - **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
   left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
@@ -229,21 +144,12 @@ building from nothing.
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
   app.
-- **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
-  rest. Multiple selection where the question allows it, and the answers it may set must still come from the
-  same allow-list, so this widens what an owner can say without widening what the flow may change.
-- **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
-  different set of records, or to see what a rebuild does, currently risks the app they already have.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
   `UX-01 …`, and `UX-01` appears in no framework file and no knowledge file — so it is credited to nothing, screened
   by nothing, and reads to anyone else as a citation. Either it becomes a real entry somewhere with wording the
   test-name checker can compare against, or the tests drop the prefix and say what they show in plain words, as the
   secrets tests do. Found while looking for a catalogue to file an assistant-progress test under, on 20 September
   2026. Same family as the mislabelled requirement names: an id is a claim, and a claim wants something behind it.
-- **One spelling standard, American English, with the Oxford comma.** The interface, the reports and the code
-  comments are written in British English today ("colour", "behaviour", "recognise"). Owner-facing text first —
-  the wizard copy, the reports, the finding descriptions — and the knowledge files that feed them, since a report
-  that mixes conventions reads as carelessly assembled whatever else is true of it.
 
 ## The recipe-library session's half
 

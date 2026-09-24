@@ -6,7 +6,7 @@
  *
  * It writes no scheduler of its own. The template has one (`src/lib/scheduler.ts`) that declares jobs in code only
  * and holds a lease while a job runs, so two ticks or two processes can never run the same job at once, and a mailer
- * (`src/lib/mailer.ts`) that sanitises headers and writes to a local outbox when no SMTP server is configured. This
+ * (`src/lib/mailer.ts`) that sanitizes headers and writes to a local outbox when no SMTP server is configured. This
  * recipe registers a job with the first and sends through the second.
  *
  * What the profile decides:

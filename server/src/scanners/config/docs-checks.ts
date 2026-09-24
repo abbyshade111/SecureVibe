@@ -5,14 +5,14 @@
  *
  * What a machine can and cannot say is kept honest: these checks verify that the document is there and that the
  * facts in it (session times, allowed hosts, kinds of data, log location) are the app's real ones. Whether the
- * wording is *right for your business* is still a person's judgement, and those questions stay in the wizard.
+ * wording is *right for your business* is still a person's judgment, and those questions stay in the wizard.
  */
 import { join } from 'node:path';
 import type { RuleMeta } from '../sast/findings.js';
 import { readTextFile } from '../sast/files.js';
 import type { ScanContext } from '../types.js';
 import { parseEnv } from './env.js';
-import type { ConfigCheckDef, ConfigCheckOutcome } from './checks.js';
+import { builtBySecureVibe, type ConfigCheckDef, type ConfigCheckOutcome } from './checks.js';
 
 /** A document that is present but empty says nothing; this is the smallest size that can carry real content. */
 const MIN_DOC_CHARS = 200;
@@ -218,6 +218,15 @@ export const securityOverviewDocumented: ConfigCheckDef = {
 };
 
 /** Every documentation check, in the order they are reported. */
+/**
+ * These look for the documents SecureVibe's own template writes (docs/validation.md and its siblings). "Your
+ * validation rules are not documented" may well be true of somebody else's app, but concluding it from the
+ * absence of our file paths is checking for our convention and reporting it as their failure. For an app
+ * SecureVibe did not build, the honest result is that this could not be verified, so the checks do not apply
+ * and say why; the requirements they would have answered stay unverified rather than failed.
+ */
+const OUR_DOCUMENTS_ONLY = 'they look for the documents SecureVibe writes when it builds an app, so whether an app built elsewhere documents these things could not be verified';
+
 export const DOC_CHECKS: ConfigCheckDef[] = [
   validationDocumented,
   sessionTimesDocumented,
@@ -226,4 +235,4 @@ export const DOC_CHECKS: ConfigCheckDef[] = [
   loggingDocumented,
   dependencyUpdatesDocumented,
   securityOverviewDocumented,
-];
+].map((check) => ({ ...check, applies: (ctx) => builtBySecureVibe(ctx), notApplicableReason: OUR_DOCUMENTS_ONLY }));

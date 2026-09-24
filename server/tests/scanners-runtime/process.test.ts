@@ -1,6 +1,6 @@
 /**
  * The process sandbox (CONTRACTS §9.3): what every child process SecureVibe starts for a generated app goes
- * through. The behaviour that matters here is the behaviour the reports depend on — a run that cannot be stopped,
+ * through. The behavior that matters here is the behavior the reports depend on — a run that cannot be stopped,
  * an output that fills memory, or a silent loss of the file-system restriction would all be reported dishonestly.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';

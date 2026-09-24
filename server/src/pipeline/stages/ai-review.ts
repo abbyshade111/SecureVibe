@@ -10,26 +10,40 @@ import { aiReview, DEFAULT_BUDGETS, mergeUsage, toAiReviewResult, type ReviewFil
 import { listFiles, sha256File } from '../../generator/files.js';
 import { MIN_STAGE_BUDGET_USD, budgetExhaustedText, finishStage, stageBudgetUsd, startStage } from '../stage-helpers.js';
 import type { PipelineRun } from '@shared/pipeline.js';
+import { extensionOf, languageBreakdown, LANGUAGES } from '@shared/languages.js';
 import { carryForwardReview } from '../diff-aware.js';
 import type { PipelineCtx } from '../types.js';
 
 const MAX_FILES = 250;
 
-/** Lower sorts first: security code, other source, views, configuration, then tests. */
-function reviewPriority(relPath: string): number {
-  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(relPath) || /(^|\/)tests?\//.test(relPath)) return 4;
-  if (/(^|\/)(security|auth|authz)(\/|\.)/.test(relPath) || /(^|\/)(app|server|main|process|middleware|token|csrf)\.[cm]?[jt]sx?$/.test(relPath)) return 0;
-  if (/(^|\/)src\//.test(relPath) && /\.[cm]?[jt]sx?$/.test(relPath)) return 1;
-  if (/\.ejs$/.test(relPath)) return 2;
+/**
+ * What the review may read: every language listed in shared/languages.ts, whether or not SecureVibe's own rules
+ * parse it, plus page templates and the few configuration files that say how an app is put together.
+ *
+ * Until 24 September 2026 this was TypeScript and EJS only. The review is the whole substance of "an app in
+ * another language still gets a real check" (ADR-012), and on a Python app it reviewed 139 requirements and
+ * cited nothing, twice, at twenty cents a time: not one .py file had been handed to it. The file selection was
+ * the reason, not the model.
+ */
+const CODE_EXTENSIONS = new Set([...LANGUAGES.flatMap((l) => l.extensions), '.html', '.hbs', '.pug', '.vue', '.svelte']);
+const CONFIG_FILES = /(^|\/)(package\.json|securevibe\.manifest\.json|requirements\.txt|pyproject\.toml|Pipfile|go\.mod|Cargo\.toml|Gemfile|composer\.json|Dockerfile|compose\.ya?ml|docker-compose\.ya?ml)$/;
+
+/** Lower sorts first: security code, other source, views, configuration, then tests. Any language. */
+export function reviewPriority(relPath: string): number {
+  if (/\.(test|spec)\.[^/]+$/.test(relPath) || /(^|\/)(tests?|spec|__tests__)\//.test(relPath) || /(^|\/)test_[^/]+\.py$/.test(relPath)) return 4;
+  if (/(^|\/)(security|auth|authz|login|session|permission)s?(\/|\.|_)/.test(relPath) || /(^|\/)(app|server|main|process|middleware|token|csrf|views|routes|api)\.[^/.]+$/.test(relPath)) return 0;
+  if (CONFIG_FILES.test(relPath)) return 3;
+  if (/\.(ejs|html|hbs|pug|vue|svelte)$/.test(relPath)) return 2;
+  if (CODE_EXTENSIONS.has(extensionOf(relPath))) return 1;
   return 3;
 }
 
 /** The files the AI review may read: the scan's own exclusions apply, and only code, views and key config. */
-function collectFiles(appDir: string, extraIgnore: string[]): ReviewFile[] {
+export function collectFiles(appDir: string, extraIgnore: string[]): ReviewFile[] {
   const ignore = compileIgnore(extraIgnore);
   const files = listFiles(appDir)
     .filter((f) => !f.relPath.startsWith('node_modules/') && !isIgnored(f.relPath, ignore))
-    .filter((f) => /\.(ts|tsx|ejs)$/.test(f.relPath) || /(^|\/)(package\.json|securevibe\.manifest\.json)$/.test(f.relPath))
+    .filter((f) => CODE_EXTENSIONS.has(extensionOf(f.relPath)) || CONFIG_FILES.test(f.relPath))
     .sort((a, b) => reviewPriority(a.relPath) - reviewPriority(b.relPath) || a.relPath.localeCompare(b.relPath));
   return files.slice(0, MAX_FILES).map((f) => {
     let content = '';
@@ -102,14 +116,24 @@ export function reviewOrder(batch: RequirementBatch, troubled: Set<string>): [nu
   return [troubled.has(batch.chapterId) ? 0 : 1, risk, lowestLevel];
 }
 
+/**
+ * What to review when the questions have not been answered: ASVS Level 1, the floor every app is meant to meet.
+ * The answers decide which rules apply above that floor (Level 2, the AI rules, the AI-assisted-coding rules),
+ * so those wait; the floor does not depend on them.
+ */
+export function requirementIdsWithoutAnswers(frameworks: Pick<PipelineCtx['frameworks'], 'listRequirements'>): string[] {
+  return frameworks.listRequirements('asvs').filter((r) => r.level === 1).map((r) => r.id);
+}
+
 function buildBatches(ctx: PipelineCtx): RequirementBatch[] {
-  if (!ctx.design) return [];
-  const applicability = ctx.design.applicability;
-  const ids: { id: string; standard: 'asvs' | 'aisvs' | 'aisvs-appendix-c' }[] = [
-    ...applicability.asvs.applicable.map((id) => ({ id, standard: 'asvs' as const })),
-    ...(applicability.aisvs.enabled ? applicability.aisvs.applicable.map((id) => ({ id, standard: 'aisvs' as const })) : []),
-    ...applicability.appendixC.applicable.map((id) => ({ id, standard: 'aisvs-appendix-c' as const })),
-  ];
+  const applicability = ctx.design?.applicability;
+  const ids: { id: string; standard: 'asvs' | 'aisvs' | 'aisvs-appendix-c' }[] = applicability
+    ? [
+        ...applicability.asvs.applicable.map((id) => ({ id, standard: 'asvs' as const })),
+        ...(applicability.aisvs.enabled ? applicability.aisvs.applicable.map((id) => ({ id, standard: 'aisvs' as const })) : []),
+        ...applicability.appendixC.applicable.map((id) => ({ id, standard: 'aisvs-appendix-c' as const })),
+      ]
+    : requirementIdsWithoutAnswers(ctx.frameworks).map((id) => ({ id, standard: 'asvs' as const }));
   const byChapter = new Map<string, RequirementBatch>();
   for (const { id, standard } of ids) {
     if (ctx.aiReviewSkip?.has(id)) continue;
@@ -162,9 +186,9 @@ function previousRunFor(ctx: PipelineCtx): PipelineRun | undefined {
 
 export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   const started = startStage(ctx, 'ai-review');
-  if (!ctx.design) {
-    return finishStage(ctx, 'ai-review', 'skipped', 'The design was not available, so nothing could be reviewed.', started, { skippedReason: 'no design' });
-  }
+  // No design: a check made before the questions were answered. The review still runs, against ASVS Level 1
+  // (see requirementIdsWithoutAnswers), when the owner asked for it and AI is on; its findings go to the security
+  // report. Its per-requirement answers are kept on the run and become evidence once the answers exist.
   const provider = ctx.providerFor('ai-review');
   if (provider.name === 'null') {
     return finishStage(ctx, 'ai-review', 'skipped', 'AI is not configured, so no AI review was performed. Nothing in this run was assessed by AI.', started, {
@@ -173,13 +197,20 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   }
 
   const files = collectFiles(ctx.appDir, ctx.extraIgnore ?? []);
+  // "Cited 0 places" must be distinguishable from "was handed nothing": say up front what the review can read.
+  const filesNote = `${files.length} file(s) were sent to the AI${files.length > 0 ? ` (${languageBreakdown(files.map((f) => f.path)).map((l) => `${l.language}: ${l.files}`).join(', ') || 'configuration only'})` : ''}.`;
+  if (files.length === 0) {
+    return finishStage(ctx, 'ai-review', 'skipped', 'No code the AI review can read was found in this app, so nothing was sent to the AI and nothing was assessed by it.', started, {
+      skippedReason: 'no readable code files',
+    });
+  }
 
   /**
    * A rebuild usually changes a small part of an app. Verdicts the last check formed about files that are still
    * byte-for-byte the same are carried forward (see pipeline/diff-aware.ts), so the money goes on what changed.
    * Anything without a verified citation, or whose file has changed, is reviewed again.
    */
-  const carried = carryForwardReview(previousRunFor(ctx), ctx.appDir, ctx.design.profileHash);
+  const carried = carryForwardReview(previousRunFor(ctx), ctx.appDir, ctx.design?.profileHash ?? '');
   if (carried.skip.size > 0) {
     ctx.aiReviewSkip = new Set([...(ctx.aiReviewSkip ?? []), ...carried.skip]);
     ctx.acc.evidence.push(...carried.evidence);
@@ -201,7 +232,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
     appDir: ctx.appDir,
     files,
     requirements,
-    design: ctx.design,
+    ...(ctx.design ? { design: ctx.design } : {}),
     budget: { ...DEFAULT_BUDGETS.review, maxUsd: Math.min(DEFAULT_BUDGETS.review.maxUsd, remaining) },
     projectId: ctx.project.id,
     runId: ctx.run.id,
@@ -221,6 +252,7 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
   const requested = requirements.reduce((n, b) => n + b.requirements.length, 0);
   const alreadyVerified = (ctx.aiReviewSkip?.size ?? 0) - carried.skip.size;
   const skippedNote =
+    (ctx.design ? '' : 'Reviewed against ASVS Level 1, the floor every app is meant to meet, because the questions about this app have not been answered; its findings are in the security report. ') +
     (alreadyVerified > 0 ? `${alreadyVerified} requirement(s) already verified by automated checks were not sent to the AI (to save cost). ` : '') +
     (carried.note ? `${carried.note} ` : '');
   // Mostly unreviewed (spending limit, no credit, failed calls) is a warning, not a pass.
@@ -230,8 +262,8 @@ export async function runAiReviewStage(ctx: PipelineCtx): Promise<StageResult> {
       : 'warning'
     : 'skipped';
   const summary = outcome.performed
-    ? `${skippedNote}Claude reviewed ${outcome.reviewedRequirementIds.length} of ${requested} requirement(s) and cited ${outcome.totalCitations} place(s) in the code (${outcome.unverifiedCitations} citation(s) could not be verified).${notReviewedNote(outcome.batches)}`
-    : (outcome.skippedReason ?? (ctx.abort.signal.aborted ? 'The AI review was stopped because the build was cancelled; nothing it had started counts as evidence.' : 'The AI review did not run.'));
+    ? `${skippedNote}${filesNote} Claude reviewed ${outcome.reviewedRequirementIds.length} of ${requested} requirement(s) and cited ${outcome.totalCitations} place(s) in the code (${outcome.unverifiedCitations} citation(s) could not be verified).${notReviewedNote(outcome.batches)}`
+    : (outcome.skippedReason ?? (ctx.abort.signal.aborted ? 'The AI review was stopped because the build was canceled; nothing it had started counts as evidence.' : 'The AI review did not run.'));
   return finishStage(ctx, 'ai-review', status, summary, started, {
     ...(outcome.skippedReason ? { skippedReason: outcome.skippedReason } : {}),
     details: { assessments: outcome.assessments.length, hallucinationRate: outcome.hallucinationRate, batches: outcome.batches },

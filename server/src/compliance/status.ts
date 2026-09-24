@@ -95,6 +95,16 @@ export function decideStatus(ctx: StatusContext): StatusDecision {
 
   const lowNote = lowConfidenceOpen.length > 0 ? ` ${plural(lowConfidenceOpen.length, 'low-confidence finding is', 'low-confidence findings are')} open but not counted (see the security report).` : '';
 
+  // An owner's "not applicable" with a reason: the requirement stays visible and says who decided and why. It
+  // answers the requirement rather than hiding it, which is what makes it auditable, and it never overrides
+  // evidence that the requirement does apply and fails.
+  if (ctx.attestation?.result === 'not-applicable' && strongFail.length === 0 && mediumFail.length === 0 && contradicting.length === 0) {
+    return {
+      status: 'not-applicable',
+      rationale: `Not applicable, because ${ctx.attestation.note.trim() || 'the owner said so'} (decided by ${ctx.attestation.attestedBy} on ${ctx.attestation.attestedAt.slice(0, 10)}). Recorded as the owner's decision, not verified by SecureVibe.`,
+    };
+  }
+
   if (ctx.manualOnly) {
     if (ctx.attestation?.result === 'yes' || manualPass.length > 0) {
       const who = ctx.attestation?.attestedBy ?? manualPass[0]?.producedBy ?? 'a person';

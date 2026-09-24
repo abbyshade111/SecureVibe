@@ -96,10 +96,10 @@ const FALLBACKS: Record<string, DepsRuleFallback> = {
     title: 'A package comes with sharing obligations',
     severity: 'info',
     cwe: [],
-    description: 'This package is published under a licence that asks you to share your own source code if you distribute the app.',
+    description: 'This package is published under a license that asks you to share your own source code if you distribute the app.',
     impact: 'This is a legal consideration, not a security problem. It matters only if you give the app to other people.',
-    fix: 'If you plan to distribute the app, check the licence with whoever advises you on contracts.',
-    steps: ['Note the package and licence.', 'If the app stays on your own machines, no action is needed.'],
+    fix: 'If you plan to distribute the app, check the license with whoever advises you on contracts.',
+    steps: ['Note the package and license.', 'If the app stays on your own machines, no action is needed.'],
   },
   'deps.sbom-generated': {
     title: 'No bill of materials could be produced',
@@ -309,7 +309,7 @@ export async function runDeps(ctx: ScanContext, opts: RunDepsOptions = {}): Prom
         ran: false,
         reason:
           ecosystems.length === 0
-            ? 'skipped: this app does not list its packages in a file SecureVibe recognises, so they could not be checked'
+            ? 'skipped: this app does not list its packages in a file SecureVibe recognizes, so they could not be checked'
             : `skipped: SecureVibe's own package check only reads npm, and this app uses ${named}. Its packages were checked by the optional scanners instead, when they are installed.`,
         covers: 'Known problems in the packages an app installs, and whether their versions are pinned.',
       },

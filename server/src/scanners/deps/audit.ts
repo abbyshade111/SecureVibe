@@ -1,6 +1,6 @@
 /**
  * `npm audit --json` against the generated app, plus the on-disk cache that keeps the last successful answer per
- * lockfile so an offline run can still say something useful — clearly labelled with the date the advisory data
+ * lockfile so an offline run can still say something useful — clearly labeled with the date the advisory data
  * was fetched (`vulnDbAsOf`).
  *
  * npm exits non-zero when it finds vulnerabilities, so the exit code is ignored: only whether the output parses
@@ -180,7 +180,7 @@ export function writeAuditCache(projectDir: string, lockfileHash: string, report
     mkdirSync(cacheDir(projectDir), { recursive: true });
     writeFileSync(cacheFile(projectDir, lockfileHash), JSON.stringify({ lockfileHash, report }, null, 2));
   } catch {
-    // The cache is an optimisation; failing to write it must never fail the scan.
+    // The cache is an optimization; failing to write it must never fail the scan.
   }
 }
 

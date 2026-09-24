@@ -38,7 +38,7 @@ export function plural(name: string): string {
  *
  * It is sixty of SQLite's hundred and forty-seven keywords: the rest are accepted as identifiers and are left alone,
  * because renaming a column that already works would change the schema of an app that is running. Which sixty is not
- * a judgement — `sql-identifiers.test.ts` asks a real database, keyword by keyword, and fails if this list and
+ * a judgment — `sql-identifiers.test.ts` asks a real database, keyword by keyword, and fails if this list and
  * SQLite ever disagree in either direction.
  */
 const SQL_RESERVED = new Set([
@@ -245,7 +245,7 @@ export function attachmentFieldsOf(entity: EntitySpec, opts: { uploads: boolean 
 }
 
 /**
- * One field a summary page can add up. A field marked sensitive is never summarised: a total or a breakdown can
+ * One field a summary page can add up. A field marked sensitive is never summarized: a total or a breakdown can
  * say as much as the values themselves, and the summary is read by a wider audience than the record's owner.
  */
 export interface SummaryField {
@@ -266,7 +266,7 @@ const SUMMARY_KINDS: Record<string, SummaryField['kind'] | undefined> = {
 };
 
 /**
- * The fields of a record type worth summarising — amounts to total, choices to count by, yes/no fields to tally.
+ * The fields of a record type worth summarizing — amounts to total, choices to count by, yes/no fields to tally.
  * Both the record-type recipe (which links to the page) and the record-summary recipe (which builds it) read this,
  * so they cannot disagree about what the page contains.
  */

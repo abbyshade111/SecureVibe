@@ -4,7 +4,7 @@ This app installs from a locked, tested set of packages (`package-lock.json`) so
 
 ## How they are installed
 
-- `npm install` uses `package-lock.json`; the agent that customises this app is not allowed to add new packages.
+- `npm install` uses `package-lock.json`; the agent that customizes this app is not allowed to add new packages.
 - `.npmrc` sets `ignore-scripts=true`, so no package can run its own install scripts (a common supply-chain attack path).
 - Run `npm audit` from time to time to check for newly discovered vulnerabilities in these versions.
 

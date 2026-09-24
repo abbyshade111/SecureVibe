@@ -148,7 +148,7 @@ describe('the recipe library holds to its contract', () => {
         expect(claims, 'the library must evidence something').toBeGreaterThan(0);
       });
 
-      it('names its tests so the test-name screen recognises them', () => {
+      it('names its tests so the test-name screen recognizes them', () => {
         // A test whose name says nothing its requirement says produces a finding on every build and puts a person
         // in front of a comparison that was never worth their time. The recipes own their names, so they carry the
         // cost of getting them right: each name restates the requirement in the plain words the reports use. This

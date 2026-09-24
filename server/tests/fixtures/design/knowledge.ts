@@ -64,7 +64,8 @@ export const sbdRulesFixture: SbdRule[] = [
     ['internet-later', 'no', { actions: [{ text: 'TLS proxy before exposure (docs/deployment.md).', owner: 'hosting-provider', dueBy: 'before internet deployment' }] }],
   ]),
   rule('AC-02', 'high', [
-    ['auth', 'no', { justification: 'Local accounts with admin MFA; no central identity provider.', actions: [{ text: 'Adopt a central identity provider (OIDC) if the organisation has one.', owner: 'developer', dueBy: 'before multi-team use' }] }],
+    ['no-central-sign-in', 'n-a', { justification: 'You said your organization has no central sign-in system, so there is nothing to connect the app to.' }],
+    ['auth', 'no', { justification: 'Local accounts with admin MFA; no central identity provider.', actions: [{ text: 'Adopt a central identity provider (OIDC) if the organization has one.', owner: 'developer', dueBy: 'before multi-team use' }] }],
     ['no-auth', 'n-a'],
   ]),
   rule('AC-03', 'medium', [['auth', 'yes', { evidence: ['template:TPL-AUTHZ-01'] }], ['no-auth', 'n-a']]),

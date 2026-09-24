@@ -10,7 +10,7 @@ import { randomBytes } from 'node:crypto';
 /** Cookie names treated as the session cookie, most specific first. */
 const SESSION_COOKIE_NAMES: string[] = ['__Host-sid', 'sid'];
 
-/** Lets a caller probing an app with a different session cookie name (SecureVibe itself) have it recognised. */
+/** Lets a caller probing an app with a different session cookie name (SecureVibe itself) have it recognized. */
 export function addSessionCookieName(name: string): void {
   if (!SESSION_COOKIE_NAMES.includes(name)) SESSION_COOKIE_NAMES.push(name);
 }

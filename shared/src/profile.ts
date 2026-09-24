@@ -13,7 +13,7 @@ export const AudienceSchema = z.enum(['just-me', 'my-team', 'customers', 'public
 export type Audience = z.infer<typeof AudienceSchema>;
 
 /**
- * The look of the generated app. Colour only: each name matches a set of colour values in the template's stylesheet,
+ * The look of the generated app. Color only: each name matches a set of color values in the template's stylesheet,
  * every one of which is checked against the WCAG AA contrast ratios by the template's own tests. A theme can never
  * hide a control, change a message or weaken a security setting, so this answer has no security consequences.
  */
@@ -50,7 +50,7 @@ export const DataCategorySchema = z.enum([
 ]);
 export type DataCategory = z.infer<typeof DataCategorySchema>;
 
-/** Data categories that raise the ASVS target level to 2 and trigger SbD threat modelling. */
+/** Data categories that raise the ASVS target level to 2 and trigger SbD threat modeling. */
 export const SENSITIVE_DATA_CATEGORIES: readonly DataCategory[] = [
   'financial',
   'payment-card',
@@ -188,7 +188,7 @@ export const AppSectionSchema = z.object({
   tagline: z.string().max(120).optional(),
   description: z.string().min(1).max(4000),
   category: AppCategorySchema,
-  /** The colour scheme the app is built with. Defaulted so designs saved before themes existed still load. */
+  /** The color scheme the app is built with. Defaulted so designs saved before themes existed still load. */
   theme: ThemeSchema.default('calm'),
   entities: z.array(EntitySpecSchema).max(20).default([]),
   keyFeatures: z.array(z.string().min(1).max(200)).max(30).default([]),
@@ -202,6 +202,13 @@ export const UsersSectionSchema = z.object({
   registration: z.enum(['invite-only', 'admin-created', 'open']).default('admin-created'),
   /** Two-factor authentication for administrator accounts (recommended; forced on for sensitive data). */
   adminMfa: z.boolean().default(true),
+  /**
+   * Whether the owner's organization runs a central sign-in system (Microsoft Entra, Google Workspace, Okta).
+   * The Secure by Design control AC-02 begins "if your organization has a central sign-in system": an owner with
+   * no organization was rated at risk on it for ever. "no" lets the rules mark AC-02 not applicable; "yes" and
+   * "not-sure" keep it as an action for a developer.
+   */
+  centralSignIn: z.enum(['yes', 'no', 'not-sure']).default('not-sure'),
 });
 
 export const DataSectionSchema = z.object({

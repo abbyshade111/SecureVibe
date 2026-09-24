@@ -147,6 +147,53 @@ describe('project CRUD, profile save and validation', () => {
     expect(create.body.project.profile.app).toBeDefined();
   });
 
+  it('copies an app: same answers and design, nothing built, and the original untouched', async () => {
+    const examples = await request(harness.server).get('/api/examples').set(authed());
+    const exampleId = examples.body.examples[0].id as string;
+    const create = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Original', mode: 'guided', exampleId });
+    expect(create.status).toBe(201);
+    const sourceId = create.body.project.id as string;
+    const designed = await request(harness.server).post(`/api/projects/${sourceId}/design`).set(authed()).send({});
+    expect(designed.status).toBe(200);
+    const before = harness.store.mustGet(sourceId);
+    expect(before.design).toBeDefined();
+
+    const copied = await request(harness.server).post(`/api/projects/${sourceId}/copy`).set(authed()).send({});
+    expect(copied.status).toBe(201);
+    const copy = copied.body.project as { id: string; name: string; status: string; runs: unknown[]; profile: { app: { name: string; entities: unknown[] } }; design?: unknown; copiedFrom?: { projectId: string } };
+    expect(copy.id).not.toBe(sourceId);
+    expect(copy.name).toBe('Original (copy)');
+    expect(copy.profile.app.name).toBe('Original (copy)');
+    expect(copy.profile.app.entities).toEqual(before.profile.app?.entities);
+    expect(copy.design).toBeDefined();
+    expect(copy.status).toBe('designed');
+    expect(copy.runs).toEqual([]);
+    expect(copy.copiedFrom?.projectId).toBe(sourceId);
+    // Nothing built came with it, and the original is exactly as it was.
+    expect(harness.store.listRunIds(copy.id)).toEqual([]);
+    expect(harness.store.mustGet(sourceId)).toEqual(before);
+
+    const named = await request(harness.server).post(`/api/projects/${sourceId}/copy`).set(authed()).send({ name: 'Second try' });
+    expect(named.status).toBe(201);
+    expect(named.body.project.name).toBe('Second try');
+
+    const uploaded = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Theirs', mode: 'guided', uploaded: { aiAssisted: false } });
+    const refused = await request(harness.server).post(`/api/projects/${uploaded.body.project.id}/copy`).set(authed()).send({});
+    expect(refused.status).toBe(400);
+    expect(refused.body.error.message).toMatch(/no answers to copy/);
+  });
+
+  it('refuses "not applicable" without a reason: it is an answer, not a dismiss button', async () => {
+    const create = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Habits', mode: 'guided' });
+    const id = create.body.project.id as string;
+    const bare = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: '   ', attestedBy: 'Sam' });
+    expect(bare.status).toBe(400);
+    expect(bare.body.error.message).toMatch(/Say why this does not apply/);
+    const reasoned = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: 'No organization, no central sign-in system.', attestedBy: 'Sam' });
+    expect(reasoned.status).toBe(201);
+    expect(reasoned.body.attestation.result).toBe('not-applicable');
+  });
+
   it('reports the framework summary', async () => {
     const res = await request(harness.server).get('/api/frameworks/summary').set(authed());
     expect(res.status).toBe(200);

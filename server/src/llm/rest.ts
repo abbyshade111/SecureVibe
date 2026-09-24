@@ -54,7 +54,7 @@ export async function postJson(url: string, headers: Record<string, string>, bod
       signal: AbortSignal.any(signals),
     });
   } catch (err) {
-    if (opts.abort?.aborted) throw new LlmError('aborted', 'the step was cancelled');
+    if (opts.abort?.aborted) throw new LlmError('aborted', 'the step was canceled');
     const message = err instanceof Error ? err.message : String(err);
     if (/timeout|timed out/i.test(message)) throw new LlmError('network', `the ${opts.service} API did not answer in time`);
     throw new LlmError('network', `the connection to the ${opts.service} API failed`);
@@ -82,7 +82,7 @@ export function userMessageFor(service: string, err: LlmError): string {
     case 'network':
       return `SecureVibe could not reach the ${service} API. Check your internet connection and try again.`;
     case 'aborted':
-      return 'The step was cancelled.';
+      return 'The step was canceled.';
     case 'bad-request':
       return `${service} rejected the request: ${err.message}`;
     default:

@@ -1,7 +1,7 @@
 /**
- * Licence inventory: reads the `license` field of every installed package under `node_modules` (falling back to
+ * License inventory: reads the `license` field of every installed package under `node_modules` (falling back to
  * the lockfile when the packages are not installed) so the report can list what the app depends on and flag the
- * licences that come with sharing obligations.
+ * licenses that come with sharing obligations.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,7 +17,7 @@ export interface LicenseEntry {
 }
 
 /**
- * Licences that require you to share your own source code (or your changes) when you distribute the app.
+ * Licenses that require you to share your own source code (or your changes) when you distribute the app.
  * For a locally-run app this is information, not a security problem — hence severity `info` in CONTRACTS §4.
  */
 const COPYLEFT = [/^AGPL/i, /^GPL/i, /^LGPL/i, /^MPL-2/i, /^EPL/i, /^CDDL/i, /^OSL/i, /^SSPL/i, /^EUPL/i, /^CPAL/i];

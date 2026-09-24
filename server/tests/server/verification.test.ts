@@ -111,6 +111,24 @@ describe('human verification', () => {
     expect(allResults(run.compliance!).find((r) => r.id === no.requirementId)!.status).toBe('fail');
   });
 
+  it('records "not applicable" with its reason, who decided and when, and stops counting the rule', async () => {
+    const { project, compliance } = await builtProject(true);
+    const item = compliance.manualVerification.find((m) => m.manual.whoCanDo === 'owner')!;
+    store.addAttestation(project.id, {
+      requirementId: item.requirementId,
+      standard: item.standard,
+      result: 'not-applicable',
+      note: 'Nobody outside this household ever signs in; there is no organization and no central sign-in system.',
+      attestedBy: 'Sam Rivera',
+    });
+    const run = await refreshReportsWithAnswers({ store, config, knowledge, frameworks }, project.id);
+    const result = allResults(run.compliance!).find((r) => r.id === item.requirementId)!;
+    expect(result.status).toBe('not-applicable');
+    expect(result.rationale).toContain('because Nobody outside this household ever signs in');
+    expect(result.rationale).toContain('Sam Rivera');
+    expect(result.rationale).toMatch(/owner's decision, not verified/);
+  });
+
   it('explains when a build is too old to refresh', async () => {
     const { project } = await builtProject(false);
     expect(loadComplianceInputs(store, project.id, project.lastRunId!)).toBeUndefined();

@@ -26,7 +26,7 @@
  *    refuses the spec instead of quietly returning nothing.
  *  - Search is a plain "contains" match, case-insensitive for ASCII. It is not a ranked search engine, and it
  *    does not stem, spell-correct or understand phrases.
- *  - A filter on a `date` column matches that exact day. It is the one kind where the behaviour is not obvious
+ *  - A filter on a `date` column matches that exact day. It is the one kind where the behavior is not obvious
  *    from the type, so it is written down here: there are no ranges, no "on or after", no "this month". A range
  *    filter is the obvious next thing to want and this deliberately does not pretend to do it.
  */

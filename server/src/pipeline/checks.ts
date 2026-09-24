@@ -90,7 +90,7 @@ async function runTestCheck(ctx: PipelineCtx): Promise<RunCheckOutcome> {
 /** Builds the `runCheck` callback handed to the generation/fix agent's tools (CONTRACTS §9.1). */
 export function makeRunCheck(ctx: PipelineCtx): (check: CheckName) => Promise<RunCheckOutcome> {
   return async (check) => {
-    if (ctx.abort.signal.aborted) return { ok: false, output: '', skippedReason: 'The build was cancelled.' };
+    if (ctx.abort.signal.aborted) return { ok: false, output: '', skippedReason: 'The build was canceled.' };
     switch (check) {
       case 'typecheck':
         return runTypecheckCheck(ctx);
