@@ -84,23 +84,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **Nine more findings that are artifacts of assuming SecureVibe built the app.** **[taken: restored first session, 24 September 2026]** ADR-012 gated the two worst
-  (`deps.lockfile-missing`, `config.ignore-scripts`) and the Flask app's re-run on 20 September 2026 showed
-  three more classes still firing:
-  `config.node-engine-pinned` says "package.json has no engines.node requirement" to an app with no
-  package.json — clear-cut, same gate, simply missed.
-  `config.readme-run-instructions` greps the README for the literal strings `npm run setup` and `npm start`.
-  The question it is asking — does the README say how to run this safely — is fair for any app; the test is
-  ours. It needs to ask the question in a way that a Python app can pass.
-  The seven `docs.*` checks look for `docs/validation.md`, `docs/logging.md` and their siblings, which is the
-  documentation layout SecureVibe's own template generates. This is the subtle one and worth getting right
-  rather than fast: "your validation rules are not documented" may well be true of somebody else's app, but
-  concluding it from the absence of *our* file paths is checking for our convention and reporting it as their
-  failure. The honest result for an app we did not build is "could not verify", which is the same not-assessed
-  distinction the compliance score just learnt, applied one level down at the individual check.
-  Deliberately not fixed during the comparison runs: changing the checks between arms would have left the three
-  apps measured against different rules, which is the one thing that experiment cannot survive.
-
 - **The AI review cites nothing at all on an app it is the only checker for.** Measured on 20 September 2026,
   the same reviewer, days apart: SecureFit, a Node app SecureVibe built, 132 of 192 requirements reviewed and
   **231 places cited in the code**. The uploaded Python app, 139 of 139 reviewed and **0 places cited**, twice,
