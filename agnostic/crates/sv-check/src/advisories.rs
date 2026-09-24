@@ -317,19 +317,25 @@ pub fn audit(sbom: &Sbom, database: &[Advisory]) -> AuditResult {
 }
 
 fn finding_for(component: &Component, advisory: &Advisory) -> Finding {
-    let score = advisory
-        .severity
-        .first()
-        .map(|s| s.score.as_str())
-        .unwrap_or_default();
-    let severity = if score.contains("CRITICAL")
-        || score.starts_with("CVSS:3.1/AV:N") && score.contains("/C:H")
-    {
-        Severity::High
-    } else {
-        // Without a parsed CVSS vector, an advisory's own severity is not something to invent. High is
-        // not assumed; medium says "this is known-bad, go and read it".
-        Severity::Medium
+    // The advisory's own rating, computed from its CVSS vector rather than guessed from the words in
+    // it. Where there is no vector this can score, the seriousness shown is a placeholder and the
+    // finding says so — a placeholder reading "medium" is believed by anyone sorting the list.
+    let rated = crate::cvss::severity_of(advisory.severity.iter().map(|s| s.score.as_str()));
+    let (severity, rating) = match rated {
+        Some((severity, score)) => (
+            severity,
+            format!(
+                "The advisory rates this {score} out of 10, which is {}.",
+                severity.name()
+            ),
+        ),
+        None => (
+            Severity::Medium,
+            "This advisory carries no CVSS vector `sv` can read, so the seriousness shown here is a \
+             placeholder rather than the advisory's own rating — read the advisory before deciding \
+             how urgent it is."
+                .to_owned(),
+        ),
     };
     let names = if advisory.aliases.is_empty() {
         advisory.id.clone()
@@ -357,9 +363,12 @@ fn finding_for(component: &Component, advisory: &Advisory) -> Finding {
         requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
         cwe: vec![],
         description: if advisory.summary.is_empty() {
-            format!("{names} affects {} {}.", component.name, component.version)
+            format!(
+                "{names} affects {} {}. {rating}",
+                component.name, component.version
+            )
         } else {
-            advisory.summary.clone()
+            format!("{} {rating}", advisory.summary)
         },
         impact:
             "A known vulnerability in something this app ships is a problem somebody has already \
@@ -416,6 +425,71 @@ mod tests {
         );
         assert_eq!(result.findings.len(), 1, "{result:?}");
         assert!(result.findings[0].title.contains("CVE-2020-8203"));
+    }
+
+    #[test]
+    fn the_advisorys_own_rating_decides_the_severity() {
+        // Not the words in the record: the vector it publishes, scored.
+        let critical = advisory(
+            r#"{"id":"GHSA-crit","summary":"Remote code execution.",
+                "severity":[{"type":"CVSS_V3","score":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}],
+                "affected":[{"package":{"ecosystem":"npm","name":"lodash"},
+                "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"4.17.20"}]}]}]}"#,
+        );
+        let result = audit(
+            &sbom_of(vec![component("lodash", "4.17.15", "npm")]),
+            &[critical],
+        );
+        assert_eq!(result.findings[0].severity, Severity::Critical);
+        assert!(
+            result.findings[0].description.contains("10 out of 10"),
+            "{}",
+            result.findings[0].description
+        );
+    }
+
+    #[test]
+    fn a_low_rated_advisory_is_not_promoted_to_medium() {
+        // The old code called everything it could not recognise medium, so a genuinely minor advisory
+        // and an unrated one looked identical. They are different facts.
+        let low = advisory(
+            r#"{"id":"GHSA-low","summary":"Minor information leak.",
+                "severity":[{"type":"CVSS_V3","score":"CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"}],
+                "affected":[{"package":{"ecosystem":"npm","name":"lodash"},
+                "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"4.17.20"}]}]}]}"#,
+        );
+        let result = audit(
+            &sbom_of(vec![component("lodash", "4.17.15", "npm")]),
+            &[low],
+        );
+        assert_eq!(
+            result.findings[0].severity,
+            Severity::Low,
+            "{:?}",
+            result.findings[0]
+        );
+    }
+
+    #[test]
+    fn an_advisory_with_no_readable_rating_says_the_severity_is_a_placeholder() {
+        // A v4 vector, which this cannot score. Showing "medium" without saying so would be believed
+        // by anybody sorting the list by seriousness.
+        let unrated = advisory(
+            r#"{"id":"GHSA-v4","summary":"Something bad.",
+                "severity":[{"type":"CVSS_V4","score":"CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}],
+                "affected":[{"package":{"ecosystem":"npm","name":"lodash"},
+                "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"4.17.20"}]}]}]}"#,
+        );
+        let result = audit(
+            &sbom_of(vec![component("lodash", "4.17.15", "npm")]),
+            &[unrated],
+        );
+        assert_eq!(result.findings[0].severity, Severity::Medium);
+        assert!(
+            result.findings[0].description.contains("placeholder"),
+            "an unreadable rating must say so: {}",
+            result.findings[0].description
+        );
     }
 
     #[test]

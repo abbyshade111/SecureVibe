@@ -7,6 +7,7 @@
 
 pub mod advisories;
 pub mod config;
+pub mod cvss;
 pub mod finding;
 pub mod sbom;
 pub mod secrets;

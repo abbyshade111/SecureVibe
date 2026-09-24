@@ -15,11 +15,6 @@ another session is not a claim.
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
 
-- **Severity from the advisory's own CVSS vector.** **[taken: keen-meninsky-691a27, 24 September 2026]** `sv audit` reports medium unless the record says
-  CRITICAL in words, because inventing a severity from a vector it has not parsed would be worse than
-  under-stating one. Parsing the vector would let the finding carry the severity the advisory actually
-  gives it.
-
 - **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
   would turn an open question into an answer.

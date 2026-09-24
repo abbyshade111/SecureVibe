@@ -563,3 +563,37 @@ Worth recording how it got to one guard: the first version had two, one inside t
 the caller. Deleting the inner one failed no test at all, because the outer one already covered it — a
 guard that survives being deleted. It went, and the remaining one is asserted by the message it produces
 rather than by the fact that something was reported.
+
+### Severity from the advisory, not from a guess
+
+`sv audit` used to decide seriousness by looking for the word CRITICAL and for a substring of a v3.1
+vector, and calling everything else medium. That is not a severity, it is a placeholder wearing one's
+clothes — and a placeholder reading "medium" is believed by anyone sorting a list by how bad things are.
+
+The vector is now parsed and the base score computed to the specification, so a finding says what the
+advisory says:
+
+    [medium] lodash 4.17.15 has a known vulnerability: GHSA-p6mc-m468-83gg (CVE-2020-8203)
+       Prototype pollution in lodash. The advisory rates this 5.9 out of 10, which is medium.
+
+Two deliberate limits. **v3.0 and v3.1 only**, because they share the base formula and v2 and v4 do not —
+scoring a v4 vector with the v3 formula produces a confident number that is wrong. **Base metrics only**,
+because temporal and environmental metrics describe somebody's particular deployment, which is not
+something `sv` knows; a vector carrying them is scored on its base and the extras ignored rather than
+refused.
+
+Where no vector can be read, the finding says the seriousness shown is a placeholder rather than the
+advisory's own rating. A genuinely low-rated advisory and an unrated one used to look identical; they are
+different facts.
+
+#### A guard with no test, and why it keeps its place
+
+The specification defines its own rounding in integer arithmetic, because `(x * 10).ceil() / 10` can
+disagree with a published score when a value lands exactly on a tenth. Replacing it with the naive
+version failed no test — so the question was whether it earns its place.
+
+Every one of the 2,592 base-metric combinations was checked, and **none distinguishes the two**. That is
+why no test can catch the substitution, and the equivalence is now recorded in a test of its own so the
+next reader finds the answer rather than the puzzle. The specification's version stays: it is what the
+specification says, and temporal scoring — if this ever grows it — produces intermediate values the
+equivalence does not cover.
