@@ -84,7 +84,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **Nine more findings that are artifacts of assuming SecureVibe built the app.** ADR-012 gated the two worst
+- **Nine more findings that are artifacts of assuming SecureVibe built the app.** **[taken: restored first session, 24 September 2026]** ADR-012 gated the two worst
   (`deps.lockfile-missing`, `config.ignore-scripts`) and the Flask app's re-run on 20 September 2026 showed
   three more classes still firing:
   `config.node-engine-pinned` says "package.json has no engines.node requirement" to an app with no
