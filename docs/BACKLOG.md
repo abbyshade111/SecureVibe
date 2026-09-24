@@ -42,7 +42,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **Let an uploaded app be checked without answering the questions first.** `POST /projects/:id/runs` refuses an
+- **Let an uploaded app be checked without answering the questions first.** **[taken: restored first session, 24 September 2026]** `POST /projects/:id/runs` refuses an
   uploaded app that has no design: "Answer the questions about your app before checking it." The reason is real —
   the answers decide which rules apply, and a compliance report written without them is guesswork — but it is the
   wrong shape for what people actually do. The first person to hand SecureVibe somebody else's code on
