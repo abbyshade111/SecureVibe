@@ -10,7 +10,7 @@ another session is not a claim.
   `hosted-scm`, `outside-contributors`. Several of these may have no honest corroborator at all, and saying so
   in the reports is a better answer than a weak one.
 
-- **The rest of `sv check`.** Secrets and the universal configuration checks are done. Still missing: an
+- **The rest of `sv check`.** Secrets and the universal configuration checks are done. Still missing: **[SBOM taken: keen-meninsky-691a27, 24 September 2026]** an
   SBOM, and AST rules via tree-sitter. `sv-scan` holds the ecosystem detector and the dependency readers,
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
