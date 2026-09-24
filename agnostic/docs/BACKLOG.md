@@ -11,14 +11,9 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **HTML silences every code rule, and almost every web app has HTML.** Found on 24 September 2026
-  while adding the grammars: `index.html` beside a clean `app.py` puts `html` in the unread list, and no
-  code rule may speak while a language goes unparsed — so the clean-coverage claim almost never fires on
-  a real web app. The silence is not *wrong*: an inline `<script>` can hold the very calls these rules
-  look for. It is disproportionate, because a page with no script hides nothing. The fix is to treat
-  HTML as unread only when it carries script — inline `<script>` or an `on…=` handler — rather than
-  always. Adding a grammar for it would be worse than doing nothing: it would end the silence while the
-  rules still never look inside a script tag.
+- **HTML silences every code rule, and almost every web app has HTML.**
+  **[taken: keen-meninsky-691a27, 24 September 2026]** `index.html` beside a clean `app.py` puts `html`
+  in the unread list, and no code rule may speak while a language goes unparsed.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
