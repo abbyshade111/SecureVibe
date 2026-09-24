@@ -110,6 +110,10 @@ fn grammar(language: &str) -> Option<Language> {
         "javascript" => tree_sitter_javascript::LANGUAGE.into(),
         "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         "go" => tree_sitter_go::LANGUAGE.into(),
+        "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
+        "kotlin" => tree_sitter_kotlin_ng::LANGUAGE.into(),
+        "rust" => tree_sitter_rust::LANGUAGE.into(),
+        "c" => tree_sitter_c::LANGUAGE.into(),
         "ruby" => tree_sitter_ruby::LANGUAGE.into(),
         "php" => tree_sitter_php::LANGUAGE_PHP.into(),
         "java" => tree_sitter_java::LANGUAGE.into(),
@@ -201,7 +205,7 @@ impl AstRules {
 ///
 /// A template string is only a literal when nothing is interpolated, which is exactly the distinction
 /// that matters: `` `SELECT 1` `` is a constant and `` `SELECT ${id}` `` is the bug this looks for.
-fn is_literal(node: tree_sitter::Node) -> bool {
+fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
     const LITERAL_KINDS: &[&str] = &[
         "string",
         "string_literal",
@@ -219,6 +223,9 @@ fn is_literal(node: tree_sitter::Node) -> bool {
         // Ruby's backtick form. `ls -la` is as fixed as any string; `ls #{dir}` is not, and the
         // interpolation check below is what tells them apart — the same test every other kind gets.
         "subshell",
+        // C#'s plain strings and Kotlin's, whose grammar gives an interpolated one no node of its
+        // own — see `has_interpolation` for how those two are told apart.
+        "verbatim_string_literal",
         // PHP's double-quoted strings, which interpolate `$name` without any `{}` around it.
         "encapsed_string",
         "string_value",
@@ -227,7 +234,9 @@ fn is_literal(node: tree_sitter::Node) -> bool {
     // `"a" + "b"` is still a constant; `"a" + name` is not.
     if matches!(node.kind(), "binary_operator" | "binary_expression") {
         let mut cursor = node.walk();
-        return node.named_children(&mut cursor).all(is_literal);
+        return node
+            .named_children(&mut cursor)
+            .all(|c| is_literal(c, source));
     }
     if !LITERAL_KINDS.contains(&node.kind()) {
         return false;
@@ -236,11 +245,27 @@ fn is_literal(node: tree_sitter::Node) -> bool {
     // with `${…}` and a Python f-string with `{…}` are the same thing under different node names, and
     // an f-string is still a plain `string` node in its grammar. Missing this reports every SQL query
     // built with an f-string as a constant, which is the case the rule exists for.
-    !has_interpolation(node)
+    !has_interpolation(node, source)
 }
 
 /// Whether anything is substituted into this literal, however deeply.
-fn has_interpolation(node: tree_sitter::Node) -> bool {
+fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
+    // Kotlin's `"select $n"` has no interpolation node at all: the grammar splits it into plain
+    // `string_content` children and the bare `$` becomes one of them. Measured rather than guessed,
+    // because the obvious discriminators are both wrong — a plain string has one `string_content`
+    // and so does nothing else, while `"cost \$5"` has two of them either side of an
+    // `escape_sequence`. The `$` standing alone as its own node is what actually distinguishes
+    // them, and an escaped one never does.
+    if node.kind() == "string_literal" {
+        let mut cursor = node.walk();
+        if node
+            .named_children(&mut cursor)
+            .any(|c| c.kind() == "string_content" && c.utf8_text(source).map(str::trim) == Ok("$"))
+        {
+            return true;
+        }
+    }
+
     // PHP puts a plain `variable_name` inside a double-quoted string, with no wrapper node to
     // recognise: `"select ... $name"` is a built string that looks like a literal to the list below.
     if node.kind() == "encapsed_string" {
@@ -258,7 +283,7 @@ fn has_interpolation(node: tree_sitter::Node) -> bool {
         matches!(
             child.kind(),
             "interpolation" | "template_substitution" | "string_interpolation" | "format_specifier"
-        ) || has_interpolation(child)
+        ) || has_interpolation(child, source)
     })
 }
 
@@ -325,7 +350,7 @@ pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             if compiled.rule.literal_argument_is_safe
                 && let Some(index) = arg_index
                 && let Some(capture) = m.captures.iter().find(|c| c.index == index)
-                && is_literal(capture.node)
+                && is_literal(capture.node, source.as_bytes())
             {
                 continue;
             }
@@ -520,9 +545,9 @@ mod tests {
     #[test]
     fn a_rule_naming_a_language_with_no_grammar_is_refused_at_load() {
         // Quietly dropping it would leave a rule that claims to cover a language and never runs.
-        // C# stands in for that here; this test used to name Ruby, until Ruby got a grammar — which
-        // is the right way round for a test like this to break.
-        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"csharp\""));
+        // C++ stands in for that here. This test has named Ruby and then C#, each until the
+        // language got a grammar, which is the right way round for a test like this to break.
+        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"cpp\""));
         let error = match refused {
             Ok(_) => panic!("an unknown language must be refused"),
             Err(e) => format!("{e:#}"),
@@ -672,10 +697,10 @@ mod tests {
 
     #[test]
     fn a_language_with_no_grammar_yields_nothing_rather_than_pretending() {
-        // C# is read by `sv-scan` — it counts towards what an app is written in — and has no
+        // C++ is read by `sv-scan` — it counts towards what an app is written in — and has no
         // grammar here, which is the combination that has to stay silent rather than guess.
-        assert!(scan_file(&rules(), "csharp", "App.cs", "Eval(Request.Query[\"x\"]);").is_empty());
-        assert!(!is_supported("csharp"));
+        assert!(scan_file(&rules(), "cpp", "app.cpp", "system(argv[1]);").is_empty());
+        assert!(!is_supported("cpp"));
         assert!(is_supported("python") && is_supported("typescript"));
     }
 
@@ -743,6 +768,103 @@ mod tests {
         assert!(
             !ids(&fixed).contains(&"ast.shell-command-backticks"),
             "a fixed command cannot be made to run anything else: {fixed:?}"
+        );
+    }
+
+    #[test]
+    fn the_four_newest_grammars_read_their_own_languages() {
+        for (language, file, source, expected) in [
+            (
+                "csharp",
+                "App.cs",
+                "class A { void F(string n) { cmd.ExecuteReader(\"select * from t where n = \" + n); } }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "csharp",
+                "App.cs",
+                "class A { void F() { BinaryFormatter.Deserialize(stream); } }",
+                "ast.unsafe-deserialization",
+            ),
+            (
+                "kotlin",
+                "App.kt",
+                "fun f(n: String) { db.rawQuery(\"select * from t where n = \" + n, null) }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "rust",
+                "app.rs",
+                "fn f(n: &str) { conn.execute(&format!(\"select * from t where n = {n}\"), []); }",
+                "ast.sql-built-by-hand",
+            ),
+            (
+                "c",
+                "app.c",
+                "void f(char *d) { char b[99]; sprintf(b, \"ls %s\", d); system(b); }",
+                "ast.shell-command",
+            ),
+        ] {
+            let findings = scan_file(&rules(), language, file, source);
+            assert!(
+                ids(&findings).contains(&expected),
+                "{language}: expected {expected}, got {:?}",
+                ids(&findings)
+            );
+        }
+    }
+
+    #[test]
+    fn a_kotlin_string_template_is_not_a_literal_but_an_escaped_dollar_is() {
+        // Kotlin's grammar gives an interpolated string no node of its own: `"select $n"` is three
+        // plain `string_content` children with the `$` standing alone as one of them, and that last
+        // part is the whole discriminator. Measured rather than guessed: counting the children
+        // instead would report an escaped `\$`, which leaves two of them either side of an
+        // `escape_sequence`.
+        let built = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f(n: String) { db.execSQL(\"select * from t where n = $n\") }",
+        );
+        assert!(
+            ids(&built).contains(&"ast.sql-built-by-hand"),
+            "a Kotlin template is a built string: {built:?}"
+        );
+
+        let escaped = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f() { db.execSQL(\"select * from prices where label = 'cost \\$5'\") }",
+        );
+        assert!(
+            !ids(&escaped).contains(&"ast.sql-built-by-hand"),
+            "an escaped dollar is written out, not substituted: {escaped:?}"
+        );
+
+        let plain = scan_file(
+            &rules(),
+            "kotlin",
+            "App.kt",
+            "fun f() { db.execSQL(\"select 1\") }",
+        );
+        assert!(!ids(&plain).contains(&"ast.sql-built-by-hand"), "{plain:?}");
+    }
+
+    #[test]
+    fn a_csharp_json_deserialise_is_not_reported() {
+        // `Deserialize` is what every JSON library is called with. Only the receiver makes it the
+        // dangerous one, and reporting the safe case would teach somebody to skip the rule.
+        let safe = scan_file(
+            &rules(),
+            "csharp",
+            "App.cs",
+            "class A { void F() { JsonSerializer.Deserialize(body); } }",
+        );
+        assert!(
+            !ids(&safe).contains(&"ast.unsafe-deserialization"),
+            "{safe:?}"
         );
     }
 

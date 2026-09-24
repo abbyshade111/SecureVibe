@@ -21,7 +21,8 @@ cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulne
 cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
 ```
 
-The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP and Java. A language
+The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
+Rust and C. A language
 outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
 anything about the app at all, and the report says which language stopped it.
 

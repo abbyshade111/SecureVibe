@@ -62,20 +62,21 @@ fn clean_python_lets_the_rules_that_read_it_say_so() {
 
 #[test]
 fn a_language_nothing_can_parse_silences_every_rule() {
-    // The important one. The app has clean Python and a C# file no grammar reads. The injection
-    // these rules look for could be in the C#, so none of them has established anything about
+    // The important one. The app has clean Python and a C++ file no grammar reads. The injection
+    // these rules look for could be in the C++, so none of them has established anything about
     // this app — not even the ones whose own language was fully read.
     //
-    // This used to use Ruby, until Ruby got a grammar. The list of languages that silence
-    // everything is meant to shrink; what must not change is that a language on it still does.
+    // This has used Ruby and then C#, each until the language got a grammar. The list of languages
+    // that silence everything is meant to shrink; what must not change is that a language still on
+    // it does silence them.
     let dir = scratch("ast-unread");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
-    std::fs::write(dir.join("Worker.cs"), "class W { }\n").unwrap();
+    std::fs::write(dir.join("worker.cpp"), "int main() { return 0; }\n").unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !scan.unread_languages.is_empty(),
-        "the setup is wrong: C# was expected to be unread"
+        "the setup is wrong: C++ was expected to be unread"
     );
     assert!(
         scan.verified.is_empty(),

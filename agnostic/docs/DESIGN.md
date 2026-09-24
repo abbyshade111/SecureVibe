@@ -321,13 +321,18 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
-## Seven languages, and why the eighth silences everything
+## Eleven languages, and why the twelfth silences everything
 
-The rules that read code now have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP and Java.
-The three added last are worth more than three more entries suggests, because of how the fail-closed
+The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
+Kotlin, Rust and C. Each one is worth more than one more entry suggests, because of how the fail-closed
 rule works: **no rule may speak while a language present in the app goes unparsed.** One Ruby file used
 to silence every rule for the whole app — correct behaviour on an app `sv` could not read, and a lot of
-silence. Three more languages read is three fewer kinds of app that get nothing.
+silence. Every language added is one fewer kind of app that gets nothing.
+
+Not every rule covers every language, and that is deliberate rather than unfinished. Rust has no `eval`
+and its `Command` takes an argument list, so it has the SQL rule and nothing else; C has shell and SQL
+and neither of the others. A rule with no query for a language says nothing about it and claims no
+coverage of it, which is what keeps the clean-coverage claim honest.
 
 The queries were written against dumped parse trees rather than against what the grammars plausibly
 produce, which is two minutes' work and settled three things guessing would have got wrong. Ruby uses
@@ -335,7 +340,7 @@ one `call` node whether or not there is a receiver, so one pattern covers both. 
 `function_call_expression` and `member_call_expression` and wraps each argument in an `argument` node.
 Java matches Go's shape exactly.
 
-Two things the languages needed that the others did not:
+Three things these languages needed that the others did not:
 
 - **Ruby's backticks are a `subshell` node with no method name.** The name filter drops any match that
   cannot offer a name, which is what keeps a rule from firing on every call in a file — so rather than
@@ -345,6 +350,12 @@ Two things the languages needed that the others did not:
 - **PHP interpolates a bare `$name` inside a double-quoted string**, with no wrapper node to recognise.
   A check that only knows `${…}` and `#{…}` reads `"select … $name"` as a written-out constant, which
   is the exact case the SQL rule exists for.
+
+- **Kotlin's grammar gives an interpolated string no node at all.** `"select $n"` is three plain
+  `string_content` children with the bare `$` standing alone as one of them, and that last part is the
+  whole discriminator — measured, because the obvious alternatives are both wrong. Counting children
+  reports `"cost \$5"`, where an escaped dollar leaves two of them either side of an `escape_sequence`.
+  Without this, the most natural way to write a Kotlin query reads as a written-out constant.
 
 Ruby's `load` is too common a method name to report on its own, so the receiver has to be one of the
 classes that really deserialises. Breaking that check is what showed the test for it was passing for the

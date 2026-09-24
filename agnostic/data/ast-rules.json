@@ -56,7 +56,10 @@
         "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
-        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit"
+        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
+        "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
+        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(system|popen|getoutput|getstatusoutput)$",
@@ -64,7 +67,10 @@
         "typescript": "^(exec|execSync)$",
         "ruby": "^(system|exec|spawn)$",
         "php": "^(shell_exec|exec|system|passthru|popen|proc_open)$",
-        "java": "^(exec|command)$"
+        "java": "^(exec|command)$",
+        "csharp": "^(Start)$",
+        "kotlin": "^(exec|start)$",
+        "c": "^(system|popen|execl|execlp|execvp|execv)$"
       }
     },
     {
@@ -90,7 +96,11 @@
         "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg)) @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
-        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit"
+        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
+        "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
+        "rust": "(call_expression function: (field_expression field: (field_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw)$",
@@ -99,7 +109,11 @@
         "go": "^(Query|QueryRow|Exec|QueryContext|ExecContext)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values)$",
         "php": "^(query|exec|multi_query|real_query)$",
-        "java": "^(executeQuery|executeUpdate|execute|createQuery|createNativeQuery|addBatch)$"
+        "java": "^(executeQuery|executeUpdate|execute|createQuery|createNativeQuery|addBatch)$",
+        "csharp": "^(ExecuteReader|ExecuteNonQuery|ExecuteScalar|FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync)$",
+        "kotlin": "^(rawQuery|execSQL|executeQuery|executeUpdate|createQuery|createNativeQuery)$",
+        "rust": "^(execute|query|query_row|query_map|prepare|batch_execute)$",
+        "c": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
       }
     },
     {
@@ -121,17 +135,22 @@
         "python": "(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)) @hit",
         "ruby": "(call receiver: (constant) @mod method: (identifier) @fn) @hit",
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
-        "java": "(method_invocation name: (identifier) @fn) @hit"
+        "java": "(method_invocation name: (identifier) @fn) @hit",
+        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit",
+        "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit"
       },
       "functionPatterns": {
         "python": "^(load|loads|Unpickler)$",
         "ruby": "^(load|load_file)$",
         "php": "^unserialize$",
-        "java": "^readObject$"
+        "java": "^readObject$",
+        "csharp": "^(Deserialize|UnsafeDeserialize)$",
+        "kotlin": "^readObject$"
       },
       "modulePatterns": {
         "python": "^(pickle|cPickle|dill|shelve|yaml|marshal)$",
-        "ruby": "^(Marshal|YAML|Psych)$"
+        "ruby": "^(Marshal|YAML|Psych)$",
+        "csharp": "^(BinaryFormatter|NetDataContractSerializer|SoapFormatter|LosFormatter|ObjectStateFormatter)$"
       }
     },
     {
