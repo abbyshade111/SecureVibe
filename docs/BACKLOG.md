@@ -36,7 +36,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   same app passes 107 of 159. Both true, and read together they look like a contradiction. The rating needs to
   carry which standard it comes from, and the ASVS section needs to say that a good score there does not lift a
   critical control elsewhere.
-- **A check for damaged saved answers.** A record type with no fields cannot have come from someone describing a
+- **A check for damaged saved answers.** **[taken: restored first session, 24 September 2026]** A record type with no fields cannot have come from someone describing a
   record: offer to remove it. A name that looks like a truncated sentence, and a description that reads as an
   answer to a different question, are questions rather than offers — the owner decides. Removing one must set
   `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
