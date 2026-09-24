@@ -31,11 +31,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   question fits, let the owner record a **reason**: the control stays visible, reads "not applicable — because
   …", the rating reflects it, and the reports name who decided and when. One hides a control; the other answers
   it, and only the second can be audited.
-- **A check for damaged saved answers.** A record type with no fields cannot have come from someone describing a
-  record: offer to remove it. A name that looks like a truncated sentence, and a description that reads as an
-  answer to a different question, are questions rather than offers — the owner decides. Removing one must set
-  `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
-  rebuild recreates them from the answers.
 - **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
   `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
   refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an

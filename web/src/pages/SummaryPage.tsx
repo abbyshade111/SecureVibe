@@ -5,6 +5,7 @@ import { useStatus } from '../hooks/useStatus';
 import { useWizardCopy } from '../hooks/useWizardCopy';
 import { acknowledgeEscalation, deriveDesign, requestPeerReview, skipPeerReview, submitPeerReviewDecisions } from '../lib/api';
 import { Card, ErrorNotice, LoadingScreen, ProgressBar } from '../components/Bits';
+import { checkSavedAnswers } from '@shared/answer-check.js';
 import type { PeerReviewSuggestion } from '@shared/design.js';
 
 type DesignPhase = 'design' | 'second-opinion';
@@ -238,6 +239,22 @@ export function SummaryPage() {
       <Card>
         <h2>{summaryCopy?.sections.app ?? 'Your app'}</h2>
         <p>{design.plainLanguageSummary}</p>
+        {checkSavedAnswers(project.profile).length > 0 && (
+          <div className="sv-banner sv-banner-warn">
+            <p>
+              <strong>Some of your saved answers look damaged.</strong> A rebuild makes the app from these answers, so
+              it is worth a look first.
+            </p>
+            <ul style={{ marginBottom: 8 }}>
+              {checkSavedAnswers(project.profile).map((p) => (
+                <li key={`${p.entityIndex}-${p.kind}`}>{p.message}</li>
+              ))}
+            </ul>
+            <p style={{ marginBottom: 0 }}>
+              <Link to={`/projects/${id}/wizard/features`}>Look at the records</Link>
+            </p>
+          </div>
+        )}
         {(project.profile.app?.entities ?? []).length === 0 && (
           <div className="sv-banner sv-banner-warn">
             <p style={{ marginBottom: 0 }}>
