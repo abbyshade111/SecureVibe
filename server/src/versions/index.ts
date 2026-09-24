@@ -118,9 +118,11 @@ function percent(run: PipelineRun | undefined, standard: 'asvs' | 'aisvs'): numb
   return s ? Math.round(s.summary.verifiedPassPercent * 10) / 10 : undefined;
 }
 
-function testCounts(run: PipelineRun | undefined): { total: number; passed: number } | undefined {
-  const details = run?.stages.find((s) => s.id === 'unit-tests')?.details as { total?: number; passed?: number } | undefined;
-  return details && typeof details.total === 'number' ? { total: details.total, passed: details.passed ?? 0 } : undefined;
+function testCounts(run: PipelineRun | undefined): { total: number; passed: number; failed: number; skipped: number } | undefined {
+  const details = run?.stages.find((s) => s.id === 'unit-tests')?.details as { total?: number; passed?: number; failed?: number; skipped?: number } | undefined;
+  return details && typeof details.total === 'number'
+    ? { total: details.total, passed: details.passed ?? 0, failed: details.failed ?? 0, skipped: details.skipped ?? 0 }
+    : undefined;
 }
 
 function resultsDelta(store: ProjectStore, projectId: string, from: AppVersion, to: AppVersion): VersionDiff['results'] {

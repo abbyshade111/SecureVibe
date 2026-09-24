@@ -18,6 +18,10 @@ const KIND_LABEL: Record<DiffFile['kind'], { text: string; tone: 'good' | 'bad' 
   changed: { text: 'Changed', tone: 'info' },
 };
 
+function testLine(t: { total: number; passed: number; failed: number; skipped: number }): string {
+  return `${t.passed} passed, ${t.failed} failed, ${t.skipped} skipped of ${t.total}`;
+}
+
 function versionName(v: AppVersion): string {
   return v.builtAt ? `${v.label} (${formatDate(v.builtAt)})` : v.label;
 }
@@ -140,14 +144,11 @@ export function VersionDiff({ projectId }: { projectId: string }) {
                 {results.aisvs && <li>AISVS verified coverage: {delta(results.aisvs.before, results.aisvs.after)}.</li>}
                 {results.tests && (
                   <li>
-                    App tests passing: {results.tests.before.passed} of {results.tests.before.total} → {results.tests.after.passed} of {results.tests.after.total}.{' '}
-                    {/* "132 of 194" reads as "62 are failing", and usually none are: the rest are skipped because
-                        the app has no uploads, no scheduled jobs, no assistant. This comparison only carries the
-                        total and the passing count, so the line cannot yet name the reason — it can at least
-                        stop implying one. Naming it needs the failed and skipped counts, which is server work. */}
+                    {/* "132 of 194 passing" read as "62 are failing", and usually none were: the rest are skipped
+                        because the app has no uploads, no scheduled jobs, no assistant. So the line names all three. */}
+                    App tests: {testLine(results.tests.before)} → {testLine(results.tests.after)}.{' '}
                     <span className="sv-faint">
-                      A test that is not passing has either failed or been skipped because your app does not have
-                      that feature; this comparison does not yet say which.
+                      A skipped test is for a feature your app does not have; it is not a failure.
                     </span>
                   </li>
                 )}

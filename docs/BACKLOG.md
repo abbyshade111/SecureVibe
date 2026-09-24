@@ -54,19 +54,12 @@ building the query recipe: each read this file, each correctly saw the item uncl
 - **Live spending during a build.** The run's own record carries no `llmUsage` while it runs, so the page has
   nothing to show, while `workspace/llm-audit.jsonl` has every call. An owner watching a slow, paid build lost
   the one number that said it was still working.
-- **The changed-files list should fold away.** "What changed since the previous version" prints every file —
-  65 of them after a rebuild — so the comparison a person came for is buried under a list they scroll past. Fold
-  it by default behind a count they can open, and keep the summary above it visible. Same component as the skip
-  counts below, so do both at once.
 - **A build in progress is invisible from anywhere but the build page.** The live spending figure and the
   activity feed arrive on the run's event stream, which only that page listens to. An owner who wanders off
   mid-build — to their project list, to another app — sees nothing to say that something is running and costing
   them money, and coming back recovers only the figure from the last completed stage. That is the moment a
   first-time user force-quits a build they have already paid for. Wants a small persistent indicator wherever
   they are, which is more than a line of code: something has to hold the run's state above the page.
-- **Skip counts that read as failures.** "179/201 app tests passing" invites "22 are failing". The skip reasons
-  already exist in the template's `skipReason`, so the line can name them: "0 failed, 22 skipped because this app
-  has no uploads, scheduled jobs or assistant." Two places: `eval/metrics.ts` and `web/src/components/VersionDiff.tsx`.
 - **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
   `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
   refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an
@@ -273,13 +266,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
 Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
 building from nothing.
 
-- **The agent is told how many tests failed, and not which.** `runTestCheck` in pipeline/checks.ts hands the
-  generation agent a summary and a count — "178 passed / 1 failed / 44 skipped" — while the very same result
-  object carries `details.tests`, every test with its name and outcome. On the first app built by a stranger the
-  agent said so itself: it could not isolate the failing test because the tool "only returns a pass/fail summary
-  count, not per-test names", re-ran twice, spent budget, and handed the owner a recommendation to run it again
-  with verbose output. The information existed and was withheld by us, and it cost her money to find that out.
-  Include the failing tests' names, and their file, in what the tool returns.
 - **A recipe for querying records.** **[taken: recipe-library session, 20 Sep 2026]** The engine landed in the
   template on 20 September 2026 (`src/db/query.ts`, `eb35de0`): search, filter, sort and paginate settled once,
   with the ownership clause structural and fifteen tests on it. What remains is the per-entity half — turning a
