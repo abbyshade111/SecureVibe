@@ -323,7 +323,8 @@ export function ResultsPage() {
           <p>
             The checks that read the code as it is have run, and what they found is below. Whether the app meets the
             security rules is not scored, because which rules apply depends on a few questions about it that have not
-            been answered. Answering them adds the compliance report and the AI review.
+            been answered. Answering them adds the compliance report and widens the AI review beyond ASVS Level 1, the
+            floor it reads the code against until then.
           </p>
           <Link className="sv-btn" to={`/projects/${id}/wizard/about`}>
             Answer the questions

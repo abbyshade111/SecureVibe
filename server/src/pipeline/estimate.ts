@@ -20,3 +20,22 @@ export function estimateForProject(profile: DesignProfile, buildSpec: BuildSpec,
     ...(opts.reviewOnly ? { reviewOnly: true } : {}),
   });
 }
+
+/**
+ * The AI review of an app whose questions have not been answered: reviewed against ASVS Level 1 with no records
+ * and no features known, which is what the estimate's own formula prices as the smallest review. Typed loosely
+ * on purpose: only the counts are read (see llm/budget.ts estimateCost).
+ */
+export function estimateReviewWithoutAnswers(raw: Settings): CostEstimate {
+  const settings = effectiveAiSettings(raw, 'ai-review');
+  const emptyProfile = { app: { entities: [] } } as unknown as DesignProfile;
+  const emptySpec = { features: {} } as unknown as BuildSpec;
+  return estimateCost(emptyProfile, emptySpec, {
+    model: settings.model,
+    generationEffort: settings.generationEffort,
+    reviewEffort: settings.reviewEffort,
+    defaultSpendingCapUsd: settings.defaultSpendingCapUsd,
+    maxFixRounds: settings.maxFixRounds,
+    reviewOnly: true,
+  });
+}
