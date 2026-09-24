@@ -21,7 +21,8 @@ export function RefinePage() {
   const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // One value for a question that takes one answer or a note; several for a question that takes several.
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [wanted, setWanted] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -53,8 +54,8 @@ export function RefinePage() {
     try {
       await saveRefinementDecisions(id, {
         answers: Object.entries(answers)
-          .filter(([, v]) => v !== '')
-          .map(([questionId, value]) => ({ questionId, value })),
+          .map(([questionId, values]) => ({ questionId, values: values.filter((v) => v.trim() !== '') }))
+          .filter((a) => a.values.length > 0),
         features: Object.entries(wanted).map(([suggestionId, accepted]) => ({ suggestionId, accepted })),
         ...(dismiss ? { dismiss: true } : {}),
       });
@@ -72,7 +73,7 @@ export function RefinePage() {
   const previewMode = status?.llm.previewMode === true;
   const questions = refinement?.questions ?? [];
   const features = refinement?.features ?? [];
-  const answered = questions.filter((q) => answers[q.id]).length;
+  const answered = questions.filter((q) => (answers[q.id] ?? []).some((v) => v.trim() !== '')).length;
   const chosen = Object.values(wanted).filter(Boolean).length;
 
   return (
@@ -142,27 +143,41 @@ export function RefinePage() {
                   <p className="sv-help">{q.why}</p>
                   {q.options.length > 0 ? (
                     <div className="sv-option-list">
-                      {q.options.map((o) => (
-                        <label className="sv-option" key={o.value} data-checked={answers[q.id] === o.value}>
-                          <input
-                            type="radio"
-                            name={q.id}
-                            checked={answers[q.id] === o.value}
-                            onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: o.value }))}
-                          />
-                          <span className="sv-option-body">
-                            <span className="sv-option-label">{o.label}</span>
-                          </span>
-                        </label>
-                      ))}
+                      {q.multiple && <p className="sv-faint">Choose as many as apply.</p>}
+                      {q.options.map((o) => {
+                        const picked = (answers[q.id] ?? []).includes(o.value);
+                        return (
+                          <label className="sv-option" key={o.value} data-checked={picked}>
+                            <input
+                              type={q.multiple ? 'checkbox' : 'radio'}
+                              name={q.id}
+                              checked={picked}
+                              onChange={(e) =>
+                                setAnswers((prev) => {
+                                  const current = prev[q.id] ?? [];
+                                  const next = q.multiple
+                                    ? e.target.checked
+                                      ? [...current, o.value]
+                                      : current.filter((v) => v !== o.value)
+                                    : [o.value];
+                                  return { ...prev, [q.id]: next };
+                                })
+                              }
+                            />
+                            <span className="sv-option-body">
+                              <span className="sv-option-label">{o.label}</span>
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   ) : (
                     <input
                       className="sv-input"
                       maxLength={400}
                       placeholder="Your answer (optional)"
-                      value={answers[q.id] ?? ''}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      value={answers[q.id]?.[0] ?? ''}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: [e.target.value] }))}
                     />
                   )}
                   {q.field === undefined && q.options.length === 0 && (

@@ -252,9 +252,6 @@ building from nothing.
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
   app.
-- **A follow-up question can only take one answer.** **[taken: restored first session, 24 September 2026]** When several apply, the owner has to pick one and lose the
-  rest. Multiple selection where the question allows it, and the answers it may set must still come from the
-  same allow-list, so this widens what an owner can say without widening what the flow may change.
 - **Copy an application.** Somewhere to try a change without overwriting the original: an owner who wants a
   different set of records, or to see what a rebuild does, currently risks the app they already have.
 - ~~**`UX-01` looks like a requirement id and indexes nothing.**~~ **Done 20 September 2026.** `tests/security/theme.test.ts` names four tests
