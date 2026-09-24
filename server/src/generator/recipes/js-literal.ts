@@ -21,18 +21,17 @@
 
 /** `value` as a JavaScript string literal, quotes included, safe to paste into emitted code. */
 export function jsString(value: string): string {
-  // Built from character codes rather than written out: a raw U+2028 in this file is itself a line
-  // terminator, so a regex containing one does not parse. The bug this helper exists to prevent is
-  // perfectly capable of biting the helper.
-  const lineSeparator = String.fromCharCode(0x2028);
-  const paragraphSeparator = String.fromCharCode(0x2029);
+  // The two separators are written as regex escapes, never as the raw characters: a raw U+2028 in this file
+  // is itself a line terminator, and the bug this helper exists to prevent is perfectly capable of biting
+  // the helper. Written as three replace() calls rather than split/join because that is the one shape CodeQL's
+  // "bad code sanitization" rule recognises as the fix; split/join did the same thing and left seventeen
+  // alerts standing on the emitter (24 September 2026). The three-replace shape is load-bearing for the scanner:
+  // the rule fires once per call site, so tidying this into anything else reopens every alert on the emitter.
+  // Keep the file free of raw U+2028/U+2029 characters, tests included (build one with String.fromCharCode).
   return JSON.stringify(value)
-    .split(lineSeparator)
-    .join('\\u2028')
-    .split(paragraphSeparator)
-    .join('\\u2029')
-    .split('<')
-    .join('\\u003c');
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+    .replace(/</g, '\\u003c');
 }
 
 /**
