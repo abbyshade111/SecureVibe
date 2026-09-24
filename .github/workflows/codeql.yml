@@ -19,6 +19,12 @@
 #  - A dismissal is tied to the alert's fingerprint, which includes the line's text: edit or move the flagged
 #    line (even to add that comment) and the alert returns as a new one, "in code changed by this pull request".
 #    Expect to dismiss it again; it is the same finding.
+#  - The same family of protection guards pushes: GitHub push protection refuses a push whose commit holds a
+#    key-shaped string, and it fired on 23 September 2026 on a *secrets scanner's own test data*. The failure
+#    arrives as a rejected push (GH013), not a test failure, and a follow-up commit does not clear it because the
+#    blob is in the rejected commit. Do not use the offered "allow this secret" link on this project: build test
+#    keys from pieces at run time (`['sk', 'live', '…'].join('_')`) so the rule sees a key and the file holds none,
+#    and keep the fixture apps' credentials visibly fake, as they are.
 #
 # Every action is pinned to an exact commit fingerprint, as in checks.yml: a version name can be moved, a
 # fingerprint cannot. The comment beside each says which release it is.
