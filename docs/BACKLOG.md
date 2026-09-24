@@ -163,7 +163,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **Take a zip, since that is what people have.** The first person to hand SecureVibe somebody else's code on
+- **Take a zip, since that is what people have.** **[taken: restored first session, 24 September 2026]** The first person to hand SecureVibe somebody else's code on
   20 September 2026 had it as a `.zip`, chose it in the picker, and it uploaded as a single 155KB file without
   complaint — the check would then have run over a folder holding one lump of compressed bytes, found almost
   nothing, and read as a clean result. It now refuses a lone archive and says to unpack it first, which is the
