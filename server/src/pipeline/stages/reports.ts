@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ArtifactRef, StageResult } from '@shared/pipeline.js';
 import { renderReports } from '../../integration.js';
+import { renderReportsWithoutAnswers } from '../../reports/index.js';
 import { finishStage, startStage } from '../stage-helpers.js';
 import type { PipelineCtx } from '../types.js';
 
@@ -35,14 +36,38 @@ export async function runReportsStage(ctx: PipelineCtx): Promise<StageResult> {
   mkdirSync(outDir, { recursive: true });
 
   if (!ctx.design) {
-    ctx.run.artifacts = fallbackArtifacts(ctx, outDir);
-    return finishStage(
-      ctx,
-      'reports',
-      'warning',
-      'The full reports need the answers to the questions about this app (they say which rules apply), so a raw summary of what the checks found was saved instead. Answer the questions and check again for the full reports.',
-      started,
-    );
+    // A check before the questions were answered: every report that does not depend on the answers is written in
+    // full (security report, SARIF, run log, provenance, bill of materials); the compliance report and the design
+    // document need the answers, and the overview says so.
+    try {
+      const outcome = await renderReportsWithoutAnswers({
+        project: ctx.project,
+        run: ctx.run,
+        ...(ctx.manifest ? { manifest: ctx.manifest } : {}),
+        ...(ctx.provenance ? { provenance: ctx.provenance } : {}),
+        findings: ctx.acc.findings,
+        coverage: ctx.acc.coverage,
+        ...(ctx.run.llmUsage ? { llmUsage: ctx.run.llmUsage } : {}),
+        stages: ctx.run.stages,
+        outDir,
+        appDir: ctx.appDir,
+        knowledge: ctx.knowledge,
+        frameworks: ctx.frameworks,
+        securevibeVersion: ctx.config.version,
+      });
+      ctx.run.artifacts = outcome.artifacts;
+      return finishStage(
+        ctx,
+        'reports',
+        'passed',
+        'The security report, the findings file and the run record are ready. There is no compliance report yet: which rules apply is decided by the questions about this app, which have not been answered.',
+        started,
+        { details: { artifacts: outcome.artifacts.length } },
+      );
+    } catch (err) {
+      ctx.run.artifacts = fallbackArtifacts(ctx, outDir);
+      return finishStage(ctx, 'reports', 'warning', `The reports could not be written (${err instanceof Error ? err.message : String(err)}). A raw summary was saved instead.`, started);
+    }
   }
 
   const outcome = await renderReports({

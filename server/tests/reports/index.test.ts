@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { renderReports, renderReportsFromModel } from '../../src/reports/index.js';
+import { renderReports, renderReportsFromModel, renderReportsWithoutAnswers } from '../../src/reports/index.js';
 import type { ReportModel } from '../../src/reports/types.js';
 import type { RenderReportsInput } from '../../src/reports-contract.js';
 import { buildReportModel } from '../fixtures/reports/model.js';
@@ -114,6 +114,23 @@ describe('renderReports (the public contract other modules already call)', () =>
     const sbom = artifacts.find((a) => a.kind === 'sbom');
     expect(sbom).toBeDefined();
     expect(existsSync(join(model.outDir, 'sbom.cdx.json'))).toBe(true);
+  });
+
+  it('writes the full security report, SARIF, run log and provenance for a check made without answers, and says why there is no compliance report', async () => {
+    // An uploaded app checked before the questions were answered: the answers decide which rules apply, not
+    // whether the checks ran, so everything that does not depend on them is written in full.
+    const { design: _design, compliance: _compliance, ...rest } = model;
+    const { artifacts } = await renderReportsWithoutAnswers({ ...rest, stages: model.run.stages, frameworks: (await import('../../src/frameworks/index.js')).loadFrameworks() });
+    const names = artifacts.map((a) => a.name).sort();
+    expect(names).toEqual(['overview.html', 'security-report.html', 'security-report.md', 'security-report.json', 'findings.sarif', 'provenance.json', 'run-log.txt'].sort());
+    expect(names).not.toContain('compliance-report.html');
+    expect(names).not.toContain('design.md');
+    const overview = await readFile(join(model.outDir, 'overview.html'), 'utf8');
+    expect(overview).toContain('Which rules apply is not decided yet');
+    expect(overview).toContain('security-report.html');
+    const security = await readFile(join(model.outDir, 'security-report.html'), 'utf8');
+    expect(security).toContain('Provenance');
+    for (const a of artifacts) expect(a.sizeBytes, a.name).toBeGreaterThan(0);
   });
 
   it('degrades honestly (still writes provenance/run-log/sarif) when compliance is missing', async () => {

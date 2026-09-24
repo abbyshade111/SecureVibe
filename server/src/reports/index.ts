@@ -14,8 +14,8 @@ import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { Evidence } from '@shared/compliance.js';
 import { DesignProfileSchema, type DesignProfile } from '@shared/profile.js';
-import type { ArtifactRef, StageResult } from '@shared/pipeline.js';
-import { loadFrameworks, loadKnowledge } from '../frameworks/index.js';
+import type { ArtifactRef, Provenance, StageResult } from '@shared/pipeline.js';
+import { loadFrameworks, loadKnowledge, type Frameworks } from '../frameworks/index.js';
 import type { ProbeResultLike, TestResult } from '../compliance/types.js';
 import type { RenderReportsInput, RenderReportsResult } from '../reports-contract.js';
 import { renderComplianceReport } from './compliance-report.js';
@@ -25,8 +25,11 @@ import { renderOverview } from './overview.js';
 import { renderProvenanceJson } from './provenance.js';
 import { renderRunLog } from './run-log.js';
 import { buildSarif } from './sarif.js';
-import { renderSecurityReport } from './security-report.js';
-import type { ReportModel } from './types.js';
+import { renderSecurityReport, type SecurityReportInput } from './security-report.js';
+import { escapeHtml } from './escape.js';
+import { htmlList } from './html-table.js';
+import { renderPage } from './page.js';
+import { coverageRanText, type ReportModel } from './types.js';
 
 /** Best-effort extraction of a stage's structured details, tolerant of the field the pipeline actually used. */
 function detailsArray<T>(stages: StageResult[], stageId: string, keys: string[]): T[] {
@@ -48,7 +51,7 @@ function deriveProbeResults(stages: StageResult[]): ProbeResultLike[] {
   return detailsArray<ProbeResultLike>(stages, 'dast', ['probes', 'probeResults', 'results']);
 }
 
-function deriveProfile(input: RenderReportsInput): DesignProfile | undefined {
+function deriveProfile(input: Pick<RenderReportsInput, 'project'>): DesignProfile | undefined {
   const parsed = DesignProfileSchema.safeParse(input.project.profile);
   return parsed.success ? parsed.data : undefined;
 }
@@ -133,6 +136,98 @@ export async function renderReportsFromModel(model: ReportModel): Promise<Render
   }
 
   return { artifacts };
+}
+
+/**
+ * The report set for a check made before the questions were answered (an uploaded app, checked as it is).
+ *
+ * Which rules apply is undecided, so there is no compliance report and no design document; everything else the
+ * checks produced is written in full: the security report, the SARIF file, the run log, the provenance record
+ * and the bill of materials. The overview says plainly what is missing and why, and what answering adds.
+ */
+export async function renderReportsWithoutAnswers(input: Omit<RenderReportsInput, 'design' | 'compliance'>): Promise<RenderReportsResult> {
+  const knowledge = input.knowledge ?? loadKnowledge();
+  const frameworks = input.frameworks ?? loadFrameworks();
+  const provenance = input.provenance ?? input.run.provenance ?? fallbackProvenance(input, frameworks, '');
+  await mkdir(input.outDir, { recursive: true });
+  const model: SecurityReportInput = {
+    project: input.project,
+    profile: deriveProfile(input),
+    run: input.run,
+    findings: input.findings,
+    coverage: input.coverage,
+    probeResults: deriveProbeResults(input.stages),
+    testResults: deriveTestResults(input.stages),
+    sbomPath: await findSbom(input.appDir, input.outDir),
+    provenance,
+    knowledge,
+    appDir: input.appDir ?? '',
+    outDir: input.outDir,
+    securevibeVersion: input.securevibeVersion,
+  };
+  const artifacts: ArtifactRef[] = [];
+  artifacts.push(
+    await writeFileArtifact(model.outDir, 'overview.html', renderOverviewWithoutAnswers(model), 'overview', 'html', 'What the checks found, and why there is no compliance report yet.'),
+  );
+  const security = renderSecurityReport(model);
+  artifacts.push(await writeFileArtifact(model.outDir, 'security-report.html', security.html, 'security-report', 'html', 'Every finding with what it is, why it matters and how to fix it.'));
+  artifacts.push(await writeFileArtifact(model.outDir, 'security-report.md', security.md, 'security-report', 'md', 'Security report in Markdown.'));
+  artifacts.push(await writeFileArtifact(model.outDir, 'security-report.json', security.json, 'security-report', 'json', 'Security report data (findings, coverage, probes, tests).'));
+  const sarif = JSON.stringify(buildSarif(model.findings, model.securevibeVersion), null, 2);
+  artifacts.push(await writeFileArtifact(model.outDir, 'findings.sarif', sarif, 'sarif', 'sarif', 'Findings in SARIF 2.1.0, for editors and CI tools that understand it.'));
+  artifacts.push(await writeFileArtifact(model.outDir, 'provenance.json', renderProvenanceJson(provenance), 'provenance', 'json', 'Who/what produced this check.'));
+  artifacts.push(await writeFileArtifact(model.outDir, 'run-log.txt', renderRunLog(model.run), 'run-log', 'txt', 'Plain-text record of every pipeline stage for this run.'));
+  if (model.sbomPath) {
+    const s = await stat(join(model.outDir, model.sbomPath));
+    artifacts.push({ name: model.sbomPath, path: `reports/${basename(model.outDir)}/${model.sbomPath}`, kind: 'sbom', format: 'json', sizeBytes: s.size, description: 'Software bill of materials (CycloneDX).' });
+  }
+  return { artifacts };
+}
+
+function renderOverviewWithoutAnswers(model: SecurityReportInput): string {
+  const open = model.findings.filter((f) => f.status === 'open');
+  const bySeverity = ['critical', 'high', 'medium', 'low', 'info'].map((s) => [s, open.filter((f) => f.severity === s).length] as const).filter(([, n]) => n > 0);
+  const appName = model.project.name;
+  const body = [
+    `<section id="undecided" class="chapter"><h2>Which rules apply is not decided yet</h2><p>This check read the code as it is: secrets, dependencies, configuration and the virus scan. Whether the app meets the security rules is not scored, because which rules apply depends on a few questions about it that have not been answered. Answer them in SecureVibe and check again to get the compliance report and the AI review.</p></section>`,
+    `<section id="found" class="chapter"><h2>What was found</h2><p>${open.length === 0 ? 'No open findings.' : `${open.length} open finding${open.length === 1 ? '' : 's'}: ${bySeverity.map(([s, n]) => `${n} ${s}`).join(', ')}.`} Every one is in the <a href="security-report.html"><code>security-report.html</code></a>, with what it is, why it matters and how to fix it.</p></section>`,
+    `<section id="read" class="chapter"><h2>What was read</h2>${htmlList(model.coverage.map((c) => `${escapeHtml(c.tool)}: ${escapeHtml(coverageRanText(c))}${c.covers ? ` (${escapeHtml(c.covers)})` : ''}`))}</section>`,
+  ].join('\n');
+  return renderPage({
+    title: `${appName} — overview`,
+    subtitle: 'Checked as uploaded, before the questions were answered',
+    generatedAt: model.run.finishedAt ?? model.run.startedAt,
+    toc: [
+      { id: 'undecided', label: 'Which rules apply' },
+      { id: 'found', label: 'What was found' },
+      { id: 'read', label: 'What was read' },
+    ],
+    bodyHtml: body,
+    glossaryHtml: undefined,
+  });
+}
+
+function fallbackProvenance(input: Pick<RenderReportsInput, 'run' | 'project' | 'securevibeVersion'>, frameworks: Frameworks, designHash: string): Provenance {
+  return {
+    reportSchemaVersion: '1.0.0',
+    tool: `SecureVibe ${input.securevibeVersion}`,
+    securevibeVersion: input.securevibeVersion,
+    templateVersion: 'unknown',
+    frameworkVersions: { asvs: frameworks.asvs.version, aisvs: frameworks.aisvs.version, sbd: frameworks.sbd.version },
+    toolVersions: {},
+    runId: input.run.id,
+    projectId: input.project.id,
+    generatedAt: input.run.finishedAt ?? input.run.startedAt,
+    mode: input.run.mode,
+    humanInvolvement: { summary: 'Not recorded for this run.', peerReviewDecisions: [], attestations: 0, humanCodeReview: false },
+    designProfileHash: input.project.profileHash ?? '',
+    designHash,
+    codeTreeHash: '',
+    generatedFiles: [],
+    recipes: [],
+    protectedFileHashes: {},
+    sandbox: { mode: 'node-permission-model', note: "Generated code runs under Node's permission model restricted to the project folder; network access is not restricted." },
+  };
 }
 
 /** Matches the existing integration contract: adapts its looser input into a full ReportModel, then renders. */
