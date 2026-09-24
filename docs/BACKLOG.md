@@ -55,7 +55,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   not write cannot honestly answer half the wizard, and guessing puts made-up facts into a report. A shorter set
   of questions for uploaded apps is probably part of the answer.
 
-- **A report that says 0 of 106 when the truth is "we did not look".** The first app anybody handed SecureVibe
+- ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
   verified**, one critical configuration problem and ten high/medium issues. Every one of those ten was in
@@ -87,7 +87,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
 
-- **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
+- ~~**The template suite ran 30 of its 33 files and said it was green.**~~ **Done (list regenerated before each run, count printed); the durable half, moving the repository out of ~/Desktop, stays with the iCloud item.** Original text kept: The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
   every test of the work one session had just finished, were not run by the suite that reported on it. The list
