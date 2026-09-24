@@ -23,6 +23,7 @@ export function renderOverview(input: ReportModel): string {
     { id: 'what-you-built', label: 'What you built and how it was assessed' },
     { id: 'can-i-use-it', label: 'Can I use it?' },
     { id: 'top-actions', label: 'Top actions' },
+    ...(input.run.ownerTasks && input.run.ownerTasks.length > 0 ? [{ id: 'only-you', label: 'What only you can do' }] : []),
     { id: 'scorecards', label: 'Scorecards' },
     { id: 'not-checked', label: 'What was not checked and why' },
     { id: 'recheck', label: 'How to re-check' },
@@ -57,6 +58,14 @@ export function renderOverview(input: ReportModel): string {
       compliance.overall.topActions.map((r) => [escapeHtml(r.priority), escapeHtml(r.title), escapeHtml(r.who), escapeHtml(r.effort ?? '')]),
     )}</section>`,
   );
+
+  if (input.run.ownerTasks && input.run.ownerTasks.length > 0) {
+    body.push(
+      `<section id="only-you" class="chapter"><h2>What only you can do</h2><p class="muted">Worked out from the app itself and your answers. Each one says what stays switched off until it is done.</p>${htmlList(
+        input.run.ownerTasks.map((t) => `<strong>${escapeHtml(t.title)}</strong><br>${escapeHtml(t.because)}<br><span class="muted">${escapeHtml(t.staysOff)}</span>`),
+      )}</section>`,
+    );
+  }
 
   const cards = [scorecard(compliance.asvs.summary), compliance.aisvs ? scorecard(compliance.aisvs.summary) : undefined].filter((s): s is string => Boolean(s));
   body.push(

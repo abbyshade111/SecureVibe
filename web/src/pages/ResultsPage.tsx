@@ -566,6 +566,27 @@ export function ResultsPage() {
         </Card>
       )}
 
+      {run.ownerTasks && run.ownerTasks.length > 0 && (
+        <Card>
+          <h2>What only you can do</h2>
+          <p className="sv-muted">
+            Worked out from the app itself and your answers, not from what Claude said. Each one says what stays
+            switched off until it is done.
+          </p>
+          <ul>
+            {run.ownerTasks.map((t) => (
+              <li key={t.id} style={{ marginBottom: 8 }}>
+                <strong>{t.title}</strong>
+                <br />
+                <span className="sv-muted">{t.because}</span>
+                <br />
+                <span className="sv-faint">{t.staysOff}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {instructions && (
         <AppPreview
           projectId={id!}

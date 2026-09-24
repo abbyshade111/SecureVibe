@@ -21,6 +21,7 @@ import { runFixLoop } from './fix-loop.js';
 import { appendStageLog, markInterruptedRunsAtStartup, summaryOf } from './persist.js';
 import { finishStage, skipStage } from './stage-helpers.js';
 import { planCoverage } from './plan-coverage.js';
+import { ownerTasks } from './owner-tasks.js';
 import {
   loadFrozenDesign,
   runAiReviewStage,
@@ -375,6 +376,8 @@ export function startRun(project: Project, opts: RunPipelineOptions, deps: RunPi
     finalizeRunFindings(ctx, deps);
     // Was each planned feature actually built? Measured against the route list, the record types and the tests.
     if (ctx.plan && opts.mode !== 'verify-only') run.planCoverage = planCoverage(ctx.plan, appDir, ctx.acc.testResults);
+    // What only the owner can do: empty settings, services without an address or key, features not built.
+    if (ctx.profile) run.ownerTasks = ownerTasks({ profile: ctx.profile, appDir, planCoverage: run.planCoverage });
 
     if (opts.mode === 'verify-only') {
       await push(skipStage(ctx, 'fix', 'Nothing was fixed: this run only reports what it found, and fixing is part of a build.'));

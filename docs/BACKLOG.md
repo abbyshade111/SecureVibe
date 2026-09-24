@@ -18,10 +18,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **"What only you can do".** **[taken: restored first session, 24 September 2026]** A list on the Results page and in the reports, derived from facts rather than
-  prose: settings left unset, named outside services with no address, planned features that came back not-built.
-  For each, what the owner must do and what stays switched off until they do. `reports/going-online.ts` already
-  has this shape for deployment, so it extends a pattern rather than inventing a third list.
 - **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
   organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
   for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
