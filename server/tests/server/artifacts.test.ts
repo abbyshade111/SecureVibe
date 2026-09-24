@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PipelineRunSchema } from '@shared/pipeline.js';
+import { unpackZip } from '../../src/api/zip.js';
 import { newRunId } from '../../src/store/index.js';
 import { buildHarness, signIn, type TestHarness } from './helpers.js';
 
@@ -120,5 +121,33 @@ describe('report downloads', () => {
     expect(none.status).toBe(404);
     const foreign = await request(harness.server).get(`/api/projects/${empty.id}/reports/${runId}/scan-data.zip`).set('Host', '127.0.0.1').set('Cookie', cookie);
     expect(foreign.status).toBe(404);
+
+    // Every app's reports at once: a folder for the checked app, a line for the unchecked one, an index.
+    const all = await request(harness.server)
+      .get('/api/reports/all.zip')
+      .set('Host', '127.0.0.1')
+      .set('Cookie', cookie)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(all.status).toBe(200);
+    expect(all.headers['content-type']).toBe('application/zip');
+    expect(all.headers['content-disposition']).toMatch(/^attachment; filename="securevibe-reports-\d{4}-\d{2}-\d{2}\.zip"$/);
+    const bytes = all.body as Buffer;
+    expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+    // Read it back with SecureVibe's own zip reader: the entry names and the index text, not just the bytes.
+    const unpacked = unpackZip(bytes, { maxFiles: 1000, maxTotalBytes: 50 * 1024 * 1024, maxFileBytes: 2 * 1024 * 1024 }, () => undefined);
+    const paths = unpacked.files.map((f) => f.path);
+    // This project is "Scan data test"; its reports folder holds the sarif written above.
+    expect(paths, paths.join(', ')).toContain(`Scan-data-test-${project.id}/findings.sarif`);
+    expect(paths).toContain('INDEX.md');
+    expect(paths.some((p) => p.startsWith(`Never-built-${empty.id}/`))).toBe(false);
+    const index = unpacked.files.find((f) => f.path === 'INDEX.md')!.data.toString();
+    expect(index).toContain('- Scan data test: ');
+    expect(index).toContain(`Scan-data-test-${project.id}/`);
+    expect(index).toContain('Never built: not checked yet');
   });
 });

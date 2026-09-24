@@ -261,7 +261,12 @@ export default function SecurityAcrossAppsPage() {
 
   return (
     <div className="sv-stack">
-      <h1>Security across your apps</h1>
+      <div className="sv-row-between" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <h1 style={{ marginBottom: 0 }}>Security across your apps</h1>
+        <a className="sv-btn sv-btn-secondary sv-btn-sm" href="/api/reports/all.zip" title="One zip with a folder per app holding its latest reports, plus an index. For an appendix, an auditor or a handover.">
+          Download every app&apos;s reports
+        </a>
+      </div>
       <p className="sv-help">
         Every app you have, worst first. Nothing on this page adds one app to another: an app that runs only on this
         computer and an app going on the internet are not the same risk, so their numbers are kept apart and shown
