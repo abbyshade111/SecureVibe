@@ -45,9 +45,10 @@ another session is not a claim.
   neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
   which is the pattern to follow.
 
-- **A report from a run.** `sv report` never starts the app, so the probe findings are absent and the
-  gap list says so. Carrying a `sv run` result into the report means somewhere to keep it between the
-  two commands.
+- **A report from a run.** **[taken: keen-meninsky-691a27, 24 September 2026]** `sv report` never starts
+  the app, so the probe findings and the probe evidence — the only direct observation of the app doing
+  the right thing that anything here produces — never reach the document people actually read. Opt-in
+  rather than automatic: running somebody's code, even fenced, is a thing to be explicit about.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.
