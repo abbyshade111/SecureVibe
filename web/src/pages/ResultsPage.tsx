@@ -416,6 +416,7 @@ export function ResultsPage() {
             </Mascot>
           </h1>
           <h2>{compliance.overall.headline}</h2>
+          {compliance.overall.ratingReason && <p className="sv-muted">{compliance.overall.ratingReason}</p>}
           <p>{compliance.overall.canIUseIt}</p>
         </Card>
       )}

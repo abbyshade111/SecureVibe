@@ -11,30 +11,45 @@ export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/**
+ * The rating and, in the same breath, where it comes from. Two scoreboards feed it: the requirement count for a
+ * standard (ASVS, AISVS) and the Secure by Design checklist, where one unmet critical control is enough for
+ * "At risk" whatever the count says. An owner reading "At risk" above "107 of 159 verified passing" sees a
+ * contradiction unless the reason names its source, so every reason does.
+ *
+ * `source` names the count the rating is about ("ASVS", "ASVS and AISVS"); `criticalNo` lists unmet critical
+ * Secure by Design controls, which only the overall rating takes into account.
+ */
 export function computeRating(
   counts: ReturnType<typeof emptyCounts>,
   applicableCount: number,
   hasP1Fail: boolean,
-  extraAtRisk = false,
+  source = 'requirement',
+  criticalNo: string[] = [],
 ): { rating: StandardSummary['rating']; ratingReason: string } {
   const verifiedPassPercent = applicableCount > 0 ? (counts.pass / applicableCount) * 100 : 100;
-  if (hasP1Fail || extraAtRisk) {
+  if (hasP1Fail) {
     return {
       rating: 'at-risk',
-      ratingReason: hasP1Fail
-        ? 'At least one failing requirement is linked to an urgent (P1) security finding.'
-        : 'A critical Secure by Design control is not met.',
+      ratingReason: 'At risk because an urgent (P1) security finding is linked to a failing requirement. That comes from what was found, not from the count.',
+    };
+  }
+  if (criticalNo.length > 0) {
+    const n = criticalNo.length;
+    return {
+      rating: 'at-risk',
+      ratingReason: `At risk comes from Secure by Design: ${n === 1 ? 'a critical control' : `${n} critical controls`} (${criticalNo.join(', ')}) ${n === 1 ? 'is' : 'are'} not met. The ${source} count is a different measure, and a good score there does not lift a critical control.`,
     };
   }
   if (counts.fail === 0 && verifiedPassPercent >= 60) {
-    return { rating: 'good', ratingReason: `${round1(verifiedPassPercent)}% of applicable requirements are verified passing, and nothing failed.` };
+    return { rating: 'good', ratingReason: `Good comes from the ${source} count: ${round1(verifiedPassPercent)}% of applicable requirements are verified passing, and nothing failed.` };
   }
   if (counts.fail > 0) {
-    return { rating: 'needs-attention', ratingReason: `${counts.fail} requirement(s) failed and need a developer's attention.` };
+    return { rating: 'needs-attention', ratingReason: `Needs attention comes from the ${source} count: ${counts.fail} requirement(s) failed and need a developer's attention.` };
   }
   return {
     rating: 'needs-attention',
-    ratingReason: `Only ${round1(verifiedPassPercent)}% of applicable requirements are verified passing; the rest need automated evidence or a manual check.`,
+    ratingReason: `Needs attention comes from the ${source} count: only ${round1(verifiedPassPercent)}% of applicable requirements are verified passing; the rest need automated evidence or a manual check.`,
   };
 }
 
@@ -72,7 +87,7 @@ export function summarizeStandard(
 
   const failingIds = new Set(results.filter((r) => r.status === 'fail').flatMap((r) => r.findingIds));
   const hasP1Fail = findings.some((f) => failingIds.has(f.id) && isOpen(f) && f.priority === 'P1');
-  const { rating, ratingReason } = computeRating(counts, applicableCount, hasP1Fail);
+  const { rating, ratingReason } = computeRating(counts, applicableCount, hasP1Fail, name);
 
   return {
     standard,

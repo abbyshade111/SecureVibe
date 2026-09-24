@@ -332,6 +332,12 @@ export const ComplianceResultSchema = z.object({
     .optional(),
   overall: z.object({
     rating: z.enum(['good', 'needs-attention', 'at-risk']),
+    /**
+     * Which standard the rating comes from, and why. "At risk" can come from one unmet critical Secure by Design
+     * control while the ASVS count beside it reads 107 of 159: both true, and read together a contradiction unless
+     * the rating names its source. Absent on results written before this was added.
+     */
+    ratingReason: z.string().optional(),
     headline: z.string(), // one plain-language sentence
     /** Deployment-gated statement: "Suitable for use on this computer with the 2 actions below…" */
     canIUseIt: z.string(),
