@@ -38,7 +38,7 @@ export function renderOverview(input: ReportModel): string {
   );
 
   body.push(
-    `<section id="can-i-use-it" class="chapter"><h2>Can I use it?</h2><p><strong>${ratingBadge(compliance.overall.rating)}</strong> — ${escapeHtml(compliance.overall.headline)}</p><p class="muted">${escapeHtml(compliance.overall.canIUseIt)}</p>${
+    `<section id="can-i-use-it" class="chapter"><h2>Can I use it?</h2><p><strong>${ratingBadge(compliance.overall.rating)}</strong> — ${escapeHtml(compliance.overall.headline)}</p>${compliance.overall.ratingReason ? `<p class="muted">${escapeHtml(compliance.overall.ratingReason)}</p>` : ''}<p class="muted">${escapeHtml(compliance.overall.canIUseIt)}</p>${
       // What was read, next to what was concluded from it. A score whose coverage is a paragraph away is a score
       // people quote without the coverage.
       compliance.codeCoverage

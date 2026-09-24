@@ -210,7 +210,10 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
       '',
       `## ${standardId === 'asvs' ? '6' : '7'}. ${standardLabel(standardId)} results`,
       '',
-      `${summary.counts.pass} pass · ${summary.counts['ai-assessed']} AI-assessed · ${summary.counts.documented} documented · ${summary.counts.attested} attested · ${summary.counts.partial} partial · ${summary.counts.fail} fail · ${summary.counts['not-verified']} not verified · ${summary.counts['not-applicable']} not applicable · ${summary.counts['out-of-level']} out of level. Rating: ${ratingText(summary.rating)} — ${summary.ratingReason}`,
+      `${summary.counts.pass} pass · ${summary.counts['ai-assessed']} AI-assessed · ${summary.counts.documented} documented · ${summary.counts.attested} attested · ${summary.counts.partial} partial · ${summary.counts.fail} fail · ${summary.counts['not-verified']} not verified · ${summary.counts['not-applicable']} not applicable · ${summary.counts['out-of-level']} out of level. Rating: ${ratingText(summary.rating)} — ${summary.ratingReason}${
+        // This standard's rating and the overall one are different scoreboards; say so where they differ.
+        compliance.overall.rating === 'at-risk' && summary.rating !== 'at-risk' && compliance.overall.ratingReason ? ` The overall rating is At risk for a different reason. ${compliance.overall.ratingReason}` : ''
+      }`,
     );
     for (const [chapterId, chapter] of requirementsByChapter(results)) {
       md.push('', `### ${chapterId} — ${chapter.name}`, '', mdTable(['Id', 'Requirement', 'Status', 'Rationale'], chapter.rows.map((r) => [r.id, r.description, statusText(r.status), r.rationale])));
@@ -437,7 +440,9 @@ export function renderComplianceReport(input: ReportModel): { md: string; html: 
           )}</details>`,
       )
       .join('\n');
-    return `<section id="${id}" class="chapter"><h2>${escapeHtml(heading)}</h2><p>${summary.counts.pass} pass · ${summary.counts['ai-assessed']} AI-assessed · ${summary.counts.documented} documented · ${summary.counts.attested} attested · ${summary.counts.partial} partial · ${summary.counts.fail} fail · ${summary.counts['not-verified']} not verified · ${summary.counts['not-applicable']} not applicable · ${summary.counts['out-of-level']} out of level. Rating: ${ratingBadge(summary.rating)} — ${escapeHtml(summary.ratingReason)}</p>${parts}</section>`;
+    return `<section id="${id}" class="chapter"><h2>${escapeHtml(heading)}</h2><p>${summary.counts.pass} pass · ${summary.counts['ai-assessed']} AI-assessed · ${summary.counts.documented} documented · ${summary.counts.attested} attested · ${summary.counts.partial} partial · ${summary.counts.fail} fail · ${summary.counts['not-verified']} not verified · ${summary.counts['not-applicable']} not applicable · ${summary.counts['out-of-level']} out of level. Rating: ${ratingBadge(summary.rating)} — ${escapeHtml(summary.ratingReason)}${
+      compliance.overall.rating === 'at-risk' && summary.rating !== 'at-risk' && compliance.overall.ratingReason ? ` The overall rating is At risk for a different reason. ${escapeHtml(compliance.overall.ratingReason)}` : ''
+    }</p>${parts}</section>`;
   }
 
   body.push(requirementsSectionHtml('asvs-results', '6. ASVS results by chapter', compliance.asvs.results, compliance.asvs.summary));

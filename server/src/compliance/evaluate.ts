@@ -375,7 +375,13 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     return acc;
   }, emptyCounts());
   const overallApplicable = allAppResults.filter((r) => r.status !== 'not-applicable' && r.status !== 'out-of-level').length;
-  const { rating: overallRating } = computeRating(overallCounts, overallApplicable, p1Count > 0, sbd.criticalNo.length > 0);
+  const { rating: overallRating, ratingReason: overallRatingReason } = computeRating(
+    overallCounts,
+    overallApplicable,
+    p1Count > 0,
+    aisvsEval ? 'ASVS and AISVS' : 'ASVS',
+    sbd.criticalNo,
+  );
   /**
    * The headline says what was found, or says that nothing was looked at — never the first dressed as a score.
    *
@@ -449,6 +455,7 @@ export function evaluateCompliance(input: EvaluateInput): ComplianceResult {
     ...(changesSincePrevious ? { changesSincePrevious } : {}),
     overall: {
       rating: overallRating,
+      ratingReason: overallRatingReason,
       headline,
       canIUseIt: canIUseIt(deploymentTarget, p1Findings, recTop5.length, sbd.criticalNo),
       topActions: recTop5,
