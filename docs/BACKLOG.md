@@ -41,7 +41,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   answer to a different question, are questions rather than offers — the owner decides. Removing one must set
   `designStale` and `buildStale`, as `PUT /projects/:id/profile` does. Both of the owner's apps had one, and a
   rebuild recreates them from the answers.
-- **A build in progress is invisible from anywhere but the build page.** The live spending figure and the
+- **A build in progress is invisible from anywhere but the build page.** **[taken: Vibe-coding builder (original, restored), 24 Sep 2026]** The live spending figure and the
   activity feed arrive on the run's event stream, which only that page listens to. An owner who wanders off
   mid-build — to their project list, to another app — sees nothing to say that something is running and costing
   them money, and coming back recovers only the figure from the last completed stage. That is the moment a
