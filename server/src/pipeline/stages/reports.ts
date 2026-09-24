@@ -36,7 +36,13 @@ export async function runReportsStage(ctx: PipelineCtx): Promise<StageResult> {
 
   if (!ctx.design) {
     ctx.run.artifacts = fallbackArtifacts(ctx, outDir);
-    return finishStage(ctx, 'reports', 'warning', 'There was not enough information to write full reports, so a raw summary was saved instead.', started);
+    return finishStage(
+      ctx,
+      'reports',
+      'warning',
+      'The full reports need the answers to the questions about this app (they say which rules apply), so a raw summary of what the checks found was saved instead. Answer the questions and check again for the full reports.',
+      started,
+    );
   }
 
   const outcome = await renderReports({

@@ -48,7 +48,9 @@ export function UploadPage() {
    * not, and somebody checking code they did not write cannot answer half of them. That is on the backlog as a
    * decision to make rather than something to route around here.
    */
-  const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/wizard/about`;
+  // The check runs with or without the answers (24 September 2026): what the answers add is the compliance
+  // report and the AI review, because they decide which rules apply. So the check page comes next either way.
+  const nextStep = project.design ? `/projects/${id}/summary` : `/projects/${id}/security`;
 
   async function start() {
     if (!plan || plan.problem || !id) return;
@@ -188,11 +190,12 @@ export function UploadPage() {
 
         {!hasAnswers && (
           <p className="sv-faint" style={{ marginTop: 12, marginBottom: 0 }}>
-            Next you will be asked a few questions about what this app does — whether it takes payments, whether
-            it holds health or financial information, whether your organisation has a central sign-in. They decide
-            which rules apply to it, so the check needs them before it can say whether the app meets them. If you
-            did not write this app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an
-            answer SecureVibe understands and it never counts as evidence either way.
+            Next comes the check itself: secrets, dependencies, configuration and the virus scan read the code as it
+            is. To get the compliance report and the AI review as well, answer a few questions about what this app
+            does (whether it takes payments, whether it holds health or financial information, whether your
+            organisation has a central sign-in): they decide which rules apply to it. If you did not write this
+            app and cannot answer one, say so rather than guessing: &quot;not sure&quot; is an answer SecureVibe
+            understands and it never counts as evidence either way.
           </p>
         )}
 

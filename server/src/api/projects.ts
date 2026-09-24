@@ -510,6 +510,24 @@ export function projectsRouter(deps: ApiDeps): Router {
 
   router.get('/projects/:id/estimate', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
+    if (!project.design && isUploadedApp(project)) {
+      // A check before the questions are answered: nothing is generated and the AI review waits for the answers,
+      // so it costs nothing. The approval code is still issued, tied to "no design" (an empty hash), so the run
+      // route's check that the design has not changed since the estimate still holds.
+      const session = res.locals['session'] as SessionRecord;
+      const estimate = {
+        minutesLow: 1,
+        minutesHigh: 5,
+        usdLow: 0,
+        usdHigh: 0,
+        spendingCapUsd: deps.config.settings.get().defaultSpendingCapUsd,
+        note: 'This check reads the code as it is (secrets, dependencies, configuration, virus scan) and uses no AI credit. Which rules apply is decided by the questions about your app, so the compliance report and the AI review come once those are answered.',
+      };
+      const approvalCode = deps.approvals.issue({ projectId: project.id, sessionId: session.id, designHash: '', estimateUsdHigh: 0 });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(EstimateResponseSchema.parse({ estimate, approvalCode }));
+      return;
+    }
     if (!project.design) throw validationError('Finish your design before estimating the build.');
     const settings = deps.config.settings.get();
     // An uploaded app is only ever reviewed; a built app can ask for a review-only figure too ("check again with

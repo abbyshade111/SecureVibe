@@ -185,6 +185,24 @@ describe('uploading and checking an app', () => {
     expect((await request(harness.server).post(`/api/projects/${id}/upload/finish`).set(headers).send({})).status).toBe(400);
   });
 
+  it('checks an uploaded app before the questions are answered', async () => {
+    // "I just want to check the code that's uploaded": most of what would tell her something needs no answer.
+    const { id } = await uploadedProject(false);
+    expect((await request(harness.server).post(`/api/projects/${id}/runs`).set(headers).send({ mode: 'verify-only' })).status).toBe(400); // nothing uploaded yet
+    await request(harness.server).post(`/api/projects/${id}/upload/begin`).set(headers).send({});
+    await put(id, 'server.js', 'require("http")');
+    await request(harness.server).post(`/api/projects/${id}/upload/finish`).set(headers).send({});
+    expect(harness.store.mustGet(id).design).toBeUndefined();
+    // The estimate works without answers too: the check costs nothing, and the approval code is tied to "no design".
+    const estimate = await request(harness.server).get(`/api/projects/${id}/estimate`).set(headers);
+    expect(estimate.status, JSON.stringify(estimate.body)).toBe(200);
+    expect(estimate.body.estimate.usdHigh).toBe(0);
+    const res = await request(harness.server).post(`/api/projects/${id}/runs`).set(headers).send({ mode: 'verify-only', approved: true, approvalCode: estimate.body.approvalCode });
+    expect(res.status, JSON.stringify(res.body)).toBe(202);
+    expect(started.at(-1)!.job['mode']).toBe('verify-only');
+    expect(started.at(-1)!.job['uploaded']).toBe(true);
+  });
+
   it('only ever checks an uploaded app, without running its code, and never previews it', async () => {
     const { id } = await uploadedProject(false);
     await request(harness.server).post(`/api/projects/${id}/upload/begin`).set(headers).send({});

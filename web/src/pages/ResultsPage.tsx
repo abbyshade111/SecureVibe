@@ -317,6 +317,20 @@ export function ResultsPage() {
         </div>
       )}
 
+      {uploaded && !compliance && !project.design && run.status !== 'running' && (
+        <div className="sv-banner sv-banner-warn">
+          <h3>Which rules apply to this app is not decided yet</h3>
+          <p>
+            The checks that read the code as it is have run, and what they found is below. Whether the app meets the
+            security rules is not scored, because which rules apply depends on a few questions about it that have not
+            been answered. Answering them adds the compliance report and the AI review.
+          </p>
+          <Link className="sv-btn" to={`/projects/${id}/wizard/about`}>
+            Answer the questions
+          </Link>
+        </div>
+      )}
+
       {(project.designStale || project.buildStale) && uploaded && (
         <div className="sv-banner sv-banner-warn">
           <h3>These results are out of date</h3>
