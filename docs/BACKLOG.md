@@ -31,7 +31,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   question fits, let the owner record a **reason**: the control stays visible, reads "not applicable — because
   …", the rating reflects it, and the reports name who decided and when. One hides a control; the other answers
   it, and only the second can be audited.
-- **The red rating and the green ticks are different scoreboards, and the page does not say so.** "At risk"
+- **The red rating and the green ticks are different scoreboards, and the page does not say so.** **[taken: restored first session, 24 September 2026]** "At risk"
   comes from Secure by Design — one unmet critical control is enough — while the ticks below are ASVS, where the
   same app passes 107 of 159. Both true, and read together they look like a contradiction. The rating needs to
   carry which standard it comes from, and the ASVS section needs to say that a good score there does not lift a
