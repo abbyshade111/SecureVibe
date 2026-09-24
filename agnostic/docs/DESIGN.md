@@ -333,19 +333,26 @@ silence. Every language added is one fewer kind of app that gets nothing.
 
 `html` covers `.html`, `.vue` and `.svelte`, and almost every web application has at least one. Counting
 every page as unread therefore silenced every rule for nearly every real app — a great deal of silence
-bought by a file that in most cases hides nothing at all. A page is now treated as unread only when it
-**holds code**: a script element with something between its tags, an `on…=` handler, or a
-`javascript:` URL. A page of markup with `<script src="app.js">` hides nothing, because `app.js` is
-parsed like any other file.
+bought by a file that in most cases hides nothing at all. So the script is taken out of the page and
+read as what it is. `<script>` elements go to the JavaScript grammar — or TypeScript, when the page
+says `lang="ts"` — and so do `on…=` handler attributes, whose values are statements that parse on
+their own once their HTML entities are put back. A `<script src="app.js">` with nothing between its
+tags holds no code at all: the file it names is parsed like any other.
 
-The two mistakes available here do not cost the same, so every uncertain case is resolved as code: a
-file that cannot be read, a `<script` that is never closed, and a `<script type="application/json">`
-full of data all count as holding code. Calling a page code when it is not buys some unnecessary
-silence; calling it markup when it holds code ends the silence over a file nothing read.
+A finding in a page names the line **in the page**. The fragment's offset is added back before the
+finding is written, because a reader sent to line 3 of something they cannot see is worse off than one
+given nothing.
 
-The terminal used to say *there is no grammar for html*, which is no longer what happened, so it now
-says a page with a script written into it — and that a page whose script lives in its own file is read
-like any other. The two have different remedies and should not read the same.
+One function decides both what a page holds and what comes out of it. When "does this page hold code"
+and "what code does this page hold" are answered by two pieces of code they drift, and the direction
+they drift in is a page declared read whose code nobody extracted. So `html_fragments` returns the
+fragments *and* whatever it could not take — an unclosed `<script`, a `javascript:` URL — and while
+anything was left behind the page is still unread and every rule stays silent about the whole app. A
+page that cannot be opened at all counts as left behind too.
+
+The terminal's wording followed the behaviour twice: it said *there is no grammar for html* when every
+page was unread, then *a page with a script written into it* when only those were, and now says what is
+actually true — that something in the page could not be taken out of it.
 
 Not every rule covers every language, and that is deliberate rather than unfinished. Rust has no `eval`
 and its `Command` takes an argument list, so it has the SQL rule and nothing else; C has shell and SQL

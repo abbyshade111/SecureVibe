@@ -585,8 +585,9 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             // `html` on this list means a page holding script, not any page at all. Saying so
             // matters, because the two have different remedies: one is a language `sv` cannot read,
             // the other is code that could be moved into a file it can.
-            println!("  For html that means a page with a script written into it. A page whose");
-            println!("  script lives in its own file is read like any other.");
+            println!("  For html that means something in a page that could not be taken out of");
+            println!("  it and read: a script with no end, or a `javascript:` link. A page whose");
+            println!("  script is written normally is read like any other file.");
         }
     }
 

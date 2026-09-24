@@ -121,53 +121,103 @@ fn grammar(language: &str) -> Option<Language> {
     })
 }
 
-/// Whether a page could be hiding a call the rules look for.
-///
-/// Deliberately generous about what counts as code, because the cost of the two mistakes is not
-/// symmetrical: saying a page holds code when it does not buys some unnecessary silence, while
-/// saying it holds none when it does ends the silence over a file nothing read. So an unreadable
-/// file counts as holding code, an unclosed `<script` counts, and a `<script type="application/json">`
-/// full of data counts too.
-///
-/// What does not count is the common case this exists for: a page of markup, and a `<script src=…>`
-/// pointing at a file that is itself parsed.
-fn html_holds_code(path: &std::path::Path) -> bool {
-    let Ok(source) = std::fs::read_to_string(path) else {
-        return true;
-    };
-    html_source_holds_code(&source)
+/// A piece of script taken out of a page, and where it sat.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fragment {
+    /// The language to parse it as: `javascript`, or `typescript` when the page says so.
+    pub language: &'static str,
+    pub code: String,
+    /// How many lines came before it, so a finding can name the line in the page rather than in
+    /// the fragment. A reader given line 3 of something they cannot see is worse off than one
+    /// given nothing.
+    pub line_offset: usize,
 }
 
-fn html_source_holds_code(source: &str) -> bool {
+/// What a page holds, and what could not be taken out of it.
+#[derive(Debug, Default)]
+pub struct HtmlScan {
+    pub fragments: Vec<Fragment>,
+    /// Something code-shaped that the extractor did not take. While this is true the page is still
+    /// unread, and every rule stays silent about the whole app.
+    ///
+    /// One function decides both halves on purpose. When "does this page hold code" and "what code
+    /// does this page hold" are answered by two pieces of code, they drift, and the direction they
+    /// drift in is a page declared read whose code nobody extracted.
+    pub left_behind: Option<String>,
+}
+
+/// Takes the script out of a page.
+///
+/// Handles the two places code really lives in markup: a `<script>` element, and an `on…=` handler
+/// attribute. A `<script src=…>` with nothing between its tags holds no code — the file it names is
+/// parsed like any other. Anything else code-shaped is left behind by name rather than ignored.
+pub fn html_fragments(source: &str) -> HtmlScan {
+    let mut out = HtmlScan::default();
     let lower = source.to_lowercase();
 
-    // An attribute handler is code sitting in the markup itself.
-    if lower.contains("javascript:") {
-        return true;
-    }
-    let handler = regex::Regex::new(r#"[\s"']on[a-z]+\s*="#).expect("a fixed pattern compiles");
-    if handler.is_match(&lower) {
-        return true;
+    // Script elements.
+    let mut at = 0usize;
+    while let Some(found) = lower[at..].find("<script") {
+        let tag_start = at + found;
+        let Some(tag_end) = lower[tag_start..].find('>').map(|i| tag_start + i) else {
+            out.left_behind = Some("a `<script` tag that is never closed".to_owned());
+            return out;
+        };
+        let attributes = &lower[tag_start..tag_end];
+        let body_start = tag_end + 1;
+        let Some(close) = lower[body_start..].find("</script").map(|i| body_start + i) else {
+            out.left_behind = Some("a `<script>` with no `</script>` after it".to_owned());
+            return out;
+        };
+        let body = &source[body_start..close];
+        if !body.trim().is_empty() {
+            // `lang="ts"` is how a Vue component says so; `type="text/typescript"` is the older way.
+            let language = if attributes.contains("lang=\"ts\"")
+                || attributes.contains("lang='ts'")
+                || attributes.contains("typescript")
+            {
+                "typescript"
+            } else {
+                "javascript"
+            };
+            out.fragments.push(Fragment {
+                language,
+                code: body.to_owned(),
+                line_offset: source[..body_start].matches('\n').count(),
+            });
+        }
+        at = close;
     }
 
-    // A script element counts when there is something between its tags.
-    let mut rest = lower.as_str();
-    while let Some(at) = rest.find("<script") {
-        rest = &rest[at + "<script".len()..];
-        let Some(open_end) = rest.find('>') else {
-            // A `<script` that never opens properly is a file this cannot reason about.
-            return true;
-        };
-        rest = &rest[open_end + 1..];
-        let Some(close) = rest.find("</script") else {
-            return true;
-        };
-        if !rest[..close].trim().is_empty() {
-            return true;
-        }
-        rest = &rest[close..];
+    // Handler attributes. The value is a statement, which parses as JavaScript on its own.
+    let handler = regex::Regex::new("(?i)[\\s\"']on[a-z]+\\s*=\\s*(\"[^\"]*\"|'[^']*')")
+        .expect("a fixed pattern compiles");
+    for m in handler.captures_iter(source) {
+        let quoted = m.get(1).expect("the group is not optional");
+        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
+        out.fragments.push(Fragment {
+            language: "javascript",
+            code: unescape_html(inner),
+            line_offset: source[..quoted.start()].matches('\n').count(),
+        });
     }
-    false
+
+    // A URL that is a program. Rare, fiddly to bound, and named rather than quietly dropped.
+    if lower.contains("javascript:") {
+        out.left_behind = Some("a `javascript:` URL".to_owned());
+    }
+    out
+}
+
+/// The five entities that can hide a quote or a bracket in an attribute value.
+fn unescape_html(text: &str) -> String {
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        // Last, so it cannot go back over an entity it has just written.
+        .replace("&amp;", "&")
 }
 
 /// Whether `sv` can read this language at all.
@@ -487,6 +537,50 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     out
 }
 
+/// Reads the script out of a page and scans it as the language it is.
+///
+/// The page counts as read only when nothing code-shaped was left behind. A page whose script all
+/// came out is one nothing is hiding in; a page with a `javascript:` URL still silences every rule,
+/// because the extractor did not take that and saying otherwise would be the whole failure this
+/// guards against.
+fn read_page(rules: &AstRules, root: &std::path::Path, path: &std::path::Path, scan: &mut AstScan) {
+    let Ok(source) = std::fs::read_to_string(path) else {
+        // A page that cannot be opened is the one case where nothing at all is known about it.
+        scan.unread_languages.insert("html".to_owned());
+        return;
+    };
+    let page = html_fragments(&source);
+    if page.left_behind.is_some() {
+        scan.unread_languages.insert("html".to_owned());
+        return;
+    }
+    if page.fragments.is_empty() {
+        // A page of markup. Nothing to read, and nothing hidden.
+        return;
+    }
+
+    let relative = path
+        .strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+    scan.files_parsed += 1;
+    for fragment in &page.fragments {
+        // Counted under the language actually parsed. A page holding JavaScript is a file in which
+        // JavaScript was read, and the rules that claim coverage of JavaScript really did read it.
+        *scan
+            .parsed_by_language
+            .entry(fragment.language.to_owned())
+            .or_default() += 1;
+        for mut finding in scan_file(rules, fragment.language, &relative, &fragment.code) {
+            // Back to the line in the page. Without this a reader is sent to line 3 of something
+            // that does not exist as a file.
+            finding.location.line += fragment.line_offset;
+            scan.findings.push(finding);
+        }
+    }
+}
+
 fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &mut AstScan) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -515,7 +609,8 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
             // and almost every web application has at least one — so counting every page as unread
             // silenced every rule for nearly every real app, which is a great deal of silence
             // bought by a file that in most cases hides nothing at all.
-            if language == "html" && !html_holds_code(&path) {
+            if language == "html" {
+                read_page(rules, root, &path, scan);
                 continue;
             }
             scan.unread_languages.insert(language.to_owned());
@@ -829,77 +924,87 @@ mod tests {
     }
 
     #[test]
-    fn what_counts_as_a_page_holding_code() {
-        // The two mistakes here do not cost the same. Calling a page code when it is not buys some
-        // unnecessary silence; calling it markup when it holds code ends the silence over a file
-        // nothing read. Every uncertain case below is therefore resolved as code.
-        for (holds_code, source, why) in [
-            (
-                false,
-                "<html><body><h1>Notes</h1></body></html>",
-                "plain markup",
-            ),
-            (
-                false,
-                "<html><script src=\"app.js\"></script></html>",
-                "a script file that is itself parsed",
-            ),
-            (
-                false,
-                "<html><script src=\"a.js\">\n  \n</script></html>",
-                "whitespace between the tags is not code",
-            ),
-            (
-                true,
-                "<html><script>eval(x)</script></html>",
-                "an inline script",
-            ),
-            (
-                true,
-                "<html><SCRIPT>eval(x)</SCRIPT></html>",
-                "tags are matched whatever their case",
-            ),
-            (
-                true,
-                "<button onclick=\"go()\">go</button>",
-                "a handler is code sitting in the markup",
-            ),
-            (
-                true,
-                "<a href=\"javascript:go()\">go</a>",
-                "so is a javascript: URL",
-            ),
-            (
-                true,
-                "<html><script>eval(x)",
-                "a script that is never closed cannot be reasoned about",
-            ),
-            (
-                true,
-                "<html><script type=\"application/json\">{\"a\":1}</script></html>",
-                "data in a script tag is not code, and is counted as code anyway",
-            ),
-            (
-                true,
-                "<html><script src=\"a.js\"></script><script>eval(x)</script></html>",
-                "the second script is the one that matters",
-            ),
-        ] {
-            assert_eq!(
-                html_source_holds_code(source),
-                holds_code,
-                "{why}: {source}"
-            );
-        }
+    fn what_comes_out_of_a_page_and_what_is_left_behind() {
+        // One function answers both halves on purpose. When "does this page hold code" and "what
+        // code does this page hold" are decided separately they drift, and the direction they
+        // drift in is a page declared read whose code nobody extracted.
+        let markup = html_fragments("<html><body><h1>Notes</h1></body></html>");
+        assert!(markup.fragments.is_empty() && markup.left_behind.is_none());
+
+        let external = html_fragments("<html><script src=\"app.js\"></script></html>");
+        assert!(
+            external.fragments.is_empty() && external.left_behind.is_none(),
+            "the file it names is parsed like any other: {external:?}"
+        );
+
+        let whitespace = html_fragments("<html><script src=\"a.js\">\n  \n</script></html>");
+        assert!(whitespace.fragments.is_empty() && whitespace.left_behind.is_none());
+
+        let inline = html_fragments("<html><script>eval(x)</script></html>");
+        assert_eq!(inline.fragments.len(), 1);
+        assert_eq!(inline.fragments[0].language, "javascript");
+        assert_eq!(inline.fragments[0].code, "eval(x)");
+        assert!(inline.left_behind.is_none());
+
+        let shouting = html_fragments("<html><SCRIPT>eval(x)</SCRIPT></html>");
+        assert_eq!(
+            shouting.fragments.len(),
+            1,
+            "tags match whatever their case"
+        );
+        assert_eq!(
+            shouting.fragments[0].code, "eval(x)",
+            "and the code comes out with its own case intact"
+        );
+
+        let typed = html_fragments("<script lang=\"ts\">const x: string = y</script>");
+        assert_eq!(typed.fragments[0].language, "typescript");
+
+        let handler = html_fragments("<button onclick=\"go(location.hash)\">go</button>");
+        assert_eq!(handler.fragments.len(), 1);
+        assert_eq!(handler.fragments[0].code, "go(location.hash)");
+
+        let entities = html_fragments("<button onclick=\"go(&quot;a&quot; &amp; b)\">go</button>");
+        assert_eq!(
+            entities.fragments[0].code, "go(\"a\" & b)",
+            "an entity can hide a quote, and must be put back before parsing"
+        );
+
+        let unclosed = html_fragments("<html><script>eval(x)");
+        assert!(
+            unclosed.left_behind.is_some(),
+            "a script with no end cannot be bounded, so the page stays unread"
+        );
+
+        let url = html_fragments("<a href=\"javascript:go()\">go</a>");
+        assert!(
+            url.left_behind.is_some(),
+            "this extractor does not take these, and says so rather than dropping it"
+        );
+
+        let two = html_fragments("<script src=\"a.js\"></script><script>eval(x)</script>");
+        assert_eq!(
+            two.fragments.len(),
+            1,
+            "the second one is the one with code"
+        );
     }
 
     #[test]
-    fn a_page_that_cannot_be_read_counts_as_holding_code() {
-        // Fail closed. A file `sv` could not open is the one case where it knows nothing at all,
-        // and that must not be the case that ends the silence.
-        assert!(html_holds_code(std::path::Path::new(
-            "/no/such/file/index.html"
-        )));
+    fn a_finding_in_a_page_names_the_line_in_the_page() {
+        // A reader sent to line 3 of a fragment they cannot see is worse off than one given
+        // nothing at all.
+        let page = "<html>\n<body>\n<h1>Notes</h1>\n<script>\neval(location.hash)\n</script>\n</body>\n</html>\n";
+        let extracted = html_fragments(page);
+        assert_eq!(extracted.fragments.len(), 1);
+        let fragment = &extracted.fragments[0];
+        let findings = scan_file(&rules(), fragment.language, "index.html", &fragment.code);
+        assert_eq!(ids(&findings), vec!["ast.dynamic-code-execution"]);
+        assert_eq!(
+            findings[0].location.line + fragment.line_offset,
+            5,
+            "`eval` is on line 5 of the page"
+        );
     }
 
     #[test]

@@ -410,14 +410,90 @@ fn a_plain_html_page_does_not_silence_the_rules() {
 }
 
 #[test]
-fn a_page_with_a_script_in_it_still_silences_them() {
-    // The other half, and the reason the first half is safe. An inline script can hold the very
-    // calls these rules look for, and nothing here parses it.
+fn a_script_written_into_a_page_is_read_and_reported() {
+    // The whole point. The page used to silence every rule for the app; now its script is read,
+    // and the `eval` in it is found and named against the page and the line it is really on.
     let dir = scratch("html-script");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("index.html"),
-        "<html><body><script>eval(location.hash)</script></body></html>\n",
+        "<html>\n<body>\n<script>\neval(location.hash)\n</script>\n</body>\n</html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let findings = scan.findings.clone();
+    let verified = scan.verified.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(unread.is_empty(), "the script came out: {unread:?}");
+    let found = findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("the eval in the page: {findings:?}"));
+    assert_eq!(found.location.file, "index.html");
+    assert_eq!(
+        found.location.line, 4,
+        "the line in the page, not in the fragment"
+    );
+    assert!(
+        !verified.is_empty(),
+        "and the rules may now say what they read"
+    );
+}
+
+#[test]
+fn a_handler_attribute_is_read_too() {
+    // Second witness of a different shape: no script element at all, and code all the same.
+    let dir = scratch("html-handler");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html>\n<body>\n<button onclick=\"eval(location.hash)\">go</button>\n</body>\n</html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let findings = scan.findings.clone();
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(unread.is_empty(), "{unread:?}");
+    let found = findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("the eval in the handler: {findings:?}"));
+    assert_eq!(found.location.line, 3);
+}
+
+#[test]
+fn a_vue_component_is_read_like_a_page() {
+    // `.vue` and `.svelte` are the same language to the scanner, and a component's whole point is
+    // usually the script block.
+    let dir = scratch("html-vue");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("App.vue"),
+        "<template><p>hi</p></template>\n<script>export default { mounted() { eval(x) } }</script>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let ids: Vec<&str> = scan.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(unread.is_empty(), "{unread:?}");
+    assert!(ids.contains(&"ast.dynamic-code-execution"), "{ids:?}");
+}
+
+#[test]
+fn a_page_holding_something_the_extractor_cannot_take_still_silences_them() {
+    // The half that keeps the other half honest. A `javascript:` URL is code this extractor does
+    // not take, so the page is still unread — declaring it read would be the exact failure the
+    // whole arrangement guards against.
+    let dir = scratch("html-left-behind");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><a href=\"javascript:go(location.hash)\">go</a></body></html>\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
@@ -428,20 +504,20 @@ fn a_page_with_a_script_in_it_still_silences_them() {
     assert_eq!(unread, vec!["html".to_owned()]);
     assert!(
         verified.is_empty(),
-        "an unparsed script means nothing has been established: {verified:?}"
+        "code nothing read means nothing established: {verified:?}"
     );
 }
 
 #[test]
-fn an_inline_handler_counts_as_code_too() {
-    // Second witness of a different shape: no script element at all, and code all the same.
-    let dir = scratch("html-handler");
+fn a_page_that_cannot_be_opened_still_silences_them() {
+    // Fail closed. Nothing is known about a file that could not be read, and that must not be the
+    // case that ends the silence.
+    let dir = scratch("html-unreadable");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
-    std::fs::write(
-        dir.join("index.html"),
-        "<html><body><button onclick=\"go(location.hash)\">go</button></body></html>\n",
-    )
-    .unwrap();
+    let page = dir.join("index.html");
+    std::fs::write(&page, "<html></html>\n").unwrap();
+    // Invalid UTF-8 is the readable-but-not-as-text case, which `read_to_string` refuses.
+    std::fs::write(&page, [0x3c, 0x68, 0xff, 0xfe, 0x3e]).unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
     std::fs::remove_dir_all(&dir).ok();
@@ -449,18 +525,44 @@ fn an_inline_handler_counts_as_code_too() {
 }
 
 #[test]
-fn a_vue_component_is_judged_the_same_way_as_a_page() {
-    // `.vue` and `.svelte` are the same language to the scanner, and a component's whole point is
-    // usually the script block — so this must not become a way of slipping past the rule.
-    let dir = scratch("html-vue");
+fn a_script_that_is_never_closed_also_still_silences_them() {
+    // Second witness for the same rule as the `javascript:` case, of a different shape: not code
+    // the extractor declines to take, but code it cannot find the end of. Both mean something was
+    // left in the page, and both must keep the rules quiet.
+    let dir = scratch("html-unclosed");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
-        dir.join("App.vue"),
-        "<template><p>hi</p></template>\n<script>export default { mounted() { eval(x) } }</script>\n",
+        dir.join("index.html"),
+        "<html><body><script>eval(location.hash)</body></html>\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let verified = scan.verified.clone();
     std::fs::remove_dir_all(&dir).ok();
     assert_eq!(unread, vec!["html".to_owned()]);
+    assert!(verified.is_empty(), "{verified:?}");
+}
+
+#[test]
+fn a_handler_whose_quotes_are_entities_still_parses() {
+    // Second witness for putting entities back, of a different shape: not what the string looks
+    // like afterwards, but whether the result is code at all. `go(&quot;x&quot;)` left as it is
+    // parses as something else entirely, and the finding inside it is lost without a sound.
+    let dir = scratch("html-entities");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><button onclick=\"eval(&quot;1&quot; + location.hash)\">go</button></body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let ids: Vec<&str> = scan.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(unread.is_empty(), "{unread:?}");
+    assert!(
+        ids.contains(&"ast.dynamic-code-execution"),
+        "the eval inside the entities: {ids:?}"
+    );
 }
