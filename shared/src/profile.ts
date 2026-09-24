@@ -244,8 +244,22 @@ export const DesignProfileSchema = z.object({
 export type DesignProfile = z.infer<typeof DesignProfileSchema>;
 
 /** A partially completed profile as saved between wizard steps (each section optional and partial). */
+/**
+ * A record or field as it is while the owner is still typing it. The saved answers are autosaved on every
+ * keystroke, and the moment someone cleared "New record" to type their own name the save was refused for an
+ * empty label — a red "Not saved yet" about the thing they were in the middle of doing. Drafts may be blank
+ * here; the strict schema above still applies when the design is made, and the wizard says which record needs
+ * a name before then.
+ */
+const DraftEntityFieldSchema = EntityFieldSchema.extend({ name: z.string().max(40), label: z.string().max(60) });
+const DraftEntitySpecSchema = EntitySpecSchema.extend({
+  name: z.string().max(40),
+  label: z.string().max(60),
+  fields: z.array(DraftEntityFieldSchema).max(40).default([]),
+});
+
 export const PartialDesignProfileSchema = z.object({
-  app: AppSectionSchema.partial().optional(),
+  app: AppSectionSchema.partial().extend({ entities: z.array(DraftEntitySpecSchema).max(20).optional() }).optional(),
   users: UsersSectionSchema.partial().optional(),
   data: DataSectionSchema.partial().optional(),
   capabilities: CapabilitiesSchema.partial().optional(),
