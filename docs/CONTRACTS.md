@@ -845,7 +845,11 @@ questions · Human review pack · Rebuild banner); `/settings` (Advanced, with r
   (re-evaluates compliance from `pipeline/<run>/compliance-inputs.json`, saved by the compliance stage, with the
   current attestations and human review, and re-renders the reports; nothing is re-run). Review scope:
   `reviewScope()` (server/src/verification) — the manifest's protectedPaths, or `SECUREVIBE_REVIEW_GLOBS` for the
-  self-assessment project. A "not sure" attestation adds no evidence (the requirement stays unverified). Web:
+  self-assessment project. A "not sure" attestation adds no evidence (the requirement stays unverified). A
+  "not-applicable" attestation needs a note (the route refuses it without one) and turns the requirement, or the
+  SbD control, into `not-applicable` / `n-a` with a rationale that names the reason, who decided and when; it is
+  the owner's decision, never overrides failing evidence, and an SbD critical control decided this way leaves
+  `criticalNo` (escalation is recomputed). The latest attestation for a requirement is the one that counts. Web:
   `/projects/:id/verify?step=start|code|owner|developer|specialist|finish`.
 * App preview: `GET|POST|DELETE /api/projects/:id/preview` (server/src/preview). Fresh data dir and secrets per start
   under `<project>/tmp/preview-*`, sandboxed, `SMTP_URL`/`OUTBOUND_ALLOWED_HOSTS`/`ANTHROPIC_API_KEY` emptied,

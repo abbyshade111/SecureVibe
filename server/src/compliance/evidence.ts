@@ -205,10 +205,14 @@ function aiReviewEvidence(id: string, ctx: RequirementEvidenceCtx): { evidence: 
 }
 
 function attestationEvidence(id: string, ctx: RequirementEvidenceCtx): { evidence: Evidence[]; attestation?: Attestation } {
-  const attestation = ctx.attestations.find((a) => a.requirementId === id && a.standard === ctx.standard);
+  // The latest answer counts: a person who first said "not sure" and later "yes" has answered "yes".
+  const attestation = ctx.attestations
+    .filter((a) => a.requirementId === id && a.standard === ctx.standard)
+    .sort((a, b) => b.attestedAt.localeCompare(a.attestedAt))[0];
   if (!attestation) return { evidence: [] };
   // "Not sure" is neither a pass nor a fail: the requirement stays unverified (the rationale mentions the answer).
-  if (attestation.result === 'not-sure') return { evidence: [], attestation };
+  // "Not applicable" is decided by the status step from the attestation itself, with its reason.
+  if (attestation.result === 'not-sure' || attestation.result === 'not-applicable') return { evidence: [], attestation };
   const passed = attestation.result === 'yes';
   const evidence = [
     mkEvidence(ctx.ids, 'manual', `manual:attestation:${attestation.id}`, attestation.note || `${attestation.attestedBy} attested "${attestation.result}".`, passed, {

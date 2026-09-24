@@ -7,7 +7,7 @@ import { formatDate } from '../lib/format';
 import { useScrollToTop } from '../hooks/useScrollToTop';
 
 type StepId = 'start' | 'code' | 'owner' | 'developer' | 'specialist' | 'finish';
-type Answer = 'yes' | 'no' | 'not-sure';
+type Answer = 'yes' | 'no' | 'not-sure' | 'not-applicable';
 
 const STEPS: { id: StepId; label: string }[] = [
   { id: 'start', label: 'Start' },
@@ -50,6 +50,7 @@ function inStep(item: VerificationItem, step: StepId): boolean {
 function answerLabel(result: Answer, owner: boolean): string {
   if (result === 'yes') return owner ? 'Yes' : 'Checked: it holds';
   if (result === 'no') return owner ? 'No' : 'Checked: it does not hold';
+  if (result === 'not-applicable') return 'Does not apply';
   return 'Not sure';
 }
 
@@ -197,6 +198,10 @@ function ItemStep({
       setError('Enter your name on the Start step first, so the answer says who gave it.');
       return;
     }
+    if (result === 'not-applicable' && !note.trim()) {
+      setError('Say in the note why this does not apply to your app. The reason is kept with the answer and shown in the reports; without one, "does not apply" would just be a way to make a red mark green.');
+      return;
+    }
     if (!linkOk) {
       setError('The evidence link must start with http:// or https://.');
       return;
@@ -288,7 +293,20 @@ function ItemStep({
           <button type="button" className="sv-btn sv-btn-secondary" disabled={busy} onClick={() => void answer('not-sure')}>
             Not sure
           </button>
+          <button
+            type="button"
+            className="sv-btn sv-btn-secondary"
+            disabled={busy}
+            title="For a rule about something your app does not have, such as a central sign-in system your organisation does not run. Needs a reason in the note."
+            onClick={() => void answer('not-applicable')}
+          >
+            Does not apply
+          </button>
         </div>
+        <p className="sv-faint" style={{ marginTop: 8 }}>
+          &ldquo;Does not apply&rdquo; needs a reason in the note. The rule stays in the reports, marked not applicable because of
+          your reason, with your name and the date.
+        </p>
       </div>
 
       <div className="sv-row-between" style={{ flexWrap: 'wrap', gap: 8 }}>

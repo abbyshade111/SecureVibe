@@ -126,6 +126,16 @@ function processSteps(design: DesignArtifacts, sbd: SbdView, runMeta: RunMeta): 
 export function evaluateSbd(input: EvaluateSbdInput): SbdEvaluation {
   const { design, sbdRules, sbd, manifestResults, attestations, runMeta } = input;
   const entries: SbdEvaluatedEntry[] = design.checklist.map((entry) => {
+    // An owner's "not applicable" with a reason (the latest answer for this control): the control stays in the
+    // list, reads as not applicable because of that reason, names who decided and when, and stops counting as
+    // an unmet critical control. It is an answer, not a dismissal: the reason is required and printed.
+    const decided = attestations
+      .filter((a) => a.standard === 'sbd' && a.requirementId === entry.id)
+      .sort((a, b) => b.attestedAt.localeCompare(a.attestedAt))[0];
+    if (decided?.result === 'not-applicable') {
+      const reason = `Not applicable, because ${decided.note.trim() || 'the owner said so'} (decided by ${decided.attestedBy} on ${decided.attestedAt.slice(0, 10)}).`;
+      return { ...entry, status: 'n-a', score: 0, actions: [], note: reason, verification: 'verified', verificationNote: reason, evidenceIds: [] };
+    }
     const { verification, note } = verifyEntry(entry, manifestResults, attestations);
     return { ...entry, verification, ...(note ? { verificationNote: note } : {}), evidenceIds: [] };
   });
@@ -140,6 +150,7 @@ export function evaluateSbd(input: EvaluateSbdInput): SbdEvaluation {
     'n-a': critical.filter((e) => e.status === 'n-a').length,
   };
 
+  const criticalNo = critical.filter((e) => e.status === 'no').map((e) => e.id);
   const verifiedCount = entries.filter((e) => e.verification === 'verified').length;
   const contradicted = entries.filter((e) => e.verification === 'contradicted');
   const summary =
@@ -153,8 +164,11 @@ export function evaluateSbd(input: EvaluateSbdInput): SbdEvaluation {
     entries,
     score: design.riskTriage.score,
     threshold: design.riskTriage.threshold,
-    criticalNo: design.riskTriage.criticalNo,
-    escalate: design.riskTriage.escalate,
+    // From the entries as evaluated, so a critical control the owner recorded as not applicable, with a reason,
+    // no longer holds the rating at "at risk"; the design's own list is what it was at design time.
+    criticalNo,
+    // Recomputed with that list, so the escalation formula (CONTRACTS §7) still holds after an owner's decision.
+    escalate: criticalNo.length > 0 || design.riskTriage.score >= design.riskTriage.threshold || design.riskTriage.triggers.some((t) => t.triggered),
     escalationReasons: design.riskTriage.escalationReasons,
     escalationHandling: design.riskTriage.escalationHandling,
     counts: { yes, no, 'n-a': na },

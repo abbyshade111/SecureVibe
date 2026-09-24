@@ -12,7 +12,11 @@ export const AttestationSchema = z.object({
   id: z.string(),
   requirementId: z.string(), // "V6.1.1", "C12.1.1", "AC.4.1", or an SbD id "MT-06"
   standard: z.enum(['asvs', 'aisvs', 'aisvs-appendix-c', 'sbd']),
-  result: z.enum(['yes', 'no', 'not-sure']),
+  /**
+   * "not-applicable" is an answer with a reason: the control stays visible, reads "not applicable, because ...",
+   * and the reports name who decided and when. It is not a dismiss button: the API refuses it without a note.
+   */
+  result: z.enum(['yes', 'no', 'not-sure', 'not-applicable']),
   note: z.string().max(2000).default(''),
   attestedBy: z.string(),
   attestedAt: z.string(),
