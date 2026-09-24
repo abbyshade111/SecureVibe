@@ -34,7 +34,7 @@ import { freePort } from '../scanners/dast/harness.js';
 import { addSessionCookieName } from '../scanners/dast/http.js';
 import { SESSION_COOKIE } from '../security/token.js';
 import type { AppInstance } from '../scanners/dast/types.js';
-import { NOT_APPLICABLE_TO_SECUREVIBE, selfRoutes, type ExpressLayer } from './self-assess-support.js';
+import { NOT_APPLICABLE_TO_SECUREVIBE, SELF_ASSESS_EXCLUDED_CHECKS, SELF_ASSESS_EXCLUDED_REASON, selfRoutes, type ExpressLayer } from './self-assess-support.js';
 import type { RuleDecision } from '../scanners/normalize.js';
 
 // Test code and fixtures (deliberately vulnerable apps, fake keys) are not shipped; the template is verified by the
@@ -259,6 +259,8 @@ async function main(): Promise<void> {
       appDir: config.paths.repoRoot,
       manifestOverride: selfManifest(),
       extraIgnore: SELF_ASSESS_IGNORE,
+      excludedChecks: SELF_ASSESS_EXCLUDED_CHECKS,
+      excludedChecksReason: SELF_ASSESS_EXCLUDED_REASON,
       dastAuth: startupTokenAuthBootstrap({
         token: sessions.startupToken,
         field: 't',

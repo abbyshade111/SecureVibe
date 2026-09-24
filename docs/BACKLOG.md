@@ -113,25 +113,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
   in turn.
 
-- **The self-assessment reports 4 critical and 113 high against SecureVibe, and almost none of it is real.** **[taken: restored first session, 24 September 2026]**
-  A self-assessment on 20 September 2026 returned 31 of 161 requirements verified, 4 critical, 113 high. Checked
-  one by one, the bulk is SecureVibe's own rules misfiring on SecureVibe: 62 `route-outside-registry`,
-  13 `child-process-exec`, 17 `fs-user-path`, 11 `path-join-user-input`. Those rules assume the thing being
-  scanned is a generated application, which is meant to declare its routes in a registry and never spawn a
-  process. SecureVibe is a build tool: spawning processes and joining paths is its job. Same class as asking a
-  Python app about its npm lockfile, one level up — the target is not what the rules assume, and the report says
-  so in the language of failure.
-  The six findings that are *not* explained by that were checked individually and are all legitimate: three
-  "hardcoded secrets" are deliberately-wrong passwords (`not-a-real-password-1`) that DAST posts to a login form
-  to prove it rejects them, and three `tls-reject-unauthorized-false` are the runtime probes connecting to the
-  app under test over its own self-signed certificate — including the probe whose entire purpose is to attempt a
-  TLS 1.1 handshake and confirm it is refused.
-  So the self-assessment is currently unusable as a signal: its true findings are buried under a hundred false
-  ones, and an owner or a reviewer reading it would reasonably conclude the opposite of the truth. It needs the
-  same treatment the uploaded-app case just got — rules that declare what kind of target they apply to, and a
-  report that says "this check does not apply to this thing" rather than failing it.
-
-
 - **The template suite ran 30 of its 33 files and said it was green.** The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including

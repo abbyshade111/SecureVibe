@@ -77,6 +77,8 @@ export interface PipelineCtx {
   plan?: import('@shared/project.js').BuildPlan;
   /** Checks whose results are left out of this run (see RunPipelineOptions.excludedChecks). */
   excludedChecks?: Set<string>;
+  /** Why, in the words the stage summary uses: "only apply to apps built by SecureVibe" for an uploaded app. */
+  excludedChecksReason?: string;
 
   log(stage: StageId, message: string): void;
 }
