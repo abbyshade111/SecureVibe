@@ -11,9 +11,9 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **`javascript:` URLs, and script in an attribute `sv` does not know.** The page extractor takes
-  `<script>` elements and `on…=` handlers; a `javascript:` URL is named as left behind, which keeps the
-  page unread and every rule silent for the whole app. Bounding the attribute value is the work.
+- **`javascript:` URLs.** **[taken: keen-meninsky-691a27, 24 September 2026]** Named as left behind,
+  which keeps the page unread and every rule silent for the whole app. Bounding the attribute value is
+  the work.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
