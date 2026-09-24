@@ -98,6 +98,38 @@ export function ResultsPage() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState('');
   const [showRebuild, setShowRebuild] = useState(false);
+  const [showRecheck, setShowRecheck] = useState(false);
+  const [rechecking, setRechecking] = useState<'free' | 'ai' | null>(null);
+  const [recheckError, setRecheckError] = useState<string | null>(null);
+  const [reviewEstimate, setReviewEstimate] = useState<{ usdLow: number; usdHigh: number; aiAvailable: boolean } | null>(null);
+
+  // "Check this app again": every automated check on the app exactly as it is, nothing rewritten. Free without
+  // AI; with the AI review it costs the review alone — for a built app, until now the only way to that review
+  // was a full rebuild at fifteen times the price, which also changed the code.
+  async function openRecheck() {
+    setShowRecheck((v) => !v);
+    if (reviewEstimate) return;
+    try {
+      const { estimate } = await getEstimate(id!, { reviewOnly: true });
+      setReviewEstimate({ usdLow: estimate.usdLow, usdHigh: estimate.usdHigh, aiAvailable: estimate.usdHigh > 0 });
+    } catch {
+      setReviewEstimate({ usdLow: 0, usdHigh: 0, aiAvailable: false });
+    }
+  }
+
+  async function recheck(withAi: boolean) {
+    if (!id) return;
+    setRechecking(withAi ? 'ai' : 'free');
+    setRecheckError(null);
+    try {
+      const { approvalCode } = await getEstimate(id, { reviewOnly: true });
+      const { run: started } = await startRun(id, { mode: 'verify-only', approved: true, approvalCode, ...(withAi ? {} : { withoutAi: true }) });
+      navigate(`/projects/${id}/build?run=${encodeURIComponent(started.id)}`);
+    } catch (e) {
+      setRecheckError(e instanceof Error ? e.message : 'Could not start the check.');
+      setRechecking(null);
+    }
+  }
   const [upgrading, setUpgrading] = useState(false);
   const [selectedFixes, setSelectedFixes] = useState<string[]>([]);
   const [savingTheme, setSavingTheme] = useState(false);
@@ -289,9 +321,10 @@ export function ResultsPage() {
         <div className="sv-banner sv-banner-warn">
           <h3>These results are out of date</h3>
           <p>You uploaded new code or changed your answers after this check. Check the app again to see where it stands now.</p>
-          <button type="button" className="sv-btn" onClick={() => navigate(`/projects/${id}/summary`)}>
-            Check again
+          <button type="button" className="sv-btn" disabled={rechecking !== null} onClick={() => void recheck(false)}>
+            {rechecking === 'free' ? 'Starting…' : 'Check again (free, no AI)'}
           </button>
+          {recheckError && <ErrorNotice message={recheckError} />}
         </div>
       )}
 
@@ -400,9 +433,12 @@ export function ResultsPage() {
         <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${id}/wizard/about`}>
           Edit my answers
         </Link>
+        <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void openRecheck()} aria-expanded={showRecheck}>
+          Check this app again
+        </button>
         {!uploaded && (
           <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => setShowRebuild((v) => !v)} aria-expanded={showRebuild}>
-            {project.origin?.kind === 'uploaded' ? 'Check again' : 'Rebuild'}
+            Rebuild
           </button>
         )}
         <a className="sv-btn sv-btn-secondary sv-btn-sm" href="#reports">
@@ -415,6 +451,39 @@ export function ResultsPage() {
           Security checks
         </Link>
       </div>
+
+      {showRecheck && (
+        <Card>
+          <h2>Check this app again</h2>
+          <p>
+            Runs every automated check on the app exactly as it is on this computer, then rewrites the reports. Nothing in the
+            app is changed and nothing is written by AI. (This is different from <strong>Rerun the reports</strong> below, which
+            only rewrites the reports from results already saved and checks nothing.)
+          </p>
+          <div className="sv-row" style={{ flexWrap: 'wrap' }}>
+            <button type="button" className="sv-btn" disabled={rechecking !== null} onClick={() => void recheck(false)}>
+              {rechecking === 'free' ? 'Starting…' : 'Check again (free, no AI)'}
+            </button>
+            <button
+              type="button"
+              className="sv-btn sv-btn-secondary"
+              disabled={rechecking !== null || !reviewEstimate?.aiAvailable}
+              onClick={() => void recheck(true)}
+            >
+              {rechecking === 'ai'
+                ? 'Starting…'
+                : reviewEstimate?.aiAvailable
+                  ? `Check again with the AI review (about $${reviewEstimate.usdLow.toFixed(2)}–$${reviewEstimate.usdHigh.toFixed(2)})`
+                  : 'Check again with the AI review (needs an AI key)'}
+            </button>
+          </div>
+          <p className="sv-muted" style={{ marginTop: 8 }}>
+            The AI review reads the code and gives a second opinion on each requirement; its findings are marked "AI-assessed",
+            never "verified". The free check covers everything else. Your spending limit applies to the paid one.
+          </p>
+          {recheckError && <ErrorNotice message={recheckError} />}
+        </Card>
+      )}
 
       {showRebuild && (
         <Card>

@@ -129,17 +129,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   a failing one. **Then decide about languages** — Python and plain JavaScript at least, or say plainly on the
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
-- **An uploaded app cannot be checked again from the page that shows its results.** The Results page offers
-  "Update to the latest template", which only applies to an app SecureVibe built, and "Rerun the reports", which
-  rewrites the reports from saved results and checks nothing. The action that actually re-runs the checks lives
-  on the build page and nothing links to it, so on 20 September 2026 an owner wanting to re-check an uploaded
-  app after a fix had landed read both buttons, correctly concluded neither was the one, and had to ask. She had
-  hit the identical shape the night before with resume: the action exists, works, and has no route to it from
-  where a person looks for it.
-  Worth fixing as one thing rather than two: the Results page should offer "Check this app again" whenever a
-  re-check is possible, which is always for an uploaded app and after a template update for a built one. And
-  while there, the two existing buttons need to say what they do not do — "Rerun the reports" saying "nothing is
-  checked again" in small grey text under it was not enough to stop somebody reasonably wondering.
 
 - **Nine more findings that are artifacts of assuming SecureVibe built the app.** ADR-012 gated the two worst
   (`deps.lockfile-missing`, `config.ignore-scripts`) and the Flask app's re-run on 20 September 2026 showed
@@ -174,13 +163,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   distinguishable in the data from "made no findings" — the third possibility being another check that cannot
   tell its two zeroes apart.
 
-- **You cannot get an AI review of your own app without rebuilding it.** For an uploaded app the AI review comes
-  with an ordinary check, for twenty cents. For an app SecureVibe built, the only route to one is a full build:
-  about $3.75, and it rewrites the code. So an owner who wants a second opinion on the app they already have
-  must pay fifteen times as much and accept changes they did not ask for. The verify-only path already supports
-  AI — `runs.ts` only forces `withoutAi` because the buttons offering it do. A "check again, with the AI review"
-  option beside the free one would cost a line of UI and close a gap that currently makes the native case worse
-  served than the uploaded one.
 
 - **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
   report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,

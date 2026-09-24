@@ -258,8 +258,8 @@ export async function acknowledgeEscalation(id: string): Promise<Project> {
   return project;
 }
 
-export function getEstimate(id: string): Promise<z.infer<typeof EstimateResponseSchema>> {
-  return j(`/projects/${id}/estimate`);
+export function getEstimate(id: string, opts: { reviewOnly?: boolean } = {}): Promise<z.infer<typeof EstimateResponseSchema>> {
+  return j(`/projects/${id}/estimate${opts.reviewOnly ? '?reviewOnly=1' : ''}`);
 }
 
 // ---- runs ---------------------------------------------------------------
