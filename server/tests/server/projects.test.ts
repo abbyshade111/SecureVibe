@@ -113,6 +113,22 @@ describe('project CRUD, profile save and validation', () => {
     expect((list.body.projects as { id: string; name: string }[]).find((p) => p.id === projectId)?.name).toBe('Shop Stock');
   });
 
+  it('saves a record that is still being typed, and refuses to design from it', async () => {
+    // Every keystroke autosaves. The moment an owner cleared "New record" to type their own name, the save was
+    // refused for an empty label and the page said "Not saved yet" about the thing they were in the middle of.
+    const create = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Drafts', mode: 'guided' });
+    const projectId = create.body.project.id as string;
+    const draft = await request(harness.server)
+      .put(`/api/projects/${projectId}/profile`)
+      .set(authed())
+      .send({ profile: { app: { entities: [{ name: '', label: '', fields: [{ name: '', label: '', type: 'text' }], access: 'owner-only' }] } } });
+    expect(draft.status).toBe(200);
+    expect(draft.body.project.profile.app.entities[0].label).toBe('');
+    // The strict rules still hold where they matter: a design cannot be made from a nameless record.
+    const design = await request(harness.server).post(`/api/projects/${projectId}/design`).set(authed());
+    expect(design.status).toBe(400);
+  });
+
   it('rejects design derivation when the profile is incomplete', async () => {
     const create = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Incomplete', mode: 'guided' });
     const projectId = create.body.project.id as string;

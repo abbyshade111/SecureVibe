@@ -77,6 +77,11 @@ jobs:
         working-directory: server
         run: timeout --signal=TERM --kill-after=30s 15m ../node_modules/.bin/vitest run --reporter=verbose --no-file-parallelism
 
+      # The web UI's own tests: small and port-free, so they run in the ordinary way.
+      - name: Run the web UI's tests
+        working-directory: web
+        run: timeout --signal=TERM --kill-after=30s 5m ../node_modules/.bin/vitest run --reporter=verbose
+
       # The template every app is built from ships its own security suite; it must pass with every feature on.
       - name: Run the app template's security suite
         working-directory: templates/secure-web-app

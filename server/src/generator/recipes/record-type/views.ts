@@ -2,6 +2,7 @@
  * EJS view emitters for the record-type recipe. Output is always escaped with `<%= %>`; the only unescaped values in
  * the template's layouts are the CSP nonce and the CSRF field, never record data.
  */
+import { jsString } from '../js-literal.js';
 import type { EntityPlan, FieldPlan } from './fields.js';
 
 function labelFor(f: FieldPlan): string {
@@ -183,7 +184,7 @@ ${f.field.description ? `      <p class="hint">${escapeHtml(f.field.description)
     )
     .join('\n');
   return `<section class="card narrow">
-  <h1><%= record ? 'Edit ${label}' : 'New ${label}' %></h1>
+  <h1><%= record ? ${jsString(`Edit ${label}`)} : ${jsString(`New ${label}`)} %></h1>
   <% if (errors._) { %><p class="form-error" role="alert"><%= errors._ %></p><% } %>
   <form method="post" action="<%= record ? '${plan.base}/' + record.id : '${plan.base}' %>" novalidate>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

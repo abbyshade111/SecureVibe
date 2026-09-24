@@ -223,6 +223,12 @@ export interface RawHttpResponse {
   setCookies: string[];
 }
 
+/** The only hosts the probes may talk to: an app SecureVibe started on this computer. */
+export function isLoopbackHost(hostname: string): boolean {
+  const h = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return h === 'localhost' || h === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
+}
+
 /** One request over node:http / node:https. Redirects are never followed: the probes inspect them. */
 export function sendOverNodeHttp(
   url: URL,
@@ -232,6 +238,11 @@ export function sendOverNodeHttp(
   timeoutMs: number,
 ): Promise<RawHttpResponse> {
   const mod = url.protocol === 'https:' ? https : http;
+  // The certificate check below is off, which is only right for a self-signed app on loopback. That used to hold
+  // because of who called this function; now it holds because the function refuses anything else.
+  if (!isLoopbackHost(url.hostname)) {
+    return Promise.reject(new Error(`The runtime probes only talk to an app on this computer (got ${url.hostname}).`));
+  }
   return new Promise((resolveRequest, reject) => {
     const req = mod.request(
       {
@@ -241,6 +252,8 @@ export function sendOverNodeHttp(
         method,
         headers,
         timeout: timeoutMs,
+        // A self-signed certificate on loopback (the guard above allows nothing else); the certificate itself is
+        // inspected by its own probe.
         rejectUnauthorized: false,
       } as http.RequestOptions,
       (res) => resolveRequest(collectResponse(res)),

@@ -99,4 +99,5 @@ describe('renderDesignMarkdown', () => {
     expect(out['design.md']).not.toContain('undefined');
     expect(out['threat-model.md']).not.toContain('undefined');
   });
+
 });

@@ -37,13 +37,15 @@ describe('metricsOf', () => {
   it('counts only open problems, reads test counts and coverage, and rounds the cost', () => {
     const m = metricsOf(run(), 'habit-tracker', 'ai');
     expect(m.openFindings).toEqual({ critical: 0, high: 1, medium: 0, low: 1, info: 0 });
-    expect(m.tests).toEqual({ total: 40, passed: 39, failed: 1 });
+    expect(m.tests).toEqual({ total: 40, passed: 39, failed: 1, skipped: 0 });
     expect(m.asvs).toEqual({ pass: 80, applicable: 160, verifiedPassPercent: 50, aiAssessed: 5, fail: 2 });
     expect(m.aisvs?.verifiedPassPercent).toBe(25);
     expect(m.costUsd).toBe(1.23);
     expect(m.durationMs).toBe(5 * 60_000);
     expect(m.stages).toEqual({ scaffold: 'passed', 'unit-tests': 'passed' });
     expect(summaryLine(m)).toContain('ASVS 50% verified (80/160)');
+    // Skipped tests are named, so "39 of 40" is never read as one failure it is not.
+    expect(summaryLine(m)).toContain('app tests: 39 passed, 1 failed, 0 skipped of 40');
   });
 });
 

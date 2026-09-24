@@ -607,7 +607,13 @@ export const VersionDiffSchema = z.object({
       findingsStillOpen: z.number().int(),
       asvs: z.object({ before: z.number(), after: z.number() }).optional(),
       aisvs: z.object({ before: z.number(), after: z.number() }).optional(),
-      tests: z.object({ before: z.object({ total: z.number(), passed: z.number() }), after: z.object({ total: z.number(), passed: z.number() }) }).optional(),
+      /** Skipped tests are for features the app does not have; they are not failures, and the page says so. */
+      tests: z
+        .object({
+          before: z.object({ total: z.number(), passed: z.number(), failed: z.number().default(0), skipped: z.number().default(0) }),
+          after: z.object({ total: z.number(), passed: z.number(), failed: z.number().default(0), skipped: z.number().default(0) }),
+        })
+        .optional(),
     })
     .optional(),
 });

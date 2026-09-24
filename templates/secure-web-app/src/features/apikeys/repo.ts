@@ -26,10 +26,25 @@ const PREFIX_LENGTH = 8;
 const SECRET_BYTES = 32;
 const MAX_PREFIX_ATTEMPTS = 20;
 
+/**
+ * A prefix drawn without bias.
+ *
+ * `byte % 62` is not uniform: 256 is not a multiple of 62, so the first eight letters of the
+ * alphabet come up 5 times in 256 and the rest 4 — about 25% more often. The prefix identifies a
+ * key rather than authenticating it, so this was never a way in; but it narrows the space the
+ * prefix actually covers, and drawing again on the rare out-of-range byte costs nothing.
+ */
 function randomPrefix(): string {
-  const bytes = randomBytes(PREFIX_LENGTH);
+  // The largest multiple of the alphabet that fits in a byte; anything at or above it is redrawn.
+  const limit = 256 - (256 % PREFIX_ALPHABET.length);
   let out = '';
-  for (let i = 0; i < PREFIX_LENGTH; i += 1) out += PREFIX_ALPHABET[bytes[i]! % PREFIX_ALPHABET.length];
+  while (out.length < PREFIX_LENGTH) {
+    for (const byte of randomBytes(PREFIX_LENGTH)) {
+      if (byte >= limit) continue;
+      out += PREFIX_ALPHABET[byte % PREFIX_ALPHABET.length];
+      if (out.length === PREFIX_LENGTH) break;
+    }
+  }
   return out;
 }
 

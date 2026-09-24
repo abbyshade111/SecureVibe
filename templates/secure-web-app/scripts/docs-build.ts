@@ -39,7 +39,7 @@ function formatBytes(n: number): string {
 }
 
 function table(headers: string[], rows: string[][]): string {
-  const esc = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
   const head = `| ${headers.join(' | ')} |`;
   const sep = `| ${headers.map(() => '---').join(' | ')} |`;
   const body = rows.map((r) => `| ${r.map(esc).join(' | ')} |`).join('\n');

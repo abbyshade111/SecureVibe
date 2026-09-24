@@ -98,6 +98,38 @@ export function ResultsPage() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState('');
   const [showRebuild, setShowRebuild] = useState(false);
+  const [showRecheck, setShowRecheck] = useState(false);
+  const [rechecking, setRechecking] = useState<'free' | 'ai' | null>(null);
+  const [recheckError, setRecheckError] = useState<string | null>(null);
+  const [reviewEstimate, setReviewEstimate] = useState<{ usdLow: number; usdHigh: number; aiAvailable: boolean } | null>(null);
+
+  // "Check this app again": every automated check on the app exactly as it is, nothing rewritten. Free without
+  // AI; with the AI review it costs the review alone — for a built app, until now the only way to that review
+  // was a full rebuild at fifteen times the price, which also changed the code.
+  async function openRecheck() {
+    setShowRecheck((v) => !v);
+    if (reviewEstimate) return;
+    try {
+      const { estimate } = await getEstimate(id!, { reviewOnly: true });
+      setReviewEstimate({ usdLow: estimate.usdLow, usdHigh: estimate.usdHigh, aiAvailable: estimate.usdHigh > 0 });
+    } catch {
+      setReviewEstimate({ usdLow: 0, usdHigh: 0, aiAvailable: false });
+    }
+  }
+
+  async function recheck(withAi: boolean) {
+    if (!id) return;
+    setRechecking(withAi ? 'ai' : 'free');
+    setRecheckError(null);
+    try {
+      const { approvalCode } = await getEstimate(id, { reviewOnly: true });
+      const { run: started } = await startRun(id, { mode: 'verify-only', approved: true, approvalCode, ...(withAi ? {} : { withoutAi: true }) });
+      navigate(`/projects/${id}/build?run=${encodeURIComponent(started.id)}`);
+    } catch (e) {
+      setRecheckError(e instanceof Error ? e.message : 'Could not start the check.');
+      setRechecking(null);
+    }
+  }
   const [upgrading, setUpgrading] = useState(false);
   const [selectedFixes, setSelectedFixes] = useState<string[]>([]);
   const [savingTheme, setSavingTheme] = useState(false);
@@ -289,8 +321,37 @@ export function ResultsPage() {
         <div className="sv-banner sv-banner-warn">
           <h3>These results are out of date</h3>
           <p>You uploaded new code or changed your answers after this check. Check the app again to see where it stands now.</p>
-          <button type="button" className="sv-btn" onClick={() => navigate(`/projects/${id}/summary`)}>
-            Check again
+          <button type="button" className="sv-btn" disabled={rechecking !== null} onClick={() => void recheck(false)}>
+            {rechecking === 'free' ? 'Starting…' : 'Check again (free, no AI)'}
+          </button>
+          {recheckError && <ErrorNotice message={recheckError} />}
+        </div>
+      )}
+
+      {run.status === 'running' && (
+        <div className="sv-banner">
+          <h3>{run.mode === 'verify-only' ? 'A check is running for this app' : 'A build is running for this app'}</h3>
+          <p>The results below are from the last finished run; the new ones replace them when it ends.</p>
+          <Link className="sv-btn" to={`/projects/${id}/build?run=${encodeURIComponent(run.id)}`}>
+            Watch it
+          </Link>
+        </div>
+      )}
+
+      {/* A build that stopped part-way can be continued, and until now the only way to that button was the
+          Build page for that exact run — a URL typed by hand. The night an owner's AI credit ran out mid-build,
+          that was the route they did not find, and a rebuild would have paid again for work already done. */}
+      {!uploaded && run.mode === 'full' && (run.status === 'failed' || run.status === 'cancelled' || run.status === 'interrupted') && (
+        <div className="sv-banner sv-banner-warn">
+          <h3>This build stopped part-way</h3>
+          <p>
+            {run.stages.find((s) => s.id === 'generate')?.status === 'passed'
+              ? 'Your app was already written before the build stopped. Carrying on keeps all of that work and only runs the checks again, so it costs nothing to write.'
+              : 'The parts of your app that were written before the build stopped are still there. Carrying on keeps them and writes only the rest, so you do not pay twice for the same work.'}{' '}
+            A fresh build would start over and pay for everything again.
+          </p>
+          <button type="button" className="sv-btn" onClick={() => navigate(`/projects/${id}/build?run=${encodeURIComponent(run.id)}`)}>
+            Carry on from where it stopped
           </button>
         </div>
       )}
@@ -355,6 +416,7 @@ export function ResultsPage() {
             </Mascot>
           </h1>
           <h2>{compliance.overall.headline}</h2>
+          {compliance.overall.ratingReason && <p className="sv-muted">{compliance.overall.ratingReason}</p>}
           <p>{compliance.overall.canIUseIt}</p>
         </Card>
       )}
@@ -382,9 +444,12 @@ export function ResultsPage() {
         <Link className="sv-btn sv-btn-secondary sv-btn-sm" to={`/projects/${id}/wizard/about`}>
           Edit my answers
         </Link>
+        <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => void openRecheck()} aria-expanded={showRecheck}>
+          Check this app again
+        </button>
         {!uploaded && (
           <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => setShowRebuild((v) => !v)} aria-expanded={showRebuild}>
-            {project.origin?.kind === 'uploaded' ? 'Check again' : 'Rebuild'}
+            Rebuild
           </button>
         )}
         <a className="sv-btn sv-btn-secondary sv-btn-sm" href="#reports">
@@ -397,6 +462,39 @@ export function ResultsPage() {
           Security checks
         </Link>
       </div>
+
+      {showRecheck && (
+        <Card>
+          <h2>Check this app again</h2>
+          <p>
+            Runs every automated check on the app exactly as it is on this computer, then rewrites the reports. Nothing in the
+            app is changed and nothing is written by AI. (This is different from <strong>Rerun the reports</strong> below, which
+            only rewrites the reports from results already saved and checks nothing.)
+          </p>
+          <div className="sv-row" style={{ flexWrap: 'wrap' }}>
+            <button type="button" className="sv-btn" disabled={rechecking !== null} onClick={() => void recheck(false)}>
+              {rechecking === 'free' ? 'Starting…' : 'Check again (free, no AI)'}
+            </button>
+            <button
+              type="button"
+              className="sv-btn sv-btn-secondary"
+              disabled={rechecking !== null || !reviewEstimate?.aiAvailable}
+              onClick={() => void recheck(true)}
+            >
+              {rechecking === 'ai'
+                ? 'Starting…'
+                : reviewEstimate?.aiAvailable
+                  ? `Check again with the AI review (about $${reviewEstimate.usdLow.toFixed(2)}–$${reviewEstimate.usdHigh.toFixed(2)})`
+                  : 'Check again with the AI review (needs an AI key)'}
+            </button>
+          </div>
+          <p className="sv-muted" style={{ marginTop: 8 }}>
+            The AI review reads the code and gives a second opinion on each requirement; its findings are marked "AI-assessed",
+            never "verified". The free check covers everything else. Your spending limit applies to the paid one.
+          </p>
+          {recheckError && <ErrorNotice message={recheckError} />}
+        </Card>
+      )}
 
       {showRebuild && (
         <Card>

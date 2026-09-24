@@ -1,4 +1,5 @@
 import type { EntitySpec, EntityField, RoleSpec, ExternalApiSpec, FieldType } from '@shared/profile.js';
+import { checkSavedAnswers } from '@shared/answer-check.js';
 import type { WizardEntitySub, WizardExternalApiFields, WizardRoleTemplate } from '../../lib/wizardCopyTypes';
 
 function uid(): string {
@@ -85,6 +86,9 @@ export function EntitiesEditor({
   sub?: WizardEntitySub;
 }) {
   const entities = value ?? [];
+  // Damaged answers, named beside the record they are about: a record with no details, a name that reads like
+  // a sentence. The owner removes it with the button that is already there, or fixes it; nothing is automatic.
+  const problems = checkSavedAnswers({ app: { entities } });
   const fieldTypes: { value: FieldType; label: string }[] =
     (sub?.field.types as { value: FieldType; label: string }[] | undefined) ?? [];
   const accessOptions = sub?.access.options ?? [];
@@ -112,6 +116,11 @@ export function EntitiesEditor({
               }}
               aria-label="Record name"
             />
+            {!entity.label.trim() && (
+              <span className="sv-help" style={{ marginLeft: 8 }}>
+                Give this kind of record a name to include it.
+              </span>
+            )}
             <button
               type="button"
               className="sv-btn sv-btn-secondary sv-btn-sm"
@@ -120,6 +129,16 @@ export function EntitiesEditor({
               Remove this record
             </button>
           </div>
+
+          {problems
+            .filter((p) => p.entityIndex === i)
+            .map((p) => (
+              <div className="sv-banner sv-banner-warn" key={p.kind} style={{ marginTop: 12 }}>
+                <p style={{ marginBottom: 0 }}>
+                  <strong>{p.offerRemoval ? 'This looks like an accident.' : 'Is this really a record?'}</strong> {p.message}
+                </p>
+              </div>
+            ))}
 
           <div className="sv-field" style={{ marginTop: 16 }}>
             <label className="sv-label">{sub?.access.title ?? 'Who can see these records?'}</label>

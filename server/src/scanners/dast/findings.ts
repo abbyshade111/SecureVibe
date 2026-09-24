@@ -16,6 +16,7 @@ import type { ProbeFallback, ProbeModule, ProbeResult } from './types.js';
 export const DAST_TOOL = 'securevibe-dast';
 export const RERUN_COMMAND = 'npm run verify -- <app folder>';
 
+/** Fingerprints for findings, not credentials: a fast hash is the right tool. */
 function sha256(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
