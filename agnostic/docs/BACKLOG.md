@@ -21,10 +21,10 @@ another session is not a claim.
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
   would turn an open question into an answer.
 
-- **The adapter data file.** **[taken: keen-meninsky-691a27, 24 September 2026]** Per-language tooling
-  driven by a manifest, not by Rust: bandit for Python, gosec for Go, brakeman for Ruby. A tool that is
-  not installed reports *not run*, never a clean pass, and says how to install it. This is what makes
-  "language-agnostic" mean more than four tree-sitter rules.
+- **More adapters, and more of their rules mapped.** Four are listed; semgrep's rule ids are not mapped
+  to requirements at all, so its findings carry none. `eslint-plugin-security`, `staticcheck` and
+  `phpcs-security-audit` are each a data entry. The shape to keep: SARIF only, not installed means not
+  run, and rule ids mapped one at a time.
 
 - **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
   can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method

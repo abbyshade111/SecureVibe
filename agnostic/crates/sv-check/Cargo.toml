@@ -16,3 +16,6 @@ tree-sitter-typescript.workspace = true
 tree-sitter-go.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-scan = { path = "../sv-scan" }
+
+[dev-dependencies]
+sv-frameworks = { path = "../sv-frameworks" }

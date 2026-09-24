@@ -321,6 +321,40 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+## The language's own tool
+
+Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already
+has a tool that knows its own traps, and the useful thing `sv` can do is run it and read the result
+rather than re-implement a hundred rules badly in Rust. `data/adapters.json` describes bandit, gosec,
+brakeman and semgrep; adding a fifth is a data change. `sv report --tools` runs the ones that suit the
+app, opt-in for the same reason as `--run` and one more: one of them fetches its rules over the network
+the first time it runs, and that is stated in the file rather than discovered from a firewall log.
+
+Three decisions, each a way of not lying:
+
+- **A tool that is not installed reports *not run*, with how to install it.** Never a clean pass. This
+  is the whole reason the adapters are a data file with a gap attached rather than a shell script: a
+  script that skips a missing binary produces a report identical to one where the tool ran and found
+  nothing, and the second is the one everybody assumes.
+- **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
+  right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
+  bandit's install line names two packages, since its SARIF formatter is a separate one.
+- **Rule ids map to requirements one at a time.** Crediting everything a tool knows about to every run
+  of it would make one clean bandit run look like an assessment of injection, secrets, weak hashing and
+  debug mode at once. A finding whose rule id is not in the map carries no requirement, which is a fair
+  thing to be and is shown as such.
+
+Running it is what taught it the distinction it was missing. Semgrep is installed on the machine this
+was written on and cannot start under the sandbox, and the first version reported it as *not installed*
+and told the owner to install a tool they already had. `presence` now tells **missing** from **here and
+will not start**, and prints what the tool said instead of an install line that would not help. The same
+run showed adapter findings carrying absolute paths while `sv`'s own are relative: a report is something
+an owner may send on, and the layout of their home directory is not part of what they meant to share.
+
+Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands on the same line as
+`sv`'s own SQL rule — two independent tools agreeing, which is worth more than either alone — while
+`bandit.B104` and a semgrep rule are reported carrying no requirement, because nothing has mapped them.
+
 ### A report from a run
 
 `sv report --run` starts the app behind the same fence `sv run` uses and folds what it answered into the

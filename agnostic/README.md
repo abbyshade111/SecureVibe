@@ -37,7 +37,7 @@ printed as *not assessed* before any finding, because a suite that only tries th
 nothing reads exactly like one that found nothing wrong.
 
 `sv report` writes the whole thing out (add `--run` to start the app behind the fence and include what
-it answers): one HTML file you can open by double-clicking it, the same
+it answers, and `--tools` to run the security tool your language already has): one HTML file you can open by double-clicking it, the same
 thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
 what was **not** examined, say what each check covered when it found nothing wrong, and nothing in them
 says a requirement passed — `sv` is not able to establish
