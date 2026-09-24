@@ -67,7 +67,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
+- **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** **[taken: restored first session, 24 September 2026]** SecureVibe writes each
   report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,
   so no PDF exists on disk until a person saves one, one report and one dialog at a time. On 20 September 2026
   the owner wanted the three reports for every application, for a paper's appendix: seven apps, twenty-two
