@@ -46,6 +46,27 @@ describe('evaluateSbd: escalation formula (CONTRACTS §7)', () => {
   });
 });
 
+describe('evaluateSbd: an owner\'s "not applicable", with a reason', () => {
+  it('takes a critical "No" out of the list, keeps the control visible, and says who decided and why', () => {
+    const design = deriveDesign(habitTracker, { knowledge, frameworks, now: NOW });
+    expect(design.riskTriage.criticalNo).toContain('MT-06');
+    const attestations: Attestation[] = [
+      { id: 'AT-1', requirementId: 'MT-06', standard: 'sbd', result: 'not-sure', note: '', attestedBy: 'Sam Rivera', attestedAt: '2026-09-20T00:00:00.000Z' },
+      { id: 'AT-2', requirementId: 'MT-06', standard: 'sbd', result: 'not-applicable', note: 'One person uses this on one computer; there is nobody to rehearse an incident plan with.', attestedBy: 'Sam Rivera', attestedAt: '2026-09-24T00:00:00.000Z' },
+    ];
+    const sbd = evaluateSbd({ design, sbdRules: knowledge.sbdRules, sbd: frameworks.sbd, manifestResults: [], attestations, runMeta });
+    expect(sbd.criticalNo).not.toContain('MT-06');
+    const entry = sbd.entries.find((e) => e.id === 'MT-06')!;
+    expect(entry.status).toBe('n-a');
+    expect(entry.note).toContain('because One person uses this on one computer');
+    expect(entry.note).toContain('Sam Rivera');
+    expect(entry.note).toContain('2026-09-24');
+    expect(sbd.notApplicableIds).toContain('MT-06');
+    // The escalation formula still holds with the recomputed list.
+    expect(sbd.escalate).toBe(sbd.criticalNo.length > 0 || sbd.score >= sbd.threshold || design.riskTriage.triggers.some((t) => t.triggered));
+  });
+});
+
 describe('evaluateSbd: post-build verification of checklist entries', () => {
   const design = deriveDesign(habitTracker, { knowledge, frameworks, now: NOW });
 

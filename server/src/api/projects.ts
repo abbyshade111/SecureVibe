@@ -603,6 +603,8 @@ export function projectsRouter(deps: ApiDeps): Router {
   router.post('/projects/:id/attestations', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
     const body = AttestationRequestSchema.parse(req.body);
+    // Not applicable is an answer with a reason, never a way to turn a red rating green by clicking.
+    if (body.result === 'not-applicable' && body.note.trim() === '') throw validationError('Say why this does not apply to your app. The reason is kept with the answer and shown in the reports.');
     const attestation = deps.store.addAttestation(project.id, { ...body, attestedBy: body.attestedBy || 'owner' });
     res.status(201).json({ attestation });
   });

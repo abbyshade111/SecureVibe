@@ -183,6 +183,17 @@ describe('project CRUD, profile save and validation', () => {
     expect(refused.body.error.message).toMatch(/no answers to copy/);
   });
 
+  it('refuses "not applicable" without a reason: it is an answer, not a dismiss button', async () => {
+    const create = await request(harness.server).post('/api/projects').set(authed()).send({ name: 'Habits', mode: 'guided' });
+    const id = create.body.project.id as string;
+    const bare = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: '   ', attestedBy: 'Sam' });
+    expect(bare.status).toBe(400);
+    expect(bare.body.error.message).toMatch(/Say why this does not apply/);
+    const reasoned = await request(harness.server).post(`/api/projects/${id}/attestations`).set(authed()).send({ requirementId: 'AC-02', standard: 'sbd', result: 'not-applicable', note: 'No organisation, no central sign-in system.', attestedBy: 'Sam' });
+    expect(reasoned.status).toBe(201);
+    expect(reasoned.body.attestation.result).toBe('not-applicable');
+  });
+
   it('reports the framework summary', async () => {
     const res = await request(harness.server).get('/api/frameworks/summary').set(authed());
     expect(res.status).toBe(200);

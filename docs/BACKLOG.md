@@ -18,15 +18,14 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **"Not applicable", with a reason, instead of a control an owner cannot act on.** AC-02 begins "if your
-  organisation has a central sign-in system"; an owner who has no organisation is rated **at risk** on it anyway,
-  for ever. The answer is not a dismiss button — that lets anyone turn a red rating green by clicking, which is
-  the overstatement this whole project exists to avoid. Two parts instead. Where the control is really asking a
-  question, ask it in the wizard (does your organisation have a central sign-in system?) and let the existing
-  applicability rules mark it not applicable, as TLS requirements already are for a local-only app. Where no
-  question fits, let the owner record a **reason**: the control stays visible, reads "not applicable — because
-  …", the rating reflects it, and the reports name who decided and when. One hides a control; the other answers
-  it, and only the second can be audited.
+- **Ask the wizard question behind AC-02, so the applicability rules can mark it not applicable.** The second
+  half landed on 24 September 2026: an owner can answer "does not apply" with a reason on the human-checks
+  page, the control stays visible and reads "not applicable, because ...", the rating reflects it, and the
+  reports name who decided and when. What remains is the first half: where a control is really asking a
+  question (AC-02 begins "if your organisation has a central sign-in system"), ask it in the wizard and let the
+  existing applicability rules mark it not applicable, as TLS requirements already are for a local-only app.
+  That needs the profile field, the wizard copy, the fixtures and the id lists in wizard-copy.test.ts, and a
+  Secure by Design rule condition.
 - **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
   `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
   refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an

@@ -346,16 +346,21 @@ describe('evaluateCompliance: end-to-end shape and honesty', () => {
     // "At risk" from one unmet critical Secure by Design control, above "107 of 159 ASVS verified passing": both
     // true, and read together a contradiction unless the rating names its source.
     const { design, input } = buildInput({ findings: [] });
-    const withCritical = evaluateCompliance({ ...input, design: { ...design, riskTriage: { ...design.riskTriage, criticalNo: ['SBD-03'] } } });
+    // The unmet critical list is read from the checklist as evaluated, so the fixture marks a real critical
+    // control "no" rather than naming an id the checklist does not have.
+    const criticalId = design.checklist.find((e) => e.critical)!.id;
+    const checklistWithNo = design.checklist.map((e) => (e.id === criticalId ? { ...e, status: 'no' as const } : e));
+    const withCritical = evaluateCompliance({ ...input, design: { ...design, checklist: checklistWithNo, riskTriage: { ...design.riskTriage, criticalNo: [criticalId] } } });
     expect(withCritical.overall.rating).toBe('at-risk');
     expect(withCritical.overall.ratingReason).toContain('Secure by Design');
-    expect(withCritical.overall.ratingReason).toContain('SBD-03');
+    expect(withCritical.overall.ratingReason).toContain(criticalId);
     expect(withCritical.overall.ratingReason).toMatch(/does not lift a critical control/);
     // The ASVS chapter's own rating is about its own count, and never at-risk for a Secure by Design reason.
     expect(withCritical.asvs.summary.ratingReason).not.toContain('Secure by Design');
 
     // The fixture design has an unmet critical control of its own; clear it to see the count-based reason.
-    const clean = evaluateCompliance({ ...input, design: { ...design, riskTriage: { ...design.riskTriage, criticalNo: [] } } });
+    const checklistAllYes = design.checklist.map((e) => (e.critical && e.status === 'no' ? { ...e, status: 'yes' as const } : e));
+    const clean = evaluateCompliance({ ...input, design: { ...design, checklist: checklistAllYes, riskTriage: { ...design.riskTriage, criticalNo: [] } } });
     expect(clean.overall.rating).not.toBe('at-risk');
     expect(clean.overall.ratingReason).toMatch(/comes from the ASVS(?: and AISVS)? count/);
   });

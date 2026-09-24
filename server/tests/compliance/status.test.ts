@@ -52,6 +52,28 @@ function baseCtx(overrides: Partial<StatusContext> = {}): StatusContext {
   };
 }
 
+describe('decideStatus: "not applicable", with a reason', () => {
+  const decided = { id: 'AT-1', requirementId: 'V6.1.1', standard: 'asvs' as const, result: 'not-applicable' as const, note: 'We have no organisation-wide sign-in system; this app has three users on one computer.', attestedBy: 'Sam Rivera', attestedAt: '2026-09-24T10:00:00.000Z', evidenceLink: undefined };
+
+  it('marks the requirement not applicable and says who decided, when and why', () => {
+    const d = decideStatus(baseCtx({ attestation: decided }));
+    expect(d.status).toBe('not-applicable');
+    expect(d.rationale).toContain('because We have no organisation-wide sign-in system');
+    expect(d.rationale).toContain('Sam Rivera');
+    expect(d.rationale).toContain('2026-09-24');
+    expect(d.rationale).toMatch(/owner's decision, not verified/);
+    // Manual-only requirements too: the answer is a decision, not a confirmation.
+    expect(decideStatus(baseCtx({ manualOnly: true, verificationClass: 'manual-only', attestation: decided })).status).toBe('not-applicable');
+  });
+
+  it('never overrides evidence that the requirement applies and fails', () => {
+    const d = decideStatus(baseCtx({ attestation: decided, evidence: [ev({ type: 'test', passed: false })] }));
+    expect(d.status).toBe('fail');
+    const c = decideStatus(baseCtx({ attestation: decided, openFindings: [finding({ confidence: 'high', severity: 'high' })] }));
+    expect(c.status).not.toBe('not-applicable');
+  });
+});
+
 describe('decideStatus: honesty rules (DESIGN §13.1, CONTRACTS §9.4)', () => {
   it('never returns pass from weak evidence alone (AI review, design docs, attestations)', () => {
     const weakOnly = [
