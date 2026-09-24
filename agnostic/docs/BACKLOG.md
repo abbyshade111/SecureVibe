@@ -15,11 +15,11 @@ another session is not a claim.
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
 
-- **More lockfile readers for the SBOM.** `poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`,
+- **More lockfile readers for the SBOM.** **[taken: keen-meninsky-691a27, 24 September 2026]** `poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`,
   `yarn.lock`, `pnpm-lock.yaml` and `gradle.lockfile` are named as unread in the document today. Each one
   read is an ecosystem that stops being a hole in the list.
 
-- **Match the SBOM against advisories.** The document exists so somebody can ask whether a known-bad
+- **Match the SBOM against advisories.** **[taken: keen-meninsky-691a27, 24 September 2026]** The document exists so somebody can ask whether a known-bad
   version is in it; nothing asks that yet. Needs an advisory source and a decision about whether `sv`
   fetches it, which is the first thing here that would want the network.
 
