@@ -42,14 +42,13 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **After a check without answers: real reports and an AI review against the floor.** **[taken: restored first session, 24 September 2026]** The check itself no longer
-  waits for the questions (24 September 2026): an uploaded app is checked as soon as it is uploaded, the compliance
-  step says the rules are undecided rather than absent, the results page says so beside the findings and links to
-  the questions, and the AI review says it waits for the answers and spent nothing. Two halves remain. The full
-  reports still need a design (the reports stage writes a raw summary without one), so a check without answers has
-  findings on the page but no security report to download. And the AI review could read the code against ASVS
-  Level 1, the floor every app is meant to meet, without waiting for the answers; it needs the review flow to work
-  without a design. A shorter set of questions for uploaded apps is probably still part of the answer.
+- **After a check without answers: an AI review against the floor.** The check itself and the reports no longer wait
+  for the questions (24 September 2026): an uploaded app is checked as uploaded, and the security report, SARIF,
+  run log, provenance and bill of materials are written in full, with an overview that says why there is no
+  compliance report yet. What remains: the AI review could read the code against ASVS Level 1, the floor every
+  app is meant to meet, without waiting for the answers; it needs the review flow to work without a design (it
+  reads the design for context and the applicability for its list). A shorter set of questions for uploaded apps
+  is probably still part of the answer.
 - ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
