@@ -21,10 +21,14 @@ cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app,
 cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and check it answers
 cargo run -p sv-cli -- check ./my-app    # credentials left in the code, and how it is set up
 cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
+cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
 ```
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.
+
+`sv` opens no network connection. Advisory data is something you download and point it at; the list of
+packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
 
 Not built yet: AST rules via tree-sitter, the DAST probes, the reports, the MCP server.
 

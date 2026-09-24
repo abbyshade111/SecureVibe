@@ -499,3 +499,41 @@ app does not ship.
 
 Where the list is not complete, `sv check` says so as a medium finding, because the gap is the point: asked
 whether a compromised library is in this app, nobody could answer from an incomplete document.
+
+## Matching the list against advisories
+
+`sv audit ./app --advisories ./osv` compares what the app ships with a local OSV database.
+
+### `sv` does not fetch anything
+
+A deliberate decision rather than an unfinished one, for three reasons. **Checking code is not a reason to
+phone home**: the list of packages an app depends on is business-confidential, and sending it to a service
+to be checked is a disclosure the owner did not ask for — v1 fences generated code to loopback on the same
+argument. **A fetch is a dependency on somebody else's uptime**, and a check that silently degrades when a
+service is slow is a check that reports a clean result on a bad day. And **`sv` runs where there may be no
+network at all** — an air-gapped review, a CI runner with egress rules, a laptop on a train.
+
+So getting the data is the owner's step, done deliberately and visible in their shell history.
+
+### No data is not a clean result
+
+With no database, `audit` reports **not assessed** and says what to do about it. It never prints "no known
+vulnerabilities", because that sentence is equally true of an empty directory, a stale one and a healthy
+app, and only one of those is good news. The same holds per-ecosystem: a database of npm advisories says
+nothing whatever about the Python packages beside them, so those are named as unchecked rather than
+counted as clean.
+
+### Three things the comparison has to get right
+
+* **The fixed version is not affected.** An off-by-one here reports every upgraded app as vulnerable,
+  which is the fastest way to teach somebody to ignore the check. Ignoring the `fixed` event fails three
+  tests.
+* **A pre-release comes before its release.** `4.17.20-beta` does not contain the fix that landed in
+  `4.17.20`. Treating them as equal reports a genuinely vulnerable install as clean — a false negative,
+  and the worst mistake this file can make. My first version did exactly that, by dropping the
+  pre-release when parsing; the unit test caught it and an end-to-end test now catches it too.
+* **Same name, different ecosystem, different package.** `lodash` on PyPI is not `lodash` on npm, and
+  matching on the name alone invents vulnerabilities.
+
+A version that cannot be compared with any range — a Go commit pseudo-version against a `GIT` range, a
+build tag — is listed as uncomparable rather than quietly passed.

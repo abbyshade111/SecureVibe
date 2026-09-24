@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
+use sv_check::advisories;
 use sv_check::config::check_dir;
 use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
@@ -24,6 +25,7 @@ fn main() -> Result<()> {
         Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
+        Some("audit") => cmd_audit(&args[1..]),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -43,7 +45,9 @@ fn print_help() {
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv run [PATH]      start the app behind the network fence and check it answers\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
-         sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n"
+         sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
+         sv audit [PATH] --advisories DIR\n                     \
+             match what the app ships against a local OSV database\n"
     );
 }
 
@@ -544,5 +548,135 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
         "\nAsked whether a compromised version of some library is in this app, nobody could answer\n\
          from this document. Commit a lockfile for every ecosystem in use, and install from it."
     );
+    Ok(())
+}
+
+/// Matches the bill of materials against a local advisory database.
+///
+/// `sv` opens no network connection, here or anywhere. Fetching the database is the owner's step, done
+/// deliberately: the list of packages an app depends on is business-confidential, a fetch is a dependency
+/// on somebody else's uptime, and `sv` has to work where there is no network at all.
+fn cmd_audit(args: &[String]) -> Result<()> {
+    let mut app_dir = PathBuf::from(".");
+    let mut advisories_dir: Option<PathBuf> =
+        std::env::var("SV_ADVISORY_DIR").ok().map(PathBuf::from);
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--advisories" => {
+                advisories_dir = Some(PathBuf::from(
+                    rest.next().context("--advisories needs a folder")?,
+                ));
+            }
+            other if other.starts_with("--") => bail!("unknown option: {other}"),
+            other => app_dir = PathBuf::from(other),
+        }
+    }
+    if !app_dir.is_dir() {
+        bail!("{} is not a folder", app_dir.display());
+    }
+
+    let sbom = sbom::build(&app_dir);
+
+    // No database is not a clean result, and must never be printed as one.
+    let Some(dir) = advisories_dir else {
+        println!(
+            "Not assessed: nothing here knows which versions are known to be vulnerable.\n\n\
+             `sv` does not fetch anything — the list of packages this app depends on is yours, and a\n\
+             check that quietly phones out is one you did not agree to. Download an OSV export for the\n\
+             ecosystems below, unpack it, and point at it:\n\n  \
+             sv audit {} --advisories ./osv\n\n\
+             Ecosystems in this app: {}",
+            app_dir.display(),
+            if sbom.components.is_empty() {
+                "none found".to_owned()
+            } else {
+                let mut names: Vec<&str> = sbom
+                    .components
+                    .iter()
+                    .map(|c| c.ecosystem.as_str())
+                    .collect();
+                names.sort_unstable();
+                names.dedup();
+                names.join(", ")
+            }
+        );
+        return Ok(());
+    };
+
+    let database = advisories::load_database(&dir)
+        .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
+    if database.is_empty() {
+        println!(
+            "Not assessed: {} holds no advisory records `sv` could read, so nothing was compared.\n\
+             An empty database and a healthy app look identical from here, and only one of them is good news.",
+            dir.display()
+        );
+        return Ok(());
+    }
+
+    let result = advisories::audit(&sbom, &database);
+    println!(
+        "Compared {} package{} against {} advisory record{}.",
+        result.components_checked,
+        if result.components_checked == 1 {
+            ""
+        } else {
+            "s"
+        },
+        result.advisories_read,
+        if result.advisories_read == 1 { "" } else { "s" }
+    );
+
+    // Everything the comparison could not cover comes first.
+    if !result.uncovered.is_empty() {
+        println!(
+            "\nNot assessed — the database holds nothing about {}, so its packages were not checked.\n\
+             That is not the same as their being clean.",
+            result
+                .uncovered
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    if !result.uncomparable.is_empty() {
+        println!(
+            "\nNot assessed — {} package version(s) could not be compared with any range, so nothing is\n\
+             claimed about them:",
+            result.uncomparable.len()
+        );
+        for (name, version) in result.uncomparable.iter().take(8) {
+            println!("  {name} {version}");
+        }
+    }
+    if !sbom.is_complete() {
+        println!(
+            "\nAnd the list itself is incomplete, so this comparison covered less than the whole app.\n\
+             `sv sbom` says what is missing."
+        );
+    }
+
+    if result.findings.is_empty() {
+        println!("\nNothing in what was compared matches a record in this database.");
+        return Ok(());
+    }
+    println!(
+        "\n{} known vulnerabilit{}:",
+        result.findings.len(),
+        if result.findings.len() == 1 {
+            "y"
+        } else {
+            "ies"
+        }
+    );
+    for f in &result.findings {
+        println!("\n  [{}] {}", f.severity.name(), f.title);
+        if !f.description.is_empty() {
+            println!("     {}", f.description);
+        }
+        println!("     what to do: {}", f.fix);
+    }
     Ok(())
 }

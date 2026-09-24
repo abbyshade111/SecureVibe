@@ -15,13 +15,13 @@ another session is not a claim.
   and `sv-check` holds the finding type, the coverage-aware walk and the passed/failed/not-assessed shape,
   so these build on what is there.
 
-- **More lockfile readers for the SBOM.** **[taken: keen-meninsky-691a27, 24 September 2026]** `poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`,
-  `yarn.lock`, `pnpm-lock.yaml` and `gradle.lockfile` are named as unread in the document today. Each one
-  read is an ecosystem that stops being a hole in the list.
+- **Read `pnpm-lock.yaml`.** The last common lockfile `sv` names as unread. It is YAML and nothing in the
+  workspace parses YAML yet, which is the decision to make rather than the work.
 
-- **Match the SBOM against advisories.** **[taken: keen-meninsky-691a27, 24 September 2026]** The document exists so somebody can ask whether a known-bad
-  version is in it; nothing asks that yet. Needs an advisory source and a decision about whether `sv`
-  fetches it, which is the first thing here that would want the network.
+- **Severity from the advisory's own CVSS vector.** `sv audit` reports medium unless the record says
+  CRITICAL in words, because inventing a severity from a vector it has not parsed would be worse than
+  under-stating one. Parsing the vector would let the finding carry the severity the advisory actually
+  gives it.
 
 - **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
