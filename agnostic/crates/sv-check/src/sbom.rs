@@ -583,7 +583,7 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
         confidence: Confidence::High,
         location: Location { file: "sbom.cdx.json".into(), line: 1 },
         secret: None,
-        requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
+        requirement_ids: vec!["V1.3.5".into()],
         cwe: vec!["CWE-1104".into()],
         description: reasons.join("; "),
         impact: "A bill of materials is worth the completeness of its list. Asked whether a compromised \

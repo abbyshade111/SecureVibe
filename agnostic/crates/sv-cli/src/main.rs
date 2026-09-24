@@ -28,6 +28,7 @@ fn main() -> Result<()> {
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
         Some("audit") => cmd_audit(&args[1..]),
+        Some("report") => cmd_report(&args[1..]),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -49,7 +50,9 @@ fn print_help() {
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
-             match what the app ships against a local OSV database\n"
+             match what the app ships against a local OSV database\n  \
+         sv report [PATH] [--out DIR]\n                     \
+             write the reports: what applies, what was found, what nobody has answered\n"
     );
 }
 
@@ -580,7 +583,8 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     };
 
     if !config.passed.is_empty() {
-        println!("\nChecked and fine: {}.", config.passed.join(", "));
+        let names: Vec<&str> = config.passed.iter().map(|p| p.id.as_str()).collect();
+        println!("\nChecked and fine: {}.", names.join(", "));
     }
 
     if scan.findings.is_empty() {
@@ -789,5 +793,186 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         }
         println!("     what to do: {}", f.fix);
     }
+    Ok(())
+}
+
+/// Writes the reports.
+///
+/// Everything here runs offline and without a container. The probes need a running app, so unless
+/// `sv run` has been used they are recorded as a gap rather than as nothing to report — a section
+/// missing from a report reads as a section with nothing in it.
+fn cmd_report(args: &[String]) -> Result<()> {
+    let mut app_dir = PathBuf::from(".");
+    let mut out_dir: Option<PathBuf> = None;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--out" => {
+                out_dir = Some(PathBuf::from(
+                    rest.next().context("--out needs a directory")?,
+                ));
+            }
+            other if other.starts_with('-') => bail!("unknown option: {other}"),
+            other => app_dir = PathBuf::from(other),
+        }
+    }
+    let out_dir = out_dir.unwrap_or_else(|| app_dir.join("securevibe-report"));
+
+    let manifest_path = app_dir.join("securevibe.toml");
+    if !manifest_path.exists() {
+        bail!(
+            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
+            app_dir.display()
+        );
+    }
+    let manifest = Manifest::load(&manifest_path)?;
+
+    let data = data_dir()?;
+    let frameworks = Frameworks::load(&data.join("frameworks"))?;
+    let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+    let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+    let scan_report = scan(&app_dir, &signatures)?;
+    let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+    let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
+
+    let secret_rules = SecretRules::load(&secret_rules_path())?;
+    let secrets = scan_dir(&secret_rules, &app_dir);
+    let config = check_dir(&app_dir);
+    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
+    let code = ast::scan_dir(&ast_rules, &app_dir);
+
+    let mut findings = Vec::new();
+    findings.extend(secrets.findings.iter().cloned());
+    findings.extend(config.findings.iter().cloned());
+    findings.extend(code.findings.iter().cloned());
+
+    // Every limit `sv` knows about, said out loud. This list existing is the difference between a
+    // report about an app and a report about the part of an app somebody happened to look at.
+    let mut gaps = vec![sv_report::Gap {
+        what: "the running app".to_owned(),
+        why: "`sv report` does not start the app. Run `sv run` for the questions that can only be \
+              answered by asking it, and note that those sign in as nobody."
+            .to_owned(),
+    }];
+    for (id, why) in &config.not_assessed {
+        gaps.push(sv_report::Gap {
+            what: format!("the check `{id}`"),
+            why: why.clone(),
+        });
+    }
+    if !secrets.coverage.skipped.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} file{} not read while looking for credentials",
+                secrets.coverage.skipped.len(),
+                if secrets.coverage.skipped.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ),
+            why: "a credential in a file nothing read is a credential nothing found".to_owned(),
+        });
+    }
+    if !code.unread_languages.is_empty() {
+        let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
+        names.sort_unstable();
+        gaps.push(sv_report::Gap {
+            what: format!("code written in {}", names.join(", ")),
+            why: "`sv` has no parser for these, so the rules that read code did not run on them"
+                .to_owned(),
+        });
+    }
+    if !scan_report.unread_extensions.is_empty() {
+        let mut exts: Vec<&str> = scan_report
+            .unread_extensions
+            .iter()
+            .map(String::as_str)
+            .collect();
+        exts.sort_unstable();
+        gaps.push(sv_report::Gap {
+            what: format!("files ending {}", exts.join(", ")),
+            why: "nothing read these, so no technology can be called absent on their account"
+                .to_owned(),
+        });
+    }
+    for eco in &scan_report.unpinned {
+        gaps.push(sv_report::Gap {
+            what: format!("what {} actually installs", eco.name),
+            why: format!(
+                "{} pins no versions, so the list of dependencies is what was asked for rather \
+                 than what is there",
+                eco.manifest
+            ),
+        });
+    }
+
+    let report = sv_report::build(sv_report::Inputs {
+        app_name: if manifest.app.name.is_empty() {
+            "This app"
+        } else {
+            &manifest.app.name
+        },
+        target_level: manifest.target_level(),
+        generated: None,
+        frameworks: &frameworks,
+        buckets: &buckets,
+        claims: &resolved,
+        findings,
+        passed_checks: &config.passed,
+        gaps,
+    });
+
+    std::fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    let written = [
+        ("report.html", sv_report::html::page(&report)),
+        ("compliance.md", sv_report::markdown::compliance(&report)),
+        ("security.md", sv_report::markdown::security(&report)),
+        ("findings.sarif", sv_report::sarif::render(&report)),
+        ("report.json", serde_json::to_string_pretty(&report)? + "\n"),
+    ];
+    for (name, contents) in &written {
+        std::fs::write(out_dir.join(name), contents).with_context(|| format!("writing {name}"))?;
+    }
+
+    let c = &report.counts;
+    println!("Wrote {} files to {}:", written.len(), out_dir.display());
+    for (name, _) in &written {
+        println!("  {name}");
+    }
+    println!(
+        "\n{} requirements apply. {} need{} attention, {} {} checked by one automated check, \
+         {} {} not verified by anything.",
+        c.applicable,
+        c.needs_attention,
+        if c.needs_attention == 1 { "s" } else { "" },
+        c.checked,
+        if c.checked == 1 { "was" } else { "were" },
+        c.not_verified,
+        if c.not_verified == 1 { "was" } else { "were" }
+    );
+    if !report.out_of_scope.is_empty() {
+        println!(
+            "{} finding{} name a requirement this app is not being assessed against; the reports \
+             list them.",
+            report.out_of_scope.len(),
+            if report.out_of_scope.len() == 1 {
+                ""
+            } else {
+                "s"
+            }
+        );
+    }
+    if c.not_assessed > 0 {
+        println!(
+            "{} more could not be placed at all: nobody has answered the question that decides \
+             whether they apply.",
+            c.not_assessed
+        );
+    }
+    println!(
+        "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
+         nothing here can establish that."
+    );
     Ok(())
 }

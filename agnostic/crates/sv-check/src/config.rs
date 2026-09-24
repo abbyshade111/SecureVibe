@@ -21,16 +21,31 @@ use std::process::Command;
 /// What a configuration check concluded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
-    Passed,
+    /// Passed, and the requirements this check is evidence about.
+    ///
+    /// The list is not decoration. A check that names its requirements when it fails and drops them
+    /// when it passes can only ever subtract: the report can say a requirement needs attention but
+    /// never that anything looked at it and was satisfied, so every requirement reads as unchecked
+    /// however many checks ran. The failing side of each check below already knew these ids.
+    Passed(&'static [&'static str]),
     Failed(Box<Finding>),
     /// The check could not run. The string says why, in words an owner can act on.
     NotAssessed(String),
 }
 
+/// A check that ran and was satisfied, and what it is evidence about.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Passed {
+    pub id: String,
+    /// The same ids the failing branch of this check cites. Empty means the check is evidence about
+    /// the app in general and about no requirement in particular — a fair thing to be, but visible.
+    pub requirement_ids: Vec<String>,
+}
+
 #[derive(Debug, Default)]
 pub struct ConfigReport {
     pub findings: Vec<Finding>,
-    pub passed: Vec<String>,
+    pub passed: Vec<Passed>,
     /// Check id and why it could not run. Never folded into "passed".
     pub not_assessed: Vec<(String, String)>,
 }
@@ -38,7 +53,10 @@ pub struct ConfigReport {
 impl ConfigReport {
     fn record(&mut self, id: &str, outcome: Outcome) {
         match outcome {
-            Outcome::Passed => self.passed.push(id.to_owned()),
+            Outcome::Passed(requirement_ids) => self.passed.push(Passed {
+                id: id.to_owned(),
+                requirement_ids: requirement_ids.iter().map(|s| (*s).to_owned()).collect(),
+            }),
             Outcome::Failed(f) => self.findings.push(*f),
             Outcome::NotAssessed(why) => self.not_assessed.push((id.to_owned(), why)),
         }
@@ -119,7 +137,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
         .collect();
 
     match committed.first() {
-        None => Outcome::Passed,
+        None => Outcome::Passed(&["V13.3.1"]),
         Some(first) => Outcome::Failed(Box::new(Finding {
             rule_id: "config.secrets-file-committed".into(),
             title: format!("A file that holds credentials is in version control (`{first}`)"),
@@ -127,7 +145,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
             confidence: Confidence::High,
             location: Location { file: (*first).clone(), line: 1 },
             secret: None,
-            requirement_ids: vec!["V13.3.1".into(), "AC-05".into()],
+            requirement_ids: vec!["V13.3.1".into()],
             cwe: vec!["CWE-540".into(), "CWE-538".into()],
             description: if committed.len() == 1 {
                 format!("`{first}` is tracked by git, and files with that name hold credentials.")
@@ -176,7 +194,7 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
         .any(|l| matches!(l, ".env" | ".env*" | ".env.*" | "*.env" | "**/.env"));
 
     if covered {
-        Outcome::Passed
+        Outcome::Passed(&["V13.3.1"])
     } else {
         Outcome::Failed(Box::new(env_not_ignored_finding(
             ".gitignore",
@@ -194,7 +212,7 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
         confidence: Confidence::High,
         location: Location { file: file.to_owned(), line: 1 },
         secret: None,
-        requirement_ids: vec!["V13.3.1".into(), "AC-05".into()],
+        requirement_ids: vec!["V13.3.1".into()],
         cwe: vec!["CWE-540".into()],
         description,
         impact: "Once a credential reaches a repository it is effectively known to everyone with \
@@ -236,7 +254,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
             confidence: Confidence::High,
             location: Location { file: first.manifest.clone(), line: 1 },
             secret: None,
-            requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
+            requirement_ids: vec!["V1.3.5".into()],
             cwe: vec!["CWE-1104".into()],
             description: format!(
                 "`{}` is in use and there is no lockfile beside it, so the versions installed today and \
@@ -263,7 +281,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
         ));
     }
 
-    Outcome::Passed
+    Outcome::Passed(&["V1.3.5"])
 }
 
 /// Whether there is a way to report a security problem. Not a vulnerability; an absence.
@@ -275,7 +293,11 @@ fn security_contact(app_dir: &Path) -> Outcome {
         "docs/SECURITY.md",
     ];
     if PLACES.iter().any(|p| app_dir.join(p).exists()) {
-        return Outcome::Passed;
+        // Deliberately empty. Nothing in ASVS, AISVS or Appendix C requires a way to report a
+        // vulnerability; it is an organisational control rather than an application one. This check
+        // is worth running and is evidence about no requirement in particular, which the reports
+        // show rather than hide.
+        return Outcome::Passed(&[]);
     }
     Outcome::Failed(Box::new(Finding {
         rule_id: "config.security-contact".into(),
@@ -287,7 +309,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
             line: 1,
         },
         secret: None,
-        requirement_ids: vec!["AC-13".into()],
+        requirement_ids: vec![],
         cwe: vec![],
         description: "No SECURITY.md was found, so somebody who finds a problem in this app has \
                       nowhere obvious to say so."
@@ -391,7 +413,8 @@ mod tests {
         assert!(
             !report
                 .passed
-                .contains(&"config.secrets-file-committed".to_string()),
+                .iter()
+                .any(|p| p.id == "config.secrets-file-committed"),
             "a folder with no git history must not pass this check"
         );
         let (_, why) = report
@@ -416,7 +439,8 @@ mod tests {
         assert!(
             !report
                 .passed
-                .contains(&"config.secrets-file-committed".to_string()),
+                .iter()
+                .any(|p| p.id == "config.secrets-file-committed"),
             "a repository git cannot read must not pass: {report:?}"
         );
         assert!(
@@ -436,7 +460,8 @@ mod tests {
         assert!(
             check_dir(&dir)
                 .passed
-                .contains(&"config.gitignore-covers-env".to_string())
+                .iter()
+                .any(|p| p.id == "config.gitignore-covers-env")
         );
 
         fs::write(dir.join(".gitignore"), "node_modules\ndist\n").unwrap();
@@ -459,7 +484,8 @@ mod tests {
             assert!(
                 check_dir(&dir)
                     .passed
-                    .contains(&"config.gitignore-covers-env".to_string()),
+                    .iter()
+                    .any(|p| p.id == "config.gitignore-covers-env"),
                 "{pattern} should count as covering .env"
             );
         }
@@ -489,7 +515,8 @@ mod tests {
         assert!(
             check_dir(&dir)
                 .passed
-                .contains(&"config.versions-pinned".to_string())
+                .iter()
+                .any(|p| p.id == "config.versions-pinned")
         );
         fs::remove_dir_all(&dir).ok();
     }
@@ -529,7 +556,8 @@ mod tests {
         assert!(
             !report
                 .passed
-                .contains(&"config.versions-pinned".to_string()),
+                .iter()
+                .any(|p| p.id == "config.versions-pinned"),
             "Maven must not pass a check nothing performed: {report:?}"
         );
         let (_, why) = report
@@ -549,7 +577,8 @@ mod tests {
         assert!(
             !report
                 .passed
-                .contains(&"config.versions-pinned".to_string())
+                .iter()
+                .any(|p| p.id == "config.versions-pinned")
         );
         assert!(
             report
@@ -580,7 +609,8 @@ mod tests {
         assert!(
             check_dir(&dir)
                 .passed
-                .contains(&"config.security-contact".to_string())
+                .iter()
+                .any(|p| p.id == "config.security-contact")
         );
         fs::remove_dir_all(&dir).ok();
     }
@@ -590,7 +620,8 @@ mod tests {
         let dir = scratch("disjoint");
         fs::write(dir.join(".gitignore"), ".env\n").unwrap();
         let report = check_dir(&dir);
-        for id in &report.passed {
+        for passed in &report.passed {
+            let id = &passed.id;
             assert!(
                 !report.findings.iter().any(|f| &f.rule_id == id),
                 "{id} is reported as both passed and failed"
@@ -601,5 +632,79 @@ mod tests {
             );
         }
         fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod passed_evidence_tests {
+    use super::*;
+
+    #[test]
+    fn a_check_that_names_requirements_when_it_fails_names_them_when_it_passes_too() {
+        // The asymmetry this guards against is invisible from either side on its own: the failing
+        // branch cites V13.3.1, the passing branch cited nothing, and a report built from that can
+        // only ever say a requirement needs attention — never that anything looked and was
+        // satisfied. Every requirement then reads as unchecked however many checks ran.
+        let dir = tempdir("passed-cites");
+        std::fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        std::fs::write(dir.join("SECURITY.md"), "mail security@example.test\n").unwrap();
+        let report = check_dir(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(!report.passed.is_empty(), "nothing passed: {report:?}");
+
+        // A check may honestly be evidence about no requirement in any loaded framework, and one
+        // is: nothing in ASVS, AISVS or Appendix C asks for a way to report a vulnerability. That
+        // has to be a decision somebody wrote down, not a forgotten field, so it is listed here
+        // and every other check has to say what it is evidence about.
+        const CITES_NOTHING_ON_PURPOSE: &[&str] = &["config.security-contact"];
+        let silent: Vec<&str> = report
+            .passed
+            .iter()
+            .filter(|p| p.requirement_ids.is_empty())
+            .map(|p| p.id.as_str())
+            .filter(|id| !CITES_NOTHING_ON_PURPOSE.contains(id))
+            .collect();
+        assert!(
+            silent.is_empty(),
+            "these checks pass without saying what they are evidence about: {silent:?}"
+        );
+    }
+
+    #[test]
+    fn the_ids_a_check_cites_are_the_same_whichever_way_it_goes() {
+        // Second witness, of a different shape: not that the passing side says *something*, but
+        // that it says the *same* thing. A pass citing a requirement its failure does not would
+        // credit a requirement nothing actually examined.
+        let clean = tempdir("same-ids-clean");
+        std::fs::write(clean.join(".gitignore"), ".env\n").unwrap();
+        let passed = check_dir(&clean);
+        std::fs::remove_dir_all(&clean).ok();
+
+        let dirty = tempdir("same-ids-dirty");
+        std::fs::write(dirty.join(".gitignore"), "node_modules\n").unwrap();
+        let failed = check_dir(&dirty);
+        std::fs::remove_dir_all(&dirty).ok();
+
+        let on_pass: Vec<String> = passed
+            .passed
+            .iter()
+            .find(|p| p.id == "config.gitignore-covers-env")
+            .map(|p| p.requirement_ids.clone())
+            .expect("the clean app passes this check");
+        let on_fail: Vec<String> = failed
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.gitignore-covers-env")
+            .map(|f| f.requirement_ids.clone())
+            .expect("the dirty app fails this check");
+        assert_eq!(on_pass, on_fail);
+    }
+
+    fn tempdir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-config-{name}"));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
     }
 }

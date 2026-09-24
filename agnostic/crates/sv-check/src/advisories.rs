@@ -360,7 +360,7 @@ fn finding_for(component: &Component, advisory: &Advisory) -> Finding {
             line: 1,
         },
         secret: None,
-        requirement_ids: vec!["V1.3.5".into(), "AC-10".into()],
+        requirement_ids: vec!["V1.3.5".into()],
         cwe: vec![],
         description: if advisory.summary.is_empty() {
             format!(

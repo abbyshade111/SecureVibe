@@ -172,7 +172,10 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
 const SECURITY_HEADERS: Rule = Rule {
     rule_id: "probe.security-headers",
     confidence: Confidence::High,
-    requirement_ids: &["V3.4.1", "V14.4.1", "AC-09"],
+    // One id per header this rule looks for, and no others. It used to cite V3.4.1 (Strict-
+    // Transport-Security) and V14.4.1 (which is not a requirement at all): invented rather than
+    // looked up, and invisible until the report tried to resolve them.
+    requirement_ids: &["V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6"],
     cwe: &["CWE-693", "CWE-1021"],
     impact: "These are the instructions a browser follows to protect the person using the app. \
              Without them the browser does what a page tells it, including a page somebody else wrote.",
@@ -213,7 +216,8 @@ fn security_headers(response: &ProbeResponse) -> Option<Finding> {
 const COOKIE_ATTRIBUTES: Rule = Rule {
     rule_id: "probe.cookie-attributes",
     confidence: Confidence::High,
-    requirement_ids: &["V3.4.2", "V3.4.3", "AC-09"],
+    // V3.3.4 is HttpOnly, V3.3.2 is SameSite. It used to cite the CORS and CSP requirements.
+    requirement_ids: &["V3.3.2", "V3.3.4"],
     cwe: &["CWE-1004", "CWE-1275"],
     impact: "A cookie a script can read is a session that any injected script can take. One with no \
              SameSite is a session another site can use on the owner's behalf.",
@@ -261,7 +265,9 @@ fn cookie_attributes(response: &ProbeResponse) -> Option<Finding> {
 const CORS_ANY_ORIGIN: Rule = Rule {
     rule_id: "probe.cors-any-origin",
     confidence: Confidence::High,
-    requirement_ids: &["V13.2.1", "AC-09"],
+    // V3.4.2 is the one: Access-Control-Allow-Origin must be a fixed value, or the Origin
+    // header must be checked against an allow-list. Exactly what this probe tests.
+    requirement_ids: &["V3.4.2"],
     cwe: &["CWE-942"],
     impact: "A site the owner has never heard of can make the browser fetch this app's pages as the \
              person using it, and read what comes back.",
@@ -330,7 +336,9 @@ const TRACE_MARKERS: &[&str] = &[
 const ERROR_DETAIL_LEAK: Rule = Rule {
     rule_id: "probe.error-detail-leak",
     confidence: Confidence::High,
-    requirement_ids: &["V14.2.1", "V7.4.1", "AC-09"],
+    // V16.5.1 is the generic error message, V13.4.2 is debug mode left on in production. It used
+    // to cite sensitive data in URLs and session termination, neither of which this looks at.
+    requirement_ids: &["V13.4.2", "V16.5.1"],
     cwe: &["CWE-209", "CWE-497"],
     impact: "A stack trace names the framework, its version, the file layout and often the query \
              that failed. It is the first thing somebody looking for a way in would like to read.",
@@ -366,7 +374,8 @@ fn error_page_leak(response: &ProbeResponse) -> Option<Finding> {
 const TRACE_ENABLED: Rule = Rule {
     rule_id: "probe.trace-enabled",
     confidence: Confidence::High,
-    requirement_ids: &["V3.4.1", "AC-09"],
+    // V13.4.4 is TRACE by name.
+    requirement_ids: &["V13.4.4"],
     cwe: &["CWE-16"],
     impact: "Anything the browser attaches to a request — cookies, authorisation headers — comes \
              back in a readable body, which turns a scripting flaw elsewhere into a way of reading \

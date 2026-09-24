@@ -299,6 +299,54 @@ changes no requirement would be its own small overstatement, so `sv` says both �
 does matter, which is that an app taking money should probably be declaring `payment-card` or `financial` in
 its data categories, and that *does* raise the target level.
 
+## The reports
+
+Everything else here prints to a terminal, where a line scrolls past and is gone. A report is kept, sent
+to somebody, and read by a person who was not there when it ran — which is why it is the most dangerous
+thing in the workspace to get wrong. A terminal line saying *not assessed* that nobody reads costs
+nothing; the same omission in a document somebody files as evidence of a security review is how an app
+ships believing it was checked.
+
+`sv report` writes `report.html` (one file, no external requests), `compliance.md`, `security.md`,
+`findings.sarif` and `report.json`. Three rules, each with a test that fails when it is broken:
+
+- **There is no pass.** An applicable requirement is *needs attention*, *checked*, or *not verified*.
+  `Checked` means one automated check looked at it and was satisfied — deliberately not called a pass,
+  because one config check being happy is not an ASVS requirement met, and the report says so in the
+  words around the number. A finding always outranks a satisfied check on the same requirement.
+- **What was not examined comes first.** In both the security report and the compliance report, before
+  anything that was found. A list of findings read on its own reads as the whole truth about the app,
+  and it is only the truth about the part that was looked at.
+- **A finding about a requirement the app is not being assessed against gets its own section** rather
+  than being dropped. It means either the requirement was excluded when it should not have been, or a
+  check is citing a requirement that has nothing to do with it, and both are worth a look.
+
+### What the reports found in the checks themselves
+
+Building the first one turned up two faults that nothing else could have shown, because both were
+invisible until something tried to resolve a citation:
+
+Five checkers cited `AC-05`, `AC-08`, `AC-09`, `AC-10` and `AC-13` — Appendix C *family* ids, written
+with a hyphen and a leading zero instead of a dot, matching no requirement at all. Worse, they were not
+near-misses in meaning either: `config.secrets-file-committed` cited the family for *Explainability &
+Traceability of Code Suggestions*, and had the spelling been right, a .gitignore would have marked an
+AI-explainability family as looked-at.
+
+Every probe citation was wrong in the same way. `security_headers` cited Strict-Transport-Security for a
+rule that checks CSP, nosniff, framing and referrer policy — over plain HTTP, where there is no TLS
+policy to have. `cookie_attributes` cited the CORS and CSP requirements. `trace_enabled` cited HSTS when
+V13.4.4 names TRACE outright. They were invented rather than looked up. They are now the ids the rules
+actually test, and `every_requirement_a_check_cites_is_a_requirement_that_exists` walks both `crates/`
+and `data/` and fails on any citation that resolves to nothing.
+
+That guard was itself wrong twice before it was right, which is the useful part. Its first version
+scanned for anything id-shaped and reported ninety failures, none of them citations — the probes name
+whole ASVS chapters in prose when saying which ones they cannot reach. Its second version read only
+`crates/`, found fourteen ids, and passed, while every id in `ast-rules.json` and `secret-rules.json`
+went unchecked. A guard that silently covers half of what it names is worse than none, because the half
+it misses now looks guarded. It ends by asserting it reached a Rust source and both JSON rule files by
+name, rather than by counting.
+
 ## Claims nothing can check
 
 Every capability in `securevibe.toml` is a claim, and `data/claim-corroborators.json` says how each one

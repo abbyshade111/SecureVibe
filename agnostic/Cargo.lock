@@ -205,6 +205,7 @@ dependencies = [
  "sv-check",
  "sv-frameworks",
  "sv-manifest",
+ "sv-report",
  "sv-run",
  "sv-scan",
 ]
@@ -226,6 +227,18 @@ dependencies = [
  "serde",
  "sv-frameworks",
  "toml",
+]
+
+[[package]]
+name = "sv-report"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sv-check",
+ "sv-frameworks",
+ "sv-manifest",
+ "sv-scan",
 ]
 
 [[package]]

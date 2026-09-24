@@ -33,9 +33,22 @@ another session is not a claim.
   as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
-- **Reports.** **[taken: keen-meninsky-691a27, 24 September 2026]** Port `reports/` now that the
-  exclusions are honest: every claim either has a corroborator or is recorded as uncheckable. A report is
-  where a wrong exclusion does its damage, which is why this waited.
+- **Load the Secure by Design checklist.** `sv --help` and the README say `sv` checks against it, and
+  `Frameworks::load` reads ASVS, AISVS and Appendix C only — the checklist contributes nothing. Found on
+  24 September 2026 while chasing bad citations. It is a third schema (`checklistDomains` → `controls`,
+  with a `statement` and no level), so it needs a level decided per control and applicability rules
+  written, which is why it is its own item and not a one-line fix. Until it is done, the help text and
+  README overstate what runs.
+
+- **Positive evidence from more than the config checks.** Only the four configuration checks can move a
+  requirement out of *not verified*, because they are the only ones that report a satisfied outcome at
+  all. The secret scan, the rules that read code and the probes each know when they looked and found
+  nothing; none of them says so in a form the report can use. Every applicable requirement they cover
+  therefore reads as unexamined, which is honest and understates the work that ran.
+
+- **A report from a run.** `sv report` never starts the app, so the probe findings are absent and the
+  gap list says so. Carrying a `sv run` result into the report means somewhere to keep it between the
+  two commands.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.

@@ -257,7 +257,7 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
             confidence: Confidence::Medium,
             location: Location { file: relative.to_owned(), line: line_of(text, value_match.start()) },
             secret: Some(Secret::redact(value)),
-            requirement_ids: vec!["V13.3.1".into(), "V13.2.3".into(), "AC-05".into()],
+            requirement_ids: vec!["V13.3.1".into(), "V13.2.3".into()],
             cwe: vec!["CWE-798".into(), "CWE-259".into()],
             description: format!(
                 "`{name}` is set to a value in the code itself. The name says it holds a credential, and the \

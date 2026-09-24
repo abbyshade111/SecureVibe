@@ -13,6 +13,7 @@ anyhow.workspace = true
 serde_json.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-manifest = { path = "../sv-manifest" }
+sv-report = { path = "../sv-report" }
 sv-scan = { path = "../sv-scan" }
 sv-run = { path = "../sv-run" }
 sv-check = { path = "../sv-check" }

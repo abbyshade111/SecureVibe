@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["crates/sv-frameworks", "crates/sv-manifest", "crates/sv-scan", "crates/sv-run", "crates/sv-check", "crates/sv-cli"]
+members = ["crates/sv-frameworks", "crates/sv-manifest", "crates/sv-scan", "crates/sv-run", "crates/sv-check", "crates/sv-report",
+    "crates/sv-cli"]
 
 [workspace.package]
 version = "0.1.0"

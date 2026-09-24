@@ -36,7 +36,13 @@ of, and whether it echoes requests back. What those questions cannot reach — a
 printed as *not assessed* before any finding, because a suite that only tries the front door and says
 nothing reads exactly like one that found nothing wrong.
 
-Not built yet: the reports, the MCP server.
+`sv report` writes the whole thing out: one HTML file you can open by double-clicking it, the same
+thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
+what was **not** examined, and nothing in them says a requirement passed — `sv` is not able to establish
+that, so it does not claim it.
+
+Not built yet: the MCP server, and the Secure by Design checklist is not yet loaded despite being named
+in the help text.
 
 ## Building
 
