@@ -13,6 +13,7 @@
  * template copy and no model call.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { emitsTestNamed } from '../fixtures/emitted-tests.js';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -131,12 +132,16 @@ describe('the recipe library holds to its contract', () => {
               // the front of the name the claim would produce no evidence at all.
               expect(testMatchesRequirement(requirement.test, requirement.id), `the test name "${requirement.test}" must start with ${requirement.id} or it will never be credited`).toBe(true);
               // And the test has to exist in what the recipe wrote.
-              const emitted = testSources.some((src) => src.includes(`test('${requirement.test}'`));
+              const emitted = testSources.some((src) => emitsTestNamed(src, requirement.test));
               expect(emitted, `${recipe.id}/${instance.id} claims ${requirement.id} but emits no test named "${requirement.test}"`).toBe(true);
               expect(requirement.proves.length, `${requirement.id} needs a plain-language sentence saying what the test shows`).toBeGreaterThan(20);
-              // The name is emitted inside a single-quoted literal, so a quote or backslash in it would produce a
-              // generated test file that does not parse.
-              expect(requirement.test, 'a test name cannot contain a quote or a backslash').not.toMatch(/['\\]/);
+              // The name used to be emitted inside a single-quoted literal, so this asserted it held no quote
+              // or backslash. It is written through `jsString` now, which escapes both — and the old rule was
+              // a false failure waiting to happen, because a record type called "Client's habit" puts an
+              // apostrophe in the name through no fault of the recipe. What matters is that the emitted file
+              // parses, which `recipes.test.ts` checks by compiling a generated app whose labels carry exactly
+              // that punctuation.
+              expect(requirement.test.trim(), 'a test name cannot be blank').not.toBe('');
             }
           }
         }

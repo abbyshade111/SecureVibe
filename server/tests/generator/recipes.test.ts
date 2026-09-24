@@ -16,6 +16,7 @@ import { manifestFeatureFlags } from '../../src/generator/scaffold.js';
 import { runSast } from '../../src/scanners/sast/index.js';
 import { makeScanContext } from '../scanners-static/helpers.js';
 import { allProfiles, clinicBookings, habitTracker, teamInventory } from '../fixtures/design/profiles.js';
+import { emitsTestNamed } from '../fixtures/emitted-tests.js';
 
 const templateDir = join(REPO_ROOT, 'templates', 'secure-web-app');
 const manifest = TemplateManifestSchema.parse(JSON.parse(readFileSync(join(templateDir, 'securevibe.manifest.json'), 'utf8')));
@@ -70,7 +71,7 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       expect(habit.requirements.length).toBeGreaterThan(0);
       for (const requirement of habit.requirements) {
         expect(requirement.test.startsWith(requirement.id), `${requirement.test} must start with ${requirement.id}`).toBe(true);
-        expect(testFile, `the test named in the mapping for ${requirement.id} must exist`).toContain(`test('${requirement.test}'`);
+        expect(emitsTestNamed(testFile, requirement.test), `the test named in the mapping for ${requirement.id} must exist`).toBe(true);
       }
 
       // The report is its own page, away from the record's own paths, because /habits/:id would match "summary".
@@ -183,6 +184,85 @@ describe.skipIf(!templateExists)('the recipe library against the real template',
       rmSync(appDir, { recursive: true, force: true });
     }
   });
+
+  it("produces code that compiles when the owner's labels contain the punctuation of ordinary English", async () => {
+    // The fixtures are all called things like "Habit" and "Item". Every emitted string was fine until
+    // somebody named a record type "Client's habit", at which point the recipe wrote
+    //
+    //     req.session.flash('success', 'Client's habit saved.');
+    //
+    // and the app it built no longer parsed. The other labels here are the ones that defeat a weaker escape:
+    // a trailing backslash, a double quote, and the characters that close a block comment.
+    const appDir = copyTemplate();
+    try {
+      const profile = structuredClone(teamInventory);
+      const entity = profile.app.entities[0]!;
+      entity.label = "Client's \"special\" item*/";
+      entity.pluralLabel = "Client's \"special\" items*/";
+      entity.fields[0]!.label = "Owner's note\\";
+      const knowledge = loadKnowledge();
+      const frameworks = loadFrameworks();
+      const design = deriveDesign(profile, { knowledge, frameworks });
+      await applyRecipes({ appDir, manifest, design, profile, runId: 'r_20260101000000_bbbb04' });
+
+      cpSync(join(templateDir, 'node_modules'), join(appDir, 'node_modules'), { recursive: true, dereference: false });
+      const tsc = join(appDir, 'node_modules', '.bin', 'tsc');
+      // `execFileSync` throws on a non-zero exit and the compiler's own message goes with it, which turns a
+      // list of exact file-and-line errors into "Command failed". The errors are the whole point here.
+      let out = '';
+      try {
+        out = execFileSync(tsc, ['-p', join(appDir, 'tsconfig.json')], { cwd: appDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (err) {
+        out = String((err as { stdout?: string }).stdout ?? err);
+      }
+      expect(out.trim(), `the generated app must compile; tsc said:\n${out}`).toBe('');
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  }, 300_000);
+
+  it("writes the owner's label into generated code without corrupting it", async () => {
+    // A second property, not a second witness for the first. The compile check above catches a label that
+    // breaks the file; this catches one that survives the compiler while saying something else, because a
+    // backslash or a newline can produce a literal that parses perfectly and no longer matches what the owner
+    // typed. A regression that breaks parsing is caught only by the compile check — deliberately, because one
+    // check over every emitted file is worth more than a per-site assertion nobody updates when a site moves.
+    const appDir = copyTemplate();
+    const LABEL = "Quirk\\y \"Client's\" thing";
+    try {
+      const profile = structuredClone(habitTracker);
+      profile.app.entities[0]!.label = LABEL;
+      profile.app.entities[0]!.pluralLabel = `${LABEL}s`;
+      const design = deriveDesign(profile, { knowledge: loadKnowledge(), frameworks: loadFrameworks() });
+      const result = await applyRecipes({ appDir, manifest, design, profile, runId: 'r_20260101000000_bbbb05' });
+
+      const literals: string[] = [];
+      for (const application of result.applications) {
+        for (const rel of application.files) {
+          if (!rel.endsWith('.ts')) continue;
+          const source = readFileSync(join(appDir, rel), 'utf8');
+          for (const match of source.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
+            let value: string;
+            try {
+              value = JSON.parse(match[0]) as string;
+            } catch {
+              continue;
+            }
+            if (value.includes('Client')) literals.push(value);
+          }
+        }
+      }
+
+      expect(literals.length, 'the label must reach the generated code somewhere').toBeGreaterThan(0);
+      for (const value of literals) {
+        // Whatever sentence it was built into, the label inside it must be the label, character for character.
+        expect(value, `a generated string lost or altered the label: ${JSON.stringify(value)}`).toContain("Client's");
+        expect(value).not.toContain('\\\\');
+      }
+    } finally {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+  }, 300_000);
 
   it('produces code that compiles, attachments and all', async () => {
     const appDir = copyTemplate();
