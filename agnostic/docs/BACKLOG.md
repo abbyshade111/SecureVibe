@@ -23,7 +23,7 @@ another session is not a claim.
 - **The adapter data file.** Per-language tooling driven by a manifest, not by Rust. A tool that is not
   installed reports *not run*, never a clean pass.
 
-- **DAST probes.** The runner starts the app and confirms it answers; nothing probes it yet. The probes run
+- **DAST probes.** **[taken: keen-meninsky-691a27, 24 September 2026]** The runner starts the app and confirms it answers; nothing probes it yet. The probes run
   from a sidecar on the fenced network — `sv-run` already does exactly that for the health check, so the
   mechanism is proven and what is missing is the probe suite itself. Port v1's `scanners/dast/probes`.
 
