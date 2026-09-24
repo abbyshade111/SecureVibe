@@ -45,8 +45,8 @@ pub fn compliance(report: &Report) -> String {
     ));
     out.push_str(
         "There is no line in this report that says a requirement passed, because nothing here is \
-         able to establish that. A requirement marked *checked* had one automated check look at it \
-         and find nothing wrong — which is worth having and is not the same as the requirement \
+         able to establish that. A requirement marked *checked* had at least one automated check look \
+         at it and find nothing wrong, over the coverage named beside it — which is worth having and is not the same as the requirement \
          being met. Everything else applicable is *not verified*: nothing has produced evidence \
          either way.\n\n",
     );
@@ -65,7 +65,7 @@ pub fn compliance(report: &Report) -> String {
         c.needs_attention
     ));
     out.push_str(&format!(
-        "| Applies, checked by one automated check | {} |\n",
+        "| Applies, checked by an automated check | {} |\n",
         c.checked
     ));
     out.push_str(&format!(
@@ -101,7 +101,15 @@ pub fn compliance(report: &Report) -> String {
             Status::NeedsAttention => {
                 format!("**{}** ({})", line.status.label(), line.findings.join(", "))
             }
-            Status::Checked => format!("{} ({})", line.status.label(), line.checked_by.join(", ")),
+            Status::Checked => format!(
+                "{} ({})",
+                line.status.label(),
+                line.checked_by
+                    .iter()
+                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
             Status::NotVerified => line.status.label().to_owned(),
         };
         out.push_str(&format!(

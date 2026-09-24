@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use sv_check::config::Passed;
+use sv_check::Verified;
 use sv_check::{Confidence, Finding, Location, Severity};
 use sv_frameworks::applicability::{Buckets, NotApplicable, NotAssessed};
 use sv_frameworks::{Condition, Frameworks, Source};
@@ -42,7 +42,7 @@ fn inputs<'a>(
     frameworks: &'a Frameworks,
     buckets: &'a Buckets,
     findings: Vec<Finding>,
-    passed: &'a [Passed],
+    verified: &'a [Verified],
 ) -> Inputs<'a> {
     Inputs {
         app_name: "Test",
@@ -52,7 +52,7 @@ fn inputs<'a>(
         buckets,
         claims: &[],
         findings,
-        passed_checks: passed,
+        verified,
         gaps: vec![],
     }
 }
@@ -89,10 +89,11 @@ fn a_satisfied_check_never_hides_a_finding_about_the_same_requirement() {
         applicable: vec!["V1.2.1".into()],
         ..Default::default()
     };
-    let passed = vec![Passed {
-        id: "config.something".into(),
-        requirement_ids: vec!["V1.2.1".into()],
-    }];
+    let passed = vec![Verified::new(
+        "config.something",
+        &["V1.2.1"],
+        "the files this check reads".to_owned(),
+    )];
     let report = build(inputs(
         &f,
         &buckets,
@@ -105,17 +106,18 @@ fn a_satisfied_check_never_hides_a_finding_about_the_same_requirement() {
 
 #[test]
 fn nothing_is_ever_labelled_a_pass() {
-    // "Checked" is one automated check being satisfied. The word "pass" would be read as the
+    // "Checked" is an automated check being satisfied over stated coverage. The word "pass" would be read as the
     // requirement being met, which nothing in this workspace is able to establish.
     let f = frameworks();
     let buckets = Buckets {
         applicable: vec!["V1.2.1".into()],
         ..Default::default()
     };
-    let passed = vec![Passed {
-        id: "config.something".into(),
-        requirement_ids: vec!["V1.2.1".into()],
-    }];
+    let passed = vec![Verified::new(
+        "config.something",
+        &["V1.2.1"],
+        "the files this check reads".to_owned(),
+    )];
     let report = build(inputs(&f, &buckets, vec![], &passed));
     assert_eq!(report.requirements[0].status, Status::Checked);
 
@@ -344,11 +346,12 @@ fn the_rendered_pages_tell_the_same_story_as_the_model() {
         applicable: vec!["V1.2.1".into(), "V1.3.1".into(), "V13.3.1".into()],
         ..Default::default()
     };
-    let passed = vec![Passed {
+    let passed = vec![Verified::new(
         // The same requirement something else found a problem in.
-        id: "config.contested".into(),
-        requirement_ids: vec!["V1.2.1".into()],
-    }];
+        "config.contested",
+        &["V1.2.1"],
+        "the files this check reads".to_owned(),
+    )];
     let mut i = inputs(&f, &buckets, vec![finding("ast.sql", &["V1.2.1"])], &passed);
     i.gaps = vec![Gap {
         what: "the running app".into(),

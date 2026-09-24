@@ -182,6 +182,71 @@ const SECURITY_HEADERS: Rule = Rule {
     fix: "Set them once, in whatever sits in front of every response, rather than per route.",
 };
 
+/// What the answers show the app is doing right.
+///
+/// The strongest positive evidence anything here produces, and the only kind that is direct: a
+/// header that came back really did come back. The rest of the workspace can say a rule did not
+/// fire over the code it read; this can say the app, running, answered correctly.
+///
+/// Fail closed on a missing answer. A probe that got no reply establishes nothing about the app,
+/// and a rule whose response is absent is skipped rather than credited — which is why each arm
+/// looks up its own response instead of assuming the suite ran.
+pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
+    let mut out = Vec::new();
+    let find = |id: &str| responses.iter().find(|r| r.id == id);
+
+    if let Some(home) = find("home") {
+        if security_headers(home).is_none() {
+            out.push(crate::Verified::new(
+                SECURITY_HEADERS.rule_id,
+                SECURITY_HEADERS.requirement_ids,
+                "the app's answer on its health path, as somebody not signed in".to_owned(),
+            ));
+        }
+        // Only when there was a cookie to judge. No cookie is not a correct cookie.
+        let sets_a_cookie = home.headers.iter().any(|(k, _)| k == "set-cookie");
+        if sets_a_cookie && cookie_attributes(home).is_none() {
+            out.push(crate::Verified::new(
+                COOKIE_ATTRIBUTES.rule_id,
+                COOKIE_ATTRIBUTES.requirement_ids,
+                "every cookie the app set on that answer".to_owned(),
+            ));
+        }
+    }
+    if let Some(cors) = find("cors") {
+        // And only when the app answered the CORS question at all. An app that sends no
+        // Access-Control-Allow-Origin has not been shown to check origins; it has been shown not to
+        // be asked. Those read the same in a report unless this line is here.
+        if cors.header("access-control-allow-origin").is_some() && reflected_origin(cors).is_none()
+        {
+            out.push(crate::Verified::new(
+                CORS_ANY_ORIGIN.rule_id,
+                CORS_ANY_ORIGIN.requirement_ids,
+                "an Origin the app has never heard of".to_owned(),
+            ));
+        }
+    }
+    if let Some(missing) = find("missing")
+        && error_page_leak(missing).is_none()
+    {
+        out.push(crate::Verified::new(
+            ERROR_DETAIL_LEAK.rule_id,
+            ERROR_DETAIL_LEAK.requirement_ids,
+            "what the app says when asked for a page that is not there".to_owned(),
+        ));
+    }
+    if let Some(trace) = find("trace")
+        && trace_enabled(trace).is_none()
+    {
+        out.push(crate::Verified::new(
+            TRACE_ENABLED.rule_id,
+            TRACE_ENABLED.requirement_ids,
+            "a TRACE request carrying a header this probe invented".to_owned(),
+        ));
+    }
+    out
+}
+
 /// Headers a browser needs in order to protect the people using the app.
 fn security_headers(response: &ProbeResponse) -> Option<Finding> {
     let mut missing = Vec::new();

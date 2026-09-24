@@ -40,13 +40,10 @@ another session is not a claim.
   written, which is why it is its own item and not a one-line fix. Until it is done, the help text and
   README overstate what runs.
 
-- **Positive evidence from more than the config checks.** **[taken: keen-meninsky-691a27, 24 September
-  2026]** Only the four configuration checks can move a requirement out of *not verified*, because they
-  are the only ones that report a satisfied outcome at all. The secret scan, the rules that read code and
-  the probes each know when they looked and found nothing; none says so in a form the report can use, so
-  205 of 207 applicable requirements read as unexamined on an app all three ran over. The care needed is
-  in the scope: a credential rule is evidence only about files it read, and a code rule says nothing
-  about a language it has no grammar for.
+- **Clean coverage from the remaining checks.** The credential scan, the rules that read code and the
+  probes now report what they examined and found nothing wrong; the SBOM and advisory checks do not, and
+  neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
+  which is the pattern to follow.
 
 - **A report from a run.** `sv report` never starts the app, so the probe findings are absent and the
   gap list says so. Carrying a `sv run` result into the report means somewhere to keep it between the

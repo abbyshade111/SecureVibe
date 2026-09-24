@@ -15,6 +15,7 @@
 //! an app somebody uploaded, not an error.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
+use crate::verified::Verified;
 use std::path::Path;
 use std::process::Command;
 
@@ -33,19 +34,10 @@ pub enum Outcome {
     NotAssessed(String),
 }
 
-/// A check that ran and was satisfied, and what it is evidence about.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Passed {
-    pub id: String,
-    /// The same ids the failing branch of this check cites. Empty means the check is evidence about
-    /// the app in general and about no requirement in particular — a fair thing to be, but visible.
-    pub requirement_ids: Vec<String>,
-}
-
 #[derive(Debug, Default)]
 pub struct ConfigReport {
     pub findings: Vec<Finding>,
-    pub passed: Vec<Passed>,
+    pub passed: Vec<Verified>,
     /// Check id and why it could not run. Never folded into "passed".
     pub not_assessed: Vec<(String, String)>,
 }
@@ -53,10 +45,11 @@ pub struct ConfigReport {
 impl ConfigReport {
     fn record(&mut self, id: &str, outcome: Outcome) {
         match outcome {
-            Outcome::Passed(requirement_ids) => self.passed.push(Passed {
-                id: id.to_owned(),
-                requirement_ids: requirement_ids.iter().map(|s| (*s).to_owned()).collect(),
-            }),
+            Outcome::Passed(requirement_ids) => self.passed.push(Verified::new(
+                id,
+                requirement_ids,
+                "the files this check reads".to_owned(),
+            )),
             Outcome::Failed(f) => self.findings.push(*f),
             Outcome::NotAssessed(why) => self.not_assessed.push((id.to_owned(), why)),
         }
@@ -414,7 +407,7 @@ mod tests {
             !report
                 .passed
                 .iter()
-                .any(|p| p.id == "config.secrets-file-committed"),
+                .any(|p| p.check_id == "config.secrets-file-committed"),
             "a folder with no git history must not pass this check"
         );
         let (_, why) = report
@@ -440,7 +433,7 @@ mod tests {
             !report
                 .passed
                 .iter()
-                .any(|p| p.id == "config.secrets-file-committed"),
+                .any(|p| p.check_id == "config.secrets-file-committed"),
             "a repository git cannot read must not pass: {report:?}"
         );
         assert!(
@@ -461,7 +454,7 @@ mod tests {
             check_dir(&dir)
                 .passed
                 .iter()
-                .any(|p| p.id == "config.gitignore-covers-env")
+                .any(|p| p.check_id == "config.gitignore-covers-env")
         );
 
         fs::write(dir.join(".gitignore"), "node_modules\ndist\n").unwrap();
@@ -485,7 +478,7 @@ mod tests {
                 check_dir(&dir)
                     .passed
                     .iter()
-                    .any(|p| p.id == "config.gitignore-covers-env"),
+                    .any(|p| p.check_id == "config.gitignore-covers-env"),
                 "{pattern} should count as covering .env"
             );
         }
@@ -516,7 +509,7 @@ mod tests {
             check_dir(&dir)
                 .passed
                 .iter()
-                .any(|p| p.id == "config.versions-pinned")
+                .any(|p| p.check_id == "config.versions-pinned")
         );
         fs::remove_dir_all(&dir).ok();
     }
@@ -557,7 +550,7 @@ mod tests {
             !report
                 .passed
                 .iter()
-                .any(|p| p.id == "config.versions-pinned"),
+                .any(|p| p.check_id == "config.versions-pinned"),
             "Maven must not pass a check nothing performed: {report:?}"
         );
         let (_, why) = report
@@ -578,7 +571,7 @@ mod tests {
             !report
                 .passed
                 .iter()
-                .any(|p| p.id == "config.versions-pinned")
+                .any(|p| p.check_id == "config.versions-pinned")
         );
         assert!(
             report
@@ -610,7 +603,7 @@ mod tests {
             check_dir(&dir)
                 .passed
                 .iter()
-                .any(|p| p.id == "config.security-contact")
+                .any(|p| p.check_id == "config.security-contact")
         );
         fs::remove_dir_all(&dir).ok();
     }
@@ -621,7 +614,7 @@ mod tests {
         fs::write(dir.join(".gitignore"), ".env\n").unwrap();
         let report = check_dir(&dir);
         for passed in &report.passed {
-            let id = &passed.id;
+            let id = &passed.check_id;
             assert!(
                 !report.findings.iter().any(|f| &f.rule_id == id),
                 "{id} is reported as both passed and failed"
@@ -662,7 +655,7 @@ mod passed_evidence_tests {
             .passed
             .iter()
             .filter(|p| p.requirement_ids.is_empty())
-            .map(|p| p.id.as_str())
+            .map(|p| p.check_id.as_str())
             .filter(|id| !CITES_NOTHING_ON_PURPOSE.contains(id))
             .collect();
         assert!(
@@ -689,7 +682,7 @@ mod passed_evidence_tests {
         let on_pass: Vec<String> = passed
             .passed
             .iter()
-            .find(|p| p.id == "config.gitignore-covers-env")
+            .find(|p| p.check_id == "config.gitignore-covers-env")
             .map(|p| p.requirement_ids.clone())
             .expect("the clean app passes this check");
         let on_fail: Vec<String> = failed

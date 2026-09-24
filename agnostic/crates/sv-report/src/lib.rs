@@ -9,7 +9,7 @@
 //! Three rules, and every one of them has a test that fails when it is broken:
 //!
 //! 1. **There is no `pass`.** An applicable requirement is either *needs attention* — a check found
-//!    something and cited it — or *checked*, meaning one automated check looked at it and was
+//!    something and cited it — or *checked*, meaning at least one automated check looked at it and was
 //!    satisfied, or *not verified*, meaning nothing has produced evidence either way. `Checked` is
 //!    deliberately not called a pass: one config check being happy is not an ASVS requirement met,
 //!    and the report says so in the words around the number.
@@ -59,8 +59,18 @@ pub struct RequirementLine {
     pub status: Status,
     /// Rule ids of the findings that cite this requirement.
     pub findings: Vec<String>,
-    /// Ids of the checks that looked at this requirement and were satisfied.
-    pub checked_by: Vec<String>,
+    /// The checks that looked at this requirement and were satisfied, each with what it covered.
+    pub checked_by: Vec<CheckedBy>,
+}
+
+/// One check that was satisfied about a requirement, and what it examined to say so.
+///
+/// The scope travels with the claim rather than being looked up elsewhere, because "checked" without
+/// "over what" is the part of a report that gets skimmed and believed.
+#[derive(Debug, Clone, Serialize)]
+pub struct CheckedBy {
+    pub check_id: String,
+    pub scope: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -153,8 +163,8 @@ pub struct Inputs<'a> {
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
     pub findings: Vec<Finding>,
-    /// Check ids that ran and were satisfied, with the requirements each is evidence about.
-    pub passed_checks: &'a [sv_check::config::Passed],
+    /// Everything that ran, looked at what it needed to, and found nothing wrong.
+    pub verified: &'a [sv_check::Verified],
     /// What was not examined, and why — from every checker that knows it fell short.
     pub gaps: Vec<Gap>,
 }
@@ -177,11 +187,14 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .filter(|f| f.requirement_ids.iter().any(|r| r == id))
             .map(|f| f.rule_id.clone())
             .collect();
-        let checked_by: Vec<String> = inputs
-            .passed_checks
+        let checked_by: Vec<CheckedBy> = inputs
+            .verified
             .iter()
-            .filter(|p| p.requirement_ids.iter().any(|r| r == id))
-            .map(|p| p.id.clone())
+            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
+            .map(|v| CheckedBy {
+                check_id: v.check_id.clone(),
+                scope: v.scope.clone(),
+            })
             .collect();
         // A finding beats a satisfied check: one check being happy says nothing about what another
         // one found, and the report must never let the happier of two answers hide the other.
@@ -297,10 +310,10 @@ pub fn build(inputs: Inputs<'_>) -> Report {
     });
 
     let satisfied_about_nothing: Vec<String> = inputs
-        .passed_checks
+        .verified
         .iter()
-        .filter(|p| p.requirement_ids.is_empty())
-        .map(|p| p.id.clone())
+        .filter(|v| v.requirement_ids.is_empty())
+        .map(|v| format!("{} ({})", v.check_id, v.scope))
         .collect();
 
     let mut findings = inputs.findings;

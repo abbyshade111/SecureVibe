@@ -321,6 +321,37 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+### Saying a check looked and found nothing
+
+A finding is a claim about something that is there. `Verified` is the mirror: a claim about something
+that is *not*, which is only worth the coverage behind it, and which fails in a direction nobody
+notices — a green line in a report is not something a reader goes back to question.
+
+Three rules hold wherever one is produced. **Fail closed**: a check says nothing unless it read
+everything it would have needed to. **Say the scope**, in a person's words, beside the claim, because
+"checked" means nothing without "over what". **Claim no more than the check tests**: the requirement ids
+are the same ones it cites when it fails, which is the one direction this must never move in.
+
+What that rules out is more interesting than what it allows:
+
+- No rule that reads code says anything at all while a language present in the app goes unparsed. The
+  injection it looks for could be sitting in the Ruby nobody read, so a clean Python scan of a
+  Python-and-Ruby app has established nothing about that app.
+- A rule says nothing about a language it never saw. A SQL rule that never met a line of Python has not
+  shown the app builds no queries by hand.
+- A credential scan that skipped one file claims nothing. "Forty-eight of fifty-two files were clean"
+  belongs in the gap list, not beside a requirement, and the skipped one is exactly where a key would
+  be. An empty folder claims nothing either: reading no files is the one case where "found no
+  credentials" is true and means nothing.
+- An app that set **no cookie** is not credited with setting good ones, and an app that sent **no
+  `Access-Control-Allow-Origin`** is not credited with checking origins. Both rules return "no finding"
+  for the careful app and for the app that was never really asked, and reading that as correctness hands
+  a green line to every app that does neither.
+
+The probes are the only place anything here observes the app doing the right thing rather than failing
+to catch it doing the wrong one, and a probe with no answer credits nothing — otherwise a run against an
+app that would not start reads as a run against an app that passed.
+
 ### What the reports found in the checks themselves
 
 Building the first one turned up two faults that nothing else could have shown, because both were

@@ -69,7 +69,7 @@ pub fn page(report: &Report) -> String {
     ));
     b.push_str(
         "<p>Nothing in this report says a requirement passed, because nothing here can establish \
-         that. <em>Checked</em> means one automated check looked at it and found nothing wrong, \
+         that. <em>Checked</em> means an automated check looked at it and found nothing wrong, \
          which is worth having and is not the same as the requirement being met. Everything else \
          that applies is <em>not verified</em>: nothing has produced evidence either way.</p>\n",
     );
@@ -90,7 +90,7 @@ pub fn page(report: &Report) -> String {
             "needs-attention",
         ),
         (
-            "Applies, checked by one automated check",
+            "Applies, checked by an automated check",
             c.checked,
             "checked",
         ),
@@ -173,7 +173,14 @@ pub fn page(report: &Report) -> String {
         };
         let detail = match line.status {
             Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
-            Status::Checked => format!(" ({})", line.checked_by.join(", ")),
+            Status::Checked => format!(
+                " ({})",
+                line.checked_by
+                    .iter()
+                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
             Status::NotVerified => String::new(),
         };
         b.push_str(&format!(

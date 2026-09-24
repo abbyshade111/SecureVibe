@@ -433,6 +433,7 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
             let findings = probes::evaluate(&outcome.probe_responses);
+            let verified = probes::verified(&outcome.probe_responses);
             println!(
                 "\nAsked it {} question{}, as somebody who has not signed in.",
                 outcome.probe_responses.len(),
@@ -453,6 +454,22 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
             println!("\nNot assessed by these probes:");
             for (requirements, why) in probes::unassessed_requirements() {
                 println!("  {requirements} — {why}");
+            }
+
+            if !verified.is_empty() {
+                println!(
+                    "\n{} thing{} the running app got right:",
+                    verified.len(),
+                    if verified.len() == 1 { "" } else { "s" }
+                );
+                for v in &verified {
+                    println!("  {} — checked over {}", v.check_id, v.scope);
+                    if !v.requirement_ids.is_empty() {
+                        println!("     evidence about: {}", v.requirement_ids.join(", "));
+                    }
+                }
+                println!("  These are the only places anything here watched the app do the right");
+                println!("  thing, rather than failing to catch it doing the wrong one.");
             }
 
             if findings.is_empty() {
@@ -580,10 +597,11 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     let scan = sv_check::SecretScan {
         findings,
         coverage: scan.coverage,
+        verified: scan.verified,
     };
 
     if !config.passed.is_empty() {
-        let names: Vec<&str> = config.passed.iter().map(|p| p.id.as_str()).collect();
+        let names: Vec<&str> = config.passed.iter().map(|p| p.check_id.as_str()).collect();
         println!("\nChecked and fine: {}.", names.join(", "));
     }
 
@@ -907,6 +925,13 @@ fn cmd_report(args: &[String]) -> Result<()> {
         });
     }
 
+    // Everything that ran, looked at what it needed to, and found nothing wrong. Each of these
+    // fails closed on its own coverage, so the list is short on an app `sv` could not read fully —
+    // which is the honest shape for it to have.
+    let mut verified = config.passed.clone();
+    verified.extend(secrets.verified.iter().cloned());
+    verified.extend(code.verified.iter().cloned());
+
     let report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -919,7 +944,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         buckets: &buckets,
         claims: &resolved,
         findings,
-        passed_checks: &config.passed,
+        verified: &verified,
         gaps,
     });
 
@@ -941,7 +966,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         println!("  {name}");
     }
     println!(
-        "\n{} requirements apply. {} need{} attention, {} {} checked by one automated check, \
+        "\n{} requirements apply. {} need{} attention, {} {} checked by an automated check, \
          {} {} not verified by anything.",
         c.applicable,
         c.needs_attention,

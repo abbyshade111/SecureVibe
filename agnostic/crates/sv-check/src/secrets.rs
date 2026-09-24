@@ -48,6 +48,24 @@ pub struct SecretRules {
 }
 
 impl SecretRules {
+    /// Every requirement any credential rule is about, deduplicated.
+    ///
+    /// The union is right here and would be wrong for a per-rule claim: a scan that found no
+    /// credentials of *any* listed shape is one piece of evidence about keeping credentials out of
+    /// the code, not eight separate ones.
+    pub fn requirement_ids(&self) -> Vec<&str> {
+        let mut ids: Vec<&str> = self
+            .rules
+            .iter()
+            .flat_map(|(rule, _)| rule.requirement_ids.iter().map(String::as_str))
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
+    }
+}
+
+impl SecretRules {
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
@@ -87,6 +105,8 @@ pub struct Coverage {
 pub struct SecretScan {
     pub findings: Vec<Finding>,
     pub coverage: Coverage,
+    /// Set when the scan read every file it found and turned up nothing.
+    pub verified: Vec<crate::Verified>,
 }
 
 /// Values that mean "fill this in", not a credential.
@@ -295,7 +315,39 @@ pub fn scan_dir(rules: &SecretRules, app_dir: &Path) -> SecretScan {
             .then_with(|| a.location.file.cmp(&b.location.file))
             .then_with(|| a.location.line.cmp(&b.location.line))
     });
+    scan.verified = clean_scan(rules, &scan);
     scan
+}
+
+/// Whether this scan is evidence that the app holds no credentials.
+///
+/// Fail closed on anything skipped. A file that could not be read might be the one holding the key,
+/// and "48 of 52 files were clean" belongs in the gap list, not beside a requirement as a green
+/// line. The scope says how many rules were behind it, because a credential in a shape nobody
+/// listed would still not have been found — that bound holds however complete the file coverage is,
+/// so it is stated rather than left for the reader to remember.
+fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
+    if !scan.findings.is_empty()
+        || !scan.coverage.skipped.is_empty()
+        || scan.coverage.files_read == 0
+    {
+        return Vec::new();
+    }
+    let ids = rules.requirement_ids();
+    vec![crate::Verified::new(
+        "secrets.scan",
+        &ids,
+        format!(
+            "{} file{}, against {} known credential formats plus the assignment rule",
+            scan.coverage.files_read,
+            if scan.coverage.files_read == 1 {
+                ""
+            } else {
+                "s"
+            },
+            rules.len()
+        ),
+    )]
 }
 
 /// Directories whose contents belong to somebody else, or are build output.

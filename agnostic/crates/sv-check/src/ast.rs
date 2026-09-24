@@ -84,6 +84,25 @@ pub struct AstRules {
     compiled: Vec<Compiled>,
 }
 
+impl AstRules {
+    /// Every rule, with the languages it can read and the requirements it is about.
+    ///
+    /// Needed to say what a clean scan covered: a rule is evidence only for the languages it has a
+    /// query for, so a rule with a Python query says nothing about a Go file it never looked at.
+    pub fn coverage(&self) -> Vec<(&str, Vec<&str>, Vec<&str>)> {
+        self.compiled
+            .iter()
+            .map(|c| {
+                (
+                    c.rule.id.as_str(),
+                    c.queries.keys().map(String::as_str).collect(),
+                    c.rule.requirement_ids.iter().map(String::as_str).collect(),
+                )
+            })
+            .collect()
+    }
+}
+
 /// The languages a grammar is compiled in for.
 fn grammar(language: &str) -> Option<Language> {
     Some(match language {
@@ -228,6 +247,10 @@ pub struct AstScan {
     /// Languages present in the app that no grammar reads, so nothing is claimed about them.
     pub unread_languages: BTreeSet<String>,
     pub files_parsed: usize,
+    /// How many files were parsed in each language.
+    pub parsed_by_language: BTreeMap<String, usize>,
+    /// Rules that ran over everything they could read and found nothing.
+    pub verified: Vec<crate::Verified>,
 }
 
 /// Runs every rule that has a query for this language over one file.
@@ -331,7 +354,42 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
             .then_with(|| a.location.file.cmp(&b.location.file))
             .then_with(|| a.location.line.cmp(&b.location.line))
     });
+    scan.verified = clean_rules(rules, &scan);
     scan
+}
+
+/// The rules that read everything they could have read, and found nothing.
+///
+/// Fail closed twice over. A rule says nothing unless it parsed at least one file in a language it
+/// has a query for — a SQL rule that never saw a line of Python has not established that the app
+/// builds no queries by hand. And no rule says anything at all while a language present in the app
+/// goes unread, because the injection it looks for could be sitting in the Ruby nobody parsed.
+fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
+    if !scan.unread_languages.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for (rule_id, languages, requirement_ids) in rules.coverage() {
+        if scan.findings.iter().any(|f| f.rule_id == rule_id) {
+            continue;
+        }
+        let covered: Vec<String> = languages
+            .iter()
+            .filter_map(|language| {
+                let n = scan.parsed_by_language.get(*language).copied()?;
+                (n > 0).then(|| format!("{n} {language} file{}", if n == 1 { "" } else { "s" }))
+            })
+            .collect();
+        if covered.is_empty() {
+            continue;
+        }
+        out.push(crate::Verified::new(
+            rule_id,
+            &requirement_ids,
+            covered.join(", "),
+        ));
+    }
+    out
 }
 
 fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &mut AstScan) {
@@ -369,6 +427,10 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
             .to_string_lossy()
             .to_string();
         scan.files_parsed += 1;
+        *scan
+            .parsed_by_language
+            .entry(language.to_owned())
+            .or_default() += 1;
         scan.findings
             .extend(scan_file(rules, language, &relative, &source));
     }
