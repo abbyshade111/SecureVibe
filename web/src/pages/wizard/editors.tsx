@@ -112,6 +112,11 @@ export function EntitiesEditor({
               }}
               aria-label="Record name"
             />
+            {!entity.label.trim() && (
+              <span className="sv-help" style={{ marginLeft: 8 }}>
+                Give this kind of record a name to include it.
+              </span>
+            )}
             <button
               type="button"
               className="sv-btn sv-btn-secondary sv-btn-sm"

@@ -252,10 +252,6 @@ building from nothing.
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
   app.
-- **The Features page refuses before anyone has typed.** Clicking into the record-type box raises a red banner
-  saying nothing was saved because there is nothing there — an error about the user's failure to have already
-  done the thing they are in the middle of starting. Validation should wait for the field to be left, or for a
-  save, not fire on focus.
 - **A follow-up question can only take one answer.** When several apply, the owner has to pick one and lose the
   rest. Multiple selection where the question allows it, and the answers it may set must still come from the
   same allow-list, so this widens what an owner can say without widening what the flow may change.
