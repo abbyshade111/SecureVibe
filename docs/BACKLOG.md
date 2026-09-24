@@ -42,7 +42,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **After a check without answers: an AI review against the floor.** The check itself and the reports no longer wait
+- **After a check without answers: an AI review against the floor.** **[taken: restored first session, 24 September 2026]** The check itself and the reports no longer wait
   for the questions (24 September 2026): an uploaded app is checked as uploaded, and the security report, SARIF,
   run log, provenance and bill of materials are written in full, with an overview that says why there is no
   compliance report yet. What remains: the AI review could read the code against ASVS Level 1, the floor every
