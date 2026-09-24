@@ -42,7 +42,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **After a check without answers: real reports and an AI review against the floor.** The check itself no longer
+- **After a check without answers: real reports and an AI review against the floor.** **[taken: restored first session, 24 September 2026]** The check itself no longer
   waits for the questions (24 September 2026): an uploaded app is checked as soon as it is uploaded, the compliance
   step says the rules are undecided rather than absent, the results page says so beside the findings and links to
   the questions, and the AI review says it waits for the answers and spent nothing. Two halves remain. The full
