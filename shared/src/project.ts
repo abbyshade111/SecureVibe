@@ -48,16 +48,9 @@ export const RefinementQuestionSchema = z.object({
   /** The answer this question sets, when SecureVibe can apply it. */
   field: z.string().optional(),
   options: z.array(z.object({ label: z.string(), value: z.string() })).default([]),
-  /**
-   * True when the owner may pick several of the options. Only a question that adds to a list (features, record
-   * types) takes several; a question that sets one answer, like who uses the app, takes one.
-   */
-  multiple: z.boolean().default(false),
   answered: z.boolean().default(false),
   /** The value the owner chose (or their own words when the question only records a note). */
   answer: z.string().optional(),
-  /** Every value the owner chose, when the question takes several. */
-  answers: z.array(z.string()).optional(),
 });
 export type RefinementQuestion = z.infer<typeof RefinementQuestionSchema>;
 

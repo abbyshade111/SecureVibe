@@ -332,19 +332,11 @@ export function projectsRouter(deps: ApiDeps): Router {
     for (const answer of body.answers) {
       const question = refinement.questions.find((q) => q.id === answer.questionId);
       if (!question) continue;
-      const chosen = [...new Set((answer.values ?? []).concat(answer.value !== undefined ? [answer.value] : []))].filter((v) => v !== '');
-      if (chosen.length === 0) continue;
       question.answered = true;
-      question.answer = chosen.join(', ');
-      question.answers = chosen;
-      // A question that takes one answer is given several only by a request the page never sends; nothing is
-      // applied rather than guessing which one was meant. The answer is still recorded.
-      if (!question.multiple && chosen.length > 1) continue;
-      for (const value of chosen) {
-        // Only an answer the question itself offered, for a field on the allow-list, changes the design.
-        const allowed = question.field !== undefined && question.options.some((o) => o.value === value) && answerFieldAllowed(question.field, value);
-        if (allowed) profile = applyRefinement(profile, question.field!, value);
-      }
+      question.answer = answer.value;
+      // Only an answer the question itself offered, for a field on the allow-list, changes the design.
+      const allowed = question.field !== undefined && question.options.some((o) => o.value === answer.value) && answerFieldAllowed(question.field, answer.value);
+      if (allowed) profile = applyRefinement(profile, question.field!, answer.value);
     }
     for (const decision of body.features) {
       const feature = refinement.features.find((f) => f.id === decision.suggestionId);
