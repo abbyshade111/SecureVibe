@@ -44,13 +44,13 @@ another session is not a claim.
   a nested one belongs to, and skipping `node_modules` and vendored copies, which is why it is its own
   item.
 
-- **Secure by Design controls excluded on too narrow a question.** *Claimed 25 September 2026 by session
-  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), at the owner's request.* Found in
-  review: "runs as one service" switches off controls that a single app still needs — circuit breakers
-  when it calls outside APIs (RR-02), repeat-safe handlers when payment webhooks are retried (DM-03),
-  durable messaging and async semantics when it has a job queue (AS-06, RR-03), startup with a missing
-  dependency when it has a database (AS-07) — and `tls = off` excludes "all communications use TLS"
-  (AC-01) even for an app on the internet.
+- ~~**Secure by Design controls excluded on too narrow a question.**~~ Done on 25 September 2026, at
+  the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
+  (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
+  AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
+  Left over from the same review, not done: the derived checklist levels are reported as "above the
+  ASVS level this app targets", which is not what they are; and SBD-AC-05's "no secrets in code" is
+  exactly what the credential scan checks, which the report could show beside the control.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
