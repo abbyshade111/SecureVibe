@@ -123,6 +123,60 @@ take an anti-forgery token from, the sign-out went without one, the app correctl
 first run reported "signing out does not end the session". A sign-out that did not happen is now not
 assessed, and the token is looked for on the user's other pages, as a sign-out button's would be.
 
+### Level 1, asked of the running app
+
+The coverage count showed 49 of the 70 Level 1 requirements with no check at all, and Authentication
+with none. Eight of them can be asked of a running app with what `[stack.run.users]` already says, and
+now are, which takes Level 1 from 21 to 29.
+
+Two need no account: a Content-Type on responses with a body, with a charset on text (V4.1.1), and
+`/.git/HEAD` and `/.git/config` not served (V13.4.1). The Content-Type check is credited only when both
+the page and the error answer had a body; an app whose error is a redirect has shown one answer, and
+one answer does not stand for its responses. The `.git` check needs git's own contents in the answer,
+so a single-page app answering every path with its page is not mistaken for one serving its history.
+
+The password rules are asked through `signup` and answered by signing in, because how an app words a
+refusal is its own business and a sign-in is not. A control goes first: an ordinary strong password,
+32 characters of every kind. If that account cannot sign in, nothing is asked. Each password after it
+differs from the control in one thing, so a refusal is about that thing: 7 characters (V6.2.1), lowercase
+letters alone (V6.2.5), and a password from the 3000 most common (V6.2.4) beside a random one of the same
+length and kinds of character, because an app that wants a capital refuses the common one for that and
+not for being common. That case is not assessed, rather than credited. `signup` works beside `seed`, so
+an app can have its admin made by `seed` and still have its passwords asked.
+
+Three can only ever find something. Four default accounts that do not sign in are four, not none
+(V6.3.2). A password refused in the address shows one address refuses it (V14.2.1). And a session id
+can be shown too short to hold 128 bits, or the same at two sign-ins, but its value never shows it came
+from a secure generator (V7.2.3): the length measure is an upper bound, and a run of one letter passes
+it. A clean answer to any of the three is credited with nothing.
+
+Run against `examples/notes-with-users`, which gained a sign-up page that refuses short and common
+passwords and nothing else: 14 checks confirmed where there were 10, nothing found, in 11 seconds
+rather than 4, most of the difference being the app's own password hashing. Three copies with faults
+switched on found every one: a short password, a common one, `admin`/`admin`, a password in the address
+and an 8-character session id in the first; a rule wanting a capital and a digit in the second, with
+V6.2.4 not assessed beside it as intended; a served `/.git/HEAD` and text without a charset in the
+third.
+
+### Tests to write
+
+The coverage count said 290 ASVS requirements have no check in `sv`, and that the one route to evidence
+for every requirement is the app's own passing test naming it. Nothing turned that into something to act
+on: a requirement nobody had written a test for read exactly like one whose test did not run.
+
+The report now has a section, "Tests to write": every applicable requirement with no evidence of any
+kind and no test in the app naming it, lowest level first, ASVS before AISVS. The test files are read
+whether or not the tests ran, so a requirement named in a test that did not run here is listed apart,
+as named and not credited, rather than as a test to write. `sv mcp` gives the AI coding tool the same
+list, the first 30 lines of it, because the tool is the one that writes the tests; `sv init` tells it to
+work down the list, fixing what the app does not yet meet before writing the test that shows it.
+
+What a test of the application cannot show is left out and counted: a requirement classed as
+documentation or a deployment setting, design review, the AISVS appendix on the development process,
+and any whose own words ask for documentation. Leaving something off a to-do list credits nothing, so
+this can err only towards a shorter list. On `examples/tested-notes`: 71 tests to write, 18 at level 1,
+and 84 left out with the reason.
+
 ## Handover
 
 `sv check ./my-app` is the primitive: any tool, any editor, CI. An MCP server wrapping the same core comes
@@ -616,6 +670,34 @@ is written for a language the app is in; each mapped rule carries its languages 
 kept run: 9 requirements for a Python app, 5 for a Go app, none for a Ruby app, where it was 39 for all
 three. A report that lists no rules credits nothing. Bandit, gosec and Brakeman are unchanged: each runs
 every check it has over its one language, whatever its report lists.
+
+**A tool told to look away, corrected again.** That last sentence was true only of a tool nobody had
+told to skip anything, and the app can tell it. Found by the other session and verified by running the
+tools, each of the four in the version named:
+
+- Bandit 1.9.4 skips a line marked `# nosec`, or one check on a line marked `# nosec B608`, and its
+  SARIF then holds no result, only two counts in `runs[0].properties.metrics._totals` (`nosec` and
+  `skipped_tests`). A `.bandit` file in the app can switch checks and folders off, and nothing in the
+  report says so at all. A search that joined user input into SQL on a `# nosec` line was credited as
+  V1.2.4 checked.
+- gosec 2.29.0 leaves a `#nosec` line out of its SARIF and says nothing, unless asked with
+  `-track-suppressions`, when the issue is there and marked as suppressed.
+- Semgrep 1.178.0 keeps a `// nosemgrep` result in its SARIF, marked as suppressed.
+- Brakeman 8.0.6 keeps a warning listed in `config/brakeman.ignore`, marked as suppressed and naming
+  that file. `skip_checks` in `config/brakeman.yml` hides a check with no trace, and
+  `--config-file /dev/null` does not stop Brakeman reading the file.
+
+Where a tool can be made to look anyway, it is: bandit runs with `--ignore-nosec` and `--ini /dev/null`,
+gosec with `-track-suppressions`. What any tool reports as suppressed is shown as a finding, and says it
+was marked to be ignored and where, since a finding somebody chose to hide is still a finding until
+somebody has looked at why. That is the owner's decision to make with the finding in front of them, not
+one `sv` makes for them by agreeing to look away. What is left, a clean run whose report still counts
+skipped lines or an app with a Brakeman settings file (`switched_off_by` in `adapters.json`), is not
+credited, and the report says why in the gaps.
+
+The same measurement turned up a neighbour that is not fixed here: semgrep, by default, skips files
+under `tests/`, `test/`, `build/`, `dist/`, `vendor/` and a few others, and its SARIF says nothing about
+it. It is in the backlog.
 
 ### Three more wrong citations, in the place the guard could not see
 

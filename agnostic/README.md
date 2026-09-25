@@ -67,6 +67,10 @@ what was **not** examined, say what each check covered when it found nothing wro
 says a requirement passed — `sv` is not able to establish
 that, so it does not claim it.
 
+They also list the tests worth writing: every requirement that applies and has no evidence yet, and no
+test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
+the one way to give evidence about any requirement, including the many no check here can reach.
+
 The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
 design review rather than scanning — whether trust zones are enforced, whether an incident response plan
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
@@ -90,6 +94,15 @@ that run, and then asks:
 - is a request from another website accepted with the user's cookies? (V3.5.1)
 - does signing in issue a new session, and does signing out end it? (V7.2.4, V7.4.1)
 - is the session cookie out of reach of scripts and other sites? (V3.3.4, V3.3.2)
+- is the session id long enough to guess, and different each time? (V7.2.3; only ever a finding)
+- does a known default account, such as `admin` / `admin`, sign in? (V6.3.2; only ever a finding)
+- is a password accepted in the address rather than the body? (V14.2.1; only ever a finding)
+
+When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
+asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone
+(V6.2.5), and a common one beside a random one of the same shape (V6.2.4). Each is compared with an
+ordinary strong password signed up first, and whether a password was accepted is told by signing in
+with it.
 
 Each question first shows the thing it depends on actually worked — the session opens a private page,
 the owner can read back what they made, the admin can open the admin page — and when it cannot show

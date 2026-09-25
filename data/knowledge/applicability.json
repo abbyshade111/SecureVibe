@@ -32,7 +32,7 @@
     { "scope": "V1.1.2", "condition": "always", "verificationClass": "automatable" },
     { "scope": "V1.2.1", "condition": "always", "verificationClass": "scanner-clean" },
     { "scope": "V1.2.2", "condition": "always", "verificationClass": "scanner-clean" },
-    { "scope": "V1.2.3", "condition": "always", "verificationClass": "scanner-clean" },
+    { "scope": "V1.2.3", "condition": "always" },
     { "scope": "V1.2.4", "condition": "always", "verificationClass": "scanner-clean" },
     { "scope": "V1.2.5", "condition": "always", "verificationClass": "scanner-clean" },
     { "scope": "V1.2.6", "condition": "never", "notApplicableReason": "This app does not use an LDAP directory, so LDAP injection is not possible." },
@@ -134,7 +134,7 @@
     { "scope": "V8.3.1", "condition": "always", "verificationClass": "automatable" },
     { "scope": "V8.4.1", "condition": "multi-tenant", "notApplicableReason": "This app serves one organization. It does not host several separate customer organizations that must be kept apart from each other." },
 
-    { "scope": "V11.2.1", "condition": "always", "verificationClass": "scanner-clean" },
+    { "scope": "V11.2.1", "condition": "always" },
     { "scope": "V11.2.2", "condition": "always", "verificationClass": "automatable" },
     { "scope": "V11.2.3", "condition": "always", "verificationClass": "automatable" },
     { "scope": "V11.3.1", "condition": "always", "verificationClass": "automatable" },

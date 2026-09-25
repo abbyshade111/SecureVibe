@@ -90,6 +90,20 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
             headers: vec![("X-Probe-Echo".into(), "sv-probe-echo-value".into())],
             body: None,
         },
+        ProbeRequest {
+            id: "git-head".into(),
+            method: "GET".into(),
+            path: "/.git/HEAD".into(),
+            headers: Vec::new(),
+            body: None,
+        },
+        ProbeRequest {
+            id: "git-config".into(),
+            method: "GET".into(),
+            path: "/.git/config".into(),
+            headers: Vec::new(),
+            body: None,
+        },
     ]
 }
 
@@ -176,6 +190,8 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     if let Some(trace) = find("trace") {
         out.extend(trace_enabled(trace));
     }
+    out.extend(content_type(&with_bodies(responses)));
+    out.extend(source_control_exposed(responses));
     out.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -259,7 +275,121 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
             "a TRACE request carrying a header this probe invented".to_owned(),
         ));
     }
+    // Only over the page and the error, both of which have to have answered with a body: one
+    // answer judged is not the app's responses judged.
+    let judged: Vec<&ProbeResponse> = with_bodies(responses)
+        .into_iter()
+        .filter(|r| r.id == "home" || r.id == "missing")
+        .collect();
+    if judged.len() == 2 && content_type(&judged).is_none() {
+        out.push(crate::Verified::new(
+            CONTENT_TYPE.rule_id,
+            CONTENT_TYPE.requirement_ids,
+            "the app's page and its answer for a page that is not there".to_owned(),
+        ));
+    }
+    // Both asked and both answered, or nothing is shown about the folder.
+    if find("git-head").is_some()
+        && find("git-config").is_some()
+        && source_control_exposed(responses).is_none()
+    {
+        out.push(crate::Verified::new(
+            SOURCE_CONTROL.rule_id,
+            SOURCE_CONTROL.requirement_ids,
+            "requests for /.git/HEAD and /.git/config".to_owned(),
+        ));
+    }
     out
+}
+
+/// The responses that carried a body, which are the ones a Content-Type is owed for.
+fn with_bodies(responses: &[ProbeResponse]) -> Vec<&ProbeResponse> {
+    responses
+        .iter()
+        .filter(|r| !r.body.trim().is_empty())
+        .collect()
+}
+
+const CONTENT_TYPE: Rule = Rule {
+    rule_id: "probe.content-type",
+    confidence: Confidence::High,
+    // V4.1.1 is a Content-Type on every response with a body, with the charset.
+    requirement_ids: &["V4.1.1"],
+    cwe: &["CWE-436"],
+    impact: "A browser left to guess what a response is can guess wrong, and treat text an attacker \
+             wrote as a page to run.",
+    fix: "Send a Content-Type on every response with a body, with `; charset=utf-8` on text types.",
+};
+
+/// Every response with a body names its type, and a text type names its character set.
+fn content_type(responses: &[&ProbeResponse]) -> Option<Finding> {
+    let mut problems = Vec::new();
+    for r in responses {
+        match r.header("content-type") {
+            None => problems.push(format!("the answer for `{}` had no Content-Type", r.id)),
+            Some(t) => {
+                let lower = t.to_lowercase();
+                if lower.starts_with("text/") && !lower.contains("charset=") {
+                    problems.push(format!(
+                        "the answer for `{}` was `{t}`, with no charset",
+                        r.id
+                    ));
+                }
+            }
+        }
+    }
+    if problems.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &CONTENT_TYPE,
+        "A response does not say what it is",
+        Severity::Low,
+        format!("{}.", problems.join("; ")),
+    ))
+}
+
+const SOURCE_CONTROL: Rule = Rule {
+    rule_id: "probe.source-control-exposed",
+    confidence: Confidence::High,
+    // V13.4.1 is source control metadata left where it can be fetched.
+    requirement_ids: &["V13.4.1"],
+    cwe: &["CWE-527"],
+    impact: "The `.git` folder holds the whole history of the code, including anything ever \
+             committed and later deleted, such as a password.",
+    fix: "Deploy a build rather than the repository, or refuse every path under `/.git/` in the \
+          web server.",
+};
+
+/// A `.git` folder served over the web answers with what only git writes.
+fn source_control_exposed(responses: &[ProbeResponse]) -> Option<Finding> {
+    let served = |id: &str, looks: &dyn Fn(&str) -> bool| {
+        responses
+            .iter()
+            .find(|r| r.id == id)
+            .is_some_and(|r| (200..300).contains(&r.status) && looks(&r.body))
+    };
+    let head = served("git-head", &|b: &str| {
+        b.trim_start().starts_with("ref: refs/")
+    });
+    let config = served("git-config", &|b: &str| b.contains("[core]"));
+    if !head && !config {
+        return None;
+    }
+    let what: Vec<&str> = [(head, "/.git/HEAD"), (config, "/.git/config")]
+        .iter()
+        .filter(|(f, _)| *f)
+        .map(|(_, p)| *p)
+        .collect();
+    Some(finding(
+        &SOURCE_CONTROL,
+        "The app serves its source control folder",
+        Severity::High,
+        format!(
+            "The app answered {} with git's own contents.",
+            what.join(" and ")
+        ),
+    ))
 }
 
 /// Headers a browser needs in order to protect the people using the app.
@@ -485,14 +615,21 @@ fn trace_enabled(response: &ProbeResponse) -> Option<Finding> {
 mod tests {
     use super::*;
 
+    /// A response as a real app sends it: with a Content-Type, unless the test names its own, and
+    /// without one when the test gives it as empty.
     fn response(id: &str, status: u16, headers: &[(&str, &str)], body: &str) -> ProbeResponse {
+        let mut headers: Vec<(String, String)> = headers
+            .iter()
+            .map(|(k, v)| (k.to_lowercase(), (*v).to_owned()))
+            .collect();
+        if !headers.iter().any(|(k, _)| k == "content-type") {
+            headers.push(("content-type".into(), "text/html; charset=utf-8".into()));
+        }
+        headers.retain(|(k, v)| !(k == "content-type" && v.is_empty()));
         ProbeResponse {
             id: id.into(),
             status,
-            headers: headers
-                .iter()
-                .map(|(k, v)| (k.to_lowercase(), (*v).to_owned()))
-                .collect(),
+            headers,
             body: body.into(),
         }
     }
@@ -866,7 +1003,9 @@ mod tests {
     #[test]
     fn the_suite_asks_what_it_says_it_asks() {
         let requests = requests("/healthz");
-        assert_eq!(requests.len(), 4);
+        assert_eq!(requests.len(), 6);
+        assert!(requests.iter().any(|r| r.path == "/.git/HEAD"));
+        assert!(requests.iter().any(|r| r.path == "/.git/config"));
         assert!(
             requests
                 .iter()
@@ -879,5 +1018,156 @@ mod tests {
         );
         assert!(requests.iter().any(|r| r.path.contains("does-not-exist")));
         assert!(requests.iter().any(|r| r.method == "TRACE"), "{requests:?}");
+    }
+
+    // ---- Content-Type (V4.1.1) and a served .git folder (V13.4.1)
+
+    fn not_found() -> ProbeResponse {
+        response("missing", 404, &[], "<p>No such page.</p>")
+    }
+
+    #[test]
+    fn a_response_with_no_content_type_is_found() {
+        let bare = response("home", 200, &[("Content-Type", "")], "hello");
+        let found = evaluate(&[bare.clone(), not_found()]);
+        assert!(ids(&found).contains(&"probe.content-type"), "{found:?}");
+        assert!(
+            !verified(&[bare, not_found()])
+                .iter()
+                .any(|v| v.check_id == "probe.content-type")
+        );
+    }
+
+    #[test]
+    fn a_text_type_with_no_charset_is_found() {
+        let no_charset = response(
+            "missing",
+            404,
+            &[("Content-Type", "text/html")],
+            "<p>no</p>",
+        );
+        let found = evaluate(&[good_home(), no_charset]);
+        assert_eq!(ids(&found), vec!["probe.content-type"], "{found:?}");
+        assert!(found[0].description.contains("no charset"));
+    }
+
+    #[test]
+    fn json_needs_no_charset_and_an_empty_body_needs_no_type() {
+        let json = response("home", 200, &[("Content-Type", "application/json")], "{}");
+        let empty = response("missing", 404, &[("Content-Type", "")], "");
+        assert!(!ids(&evaluate(&[json, empty])).contains(&"probe.content-type"));
+    }
+
+    #[test]
+    fn content_types_are_credited_only_when_both_answers_had_one() {
+        let credited = |responses: &[ProbeResponse]| {
+            verified(responses)
+                .iter()
+                .any(|v| v.check_id == "probe.content-type")
+        };
+        assert!(credited(&[good_home(), not_found()]));
+        // One answer judged is not the app's responses judged.
+        assert!(!credited(&[good_home()]));
+    }
+
+    #[test]
+    fn a_served_git_folder_is_found_from_either_file() {
+        let head = response(
+            "git-head",
+            200,
+            &[("Content-Type", "text/plain; charset=utf-8")],
+            "ref: refs/heads/main\n",
+        );
+        let config = response(
+            "git-config",
+            200,
+            &[("Content-Type", "text/plain; charset=utf-8")],
+            "[core]\n\trepositoryformatversion = 0\n",
+        );
+        let refused = |id: &str| response(id, 404, &[], "<p>No such page.</p>");
+        for answers in [
+            vec![head.clone(), refused("git-config")],
+            vec![refused("git-head"), config.clone()],
+        ] {
+            let found = evaluate(&answers);
+            assert_eq!(
+                ids(&found),
+                vec!["probe.source-control-exposed"],
+                "{found:?}"
+            );
+            assert!(
+                !verified(&answers)
+                    .iter()
+                    .any(|v| v.check_id == "probe.source-control-exposed")
+            );
+        }
+    }
+
+    #[test]
+    fn an_app_that_answers_everything_with_its_page_is_not_serving_git() {
+        // A single-page app answers every path with 200 and its own page. That is not a .git folder.
+        let page = |id: &str| response(id, 200, &[], "<html><div id=app></div></html>");
+        let answers = [page("git-head"), page("git-config")];
+        assert!(!ids(&evaluate(&answers)).contains(&"probe.source-control-exposed"));
+        assert!(
+            verified(&answers)
+                .iter()
+                .any(|v| v.check_id == "probe.source-control-exposed")
+        );
+        // And with one of the two unanswered, nothing is credited.
+        assert!(
+            !verified(&answers[..1])
+                .iter()
+                .any(|v| v.check_id == "probe.source-control-exposed")
+        );
+    }
+
+    #[test]
+    fn the_error_page_is_held_to_the_same_rule() {
+        let plain = response(
+            "missing",
+            404,
+            &[("Content-Type", "text/plain")],
+            "Not found",
+        );
+        let found = evaluate(&[good_home(), plain.clone()]);
+        assert_eq!(ids(&found), vec!["probe.content-type"], "{found:?}");
+        let untyped = response("missing", 404, &[("Content-Type", "")], "Not found");
+        let found = evaluate(&[good_home(), untyped.clone()]);
+        assert_eq!(ids(&found), vec!["probe.content-type"], "{found:?}");
+        assert!(found[0].description.contains("no Content-Type"));
+        for answers in [[good_home(), plain], [good_home(), untyped]] {
+            assert!(
+                !verified(&answers)
+                    .iter()
+                    .any(|v| v.check_id == "probe.content-type")
+            );
+        }
+        // And the error page alone, however correct, is one answer.
+        assert!(
+            !verified(&[not_found()])
+                .iter()
+                .any(|v| v.check_id == "probe.content-type")
+        );
+    }
+
+    #[test]
+    fn each_git_file_is_recognized_by_its_own_contents() {
+        let text = [("Content-Type", "text/plain; charset=utf-8")];
+        let refused = |id: &str| response(id, 404, &[], "<p>No such page.</p>");
+        let head = response("git-head", 200, &text, "ref: refs/heads/trunk");
+        let config = response("git-config", 200, &text, "[core]\n\tbare = false\n");
+        assert!(
+            ids(&evaluate(&[head, refused("git-config")]))
+                .contains(&"probe.source-control-exposed")
+        );
+        assert!(
+            ids(&evaluate(&[refused("git-head"), config]))
+                .contains(&"probe.source-control-exposed")
+        );
+        // A sign-in page answered at those paths is not git, whatever its status.
+        let login = |id: &str| response(id, 200, &[], "<form><input name=password></form>");
+        let answers = [login("git-head"), login("git-config")];
+        assert!(!ids(&evaluate(&answers)).contains(&"probe.source-control-exposed"));
     }
 }

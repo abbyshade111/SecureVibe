@@ -1016,20 +1016,6 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 why,
             });
         }
-        // A tool that was told to look away found nothing for a reason that has nothing to do with
-        // the code being sound. The credit is already withheld; this is the reader being told why,
-        // because a suppression is somebody's decision and a report that hides it is picking a side.
-        for (id, what) in outcome.suppressed {
-            tool_gaps.push(sv_report::Gap {
-                what: format!("whether `{id}` would have found anything where it was told not to look"),
-                why: format!(
-                    "{}. A run with a suppression in it is not a clean run, so nothing was credited \
-                     from this tool — the suppressed lines may be fine, and nothing here has \
-                     checked them.",
-                    what.join("; ")
-                ),
-            });
-        }
     } else {
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
@@ -1307,6 +1293,38 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     verified.extend(tool_verified.iter().cloned());
     verified.extend(test_verified.iter().cloned());
 
+    // Which requirements the app's tests name, read from the files whether or not the tests ran, so
+    // the report can tell a requirement nobody has written a test for from one whose test did not
+    // run here.
+    let named_in_tests: std::collections::BTreeSet<String> = {
+        let known: std::collections::BTreeSet<&str> =
+            frameworks.requirements.keys().map(String::as_str).collect();
+        sv_check::suite::tests_naming_requirements(app_dir, &known)
+            .into_iter()
+            .flat_map(|t| t.requirement_ids)
+            .collect()
+    };
+
+    // What an application's own tests cannot show, so it is not listed as a test to write: a
+    // requirement classed as documentation or deployment, the AISVS appendix on the development
+    // process, and any whose own words ask for documentation.
+    let not_for_tests: std::collections::BTreeSet<String> = buckets
+        .applicable
+        .iter()
+        .filter(|id| {
+            matches!(
+                config_rules.verification_class_for(id),
+                sv_frameworks::applicability::VerificationClass::DocGenerated
+                    | sv_frameworks::applicability::VerificationClass::DeploymentTime
+            ) || id.starts_with("AC.")
+                || frameworks.requirements.get(id.as_str()).is_some_and(|r| {
+                    let text = r.description.to_lowercase();
+                    text.contains("documentation") || text.contains("documented")
+                })
+        })
+        .cloned()
+        .collect();
+
     Ok(sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -1323,6 +1341,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         verified: &verified,
         gaps,
         manual_only,
+        named_in_tests,
+        not_for_tests,
     }))
 }
 
@@ -1397,6 +1417,18 @@ fn cmd_report(args: &[String]) -> Result<()> {
             "{} more could not be placed at all: nobody has answered the question that decides \
              whether they apply.",
             c.not_assessed
+        );
+    }
+    if !report.tests_to_write.is_empty() {
+        let level_one = report
+            .tests_to_write
+            .iter()
+            .filter(|t| t.level == 1)
+            .count();
+        println!(
+            "{} have no evidence and no test naming them ({level_one} at level 1): compliance.md \
+             lists them under \"Tests to write\".",
+            report.tests_to_write.len()
         );
     }
     println!(

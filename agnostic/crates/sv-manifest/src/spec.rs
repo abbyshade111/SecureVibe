@@ -125,6 +125,14 @@ switches off a requirement the code says applies.
   not do that. A test that names nothing is not evidence about anything in particular, which is a
   perfectly fair thing for a test to be — most tests are.
 
+  Which tests to write
+
+  `sv report` lists, under "Tests to write" in compliance.md, every requirement that applies to the
+  app and has no evidence of any kind and no test naming it, lowest level first; `sv mcp` gives the
+  same list. Work down it: for each requirement the app really meets, a test that shows it, with the
+  id in its name. Where the app does not meet one yet, that is the thing to fix first, and the test
+  follows.
+
   Writing a test report
 
   If your test command can write JUnit XML, say where in `test-report` and have the command write

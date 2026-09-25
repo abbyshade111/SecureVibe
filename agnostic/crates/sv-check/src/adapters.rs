@@ -59,6 +59,11 @@ pub struct Adapter {
     /// The tool's own rule ids, mapped to what each detects and the requirements it is about.
     #[serde(default)]
     pub rules: BTreeMap<String, MappedRule>,
+    /// Files in the app, relative to its folder, that can turn this tool's checks off without its
+    /// report saying so, and that it cannot be told to disregard. While one is present a run that
+    /// finds nothing is not credited.
+    #[serde(default)]
+    pub switched_off_by: Vec<String>,
 }
 
 /// One of a tool's rules: what it detects, and which requirements that is evidence about.
@@ -153,8 +158,9 @@ pub enum Outcome {
     Ran {
         findings: Vec<Finding>,
         loaded: BTreeSet<String>,
-        /// What the run was told to ignore, in as many words. Empty means nothing was.
-        suppressed: Vec<String>,
+        /// Every way the tool was told to look away from part of the app, in plain words. Empty
+        /// is the only state in which finding nothing is evidence of anything.
+        looked_away: Vec<String>,
     },
     /// It did not run, and this is why, in words somebody can act on.
     NotRun { why: String },
@@ -167,10 +173,6 @@ pub struct AdapterRun {
     pub verified: Vec<Verified>,
     /// Adapter id and why it did not run. Never folded into "found nothing".
     pub not_run: Vec<(String, String)>,
-    /// Adapter id and what it was told to ignore. A run with any of these found nothing *because it
-    /// was told not to look*, at least in part, so it earns no clean-run credit — and the reader is
-    /// told, because a suppression is a decision somebody made and a report should surface it.
-    pub suppressed: Vec<(String, Vec<String>)>,
 }
 
 /// Whether the tool is here, and whether it works.
@@ -289,7 +291,7 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
         Ok(findings) => Outcome::Ran {
             findings,
             loaded: loaded_rules(&text),
-            suppressed: suppressions(adapter, &text, app_dir),
+            looked_away: looked_away(adapter, &text, app_dir),
         },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
@@ -312,19 +314,37 @@ pub fn run_all(
             Outcome::Ran {
                 findings,
                 loaded,
-                suppressed,
+                looked_away,
             } => {
-                if !suppressed.is_empty() {
-                    run.suppressed
-                        .push((adapter.id.clone(), suppressed.clone()));
+                if findings.is_empty() && !looked_away.is_empty() {
+                    run.not_run.push((
+                        adapter.id.clone(),
+                        format!(
+                            "{} ran and found nothing, but it was told not to look at part of \
+                             this app, so finding nothing is not counted as a clean result: {}.",
+                            adapter.name,
+                            looked_away.join("; ")
+                        ),
+                    ));
+                } else if findings.is_empty() {
+                    let ids = clean_run_evidence(adapter, &loaded, languages);
+                    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
+                    if !ids.is_empty() {
+                        run.verified.push(Verified::new(
+                            &format!("adapter.{}", adapter.id),
+                            &ids,
+                            format!(
+                                "{} over the {} in this app",
+                                adapter.name,
+                                if adapter.language == "*" {
+                                    "code".to_owned()
+                                } else {
+                                    adapter.language.clone()
+                                }
+                            ),
+                        ));
+                    }
                 }
-                run.verified.extend(clean_run_claim(
-                    adapter,
-                    &loaded,
-                    languages,
-                    &findings,
-                    &suppressed,
-                ));
                 run.findings.extend(findings);
             }
             Outcome::NotRun { why } => run.not_run.push((adapter.id.clone(), why)),
@@ -339,146 +359,44 @@ pub fn run_all(
     run
 }
 
-/// Reads a SARIF 2.1.0 document into findings.
-/// What a tool was told to ignore, read from its own report where it says, and from the files it
-/// scanned where it does not.
+/// Every way this run was told to look away, in words the owner can act on.
 ///
-/// Two sources, because the tools do not agree on whether to tell you. Bandit's SARIF carries
-/// `runs[].properties.metrics._totals.nosec` and `skipped_tests`, which is authoritative: it counts
-/// what bandit itself passed over. gosec and semgrep were not checked here — gosec is not installed
-/// on this machine and semgrep cannot start in this sandbox — so for anything the report does not
-/// say, the markers are counted in the files instead.
-///
-/// Counting markers is the blunter of the two and can say "suppressed" about a file that merely
-/// mentions the word. That direction is the safe one: it withholds a clean-run claim rather than
-/// making one, and it is named in the report so a reader can go and look.
-pub fn suppressions(adapter: &Adapter, report: &str, app_dir: &Path) -> Vec<String> {
+/// A line marked `# nosec` makes bandit report nothing about it, and the SARIF it writes then holds
+/// an empty list of results beside a count of the lines it skipped. Crediting that as clean is the
+/// missing-tool mistake one layer in: a tool that did not look reads exactly like one that looked
+/// and found nothing. Where a tool can be made to look anyway, `adapters.json` asks it to, and
+/// what it finds under a suppression is reported like anything else; this is for what is left.
+pub fn looked_away(adapter: &Adapter, sarif: &str, app_dir: &Path) -> Vec<String> {
     let mut out = Vec::new();
-
-    if let Ok(document) = serde_json::from_str::<serde_json::Value>(report) {
+    if let Ok(document) = serde_json::from_str::<serde_json::Value>(sarif) {
+        let (mut lines, mut tests) = (0, 0);
         for run in document["runs"].as_array().into_iter().flatten() {
             let totals = &run["properties"]["metrics"]["_totals"];
-            for (key, what) in [
-                ("nosec", "line(s) marked to be skipped"),
-                ("skipped_tests", "check(s) switched off"),
-            ] {
-                if let Some(n) = totals[key].as_u64().filter(|n| *n > 0) {
-                    out.push(format!("{} reports {n} {what}", adapter.name));
-                }
-            }
-            // SARIF's own way of saying it, which semgrep and others may use.
-            let suppressed = run["results"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter(|r| r["suppressions"].as_array().is_some_and(|s| !s.is_empty()))
-                .count();
-            if suppressed > 0 {
-                out.push(format!(
-                    "{} reports {suppressed} finding(s) marked as suppressed",
-                    adapter.name
-                ));
-            }
+            lines += totals["nosec"].as_u64().unwrap_or(0);
+            tests += totals["skipped_tests"].as_u64().unwrap_or(0);
+        }
+        if lines > 0 {
+            out.push(format!(
+                "{lines} line{} marked `# nosec`, which it skipped entirely",
+                if lines == 1 { " is" } else { "s are" }
+            ));
+        }
+        if tests > 0 {
+            out.push(format!(
+                "{tests} of its checks {} switched off on particular lines with `# nosec` and a \
+                 rule id",
+                if tests == 1 { "was" } else { "were" }
+            ));
         }
     }
-
-    // What the tool did not say. Only the markers that belong to this tool, so brakeman's are not
-    // counted against bandit.
-    let markers: &[&str] = match adapter.id.as_str() {
-        "bandit" => &["# nosec", "#nosec"],
-        // gosec documents `#nosec`, written `// #nosec G204` or `//#nosec`; `/* #nosec */` too.
-        "gosec" => &["#nosec", "//nosec"],
-        "brakeman" => &["brakeman:ignore", "brakeman:disable"],
-        "semgrep" => &["nosemgrep"],
-        _ => &[],
-    };
-    if !markers.is_empty() && out.is_empty() {
-        let mut files = Vec::new();
-        count_markers(app_dir, app_dir, markers, &mut files);
-        files.sort();
-        if !files.is_empty() {
-            let shown: Vec<String> = files.iter().take(3).cloned().collect();
+    for file in &adapter.switched_off_by {
+        if app_dir.join(file).exists() {
             out.push(format!(
-                "{} suppression marker(s) for {} in the code: {}{}",
-                files.len(),
-                adapter.name,
-                shown.join(", "),
-                if files.len() > shown.len() {
-                    ", …"
-                } else {
-                    ""
-                }
+                "`{file}` can turn its checks off, and its report does not say which ran"
             ));
         }
     }
     out
-}
-
-fn count_markers(root: &Path, dir: &Path, markers: &[&str], out: &mut Vec<String>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-        if path.is_dir() {
-            if !sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_str()) {
-                count_markers(root, &path, markers, out);
-            }
-            continue;
-        }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        if markers.iter().any(|m| text.contains(m)) {
-            out.push(
-                path.strip_prefix(root)
-                    .unwrap_or(&path)
-                    .to_string_lossy()
-                    .to_string(),
-            );
-        }
-    }
-}
-
-/// What a run that found nothing may claim, or nothing at all.
-///
-/// Separate from the loop that calls it because this is the decision the whole thing turns on, and
-/// a decision buried in a match arm is a decision no test reaches. Breaking it proved that: the
-/// suppression check could be deleted here with every test still green.
-///
-/// A clean run is only clean if nothing told the tool to look away. `# nosec` on the one line that
-/// matters makes bandit report an empty results array, and that is indistinguishable from a file
-/// with nothing wrong in it. Crediting it is the missing-tool mistake one layer in, and worse,
-/// because the report then says an automated check looked.
-pub fn clean_run_claim(
-    adapter: &Adapter,
-    loaded: &BTreeSet<String>,
-    app_languages: &[String],
-    findings: &[Finding],
-    suppressed: &[String],
-) -> Option<Verified> {
-    if !findings.is_empty() || !suppressed.is_empty() {
-        return None;
-    }
-    let ids = clean_run_evidence(adapter, loaded, app_languages);
-    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
-    if ids.is_empty() {
-        return None;
-    }
-    Some(Verified::new(
-        &format!("adapter.{}", adapter.id),
-        &ids,
-        format!(
-            "{} over the {} in this app",
-            adapter.name,
-            if adapter.language == "*" {
-                "code".to_owned()
-            } else {
-                adapter.language.clone()
-            }
-        ),
-    ))
 }
 
 /// The requirements a run that found nothing is evidence about.
@@ -530,6 +448,7 @@ pub fn loaded_rules(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Reads a SARIF 2.1.0 document into findings.
 pub fn parse_sarif(adapter: &Adapter, text: &str) -> Result<Vec<Finding>> {
     parse_sarif_relative_to(adapter, text, Path::new(""))
 }
@@ -601,10 +520,17 @@ pub fn parse_sarif_relative_to(
                 secret: None,
                 requirement_ids,
                 cwe: cwes_of(result),
-                description: if message.is_empty() {
-                    full.to_owned()
-                } else {
-                    message.to_owned()
+                description: {
+                    let said = if message.is_empty() { full } else { message };
+                    match suppressed_by(result) {
+                        Some(how) => format!(
+                            "{said}\n\nThis one is marked to be ignored ({how}), so {} would \
+                             not normally show it. It is shown here because a finding somebody \
+                             chose to hide is still a finding until somebody has looked at why.",
+                            adapter.name
+                        ),
+                        None => said.to_owned(),
+                    }
                 },
                 impact: format!(
                     "Reported by {}, which reads {} the way its own community has learned to.",
@@ -624,6 +550,21 @@ pub fn parse_sarif_relative_to(
         }
     }
     Ok(out)
+}
+
+/// How a result was suppressed, when the tool says it was.
+///
+/// SARIF records a suppression on the result rather than dropping it: semgrep does this for
+/// `// nosemgrep`, gosec for `#nosec` when asked to track them, and Brakeman for a warning listed in
+/// `config/brakeman.ignore`, which it names as the location.
+fn suppressed_by(result: &serde_json::Value) -> Option<String> {
+    let first = result["suppressions"].as_array()?.first()?;
+    let place = first["location"]["physicalLocation"]["artifactLocation"]["uri"].as_str();
+    Some(match (first["kind"].as_str(), place) {
+        (_, Some(file)) => format!("in `{file}`"),
+        (Some("inSource"), None) => "by a comment on the line".to_owned(),
+        _ => "outside the code".to_owned(),
+    })
 }
 
 /// Strips the app folder from a path a tool reported, leaving it as the owner would name it.

@@ -20,11 +20,14 @@
           "--output",
           "{output}",
           "--quiet",
+          "--ini",
+          "/dev/null",
+          "--ignore-nosec",
           "{dir}"
         ]
       },
       "install": "pip install bandit bandit-sarif-formatter",
-      "note": "Bandit has no SARIF formatter of its own; `bandit-sarif-formatter` registers one, which is why the install line names two packages. Bandit installed without it exits with `invalid choice: 'sarif'` and writes nothing, which is reported as not run with that message attached rather than as a clean scan. Bandit also exits non-zero when it finds something, which is not a failure to run: only a missing report counts as that.",
+      "note": "Bandit has no SARIF formatter of its own; `bandit-sarif-formatter` registers one, which is why the install line names two packages. Bandit installed without it exits with `invalid choice: 'sarif'` and writes nothing, which is reported as not run with that message attached rather than as a clean scan. Bandit also exits non-zero when it finds something, which is not a failure to run: only a missing report counts as that. It is run with `--ignore-nosec`, so a line marked `# nosec` is still reported, and with `--ini /dev/null`, so a `.bandit` file in the app cannot switch rules or folders off: either one otherwise hides what it covers and leaves nothing in the report to say so, and a run that was told to look away would be credited as clean.",
       "rules": {
         "B608": {
           "what": "SQL query built by string formatting or concatenation",
@@ -154,12 +157,13 @@
           "-out",
           "{output}",
           "-quiet",
+          "-track-suppressions",
           "./..."
         ]
       },
       "working_directory": "{dir}",
       "install": "go install github.com/securego/gosec/v2/cmd/gosec@latest",
-      "note": "gosec resolves `./...` against the working directory, so it is run from inside the app folder rather than given a path.",
+      "note": "gosec resolves `./...` against the working directory, so it is run from inside the app folder rather than given a path. It is run with `-track-suppressions`, so an issue on a line marked `#nosec` is still in the report, marked as suppressed; without it gosec leaves the issue out and says nothing about having done so.",
       "rules": {
         "G201": {
           "what": "SQL query built with a format string",
@@ -264,7 +268,7 @@
         ]
       },
       "install": "gem install brakeman",
-      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one.",
+      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one. `config/brakeman.yml` can turn checks off (`skip_checks`), the report does not say which ran, and Brakeman cannot be told to disregard the file, so while it is present a run that finds nothing is not credited. Warnings in `config/brakeman.ignore` are still in the report, marked as suppressed.",
       "rules": {
         "BRAKE0000": {
           "what": "SQL injection: a database query built from user input",
@@ -507,7 +511,10 @@
             "V15.2.1"
           ]
         }
-      }
+      },
+      "switched_off_by": [
+        "config/brakeman.yml"
+      ]
     },
     {
       "id": "semgrep",

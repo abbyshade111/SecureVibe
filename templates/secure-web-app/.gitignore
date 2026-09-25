@@ -12,7 +12,7 @@ data/*
 !data/.gitkeep
 
 # Dependencies
-node_modules/
+node_modules
 
 # Editor / OS noise
 .DS_Store

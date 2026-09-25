@@ -19,14 +19,17 @@ another session is not a claim.
   is not what the script would write. The script stops if a requirement id or check name is written
   into `sv`'s code that it does not know about.
 
-- **Level 1 checks against the running app.** From the coverage count (`docs/COVERAGE.md`, 25 September
-  2026): 49 of the 70 Level 1 requirements have no check at all, and Authentication (47 requirements)
-  has none. Several can be asked of a running app with the test accounts `[stack.run.users]` already
-  describes: a response's Content-Type and charset (V4.1.1), a reachable `/.git/` (V13.4.1), a short or
-  common password accepted at sign-up (V6.2.1, V6.2.4), a long one refused (V6.2.5), a default
-  `admin`/`admin` account (V6.3.2), session ids too short to be unguessable (V7.2.3), and sign-in
-  accepted in the query string (V14.2.1). Each is a finding when it fails and supporting evidence at
-  most when it holds; V6.3.2 in particular can only ever try a few names.
+- ~~**Level 1 checks against the running app.**~~ Done on 25 September 2026 by session securevibe-e8.
+  V4.1.1 and V13.4.1 as anonymous probes; V6.2.1, V6.2.4 and V6.2.5 through `signup`, beside a control
+  password; V6.3.2, V14.2.1 and V7.2.3 as findings only. Level 1 goes from 21 to 29 of 70. See DESIGN,
+  "Level 1, asked of the running app". Left over: a password change (V6.2.2, V6.2.3) needs the manifest
+  to say how one is made; rate limiting (V6.3.1) is a documentation requirement as much as a behavior.
+
+- ~~**Requirements with no test naming them.**~~ Done on 25 September 2026 by session securevibe-e8.
+  The report's "Tests to write" lists every applicable requirement with no evidence and no test
+  naming it, lowest level first, and leaves out and counts what an app's tests cannot show; `sv mcp`
+  gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
+  write".
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
@@ -112,8 +115,10 @@ another session is not a claim.
   satisfied check about a counterpart is shown beside the control as supporting evidence. Loading
   refuses a crosswalk that leaves a control out or cites an id that does not exist.
 
-- **A suppressed finding makes a tool's run look clean, and it is credited.** Found on 25 September
-  2026 while reviewing the adapter work. *Claimed 25 September 2026, session keen-meninsky-691a27.* `# nosec` on a line makes bandit report nothing
+- ~~**A suppressed finding makes a tool's run look clean, and it is credited.**~~ Done on 25 September
+  2026 by session securevibe-e8: bandit and gosec are made to report what they were told to skip, every
+  suppressed result is shown and says so, and what cannot be shown withholds the clean-run credit.
+  `docs/DESIGN.md`, "A tool told to look away, corrected again". What was found: `# nosec` on a line makes bandit report nothing
   about it, so `sv` sees an empty findings list, calls the run clean, and credits every requirement
   that adapter's rules map to — including V1.2.4 for a file whose `search()` concatenates user input
   straight into SQL. Verified by running bandit, not reasoned about:
@@ -137,6 +142,15 @@ another session is not a claim.
   and semgrep cannot start in this sandbox (`ca-certs: empty trust anchors`) — so what their reports
   carry is unverified. If it turns out they say nothing about suppressions, the honest interim is to
   count the markers in the files that were scanned.
+
+- **Semgrep skips some folders by default and does not say so.** Found on 25 September 2026 while
+  fixing suppressions; not claimed. With no `.semgrepignore` of its own, semgrep 1.178.0 leaves out
+  `tests/`, `build/`, `dist/`, `vendor/` and others; its terminal output counts "Files matching
+  .semgrepignore patterns" and its SARIF says nothing. A clean run is credited as if it had read them.
+  An app's own `.semgrepignore` does the same with any pattern. Code under `build/` or `dist/` may well
+  be what ships. Worth measuring whether `--x-ignore-semgrepignore-files` or an explicit empty
+  `.semgrepignore` passed some other way reaches every file, before deciding between reading them and
+  naming them as not read.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —

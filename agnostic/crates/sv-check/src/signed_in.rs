@@ -40,6 +40,9 @@ pub struct Accounts {
     pub a: Account,
     pub b: Account,
     pub admin: Option<Account>,
+    /// Random hex, at least 32 characters, for the passwords the password checks sign up with.
+    /// Made with the accounts so every run's are different and none can be guessed from the code.
+    pub spare: String,
 }
 
 /// What asking as a signed-in user showed.
@@ -453,6 +456,78 @@ const FORGERY: Rule = Rule {
           Origin header against the app's own address, and set SameSite on the session cookie.",
 };
 
+const SHORT_PASSWORD: Rule = Rule {
+    rule_id: "probe.short-password-accepted",
+    requirement_ids: &["V6.2.1"],
+    cwe: &["CWE-521"],
+    impact: "A password of seven characters can be tried exhaustively, and people will choose one if \
+             the app lets them.",
+    fix: "Refuse passwords shorter than 8 characters at sign-up and at password change; 15 is the \
+          recommended minimum.",
+};
+
+const COMMON_PASSWORD: Rule = Rule {
+    rule_id: "probe.common-password-accepted",
+    requirement_ids: &["V6.2.4"],
+    cwe: &["CWE-521"],
+    impact: "The passwords everybody uses are the first ones anybody trying to get in will try.",
+    fix: "Check new passwords against a list of the most common ones (at least the top 3000 that \
+          meet the app's length rule) and refuse a match.",
+};
+
+const COMPOSITION_RULES: Rule = Rule {
+    rule_id: "probe.password-composition-rules",
+    requirement_ids: &["V6.2.5"],
+    cwe: &["CWE-521"],
+    impact: "Rules like \"must contain a digit\" push people towards predictable passwords such as \
+             Password1, and refuse long passphrases that are stronger.",
+    fix: "Drop the rules about which kinds of character a password must contain; require length, \
+          and check against common passwords instead.",
+};
+
+const DEFAULT_ACCOUNT: Rule = Rule {
+    rule_id: "probe.default-account",
+    requirement_ids: &["V6.3.2"],
+    cwe: &["CWE-1392"],
+    impact: "An account with a name and password everybody knows is an account anybody can sign in \
+             to.",
+    fix: "Remove the default account, or disable it, and create administrators with passwords chosen \
+          when they are set up.",
+};
+
+const PASSWORD_IN_URL: Rule = Rule {
+    rule_id: "probe.password-in-url",
+    requirement_ids: &["V14.2.1"],
+    cwe: &["CWE-598"],
+    impact: "A password in the address ends up in browser history, server logs, and any proxy in \
+             between, where it can be read long after.",
+    fix: "Accept sign-in only as a POST with the password in the body, and refuse it in the query \
+          string.",
+};
+
+const WEAK_SESSION_ID: Rule = Rule {
+    rule_id: "probe.session-id-weak",
+    requirement_ids: &["V7.2.3"],
+    cwe: &["CWE-330"],
+    impact: "A session id short enough, or repeated, can be guessed, and a guessed session id is a \
+             signed-in session.",
+    fix: "Use the framework's own session store, which makes ids of at least 128 random bits from a \
+          cryptographically secure generator, rather than making them by hand.",
+};
+
+/// A password from the top 3000 most common that meets an 8-character rule: line 1,238 of
+/// `data/knowledge/common-passwords.txt`.
+const COMMON: &str = "123qweasdzxc";
+
+/// Accounts somebody might leave in place, tried with their name as the password and with
+/// `password`.
+const DEFAULT_ACCOUNTS: &[(&str, &str)] = &[
+    ("admin", "admin"),
+    ("admin", "password"),
+    ("root", "root"),
+    ("administrator", "administrator"),
+];
+
 // ------------------------------------------------------------------------------------------------
 // The suite
 
@@ -552,20 +627,7 @@ pub fn run(
 
     if !seeded && let Some(signup) = &users.signup {
         for (who, account) in [("a", &accounts.a), ("b", &accounts.b)] {
-            let values = Values {
-                user: &account.user,
-                password: &account.password,
-                ..Default::default()
-            };
-            let mut session = Session::default();
-            let (response, _) = send_template(
-                http,
-                &format!("signup-{who}"),
-                signup,
-                &values,
-                &mut session,
-                &[],
-            );
+            let response = sign_up(http, signup, who, account);
             out.steps.push(format!(
                 "signed up {} ({})",
                 who.to_uppercase(),
@@ -652,7 +714,13 @@ pub fn run(
     // 5. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
 
-    // 6. Logging out last, because it ends A's session.
+    // 6. What sign-up and sign-in let through: passwords and default accounts. These sign in as
+    //    other accounts, so A's session is untouched for the sign-out below.
+    let confirm = confirm_path.clone().filter(|_| signed_in_works);
+    password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    default_account_check(http, users, confirm.as_deref(), &mut out);
+
+    // 7. Logging out, which ends A's session.
     logout_check(
         http,
         users,
@@ -661,7 +729,406 @@ pub fn run(
         &mut out,
     );
 
+    // 8. Last, because each signs A in again, and an app that allows one session per user would
+    //    end the one the checks above were using.
+    password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
+    session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
+
     out
+}
+
+/// Signs an account up through the app's own form.
+fn sign_up(
+    http: &mut dyn Http,
+    signup: &RequestTemplate,
+    who: &str,
+    account: &Account,
+) -> Option<ProbeResponse> {
+    let values = Values {
+        user: &account.user,
+        password: &account.password,
+        ..Default::default()
+    };
+    let mut session = Session::default();
+    send_template(
+        http,
+        &format!("signup-{who}"),
+        signup,
+        &values,
+        &mut session,
+        &[],
+    )
+    .0
+}
+
+/// Whether this account can sign in and open the private page: the only test of a password that
+/// does not depend on how the app words its refusals.
+fn account_works(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    who: &str,
+    account: &Account,
+    confirm: &str,
+    steps: &mut Vec<String>,
+) -> bool {
+    let mut quiet = Vec::new();
+    let Some(signed_in) = sign_in(http, users, who, account, &mut quiet) else {
+        return false;
+    };
+    let works = ok(&http.send(&get(&format!("private-{who}"), confirm, &signed_in.session)));
+    steps.push(format!(
+        "signed in as {} with {}: {}",
+        account.user,
+        describe_password(&account.password),
+        if works { "opened" } else { "refused" }
+    ));
+    works
+}
+
+fn describe_password(p: &str) -> String {
+    if p == COMMON {
+        return format!("the common password `{COMMON}`");
+    }
+    let kinds = [
+        (p.chars().any(|c| c.is_ascii_lowercase()), "lowercase"),
+        (p.chars().any(|c| c.is_ascii_uppercase()), "uppercase"),
+        (p.chars().any(|c| c.is_ascii_digit()), "digits"),
+        (p.chars().any(|c| !c.is_ascii_alphanumeric()), "symbols"),
+    ];
+    let kinds: Vec<&str> = kinds.iter().filter(|(k, _)| *k).map(|(_, n)| *n).collect();
+    format!("a {}-character password of {}", p.len(), kinds.join(", "))
+}
+
+/// The password rules, asked through the app's own sign-up and answered by signing in.
+///
+/// A control goes first: an account signed up with an ordinary strong password, 32 characters of
+/// every kind, which has to be able to sign in or nothing here can be told. Each password after it
+/// differs from the control in one thing only, so a refusal is about that thing: seven characters;
+/// lowercase letters alone; a common password, beside a random one of the same length and kinds of
+/// character. The test users may have been made by `seed`; these never are.
+fn password_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5";
+    let Some(signup) = &users.signup else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "The password rules are asked through the app's own sign-up, and securevibe.toml sets \
+             no `signup` under [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether a password was accepted is told by signing in with it and opening a private \
+             page, and no private page was shown to open for a signed-in user alone."
+                .to_owned(),
+        ));
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 || !spare.chars().all(|c| c.is_ascii_hexdigit()) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "There was no random material to make test passwords from.".to_owned(),
+        ));
+        return;
+    }
+    let account = |label: &str, password: String| Account {
+        user: format!("{label}.{}", accounts.a.user),
+        password,
+    };
+    let lowercase: String = spare
+        .chars()
+        .map(|c| (b'g' + c.to_digit(16).unwrap_or(0) as u8) as char)
+        .collect();
+    let control = account("control", format!("Sv-{}-aZ9!", &spare[8..32]));
+    sign_up(http, signup, "control", &control);
+    if !account_works(http, users, "control", &control, confirm, &mut out.steps) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "An account signed up with an ordinary strong password could not then sign in, so \
+             nothing can be told from the passwords the app refuses."
+                .to_owned(),
+        ));
+        return;
+    }
+    let tries = [
+        ("short", account("short", format!("S{}aZ9!", &spare[..2]))),
+        ("lower", account("lower", lowercase)),
+        ("common", account("common", COMMON.to_owned())),
+        (
+            "like-common",
+            account("like-common", spare[2..14].to_owned()),
+        ),
+    ];
+    let mut works = std::collections::BTreeMap::new();
+    for (label, try_account) in &tries {
+        sign_up(http, signup, label, try_account);
+        works.insert(
+            *label,
+            account_works(http, users, label, try_account, confirm, &mut out.steps),
+        );
+    }
+
+    if works["short"] {
+        out.findings.push(finding(
+            &SHORT_PASSWORD,
+            "A password shorter than 8 characters is accepted",
+            Severity::Medium,
+            format!(
+                "The app let an account sign up with the 7-character password `{}` and sign in \
+                 with it.",
+                tries[0].1.password
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            SHORT_PASSWORD.rule_id,
+            SHORT_PASSWORD.requirement_ids,
+            "a 7-character password at sign-up, refused where a 32-character one of the same kinds \
+             of character was accepted"
+                .to_owned(),
+        ));
+    }
+
+    if works["lower"] {
+        out.verified.push(crate::Verified::new(
+            COMPOSITION_RULES.rule_id,
+            COMPOSITION_RULES.requirement_ids,
+            "a 32-character password of lowercase letters alone, accepted at sign-up".to_owned(),
+        ));
+    } else {
+        out.findings.push(finding(
+            &COMPOSITION_RULES,
+            "Passwords must contain certain kinds of character",
+            Severity::Low,
+            "The app refused a 32-character password of lowercase letters alone, where it \
+             accepted one of the same length with capitals, digits and symbols."
+                .to_owned(),
+        ));
+    }
+
+    match (works["common"], works["like-common"]) {
+        (true, _) => out.findings.push(finding(
+            &COMMON_PASSWORD,
+            "A common password is accepted",
+            Severity::Medium,
+            format!(
+                "The app let an account sign up with `{COMMON}`, which is among the 3000 most \
+                 common passwords, and sign in with it."
+            ),
+        )),
+        (false, true) => out.verified.push(crate::Verified::new(
+            COMMON_PASSWORD.rule_id,
+            COMMON_PASSWORD.requirement_ids,
+            format!(
+                "`{COMMON}` at sign-up, refused where a random password of the same length and \
+                 kinds of character was accepted"
+            ),
+        )),
+        (false, false) => out.not_assessed.push((
+            "V6.2.4".to_owned(),
+            format!(
+                "The app refused `{COMMON}`, and also a random password of the same length and \
+                 kinds of character, so the refusal cannot be told apart from another rule."
+            ),
+        )),
+    }
+}
+
+/// Signing in with a few names and passwords somebody might leave in place.
+///
+/// Only ever a finding. Four tries show four accounts are not there, which is not the same as there
+/// being none, so nothing is credited when they all fail.
+fn default_account_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let Some(confirm) = confirm else {
+        return;
+    };
+    let mut opened = Vec::new();
+    for (user, password) in DEFAULT_ACCOUNTS {
+        let account = Account {
+            user: (*user).to_owned(),
+            password: (*password).to_owned(),
+        };
+        let mut quiet = Vec::new();
+        if let Some(signed_in) = sign_in(http, users, "default", &account, &mut quiet)
+            && ok(&http.send(&get("private-default", confirm, &signed_in.session)))
+        {
+            opened.push(format!("{user} / {password}"));
+        }
+    }
+    out.steps.push(format!(
+        "tried {} default accounts: {}",
+        DEFAULT_ACCOUNTS.len(),
+        if opened.is_empty() {
+            "none signed in".to_owned()
+        } else {
+            opened.join(", ")
+        }
+    ));
+    if !opened.is_empty() {
+        out.findings.push(finding(
+            &DEFAULT_ACCOUNT,
+            "A default account can sign in",
+            Severity::Critical,
+            format!(
+                "Signing in as {} worked and opened {confirm}.",
+                opened.join(" and as ")
+            ),
+        ));
+    }
+}
+
+/// Signing in with the password in the address rather than the body.
+///
+/// Only ever a finding: an app that refuses this has shown one address refuses it.
+fn password_in_url_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    account: &Account,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let (Some(confirm), Some(login)) = (confirm, &users.login) else {
+        return;
+    };
+    if login.form.is_empty() || !login.method.eq_ignore_ascii_case("POST") {
+        return;
+    }
+    let mut session = Session::default();
+    let mut csrf = None;
+    if let Some(page) = http.send(&get("login-page-url", &login.path, &session)) {
+        session.absorb(&page);
+        csrf = csrf_token(&page, &session);
+    }
+    let values = Values {
+        user: &account.user,
+        password: &account.password,
+        csrf,
+        ..Default::default()
+    };
+    let query: Vec<String> = login
+        .form
+        .iter()
+        .map(|(k, v)| format!("{}={}", form_encode(k), form_encode(&fill(v, &values))))
+        .collect();
+    let path = format!(
+        "{}{}{}",
+        fill(&login.path, &values),
+        if login.path.contains('?') { "&" } else { "?" },
+        query.join("&")
+    );
+    let mut request = get("login-in-url", &path, &session);
+    request.headers = session.headers();
+    if let Some(response) = http.send(&request) {
+        session.absorb(&response);
+    }
+    let works = ok(&http.send(&get("private-url", confirm, &session)));
+    out.steps.push(format!(
+        "signed in with the password in the address: {}",
+        if works { "opened" } else { "refused" }
+    ));
+    if works {
+        out.findings.push(finding(
+            &PASSWORD_IN_URL,
+            "The app accepts a password in the address",
+            Severity::Medium,
+            format!(
+                "Sending the sign-in fields as a GET to {} signed the user in, so a password can \
+                 arrive in the query string.",
+                login.path
+            ),
+        ));
+    }
+}
+
+/// At most how many bits of randomness a value could hold, from its length and the kinds of
+/// character in it.
+///
+/// An upper bound, and meant as one: hex counted as letters and digits is credited with more than
+/// it has. It can show an id too short to be unguessable; it can never show one is random.
+fn most_bits(value: &str) -> f64 {
+    let kinds = [
+        (value.chars().any(|c| c.is_ascii_digit()), 10.0),
+        (value.chars().any(|c| c.is_ascii_lowercase()), 26.0),
+        (value.chars().any(|c| c.is_ascii_uppercase()), 26.0),
+        (value.chars().any(|c| !c.is_ascii_alphanumeric()), 4.0),
+    ];
+    let alphabet: f64 = kinds.iter().filter(|(k, _)| *k).map(|(_, n)| n).sum();
+    if alphabet < 2.0 {
+        return 0.0;
+    }
+    value.chars().count() as f64 * alphabet.log2()
+}
+
+/// Whether the session id could be guessed: too short to hold 128 bits, or the same twice.
+///
+/// Only ever a finding. Length is necessary and far from sufficient; whether an id came from a
+/// secure generator is not something its value shows, so a long one is credited with nothing.
+fn session_id_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    a: &SignedIn,
+    signed_in_works: bool,
+    out: &mut Outcome,
+) {
+    if !signed_in_works || a.set_at_login.is_empty() {
+        return;
+    }
+    let mut quiet = Vec::new();
+    let Some(again) = sign_in(http, users, "a-again", &accounts.a, &mut quiet) else {
+        return;
+    };
+    let mut problems = Vec::new();
+    for first in &a.set_at_login {
+        let bits = most_bits(&first.value);
+        if bits < 128.0 {
+            problems.push(format!(
+                "`{}` is {} characters, room for at most {bits:.0} bits",
+                first.name,
+                first.value.chars().count()
+            ));
+        }
+        if again
+            .set_at_login
+            .iter()
+            .any(|c| c.name == first.name && c.value == first.value)
+        {
+            problems.push(format!(
+                "`{}` had the same value at two separate sign-ins",
+                first.name
+            ));
+        }
+    }
+    out.steps.push(format!(
+        "compared the session cookies of two sign-ins: {}",
+        if problems.is_empty() {
+            "long enough and different"
+        } else {
+            "too short or repeated"
+        }
+    ));
+    if !problems.is_empty() {
+        out.findings.push(finding(
+            &WEAK_SESSION_ID,
+            "The session id could be guessed",
+            Severity::High,
+            problems.join("; "),
+        ));
+    }
 }
 
 fn session_checks(a: &SignedIn, signed_in_works: bool, out: &mut Outcome) {
@@ -1151,21 +1618,94 @@ mod tests {
         logout_keeps_session: bool,
         no_httponly: bool,
         broken_login: bool,
+        /// Sign-up takes a password shorter than 8 characters.
+        short_password_ok: bool,
+        /// Sign-up takes a password from the common list.
+        common_password_ok: bool,
+        /// Sign-up wants a capital and a digit in every password.
+        composition_rules: bool,
+        /// `admin` / `admin` is an account.
+        default_admin: bool,
+        /// A GET to /login with the fields in the query string signs in.
+        password_in_url: bool,
+        /// Session ids are a short counter.
+        short_session_ids: bool,
+        /// Sign-up refuses everybody.
+        signup_closed: bool,
+        /// Each user gets the same long session id every time they sign in.
+        same_session_id: bool,
+        /// Sign-up wants at least 16 characters.
+        long_minimum: bool,
+        /// Sign-up answers as if it worked and makes no account.
+        signup_does_nothing: bool,
     }
 
     const CSRF: &str = "tok-123";
 
     impl FakeApp {
         fn new(flaws: Flaws) -> Self {
-            FakeApp {
+            let mut app = FakeApp {
                 flaws,
                 ..Default::default()
+            };
+            if flaws.default_admin {
+                app.users.insert("admin".into(), ("admin".into(), true));
             }
+            app
         }
 
         fn new_id(&mut self) -> String {
             self.next += 1;
-            format!("s{:04}x{}", self.next * 7919, self.next)
+            if self.flaws.short_session_ids {
+                return format!("s{:04}x{}", self.next * 7919, self.next);
+            }
+            let n = u64::from(self.next);
+            format!(
+                "{:016x}{:016x}",
+                n.wrapping_mul(0x9E37_79B9_7F4A_7C15),
+                n.wrapping_mul(0xC2B2_AE3D_27D4_EB4F)
+            )
+        }
+
+        /// A new session for this user, answered the way POST /login answers.
+        fn signed_in(&mut self, who: String) -> ProbeResponse {
+            let id = if self.flaws.same_session_id {
+                let n = who.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+                    (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+                });
+                format!("{n:016x}{:016x}", n.rotate_left(17))
+            } else {
+                self.new_id()
+            };
+            self.sessions.insert(id.clone(), who);
+            let attrs = self.cookie_attrs();
+            Self::respond(
+                303,
+                vec![
+                    ("Location", "/account".into()),
+                    ("Set-Cookie", format!("sid={id}; {attrs}")),
+                ],
+                "",
+            )
+        }
+
+        fn password_allowed(&self, password: &str) -> bool {
+            if password.chars().count() < 8 && !self.flaws.short_password_ok {
+                return false;
+            }
+            if self.flaws.long_minimum && password.chars().count() < 16 {
+                return false;
+            }
+            if password == COMMON && !self.flaws.common_password_ok {
+                return false;
+            }
+            if self.flaws.composition_rules
+                && !(password.chars().any(|c| c.is_ascii_uppercase())
+                    && password.chars().any(|c| c.is_ascii_digit()))
+            {
+                return false;
+            }
+            true
         }
 
         fn cookie_attrs(&self) -> &'static str {
@@ -1202,20 +1742,39 @@ mod tests {
         })
     }
 
-    fn form(request: &ProbeRequest) -> BTreeMap<String, String> {
-        request
-            .body
-            .as_deref()
-            .unwrap_or("")
-            .split('&')
+    fn decode(text: &str) -> String {
+        let bytes = text.as_bytes();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'+' => out.push(b' '),
+                b'%' if i + 2 < bytes.len() => {
+                    let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("");
+                    match u8::from_str_radix(hex, 16) {
+                        Ok(b) => {
+                            out.push(b);
+                            i += 2;
+                        }
+                        Err(_) => out.push(b'%'),
+                    }
+                }
+                b => out.push(b),
+            }
+            i += 1;
+        }
+        String::from_utf8_lossy(&out).into_owned()
+    }
+
+    fn pairs(text: &str) -> BTreeMap<String, String> {
+        text.split('&')
             .filter_map(|kv| kv.split_once('='))
-            .map(|(k, v)| {
-                (
-                    k.to_owned(),
-                    v.replace('+', " ").replace("%40", "@").replace("%2D", "-"),
-                )
-            })
+            .map(|(k, v)| (decode(k), decode(v)))
             .collect()
+    }
+
+    fn form(request: &ProbeRequest) -> BTreeMap<String, String> {
+        pairs(request.body.as_deref().unwrap_or(""))
     }
 
     impl Http for FakeApp {
@@ -1241,7 +1800,18 @@ mod tests {
             let is_admin = user
                 .as_ref()
                 .is_some_and(|u| self.users.get(u).is_some_and(|(_, admin)| *admin));
-            let path = r.path.clone();
+            let (path, query) = match r.path.split_once('?') {
+                Some((p, q)) => (p.to_owned(), pairs(q)),
+                None => (r.path.clone(), BTreeMap::new()),
+            };
+            if self.flaws.password_in_url
+                && r.method == "GET"
+                && path == "/login"
+                && let (Some(email), Some(password)) = (query.get("email"), query.get("password"))
+                && self.users.get(email).is_some_and(|(p, _)| p == password)
+            {
+                return Some(self.signed_in(email.clone()));
+            }
             Some(match (r.method.as_str(), path.as_str()) {
                 ("GET", "/login") => {
                     let id = self.new_id();
@@ -1274,17 +1844,7 @@ mod tests {
                             "",
                         ));
                     }
-                    let id = self.new_id();
-                    self.sessions.insert(id.clone(), who);
-                    let attrs = self.cookie_attrs();
-                    Self::respond(
-                        303,
-                        vec![
-                            ("Location", "/account".into()),
-                            ("Set-Cookie", format!("sid={id}; {attrs}")),
-                        ],
-                        "",
-                    )
+                    self.signed_in(who)
                 }
                 ("GET", "/signup") => Self::respond(
                     200,
@@ -1297,7 +1857,12 @@ mod tests {
                     }
                     let f = form(r);
                     let (email, password) = (f.get("email")?.clone(), f.get("password")?.clone());
-                    self.users.insert(email, (password, false));
+                    if self.flaws.signup_closed || !self.password_allowed(&password) {
+                        return Some(Self::respond(422, vec![], "password refused"));
+                    }
+                    if !self.flaws.signup_does_nothing {
+                        self.users.insert(email, (password, false));
+                    }
                     Self::respond(303, vec![("Location", "/login".into())], "")
                 }
                 ("POST", "/api/login") => {
@@ -1427,16 +1992,17 @@ mod tests {
         Accounts {
             a: Account {
                 user: "a@example.test".into(),
-                password: "pa".into(),
+                password: "Sv-0a1b2c3d4e5f60718293a4b5-aZ9!".into(),
             },
             b: Account {
                 user: "b@example.test".into(),
-                password: "pb".into(),
+                password: "Sv-b5a4938271605f4e3d2c1b0a-aZ9!".into(),
             },
             admin: Some(Account {
                 user: "admin@example.test".into(),
-                password: "pz".into(),
+                password: "Sv-00112233445566778899aabb-aZ9!".into(),
             }),
+            spare: "3f9c0a7e5b1d2468ace13579bdf02468".into(),
         }
     }
 
@@ -1541,6 +2107,34 @@ mod tests {
                     ..Default::default()
                 },
                 SESSION_COOKIE.rule_id,
+            ),
+            (
+                Flaws {
+                    default_admin: true,
+                    ..Default::default()
+                },
+                DEFAULT_ACCOUNT.rule_id,
+            ),
+            (
+                Flaws {
+                    password_in_url: true,
+                    ..Default::default()
+                },
+                PASSWORD_IN_URL.rule_id,
+            ),
+            (
+                Flaws {
+                    short_session_ids: true,
+                    ..Default::default()
+                },
+                WEAK_SESSION_ID.rule_id,
+            ),
+            (
+                Flaws {
+                    same_session_id: true,
+                    ..Default::default()
+                },
+                WEAK_SESSION_ID.rule_id,
             ),
         ] {
             let o = run_against(flaw, &users());
@@ -1776,7 +2370,10 @@ mod tests {
         let mut acc = accounts();
         acc.admin = None;
         let o = run(&mut app, &u, &acc, false);
-        assert_eq!(app.users.len(), 2, "both users signed up");
+        assert!(
+            app.users.contains_key(&acc.a.user) && app.users.contains_key(&acc.b.user),
+            "both users signed up"
+        );
         assert!(
             o.steps.iter().any(|s| s.starts_with("signed up A")),
             "{:?}",
@@ -2008,5 +2605,268 @@ mod tests {
             Some("/api/notes/42")
         );
         assert_eq!(record_path(&owned(None), &created(vec![], "{}")), None);
+    }
+
+    /// The suite with no `seed`: every account, the test passwords' included, goes through sign-up.
+    fn with_signup() -> UsersSection {
+        let mut u = users();
+        u.seed = None;
+        u.admin = Vec::new();
+        u.signup = Some(RequestTemplate {
+            method: "POST".into(),
+            path: "/signup".into(),
+            form: [
+                ("email", "{user}"),
+                ("password", "{password}"),
+                ("csrf_token", "{csrf}"),
+            ]
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+            json: BTreeMap::new(),
+        });
+        u
+    }
+
+    fn run_signing_up(flaws: Flaws) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let mut acc = accounts();
+        acc.admin = None;
+        run(&mut app, &with_signup(), &acc, false)
+    }
+
+    #[test]
+    fn a_correct_sign_up_confirms_the_password_rules_and_raises_nothing() {
+        let o = run_signing_up(Flaws::default());
+        assert!(o.findings.is_empty(), "{:#?}\n{:?}", o.findings, o.steps);
+        for id in [
+            SHORT_PASSWORD.rule_id,
+            COMMON_PASSWORD.rule_id,
+            COMPOSITION_RULES.rule_id,
+        ] {
+            assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
+        }
+        // These can only ever find something; a clean answer is credited with nothing.
+        for id in [
+            DEFAULT_ACCOUNT.rule_id,
+            PASSWORD_IN_URL.rule_id,
+            WEAK_SESSION_ID.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&id), "{id} was credited");
+        }
+        assert!(
+            o.steps.iter().any(|s| s.contains("7-character password")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn each_password_flaw_is_found_by_its_own_rule_and_by_no_other() {
+        for (flaw, rule) in [
+            (
+                Flaws {
+                    short_password_ok: true,
+                    ..Default::default()
+                },
+                SHORT_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    common_password_ok: true,
+                    ..Default::default()
+                },
+                COMMON_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    composition_rules: true,
+                    ..Default::default()
+                },
+                COMPOSITION_RULES.rule_id,
+            ),
+            (
+                Flaws {
+                    default_admin: true,
+                    ..Default::default()
+                },
+                DEFAULT_ACCOUNT.rule_id,
+            ),
+            (
+                Flaws {
+                    password_in_url: true,
+                    ..Default::default()
+                },
+                PASSWORD_IN_URL.rule_id,
+            ),
+            (
+                Flaws {
+                    short_session_ids: true,
+                    ..Default::default()
+                },
+                WEAK_SESSION_ID.rule_id,
+            ),
+            (
+                Flaws {
+                    same_session_id: true,
+                    ..Default::default()
+                },
+                WEAK_SESSION_ID.rule_id,
+            ),
+        ] {
+            let o = run_signing_up(flaw);
+            let found = rule_ids(&o);
+            assert_eq!(found, vec![rule], "{:?}\n{:?}", o.steps, o.not_assessed);
+            assert!(
+                !verified_ids(&o).contains(&rule),
+                "{rule} both found and confirmed"
+            );
+        }
+    }
+
+    #[test]
+    fn composition_rules_leave_the_common_password_check_unanswerable_rather_than_passed() {
+        // The common password has no capital, so an app that wants one refuses it for that; the
+        // random password of the same kinds is refused too, which is what shows it.
+        let o = run_signing_up(Flaws {
+            composition_rules: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&o).contains(&COMMON_PASSWORD.rule_id));
+        assert!(
+            o.not_assessed.iter().any(|(ids, _)| ids == "V6.2.4"),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn with_no_sign_up_the_password_rules_are_not_assessed() {
+        let o = run_against(Flaws::default(), &users());
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids.contains("V6.2.1"))
+            .expect("the password rules are named as not assessed");
+        assert!(why.contains("`signup`"), "{why}");
+        for id in [
+            SHORT_PASSWORD.rule_id,
+            COMMON_PASSWORD.rule_id,
+            COMPOSITION_RULES.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&id));
+        }
+    }
+
+    #[test]
+    fn a_session_id_is_measured_by_its_length_and_kinds_of_character() {
+        assert!(most_bits("s7919x1") < 128.0);
+        assert!(most_bits("0123456789abcdef0123456789abcdef") >= 128.0);
+        // Twenty-two base64 characters hold 128 bits and no more.
+        assert!(most_bits("aB3dE5fG7hI9jK1lM3nO5p") >= 128.0);
+        // An upper bound: a long run of one letter passes. It can only ever show an id too short.
+        assert!(most_bits("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") >= 128.0);
+        assert_eq!(most_bits(""), 0.0);
+    }
+
+    #[test]
+    fn seed_and_sign_up_together_ask_both_the_admin_and_the_password_questions() {
+        // `seed` makes the admin; `signup` is only used for the passwords, never for the test users.
+        let mut u = with_signup();
+        u.seed = Some("seed".into());
+        u.admin = vec!["/admin".into()];
+        let o = run_against(Flaws::default(), &u);
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        for id in [
+            ADMIN_PAGE.rule_id,
+            SHORT_PASSWORD.rule_id,
+            COMMON_PASSWORD.rule_id,
+        ] {
+            assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
+        }
+    }
+
+    #[test]
+    fn a_sign_up_that_refuses_everybody_asks_no_password_question() {
+        // The control is refused too, so no refusal can be put down to the password.
+        let mut u = with_signup();
+        u.seed = Some("seed".into());
+        let o = run_against(
+            Flaws {
+                signup_closed: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        for id in [
+            SHORT_PASSWORD.rule_id,
+            COMMON_PASSWORD.rule_id,
+            COMPOSITION_RULES.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&id), "{id} credited");
+            assert!(!rule_ids(&o).contains(&id), "{id} found");
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V6.2.1") && why.contains("strong password")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_long_minimum_leaves_the_common_password_check_unanswerable_too() {
+        // A second way the random password beside the common one is refused: it is shorter than
+        // the app allows. The common one's refusal then says nothing about a list of passwords.
+        let o = run_signing_up(Flaws {
+            long_minimum: true,
+            ..Default::default()
+        });
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        assert!(!verified_ids(&o).contains(&COMMON_PASSWORD.rule_id));
+        assert!(o.not_assessed.iter().any(|(ids, _)| ids == "V6.2.4"));
+        // The rules it can answer, it still does.
+        assert!(verified_ids(&o).contains(&SHORT_PASSWORD.rule_id));
+    }
+
+    #[test]
+    fn a_sign_up_that_makes_no_account_asks_no_password_question_either() {
+        // It answers as if it worked. Only signing in shows it did not.
+        let mut u = with_signup();
+        u.seed = Some("seed".into());
+        let o = run_against(
+            Flaws {
+                signup_does_nothing: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        for id in [
+            SHORT_PASSWORD.rule_id,
+            COMMON_PASSWORD.rule_id,
+            COMPOSITION_RULES.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&id), "{id} credited");
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V6.2.1") && why.contains("strong password"))
+        );
+    }
+
+    #[test]
+    fn beside_seed_a_common_password_accepted_is_found() {
+        let mut u = with_signup();
+        u.seed = Some("seed".into());
+        let o = run_against(
+            Flaws {
+                common_password_ok: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        assert_eq!(rule_ids(&o), vec![COMMON_PASSWORD.rule_id], "{:?}", o.steps);
     }
 }

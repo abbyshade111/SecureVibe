@@ -198,6 +198,7 @@ pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
         a: account("a"),
         b: account("b"),
         admin: with_admin.then(|| account("admin")),
+        spare: random_hex(16),
     }
 }
 

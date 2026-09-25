@@ -54,6 +54,31 @@ describe('testMatchesRequirement / refMentionsRequirement', () => {
   });
 });
 
+describe('buildRequirementEvidence: scanner-clean', () => {
+  const covered = (standard: string, id: string) => (standard === 'asvs' && id === 'V1.2.1' ? ['sast.ejs-unescaped-output', 'sast.innerhtml-assignment'] : []);
+
+  it('credits a clean scan only for a requirement some static rule covers, and names the rules', () => {
+    const { statusCtxPartial } = buildRequirementEvidence('V1.2.1', 'scanner-clean', baseCtx({ staticRulesCovering: covered }));
+    const scanner = statusCtxPartial.evidence.filter((e) => e.type === 'scanner');
+    expect(scanner).toHaveLength(1);
+    expect(scanner[0]!.passed).toBe(true);
+    expect(scanner[0]!.summary).toContain('2 static rules that cover this requirement');
+    expect(scanner[0]!.summary).toContain('sast.ejs-unescaped-output');
+  });
+
+  it('gives no credit for a requirement no rule covers: an empty scan says nothing about it', () => {
+    // V1.2.3 (JavaScript and JSON injection) was in this class with no rule behind it, and earned a tick.
+    const { statusCtxPartial } = buildRequirementEvidence('V1.2.3', 'scanner-clean', baseCtx({ staticRulesCovering: covered }));
+    expect(statusCtxPartial.evidence.filter((e) => e.type === 'scanner')).toEqual([]);
+  });
+
+  it('gives no credit while a covering rule has an open finding', () => {
+    const finding = { id: 'F-1', status: 'open', source: 'sast', ruleId: 'sast.ejs-unescaped-output', mappings: { asvs: ['V1.2.1'], aisvs: [], sbd: [] } } as never;
+    const { statusCtxPartial } = buildRequirementEvidence('V1.2.1', 'scanner-clean', baseCtx({ staticRulesCovering: covered, findings: [finding] }));
+    expect(statusCtxPartial.evidence.filter((e) => e.type === 'scanner')).toEqual([]);
+  });
+});
+
 describe('buildRequirementEvidence: manifest controls', () => {
   it('credits requirement-level medium evidence from a passing, expected manifest control', () => {
     const manifestResults: ManifestControlResult[] = [

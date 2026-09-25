@@ -54,6 +54,8 @@ RUST_CHECKS = {
     "probe.cors-any-origin": ("running", ["V3.4.2"]),
     "probe.error-detail-leak": ("running", ["V13.4.2", "V16.5.1"]),
     "probe.trace-enabled": ("running", ["V13.4.4"]),
+    "probe.content-type": ("running", ["V4.1.1"]),
+    "probe.source-control-exposed": ("running", ["V13.4.1"]),
     "probe.private-page-anonymous": ("signed-in", ["V8.2.1"]),
     "probe.admin-page-ordinary-user": ("signed-in", ["V8.2.1"]),
     "probe.other-users-data": ("signed-in", ["V8.2.2"]),
@@ -61,6 +63,12 @@ RUST_CHECKS = {
     "probe.session-not-renewed": ("signed-in", ["V7.2.4"]),
     "probe.logout-keeps-session": ("signed-in", ["V7.4.1"]),
     "probe.cross-site-request-accepted": ("signed-in", ["V3.5.1"]),
+    "probe.short-password-accepted": ("signed-in", ["V6.2.1"]),
+    "probe.common-password-accepted": ("signed-in", ["V6.2.4"]),
+    "probe.password-composition-rules": ("signed-in", ["V6.2.5"]),
+    "probe.default-account": ("signed-in", ["V6.3.2"]),
+    "probe.password-in-url": ("signed-in", ["V14.2.1"]),
+    "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
