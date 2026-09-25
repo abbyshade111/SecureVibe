@@ -18,30 +18,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
-  `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
-  refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an
-  antivirus scanner asks whether a file is known-bad content. Nothing we run does the second. The template
-  already stops a file pretending to be an image — size enforced before the body finishes, magic bytes sniffed,
-  declared type and extension cross-checked, stored outside the web root under a random name — but a genuine
-  image carrying a known exploit, or a document with a malicious macro, passes all of that. Worth adding as an
-  optional connection to a scanner the owner runs (ClamAV being the usual one) for apps that accept uploads, with
-  the same wizard shape as an outside service. It must stay honest when absent: the app says uploads are
-  unscanned rather than implying they were checked. Not a new build-time scanner: malicious packages are rarely
-  in antivirus signatures, and that risk is already covered by disabled install scripts, a minimum package age
-  and the OSV check. V5.4.3 stays manual-only until an app actually scans.
-- **The same scanner, on SecureVibe's own Security page.** **[taken: this session, 20 Sep 2026]** A second use of the same connection, and the stronger
-  of the two for SecureVibe itself: an opt-in external tool beside Trivy, Semgrep and the AI scanner, run on
-  demand like any other check. It earns its place most on an **uploaded** app — code SecureVibe is handed and
-  never runs is precisely untrusted content — and on a built app's own uploads folder, where whatever an owner
-  has been trying out is sitting. It must behave like the other opt-in tools when absent: say the check did not
-  run, never imply a clean result. Expect few hits on ordinary source; the honest claim is "nothing known-bad in
-  these files", not "this code is safe".
-  For an **uploaded** app this belongs in the ordinary run rather than behind a switch: the owner is handing
-  SecureVibe files from somewhere else, so asking whether any of them is known-bad is part of checking them, not
-  an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
-  uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
-
 - ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
