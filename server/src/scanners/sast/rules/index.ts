@@ -13,6 +13,7 @@ import { loggingRules } from './logging.js';
 import { networkRules } from './network.js';
 import { projectRules } from './project.js';
 import { viewRules } from './views.js';
+import { workingStateRules } from './working-state.js';
 
 export const ALL_RULES: SastRule[] = [
   ...codeExecutionRules,
@@ -26,6 +27,7 @@ export const ALL_RULES: SastRule[] = [
   ...loggingRules,
   ...aiRules,
   ...projectRules,
+  ...workingStateRules,
 ];
 
 export const RULE_IDS: string[] = ALL_RULES.map((r) => r.id);
