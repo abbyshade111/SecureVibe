@@ -991,7 +991,7 @@ writes the starter app from the answers (pages for every record, no AI-written f
 runs, and no plan approval is needed. The Build page offers "Build without AI (free)" for any unbuilt app when a key
 is configured (in preview mode every build is already without AI) and "Check again without AI (free)" for built
 ones. The results page leads the Reports section with the one-page summary: verdict, headline, "can I use it", the
-first three top actions, and buttons to open `overview.html` or download `overview.pdf`. Every `<report>.html` has a `<report>.pdf` beside it (ADR-013); the artifact route makes the PDF on request for a run that predates them.
+first three top actions, and buttons to open `overview.html` or download `overview.pdf`. Every `<report>.html` has a `<report>.pdf` beside it (ADR-013); the artifact route makes the PDF on request for a run that predates them, and again in the size set by `settings.pdfPageSize` (`letter` default, or `a4`) when the saved file is on the other size.
 
 ## Network fence for generated code (added 2026-09-18)
 
