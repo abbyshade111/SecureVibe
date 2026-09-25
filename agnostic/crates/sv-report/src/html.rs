@@ -184,6 +184,14 @@ pub fn page(report: &Report) -> String {
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            Status::NotVerified if !line.supported_by.is_empty() => format!(
+                " \u{2014} a person has to answer it; supporting: {}",
+                line.supported_by
+                    .iter()
+                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
             Status::NotVerified => String::new(),
         };
         b.push_str(&format!(

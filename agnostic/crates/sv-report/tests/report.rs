@@ -55,6 +55,7 @@ fn inputs<'a>(
         findings,
         verified,
         gaps: vec![],
+        manual_only: Default::default(),
     }
 }
 
@@ -487,5 +488,164 @@ fn a_report_from_a_run_says_it_was_a_run() {
             .find("Requirements that apply")
             .unwrap_or(rendered.len());
         assert!(at < table_at, "the run note belongs near the top");
+    }
+}
+
+#[test]
+fn a_clean_check_about_a_design_review_requirement_supports_it_and_does_not_check_it() {
+    // SBD-AC-05 asks for a secret manager, automatic rotation and no secrets in the code. A clean
+    // credential scan speaks to the last of those only. Filed as "checked" it would claim the other
+    // two, which is how V13.3.1 (use a key vault) was reported as checked by a scan of source files.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["SBD-AC-05".into(), "V1.2.4".into()],
+        ..Default::default()
+    };
+    let passed = vec![
+        Verified::new("secrets.scan", &["SBD-AC-05"], "12 files".into()),
+        Verified::new(
+            "ast.sql-built-by-hand",
+            &["V1.2.4"],
+            "3 python files".into(),
+        ),
+    ];
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.manual_only = BTreeSet::from(["SBD-AC-05".to_owned()]);
+    let report = build(i);
+    let line = |id: &str| report.requirements.iter().find(|l| l.id == id).unwrap();
+
+    let sbd = line("SBD-AC-05");
+    assert_eq!(sbd.status, Status::NotVerified);
+    assert!(sbd.checked_by.is_empty(), "{:?}", sbd.checked_by);
+    assert_eq!(sbd.supported_by.len(), 1);
+    assert_eq!(sbd.supported_by[0].check_id, "secrets.scan");
+
+    // A requirement a check can settle is still settled by one.
+    assert_eq!(line("V1.2.4").status, Status::Checked);
+    assert_eq!(
+        report.counts.checked, 1,
+        "only the settled one counts as checked"
+    );
+
+    // And both renderings say whose answer it still needs, and what was looked at.
+    for (what, text) in [
+        ("markdown", sv_report::markdown::compliance(&report)),
+        ("html", sv_report::html::page(&report)),
+    ] {
+        assert!(
+            text.contains("a person has to answer it; supporting: secrets.scan over 12 files"),
+            "{what} does not show the supporting evidence"
+        );
+    }
+}
+
+#[test]
+fn a_finding_against_a_design_review_requirement_still_needs_attention() {
+    // The other direction. A committed credential is a plain failure of "no secrets in code/logs",
+    // and being design review does not soften that.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["SBD-AC-05".into()],
+        ..Default::default()
+    };
+    let mut i = inputs(
+        &f,
+        &buckets,
+        vec![finding("secrets.stripe-key", &["V13.3.1", "SBD-AC-05"])],
+        &[],
+    );
+    i.manual_only = BTreeSet::from(["SBD-AC-05".to_owned()]);
+    let report = build(i);
+    assert_eq!(report.requirements[0].status, Status::NeedsAttention);
+}
+
+/// The whole chain the CLI runs, on real data: the OWASP files, the v2 applicability rules, the
+/// credential scan over a real folder, and the report built from what those produce.
+fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
+    use sv_frameworks::applicability::{ApplicabilityConfig, ConditionContext, bucket};
+    let dir = std::env::temp_dir().join(format!(
+        "sv-report-chain-{}-{}",
+        std::process::id(),
+        files[0].0.replace('.', "-")
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    for (name, contents) in files {
+        std::fs::write(dir.join(name), contents).unwrap();
+    }
+    let agnostic = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let rules =
+        sv_check::secrets::SecretRules::load(&agnostic.join("data/secret-rules.json")).unwrap();
+    let scan = sv_check::secrets::scan_dir(&rules, &dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    let f = frameworks();
+    let config = ApplicabilityConfig::load_v2(
+        &data().join("knowledge"),
+        &agnostic.join("data/applicability-v2.json"),
+    )
+    .unwrap();
+    let buckets = bucket(&f, &config, &ConditionContext::default(), 3);
+    let manual_only = buckets.manual_only(&config);
+    build(Inputs {
+        app_name: "Chain",
+        target_level: 3,
+        generated: None,
+        run_note: None,
+        frameworks: &f,
+        buckets: &buckets,
+        claims: &[],
+        findings: scan.findings.clone(),
+        verified: &scan.verified,
+        gaps: vec![],
+        manual_only,
+    })
+}
+
+#[test]
+fn end_to_end_a_clean_scan_supports_the_secrets_controls_and_checks_none_of_them() {
+    let report = report_for_folder(&[("app.py", "import os\nKEY = os.environ['STRIPE_KEY']\n")]);
+    for id in ["SBD-AC-05", "V13.3.1", "V11.1.1"] {
+        let line = report
+            .requirements
+            .iter()
+            .find(|l| l.id == id)
+            .unwrap_or_else(|| panic!("{id} should apply"));
+        assert_eq!(line.status, Status::NotVerified, "{id}");
+        assert!(
+            line.supported_by
+                .iter()
+                .any(|c| c.check_id == "secrets.scan"),
+            "{id}: {:?}",
+            line.supported_by
+        );
+    }
+}
+
+#[test]
+fn end_to_end_a_committed_secret_is_against_no_secrets_in_code() {
+    // Both routes: a key in a known shape, and a value assigned to a name that says password. The
+    // key is put together at run time, as the credential scanner's own tests do: a literal that looks
+    // like a real key is one GitHub's push protection blocks, and it blocked this test once.
+    let stripe = format!(
+        "stripe.api_key = '{}'\n",
+        ["sk", "live", "4eC39HqLyjWDarjtT1zdp7dc"].join("_")
+    );
+    for (name, contents) in [
+        ("billing.py", stripe.as_str()),
+        ("db.py", "DB_PASSWORD = 'q8#Vz!pL2@xR9$mK4&tW'\n"),
+    ] {
+        let report = report_for_folder(&[(name, contents)]);
+        let line = report
+            .requirements
+            .iter()
+            .find(|l| l.id == "SBD-AC-05")
+            .unwrap();
+        assert_eq!(
+            line.status,
+            Status::NeedsAttention,
+            "{name}: {:?}",
+            line.findings
+        );
     }
 }

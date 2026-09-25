@@ -36,6 +36,21 @@ another session is not a claim.
   `golang.org/x/crypto` and never appears in `go.mod`, so it is found in source instead. And
   `build.gradle.kts`, the Kotlin default, is now read, for dependencies and for pinning.
 
+- ~~**Secure by Design controls excluded on too narrow a question.**~~ Done on 25 September 2026, at
+  the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
+  (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
+  AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
+  Left over from the same review: the derived checklist levels are reported as "above the ASVS level
+  this app targets", which is not what they are. (This entry was deleted by accident on 25 September
+  2026 by the commit that finished the nested-manifests item, and restored.)
+
+- ~~**SBD-AC-05's "no secrets in code" is what the credential scan checks.**~~ Done on 25 September
+  2026. Every credential rule cites SBD-AC-05, so a committed secret is a finding against it, and a
+  clean scan is shown beside it as *supporting* evidence while it stays not verified. That rule is
+  general: a satisfied check about a manual-only requirement is never "checked". It corrected two
+  overclaims already in every report — V13.3.1 (use a key vault) and V11.1.1 (a documented key policy)
+  were listed as checked by a scan of source files.
+
 - ~~**Dependency manifests are only read at the top of the repository.**~~ Done on 25 September 2026.
   `ecosystems::detect` walks the whole app folder (skipping installed dependencies and build output),
   so a `client/` + `server/` app has its dependencies read, its pinning judged per project, and its

@@ -113,6 +113,15 @@ pub fn compliance(report: &Report) -> String {
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            Status::NotVerified if !line.supported_by.is_empty() => format!(
+                "{} — a person has to answer it; supporting: {}",
+                line.status.label(),
+                line.supported_by
+                    .iter()
+                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
             Status::NotVerified => line.status.label().to_owned(),
         };
         out.push_str(&format!(

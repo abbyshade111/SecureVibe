@@ -77,6 +77,25 @@ fn every_citation() -> Vec<(String, String, String)> {
         }
     }
 
+    let secrets =
+        sv_check::secrets::SecretRules::load(&data("secret-rules.json")).expect("the rules load");
+    for rule in secrets.rules() {
+        for requirement in &rule.requirement_ids {
+            out.push((
+                format!("secret-rules.json {}", rule.id),
+                requirement.clone(),
+                format!("{} {}", rule.title, rule.description),
+            ));
+        }
+    }
+    for requirement in sv_check::secrets::ASSIGNMENT_REQUIREMENTS {
+        out.push((
+            "secrets.rs secrets.credential-assignment".to_owned(),
+            (*requirement).to_owned(),
+            sv_check::secrets::ASSIGNMENT_WHAT.to_owned(),
+        ));
+    }
+
     out
 }
 

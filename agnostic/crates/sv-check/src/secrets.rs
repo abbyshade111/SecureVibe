@@ -47,7 +47,20 @@ pub struct SecretRules {
     rules: Vec<(PatternRule, Regex)>,
 }
 
+/// What the credential-assignment rule cites. A constant rather than a literal in the finding, so the
+/// citation guard can read it alongside the data file's rules.
+pub const ASSIGNMENT_REQUIREMENTS: &[&str] = &["V13.3.1", "V13.2.3", "SBD-AC-05"];
+
+/// The assignment rule's own words, for the same guard.
+pub const ASSIGNMENT_WHAT: &str =
+    "A value that looks like a credential, a secret or a password is written into the code";
+
 impl SecretRules {
+    /// Every rule as it was loaded, for the citation guard.
+    pub fn rules(&self) -> impl Iterator<Item = &PatternRule> {
+        self.rules.iter().map(|(rule, _)| rule)
+    }
+
     /// Every requirement any credential rule is about, deduplicated.
     ///
     /// The union is right here and would be wrong for a per-rule claim: a scan that found no
@@ -277,7 +290,7 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
             confidence: Confidence::Medium,
             location: Location { file: relative.to_owned(), line: line_of(text, value_match.start()) },
             secret: Some(Secret::redact(value)),
-            requirement_ids: vec!["V13.3.1".into(), "V13.2.3".into()],
+            requirement_ids: ASSIGNMENT_REQUIREMENTS.iter().map(|r| (*r).to_owned()).collect(),
             cwe: vec!["CWE-798".into(), "CWE-259".into()],
             description: format!(
                 "`{name}` is set to a value in the code itself. The name says it holds a credential, and the \
@@ -628,5 +641,28 @@ SIGNING_KEY=generate_with_openssl_rand
         let text = "one\ntwo\napi_key = \"Xk7#mQ92vLpR4sTz\"\n";
         let found = scan_text(&rules(), "src/app.py", text);
         assert_eq!(found[0].location.line, 3);
+    }
+
+    #[test]
+    fn a_committed_credential_is_a_finding_against_no_secrets_in_code() {
+        // SBD-AC-05 asks, among other things, for no secrets in code. A key in a file is that failing,
+        // from the data file's rules and from the assignment rule alike.
+        let rules = SecretRules::load(
+            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../data/secret-rules.json"),
+        )
+        .unwrap();
+        for rule in rules.rules() {
+            assert!(
+                rule.requirement_ids.iter().any(|r| r == "SBD-AC-05"),
+                "{} does not cite SBD-AC-05",
+                rule.id
+            );
+        }
+        assert!(ASSIGNMENT_REQUIREMENTS.contains(&"SBD-AC-05"));
+        assert!(
+            rules.requirement_ids().contains(&"SBD-AC-05"),
+            "a clean scan has to offer itself as supporting evidence for it"
+        );
     }
 }
