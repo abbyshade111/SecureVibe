@@ -487,6 +487,44 @@ wrong reason: `config.load(path)` was being excluded by the query's own shape, b
 receiver is an `identifier` and the query asks for a `constant`. The receiver pattern could have been
 deleted with every test still green. `Settings.load(path)` is the case that actually exercises it.
 
+### Shell scripts
+
+AI coding tools put a deploy or setup script in most repositories, and until 25 September 2026 `sv`
+did not count `.sh` at all: not read, and not listed as unread either. Now `.sh` and `.bash` are read with
+the Bash grammar, as the language `shell`, and every rule is taught it or says why there is nothing to
+find. A shell script is not an application, so most of what the rules look for looks different in one:
+
+- **Code and commands.** `eval "$x"` is the code-execution rule's and `sh -c "… $x"` is the
+  shell-command rule's. `eval "$(ssh-agent -s)"` is the idiom every setup guide prints, running the
+  output of a fixed program, and is named as safe. Single quotes expand nothing, so `sh -c '…'` is a
+  literal whatever it holds, and a double-quoted string is literal unless something is expanded in it.
+- **A download piped into a shell** is a rule of its own, `ast.download-piped-to-shell`, citing V15.2.4
+  (third-party components included from the expected repository). `curl … | sh`, `wget -qO- … | sudo
+  bash`, and `bash <(curl …)` run whatever the address serves, unchecked. `curl … | sudo tee` writes a
+  file and is not reported, and neither is the download-check-run form the rule's fix describes.
+  `sh -c "$(curl …)"` is found by the shell-command rule instead. Every other language has no pipe
+  syntax, and says so; a literal `curl … | sh` written inside a Python string and handed to a shell is
+  found by neither rule, because the shell-command rule only reports commands built from a value.
+- **SQL, hashes, and ciphers** are the command-line tools: `psql -c`, `mysql -e`, `sqlite3 app.db`,
+  `md5sum`, `openssl dgst -sha1`, `openssl enc -des3`.
+- **Paths and redirects only for CGI.** In a deploy script `cat "$FILE"` is the whole point, and a
+  path-from-a-value rule would report every line. What V5.3.2 and V3.7.2 are about in shell is a CGI
+  script, so those two look only at the request variables the web server sets (`QUERY_STRING`,
+  `PATH_INFO`, `REQUEST_URI`, `HTTP_*`), written into a path or a `Location:` header. A request value
+  copied into another variable first is not followed.
+
+Two things stay out on purpose. Unquoted variables are the commonest shell bug, but they are word
+splitting rather than an ASVS requirement, and ShellCheck already finds them; it cannot write SARIF, so
+it cannot be an adapter under the rule that adapters speak SARIF only. And the technology scan does not
+treat shell as a language it failed to look in, as it does Dart and Swift: before the grammar a `.sh`
+file was invisible to it, and listing shell would take every "this app does not use X" answer away from
+any app with a deploy script. The price is that a technology written only in shell, a CGI app in Bash
+using XML, say, is called absent.
+
+A shell file whose parse holds an error silences every rule's claim for the app, the same as any other
+language. The Bash grammar reads Bash; a `.sh` file written in zsh's own syntax may not parse, and the
+report then names it.
+
 ## The language's own tool
 
 Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already
@@ -903,6 +941,28 @@ used `alpine:3`, whose busybox has no `httpd` applet: every container exited imm
 "outbound blocked" while not running. The second used `example.com`'s old address, decommissioned in 2024, which
 made the *default bridge* look fenced too. The table above comes from a run with a live target and a host
 baseline confirming this machine can reach the outside at all — without that line, "blocked" means nothing.
+
+### One sidecar per run, not one per request
+
+The sidecar used to be a new container for every request: `docker run --rm` into the fence, one
+request, gone. That is simple and each request is clean, and it cost about half a second a request.
+The anonymous probes are four requests, so nobody noticed. The signed-in checks are twenty-odd, made
+one after another because each depends on the cookies the last one returned, and a run of
+`examples/notes-with-users` took 11 to 13 seconds on the machine that measured it, 22 on a busy one, and
+by an earlier estimate about a minute on a slow one. Logging every Docker call showed where the time
+went: 26 throwaway containers were 13 of those seconds, and nothing else was more than a quarter of one.
+
+Now the sidecar is started once, just before the health check, and every request is an `exec` into it:
+0.11 seconds against 0.48 measured side by side. It is removed as soon as the last request is made,
+before the tests run, and by the teardown whatever happens. It has nothing to write and nothing to be
+allowed, so it is given neither: a read-only file system, no capabilities, no way to gain privileges.
+It runs `sleep` with `--rm` and a 15-minute limit, so a run that dies without its teardown leaves
+nothing behind for longer than that. If it cannot be started, each request starts its own container
+as before: slower, the same answers.
+
+The same run, three times each way: 11 to 13 seconds before, 4.3 after, the same ten checks confirmed,
+and a text-identical report. A copy of the example with five flaws switched on had all five found in 4.2
+seconds, and no container or network was left behind by any of it.
 
 ### What the probes ask, and what they cannot
 

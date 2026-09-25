@@ -5,6 +5,17 @@ another session is not a claim.
 
 ## Next
 
+- ~~**Shell scripts.**~~ Done on 25 September 2026 by session securevibe-e8. `.sh` and `.bash` are
+  read as `shell`, every rule is taught it or says why not, and a new rule,
+  `ast.download-piped-to-shell` (V15.2.4), finds `curl … | sh` and its relatives. See DESIGN, "Shell
+  scripts". Left over: unquoted variables are ShellCheck's, which cannot write SARIF; a request value
+  copied into another variable before it reaches a path or a redirect is not followed.
+
+- ~~**Signed-in checks in one container.**~~ Done on 25 September 2026 by session securevibe-e8. Every
+  request is now an `exec` into one sidecar started per run, not a container of its own: a signed-in run
+  of `examples/notes-with-users` went from 11–13 seconds to 4.3, with the same answers. See DESIGN,
+  "One sidecar per run".
+
 - **Corroborators for the remaining claims.** `multiple-services` done on 25 September 2026: gRPC and its `.proto`
   contracts, AsyncAPI documents, message-broker clients, microservice frameworks and service discovery,
   in eight ecosystems and ten languages. A `docker-compose.yml` is deliberately not evidence — most
@@ -92,10 +103,7 @@ another session is not a claim.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
-  least of the candidates for web apps. Dart and Swift, which were worth more, are done (above). Also worth
-  more than C++: **shell** (`.sh` deploy and setup scripts are in most generated repositories and are
-  where `curl | sh` and unquoted variables live; they are not counted at all today, so they neither
-  silence rules nor get read). Since the claim became per rule, a grammar added without queries
+  least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
   no longer turns silence into a clean claim; it moves the silence from the whole app to the rules not
   yet taught that language, and the report names them. C++ is also what the two "no grammar" tests now stand on, so whoever adds it will find
   those two failing, which is the right way round.
@@ -150,8 +158,7 @@ another session is not a claim.
   seven confirmed, and a copy with five flaws switched on had all five found. That run also found two
   bugs in the suite, both fixed: unquoted attributes hid the token, and a sign-out the app refused was
   reported as a sign-out that did not end the session. Left over: V3.3.1 (Secure) cannot be judged over
-  the fence's plain HTTP; input handling (V5, V1.2) still needs knowledge of the app's forms; the probes
-  still run one container per request, so a signed-in run takes about a minute.
+  the fence's plain HTTP; input handling (V5, V1.2) still needs knowledge of the app's forms.
 
 - ~~**Load the Secure by Design checklist.**~~ Done on 24 September 2026. Left over: `multiple-services`
   had no corroborator until 25 September 2026 (see the corroborators item). The
