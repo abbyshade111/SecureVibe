@@ -22,6 +22,7 @@
 pub mod html;
 pub mod markdown;
 pub mod sarif;
+pub mod threats;
 
 use serde::Serialize;
 use std::collections::BTreeSet;
