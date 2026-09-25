@@ -13,6 +13,7 @@ import type { Attestation, HumanCodeReview } from '@shared/project.js';
 import type { StatusContext } from './status.js';
 import type { AiReviewResult, ManifestControlResult, ProbeResultLike, RunMeta, TestResult } from './types.js';
 import { EvidenceIds } from './evidence-ids.js';
+import { ALL_RULES } from '../scanners/sast/rules/index.js';
 
 export interface RequirementEvidenceCtx {
   standard: StandardId;
@@ -30,6 +31,27 @@ export interface RequirementEvidenceCtx {
   design: DesignArtifacts;
   ids: EvidenceIds;
   capturedAt: string;
+  /** Static rules that cover a requirement; the real rule set unless a test supplies its own. */
+  staticRulesCovering?: (standard: StandardId, id: string) => string[];
+}
+
+let RULE_INDEX: Map<string, string[]> | undefined;
+
+/**
+ * The static-analysis rules whose metadata names this requirement. A clean scan is only evidence for a requirement
+ * that some rule actually looks for; without this, "scanner-clean" credit was handed out for requirements no rule
+ * covers (V1.2.3, JavaScript and JSON injection, had none) and read "no issues were detected by the rules that cover
+ * this requirement" about rules that do not exist.
+ */
+export function staticRulesCovering(standard: StandardId, id: string): string[] {
+  if (!RULE_INDEX) {
+    RULE_INDEX = new Map();
+    for (const rule of ALL_RULES) {
+      for (const rid of rule.asvs) RULE_INDEX.set(`asvs:${rid}`, [...(RULE_INDEX.get(`asvs:${rid}`) ?? []), rule.id]);
+      for (const rid of rule.aisvs) RULE_INDEX.set(`aisvs:${rid}`, [...(RULE_INDEX.get(`aisvs:${rid}`) ?? []), rule.id]);
+    }
+  }
+  return RULE_INDEX.get(`${standard}:${id}`) ?? [];
 }
 
 export interface RequirementEvidenceResult {
@@ -157,12 +179,11 @@ function extraEvidenceFor(id: string, ctx: RequirementEvidenceCtx, partialCovera
 /** Scanner-clean evidence: a positive "no issues detected" item when the verification class rests on rule absence. */
 function scannerCleanEvidence(id: string, ctx: RequirementEvidenceCtx, hasOpenFinding: boolean): Evidence[] {
   if (hasOpenFinding) return [];
-  const ruleIds = new Set(
-    ctx.findings
-      .filter((f) => f.source === 'sast' && ((ctx.standard === 'asvs' ? f.mappings.asvs : f.mappings.aisvs) ?? []).includes(id))
-      .map((f) => f.ruleId),
-  );
-  const summary = ruleIds.size > 0 ? `No open issues were detected by the ${ruleIds.size} static rule(s) that cover this requirement.` : 'No issues were detected by the static analysis rules that cover this requirement.';
+  // A clean scan says something only about what the scan looks for. No rule covers this requirement: no evidence,
+  // so it stays unverified instead of borrowing a tick from an empty result.
+  const rules = (ctx.staticRulesCovering ?? staticRulesCovering)(ctx.standard, id);
+  if (rules.length === 0) return [];
+  const summary = `No open issues were detected by the ${rules.length} static rule${rules.length === 1 ? '' : 's'} that cover${rules.length === 1 ? 's' : ''} this requirement (${rules.join(', ')}).`;
   return [mkEvidence(ctx.ids, 'scanner', `scanner-clean:${id}`, summary, true, { tool: 'securevibe-sast', runId: ctx.runMeta.runId, capturedAt: ctx.capturedAt, producedBy: 'rules' })];
 }
 
