@@ -964,6 +964,65 @@ struct ReportOptions {
 ///
 /// `sv report` and the MCP server both call this, so what an AI coding tool is told about an app
 /// is exactly what the written report says — not a second, drifting summary of it.
+/// What the report cannot say about this app's dependencies, taken from the bill of materials.
+///
+/// This used to be built from `scan_report.unpinned`, which knows one thing: whether an ecosystem
+/// that pins with a lockfile is missing one. That produced a single sentence for every ecosystem —
+/// "pins no versions, so the list of dependencies is what was asked for rather than what is there"
+/// — and one sentence covering every ecosystem is wrong about some of them:
+///
+/// - **npm with no lockfile.** No version in a `package.json` is read at all, so that ecosystem's
+///   list is not approximate, it is *empty*. A reader was told the list was what they asked for
+///   when the list held nothing. `sv sbom` said this correctly all along, and put a
+///   `securevibe:unread:npm` component in the CycloneDX document so a downstream reader saw it too.
+/// - **pip with a pinned `requirements.txt`.** `flask==3.0.0` pins a version, and the sentence said
+///   the file pinned none. The versions really are what was asked for rather than what resolved,
+///   which is worth saying — but that is a different statement from the one being made.
+///
+/// So the report asks the bill of materials, which already draws both distinctions and had no
+/// reader. Nothing is reworded: the ecosystems that produced nothing and the ones that produced
+/// manifest-declared versions are two different gaps, and they are reported as two.
+fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
+    let mut gaps = Vec::new();
+
+    // Ecosystems that produced no components at all. The bill of materials already words each
+    // reason for its own case — no lockfile, a lockfile format `sv` cannot read, a lockfile that
+    // parsed and yielded nothing — so the reason is passed through rather than flattened.
+    for (ecosystem, why) in &sbom.unread {
+        gaps.push(sv_report::Gap {
+            what: format!("everything {ecosystem} installs"),
+            why: format!(
+                "{why}. This is not an approximate list of this app's {ecosystem} dependencies, \
+                 it is an empty one: nothing here can say whether a package with a known \
+                 vulnerability is among them"
+            ),
+        });
+    }
+
+    // Ecosystems whose versions came from a manifest rather than a lockfile. The list is real, and
+    // it is what was asked for rather than what an install would resolve to.
+    let mut declared: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for component in &sbom.components {
+        if component.source == sbom::VersionSource::Declared {
+            *declared.entry(component.ecosystem.as_str()).or_default() += 1;
+        }
+    }
+    for (ecosystem, count) in declared {
+        gaps.push(sv_report::Gap {
+            what: format!("which {ecosystem} versions are really installed"),
+            why: format!(
+                "the {count} {ecosystem} package{} listed here {} read from a manifest rather than \
+                 a lockfile, so {} what was asked for rather than what an install resolved to",
+                if count == 1 { "" } else { "s" },
+                if count == 1 { "was" } else { "were" },
+                if count == 1 { "it is" } else { "they are" }
+            ),
+        });
+    }
+
+    gaps
+}
+
 fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report::Report> {
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
@@ -990,6 +1049,11 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let config = check_dir(app_dir);
     let ast_rules = ast::AstRules::load(&ast_rules_path())?;
     let code = ast::scan_dir(&ast_rules, app_dir);
+    // The report used to reason about dependencies from the scan alone, which knows only whether a
+    // lockfile is missing. The bill of materials knows what actually came out of each ecosystem,
+    // and that is the difference between "this list is approximate" and "this list is empty".
+    // Building it reads manifests and lockfiles; it opens no network connection.
+    let bill_of_materials = sbom::build(app_dir);
 
     let mut probe_verified = Vec::new();
     let mut tool_verified = Vec::new();
@@ -1275,16 +1339,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 .to_owned(),
         });
     }
-    for eco in &scan_report.unpinned {
-        gaps.push(sv_report::Gap {
-            what: format!("what {} actually installs", eco.label()),
-            why: format!(
-                "{} pins no versions, so the list of dependencies is what was asked for rather \
-                 than what is there",
-                eco.manifest
-            ),
-        });
-    }
+    gaps.extend(dependency_gaps(&bill_of_materials));
 
     // Everything that ran, looked at what it needed to, and found nothing wrong. Each of these
     // fails closed on its own coverage, so the list is short on an app `sv` could not read fully —
@@ -1570,6 +1625,88 @@ mod tests {
         assert!(
             !buckets.out_of_level.iter().any(|id| id == "SBD-MT-02"),
             "SBD-MT-02 (metrics and dashboards) was set aside at level 1"
+        );
+    }
+}
+
+#[cfg(test)]
+mod dependency_gap_tests {
+    use super::*;
+
+    fn component(ecosystem: &str, name: &str, source: sbom::VersionSource) -> sbom::Component {
+        sbom::Component {
+            name: name.to_owned(),
+            version: "1.0.0".to_owned(),
+            ecosystem: ecosystem.to_owned(),
+            source,
+        }
+    }
+
+    #[test]
+    fn a_fully_locked_bill_of_materials_produces_no_gap() {
+        // The second witness for the over-reporting guard, at the level the end-to-end test cannot
+        // reach: given a document whose every version came from a lockfile, there is nothing to
+        // report, and a gap row for nothing reads as a hole where there is none.
+        let sbom = sbom::Sbom {
+            components: vec![
+                component("npm", "react", sbom::VersionSource::Locked),
+                component("npm", "express", sbom::VersionSource::Locked),
+                component("Python", "flask", sbom::VersionSource::Locked),
+            ],
+            unread: Vec::new(),
+        };
+        assert!(dependency_gaps(&sbom).is_empty());
+    }
+
+    #[test]
+    fn an_unread_ecosystem_is_reported_as_empty_and_a_declared_one_is_not() {
+        // The distinction the whole item is about, held at one place rather than across two apps:
+        // these are two different gaps and must not collapse into one sentence again.
+        let sbom = sbom::Sbom {
+            components: vec![component("Python", "flask", sbom::VersionSource::Declared)],
+            unread: vec![(
+                "npm".to_owned(),
+                "npm is in use but nothing readable says which versions are installed, so none of \
+                 its packages are listed"
+                    .to_owned(),
+            )],
+        };
+        let gaps = dependency_gaps(&sbom);
+        assert_eq!(gaps.len(), 2, "{gaps:?}");
+
+        let npm = gaps.iter().find(|g| g.what.contains("npm")).expect("npm");
+        assert!(npm.why.contains("empty one"), "{}", npm.why);
+
+        let python = gaps
+            .iter()
+            .find(|g| g.what.contains("Python"))
+            .expect("Python");
+        assert!(python.why.contains("what was asked for"), "{}", python.why);
+        assert!(
+            !python.why.contains("empty one"),
+            "a list that was read is not empty: {}",
+            python.why
+        );
+    }
+
+    #[test]
+    fn one_ecosystem_being_unreadable_says_nothing_about_another_that_was_read() {
+        // An app with both. The npm half is absent and the Python half is real, and the report has
+        // to say each of those about the right one — which is exactly what a single sentence for
+        // every ecosystem could not do.
+        let sbom = sbom::Sbom {
+            components: vec![
+                component("Python", "flask", sbom::VersionSource::Declared),
+                component("Rust", "serde", sbom::VersionSource::Locked),
+            ],
+            unread: vec![("npm".to_owned(), "nothing readable".to_owned())],
+        };
+        let gaps = dependency_gaps(&sbom);
+        let named: Vec<&str> = gaps.iter().map(|g| g.what.as_str()).collect();
+        assert_eq!(gaps.len(), 2, "{named:?}");
+        assert!(
+            !named.iter().any(|w| w.contains("Rust")),
+            "the locked Rust packages are not a gap: {named:?}"
         );
     }
 }
