@@ -192,7 +192,8 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     for eco in &report.unpinned {
         println!(
             "  {} pins no versions ({} has no lockfile), so what is actually installed cannot be known.",
-            eco.name, eco.manifest
+            eco.label(),
+            eco.manifest
         );
     }
     if !report.unread_extensions.is_empty() {
@@ -1172,13 +1173,8 @@ fn cmd_report(args: &[String]) -> Result<()> {
     // and every one is unverified — which is true of a great many ASVS requirements too, and the
     // difference matters: those could in principle be reached by some check, and these cannot be
     // reached by any, ever. Counting them together lets a reader think the scanner tried.
-    let design_review = buckets
-        .applicable
-        .iter()
-        .filter(|id| {
-            config_rules.verification_class_for(id) == sv_frameworks::VerificationClass::ManualOnly
-        })
-        .count();
+    let manual_only = buckets.manual_only(&config_rules);
+    let design_review = manual_only.len();
     if design_review > 0 {
         gaps.push(sv_report::Gap {
             what: format!(
@@ -1194,7 +1190,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     }
     for eco in &scan_report.unpinned {
         gaps.push(sv_report::Gap {
-            what: format!("what {} actually installs", eco.name),
+            what: format!("what {} actually installs", eco.label()),
             why: format!(
                 "{} pins no versions, so the list of dependencies is what was asked for rather \
                  than what is there",
@@ -1228,6 +1224,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         findings,
         verified: &verified,
         gaps,
+        manual_only,
     });
 
     std::fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;

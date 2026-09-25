@@ -23,7 +23,7 @@ pub fn read(app_dir: &Path) -> Vec<Declared> {
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
         };
-        let names = match eco.manifest.as_str() {
+        let names = match super::ecosystems::file_name(&eco.manifest) {
             "package.json" => from_package_json(&text),
             "requirements.txt" => from_requirements(&text),
             "pyproject.toml" | "Cargo.toml" => from_toml_manifest(&text),

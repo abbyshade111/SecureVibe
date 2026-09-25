@@ -24,6 +24,7 @@ pub mod markdown;
 pub mod sarif;
 
 use serde::Serialize;
+use std::collections::BTreeSet;
 use sv_check::Finding;
 use sv_frameworks::applicability::Buckets;
 use sv_frameworks::{Condition, Frameworks, Source};
@@ -61,6 +62,14 @@ pub struct RequirementLine {
     pub findings: Vec<String>,
     /// The checks that looked at this requirement and were satisfied, each with what it covered.
     pub checked_by: Vec<CheckedBy>,
+    /// Checks that were satisfied about part of a requirement no check can settle.
+    ///
+    /// A design-review requirement asks several things, and a scanner can answer one of them at
+    /// most: SBD-AC-05 asks for a secret manager, automatic key rotation *and* no secrets in the
+    /// code, and a clean credential scan says something true about the third alone. Filed as
+    /// "checked", it would claim the other two; dropped, it would hide the part that was examined.
+    /// So it is shown here, and the requirement stays not verified until a person answers it.
+    pub supported_by: Vec<CheckedBy>,
 }
 
 /// One check that was satisfied about a requirement, and what it examined to say so.
@@ -188,6 +197,9 @@ pub struct Inputs<'a> {
     pub verified: &'a [sv_check::Verified],
     /// What was not examined, and why — from every checker that knows it fell short.
     pub gaps: Vec<Gap>,
+    /// Requirements no check can settle: design review, answered by a person. A satisfied check
+    /// about one of these is supporting evidence, never "checked".
+    pub manual_only: BTreeSet<String>,
 }
 
 pub fn build(inputs: Inputs<'_>) -> Report {
@@ -208,7 +220,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .filter(|f| f.requirement_ids.iter().any(|r| r == id))
             .map(|f| f.rule_id.clone())
             .collect();
-        let checked_by: Vec<CheckedBy> = inputs
+        let satisfied: Vec<CheckedBy> = inputs
             .verified
             .iter()
             .filter(|v| v.requirement_ids.iter().any(|r| r == id))
@@ -217,6 +229,11 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 scope: v.scope.clone(),
             })
             .collect();
+        let (checked_by, supported_by) = if inputs.manual_only.contains(id) {
+            (Vec::new(), satisfied)
+        } else {
+            (satisfied, Vec::new())
+        };
         // A finding beats a satisfied check: one check being happy says nothing about what another
         // one found, and the report must never let the happier of two answers hide the other.
         let status = if !findings.is_empty() {
@@ -234,6 +251,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             status,
             findings,
             checked_by,
+            supported_by,
         });
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));

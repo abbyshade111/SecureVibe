@@ -651,3 +651,29 @@ fn the_checklist_for_a_single_service_web_shop() {
         "an internet app claiming no HTTPS must still be asked whether its traffic is encrypted"
     );
 }
+
+#[test]
+fn the_requirements_a_clean_scan_cannot_settle_include_the_ones_it_was_settling() {
+    // A clean credential scan was reported as having checked V13.3.1 (use a key vault) and V11.1.1
+    // (a documented key-management policy). Neither is something reading source files establishes.
+    // Both are on the manual-only list, and SBD-AC-05 is manual-only by construction; the set the
+    // report is handed has to contain all three for an app they apply to.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let buckets = bucket(&f, &config, &ConditionContext::default(), 3);
+    let manual = buckets.manual_only(&config);
+    for id in ["V13.3.1", "V11.1.1", "SBD-AC-05"] {
+        assert!(
+            !buckets.applicable.iter().any(|a| a == id) || manual.contains(id),
+            "{id} applies and is not in the manual-only set"
+        );
+        assert!(
+            buckets.applicable.iter().any(|a| a == id),
+            "{id} should apply here"
+        );
+    }
+    assert!(
+        !manual.contains("V1.2.4"),
+        "a scanner can settle parameterized queries"
+    );
+}

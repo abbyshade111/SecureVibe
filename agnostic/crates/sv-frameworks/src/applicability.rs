@@ -200,6 +200,21 @@ pub struct Buckets {
     pub out_of_level: Vec<String>,
 }
 
+impl Buckets {
+    /// The applicable requirements that only a person can answer.
+    ///
+    /// One function because two things read it and must agree: the report's count of design-review
+    /// requirements, and the rule that a satisfied check about one of them is supporting evidence
+    /// rather than "checked".
+    pub fn manual_only(&self, config: &ApplicabilityConfig) -> std::collections::BTreeSet<String> {
+        self.applicable
+            .iter()
+            .filter(|id| config.verification_class_for(id) == VerificationClass::ManualOnly)
+            .cloned()
+            .collect()
+    }
+}
+
 /// Sorts every requirement into applies / does not apply / not assessed / above the target level.
 pub fn bucket(
     frameworks: &Frameworks,
