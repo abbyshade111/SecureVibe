@@ -699,6 +699,34 @@ The same measurement turned up a neighbour that is not fixed here: semgrep, by d
 under `tests/`, `test/`, `build/`, `dist/`, `vendor/` and a few others, and its SARIF says nothing about
 it. It is in the backlog.
 
+**Semgrep is named the files.** Measured with semgrep 1.178.0, given a folder it leaves out, and says
+nothing in its SARIF about leaving out:
+
+- `tests/`, `test/`, `build/`, `dist/`, `_build/`, `vendor/`, `node_modules/` and `.venv/`, from its
+  built-in ignore list, when the app has no `.semgrepignore` of its own;
+- whatever the app's own `.semgrepignore` names, which replaces that list, so an app can hide any
+  folder with one line;
+- anything `.gitignore` covers, in a git repository (`--no-git-ignore` lifts only this one).
+
+Nothing turns the built-in list off, and naming a folder on the command line does not help: the ignore
+rules apply inside it. Naming files does. Every file named is read, including one in `.gitignore`, one
+the app's `.semgrepignore` excludes, one in `tests/`, and one over the 1 MB size limit. And
+`--json-output` writes, beside the SARIF, the list of files it read (`paths.scanned`).
+
+So semgrep is now started inside the app and handed `-- ./file ...` for every code file `sv` itself
+would read: everything outside `SKIP_DIRS` whose extension is a language `sv` knows, without following
+links, since a tool reads whatever it is named. The list it writes is checked against the list it was
+given, and a clean run is credited only when every file was read; otherwise the report names how many
+were not, and the first few. A list left by an earlier run is removed first, so it cannot vouch for this
+one. An app with no code to name is not run (named no files, semgrep reads the folder, ignores and
+all), and an app with more names than fit on a command line (256 KiB of them, about three thousand
+files) is reported as not run rather than handed a folder.
+
+What is not handed to it is what no check here reads: `build/`, `dist/`, `vendor/` and the rest of
+`SKIP_DIRS`. Checked against a real run through `sv report --tools`, with a rule loaded from a file:
+a shell command built from input in `tests/helpers.py` was not reported at all with the folder, and is
+reported with the files.
+
 ### Three more wrong citations, in the place the guard could not see
 
 The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were
