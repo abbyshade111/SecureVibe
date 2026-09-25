@@ -8,6 +8,7 @@ import { renderGoingOnline } from '../../src/reports/going-online.js';
 import { renderOverview } from '../../src/reports/overview.js';
 import { renderSecurityReport } from '../../src/reports/security-report.js';
 import { textWidth, fullyRepresentable } from '../../src/reports/pdf/fonts.js';
+import { decodeEntities } from '../../src/reports/pdf/html.js';
 import { htmlToPdf } from '../../src/reports/pdf/index.js';
 import type { ReportModel } from '../../src/reports/types.js';
 import { buildReportModel } from '../fixtures/reports/model.js';
@@ -55,6 +56,19 @@ function readPdf(pdf: Buffer) {
 
 const wrapHtml = (body: string, title = 'Test report') => `<!doctype html><html><head><title>${title}</title><style>body{}</style></head><body><div class="page"><main>${body}</main></div></body></html>`;
 
+/** Cuts every match of `pattern` out of `html` (split and rejoin, so no replacement can leave a half-removed tag behind). */
+const cutOut = (html: string, pattern: RegExp): string => html.split(pattern).join('');
+const HIDDEN_ROWS = /<(?:tr|li)\b[^>]*class="[^"]*\bhideable\b[^"]*"[^>]*>[\s\S]*?<\/(?:tr|li)>/g;
+
+/** The text a reader of the web page sees, read separately from the code under test: no tags, nothing the page hides. */
+function webPageText(html: string, { withPre = true }: { withPre?: boolean } = {}): string {
+  let s = cutOut(html, /<style>[\s\S]*?<\/style>/g);
+  s = cutOut(s, HIDDEN_ROWS);
+  s = cutOut(s, /<(?:a class="skip-link"|label)[^>]*>[\s\S]*?<\/(?:a|label)>/g); // on-screen controls, not printed
+  if (!withPre) s = cutOut(s, /<pre>[\s\S]*?<\/pre>/g); // preformatted text is cut by character, not by word
+  return decodeEntities(s.split(/<[^>]*>/).join(' '));
+}
+
 describe('htmlToPdf: the file', () => {
   it('is a well-formed PDF: every cross-reference entry lands on its object, and the page count is true', () => {
     const { pageCount } = readPdf(htmlToPdf(wrapHtml('<h2>One</h2><p>Some text.</p>')));
@@ -99,7 +113,7 @@ describe('htmlToPdf: what gets onto the page', () => {
   });
 
   it('decodes character references and keeps accented letters and typographic punctuation', () => {
-    const { text } = readPdf(htmlToPdf(wrapHtml('<p>Zo&euml; &amp; caf&#233; &mdash; &ldquo;quoted&rdquo; &lt;b&gt; 5 &gt;= 3 → done</p>'.replace('&euml;', 'ë'))));
+    const { text } = readPdf(htmlToPdf(wrapHtml('<p>Zo&euml; &amp; caf&#233; &mdash; &ldquo;quoted&rdquo; &lt;b&gt; 5 &gt;= 3 → done</p>')));
     expect(text).toContain('Zoë & café — “quoted” <b> 5 >= 3 -> done');
   });
 
@@ -201,7 +215,7 @@ describe('htmlToPdf: the real reports', () => {
       expect(pdf.pageCount, name).toBeGreaterThan(0);
       for (const o of pdf.ops) expect(o.x + textWidth(o.text, o.font as 'F1', o.size), `${name}: ${o.text.slice(0, 30)}`).toBeLessThanOrEqual(595.28 - 48 + 0.5);
       for (const h of html.matchAll(/<h2>([^<]+)<\/h2>/g)) {
-        const heading = h[1]!.replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+        const heading = decodeEntities(h[1]!);
         expect(pdf.text, `${name}: ${heading}`).toContain(heading.split(' ')[0]!);
       }
       expect(pdf.text, name).toContain(model.project.name);
@@ -211,7 +225,7 @@ describe('htmlToPdf: the real reports', () => {
   it('shows every status word the web page shows, none replaced by a placeholder', () => {
     for (const [name, html] of reports()) {
       // Rows the web page hides until asked ("not applicable", "out of level") are not printed either.
-      const shown = html.replace(/<(tr|li)\b[^>]*class="[^"]*\bhideable\b[^"]*"[^>]*>[\s\S]*?<\/\1>/g, '');
+      const shown = cutOut(html, HIDDEN_ROWS);
       const text = readPdf(htmlToPdf(html)).text;
       const words = new Set([...shown.matchAll(/<span class="badge [^"]*">[^<\w]*([^<]+)<\/span>/g)].map((m) => m[1]!.trim()));
       expect(words.size, `${name} should have badges to compare`).toBeGreaterThanOrEqual(name === 'going-online checklist' ? 0 : 1);
@@ -221,17 +235,7 @@ describe('htmlToPdf: the real reports', () => {
 
   it('prints every ordinary word whole: no short word of the web page is broken across two lines of the PDF', () => {
     for (const [name, html] of reports()) {
-      const shown = html
-        .replace(/<style>[\s\S]*?<\/style>/g, '')
-        .replace(/<(tr|li)\b[^>]*class="[^"]*\bhideable\b[^"]*"[^>]*>[\s\S]*?<\/\1>/g, '')
-        .replace(/<pre>[\s\S]*?<\/pre>/g, '') // preformatted text is cut by character, not by word
-        .replace(/<(?:a class="skip-link"|label)[^>]*>[\s\S]*?<\/(?:a|label)>/g, '') // on-screen controls, not printed
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
+      const shown = webPageText(html, { withPre: false });
       // A name may be carried over a line end after a hyphen, slash or underscore; nowhere else.
       const printed = new Set(readPdf(htmlToPdf(html)).text.replace(/(\S[-/_])\n/g, '$1').split(/\s+/));
       const broken = [...new Set(shown.split(/\s+/).filter((w) => w.length >= 3 && w.length <= 14 && /^[\x21-\x7e]+$/.test(w)))].filter((w) => !printed.has(w));
@@ -241,7 +245,7 @@ describe('htmlToPdf: the real reports', () => {
 
   it('needs no character the fonts lack: nothing in the fixture reports would print as a question mark', () => {
     for (const [name, html] of reports()) {
-      const visible = html.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, '');
+      const visible = webPageText(html);
       const missing = [...new Set([...visible].filter((c) => !fullyRepresentable(c)))];
       expect(missing, name).toEqual([]);
     }
