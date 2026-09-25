@@ -203,6 +203,24 @@ describe('uploading and checking an app', () => {
     expect(started.at(-1)!.job['uploaded']).toBe(true);
   });
 
+  it('derives a design from the short set of answers alone, filling the rest with named defaults', async () => {
+    const { id } = await uploadedProject(false);
+    harness.store.update(id, (p) => {
+      p.profile = {
+        users: { audience: 'my-team', requiresSignIn: true, registration: 'admin-created', centralSignIn: 'no' },
+        data: { categories: ['contact'], aboutOtherPeople: true },
+        capabilities: { fileUploads: false, aiAssistant: { enabled: false, canTakeActions: false }, email: false, externalApis: [], scheduledJobs: false, publicApi: false, payments: false },
+        deployment: { target: 'local-network', businessImpact: 'normal' },
+      } as never;
+    });
+    const design = await request(harness.server).post(`/api/projects/${id}/design`).set(headers);
+    expect(design.status, JSON.stringify(design.body)).toBe(200);
+    const saved = harness.store.mustGet(id);
+    expect(saved.profile.app?.name).toBe('My shop');
+    expect(saved.profile.app?.description).toMatch(/uploaded to SecureVibe/);
+    expect(design.body.design.applicability.targetLevel).toBeDefined();
+  });
+
   it('only ever checks an uploaded app, without running its code, and never previews it', async () => {
     const { id } = await uploadedProject(false);
     await request(harness.server).post(`/api/projects/${id}/upload/begin`).set(headers).send({});

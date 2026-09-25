@@ -20,12 +20,15 @@ export function WhyAndChanges({
   question,
   value,
   common,
+  hideChanges,
 }: {
   question: WizardQuestion;
   value: unknown;
   common: WizardCommonCopy;
+  /** An uploaded app is not built from the answers, so "what this changes" (about the build) is left out. */
+  hideChanges?: boolean;
 }) {
-  const changes = whatThisChangesFor(question, value);
+  const changes = hideChanges ? [] : whatThisChangesFor(question, value);
   return (
     <div className="sv-stack-sm" style={{ marginTop: 16 }}>
       <details className="sv-details">
