@@ -93,6 +93,10 @@ conditions! {
     MultimodalAi => "multimodal-ai", Claim, "The assistant accepts typed text only; it does not take images, video or audio.";
     SharedHostname => "shared-hostname", Claim, "This is a single application on its own address; no separate applications share its hostname.";
     MultipleServices => "multiple-services", Claim, "This app runs as one service, so there are no boundaries between services to design, no traffic between them to protect, and no cross-service transactions to get right.";
+    // Using OAuth and *being* the authorization server are different jobs with different rules.
+    // ASVS V10.4, V10.6, and V10.7 are written for whoever runs the server; an app with "Sign in
+    // with Google" runs none of it, and was being asked about a server it does not have.
+    AuthorizationServer => "authorization-server", Claim, "This app does not run an OAuth authorization server or OpenID provider of its own; these rules are for whoever runs one.";
 
     // Technology questions the dependency manifests answer, so nobody has to be believed.
     Websockets => "websockets", Derived, "No WebSocket library is used; every request is a normal web request.";

@@ -214,6 +214,80 @@
       }
     },
     {
+      "condition": "authorization-server",
+      "absenceIsEvidence": false,
+      "note": "Running an authorization server means running somebody's implementation of one. These are the libraries and products that are one, as opposed to the client libraries under `oauth`, which only talk to one. Libraries that are both, Authlib above all, are deliberately not listed as packages: a Flask app doing \"Sign in with Google\" installs Authlib as a client, and counting that as running a server would undo the distinction this condition exists to draw. Their server-side class names are in `source` instead. C# has no packages listed because `sv` does not read a `.csproj`; Duende IdentityServer and OpenIddict are found by the line that registers them instead.",
+      "packages": {
+        "npm": [
+          "oidc-provider",
+          "oauth2-server",
+          "@node-oauth/oauth2-server"
+        ],
+        "Python": [
+          "django-oauth-toolkit",
+          "oauth2-provider"
+        ],
+        "Ruby": [
+          "doorkeeper"
+        ],
+        "PHP": [
+          "league/oauth2-server"
+        ],
+        "Go": [
+          "github.com/ory/fosite",
+          "github.com/ory/hydra",
+          "github.com/go-oauth2/oauth2"
+        ],
+        "Rust": [
+          "oxide-auth"
+        ],
+        "Java (Maven)": [
+          "spring-boot-starter-oauth2-authorization-server",
+          "spring-security-oauth2-authorization-server"
+        ],
+        "Java (Gradle)": [
+          "spring-boot-starter-oauth2-authorization-server",
+          "spring-security-oauth2-authorization-server"
+        ]
+      },
+      "source": {
+        "javascript": [
+          "new Provider(",
+          "OAuth2Server("
+        ],
+        "typescript": [
+          "new Provider(",
+          "OAuth2Server("
+        ],
+        "python": [
+          "AuthorizationServer(",
+          "oauth2_provider"
+        ],
+        "go": [
+          "fosite.NewOAuth2Provider",
+          "op.NewOpenIDProvider"
+        ],
+        "java": [
+          "OAuth2AuthorizationServerConfigurer",
+          "RegisteredClientRepository"
+        ],
+        "kotlin": [
+          "OAuth2AuthorizationServerConfigurer",
+          "RegisteredClientRepository"
+        ],
+        "csharp": [
+          "AddIdentityServer",
+          "AddOpenIddict"
+        ],
+        "ruby": [
+          "Doorkeeper.configure"
+        ],
+        "php": [
+          "AuthorizationServer("
+        ]
+      }
+    },
+    {
       "condition": "jwt",
       "absenceIsEvidence": false,
       "note": "Self-contained tokens arrive as a library almost without exception.",

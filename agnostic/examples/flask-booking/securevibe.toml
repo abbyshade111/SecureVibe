@@ -22,7 +22,8 @@ categories = ["contact", "health"]
 
 [capabilities]
 auth = true
-oauth = true
+oauth = true              # patients sign in with Google
+authorization-server = false  # nothing signs in through this app
 jwt = true
 uploads = true
 payments = false

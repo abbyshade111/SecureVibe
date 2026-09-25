@@ -180,6 +180,7 @@ export const ApplicabilityConditionSchema = z.enum([
   'internet',
   'level2',
   'oauth',
+  'authorization-server',
   'webrtc',
   'jwt',
   'rag',
