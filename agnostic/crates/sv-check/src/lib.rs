@@ -14,6 +14,7 @@ pub mod finding;
 pub mod probes;
 pub mod sbom;
 pub mod secrets;
+pub mod suite;
 pub mod verified;
 
 pub use finding::{Confidence, Finding, Location, Secret, Severity};

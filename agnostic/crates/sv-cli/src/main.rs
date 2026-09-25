@@ -884,6 +884,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
 
     let mut probe_verified = Vec::new();
     let mut tool_verified = Vec::new();
+    let mut test_verified = Vec::new();
     let mut findings = Vec::new();
     findings.extend(secrets.findings.iter().cloned());
     findings.extend(config.findings.iter().cloned());
@@ -960,12 +961,34 @@ fn cmd_report(args: &[String]) -> Result<()> {
                             result.exit_code
                         ),
                     }),
-                    Some(_) => gaps.push(sv_report::Gap {
-                        what: "what the app's own tests cover".to_owned(),
-                        why: "they passed, and `sv` does not yet decide which requirements a \
-                              passing test is evidence about, so no credit is taken for them"
-                            .to_owned(),
-                    }),
+                    Some(_) => {
+                        // The suite passed, so the tests that name a requirement are evidence
+                        // about it. Only those: matching a test to a requirement by what it is
+                        // called would credit a requirement on the strength of a name somebody
+                        // chose for other reasons.
+                        let known: std::collections::BTreeSet<&str> =
+                            frameworks.requirements.keys().map(String::as_str).collect();
+                        let named = sv_check::suite::tests_naming_requirements(&app_dir, &known);
+                        let describe = |id: &str| {
+                            frameworks
+                                .requirements
+                                .get(id)
+                                .map(|r| r.description.clone())
+                        };
+                        let (credited, mismatches) =
+                            sv_check::suite::credit(&named, true, &describe);
+                        if credited.is_empty() {
+                            gaps.push(sv_report::Gap {
+                                what: "what the app's own tests cover".to_owned(),
+                                why: "the suite passed, and no test names the requirement it is \
+                                      for, so nothing here can say which requirements they are \
+                                      evidence about. `sv init` explains how to name them."
+                                    .to_owned(),
+                            });
+                        }
+                        findings.extend(mismatches);
+                        test_verified = credited;
+                    }
                     None => gaps.push(sv_report::Gap {
                         what: "the app's own tests".to_owned(),
                         why: "securevibe.toml declares no test command".to_owned(),
@@ -1048,6 +1071,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     verified.extend(code.verified.iter().cloned());
     verified.extend(probe_verified.iter().cloned());
     verified.extend(tool_verified.iter().cloned());
+    verified.extend(test_verified.iter().cloned());
 
     let report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {

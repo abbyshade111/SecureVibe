@@ -54,12 +54,14 @@ another session is not a claim.
   neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
   which is the pattern to follow.
 
-- **Credit the app's own test suite.** `sv run` runs the tests the manifest declares, and a passing
-  suite is real evidence; `sv report --run` records that they passed and takes no credit, because
-  nothing yet decides which requirement a given test is about. v1's `compliance/test-name-match.ts`
-  compares a test's name and body with a requirement's wording and is honest about its limits — about a
-  third of its flags are honest tests phrased differently, and it is blind to a swap between neighbouring
-  requirements that share vocabulary. Port that shape, not a stricter one.
+- ~~**Credit the app's own test suite.**~~ Done on 24 September 2026 — `crates/sv-check/src/suite.rs`.
+  A test counts only for a requirement it names, and only when the suite it belongs to passed. Matching
+  tests to requirements by their words was considered and refused: it would credit a requirement on the
+  strength of a name somebody chose for other reasons. v1's mismatch check is ported as it was —
+  reporting, never withholding credit, because about a third of its flags are honest tests phrased
+  differently. What is left over from this item: the suite's coverage is still all-or-nothing on one
+  exit code, so a suite with one failing test credits nothing. Reading a test runner's own report
+  (JUnit XML, `pytest --junitxml`) would fix that and is its own item.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.

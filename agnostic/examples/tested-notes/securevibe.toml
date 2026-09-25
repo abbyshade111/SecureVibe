@@ -1,0 +1,19 @@
+manifest-version = 1
+
+# An example of naming requirements in tests, which is the only way `sv` credits a test to one.
+# `sv report ./examples/tested-notes --run` starts this behind the fence, runs the suite, and
+# reports V1.2.1 as checked by the app's own test — naming the file and line so anybody can look.
+
+[app]
+name = "Tested notes"
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["python"]
+
+[stack.run]
+image = "python:3.12-slim"
+start = "python app.py"
+test = "python -m unittest discover -s tests -q"
+health = "/"

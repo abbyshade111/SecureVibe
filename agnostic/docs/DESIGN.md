@@ -446,9 +446,47 @@ app is runnable would drift, and the one that drifts quietly is the report.
 What changes when it runs is not only that findings appear. The standing gap — *the app was never
 started* — is replaced by the probes' own list of what asking it could not reach: authorisation, session
 handling, CSRF, anything that needs data sent into a form. An app that ran is not an app fully examined,
-and the gap list has to say which of the two happened. The app's declared tests are recorded the same
-way: failed means nothing can be concluded from them, passed means no credit is taken, because deciding
-which requirements a passing test is evidence about is its own piece of work.
+and the gap list has to say which of the two happened. The app's declared tests are folded in the same
+way, under the rule below.
+
+### What the app's own tests are evidence about
+
+A passing test suite is the largest source of positive evidence here and the easiest place in the whole
+workspace to overclaim, so the rule is narrow and stated once: **a test counts only for a requirement it
+names, and only when the suite it belongs to actually passed.**
+
+Matching tests to requirements by their words was the obvious design and is refused. A test called
+`test_login` might be about authentication, or sessions, or neither; crediting a requirement on the
+strength of a name somebody chose for other reasons is how a compliance report becomes fiction. `sv init`
+therefore asks the app's author to write the id into the test — `def test_V1_2_1_search_uses_bound_parameters`
+or `# covers V1.2.1` on the line above — and `suite.rs` reads that back. A test that names nothing is not
+evidence about anything in particular, which is a perfectly fair thing for a test to be; most tests are.
+
+Three things have to hold before one requirement is credited, and each of them is a way the credit would
+otherwise be wrong:
+
+1. **The suite passed.** A failing suite credits nothing at all, not even the tests in it that passed,
+   because `sv` sees one exit code and cannot say which tests it came from. This is also the limit of the
+   feature: reading a test runner's own report would let a partly-passing suite credit its passing half,
+   and that is on the backlog rather than guessed at here.
+2. **The id resolves.** An id outside the loaded frameworks is a typo, and crediting it would put a green
+   line against a requirement nobody has.
+3. **The id is in a test file.** The same `# covers V1.2.1` in `app.py` is somebody's note about an
+   intention. The path test is deliberately generous about naming conventions — `tests/`, `spec/`,
+   `__tests__/`, `*_test.go`, `*.spec.ts`, `test_*.py` — and deliberately strict about the separator,
+   because without it `latest.go` is a test file and the walk starts reading the application code.
+
+Two details cost a run each. Go only runs a function called `TestXxx`, so `TestV1_2_1` runs a letter
+straight into the id; the word-boundary rule rejected it, which would have meant reading nothing in any Go
+suite while looking like it worked. And crediting per line rather than per file counted a test twice when
+its docstring repeated the id, then reported the docstring as not matching the requirement — one honest
+test producing one duplicate claim and one false flag.
+
+What this cannot check is whether the test does what it names. v1's comparison is ported as it was: the
+test's wording against the requirement's, reporting where they share nothing, at Info and Low confidence
+because about a third of those flags are honest tests phrased differently. It reports and never withholds
+credit, for the reason v1 gives — a check that takes credit away from a third of real work is a check
+people turn off.
 
 Running it found a fault in the report itself. The probes verified three requirements that are above the
 fixture's target level, so every one of those positive claims fell outside the applicable table and
