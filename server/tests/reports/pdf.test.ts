@@ -104,11 +104,11 @@ describe('htmlToPdf: paper size', () => {
   });
 
   it.each(['letter', 'a4'] as PageSize[])('uses the whole width of %s paper: text runs to the right margin and the page number is set against it', (pageSize) => {
-    const pdf = readPdf(htmlToPdf(wrapHtml(`<p>${'plenty of ordinary words to fill every line across the page '.repeat(30)}</p>`), { pageSize }));
+    const pdf = readPdf(htmlToPdf(wrapHtml(`<p>${'x '.repeat(3000)}</p>`), { pageSize }));
     const right = pdf.width - 48;
     const body = pdf.ops.filter((o) => o.size === 10);
     const widest = Math.max(...body.map((o) => o.x + textWidth(o.text, o.font as 'F1', o.size)));
-    expect(widest, 'a full line ends close to the right margin').toBeGreaterThan(right - 12);
+    expect(widest, 'the longest line ends within a few points of the right margin').toBeGreaterThan(right - 9); // single-letter words: a line can fall short of the margin by less than one letter and a space
     const label = pdf.ops.find((o) => /^Page 1 of/.test(o.text))!;
     expect(label.x + textWidth(label.text, 'F1', label.size)).toBeCloseTo(right, 0);
   });
