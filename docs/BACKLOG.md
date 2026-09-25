@@ -42,7 +42,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **A shorter set of questions for uploaded apps.** Somebody checking code they did not write cannot honestly
+- **A shorter set of questions for uploaded apps.** **[taken: restored first session, 24 September 2026]** Somebody checking code they did not write cannot honestly
   answer half the wizard (which records it keeps, what its features are), and guessing puts made-up facts into a
   report. The check and the reports no longer wait for the answers, and the AI review reads against ASVS Level 1
   without them (24 September 2026); what the answers still decide is the applicability of the rules above the
@@ -132,9 +132,6 @@ building from nothing.
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
   argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
-- **Find your best Ab needs a clean-up pass.** The first app built from nothing by someone other than the owner,
-  and the one to read carefully before deciding what else matters. Worth going through it feature by feature
-  rather than fixing whatever catches the eye first.
 - **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
