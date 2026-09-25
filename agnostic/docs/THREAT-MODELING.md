@@ -116,6 +116,17 @@ Three pull requests, each small enough to review:
 3. The new threats for what `sv` sees and v1 did not: MCP, retrieval, several services, WebSockets,
    multi-tenant.
 
+## Progress
+
+**Part 1 of 3, done on 25 September 2026:** `data/knowledge/threats.json` and
+`crates/sv-report/src/threats.rs`. v1's rules became 30 threats across ten parts of the app, citing 90
+requirements, each citation carrying a few words the threat and the requirement share (`because`),
+which the citation guard reads against both. Only 53 of v1's 107 citations shared a word with their
+threat as written; reading them one by one, most were right in different words, and these were not:
+SameSite cited for a stolen session cookie (HttpOnly and session-id randomness are what answer it), an
+outbound allowlist for a forged "payment succeeded" message (authenticated backend messages are),
+log protection for a copied database, and five weaker links dropped. The report section is part 2.
+
 ## Decided by the owner, 25 September 2026
 
 1. **No scoring.** v1's likelihood and impact are not carried over. The list is ordered by what the

@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+anyhow = { workspace = true }
 sv-check = { path = "../sv-check" }
 sv-frameworks = { path = "../sv-frameworks" }
 sv-manifest = { path = "../sv-manifest" }
@@ -13,3 +14,4 @@ sv-scan = { path = "../sv-scan" }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+anyhow = { workspace = true }

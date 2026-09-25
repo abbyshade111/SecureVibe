@@ -1,0 +1,755 @@
+{
+  "_comment": "Threats to a web app, by the part of it they concern, STRIDE category, and the conditions under which they apply. Each names the ASVS and AISVS requirements that answer it; nothing here says a threat is handled, which is for the evidence about those requirements to show. Ported on 25 September 2026 from v1's rule-based model (server/src/design/threat-model.ts) without its likelihood and impact, at the owner's decision, and without its template controls, which are v1's own code. v1's three threats per outside API are one set here. Read by sv (agnostic/crates/sv-report/src/threats.rs); v1 is to read it too, later. See agnostic/docs/THREAT-MODELING.md. Each requirement carries a few words naming what the threat and the requirement share (`because`), which the citation guard holds against both texts, as for the crosswalk.",
+  "elements": [
+    {
+      "id": "browser-to-app",
+      "name": "Browsers and the app",
+      "description": "Every page, form, and request a browser sends to the app.",
+      "when": []
+    },
+    {
+      "id": "app",
+      "name": "The app itself",
+      "description": "The app's code, the packages it depends on, and its configuration.",
+      "when": []
+    },
+    {
+      "id": "stored-data",
+      "name": "The app's stored data",
+      "description": "Wherever the app keeps what it saves: a database, files on disk, and their backups.",
+      "when": []
+    },
+    {
+      "id": "ai-provider",
+      "name": "The AI model",
+      "description": "The AI service the app sends prompts to, and what comes back.",
+      "when": [
+        "ai"
+      ]
+    },
+    {
+      "id": "files",
+      "name": "Uploaded files",
+      "description": "Files people upload, where they are kept, and how they are served again.",
+      "when": [
+        "uploads"
+      ]
+    },
+    {
+      "id": "email-service",
+      "name": "Email",
+      "description": "The service the app sends email through.",
+      "when": [
+        "email"
+      ]
+    },
+    {
+      "id": "payment-provider",
+      "name": "Payments",
+      "description": "The payment provider and its messages back to the app.",
+      "when": [
+        "payments"
+      ]
+    },
+    {
+      "id": "api-clients",
+      "name": "Programs using the app's API",
+      "description": "Other programs that connect with an API key.",
+      "when": [
+        "public-api"
+      ]
+    },
+    {
+      "id": "outside-services",
+      "name": "Outside services",
+      "description": "The other services the app calls over the network.",
+      "when": [
+        "external-apis"
+      ]
+    },
+    {
+      "id": "scheduler",
+      "name": "Scheduled jobs",
+      "description": "Work the app does on a timer, with nobody present.",
+      "when": [
+        "scheduler"
+      ]
+    }
+  ],
+  "threats": [
+    {
+      "id": "T-01",
+      "stride": "spoofing",
+      "element": "browser-to-app",
+      "when": [
+        "auth"
+      ],
+      "description": "Someone signs in as another person by guessing a password, reusing a leaked one, or stealing a session cookie.",
+      "requirements": [
+        {
+          "id": "V6.2.1",
+          "because": "guessing a short password"
+        },
+        {
+          "id": "V6.2.4",
+          "because": "a leaked or common password"
+        },
+        {
+          "id": "V6.3.1",
+          "because": "password guessing and credential stuffing attacks"
+        },
+        {
+          "id": "V7.2.3",
+          "because": "guessing a session token"
+        },
+        {
+          "id": "V3.3.4",
+          "because": "a session cookie a script can read"
+        }
+      ]
+    },
+    {
+      "id": "T-02",
+      "stride": "elevation-of-privilege",
+      "element": "browser-to-app",
+      "when": [
+        "auth"
+      ],
+      "description": "A signed-in person opens administrator pages or other people's records by changing a web address.",
+      "requirements": [
+        {
+          "id": "V8.2.1",
+          "because": "administrator pages restricted by permissions"
+        },
+        {
+          "id": "V8.3.1",
+          "because": "access rules enforced on the server, not in the page"
+        },
+        {
+          "id": "V8.2.2",
+          "because": "records restricted to the person with permission"
+        },
+        {
+          "id": "V8.2.3",
+          "because": "fields of records restricted by permission"
+        },
+        {
+          "id": "V15.3.1",
+          "because": "records returned with fields a person should not see"
+        }
+      ]
+    },
+    {
+      "id": "T-03",
+      "stride": "repudiation",
+      "element": "browser-to-app",
+      "when": [
+        "auth"
+      ],
+      "description": "Someone denies having signed in or changed something, and there is no reliable record of it.",
+      "requirements": [
+        {
+          "id": "V16.3.1",
+          "because": "a logged record of signing in"
+        },
+        {
+          "id": "V16.3.2",
+          "because": "a logged record of refused attempts"
+        },
+        {
+          "id": "V16.4.2",
+          "because": "a record that cannot be modified"
+        }
+      ]
+    },
+    {
+      "id": "T-04",
+      "stride": "tampering",
+      "element": "browser-to-app",
+      "when": [],
+      "description": "Crafted input (injection, a request forged from another site, oversized or unexpected fields) changes data or behavior.",
+      "requirements": [
+        {
+          "id": "V2.2.1",
+          "because": "input validated against expected values"
+        },
+        {
+          "id": "V2.2.2",
+          "because": "input validation on the server"
+        },
+        {
+          "id": "V15.3.3",
+          "because": "unexpected fields accepted into records"
+        },
+        {
+          "id": "V1.2.4",
+          "because": "injection into database queries"
+        },
+        {
+          "id": "V1.2.1",
+          "because": "injection into an HTML response"
+        },
+        {
+          "id": "V3.4.3",
+          "because": "injection of script the browser executes"
+        },
+        {
+          "id": "V3.5.1",
+          "because": "a request forged from another site"
+        },
+        {
+          "id": "V15.3.6",
+          "because": "crafted object fields that pollute the JavaScript prototype"
+        }
+      ]
+    },
+    {
+      "id": "T-05",
+      "stride": "information-disclosure",
+      "element": "browser-to-app",
+      "when": [],
+      "description": "Traffic is read on the network, or pages, caches, and error messages reveal what they should not.",
+      "requirements": [
+        {
+          "id": "V16.5.1",
+          "because": "error messages that reveal sensitive details"
+        },
+        {
+          "id": "V14.3.2",
+          "because": "pages kept in a cache"
+        },
+        {
+          "id": "V14.3.1",
+          "because": "pages that reveal signed-in data left in the browser after the session"
+        },
+        {
+          "id": "V12.1.1",
+          "because": "network traffic read where an outdated TLS protocol version is enabled"
+        },
+        {
+          "id": "V3.4.1",
+          "because": "traffic sent without enforced HTTPS (HSTS)"
+        },
+        {
+          "id": "V3.3.1",
+          "because": "cookies sent over the network without Secure"
+        }
+      ]
+    },
+    {
+      "id": "T-06",
+      "stride": "denial-of-service",
+      "element": "browser-to-app",
+      "when": [],
+      "description": "Floods of requests, slow connections, or huge request bodies make the app unavailable.",
+      "requirements": [
+        {
+          "id": "V2.4.1",
+          "because": "excessive requests that cause denial of service"
+        },
+        {
+          "id": "V15.2.2",
+          "because": "requests for resource-demanding work that make the app unavailable"
+        }
+      ]
+    },
+    {
+      "id": "T-07",
+      "stride": "tampering",
+      "element": "ai-provider",
+      "when": [
+        "ai"
+      ],
+      "description": "Text typed by a person, or hidden inside a record, tricks the model into ignoring its instructions (prompt injection).",
+      "requirements": [
+        {
+          "id": "C2.1.3",
+          "because": "prompt injection in inputs that steer the model"
+        },
+        {
+          "id": "C12.2.1",
+          "because": "prompt injection attempts detected"
+        },
+        {
+          "id": "C2.1.6",
+          "because": "user text that overrides the system instructions"
+        },
+        {
+          "id": "C2.1.1",
+          "because": "hidden text smuggled in before normalization"
+        },
+        {
+          "id": "C2.1.5",
+          "because": "hidden characters in the input"
+        },
+        {
+          "id": "C2.1.7",
+          "because": "special tokens injected into the model context"
+        }
+      ]
+    },
+    {
+      "id": "T-08",
+      "stride": "information-disclosure",
+      "element": "ai-provider",
+      "when": [
+        "ai"
+      ],
+      "description": "The model reveals other people's records, or its own instructions.",
+      "requirements": [
+        {
+          "id": "C5.2.1",
+          "because": "records the model can reach, behind access controls"
+        },
+        {
+          "id": "C9.5.3",
+          "because": "access decisions made by the model itself"
+        },
+        {
+          "id": "C7.3.2",
+          "because": "responses that reveal the model's own instructions (the system prompt)"
+        },
+        {
+          "id": "C5.2.4",
+          "because": "responses with records the person may not see"
+        }
+      ]
+    },
+    {
+      "id": "T-09",
+      "stride": "denial-of-service",
+      "element": "ai-provider",
+      "when": [
+        "ai"
+      ],
+      "description": "Runaway or abusive use of the model runs up the AI bill, spends tokens without limit, or exhausts the provider's quota.",
+      "requirements": [
+        {
+          "id": "C9.1.2",
+          "because": "budgets for token use and spend"
+        },
+        {
+          "id": "C12.2.5",
+          "because": "token usage tracked per user"
+        },
+        {
+          "id": "C9.6.1",
+          "because": "a switch to halt the model"
+        },
+        {
+          "id": "C12.4.3",
+          "because": "the kill-switch that halts runaway use, logged"
+        },
+        {
+          "id": "C11.2.2",
+          "because": "rate limits on the model"
+        }
+      ]
+    },
+    {
+      "id": "T-10",
+      "stride": "spoofing",
+      "element": "ai-provider",
+      "when": [
+        "ai"
+      ],
+      "description": "The AI provider's API key leaks, in logs, in a prompt, or in generated text, and someone else uses it.",
+      "requirements": [
+        {
+          "id": "C9.5.4",
+          "because": "the key exposed in the model's context or prompt"
+        },
+        {
+          "id": "V13.3.1",
+          "because": "the key leaks from source code, instead of being kept in a secrets store"
+        },
+        {
+          "id": "V13.3.2",
+          "because": "the key leaks less when access to secret assets is least privilege"
+        },
+        {
+          "id": "V16.2.5",
+          "because": "the key leaks in logs, where logging credentials is not allowed"
+        }
+      ]
+    },
+    {
+      "id": "T-11",
+      "stride": "elevation-of-privilege",
+      "element": "ai-provider",
+      "when": [
+        "ai-actions"
+      ],
+      "description": "The model makes a change the person did not intend, or one they are not allowed to make.",
+      "requirements": [
+        {
+          "id": "C9.2.1",
+          "because": "a change the model makes without the person's approval"
+        },
+        {
+          "id": "C9.5.1",
+          "because": "actions the model is allowed to make, enforced by policy"
+        }
+      ]
+    },
+    {
+      "id": "T-12",
+      "stride": "tampering",
+      "element": "ai-provider",
+      "when": [
+        "ai-moderation"
+      ],
+      "description": "The model is used to produce or spread harmful content.",
+      "requirements": [
+        {
+          "id": "C2.2.1",
+          "because": "harmful content in prompts, scored by a classifier"
+        },
+        {
+          "id": "C7.3.1",
+          "because": "harmful content in responses, blocked by a classifier"
+        }
+      ]
+    },
+    {
+      "id": "T-13",
+      "stride": "tampering",
+      "element": "files",
+      "when": [
+        "uploads"
+      ],
+      "description": "A harmful file, such as a script disguised as an image or an SVG with code in it, is uploaded and later opened by someone else.",
+      "requirements": [
+        {
+          "id": "V5.2.2",
+          "because": "a file whose contents do not match its extension or image type"
+        },
+        {
+          "id": "V5.3.1",
+          "because": "an uploaded script executed on the server"
+        },
+        {
+          "id": "V5.3.2",
+          "because": "file paths built from uploaded names"
+        },
+        {
+          "id": "V5.4.1",
+          "because": "an uploaded file served back with its own filename"
+        },
+        {
+          "id": "V5.4.2",
+          "because": "uploaded file names served without encoding"
+        }
+      ]
+    },
+    {
+      "id": "T-14",
+      "stride": "denial-of-service",
+      "element": "files",
+      "when": [
+        "uploads"
+      ],
+      "description": "Oversized or endless uploads fill the disk.",
+      "requirements": [
+        {
+          "id": "V5.2.1",
+          "because": "oversized files beyond what the app can process"
+        },
+        {
+          "id": "V2.3.2",
+          "because": "limits on uploads per person, as documented"
+        }
+      ]
+    },
+    {
+      "id": "T-15",
+      "stride": "information-disclosure",
+      "element": "files",
+      "when": [
+        "uploads"
+      ],
+      "description": "Someone downloads another person's file by guessing its address.",
+      "requirements": [
+        {
+          "id": "V8.2.2",
+          "because": "another person's file reached by its address, where data-specific access should be restricted"
+        }
+      ]
+    },
+    {
+      "id": "T-16",
+      "stride": "tampering",
+      "element": "email-service",
+      "when": [
+        "email"
+      ],
+      "description": "Someone adds hidden recipients or content to an email through a form field.",
+      "requirements": [
+        {
+          "id": "V1.3.11",
+          "because": "form input injected into email"
+        }
+      ]
+    },
+    {
+      "id": "T-17",
+      "stride": "spoofing",
+      "element": "email-service",
+      "when": [
+        "email"
+      ],
+      "description": "Password reset emails are abused to take over an account.",
+      "requirements": [
+        {
+          "id": "V6.4.3",
+          "because": "a password reset that takes over the account"
+        },
+        {
+          "id": "V11.5.1",
+          "because": "a reset link whose random token can be guessed"
+        },
+        {
+          "id": "V2.4.1",
+          "because": "password reset requests sent in excessive numbers"
+        }
+      ]
+    },
+    {
+      "id": "T-18",
+      "stride": "information-disclosure",
+      "element": "payment-provider",
+      "when": [
+        "payments"
+      ],
+      "description": "Card numbers end up stored or logged by the app.",
+      "requirements": [
+        {
+          "id": "V14.2.1",
+          "because": "card numbers sent in the URL"
+        },
+        {
+          "id": "V16.2.5",
+          "because": "card numbers in the logging of payment details"
+        }
+      ]
+    },
+    {
+      "id": "T-19",
+      "stride": "tampering",
+      "element": "payment-provider",
+      "when": [
+        "payments"
+      ],
+      "description": "A fake \"payment succeeded\" message marks an order as paid.",
+      "requirements": [
+        {
+          "id": "V13.2.1",
+          "because": "a message from the payment provider, authenticated before it is trusted"
+        }
+      ]
+    },
+    {
+      "id": "T-20",
+      "stride": "spoofing",
+      "element": "api-clients",
+      "when": [
+        "public-api"
+      ],
+      "description": "A leaked API key is used by someone else.",
+      "requirements": [
+        {
+          "id": "V14.2.1",
+          "because": "an API key sent in the URL, where it leaks"
+        },
+        {
+          "id": "V11.5.1",
+          "because": "an API key that is random, so one leaked cannot be guessed from another"
+        },
+        {
+          "id": "V16.2.5",
+          "because": "a leaked API key from logging credentials"
+        }
+      ]
+    },
+    {
+      "id": "T-21",
+      "stride": "denial-of-service",
+      "element": "api-clients",
+      "when": [
+        "public-api"
+      ],
+      "description": "A program hammers the API with requests.",
+      "requirements": [
+        {
+          "id": "V2.4.1",
+          "because": "excessive requests from a program"
+        }
+      ]
+    },
+    {
+      "id": "T-22",
+      "stride": "information-disclosure",
+      "element": "outside-services",
+      "when": [
+        "external-apis"
+      ],
+      "description": "Data sent to an outside service is exposed if that service is breached or the connection is intercepted.",
+      "requirements": [
+        {
+          "id": "V12.3.2",
+          "because": "communicating with an outside service without checking its certificates"
+        },
+        {
+          "id": "V13.1.1",
+          "because": "what the app sends to outside services, documented"
+        }
+      ]
+    },
+    {
+      "id": "T-23",
+      "stride": "denial-of-service",
+      "element": "outside-services",
+      "when": [
+        "external-apis"
+      ],
+      "description": "An outside service is slow or down and takes the app down with it.",
+      "requirements": [
+        {
+          "id": "V16.5.2",
+          "because": "an outside service that fails, and the app with it"
+        }
+      ]
+    },
+    {
+      "id": "T-24",
+      "stride": "tampering",
+      "element": "outside-services",
+      "when": [
+        "external-apis"
+      ],
+      "description": "The app is tricked into calling a different address than the service it means to (server-side request forgery).",
+      "requirements": [
+        {
+          "id": "V1.3.6",
+          "because": "server-side request forgery"
+        },
+        {
+          "id": "V13.2.4",
+          "because": "the addresses the app may call, on an allowlist"
+        },
+        {
+          "id": "V15.3.2",
+          "because": "calls to outside addresses that follow redirects"
+        }
+      ]
+    },
+    {
+      "id": "T-25",
+      "stride": "information-disclosure",
+      "element": "stored-data",
+      "when": [],
+      "description": "Someone with access to the computer, or to a backup, copies the stored data and reads it.",
+      "requirements": [
+        {
+          "id": "V11.4.2",
+          "because": "stored passwords read from a copy"
+        },
+        {
+          "id": "V14.2.4",
+          "because": "stored sensitive data protected by encryption"
+        }
+      ]
+    },
+    {
+      "id": "T-26",
+      "stride": "tampering",
+      "element": "stored-data",
+      "when": [],
+      "description": "A form submitted twice, or two people editing at once, corrupts or duplicates a record.",
+      "requirements": [
+        {
+          "id": "V2.3.3",
+          "because": "a change that half succeeds, corrupting a record without a transaction"
+        }
+      ]
+    },
+    {
+      "id": "T-27",
+      "stride": "tampering",
+      "element": "app",
+      "when": [],
+      "description": "A package the app depends on has a known vulnerability or a malicious update.",
+      "requirements": [
+        {
+          "id": "V15.1.2",
+          "because": "an inventory of the packages the app depends on"
+        },
+        {
+          "id": "V15.2.1",
+          "because": "a package with a known vulnerability kept past its update"
+        }
+      ]
+    },
+    {
+      "id": "T-28",
+      "stride": "information-disclosure",
+      "element": "app",
+      "when": [],
+      "description": "Secrets (session keys, encryption keys, API keys) leak through the code, the logs, or error pages.",
+      "requirements": [
+        {
+          "id": "V13.3.1",
+          "because": "secrets in the source code"
+        },
+        {
+          "id": "V16.2.5",
+          "because": "secrets leak through logging of credentials"
+        },
+        {
+          "id": "V13.4.1",
+          "because": "source control files that leak secrets"
+        },
+        {
+          "id": "V16.5.1",
+          "because": "error pages that leak sensitive details"
+        }
+      ]
+    },
+    {
+      "id": "T-29",
+      "stride": "repudiation",
+      "element": "app",
+      "when": [],
+      "description": "Log entries are altered or deleted to hide what happened.",
+      "requirements": [
+        {
+          "id": "V16.4.2",
+          "because": "logs modified or deleted"
+        },
+        {
+          "id": "V16.4.1",
+          "because": "log entries forged by injection"
+        }
+      ]
+    },
+    {
+      "id": "T-30",
+      "stride": "tampering",
+      "element": "scheduler",
+      "when": [
+        "scheduler"
+      ],
+      "description": "A scheduled job runs twice at once, or a long one takes the app's resources and makes it unavailable.",
+      "requirements": [
+        {
+          "id": "V2.3.4",
+          "because": "a job that runs twice at once, without locking"
+        },
+        {
+          "id": "V15.2.2",
+          "because": "a long, resource-demanding job that makes the app unavailable"
+        }
+      ]
+    }
+  ]
+}
