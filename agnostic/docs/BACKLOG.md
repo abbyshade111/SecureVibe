@@ -50,7 +50,8 @@ another session is not a claim.
   Same root as the entry about `sv report` not running the bill of materials or the advisory
   comparison: the report reasons about dependencies from the scan alone and never asks the SBOM, which
   already knows the difference and says it well. Rewording the sentence is probably the wrong fix — one
-  sentence covering two ecosystems will be wrong about one of them again.
+  sentence covering two ecosystems will be wrong about one of them again. **Claimed on 25 September
+  2026 by session securevibe-e9.**
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
