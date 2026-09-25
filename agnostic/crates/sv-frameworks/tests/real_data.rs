@@ -677,3 +677,125 @@ fn the_requirements_a_clean_scan_cannot_settle_include_the_ones_it_was_settling(
         "a scanner can settle parameterized queries"
     );
 }
+
+// ---- the checklist's levels, grounded in ASVS ----
+
+fn crosswalk() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/sbd-asvs-crosswalk.json")
+}
+
+#[test]
+fn the_crosswalk_only_ever_lowers_a_controls_level() {
+    // The rule the whole crosswalk rests on: it can bring a control into an app's scope sooner and
+    // can never take one out. A control whose level went up would be one some app no longer sees.
+    let before = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut after = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    after.apply_crosswalk(&crosswalk()).unwrap();
+    let mut lowered = 0;
+    for (id, info) in after
+        .requirements
+        .iter()
+        .filter(|(id, _)| id.starts_with("SBD-"))
+    {
+        let was = before.get(id).unwrap().level;
+        assert!(
+            info.level <= was,
+            "{id} went from level {was} to {}",
+            info.level
+        );
+        if info.level < was {
+            lowered += 1;
+        }
+        assert!(
+            info.level_basis.is_some(),
+            "{id} does not say where its level came from"
+        );
+    }
+    assert!(
+        lowered > 0,
+        "the crosswalk changed nothing, so this test is not testing it"
+    );
+    // ASVS itself is untouched.
+    assert_eq!(
+        after.get("V13.3.1").unwrap().level,
+        before.get("V13.3.1").unwrap().level
+    );
+    assert!(after.get("V13.3.1").unwrap().level_basis.is_none());
+}
+
+#[test]
+fn each_control_says_where_its_level_came_from() {
+    let mut f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    f.apply_crosswalk(&crosswalk()).unwrap();
+    let basis = |id: &str| {
+        (
+            f.get(id).unwrap().level,
+            f.get(id).unwrap().level_basis.clone().unwrap(),
+        )
+    };
+
+    // Nothing in ASVS asks for unified service discovery, and the checklist rates it low severity,
+    // which `sv` turned into level 3. With no ASVS level to take, it is shown at every level.
+    let (level, why) = basis("SBD-AS-02");
+    assert_eq!(level, 1, "was level 3 from severity alone");
+    assert!(why.contains("nothing in ASVS"), "{why}");
+
+    // Data classification is V14.1.1's question, at V14.1.1's level.
+    let (level, why) = basis("SBD-DM-01");
+    assert_eq!(level, 2);
+    assert_eq!(why, "level 2, as V14.1.1");
+
+    // Secrets: the checklist calls it high severity, which already puts it at level 1, below its
+    // ASVS counterparts at level 2. The lower one wins and the reason says both.
+    let (level, why) = basis("SBD-AC-05");
+    assert_eq!(level, 1);
+    assert!(why.contains("severity") && why.contains("V13.3.1"), "{why}");
+    assert_eq!(
+        f.get("SBD-AC-05").unwrap().counterparts,
+        vec!["V13.3.1", "V13.3.2", "V13.3.4"]
+    );
+}
+
+fn write_crosswalk(name: &str, json: &str) -> PathBuf {
+    let path =
+        std::env::temp_dir().join(format!("sv-crosswalk-{}-{name}.json", std::process::id()));
+    std::fs::write(&path, json).unwrap();
+    path
+}
+
+#[test]
+fn a_crosswalk_that_leaves_a_control_out_or_cites_nothing_real_is_refused() {
+    // A control missing from the file would keep its derived level silently, which is the state of
+    // affairs the crosswalk exists to end; a citation that resolves to nothing is the AC-NN fault.
+    let real = std::fs::read_to_string(crosswalk()).unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&real).unwrap();
+    v["controls"].as_object_mut().unwrap().remove("SBD-MT-06");
+    let missing = write_crosswalk("missing", &v.to_string());
+    let mut f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let error = format!("{:#}", f.apply_crosswalk(&missing).unwrap_err());
+    assert!(error.contains("SBD-MT-06"), "{error}");
+
+    let mut v: serde_json::Value = serde_json::from_str(&real).unwrap();
+    v["controls"]["SBD-AC-05"] = serde_json::json!({"V13.3.99": "secrets somewhere"});
+    let unknown = write_crosswalk("unknown", &v.to_string());
+    let mut f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let error = format!("{:#}", f.apply_crosswalk(&unknown).unwrap_err());
+    assert!(error.contains("V13.3.99"), "{error}");
+    std::fs::remove_file(missing).ok();
+    std::fs::remove_file(unknown).ok();
+}
+
+#[test]
+fn a_crosswalk_missing_a_control_with_counterparts_is_refused_too() {
+    // Second witness for the completeness rule, on a control that has ASVS counterparts: leaving
+    // it out would quietly drop its evidence as well as its level.
+    let real = std::fs::read_to_string(crosswalk()).unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&real).unwrap();
+    v["controls"].as_object_mut().unwrap().remove("SBD-AC-05");
+    let missing = write_crosswalk("missing-ac05", &v.to_string());
+    let mut f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let result = f.apply_crosswalk(&missing);
+    std::fs::remove_file(missing).ok();
+    let error = format!("{:#}", result.unwrap_err());
+    assert!(error.contains("SBD-AC-05"), "{error}");
+}

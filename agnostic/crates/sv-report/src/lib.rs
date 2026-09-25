@@ -121,7 +121,7 @@ pub struct OutOfScopeFinding {
     pub rule_id: String,
     pub requirement_id: String,
     /// Which bucket the requirement actually landed in.
-    pub landed_in: &'static str,
+    pub landed_in: String,
 }
 
 /// A check that was satisfied about nothing the tables above can hold.
@@ -131,6 +131,18 @@ pub struct SatisfiedElsewhere {
     pub scope: String,
     /// Why it is here rather than against a requirement.
     pub why: String,
+}
+
+/// A Secure by Design control above this app's target level, and where its level came from.
+///
+/// Listed rather than only counted. The checklist has no levels; each control's is either an ASVS
+/// counterpart's or `sv`'s own, and a reader deciding whether to look at one anyway needs to know
+/// which.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChecklistAboveLevel {
+    pub id: String,
+    pub description: String,
+    pub basis: String,
 }
 
 /// Something `sv` did not examine, and why. Never folded into a clean result.
@@ -180,6 +192,7 @@ pub struct Report {
     /// concluded the probes never ran. A vanishing positive claim is safer than a vanishing finding
     /// and still tells the reader something untrue.
     pub satisfied_elsewhere: Vec<SatisfiedElsewhere>,
+    pub checklist_above_level: Vec<ChecklistAboveLevel>,
     pub gaps: Vec<Gap>,
 }
 
@@ -229,11 +242,32 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 scope: v.scope.clone(),
             })
             .collect();
-        let (checked_by, supported_by) = if inputs.manual_only.contains(id) {
+        let (checked_by, mut supported_by) = if inputs.manual_only.contains(id) {
             (Vec::new(), satisfied)
         } else {
             (satisfied, Vec::new())
         };
+        // Evidence about a requirement the crosswalk says asks the same thing. Supporting only,
+        // whatever this requirement's class: it is evidence about the counterpart, and at most part
+        // of what this one asks.
+        let counterparts = inputs
+            .frameworks
+            .get(id)
+            .map(|r| r.counterparts.as_slice())
+            .unwrap_or_default();
+        for v in inputs.verified {
+            for counterpart in counterparts {
+                if v.requirement_ids.iter().any(|r| r == counterpart)
+                    && !supported_by.iter().any(|c| c.check_id == v.check_id)
+                    && !checked_by.iter().any(|c| c.check_id == v.check_id)
+                {
+                    supported_by.push(CheckedBy {
+                        check_id: v.check_id.clone(),
+                        scope: format!("{}, as evidence about {counterpart}", v.scope),
+                    });
+                }
+            }
+        }
         // A finding beats a satisfied check: one check being happy says nothing about what another
         // one found, and the report must never let the happier of two answers hide the other.
         let status = if !findings.is_empty() {
@@ -314,7 +348,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             out_of_scope.push(OutOfScopeFinding {
                 rule_id: finding.rule_id.clone(),
                 requirement_id: requirement_id.clone(),
-                landed_in: where_it_landed(inputs.buckets, requirement_id),
+                landed_in: where_it_landed(inputs.buckets, inputs.frameworks, requirement_id),
             });
         }
     }
@@ -342,9 +376,9 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 // names three requirements can easily have them in three different buckets, and
                 // reporting the first one's fate as though it were all of theirs is the kind of
                 // small untruth a reader has no way to catch.
-                let mut by_place: Vec<(&str, Vec<&str>)> = Vec::new();
+                let mut by_place: Vec<(String, Vec<&str>)> = Vec::new();
                 for id in &v.requirement_ids {
-                    let place = where_it_landed(inputs.buckets, id);
+                    let place = where_it_landed(inputs.buckets, inputs.frameworks, id);
                     match by_place.iter_mut().find(|(p, _)| *p == place) {
                         Some((_, ids)) => ids.push(id),
                         None => by_place.push((place, vec![id])),
@@ -366,6 +400,20 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .then_with(|| a.rule_id.cmp(&b.rule_id))
     });
 
+    let checklist_above_level: Vec<ChecklistAboveLevel> = inputs
+        .buckets
+        .out_of_level
+        .iter()
+        .filter_map(|id| {
+            let r = inputs.frameworks.get(id)?;
+            Some(ChecklistAboveLevel {
+                id: id.clone(),
+                description: r.description.clone(),
+                basis: r.level_basis.clone()?,
+            })
+        })
+        .collect();
+
     Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
@@ -379,28 +427,37 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         findings,
         out_of_scope,
         satisfied_elsewhere,
+        checklist_above_level,
         gaps: inputs.gaps,
     }
 }
 
 /// Which bucket a requirement ended up in, for saying so beside a claim about it.
-fn where_it_landed(buckets: &Buckets, requirement_id: &str) -> &'static str {
+fn where_it_landed(buckets: &Buckets, frameworks: &Frameworks, requirement_id: &str) -> String {
     if buckets
         .not_applicable
         .iter()
         .any(|na| na.id == requirement_id)
     {
-        "excluded as not applicable"
+        "excluded as not applicable".to_owned()
     } else if buckets
         .not_assessed
         .iter()
         .any(|na| na.id == requirement_id)
     {
-        "not assessed — nobody answered the question that places it"
+        "not assessed — nobody answered the question that places it".to_owned()
     } else if buckets.out_of_level.iter().any(|o| o == requirement_id) {
-        "above the ASVS level this app targets"
+        // A checklist control's level is not an ASVS level, and saying "above the ASVS level" about
+        // one put a number on it that ASVS never gave. Its basis says where the number came from.
+        match frameworks
+            .get(requirement_id)
+            .and_then(|r| r.level_basis.as_deref())
+        {
+            Some(basis) => format!("above this app's target level ({basis})"),
+            None => "above this app's target level".to_owned(),
+        }
     } else {
-        "not a requirement in any loaded framework"
+        "not a requirement in any loaded framework".to_owned()
     }
 }
 

@@ -88,6 +88,24 @@ fn every_citation() -> Vec<(String, String, String)> {
             ));
         }
     }
+    // The Secure by Design crosswalk: each control against the ASVS requirements it is said to ask
+    // the same thing as. A wrong pair here moves a control's level and the evidence shown beside it.
+    let crosswalk: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(data("sbd-asvs-crosswalk.json")).expect("the crosswalk reads"),
+    )
+    .expect("the crosswalk parses");
+    // The phrase between them has to share vocabulary with both: here with the ASVS text, like
+    // every other citation, and with the control's own statement in the test below.
+    for (control, counterparts) in crosswalk["controls"].as_object().expect("controls") {
+        for (asvs, because) in counterparts.as_object().expect("a map") {
+            out.push((
+                format!("sbd-asvs-crosswalk.json {control}"),
+                asvs.clone(),
+                because.as_str().expect("a phrase").to_owned(),
+            ));
+        }
+    }
+
     for requirement in sv_check::secrets::ASSIGNMENT_REQUIREMENTS {
         out.push((
             "secrets.rs secrets.credential-assignment".to_owned(),
@@ -323,4 +341,36 @@ fn the_guard_catches_the_mistake_that_was_really_made() {
         ),
         "V1.2.4 is the right home for it: {v1_2_4}"
     );
+}
+
+#[test]
+fn every_crosswalk_bridge_shares_vocabulary_with_the_control_too() {
+    // The other side of the crosswalk's bridge phrases. A phrase that matched only the ASVS text
+    // could pair any control with any requirement, so it has to match the control as well.
+    let crosswalk: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(data("sbd-asvs-crosswalk.json")).expect("the crosswalk reads"),
+    )
+    .expect("the crosswalk parses");
+    let statements = requirements();
+    let mut wrong = Vec::new();
+    let mut pairs = 0;
+    for (control, counterparts) in crosswalk["controls"].as_object().expect("controls") {
+        let statement = statements
+            .get(control)
+            .unwrap_or_else(|| panic!("{control} is not a loaded control"));
+        for (asvs, because) in counterparts.as_object().expect("a map") {
+            pairs += 1;
+            let because = because.as_str().expect("a phrase");
+            if shares_no_words(because, statement) {
+                wrong.push(format!(
+                    "{control} ~ {asvs}: `{because}` shares nothing with `{statement}`"
+                ));
+            }
+        }
+    }
+    assert!(
+        pairs >= 25,
+        "only {pairs} pairs read, so this is not reading the file"
+    );
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }

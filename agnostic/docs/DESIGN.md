@@ -899,6 +899,17 @@ reasons were rewritten to name both answers, because an exclusion that says only
 service" tells its reader half of why. It also took `payments` and `scheduler` off the list of
 questions that decide nothing.
 
+**Levels, grounded in ASVS (25 September 2026).** The derived levels above were `sv`'s own, and the
+report called the controls they excluded "above the ASVS level this app targets", putting ASVS's name on
+a number ASVS never gave. `data/sbd-asvs-crosswalk.json` now ties each control to the ASVS requirements
+that ask the same thing, and a control's level is the lower of its derived one and its counterparts'.
+Lower only, so the crosswalk cannot hide a control; and a control with no counterpart — the architecture
+controls and the incident response plan — is shown at every level, because keeping it out would rest on
+the derived number alone. The checklist's statements are too terse for the citation guard to compare
+directly (`TLS` is shorter than its shortest word), so each pair carries a few words naming what the two
+ask in common, and the guard requires them to share vocabulary with both texts, which is a stricter test
+than either side alone.
+
 ### Applicable, unverified, and unverifiable are three different things
 
 Loading the checklist could easily have made the reports worse. Its controls are applicable and every

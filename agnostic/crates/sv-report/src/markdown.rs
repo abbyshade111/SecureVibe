@@ -81,7 +81,7 @@ pub fn compliance(report: &Report) -> String {
         c.not_assessed
     ));
     out.push_str(&format!(
-        "| Above ASVS level {} | {} |\n\n",
+        "| Above this app's target level (ASVS level {}) | {} |\n\n",
         report.target_level, c.out_of_level
     ));
 
@@ -133,6 +133,26 @@ pub fn compliance(report: &Report) -> String {
     }
     out.push('\n');
 
+    if !report.checklist_above_level.is_empty() {
+        out.push_str("## Secure by Design controls above this app's target level\n\n");
+        out.push_str(
+            "The checklist has no levels of its own. Each control takes the level of the ASVS \
+             requirement that asks the same thing, or is shown at every level when none does; a few \
+             keep the level `sv` derived from the checklist's severity, which is lower. These are \
+             the ones that came out above this app's target.\n\n\
+             | control | where its level came from | what it asks for |\n|---|---|---|\n",
+        );
+        for line in &report.checklist_above_level {
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.id),
+                cell(&line.basis),
+                cell(&line.description)
+            ));
+        }
+        out.push('\n');
+    }
+
     if !report.excluded.is_empty() {
         out.push_str("## Requirements that do not apply, and why\n\n");
         out.push_str(
@@ -182,7 +202,7 @@ pub fn compliance(report: &Report) -> String {
                 "| {} | {} | {} |\n",
                 cell(&line.rule_id),
                 cell(&line.requirement_id),
-                cell(line.landed_in)
+                cell(&line.landed_in)
             ));
         }
         out.push('\n');

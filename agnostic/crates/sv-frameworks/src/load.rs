@@ -100,6 +100,12 @@ pub struct RequirementInfo {
     pub chapter_name: String,
     /// Absent for Appendix C, which has no section level.
     pub section_id: Option<String>,
+    /// Where the level came from, when it is not the framework's own: the Secure by Design checklist
+    /// has no levels, so each of its controls says how it got one. `None` for ASVS and AISVS.
+    pub level_basis: Option<String>,
+    /// Requirements in another framework that ask the same thing, from the crosswalk. Evidence about
+    /// one of these is shown beside this requirement as supporting, never as checking it.
+    pub counterparts: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -177,7 +183,90 @@ impl Frameworks {
                     level: level_of(control),
                 };
                 self.insert(&requirement, &chapter, None);
+                if let Some(info) = self.requirements.get_mut(&requirement.id) {
+                    info.level_basis = Some(format!(
+                        "level {}, set by sv from the checklist's severity; the checklist has no levels",
+                        requirement.level
+                    ));
+                }
             }
+        }
+        Ok(())
+    }
+
+    /// Grounds the checklist's levels in ASVS through the crosswalk in `path`.
+    ///
+    /// A control's level becomes the lower of the one derived from its severity and the lowest level
+    /// among the ASVS requirements that ask the same thing. Lower only: the crosswalk can bring a
+    /// control into an app's scope sooner and can never take one out. A control nothing in ASVS
+    /// matches is level 1 — shown at every target — because excluding it would rest on `sv`'s own
+    /// derived level and nothing else. Every control has to be listed, and every id cited has to
+    /// exist; either failing is a load error rather than a control quietly keeping its old level.
+    pub fn apply_crosswalk(&mut self, path: &Path) -> Result<()> {
+        #[derive(Deserialize)]
+        struct Crosswalk {
+            /// Control → ASVS requirement → the few words naming what the two ask in common.
+            controls: BTreeMap<String, BTreeMap<String, String>>,
+        }
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("reading crosswalk {}", path.display()))?;
+        let crosswalk: Crosswalk = serde_json::from_str(&text)
+            .with_context(|| format!("parsing crosswalk {}", path.display()))?;
+
+        let controls: Vec<String> = self
+            .requirements
+            .keys()
+            .filter(|id| id.starts_with(SBD_PREFIX))
+            .cloned()
+            .collect();
+        for id in &controls {
+            anyhow::ensure!(
+                crosswalk.controls.contains_key(id),
+                "the crosswalk does not list {id}; every control has to be listed, with an empty list \
+                 when nothing in ASVS asks the same thing"
+            );
+        }
+        for (id, counterparts) in &crosswalk.controls {
+            anyhow::ensure!(
+                self.requirements.contains_key(id),
+                "the crosswalk lists {id}, which is not a loaded control"
+            );
+            let mut lowest: Option<(u8, &str)> = None;
+            for asvs in counterparts.keys() {
+                let level = self
+                    .requirements
+                    .get(asvs)
+                    .with_context(|| {
+                        format!("the crosswalk cites {asvs} for {id}, which does not exist")
+                    })?
+                    .level;
+                if lowest.is_none_or(|(l, _)| level < l) {
+                    lowest = Some((level, asvs));
+                }
+            }
+            let info = self.requirements.get_mut(id).expect("checked above");
+            let derived = info.level;
+            info.counterparts = counterparts.keys().cloned().collect();
+            let (level, basis) = match lowest {
+                None => (
+                    1,
+                    "shown at every level: nothing in ASVS asks the same thing, and the checklist has \
+                     no levels"
+                        .to_owned(),
+                ),
+                Some((asvs_level, asvs)) if asvs_level <= derived => {
+                    (asvs_level, format!("level {asvs_level}, as {asvs}"))
+                }
+                Some((asvs_level, asvs)) => (
+                    derived,
+                    format!(
+                        "level {derived}, from the checklist's severity; its ASVS counterpart {asvs} \
+                         is level {asvs_level}"
+                    ),
+                ),
+            };
+            info.level = level;
+            info.level_basis = Some(basis);
         }
         Ok(())
     }
@@ -192,6 +281,8 @@ impl Frameworks {
                 chapter_id: chapter.id.clone(),
                 chapter_name: chapter.name.clone(),
                 section_id: section_id.map(str::to_owned),
+                level_basis: None,
+                counterparts: Vec::new(),
             },
         );
     }
