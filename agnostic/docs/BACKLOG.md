@@ -36,8 +36,8 @@ another session is not a claim.
   `golang.org/x/crypto` and never appears in `go.mod`, so it is found in source instead. And
   `build.gradle.kts`, the Kotlin default, is now read, for dependencies and for pinning.
 
-- **Dependency manifests are only read at the top of the repository.** Found on 25 September 2026 and
-  not claimed. `ecosystems::detect` looks for `package.json`, `go.mod` and the rest in the app folder
+- **Dependency manifests are only read at the top of the repository.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25
+  September 2026. `ecosystems::detect` looks for `package.json`, `go.mod` and the rest in the app folder
   itself, so a full-stack app laid out as `client/` and `server/` — the usual shape of what an AI
   builder writes — has no dependency read at all, and the technology conditions fall back to source
   patterns alone. It is also the pinning check and the SBOM. Walking for manifests means deciding what
@@ -50,7 +50,8 @@ another session is not a claim.
   AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
   Left over from the same review, not done: the derived checklist levels are reported as "above the
   ASVS level this app targets", which is not what they are; and SBD-AC-05's "no secrets in code" is
-  exactly what the credential scan checks, which the report could show beside the control.
+  exactly what the credential scan checks, which the report could show beside the control (Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`) for the
+  SBD-AC-05 half).
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
@@ -126,7 +127,8 @@ another session is not a claim.
 
 - ~~**Almost every rule-to-requirement citation is semantically wrong.**~~ Done on 24 September 2026 —
   remapped, and guarded by `crates/sv-check/tests/citations.rs`. Left over: Brakeman's rule ids have
-  never been seen in a real SARIF run, and the guard cannot catch a swap between requirements that
+  never been seen in a real SARIF run (Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`): Brakeman 8.0.6 installs in that
+  session's sandbox), and the guard cannot catch a swap between requirements that
   share vocabulary. Found on 24 September 2026 by the
   test-crediting mismatch check, firing on the example app written to demonstrate it. ASVS 5.0 `V1.2.1`
   is *output encoding for an HTTP response, HTML or XML document*. It is cited by `ast.sql-built-by-hand`,
