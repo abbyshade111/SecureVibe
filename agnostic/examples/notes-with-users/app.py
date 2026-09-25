@@ -92,7 +92,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/login", "/signup"):
             # A session before sign-in, for the form's token. Sign-in replaces it.
             sid, csrf = self.new_session(None)
-            form = f"<form method=post><input type=hidden name=csrf_token value='{csrf}'></form>"
+            form = (
+                f"<form method=post><input type=hidden name=csrf_token value='{csrf}'>"
+                "<label>Email <input type=email name=email autocomplete=username></label>"
+                "<label>Password <input type=password name=password></label>"
+                "<button>Go</button></form>"
+            )
             title = "Sign in" if self.path == "/login" else "Sign up"
             return self.send(200, page(title, form), [self.cookie(sid)])
         if not email:

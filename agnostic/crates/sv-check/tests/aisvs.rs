@@ -100,7 +100,7 @@ fn every_aisvs_citation_is_one_a_finding_carries_and_a_clean_run_does_not() {
             "{id} credits an AISVS requirement on a clean run: {:?}",
             rule.requirements
         );
-        if !rule.findings_against.is_empty() {
+        if rule.findings_against.iter().any(|r| is_aisvs(r)) {
             against += 1;
             assert!(id.starts_with("ai."), "{id}");
             assert!(!rule.what.is_empty(), "{id}");
@@ -151,4 +151,64 @@ fn a_requirement_both_credited_and_only_ever_a_finding_is_refused() {
             .to_string()
             .contains("only ever a finding")
     );
+}
+
+#[test]
+fn the_asvs_requirements_only_a_finding_can_speak_to_are_carried_and_never_credited() {
+    // From the Level 1 pass: text written into a page as HTML against V3.2.2 (a safe rendering
+    // function), and C# token validation with expiry turned off against V9.2.1.
+    let all = adapters();
+    let semgrep = semgrep(&all);
+    let against = |requirement: &str| -> Vec<&str> {
+        semgrep
+            .rules
+            .iter()
+            .filter(|(_, r)| r.findings_against.iter().any(|q| q == requirement))
+            .map(|(id, _)| id.rsplit('.').next().unwrap())
+            .collect()
+    };
+    assert_eq!(
+        against("V3.2.2"),
+        [
+            "insecure-document-method",
+            "insecure-document-method",
+            "insecure-innerhtml",
+            "avoid-v-html",
+            "react-dangerouslysetinnerhtml"
+        ]
+    );
+    assert_eq!(
+        against("V9.2.1"),
+        ["jwt-tokenvalidationparameters-no-expiry-validation"]
+    );
+    let loaded = semgrep.rules.keys().cloned().collect();
+    let languages: Vec<String> = ["javascript", "typescript", "csharp", "html"]
+        .iter()
+        .map(|l| (*l).to_owned())
+        .collect();
+    let evidence = adapters::clean_run_evidence(semgrep, &loaded, &languages);
+    assert!(
+        !evidence.iter().any(|id| id == "V3.2.2" || id == "V9.2.1"),
+        "{evidence:?}"
+    );
+    assert!(
+        evidence.iter().any(|id| id == "V1.2.1"),
+        "the ASVS credit beside it stays"
+    );
+}
+
+#[test]
+fn a_real_innerhtml_finding_carries_both_requirements() {
+    // From the kept semgrep run over a Flask app and a Go program, which has no browser code; so
+    // the finding is written the way semgrep writes one, with the id the map is keyed on.
+    let all = adapters();
+    let semgrep = semgrep(&all);
+    let id = "javascript.browser.security.insecure-innerhtml.insecure-innerhtml";
+    let report = serde_json::json!({"version": "2.1.0", "runs": [{
+        "tool": {"driver": {"name": "Semgrep", "rules": [{"id": id}]}},
+        "results": [{"ruleId": id, "level": "warning", "message": {"text": "innerHTML"},
+            "locations": [{"physicalLocation": {"artifactLocation": {"uri": "static/app.js"},
+                "region": {"startLine": 4}}}]}]}]});
+    let findings = adapters::parse_sarif(semgrep, &report.to_string()).unwrap();
+    assert_eq!(findings[0].requirement_ids, ["V1.2.1", "V3.2.2"]);
 }
