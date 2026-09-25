@@ -519,6 +519,21 @@ const WITNESSES: &[(&str, &str, &str)] = &[
         "consumer.ts",
         "@Controller()\nexport class OrdersController {\n  @MessagePattern('order_created')\n  handle(@Payload() order: Order) {\n    return this.billing.charge(order);\n  }\n}\n",
     ),
+    (
+        "authorization-server",
+        "sso.js",
+        "const Provider = require('oidc-provider');\n\nconst issuer = new Provider('https://accounts.example.test', {\n  clients: [{ client_id: 'billing', redirect_uris: ['https://billing.example.test/callback'] }],\n});\n\nmodule.exports = issuer.callback();\n",
+    ),
+    (
+        "authorization-server",
+        "Startup.cs",
+        "public void ConfigureServices(IServiceCollection services)\n{\n    services.AddIdentityServer()\n        .AddInMemoryClients(Config.Clients)\n        .AddDeveloperSigningCredential();\n}\n",
+    ),
+    (
+        "authorization-server",
+        "oidc.py",
+        "from authlib.integrations.flask_oauth2 import AuthorizationServer\n\nserver = AuthorizationServer(app, query_client=get_client, save_token=save_token)\n",
+    ),
 ];
 
 #[test]
@@ -1248,4 +1263,87 @@ fn a_language_only_the_code_rules_read_still_leaves_absences_unknown() {
         .map(|a| a.condition.name())
         .collect();
     assert!(wrongly_absent.is_empty(), "{wrongly_absent:?}");
+}
+
+#[test]
+fn an_oauth_client_is_not_mistaken_for_an_authorization_server() {
+    // The corroborator's whole value is the line it draws, so the side it must *not* fire on is
+    // worth a test of its own. Each of these is an ordinary "Sign in with Google" app: it uses
+    // OAuth, and running the server is somebody else's job.
+    //
+    // Authlib is the case that shaped the data file. It is both a client and a server library, so
+    // it is deliberately absent from the corroborator's package lists — finding it in
+    // requirements.txt says nothing about which half is in use — and only its server-side class
+    // name in `source` counts.
+    let cases: &[(&str, &str)] = &[
+        (
+            "login.py",
+            "from authlib.integrations.flask_client import OAuth\n\noauth = OAuth(app)\noauth.register(name=\"google\", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)\n",
+        ),
+        (
+            "auth.ts",
+            "import NextAuth from 'next-auth';\nimport Google from 'next-auth/providers/google';\n\nexport const { handlers } = NextAuth({ providers: [Google] });\n",
+        ),
+        (
+            "store.jsx",
+            "export default function App() {\n  return (\n    <Provider store={store}>\n      <Routes />\n    </Provider>\n  );\n}\n",
+        ),
+    ];
+    let sigs = all_signatures();
+    for (file, contents) in cases {
+        let dir = scratch(&format!("oauth-client-{file}"));
+        std::fs::write(dir.join(file), contents).unwrap();
+        let report = scan(&dir, &sigs).unwrap();
+        let found = answer(&report, Condition::AuthorizationServer);
+        let value = found.value;
+        let evidence = format!("{:?}", found.evidence);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_ne!(
+            value,
+            Some(true),
+            "{file} is an OAuth client, but authorization-server fired on it: {evidence}"
+        );
+    }
+}
+
+#[test]
+fn a_dual_purpose_library_in_the_dependency_list_does_not_make_an_app_a_server() {
+    // The half of the rule above that lives in the package lists rather than the source patterns,
+    // and the one that had no witness until this test: `authlib` back among the Python packages
+    // passed every other test in the suite while quietly undoing the fix, because a Flask app
+    // doing "Sign in with Google" installs Authlib exactly like this.
+    let dir = scratch("authlib-client-requirements");
+    std::fs::write(
+        dir.join("requirements.txt"),
+        "flask==3.0.3
+authlib==1.3.2
+",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("app.py"),
+        "from flask import Flask
+
+app = Flask(__name__)
+",
+    )
+    .unwrap();
+    let report = scan(&dir, &all_signatures()).unwrap();
+    let server = answer(&report, Condition::AuthorizationServer);
+    let oauth = answer(&report, Condition::Oauth);
+    let server_evidence = format!("{:?}", server.evidence);
+    std::fs::remove_dir_all(&dir).ok();
+
+    // Assert the setup worked before asserting what was not found: a requirements.txt the scanner
+    // never read would pass the real assertion below for the wrong reason.
+    assert_eq!(
+        oauth.value,
+        Some(true),
+        "the fixture's requirements.txt was not read as OAuth at all, so it proves nothing"
+    );
+    assert_ne!(
+        server.value,
+        Some(true),
+        "a client's dependency list was read as running an authorization server: {server_evidence}"
+    );
 }

@@ -799,3 +799,102 @@ fn a_crosswalk_missing_a_control_with_counterparts_is_refused_too() {
     let error = format!("{:#}", result.unwrap_err());
     assert!(error.contains("SBD-AC-05"), "{error}");
 }
+
+/// An app that signs people in with "Sign in with Google" answers `oauth`, not
+/// `authorization-server`.
+fn oauth_client_context() -> ConditionContext {
+    let mut ctx = ConditionContext::default();
+    for c in Condition::ALL {
+        ctx.set(*c, false);
+    }
+    ctx.set(Condition::Oauth, true);
+    ctx
+}
+
+#[test]
+fn an_oauth_client_is_not_asked_about_the_authorization_server_it_does_not_run() {
+    // The fault this condition was added for. ASVS V10.4, V10.6, and V10.7 are written for
+    // whoever *runs* the authorization server — pre-registered redirect URI allowlists, single-use
+    // authorization codes, refresh token replay, consent screens. An app with a "Sign in with
+    // Google" button runs none of that, and was being handed all of it because it answered
+    // `oauth = true`.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let buckets = bucket(&f, &config, &oauth_client_context(), 2);
+
+    let excluded: Vec<&str> = buckets
+        .not_applicable
+        .iter()
+        .filter(|na| na.condition == Condition::AuthorizationServer)
+        .map(|na| na.id.as_str())
+        .collect();
+    // The five Level 1 ones are what the backlog entry named; the rest of V10.4, and all of V10.6
+    // and V10.7, are the same mistake at Level 2.
+    for id in [
+        "V10.4.1", "V10.4.2", "V10.4.3", "V10.4.4", "V10.4.5", "V10.4.11", "V10.6.1", "V10.7.1",
+    ] {
+        assert!(
+            excluded.contains(&id),
+            "{id} is the authorization server's requirement and still applies to a client"
+        );
+    }
+
+    // And the other half: the client's own requirements must survive. Excluding V10.2 along with
+    // V10.4 would be the same error pointing the other way, and a great deal worse.
+    for id in ["V10.1.1", "V10.2.1", "V10.2.2", "V10.3.1", "V10.5.1"] {
+        assert!(
+            buckets.applicable.iter().any(|a| a == id),
+            "{id} is the OAuth client's own requirement and must still apply"
+        );
+    }
+}
+
+#[test]
+fn an_app_that_really_runs_an_authorization_server_is_asked_about_it() {
+    // The guard against overcorrecting. Someone running an authorization server must still get
+    // every one of these; a condition that switched them off for everybody would pass the test
+    // above and be useless.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = oauth_client_context();
+    ctx.set(Condition::AuthorizationServer, true);
+    let buckets = bucket(&f, &config, &ctx, 2);
+    for id in [
+        "V10.4.1", "V10.4.2", "V10.4.3", "V10.4.4", "V10.4.5", "V10.4.11", "V10.6.1", "V10.7.1",
+    ] {
+        assert!(
+            buckets.applicable.iter().any(|a| a == id),
+            "{id} must apply to an app that runs an authorization server"
+        );
+    }
+}
+
+#[test]
+fn nobody_has_said_whether_this_app_is_an_authorization_server() {
+    // The third answer, and the one this project exists to keep separate from the other two. A
+    // manifest that says `oauth = true` and nothing else has not said which side of OAuth the app
+    // is on, and the honest report is "not assessed", never "does not apply".
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    // Everything answered except the one question at issue, which is left unanswered rather than
+    // answered `false`.
+    for c in Condition::ALL
+        .iter()
+        .filter(|c| **c != Condition::AuthorizationServer)
+    {
+        ctx.set(*c, false);
+    }
+    ctx.set(Condition::Oauth, true);
+    let buckets = bucket(&f, &config, &ctx, 2);
+    for id in ["V10.4.1", "V10.6.1", "V10.7.1"] {
+        assert!(
+            buckets.not_assessed.iter().any(|na| na.id == id),
+            "{id} should be not-assessed while nothing has said whether the app runs one"
+        );
+        assert!(
+            !buckets.not_applicable.iter().any(|na| na.id == id),
+            "{id} must not be excluded on a question nobody answered"
+        );
+    }
+}

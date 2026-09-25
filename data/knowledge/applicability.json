@@ -9,6 +9,9 @@
   ],
   "rules": [
     { "scope": "V10", "condition": "oauth", "notApplicableReason": "No OAuth or OpenID Connect: this app uses its own local accounts, not sign-in through another provider such as Google or Microsoft." },
+    { "scope": "V10.4", "condition": "authorization-server", "notApplicableReason": "This app does not run an OAuth authorization server: the service that signs people in and issues tokens on behalf of other applications. These rules are for whoever runs one. Signing in through somebody else's, such as Google or Microsoft, does not make this app one." },
+    { "scope": "V10.6", "condition": "authorization-server", "notApplicableReason": "This app is not an OpenID provider: the service other applications send people to so they can sign in. These rules are for whoever runs one, and this app is not it." },
+    { "scope": "V10.7", "condition": "authorization-server", "notApplicableReason": "Asking a person to approve what an application may see and do is the authorization server's job, and this app does not run one. Where this app signs in through somebody else's provider, that approval happens on the provider's own pages." },
     { "scope": "V17", "condition": "webrtc", "notApplicableReason": "This app has no real-time audio or video calls (WebRTC)." },
     { "scope": "V9", "condition": "jwt", "notApplicableReason": "This app does not issue self-contained tokens such as JWTs. Its API keys are opaque values that are checked against the database on every request." },
     { "scope": "V5", "condition": "uploads", "notApplicableReason": "This app does not accept file uploads or serve user files, so the file-handling requirements do not apply." },

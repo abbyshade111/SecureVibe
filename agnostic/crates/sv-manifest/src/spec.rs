@@ -52,6 +52,7 @@ categories = []
 [capabilities]
 auth = false              # does anyone sign in?
 oauth = false             # sign-in through Google/Microsoft/etc.
+authorization-server = false  # do OTHER apps sign their users in through THIS one?
 jwt = false               # self-contained tokens (JWT) rather than opaque session ids
 uploads = false           # can anyone upload a file?
 payments = false          # does it take money?

@@ -49,6 +49,8 @@ export const DEFAULT_NOT_APPLICABLE_REASONS: Record<ApplicabilityCondition, stri
   internet: 'This app is not intended to go on the internet.',
   level2: 'This only applies at level 2, and this app targets level 1.',
   oauth: 'This app uses its own local accounts, not sign-in through another provider (OAuth or OpenID Connect).',
+  'authorization-server':
+    'This app does not run an OAuth authorization server or OpenID provider of its own; these rules are for whoever runs one.',
   webrtc: 'This app has no real-time audio or video calls (WebRTC).',
   jwt: 'This app does not issue self-contained tokens such as JWTs; its API keys are opaque values checked against the database.',
   rag: 'The AI assistant does not search a document store or vector database (no retrieval-augmented generation).',
@@ -86,6 +88,10 @@ export function buildConditionContext(
     internet: profile.deployment.target === 'internet-later',
     level2: targetLevel(profile).level === 2,
     oauth: false,
+    // SecureVibe's template signs people in with its own accounts. It is neither an OAuth client
+    // nor an authorization server, and being the server is the separate question ASVS V10.4, V10.6
+    // and V10.7 are written for.
+    'authorization-server': false,
     webrtc: false,
     jwt: false,
     rag: false,
