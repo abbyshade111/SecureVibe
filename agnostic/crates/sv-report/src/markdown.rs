@@ -81,9 +81,17 @@ pub fn compliance(report: &Report) -> String {
         c.not_assessed
     ));
     out.push_str(&format!(
-        "| Above ASVS level {} | {} |\n\n",
+        "| Above level {} | {} |\n\n",
         report.target_level, c.out_of_level
     ));
+    if c.out_of_level_derived > 0 {
+        out.push_str(&format!(
+            "{} of those are Secure by Design controls. That checklist has no levels of its own, so \
+             `sv` works one out from whether a control is critical and what its absence costs — that \
+             number is this tool's judgement, not OWASP's.\n\n",
+            c.out_of_level_derived
+        ));
+    }
 
     if !report.gaps.is_empty() {
         out.push_str("## What was not examined\n\n");

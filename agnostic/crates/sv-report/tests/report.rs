@@ -420,7 +420,7 @@ fn a_satisfied_check_outside_the_tables_is_shown_rather_than_vanishing() {
     );
 
     let trace = &report.satisfied_elsewhere[0];
-    assert!(trace.why.contains("above the ASVS level"), "{}", trace.why);
+    assert!(trace.why.contains("above the level"), "{}", trace.why);
     let contact = &report.satisfied_elsewhere[1];
     assert!(contact.why.contains("no requirement"), "{}", contact.why);
 
@@ -461,7 +461,7 @@ fn a_check_whose_requirements_landed_in_different_places_says_so_for_each() {
     )];
     let report = build(inputs(&f, &buckets, vec![], &verified));
     let why = &report.satisfied_elsewhere[0].why;
-    assert!(why.contains("above the ASVS level"), "{why}");
+    assert!(why.contains("above the level"), "{why}");
     assert!(why.contains("not assessed"), "{why}");
     assert!(why.contains("excluded"), "{why}");
 }
@@ -487,5 +487,53 @@ fn a_report_from_a_run_says_it_was_a_run() {
             .find("Requirements that apply")
             .unwrap_or(rendered.len());
         assert!(at < table_at, "the run note belongs near the top");
+    }
+}
+
+#[test]
+fn a_checklist_control_is_never_said_to_be_above_an_asvs_level() {
+    // The checklist has no levels. `sv` derives one from whether a control is critical and what its
+    // absence costs, so calling a control "above the ASVS level this app targets" attributes to
+    // OWASP a judgement this tool made — and a reader has no way to tell which it is.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec![],
+        not_applicable: vec![],
+        not_assessed: vec![],
+        out_of_level: vec!["SBD-AS-02".to_owned(), "V16.5.1".to_owned()],
+    };
+    let verified = vec![Verified::new(
+        "app-tests",
+        &["SBD-AS-02", "V16.5.1"],
+        "a test".to_owned(),
+    )];
+    let report = build(inputs(&f, &buckets, vec![], &verified));
+
+    assert_eq!(report.counts.out_of_level, 2);
+    assert_eq!(
+        report.counts.out_of_level_derived, 1,
+        "only the checklist control's level is one `sv` worked out"
+    );
+
+    let why = &report.satisfied_elsewhere[0].why;
+    assert!(
+        !why.contains("ASVS level"),
+        "a checklist control's level is not an ASVS level: {why}"
+    );
+    assert!(why.contains("derives"), "{why}");
+
+    // And the rendered reports must not put it back.
+    for rendered in [
+        sv_report::markdown::compliance(&report),
+        sv_report::html::page(&report),
+    ] {
+        assert!(
+            !rendered.contains("Above ASVS level"),
+            "the summary still attributes the level to ASVS"
+        );
+        assert!(
+            rendered.contains("not OWASP's"),
+            "the summary has to say whose judgement the derived level is"
+        );
     }
 }

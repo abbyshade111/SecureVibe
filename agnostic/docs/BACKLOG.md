@@ -49,9 +49,8 @@ another session is not a claim.
   (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
   AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
   Left over from the same review: SBD-AC-05's "no secrets in code" is exactly what the credential scan
-  checks, which the report could show beside the control. The derived checklist levels being reported
-  as "above the ASVS level this app targets" is *claimed 25 September 2026, session
-  keen-meninsky-691a27*.
+  checks, which the report could show beside the control. The derived checklist levels are no longer
+  reported as "above the ASVS level this app targets" — done 25 September 2026.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —

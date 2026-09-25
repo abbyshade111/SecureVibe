@@ -140,6 +140,12 @@ pub struct Counts {
     pub not_applicable: usize,
     pub not_assessed: usize,
     pub out_of_level: usize,
+    /// How many of `out_of_level` are controls whose level `sv` worked out rather than read.
+    ///
+    /// The Secure by Design checklist has no levels. `sv` derives one from whether a control is
+    /// critical and what its absence costs, and a reader is owed that distinction: saying a control
+    /// is "above the ASVS level this app targets" attributes to OWASP a judgement this tool made.
+    pub out_of_level_derived: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -279,6 +285,12 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
         out_of_level: inputs.buckets.out_of_level.len(),
+        out_of_level_derived: inputs
+            .buckets
+            .out_of_level
+            .iter()
+            .filter(|id| id.starts_with(sv_frameworks::load::SBD_PREFIX))
+            .count(),
     };
 
     // Anything a check pointed at that the buckets did not place under "applies".
@@ -380,7 +392,14 @@ fn where_it_landed(buckets: &Buckets, requirement_id: &str) -> &'static str {
     {
         "not assessed — nobody answered the question that places it"
     } else if buckets.out_of_level.iter().any(|o| o == requirement_id) {
-        "above the ASVS level this app targets"
+        // Not "the ASVS level": the target level is applied across every loaded framework, and the
+        // Secure by Design checklist has no levels at all — `sv` derives those. Naming ASVS here
+        // attributed to OWASP a judgement this tool made.
+        if requirement_id.starts_with(sv_frameworks::load::SBD_PREFIX) {
+            "above the level this app targets — a level `sv` derives, as the checklist has none"
+        } else {
+            "above the level this app targets"
+        }
     } else {
         "not a requirement in any loaded framework"
     }

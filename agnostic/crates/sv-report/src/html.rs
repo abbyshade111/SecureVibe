@@ -114,9 +114,17 @@ pub fn page(report: &Report) -> String {
         ));
     }
     b.push_str(&format!(
-        "<tr><td>Above ASVS level {}</td><td class=\"n\">{}</td></tr>\n</table>\n",
+        "<tr><td>Above level {}</td><td class=\"n\">{}</td></tr>\n</table>\n",
         report.target_level, c.out_of_level
     ));
+    if c.out_of_level_derived > 0 {
+        b.push_str(&format!(
+            "<p>{} of those are Secure by Design controls. That checklist has no levels of its own, \
+             so <code>sv</code> works one out from whether a control is critical and what its \
+             absence costs — that number is this tool's judgement, not OWASP's.</p>\n",
+            c.out_of_level_derived
+        ));
+    }
 
     if !report.gaps.is_empty() {
         b.push_str("<h2>What was not examined</h2>\n");

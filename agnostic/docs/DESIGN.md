@@ -877,7 +877,12 @@ asserts that `AC.5` is in the set before comparing anything.
 
 **Levels are derived, because the checklist has none.** It has `critical` and `severityIfNo`. Critical
 or high severity is level 1, medium is level 2, low is level 3. That is this tool's mapping and not
-OWASP's, so it lives in one named function rather than three comparisons spread around.
+OWASP's, so it lives in one named function rather than three comparisons spread around — and the
+reports have to say so. They did not at first: a control above the target level was reported as *above
+the ASVS level this app targets*, which attributes to OWASP a judgement this tool made, about a
+checklist that has no levels at all. The summary now reads *Above level 2* and, where any of them are
+checklist controls, says how many and whose judgement the number is. A reader who cannot tell a level
+that was read from a level that was worked out cannot weigh either.
 
 Fifteen of the thirty-six controls are about the space between services — trust zones, service
 discovery, contracts between services, sagas, circuit breakers, a bus kept highly available. On a single
