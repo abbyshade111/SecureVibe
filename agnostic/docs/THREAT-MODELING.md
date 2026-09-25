@@ -136,6 +136,16 @@ threats. The data-flow outline is a list rather than the Mermaid diagram propose
 opens offline by double-clicking, and Mermaid draws with a script fetched from the web. No threat is
 ever called mitigated, and a test reads both reports for the word.
 
+**Part 3 of 3, done on 25 September 2026:** twelve threats for what v1 did not model, on four new
+parts of the app and one condition: tools the model can use over MCP (poisoned tool responses, tools
+called beyond the person's permission, tokens not checked, untrusted or unsandboxed servers; AISVS
+C10), the documents the model searches (answers from documents the person may not see, planted
+content, sensitive fields embedded; C5.2.2, C8), the app's own separate services (calls between them
+not authenticated; V13.2), live WebSocket connections (a connection from another site, messages read
+on the network; V4.4), and several tenants in one system (V8.4.1, and, with retrieval, C8.1.1 and
+C5.3.1). 42 threats across 14 parts, citing 115 requirements, every citation under the guard. What
+remains is v1 reading the same file, which is a change to v1 and its own piece of work.
+
 ## Decided by the owner, 25 September 2026
 
 1. **No scoring.** v1's likelihood and impact are not carried over. The list is ordered by what the

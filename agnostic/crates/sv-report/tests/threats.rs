@@ -104,16 +104,25 @@ fn every_citation_s_phrase_shares_vocabulary_with_the_threat_and_the_requirement
 }
 
 #[test]
-fn the_rules_are_v1_s_thirty_across_ten_parts_of_the_app() {
+fn the_rules_are_v1_s_thirty_and_twelve_for_what_v1_did_not_model() {
     let r = rules();
-    assert_eq!(r.threats.len(), 30);
-    assert_eq!(r.elements.len(), 10);
+    assert_eq!(r.threats.len(), 42);
+    assert_eq!(r.elements.len(), 14);
+    let v1: Vec<&str> = r
+        .threats
+        .iter()
+        .take(30)
+        .map(|t| t.element.as_str())
+        .collect();
+    for new in ["mcp-tools", "document-store", "services", "websockets"] {
+        assert!(!v1.contains(&new), "{new} is not one of v1's parts");
+    }
     assert_eq!(
         r.threats
             .iter()
             .map(|t| t.requirements.len())
             .sum::<usize>(),
-        90
+        115
     );
 }
 
@@ -417,4 +426,51 @@ fn without_threat_rules_the_report_has_no_threat_section() {
     });
     assert!(report.threats.is_empty());
     assert!(!sv_report::markdown::compliance(&report).contains("## Threats"));
+}
+
+#[test]
+fn the_new_parts_appear_only_when_their_conditions_hold() {
+    let parts = |set: &[(&str, bool)]| -> Vec<String> {
+        evaluate(&rules(), &context(set), &[])
+            .into_iter()
+            .filter(|t| t.status != ThreatStatus::CannotPlace)
+            .map(|t| t.element)
+            .collect()
+    };
+    let conditions = [
+        "mcp",
+        "rag",
+        "multiple-services",
+        "websockets",
+        "multi-tenant",
+    ];
+    let set = |value: bool| -> Vec<(&str, bool)> {
+        std::iter::once(("ai", true))
+            .chain(conditions.iter().map(|c| (*c, value)))
+            .collect()
+    };
+    let without = parts(&set(false));
+    let with = parts(&set(true));
+    for part in ["mcp-tools", "document-store", "services", "websockets"] {
+        assert!(
+            !without.iter().any(|e| e == part),
+            "{part} without its condition"
+        );
+        assert!(with.iter().any(|e| e == part), "{part} with its condition");
+    }
+    // MCP and retrieval need AI too: claimed with AI answered no, they place nothing.
+    let no_ai = parts(&[("ai", false), ("mcp", true), ("rag", true)]);
+    assert!(
+        !no_ai
+            .iter()
+            .any(|e| e == "mcp-tools" || e == "document-store")
+    );
+    // The tenant threat on the document store needs AI, retrieval, and several tenants at once.
+    let lines = evaluate(
+        &rules(),
+        &context(&[("ai", true), ("rag", true), ("multi-tenant", false)]),
+        &[],
+    );
+    assert!(!lines.iter().any(|t| t.id == "T-42"));
+    assert!(lines.iter().any(|t| t.id == "T-35"));
 }
