@@ -112,6 +112,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/notes":
             form = f"<form method=post><input type=hidden name=csrf_token value='{csrf}'></form>"
             return self.send(200, page("New note", form))
+        if self.path == "/password":
+            form = (
+                f"<form method=post><input type=hidden name=csrf_token value='{csrf}'>"
+                "<label>Current password <input type=password name=current></label>"
+                "<label>New password <input type=password name=new></label>"
+                "<button>Change</button></form>"
+            )
+            return self.send(200, page("Change password", form))
         if self.path.startswith("/notes/"):
             note = db().execute(
                 "select text from notes where id = ? and owner = ?",
@@ -163,6 +171,22 @@ class Handler(BaseHTTPRequestHandler):
             with db() as conn:
                 conn.execute("delete from sessions where id = ?", (sid,))
             return self.send(303, headers=[("Location", "/"), ("Set-Cookie", "sid=; Max-Age=0")])
+        if self.path == "/password":
+            row = db().execute("select hash, salt from users where email = ?", (email,)).fetchone()
+            if not row or not hmac.compare_digest(
+                row[0], hash_password(form.get("current", ""), row[1])
+            ):
+                return self.send(403, page("No", "That is not your current password."))
+            new = form.get("new", "")
+            if len(new) < 8 or new in COMMON:
+                return self.send(422, page("No", "Choose a longer or less common password."))
+            salt = secrets.token_hex(16)
+            with db() as conn:
+                conn.execute(
+                    "update users set hash = ?, salt = ? where email = ?",
+                    (hash_password(new, salt), salt, email),
+                )
+            return self.send(303, headers=[("Location", "/account")])
         if self.path == "/notes":
             with db() as conn:
                 cur = conn.execute(

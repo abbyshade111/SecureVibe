@@ -187,6 +187,17 @@ came back not assessed, which was correct; its form now has the fields a browser
 real: V6.2.6, V6.2.8, and V6.2.9 confirmed, sign-out by visiting refused. A copy with a text field for
 the password, an `onpaste` handler, and `GET /logout` ending the session found all three.
 
+Changing a password (V6.2.2, and V6.2.3, needing the current one to do it) takes a new entry,
+`change-password`, with `{password}` for the current password and `{new_password}` for the new. It is
+asked last, since it changes a password: with an account made for it when there is a `signup`, with A
+when there is not. The wrong current password first: if the new password then signs in, that is the
+finding, and the change taking has also shown a password can be changed. Otherwise the same change with
+the right current password has to take, the new password signing in and the old one refused, before the
+refusal means anything; a change that never takes leaves both not assessed. The old password still
+signing in afterwards is a finding against V6.2.2. The change page is read signed in for V6.2.6, both of
+its password fields. Run for real against the example, which gained a change page: both confirmed; a
+copy that skips the current-password check found it.
+
 Semgrep's rules for text written into a page as HTML (`innerHTML`, `document.write`,
 `dangerouslySetInnerHTML`, `v-html`) now count against V3.2.2, and C#'s token validation with expiry
 turned off against V9.2.1, through `findings_against`: a finding marks them, a clean run does not.
