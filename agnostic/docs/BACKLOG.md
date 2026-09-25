@@ -20,11 +20,24 @@ another session is not a claim.
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
   those two failing, which is the right way round.
 
-- **More AST rules.** *Claimed 25 September 2026 by session securevibe-e8 (branch
-  `claude/securevibe-agnostic-variant-935b16`): path traversal, weak cryptography, unvalidated redirects.
-  The Secure by Design checklist item is another session's and is not touched.* Five cover code execution, shell, backticks, SQL and deserialization, across seven
-  languages. Path traversal, weak cryptography and unvalidated redirects are the obvious next ones, and
-  each is a data entry per language.
+- ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in
+  all. `ast.file-path-from-value` (V5.3.2), `ast.weak-hash-function` (V11.4.1), `ast.weak-cipher`
+  (V11.3.1, V11.3.2) and `ast.open-redirect` (V3.7.2), across eight or nine languages each. Two new
+  fields made them possible without Rust per rule: `argumentPatterns` (the call is a finding only when
+  its argument says so — `createHash("md5")`, not `createHash("sha256")`) and `safeArgumentPatterns`
+  (named idioms that are not findings — `redirect(url_for(...))`, `secure_filename(...)`,
+  `path.join(__dirname, "a.html")`, a bare ALL-CAPS constant). A pattern for a language with no
+  query is refused at load. Every (rule, language) pair has a found and a not-found witness, and a
+  test fails if one is missing; breaking each filter in turn turned two to seven witnesses red.
+  Left over, each its own decision rather than a data entry:
+  - **Predictable randomness (V11.5.1) was not written.** `Math.random()` and `random.choice` are fine
+    for shuffling a list and wrong for a reset code, and what decides it is where the value goes,
+    which a single query cannot see. A rule without that would mostly report shuffles.
+  - Express's two-argument `res.redirect(301, url)` is missed: the first argument is the status,
+    and it is a literal. `send_file`/`redirect_to` in Ruby, `Paths.get` in Java and PHP's
+    `include $x` are not covered. Kotlin and C have no path or redirect query, Rust none of the four.
+  - The file-path rule is low confidence on purpose: it cannot tell a request value from an internal
+    one held in a lowercase variable.
 
 - **Read Maven and Gradle version ranges.** The lockfile check reports them as not assessed, because
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either

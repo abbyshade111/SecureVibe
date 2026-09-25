@@ -169,6 +169,215 @@
       "queries": {
         "ruby": "(subshell) @hit @arg"
       }
+    },
+    {
+      "id": "ast.file-path-from-value",
+      "title": "A file is opened at a path built from a value",
+      "severity": "medium",
+      "confidence": "low",
+      "requirementIds": [
+        "V5.3.2"
+      ],
+      "cwe": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "description": "A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points.",
+      "impact": "If any part of the path comes from a request, a name like ../../etc/passwd reads or overwrites a file outside the folder the app meant to use.",
+      "fix": "Keep user-submitted file names out of file paths: store files under names the app generates, and look them up by id. Where a submitted name has to be used, reduce it to a bare name (secure_filename in Flask, path.basename in Node) and check that the resolved path is still inside the folder it should be in.",
+      "literalArgumentIsSafe": true,
+      "queries": {
+        "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) @arg)) @hit",
+        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
+        "ruby": "(call receiver: (constant) @mod method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
+        "java": "(object_creation_expression type: (type_identifier) @fn\n                            arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(open|send_file|FileResponse)$",
+        "javascript": "^(readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync|sendFile|download)$",
+        "typescript": "^(readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync|sendFile|download)$",
+        "go": "^(Open|OpenFile|ReadFile|WriteFile|Create|Remove|RemoveAll)$",
+        "php": "^(file_get_contents|file_put_contents|fopen|readfile|file|unlink)$",
+        "ruby": "^(read|binread|readlines|open|new|write|binwrite|delete|unlink)$",
+        "java": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)$",
+        "csharp": "^(ReadAllText|ReadAllBytes|ReadAllLines|OpenRead|OpenWrite|Open|WriteAllText|WriteAllBytes|AppendAllText|Delete)$"
+      },
+      "modulePatterns": {
+        "javascript": "^(fs|fsp|res|response)$",
+        "typescript": "^(fs|fsp|res|response)$",
+        "go": "^(os|ioutil)$",
+        "ruby": "^(File|IO)$",
+        "csharp": "^File$"
+      },
+      "safeArgumentPatterns": {
+        "python": "^[A-Z][A-Z0-9_]*$|secure_filename\\(|safe_join\\(|^os\\.path\\.join\\(\\s*(os\\.path\\.dirname\\(\\s*(os\\.path\\.abspath\\(\\s*)?__file__\\s*\\)\\)?|BASE_DIR)(\\s*,\\s*('[^'{}]*'|\"[^\"{}]*\"))*\\s*,?\\s*\\)$",
+        "javascript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
+        "typescript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
+        "ruby": "^[A-Z][A-Z0-9_]*$",
+        "php": "^[A-Z][A-Z0-9_]*$"
+      }
+    },
+    {
+      "id": "ast.weak-hash-function",
+      "title": "A disallowed hash function is used",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V11.4.1"
+      ],
+      "cwe": [
+        "CWE-328",
+        "CWE-327"
+      ],
+      "description": "MD5 or SHA-1 is used as a hash function. Both have practical collision attacks, and approved-hash rules disallow them for any cryptographic use.",
+      "impact": "Anything that relies on the hash to tell two things apart, or to prove something was not changed, can be fooled by somebody who builds a second input with the same hash. Used for passwords, both are also fast enough to guess through quickly.",
+      "fix": "Use SHA-256 or stronger for integrity and signatures, and a password hashing function (Argon2id, scrypt, bcrypt) for passwords. If this hash is only a cache key or a file checksum with no security purpose, say so where it is used; Python lets you pass usedforsecurity=False.",
+      "queries": {
+        "python": "(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)\n      arguments: (argument_list) @arg) @hit",
+        "javascript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)) @hit",
+        "php": "(function_call_expression function: (name) @fn) @hit",
+        "ruby": "(call receiver: (scope_resolution name: (constant) @mod) method: (identifier) @fn) @hit",
+        "java": "(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)) @hit",
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(md5|sha1|md4)$",
+        "javascript": "^createHash$",
+        "typescript": "^createHash$",
+        "go": "^(New|Sum)$",
+        "php": "^(md5|sha1|md5_file|sha1_file)$",
+        "ruby": "^(hexdigest|digest|base64digest|new|file)$",
+        "java": "^getInstance$",
+        "csharp": "^(Create|HashData|ComputeHash)$",
+        "kotlin": "^getInstance$"
+      },
+      "modulePatterns": {
+        "python": "^hashlib$",
+        "go": "^(md5|sha1|md4)$",
+        "ruby": "^(MD5|SHA1)$",
+        "java": "^MessageDigest$",
+        "csharp": "^(MD5|SHA1)$",
+        "kotlin": "^MessageDigest$"
+      },
+      "argumentPatterns": {
+        "javascript": "(?i)^['\"`](md5|md4|sha1|sha-1|ripemd160)['\"`]$",
+        "typescript": "(?i)^['\"`](md5|md4|sha1|sha-1|ripemd160)['\"`]$",
+        "java": "(?i)^\"(md5|md4|md2|sha-?1)\"$",
+        "kotlin": "(?i)^\"(md5|md4|md2|sha-?1)\"$"
+      },
+      "safeArgumentPatterns": {
+        "python": "usedforsecurity\\s*=\\s*False"
+      }
+    },
+    {
+      "id": "ast.weak-cipher",
+      "title": "A cipher or block mode that is not approved is used",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V11.3.1",
+        "V11.3.2"
+      ],
+      "cwe": [
+        "CWE-327"
+      ],
+      "description": "Data is encrypted with ECB, the block mode that encrypts equal blocks to equal output, or with a retired cipher such as DES, triple DES, RC4, RC2 or Blowfish.",
+      "impact": "ECB leaves the shape of the data visible through the encryption, and the retired ciphers can be broken or have known practical attacks, so the encrypted data is less private than it looks.",
+      "fix": "Use AES with GCM (or ChaCha20-Poly1305) through your language's high-level library, which chooses the mode and the nonce for you. In Java, always name the mode: Cipher.getInstance(\"AES\") quietly means ECB.",
+      "queries": {
+        "python": "(attribute object: (identifier) @mod attribute: (identifier) @fn) @hit",
+        "javascript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)) @hit",
+        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument) . (argument (_) @arg))) @hit",
+        "ruby": "(call receiver: (scope_resolution name: (constant) @mod) method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
+        "java": "(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "(member_access_expression expression: (identifier) @mod name: (identifier) @fn) @hit",
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(ECB|MODE_ECB|TripleDES|ARC4|Blowfish|CAST5|IDEA|SEED)$",
+        "javascript": "^(createCipheriv|createDecipheriv|createCipher|createDecipher)$",
+        "typescript": "^(createCipheriv|createDecipheriv|createCipher|createDecipher)$",
+        "go": "^(NewCipher|NewTripleDESCipher)$",
+        "php": "^(openssl_encrypt|openssl_decrypt)$",
+        "ruby": "^new$",
+        "java": "^getInstance$",
+        "csharp": "^(ECB|Create)$",
+        "kotlin": "^getInstance$"
+      },
+      "modulePatterns": {
+        "python": "^(modes|AES|algorithms)$",
+        "go": "^(des|rc4)$",
+        "ruby": "^Cipher$",
+        "java": "^Cipher$",
+        "csharp": "^(CipherMode|DES|TripleDES|RC2)$",
+        "kotlin": "^Cipher$"
+      },
+      "argumentPatterns": {
+        "javascript": "(?i)^['\"`](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"`]$",
+        "typescript": "(?i)^['\"`](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"`]$",
+        "php": "(?i)^['\"](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"]$",
+        "ruby": "(?i)^['\"](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"]$",
+        "java": "(?i)^\"(aes|[^\"]*/ecb(/[^\"]*)?|desede[^\"]*|des(/[^\"]*)?|rc4|arcfour|rc2|blowfish[^\"]*)\"$",
+        "kotlin": "(?i)^\"(aes|[^\"]*/ecb(/[^\"]*)?|desede[^\"]*|des(/[^\"]*)?|rc4|arcfour|rc2|blowfish[^\"]*)\"$"
+      }
+    },
+    {
+      "id": "ast.open-redirect",
+      "title": "The app redirects to a destination built from a value",
+      "severity": "medium",
+      "confidence": "low",
+      "requirementIds": [
+        "V3.7.2"
+      ],
+      "cwe": [
+        "CWE-601"
+      ],
+      "description": "A redirect sends the user to a destination that is built from a value rather than written out or produced from the app's own routes.",
+      "impact": "If the destination comes from the request, as a ?next= parameter usually does, a link on the app's own domain can send somebody to a lookalike sign-in page on another domain, and the address they clicked was genuine.",
+      "fix": "Redirect only to the app's own routes, built with its router (url_for, reverse, a Rails _path helper), or check the destination against a short list of allowed hosts. For a return-to address, accept only a path that starts with a single / and not //.",
+      "literalArgumentIsSafe": true,
+      "queries": {
+        "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) . (_) . (_) @arg)) @hit",
+        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
+        "ruby": "(call method: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "java": "(method_invocation name: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit"
+      },
+      "functionPatterns": {
+        "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
+        "javascript": "^redirect$",
+        "typescript": "^redirect$",
+        "go": "^Redirect$",
+        "php": "^header$",
+        "ruby": "^redirect_to$",
+        "java": "^sendRedirect$",
+        "csharp": "^(Redirect|RedirectPermanent)$"
+      },
+      "modulePatterns": {
+        "javascript": "^(res|response|reply|ctx)$",
+        "typescript": "^(res|response|reply|ctx)$",
+        "go": "^http$"
+      },
+      "argumentPatterns": {
+        "php": "(?i)^['\"]\\s*location\\s*:"
+      },
+      "safeArgumentPatterns": {
+        "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(",
+        "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$",
+        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\("
+      }
     }
   ]
 }
