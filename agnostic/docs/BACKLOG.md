@@ -44,6 +44,14 @@ another session is not a claim.
   a nested one belongs to, and skipping `node_modules` and vendored copies, which is why it is its own
   item.
 
+- ~~**Secure by Design controls excluded on too narrow a question.**~~ Done on 25 September 2026, at
+  the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
+  (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
+  AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
+  Left over from the same review, not done: the derived checklist levels are reported as "above the
+  ASVS level this app targets", which is not what they are; and SBD-AC-05's "no secrets in code" is
+  exactly what the credential scan checks, which the report could show beside the control.
+
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,

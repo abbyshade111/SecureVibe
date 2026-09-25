@@ -419,10 +419,15 @@ fn every_requirement_lands_in_exactly_one_bucket() {
 
 #[test]
 fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
-    // `payments` and `scheduler` are asked about in securevibe.toml, have plain-language reasons
-    // written for them, and no rule in the OWASP data keys on either. That is worth pinning: it
-    // is surprising, `sv` tells the owner about it, and if a future data update gives one of them
-    // a rule, or takes a rule away from something else, somebody should have to notice.
+    // Conditions asked about in securevibe.toml that no rule in the data keys on. That is worth
+    // pinning: it is surprising, `sv` tells the owner about it, and if a future data update gives
+    // one of them a rule, or takes a rule away from something else, somebody should have to notice.
+    //
+    // `payments` and `scheduler` were on this list until 25 September 2026, when they became the
+    // second question behind two Secure by Design controls: a single service still needs
+    // repeat-safe handlers when a payment provider retries its webhooks (DM-03), and durable
+    // messaging when it runs a job queue (AS-06, RR-03). "Runs as one service" alone had been
+    // switching those off.
     //
     // `internet` was on this list until the Secure by Design checklist was loaded, and came off it
     // because two of its controls — rate limits and caching at the edge — are the first rules in
@@ -444,8 +449,6 @@ fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
             "never",
             "no-auth",
             "public-api",
-            "payments",
-            "scheduler",
             "level2",
             "self-assessment",
         ],
@@ -464,5 +467,187 @@ fn the_conditions_that_do_gate_things_gate_a_sensible_number_of_them() {
     assert!(
         auth > 40,
         "auth should gate a large part of ASVS; it gates {auth}"
+    );
+}
+
+#[test]
+fn a_single_service_still_gets_the_controls_its_other_answers_call_for() {
+    // Found in review on 25 September 2026. "Runs as one service" was the only question behind
+    // controls a single app can plainly still need, and `tls = off` alone switched off "all
+    // communications use TLS" for an app on the internet. Each case here is one control, the
+    // condition that now keeps it, and a word its exclusion reason has to carry — a reason that
+    // named only "one service" would be telling a reader half of why.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let cases: &[(&str, Condition, Condition, &str)] = &[
+        (
+            "SBD-RR-02",
+            Condition::MultipleServices,
+            Condition::ExternalApis,
+            "outside services",
+        ),
+        (
+            "SBD-DM-03",
+            Condition::MultipleServices,
+            Condition::Payments,
+            "payments",
+        ),
+        (
+            "SBD-DM-03",
+            Condition::MultipleServices,
+            Condition::Scheduler,
+            "background jobs",
+        ),
+        (
+            "SBD-AS-06",
+            Condition::MultipleServices,
+            Condition::Scheduler,
+            "job queue",
+        ),
+        (
+            "SBD-RR-03",
+            Condition::MultipleServices,
+            Condition::Scheduler,
+            "job queue",
+        ),
+        (
+            "SBD-AC-01",
+            Condition::Tls,
+            Condition::Internet,
+            "not on the internet",
+        ),
+    ];
+    let every_gate =
+        |id: &str| -> Vec<Condition> { config.rules_for(id).iter().map(|r| r.condition).collect() };
+    for (id, first, second, word) in cases {
+        let gates = every_gate(id);
+        assert!(
+            gates.contains(first) && gates.contains(second),
+            "{id}: {gates:?}"
+        );
+
+        // Everything it turns on says no: excluded, with a reason naming the second question too.
+        let mut all_no = ConditionContext::default();
+        for c in &gates {
+            all_no.set(*c, false);
+        }
+        let buckets = bucket(&f, &config, &all_no, 3);
+        let excluded = buckets
+            .not_applicable
+            .iter()
+            .find(|na| na.id == *id)
+            .unwrap_or_else(|| panic!("{id} should be excluded when every answer is no"));
+        assert!(
+            excluded.reason.contains(word),
+            "{id}: the reason has to say why the second question does not apply either: {}",
+            excluded.reason
+        );
+
+        // One service, but the other answer is yes: it applies.
+        let mut ctx = all_no.clone();
+        ctx.set(*second, true);
+        let buckets = bucket(&f, &config, &ctx, 3);
+        assert!(
+            buckets.applicable.iter().any(|a| a == id),
+            "{id} has to apply when {} holds, even on one service",
+            second.name()
+        );
+
+        // One service, the other question unanswered: not assessed, never excluded.
+        let mut unanswered = ConditionContext::default();
+        unanswered.set(*first, false);
+        let buckets = bucket(&f, &config, &unanswered, 3);
+        assert!(
+            buckets.not_assessed.iter().any(|na| na.id == *id),
+            "{id} with {} unanswered must be not assessed",
+            second.name()
+        );
+    }
+
+    // Startup with a missing dependency applies to anything with a database, which is nearly
+    // everything, so it has no gate at all.
+    assert!(
+        every_gate("SBD-AS-07").is_empty(),
+        "{:?}",
+        every_gate("SBD-AS-07")
+    );
+    let mut one_service = ConditionContext::default();
+    one_service.set(Condition::MultipleServices, false);
+    let buckets = bucket(&f, &config, &one_service, 3);
+    assert!(buckets.applicable.iter().any(|a| a == "SBD-AS-07"));
+}
+
+#[test]
+fn the_checklist_for_a_single_service_web_shop() {
+    // The second witness, from the other direction: not one control at a time, but the whole
+    // checklist for the commonest app `sv` will see — one web service on the internet, over HTTPS,
+    // taking card payments and calling outside APIs, with no job queue. Every control about the
+    // space between services is excluded; every control a single app still needs is not.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let mut ctx = ConditionContext::default();
+    for (c, v) in [
+        (Condition::MultipleServices, false),
+        (Condition::Internet, true),
+        (Condition::Tls, true),
+        (Condition::Payments, true),
+        (Condition::ExternalApis, true),
+        (Condition::Scheduler, false),
+        (Condition::Auth, true),
+        (Condition::CiCd, true),
+    ] {
+        ctx.set(c, v);
+    }
+    let buckets = bucket(&f, &config, &ctx, 3);
+    let applies = |id: &str| buckets.applicable.iter().any(|a| a == id);
+    let excluded = |id: &str| buckets.not_applicable.iter().find(|na| na.id == id);
+
+    for id in ["SBD-AC-01", "SBD-RR-02", "SBD-DM-03", "SBD-AS-07"] {
+        assert!(
+            applies(id),
+            "{id} is needed by a single web shop and must apply"
+        );
+    }
+    for id in [
+        "SBD-AS-01",
+        "SBD-AS-02",
+        "SBD-AS-03",
+        "SBD-AS-04",
+        "SBD-AS-05",
+        "SBD-AS-08",
+        "SBD-AC-04",
+        "SBD-DM-04",
+        "SBD-DM-06",
+        "SBD-RR-04",
+    ] {
+        assert!(
+            excluded(id).is_some(),
+            "{id} is about the space between services"
+        );
+    }
+    for id in ["SBD-AS-06", "SBD-RR-03"] {
+        let na = excluded(id).unwrap_or_else(|| panic!("{id}: no services and no job queue"));
+        assert!(
+            na.reason.contains("job queue"),
+            "{id} is excluded on two answers and has to say so: {}",
+            na.reason
+        );
+    }
+    assert!(
+        buckets
+            .not_assessed
+            .iter()
+            .all(|na| !na.id.starts_with("SBD-")),
+        "every question the checklist turns on was answered here"
+    );
+
+    // The same shop with its manifest saying `tls = off`: the case the AC-01 fix exists for. An
+    // app on the internet without HTTPS is exactly the one "all communications use TLS" is about.
+    let mut no_tls = ctx.clone();
+    no_tls.set(Condition::Tls, false);
+    let buckets = bucket(&f, &config, &no_tls, 3);
+    assert!(
+        buckets.applicable.iter().any(|a| a == "SBD-AC-01"),
+        "an internet app claiming no HTTPS must still be asked whether its traffic is encrypted"
     );
 }

@@ -814,6 +814,19 @@ to deciding it. So `multiple-services` is a new claim. Unanswered leaves those c
 which is the honest default and the one the engine already had. Two more are gated on `internet`, which
 until now was a condition that decided nothing at all — the test pinning that list is what noticed.
 
+**Corrected on 25 September 2026: "one service" was too narrow a question for five of them.** A
+single app still needs a circuit breaker in front of the outside APIs it calls (RR-02), handlers that
+are safe to run twice when a payment provider retries its webhooks (DM-03), and durable messaging with
+defined semantics when it runs a job queue (AS-06, RR-03). "Starting up when a dependency is missing"
+(AS-07) applies to anything with a database, so it lost its gate altogether and fourteen controls are
+now gated on `multiple-services`. And `tls = off` had been enough on its own to exclude "all
+communications use TLS" (AC-01), which excluded it for exactly the app it is most about: one on the
+internet without HTTPS. Each now carries a second rule at the same scope — `external-apis`, `payments`,
+`scheduler`, `internet` — and rules at one scope are OR-ed, so any one of them keeps the control. The
+reasons were rewritten to name both answers, because an exclusion that says only "this runs as one
+service" tells its reader half of why. It also took `payments` and `scheduler` off the list of
+questions that decide nothing.
+
 ### Applicable, unverified, and unverifiable are three different things
 
 Loading the checklist could easily have made the reports worse. Its controls are applicable and every

@@ -1,5 +1,5 @@
 {
-  "_comment": "v2 replacements for the `never` rules in data/knowledge/applicability.json. Each of those rules carries a reason that is a statement about v1's Node template — 'this app is written in TypeScript for Node.js', 'all data lives in its own SQLite database file', 'the model is hosted by the vendor (Anthropic)'. True of a v1 app, unknowable about someone else's. A rule here replaces the rule at the same scope, and states where its answer comes from: `claim` means securevibe.toml says, `derived` means the app's own dependencies say. V15.4 and C5.1 are deliberately absent: their `never` reasons are about ASVS level 3, which is honest and not specific to v1.  The `SBD-` rules cover the Secure by Design checklist. Fifteen of its thirty-six controls are about the space between services and are gated on `multiple-services`; on a single service they are not passed, they are meaningless. The other twenty-one apply to anything that holds data and runs somewhere, so they carry no rule and silence means they apply. Nothing here can verify any of them: they are design-review controls, and the report says so rather than counting them as things automation looked at and could not confirm.",
+  "_comment": "v2 replacements for the `never` rules in data/knowledge/applicability.json. Each of those rules carries a reason that is a statement about v1's Node template — 'this app is written in TypeScript for Node.js', 'all data lives in its own SQLite database file', 'the model is hosted by the vendor (Anthropic)'. True of a v1 app, unknowable about someone else's. A rule here replaces the rule at the same scope, and states where its answer comes from: `claim` means securevibe.toml says, `derived` means the app's own dependencies say. V15.4 and C5.1 are deliberately absent: their `never` reasons are about ASVS level 3, which is honest and not specific to v1.  The `SBD-` rules cover the Secure by Design checklist. Fourteen of its thirty-six controls are about the space between services and are gated on `multiple-services`; on a single service they are not passed, they are meaningless. Where a single app can still need one — circuit breakers in front of outside APIs, repeat-safe handlers for retried webhooks, durable job queues — a second rule at the same scope keeps it applying, because rules at one scope are OR-ed. The other twenty-two apply to anything that holds data and runs somewhere, so they carry no rule and silence means they apply. Nothing here can verify any of them: they are design-review controls, and the report says so rather than counting them as things automation looked at and could not confirm.",
   "rules": [
     {
       "scope": "AC.11.7",
@@ -125,7 +125,13 @@
       "scope": "SBD-AC-01",
       "condition": "tls",
       "source": "claim",
-      "notApplicableReason": "This app runs on one computer without HTTPS, so there is no network connection between components to encrypt."
+      "notApplicableReason": "This app runs on one computer without HTTPS and is not on the internet, so there is no network connection to encrypt."
+    },
+    {
+      "scope": "SBD-AC-01",
+      "condition": "internet",
+      "source": "claim",
+      "notApplicableReason": "This app runs on one computer without HTTPS and is not on the internet, so there is no network connection to encrypt."
     },
     {
       "scope": "SBD-AC-02",
@@ -185,13 +191,13 @@
       "scope": "SBD-AS-06",
       "condition": "multiple-services",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there is no messaging between services to make durable."
+      "notApplicableReason": "This app runs as one service and has no background job queue, so there is no messaging to make durable."
     },
     {
-      "scope": "SBD-AS-07",
-      "condition": "multiple-services",
+      "scope": "SBD-AS-06",
+      "condition": "scheduler",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there are no service dependencies that might be missing at startup."
+      "notApplicableReason": "This app runs as one service and has no background job queue, so there is no messaging to make durable."
     },
     {
       "scope": "SBD-AS-08",
@@ -203,7 +209,19 @@
       "scope": "SBD-DM-03",
       "condition": "multiple-services",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there is no message delivery between services that could repeat."
+      "notApplicableReason": "This app runs as one service, takes no payments and runs no background jobs, so nothing delivers the same message, webhook or job to it twice."
+    },
+    {
+      "scope": "SBD-DM-03",
+      "condition": "payments",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, takes no payments and runs no background jobs, so nothing delivers the same message, webhook or job to it twice."
+    },
+    {
+      "scope": "SBD-DM-03",
+      "condition": "scheduler",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, takes no payments and runs no background jobs, so nothing delivers the same message, webhook or job to it twice."
     },
     {
       "scope": "SBD-DM-04",
@@ -221,13 +239,25 @@
       "scope": "SBD-RR-02",
       "condition": "multiple-services",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there are no dependencies between services to put a circuit breaker in front of."
+      "notApplicableReason": "This app runs as one service and calls no outside services, so there is no dependency to put a circuit breaker in front of."
+    },
+    {
+      "scope": "SBD-RR-02",
+      "condition": "external-apis",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service and calls no outside services, so there is no dependency to put a circuit breaker in front of."
     },
     {
       "scope": "SBD-RR-03",
       "condition": "multiple-services",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there is no asynchronous messaging between services whose semantics need defining."
+      "notApplicableReason": "This app runs as one service and has no background job queue, so there is no asynchronous messaging whose semantics need defining."
+    },
+    {
+      "scope": "SBD-RR-03",
+      "condition": "scheduler",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service and has no background job queue, so there is no asynchronous messaging whose semantics need defining."
     },
     {
       "scope": "SBD-RR-04",
