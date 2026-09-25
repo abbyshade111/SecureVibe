@@ -44,7 +44,7 @@ If your app has its own tests, they can count too — but only for requirements 
 into the test, in its name or in a comment on the line above it:
 
 ```python
-def test_V1_2_1_search_uses_bound_parameters():   # or: # covers V1.2.1
+def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
 ```
 
 When the whole suite passes, `sv` reports those requirements as checked by your own tests and says which

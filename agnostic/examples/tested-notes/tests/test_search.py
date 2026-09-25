@@ -9,8 +9,8 @@ from app import search
 
 
 class SearchTests(unittest.TestCase):
-    def test_V1_2_1_search_uses_parameterised_queries(self):
-        """The requirement id in the name is what lets `sv` credit this test to V1.2.1."""
+    def test_V1_2_4_search_uses_parameterised_queries(self):
+        """The requirement id in the name is what lets `sv` credit this test to V1.2.4."""
         db = sqlite3.connect(":memory:")
         db.execute("create table notes (t text)")
         db.execute("insert into notes values ('a')")

@@ -97,12 +97,12 @@ switches off a requirement the code says applies.
   If a test exists to satisfy a particular OWASP requirement, write that requirement's id into the
   test — in its name, or in a comment on the line above it:
 
-      def test_V1_2_1_search_uses_bound_parameters():   # or: # covers V1.2.1
+      def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
           ...
 
   `sv` reads those ids back and, when the whole suite passes, reports that requirement as checked
   by the app's own tests, naming the file and line so anybody can go and look. Ids may be written
-  with underscores or dots; `V1.2.1` and `V1_2_1` are the same requirement.
+  with underscores or dots; `V1.2.4` and `V1_2_4` are the same requirement.
 
   This is the only way a test counts. Matching tests to requirements by what they are called would
   credit a requirement on the strength of a name somebody chose for other reasons, and `sv` will

@@ -2,7 +2,7 @@ manifest-version = 1
 
 # An example of naming requirements in tests, which is the only way `sv` credits a test to one.
 # `sv report ./examples/tested-notes --run` starts this behind the fence, runs the suite, and
-# reports V1.2.1 as checked by the app's own test — naming the file and line so anybody can look.
+# reports V1.2.4 as checked by the app's own test — naming the file and line so anybody can look.
 
 [app]
 name = "Tested notes"

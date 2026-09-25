@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 def search(db, term):
-    # The values travel beside the query rather than inside it, which is what V1.2.1 asks for.
+    # The values travel beside the query rather than inside it, which is what V1.2.4 asks for.
     return db.execute("select * from notes where t = ?", [term]).fetchall()
 
 
