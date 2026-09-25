@@ -77,7 +77,7 @@ sv-report       compliance and security reports, SARIF
 ### Why the adapters are a data file
 
 Adding Python support should be adding a manifest entry, not writing a crate. An adapter says what tool to run,
-how to recognise it is installed, how to parse its output into the common finding shape, and which ASVS
+how to recognize it is installed, how to parse its output into the common finding shape, and which ASVS
 requirements its findings bear on:
 
 ```toml
@@ -327,7 +327,7 @@ distinction this project exists to keep.
 **Silence is not a no.** Every claim is `Option<bool>`. `serde(default)` turning an absent `ci-cd` line into
 `false` would have quietly excluded ten requirements on an answer nobody gave — the same failure as the
 inherited reasons, arriving through the type system instead of the data file. An explicit `false` from the
-owner is their own deliberate statement and is honoured; silence is not converted into one.
+owner is their own deliberate statement and is honored; silence is not converted into one.
 
 Breaking the not-assessed branch failed exactly **one** test at first. Under this project's rule that means the
 coverage was accidental, so two more were added that fail for different reasons — a realistic partly-answered
@@ -429,7 +429,7 @@ stops the run instead of changing the answer.
 
 **`.github` is a dot-directory.** The source walk skipped every directory beginning with a dot, which is
 exactly where a CI pipeline lives. Left alone it would have answered "no CI/CD" for every repository that has
-one — a wrong statement in a report, produced by an optimisation.
+one — a wrong statement in a report, produced by an optimization.
 
 **Two conditions gate nothing.** `payments` and `scheduler` are asked about in the manifest and have
 plain-language reasons written for them, but no rule in the OWASP data keys on either: ASVS 5.0 has no
@@ -465,7 +465,7 @@ ships believing it was checked.
 The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
 Kotlin, Rust, C, Dart and Swift. Each one is worth more than one more entry suggests, because of how the fail-closed
 rule works: **no rule may speak while a language present in the app goes unparsed.** One Ruby file used
-to silence every rule for the whole app — correct behaviour on an app `sv` could not read, and a lot of
+to silence every rule for the whole app — correct behavior on an app `sv` could not read, and a lot of
 silence. Every language added is one fewer kind of app that gets nothing.
 
 ### A page of markup is not a hole in the coverage
@@ -503,7 +503,7 @@ fragments *and* whatever it could not take — an unclosed `<script`, a `javascr
 anything was left behind the page is still unread and every rule stays silent about the whole app. A
 page that cannot be opened at all counts as left behind too.
 
-The terminal's wording followed the behaviour twice: it said *there is no grammar for html* when every
+The terminal's wording followed the behavior twice: it said *there is no grammar for html* when every
 page was unread, then *a page with a script written into it* when only those were, and now says what is
 actually true — that something in the page could not be taken out of it.
 
@@ -585,7 +585,7 @@ Three things these languages needed that the others did not:
   teach that filter to let unnamed matches through, the backtick form is its own rule. `ls` is as fixed
   as any string and `ls #{dir}` is not, and the literal check tells them apart once `subshell` is on the
   list of things that can be literal.
-- **PHP interpolates a bare `$name` inside a double-quoted string**, with no wrapper node to recognise.
+- **PHP interpolates a bare `$name` inside a double-quoted string**, with no wrapper node to recognize.
   A check that only knows `${…}` and `#{…}` reads `"select … $name"` as a written-out constant, which
   is the exact case the SQL rule exists for.
 
@@ -596,7 +596,7 @@ Three things these languages needed that the others did not:
   Without this, the most natural way to write a Kotlin query reads as a written-out constant.
 
 Ruby's `load` is too common a method name to report on its own, so the receiver has to be one of the
-classes that really deserialises. Breaking that check is what showed the test for it was passing for the
+classes that really deserializes. Breaking that check is what showed the test for it was passing for the
 wrong reason: `config.load(path)` was being excluded by the query's own shape, because a lower-case
 receiver is an `identifier` and the query asks for a `constant`. The receiver pattern could have been
 deleted with every test still green. `Settings.load(path)` is the case that actually exercises it.
@@ -679,7 +679,7 @@ Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands
 Semgrep's findings carried no requirement at all until 25 September 2026, because its map was empty.
 The other tools' maps were written one entry at a time, which works for Brakeman's forty codes and not
 for the 1,321 security rules in semgrep's own repository. So the map is generated, by
-`tools/semgrep_rule_map.py` from a checkout of `semgrep/semgrep-rules`, and the judgement went into
+`tools/semgrep_rule_map.py` from a checkout of `semgrep/semgrep-rules`, and the judgment went into
 how it decides rather than into each entry.
 
 **Two keys, both required.** A rule is mapped only when its CWE is one of a class's and its id says the
@@ -755,7 +755,7 @@ one `sv` makes for them by agreeing to look away. What is left, a clean run whos
 skipped lines or an app with a Brakeman settings file (`switched_off_by` in `adapters.json`), is not
 credited, and the report says why in the gaps.
 
-The same measurement turned up a neighbour that is not fixed here: semgrep, by default, skips files
+The same measurement turned up a neighbor that is not fixed here: semgrep, by default, skips files
 under `tests/`, `test/`, `build/`, `dist/`, `vendor/` and a few others, and its SARIF says nothing about
 it. It is in the backlog.
 
@@ -850,7 +850,7 @@ stylesheets*:
 
 | check | cited | should be |
 | --- | --- | --- |
-| the bill of materials is incomplete | V1.3.5 | V15.1.2, an inventory catalogue of third-party libraries |
+| the bill of materials is incomplete | V1.3.5 | V15.1.2, an inventory catalog of third-party libraries |
 | a dependency matches a known advisory | V1.3.5 | V15.2.1, components within documented remediation time frames |
 | the ecosystem pins no versions | V1.3.5 | V15.1.2 |
 
@@ -915,7 +915,7 @@ to be possible at all, each adapter rule now carries a `what` in prose — a bar
 guard nothing to compare, which is precisely why nothing checked it for so long.
 
 The guard is deliberately weak: one word in common, not agreement. It cannot catch a swap between
-neighbouring requirements that share vocabulary — `V1.2.4` cited where `V1.2.7` belongs would pass, both
+neighboring requirements that share vocabulary — `V1.2.4` cited where `V1.2.7` belongs would pass, both
 being about parameterized queries — and it is stated here so nobody reads a green run as more than it
 is. What it catches is a citation pointing at a different subject altogether, which is every mistake
 actually made here across three occasions. A check that is weak and runs beats a check that is strict
@@ -941,7 +941,7 @@ code. Both commands go through one `probe_the_running_app`, because two call sit
 app is runnable would drift, and the one that drifts quietly is the report.
 
 What changes when it runs is not only that findings appear. The standing gap — *the app was never
-started* — is replaced by the probes' own list of what asking it could not reach: authorisation, session
+started* — is replaced by the probes' own list of what asking it could not reach: authorization, session
 handling, CSRF, anything that needs data sent into a form. An app that ran is not an app fully examined,
 and the gap list has to say which of the two happened. The app's declared tests are folded in the same
 way, under the rule below.
@@ -1115,7 +1115,7 @@ The advisory comparison may say it found nothing only when all five of these hol
 a clean answer would mislead:
 
 - **The database held records.** An empty one compares every package against nothing. This one is
-  belt-and-braces and is labelled as such in the code: an empty database covers no ecosystem, so the
+  belt-and-braces and is labeled as such in the code: an empty database covers no ecosystem, so the
   next condition already stops the claim, and breaking this one alone turns no test red. A condition
   that carries no weight should say so rather than look load-bearing.
 - **There were components to compare.** Nothing examined is not nothing wrong.
@@ -1218,7 +1218,7 @@ the verb.
 | `TRACE`, carrying a header this probe invented | that header coming back in the body |
 
 **The probes sign in as nobody.** `sv` does not know how to log in to an app it did not write. So
-authorisation, session handling, CSRF and anything that needs data sent into a form are **not assessed**,
+authorization, session handling, CSRF and anything that needs data sent into a form are **not assessed**,
 and `unassessed_requirements()` names each one with the reason. The CLI prints that list *before* any
 finding. A suite that quietly covers only the front door, and reports nothing, reads exactly like one that
 found nothing wrong.
@@ -1402,7 +1402,7 @@ rather than scope, which makes it the first part where being wrong costs an owne
 Two kinds of rule, split on purpose. The **pattern** rules live in `data/secret-rules.json` — ported from
 v1's `scanners/secrets/rules.ts`, with their ASVS, AISVS and SbD ids intact — because a well-known credential
 format is data, and adding Azure or Twilio should be a data-file entry rather than a Rust change. The
-**judgement** rules are Rust, because deciding whether a high-entropy string is a credential or a content
+**judgment** rules are Rust, because deciding whether a high-entropy string is a credential or a content
 hash is not something a regex can do.
 
 ### What stops it being noise
@@ -1412,7 +1412,7 @@ A scanner people ignore is worse than no scanner, so three things are load-beari
 * **A placeholder is not a secret.** `your-api-key-here`, `changeme`, `${SESSION_SECRET}`, `<your token>` are
   what a template looks like. An owner whose first run shouts at `.env.example` learns on day one that the
   findings are noise. There is a test that runs a whole realistic example file and requires silence.
-* **`.env` is meant to hold real credentials**, so the judgement rules do not run there. The pattern rules
+* **`.env` is meant to hold real credentials**, so the judgment rules do not run there. The pattern rules
   still do, because a vendor key is exactly what matters if that file turns out to be committed.
 * **One secret is one finding.** A vendor key assigned to a well-named variable matches both the vendor rule
   and the generic assignment rule; the vendor rule wins, because it can say what the credential is and how to
@@ -1623,7 +1623,7 @@ build in about four seconds. Python, JavaScript, TypeScript and Go today; Ruby, 
 unread rather than silently producing nothing.
 
 Four rules so far: code built and executed at run time, a shell command assembled from a value, a
-database query joined together from pieces, and data from outside deserialised with a reader that builds
+database query joined together from pieces, and data from outside deserialized with a reader that builds
 objects. Each is a tree-sitter query per language in `data/ast-rules.json`, so teaching one about Ruby is
 a data entry.
 
@@ -1652,7 +1652,7 @@ is meant to catch.
 
 Whether the argument is a literal. `eval("1 + 1")` cannot be made to run anything its author did not
 write, and reporting it beside `eval(request.args["code"])` at the same seriousness is how a rule teaches
-people to skip its findings. That judgement is Rust, where it is tested — the same split as the secrets
+people to skip its findings. That judgment is Rust, where it is tested — the same split as the secrets
 scanner, patterns as data and meaning as code.
 
 It is subtler than it looks. A template string is a literal only when nothing is interpolated, and a

@@ -191,7 +191,7 @@ mod tests {
     fn the_specifications_rounding_agrees_with_a_naive_ceil_everywhere_it_can_reach() {
         // Not a test of the rounding so much as a record of why it has none of its own: across every
         // base-metric combination there is, no vector distinguishes the specification's integer
-        // rounding from `(x * 10).ceil() / 10`. Anyone who deletes the former in favour of the latter
+        // rounding from `(x * 10).ceil() / 10`. Anyone who deletes the former in favor of the latter
         // will see this test still pass, and should read the comment on `roundup` before doing it.
         let av = ["N", "A", "L", "P"];
         let ac = ["L", "H"];

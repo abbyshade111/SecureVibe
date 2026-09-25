@@ -12,7 +12,7 @@ languages = []
 # busybox again, so the end-to-end test pulls nothing the fence tests do not already need.
 # Unlike the static fixture this one answers through CGI, so it can send back exactly the headers
 # the probes are supposed to notice — and, for the Origin probe, only if the request really carried
-# the header. That is what makes this a test of the transport and not only of the judgement.
+# the header. That is what makes this a test of the transport and not only of the judgment.
 image = "busybox:1.36"
 start = "httpd -f -h /app -p $PORT"
 health = "/cgi-bin/home.sh"

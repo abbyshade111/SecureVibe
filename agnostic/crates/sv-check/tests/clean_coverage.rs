@@ -693,7 +693,7 @@ fn nothing_claims_more_when_it_passes_than_it_cites_when_it_fails() {
 #[test]
 fn a_clean_ruby_php_and_java_app_can_now_say_it_was_read() {
     // The other half of what the grammars bought. Before them, a single Ruby file silenced every
-    // rule for the whole app — the fail-closed behaviour working correctly on an app `sv` could not
+    // rule for the whole app — the fail-closed behavior working correctly on an app `sv` could not
     // read. Three more languages read means three fewer apps that get nothing but silence.
     let dir = scratch("polyglot-clean");
     std::fs::write(

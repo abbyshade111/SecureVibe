@@ -365,7 +365,7 @@ fn matching_path(paths: &BTreeSet<String>, pattern: &str) -> Option<String> {
 /// using a WebSocket library had the WebSocket requirements excluded because "no WebSocket library
 /// is used". So a Go signature matches the whole path, or its tail on a `/` boundary, with a major
 /// version suffix (`/v5`) set aside first. Matching on a boundary keeps `ws` from matching
-/// `gobwas/ws`'s neighbours; over-matching here would add requirements, never remove them.
+/// `gobwas/ws`'s neighbors; over-matching here would add requirements, never remove them.
 fn package_matches(ecosystem: &str, signature: &str, declared: &str) -> bool {
     if eq_ignore_case(signature, declared) {
         return true;

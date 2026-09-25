@@ -581,7 +581,7 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
 }
 
 /// A finding when the bill of materials cannot be trusted as a complete list.
-/// The requirement a complete bill of materials is evidence about: an inventory catalogue of every
+/// The requirement a complete bill of materials is evidence about: an inventory catalog of every
 /// third-party library in use. Named once so the check and `sv coverage` cannot disagree.
 pub const INVENTORY_REQUIREMENT: &str = "V15.1.2";
 
@@ -629,8 +629,8 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
         confidence: Confidence::High,
         location: Location { file: "sbom.cdx.json".into(), line: 1 },
         secret: None,
-        // V15.1.2 asks that an inventory catalogue — a software bill of materials — is
-        // maintained of every third-party library in use. This finding says that catalogue is not
+        // V15.1.2 asks that an inventory catalog — a software bill of materials — is
+        // maintained of every third-party library in use. This finding says that catalog is not
         // complete, which is the thing that requirement is about. It cited V1.3.5 until 24
         // September 2026, which is about sanitizing user-supplied template and stylesheet content
         // and has nothing whatever to do with dependencies.
@@ -942,7 +942,7 @@ mod tests {
             sbom.unread
                 .iter()
                 .any(|(eco, why)| eco == "npm" && why.contains("no packages could be taken")),
-            "an unrecognised pnpm lockfile must be named, and say why: {sbom:?}"
+            "an unrecognized pnpm lockfile must be named, and say why: {sbom:?}"
         );
         assert!(!sbom.is_complete());
         fs::remove_dir_all(&dir).ok();

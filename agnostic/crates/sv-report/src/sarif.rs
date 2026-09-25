@@ -86,7 +86,7 @@ pub fn render(report: &Report) -> String {
             "results": results,
         }]
     });
-    serde_json::to_string_pretty(&document).expect("a JSON value serialises")
+    serde_json::to_string_pretty(&document).expect("a JSON value serializes")
 }
 
 #[cfg(test)]

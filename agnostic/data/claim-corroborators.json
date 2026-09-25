@@ -1225,7 +1225,7 @@
     {
       "condition": "multi-tenant",
       "absenceIsEvidence": false,
-      "note": "Several customer organisations sharing one system shows up as a column every query has to carry, or as a database feature that carries it for them. It over-matches on an app that merely models organisations as data, and that error adds requirements rather than removing them.",
+      "note": "Several customer organizations sharing one system shows up as a column every query has to carry, or as a database feature that carries it for them. It over-matches on an app that merely models organizations as data, and that error adds requirements rather than removing them.",
       "packages": {
         "Python": [
           "django-tenants",
@@ -1313,7 +1313,7 @@
     {
       "condition": "tls",
       "absenceIsEvidence": false,
-      "note": "The manifest answers this from `tls = ...`, which defaults to the safe side, so this corroborator exists to contradict an app that claims no HTTPS while shipping a certificate or a server that terminates one. `sv` has no reader for nginx or Caddy config, so those are recognised by their path rather than their contents.",
+      "note": "The manifest answers this from `tls = ...`, which defaults to the safe side, so this corroborator exists to contradict an app that claims no HTTPS while shipping a certificate or a server that terminates one. `sv` has no reader for nginx or Caddy config, so those are recognized by their path rather than their contents.",
       "packages": {
         "Python": [
           "pyopenssl",
@@ -1482,7 +1482,7 @@
     {
       "condition": "ai-actions",
       "absenceIsEvidence": false,
-      "note": "An assistant that can do things rather than only answer is given tools, and the way tools are handed to a model is recognisable. A tool called through a hand-written loop over the model's text output leaves nothing standard behind.",
+      "note": "An assistant that can do things rather than only answer is given tools, and the way tools are handed to a model is recognizable. A tool called through a hand-written loop over the model's text output leaves nothing standard behind.",
       "packages": {
         "Python": [
           "langgraph",

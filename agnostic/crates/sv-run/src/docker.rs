@@ -622,7 +622,7 @@ fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse
         id: id.to_owned(),
         status,
         headers,
-        // Enough to recognise a stack trace, not enough to copy a page out of somebody's app.
+        // Enough to recognize a stack trace, not enough to copy a page out of somebody's app.
         body: body.chars().take(4000).collect(),
     })
 }

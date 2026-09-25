@@ -1,7 +1,7 @@
 //! What to ask a running app, and what its answers mean.
 //!
 //! Deliberately split from the thing that makes the requests. This file decides what to ask and how to
-//! read the reply; `sv-run` knows about containers and networks. That way the judgement is testable
+//! read the reply; `sv-run` knows about containers and networks. That way the judgment is testable
 //! against recorded responses without Docker, which is most of it.
 //!
 //! # These probes sign in as nobody
@@ -10,7 +10,7 @@
 //! in to an app it did not write. v1 seeds users and probes as them; doing that for an arbitrary app
 //! means the manifest saying how, which is its own piece of work.
 //!
-//! The consequence is stated rather than hidden: authorisation, session handling and anything behind a
+//! The consequence is stated rather than hidden: authorization, session handling and anything behind a
 //! login are **not assessed**, and `unassessed_requirements` names them. A probe suite that quietly
 //! covers only the front door, and reports nothing, reads exactly like one that found nothing wrong.
 
@@ -40,7 +40,7 @@ pub struct ProbeResponse {
     pub status: u16,
     /// Response headers, names lowercased.
     pub headers: Vec<(String, String)>,
-    /// The start of the body — enough to recognise a stack trace, not enough to copy a page.
+    /// The start of the body — enough to recognize a stack trace, not enough to copy a page.
     pub body: String,
 }
 
@@ -587,7 +587,7 @@ const TRACE_ENABLED: Rule = Rule {
     // V13.4.4 is TRACE by name.
     requirement_ids: &["V13.4.4"],
     cwe: &["CWE-16"],
-    impact: "Anything the browser attaches to a request — cookies, authorisation headers — comes \
+    impact: "Anything the browser attaches to a request — cookies, authorization headers — comes \
              back in a readable body, which turns a scripting flaw elsewhere into a way of reading \
              them.",
     fix: "Turn TRACE off. Almost nothing needs it, and the web server in front of the app can refuse \
@@ -977,7 +977,7 @@ mod tests {
         assert!(!unassessed.is_empty());
         assert!(
             unassessed.iter().any(|(ids, _)| ids.contains("V8")),
-            "authorisation must be named: {unassessed:?}"
+            "authorization must be named: {unassessed:?}"
         );
         assert!(
             unassessed.iter().any(|(_, why)| why.contains("signed-in")),

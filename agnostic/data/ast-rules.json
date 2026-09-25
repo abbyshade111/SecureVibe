@@ -1,5 +1,5 @@
 {
-  "_comment": "Rules that read the code rather than the text of it. Each carries one tree-sitter query per language, so teaching a rule about another language is an entry here rather than a change in Rust. What a query cannot express is judgement — whether the argument is a literal, which decides between an ugly call and a dangerous one — and that lives in ast.rs where it can be tested. Captures: @hit is what gets reported, @arg is the argument judged for literalness.",
+  "_comment": "Rules that read the code rather than the text of it. Each carries one tree-sitter query per language, so teaching a rule about another language is an entry here rather than a change in Rust. What a query cannot express is judgment — whether the argument is a literal, which decides between an ugly call and a dangerous one — and that lives in ast.rs where it can be tested. Captures: @hit is what gets reported, @arg is the argument judged for literalness.",
   "rules": [
     {
       "id": "ast.dynamic-code-execution",

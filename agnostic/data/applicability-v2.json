@@ -23,7 +23,7 @@
       "scope": "AC.6",
       "condition": "training",
       "source": "claim",
-      "notApplicableReason": "This app does not fine-tune a model or run a feedback programme that changes one."
+      "notApplicableReason": "This app does not fine-tune a model or run a feedback program that changes one."
     },
     {
       "scope": "AC.7.3",
@@ -137,7 +137,7 @@
       "scope": "SBD-AC-02",
       "condition": "auth",
       "source": "claim",
-      "notApplicableReason": "This app has no sign-in, so there is no identity provider to centralise and no privileged path to put MFA on."
+      "notApplicableReason": "This app has no sign-in, so there is no identity provider to centralize and no privileged path to put MFA on."
     },
     {
       "scope": "SBD-AC-03",
@@ -149,7 +149,7 @@
       "scope": "SBD-AC-04",
       "condition": "multiple-services",
       "source": "claim",
-      "notApplicableReason": "This app runs as one service, so there is no gateway or mesh to centralise authorisation at."
+      "notApplicableReason": "This app runs as one service, so there is no gateway or mesh to centralize authorization at."
     },
     {
       "scope": "SBD-AC-07",
