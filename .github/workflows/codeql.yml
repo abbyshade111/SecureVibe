@@ -74,6 +74,11 @@ jobs:
               # "fix" them and do not un-exclude them.
               - server/tests/fixtures/**
               - agnostic/crates/sv-scan/tests/fixtures/**
+              # The same for the adapter tests: apps written with one of each fault for bandit, gosec,
+              # Brakeman and semgrep to find, kept beside those tools' real reports. The first JavaScript
+              # among them (semgrep-aisvs/app/assistant.js, user input in a system prompt) was flagged on
+              # 25 September 2026 for exactly the fault it was written to contain.
+              - agnostic/crates/sv-check/tests/fixtures/**
               # Saved wizard answers and baseline numbers for the evaluation harness: data, not code.
               - evals/**
               # Build output and packages.
