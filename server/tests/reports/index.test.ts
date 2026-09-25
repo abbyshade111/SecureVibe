@@ -28,15 +28,19 @@ describe('renderReportsFromModel', () => {
     expect(names).toEqual(
       [
         'overview.html',
+        'overview.pdf',
         'compliance-report.html',
+        'compliance-report.pdf',
         'compliance-report.md',
         'compliance-report.json',
         'security-report.html',
+        'security-report.pdf',
         'security-report.md',
         'security-report.json',
         'design.md',
         'going-online.md',
         'going-online.html',
+        'going-online.pdf',
         'findings.sarif',
         'provenance.json',
         'run-log.txt',
@@ -47,6 +51,18 @@ describe('renderReportsFromModel', () => {
       expect(a.path, a.path).toBe(`reports/${basename(model.outDir)}/${a.name}`);
       expect(existsSync(join(model.outDir, a.name)), a.path).toBe(true);
       expect(a.sizeBytes).toBeGreaterThan(0);
+    }
+  });
+
+  it('writes a PDF beside each HTML report, as a real PDF file, listed with the pdf format', async () => {
+    const { artifacts } = await renderReportsFromModel(model);
+    const pdfs = artifacts.filter((a) => a.format === 'pdf');
+    expect(pdfs.map((a) => a.name).sort()).toEqual(['compliance-report.pdf', 'going-online.pdf', 'overview.pdf', 'security-report.pdf']);
+    for (const a of pdfs) {
+      const bytes = await readFile(join(model.outDir, a.name));
+      expect(bytes.subarray(0, 5).toString('latin1'), a.name).toBe('%PDF-');
+      expect(bytes.subarray(-6).toString('latin1'), a.name).toContain('%%EOF');
+      expect(a.sizeBytes).toBe(bytes.length);
     }
   });
 
@@ -122,7 +138,7 @@ describe('renderReports (the public contract other modules already call)', () =>
     const { design: _design, compliance: _compliance, ...rest } = model;
     const { artifacts } = await renderReportsWithoutAnswers({ ...rest, stages: model.run.stages, frameworks: (await import('../../src/frameworks/index.js')).loadFrameworks() });
     const names = artifacts.map((a) => a.name).sort();
-    expect(names).toEqual(['overview.html', 'security-report.html', 'security-report.md', 'security-report.json', 'findings.sarif', 'provenance.json', 'run-log.txt'].sort());
+    expect(names).toEqual(['overview.html', 'overview.pdf', 'security-report.html', 'security-report.pdf', 'security-report.md', 'security-report.json', 'findings.sarif', 'provenance.json', 'run-log.txt'].sort());
     expect(names).not.toContain('compliance-report.html');
     expect(names).not.toContain('design.md');
     const overview = await readFile(join(model.outDir, 'overview.html'), 'utf8');

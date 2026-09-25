@@ -49,15 +49,29 @@ describe('report downloads', () => {
     const hash = createHash('sha256').update('body{color:red}').digest('base64');
     expect(page.headers['content-security-policy']).toContain(`style-src 'sha256-${hash}'`);
     expect(page.headers['content-security-policy']).toContain("default-src 'none'");
-    // Only SecureVibe's own page may frame a report (to print it); other sites may not.
-    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'self'");
-    expect(page.headers['x-frame-options']).toBe('SAMEORIGIN');
+    // Nothing frames a report: the PDF is a file SecureVibe writes, not a print dialog opened in a hidden frame.
+    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(page.headers['x-frame-options']).toBe('DENY');
     expect(page.headers['content-security-policy']).not.toContain('unsafe-inline');
 
     // A report saved by an older version is shown with the current stylesheet (readable in dark mode).
     const older = await request(harness.server).get(`/api/projects/${project.id}/artifacts/security-report.html`).set('Host', '127.0.0.1').set('Cookie', cookie);
     expect(older.text).toContain('prefers-color-scheme: dark');
     expect(older.text).not.toContain('a{color:blue}');
+
+    // A run saved before PDFs were written with the reports has none: the PDF is made from its HTML on request.
+    const binary = (res: import('superagent').Response, done: (err: Error | null, body: Buffer) => void) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => done(null, Buffer.concat(chunks)));
+    };
+    const made = await request(harness.server).get(`/api/projects/${project.id}/artifacts/overview.pdf`).set('Host', '127.0.0.1').set('Cookie', cookie).buffer(true).parse(binary);
+    expect(made.status).toBe(200);
+    expect(made.headers['content-type']).toBe('application/pdf');
+    expect(made.headers['content-disposition']).toBe('attachment; filename="overview.pdf"');
+    expect((made.body as Buffer).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const nothing = await request(harness.server).get(`/api/projects/${project.id}/artifacts/no-such-report.pdf`).set('Host', '127.0.0.1').set('Cookie', cookie);
+    expect(nothing.status).toBe(404);
 
     // The run is listed in the report history and its reports are reachable by run, also after a newer run.
     const history = await request(harness.server).get(`/api/projects/${project.id}/report-runs`).set('Host', '127.0.0.1').set('Cookie', cookie);

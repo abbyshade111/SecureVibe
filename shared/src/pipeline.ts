@@ -230,7 +230,7 @@ export const ArtifactRefSchema = z.object({
     'json',
     'other',
   ]),
-  format: z.enum(['html', 'md', 'json', 'zip', 'txt', 'sarif']),
+  format: z.enum(['html', 'md', 'json', 'zip', 'txt', 'sarif', 'pdf']),
   sizeBytes: z.number().int().optional(),
   /** Plain-language description shown on the results page. */
   description: z.string().optional(),

@@ -34,25 +34,6 @@ import type { ArtifactRef } from '@shared/pipeline.js';
 const RATING_TONE = { good: 'good', 'needs-attention': 'warn', 'at-risk': 'bad' } as const;
 
 
-/**
- * Opens the browser's print window for a report (where it can be saved as a PDF). The report loads in a hidden
- * frame from SecureVibe itself; the report has no scripts of its own, so this page starts the printing.
- */
-function printReport(url: string): void {
-  const frame = document.createElement('iframe');
-  frame.setAttribute('aria-hidden', 'true');
-  frame.tabIndex = -1;
-  Object.assign(frame.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' });
-  frame.addEventListener('load', () => {
-    frame.contentWindow?.focus();
-    frame.contentWindow?.print();
-    // Keep the frame while the print window may still be open; remove it later.
-    window.setTimeout(() => frame.remove(), 5 * 60_000);
-  });
-  frame.src = url;
-  document.body.appendChild(frame);
-}
-
 const PLAN_LABEL: Record<string, string> = {
   built: 'Built',
   'files-in-place': 'Files in place',
@@ -817,9 +798,9 @@ export function ResultsPage() {
                 <a className="sv-btn sv-btn-sm" href={artifactUrl(id!, 'overview.html', reportRunId)} target="_blank" rel="noreferrer">
                   Open the one-page summary
                 </a>
-                <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => printReport(artifactUrl(id!, 'overview.html', reportRunId))}>
-                  Save it as PDF
-                </button>
+                <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, 'overview.pdf', reportRunId)} download>
+                  Download it as a PDF
+                </a>
               </div>
               <p className="sv-faint" style={{ margin: '8px 0 0' }}>
                 The one page is what to send to someone who asks "is it safe to use?"; the reports below hold every detail behind it.
@@ -866,8 +847,9 @@ export function ResultsPage() {
             </Link>
           </div>
           <p className="sv-help">
-            <strong>Save as PDF</strong> opens your browser&apos;s print window for that report: choose &ldquo;Save as
-            PDF&rdquo; (on a Mac, the PDF menu at the bottom left) to keep a copy in your files.
+            <strong>PDF</strong> files are written by SecureVibe itself, so they need no browser or print window: download
+            one and keep it, or send it on. A PDF shows the letters of Western European languages and leaves out emoji;
+            any other character appears as a question mark, so the web version of a report is the complete one.
           </p>
           <div className="sv-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {!uploaded && (
@@ -915,16 +897,21 @@ export function ResultsPage() {
                   </td>
                   <td>{a.format.toUpperCase()}</td>
                   <td>
-                    <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, a.name, reportRunId)} target="_blank" rel="noreferrer">
-                      Open
-                    </a>{' '}
+                    {a.format !== 'pdf' && (
+                      <>
+                        <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, a.name, reportRunId)} target="_blank" rel="noreferrer">
+                          Open
+                        </a>{' '}
+                      </>
+                    )}
                     <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, a.name, reportRunId)} download>
                       Download
                     </a>{' '}
-                    {a.format === 'html' && (
-                      <button type="button" className="sv-btn sv-btn-secondary sv-btn-sm" onClick={() => printReport(artifactUrl(id!, a.name, reportRunId))}>
-                        Save as PDF
-                      </button>
+                    {a.format === 'html' && !(artifacts ?? []).some((other) => other.name === a.name.replace(/\.html$/, '.pdf')) && (
+                      // Reports checked before PDFs were written with them: the server makes the PDF on request.
+                      <a className="sv-btn sv-btn-secondary sv-btn-sm" href={artifactUrl(id!, a.name.replace(/\.html$/, '.pdf'), reportRunId)} download>
+                        Download as PDF
+                      </a>
                     )}
                   </td>
                 </tr>
