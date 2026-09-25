@@ -84,7 +84,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
+- **The rest of the virus scanning, now the policy and the two scans are in.** **[taken: restored first session, 24 September 2026]** Three things were deliberately
   left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
   demand against an app SecureVibe built — the uploaded-app case runs by itself, and the built-app case has
   nowhere to be turned on from yet. Second, the reports naming the scanner as something the owner has to keep
