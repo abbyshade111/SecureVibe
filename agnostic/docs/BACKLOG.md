@@ -11,6 +11,13 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
+- **A `.tsx` file is read with a grammar that has no JSX, and counts as read.** *Claimed 25 September
+  2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25
+  September 2026: `<button onClick={() => eval(q)}>` in a `.tsx` file is not found, and the report then
+  lists V1.3.2 as *checked (ast.dynamic-code-execution over 1 typescript file)*. The grammar gives up
+  inside the JSX and the file is counted as parsed anyway. Two fixes: parse `.tsx` with the TSX grammar,
+  and let no file whose tree holds a parse error support a clean claim, whatever the grammar.
+
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
