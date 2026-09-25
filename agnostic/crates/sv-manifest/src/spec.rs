@@ -27,6 +27,20 @@ test = ""                 # e.g. "pytest -q". Name requirement ids in your test 
 test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
 health = "/"              # a path that returns 200 once the app is up
 
+[stack.run.users]
+# Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
+# data, admin pages, whether logging out really ends the session. Leave it out and all of that is
+# reported as "not assessed". `sv` makes two ordinary accounts, A and B, with fresh passwords.
+# The app's folder is read-only while `sv` runs it, so keep its data somewhere like /tmp.
+# seed = "python seed.py"   # creates them; gets SV_USER_A, SV_PASSWORD_A, SV_USER_B, SV_PASSWORD_B,
+#                           # and SV_ADMIN, SV_ADMIN_PASSWORD when `admin` is listed
+# signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
+# login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
+# logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
+# private = ["/account"]    # pages only a signed-in user should see
+# admin = ["/admin"]        # pages only an admin should see (needs `seed`)
+# owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
+
 [data]
 # What kinds of information the app holds about people.
 # contact | financial | payment-card | health | government-id | credentials

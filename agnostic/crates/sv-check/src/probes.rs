@@ -28,6 +28,9 @@ pub struct ProbeRequest {
     pub path: String,
     /// Extra request headers, as name and value.
     pub headers: Vec<(String, String)>,
+    /// A body, sent with its `Content-Length`. Only the signed-in probes send one: signing in, and
+    /// creating the thing another user must not be able to read.
+    pub body: Option<String>,
 }
 
 /// What came back.
@@ -64,47 +67,59 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
             method: "GET".into(),
             path: health_path.to_owned(),
             headers: Vec::new(),
+            body: None,
         },
         ProbeRequest {
             id: "cors".into(),
             method: "GET".into(),
             path: health_path.to_owned(),
             headers: vec![("Origin".into(), STRANGER.into())],
+            body: None,
         },
         ProbeRequest {
             id: "missing".into(),
             method: "GET".into(),
             path: MISSING_PATH.into(),
             headers: Vec::new(),
+            body: None,
         },
         ProbeRequest {
             id: "trace".into(),
             method: "TRACE".into(),
             path: health_path.to_owned(),
             headers: vec![("X-Probe-Echo".into(), "sv-probe-echo-value".into())],
+            body: None,
         },
     ]
 }
 
 /// Requirements this suite cannot speak to, and why. Never folded into a pass.
-pub fn unassessed_requirements() -> Vec<(&'static str, &'static str)> {
-    vec![
-        (
+///
+/// `signed_in_ran` is whether the signed-in probes (`signed_in.rs`) asked too. When they did, they
+/// say for themselves what they reached and what they could not, so authorization, sessions and
+/// forgery are not repeated here as untouched.
+pub fn unassessed_requirements(signed_in_ran: bool) -> Vec<(&'static str, &'static str)> {
+    let mut out = Vec::new();
+    if !signed_in_ran {
+        out.push((
             "V8, V7",
-            "Authorisation and session handling need a signed-in user, and `sv` does not know how to \
-             sign in to an app it did not write.",
-        ),
-        (
-            "V4.2",
-            "Cross-site request forgery is about what a logged-in browser can be made to do, so it \
+            "Authorization and session handling need a signed-in user. `sv` signs in only when \
+             securevibe.toml says how, under [stack.run.users], and this one does not.",
+        ));
+        // V3.5.1 is the request forgery requirement in ASVS 5.0. This line cited V4.2 until
+        // 25 September 2026, which is HTTP message structure validation — a different subject.
+        out.push((
+            "V3.5.1",
+            "Cross-site request forgery is about what a signed-in browser can be made to do, so it \
              needs a session too.",
-        ),
-        (
-            "V5, V1.2",
-            "Whether input is validated or escaped needs requests that send data and a way to see \
-             where it comes back out, which means knowing the app's forms and routes.",
-        ),
-    ]
+        ));
+    }
+    out.push((
+        "V5, V1.2",
+        "Whether input is validated or escaped needs requests that send data and a way to see \
+         where it comes back out, which means knowing the app's forms and routes.",
+    ));
+    out
 }
 
 /// What is fixed about a check: everything except the words describing this particular answer.
@@ -819,17 +834,32 @@ mod tests {
 
     #[test]
     fn what_these_probes_cannot_reach_is_stated() {
-        // The suite signs in as nobody. Saying nothing about authorisation would read exactly like
+        // The suite signs in as nobody. Saying nothing about authorization would read exactly like
         // finding nothing wrong with it.
-        let unassessed = unassessed_requirements();
+        let unassessed = unassessed_requirements(false);
         assert!(!unassessed.is_empty());
         assert!(
             unassessed.iter().any(|(ids, _)| ids.contains("V8")),
             "authorisation must be named: {unassessed:?}"
         );
         assert!(
-            unassessed.iter().any(|(_, why)| why.contains("sign in")),
-            "the reason authorisation is unreachable must be named: {unassessed:?}"
+            unassessed.iter().any(|(_, why)| why.contains("signed-in")),
+            "the reason authorization is unreachable must be named: {unassessed:?}"
+        );
+        assert!(
+            unassessed.iter().any(|(ids, _)| *ids == "V3.5.1"),
+            "request forgery is V3.5.1 in ASVS 5.0: {unassessed:?}"
+        );
+        // When the signed-in probes ran they speak for authorization themselves, and what input
+        // handling needs is still out of reach either way.
+        let with_users = unassessed_requirements(true);
+        assert!(
+            !with_users.iter().any(|(ids, _)| ids.contains("V8")),
+            "{with_users:?}"
+        );
+        assert!(
+            with_users.iter().any(|(ids, _)| ids.contains("V5")),
+            "{with_users:?}"
         );
     }
 

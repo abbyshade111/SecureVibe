@@ -71,6 +71,26 @@ the reports say exactly that rather than counting them as things that were looke
 The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
 thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
 
+## Signing in
+
+`sv run` asks the running app questions as somebody who has not signed in — and, when
+`securevibe.toml` says how, as signed-in users too. Under `[stack.run.users]` you say how accounts are
+made (a `seed` command run inside the app's container, or the app's own `signup`), how to sign in and
+out, which pages are private or admin-only, and how one user creates something another must not read.
+`sv` makes two ordinary accounts and, if you list admin pages, an admin, each with a password made for
+that run, and then asks:
+
+- can somebody who has not signed in open a private page? (V8.2.1)
+- can an ordinary user open an admin page? (V8.2.1)
+- can one user read what another created? (V8.2.2)
+- is a request from another website accepted with the user's cookies? (V3.5.1)
+- does signing in issue a new session, and does signing out end it? (V7.2.4, V7.4.1)
+- is the session cookie out of reach of scripts and other sites? (V3.3.4, V3.3.2)
+
+Each question first shows the thing it depends on actually worked — the session opens a private page,
+the owner can read back what they made, the admin can open the admin page — and when it cannot show
+that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a complete example.
+
 ## From inside your AI coding tool
 
 `sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them

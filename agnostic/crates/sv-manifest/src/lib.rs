@@ -161,6 +161,112 @@ pub struct RunSection {
     pub test_report: Option<String>,
     #[serde(default)]
     pub health: Option<String>,
+    /// How to sign in, so the probes can ask what a signed-in user can do and not only what
+    /// somebody who has not signed in can. Absent means authorization and sessions are reported as
+    /// not assessed, which is what they always were.
+    #[serde(default)]
+    pub users: Option<UsersSection>,
+}
+
+/// One request the probes make on the app's behalf: how to sign up, sign in, or create something.
+///
+/// Values may use `{user}`, `{password}`, `{csrf}` (a token read from the page first) and `{marker}`
+/// (a unique string the probe can look for afterwards). A body is sent as a form unless `json` is
+/// used instead; never both.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct RequestTemplate {
+    #[serde(default = "post")]
+    pub method: String,
+    pub path: String,
+    #[serde(default)]
+    pub form: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub json: std::collections::BTreeMap<String, String>,
+}
+
+fn post() -> String {
+    "POST".to_owned()
+}
+
+/// A resource one user creates and another must not be able to read.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct OwnedSection {
+    /// Creates it, as the first user. Put `{marker}` in a field so it can be recognised later.
+    pub create: RequestTemplate,
+    /// Where it is read, with `{id}` for what `create` returned. Without `{id}`, the `Location`
+    /// header the create response sends is used instead.
+    #[serde(default)]
+    pub read: Option<String>,
+    /// The field of a JSON create response holding the new id. Defaults to `id`.
+    #[serde(default)]
+    pub id_field: Option<String>,
+}
+
+/// `[stack.run.users]`: how the probes get two ordinary users (and optionally an admin), sign in as
+/// them, and what to ask.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct UsersSection {
+    /// A command run inside the app's container once it is up, which creates the accounts. It is
+    /// given `SV_USER_A`, `SV_PASSWORD_A`, `SV_USER_B`, `SV_PASSWORD_B` and, when `admin` pages are
+    /// listed, `SV_ADMIN` and `SV_ADMIN_PASSWORD`.
+    #[serde(default)]
+    pub seed: Option<String>,
+    /// Or the app's own sign-up request, used for both ordinary users when there is no `seed`.
+    #[serde(default)]
+    pub signup: Option<RequestTemplate>,
+    pub login: Option<RequestTemplate>,
+    #[serde(default)]
+    pub logout: Option<RequestTemplate>,
+    /// When sign-in answers with a token in JSON rather than a cookie, the field it is in.
+    #[serde(default)]
+    pub token_field: Option<String>,
+    /// Pages only a signed-in user should see.
+    #[serde(default)]
+    pub private: Vec<String>,
+    /// Pages only an admin should see. Needs `seed`, which is the only way to make an admin.
+    #[serde(default)]
+    pub admin: Vec<String>,
+    #[serde(default)]
+    pub owned: Option<OwnedSection>,
+}
+
+impl UsersSection {
+    /// What is missing for the signed-in probes to run at all, in the words the report will use.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.login.is_none() {
+            out.push("`login` is not set, so there is no way to sign in".to_owned());
+        }
+        if self.seed.is_none() && self.signup.is_none() {
+            out.push("neither `seed` nor `signup` is set, so no accounts can be made".to_owned());
+        }
+        if self.private.is_empty() && self.admin.is_empty() && self.owned.is_none() {
+            out.push(
+                "none of `private`, `admin` or `owned` is set, so there is nothing to ask as a \
+                 signed-in user"
+                    .to_owned(),
+            );
+        }
+        if !self.admin.is_empty() && self.seed.is_none() {
+            out.push(
+                "`admin` pages are listed without `seed`, and an admin can only be made by `seed`"
+                    .to_owned(),
+            );
+        }
+        for t in [&self.signup, &self.login, &self.logout]
+            .into_iter()
+            .flatten()
+            .chain(self.owned.as_ref().map(|o| &o.create))
+        {
+            if !t.form.is_empty() && !t.json.is_empty() {
+                out.push(format!("{} sets both `form` and `json`; pick one", t.path));
+            }
+        }
+        out
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

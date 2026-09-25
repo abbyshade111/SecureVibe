@@ -161,6 +161,13 @@ impl Backend for DockerBackend {
             .filter_map(|request| self.probe(&network, &app, plan.port, request))
             .collect();
 
+        // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
+        //     those see the app as a stranger first; before the tests, which may change its data.
+        let signed_in = plan
+            .users
+            .as_ref()
+            .map(|users| self.signed_in(&network, &app, plan, users));
+
         // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
             // A report left over from a previous run — committed into the repository, or baked into
@@ -218,7 +225,103 @@ impl Backend for DockerBackend {
             tests,
             fence: Fence::DockerInternalNetwork,
             probe_responses,
+            signed_in,
         })
+    }
+}
+
+/// Requests to the app, made from the sidecar on the fenced network — the same way the anonymous
+/// probes are made, so signing in happens inside the fence too.
+struct DockerHttp<'a> {
+    backend: &'a DockerBackend,
+    network: &'a str,
+    app: &'a str,
+    port: u16,
+}
+
+impl sv_check::signed_in::Http for DockerHttp<'_> {
+    fn send(
+        &mut self,
+        request: &sv_check::probes::ProbeRequest,
+    ) -> Option<sv_check::probes::ProbeResponse> {
+        self.backend
+            .probe(self.network, self.app, self.port, request)
+    }
+}
+
+impl DockerBackend {
+    /// Makes the accounts, then asks what they can do.
+    fn signed_in(
+        &self,
+        network: &str,
+        app: &str,
+        plan: &RunPlan,
+        users: &sv_manifest::UsersSection,
+    ) -> sv_check::signed_in::Outcome {
+        let accounts = crate::new_accounts(!users.admin.is_empty());
+        let mut http = DockerHttp {
+            backend: self,
+            network,
+            app,
+            port: plan.port,
+        };
+        if !users.problems().is_empty() {
+            // Nothing is run or asked; the suite says what is missing.
+            return sv_check::signed_in::run(&mut http, users, &accounts, true);
+        }
+        let seeded = match &users.seed {
+            Some(seed) => {
+                let mut args: Vec<String> = vec!["exec".into()];
+                let mut env = vec![
+                    ("SV_USER_A", accounts.a.user.clone()),
+                    ("SV_PASSWORD_A", accounts.a.password.clone()),
+                    ("SV_USER_B", accounts.b.user.clone()),
+                    ("SV_PASSWORD_B", accounts.b.password.clone()),
+                ];
+                if let Some(admin) = &accounts.admin {
+                    env.push(("SV_ADMIN", admin.user.clone()));
+                    env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
+                }
+                for (k, v) in env {
+                    args.push("-e".into());
+                    args.push(format!("{k}={v}"));
+                }
+                args.extend([
+                    app.to_owned(),
+                    "sh".into(),
+                    "-c".into(),
+                    format!("cd /app && {seed}"),
+                ]);
+                let args: Vec<&str> = args.iter().map(String::as_str).collect();
+                match self.docker(&args) {
+                    Ok((0, _)) => true,
+                    Ok((code, out)) => {
+                        return sv_check::signed_in::Outcome {
+                            not_assessed: vec![(
+                                "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+                                format!(
+                                    "The seed command in securevibe.toml failed (exit {code}): {}. \
+                                     With no accounts there is nobody to sign in as.",
+                                    first_line(&out)
+                                ),
+                            )],
+                            ..Default::default()
+                        };
+                    }
+                    Err(e) => {
+                        return sv_check::signed_in::Outcome {
+                            not_assessed: vec![(
+                                "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+                                format!("The seed command could not be started: {e}."),
+                            )],
+                            ..Default::default()
+                        };
+                    }
+                }
+            }
+            None => false,
+        };
+        sv_check::signed_in::run(&mut http, users, &accounts, seeded)
     }
 }
 
@@ -408,7 +511,13 @@ fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option
     for (name, value) in &request.headers {
         raw.push_str(&format!("{name}: {value}\r\n"));
     }
-    raw.push_str("\r\n");
+    // A body is framed by its length, so nothing in it can be read as a second request: the server
+    // stops at the byte count, whatever the body contains.
+    if let Some(body) = &request.body {
+        raw.push_str(&format!("Content-Length: {}\r\n\r\n{body}", body.len()));
+    } else {
+        raw.push_str("\r\n");
+    }
     Some(raw)
 }
 
@@ -489,7 +598,27 @@ mod probe_tests {
                 .iter()
                 .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
                 .collect(),
+            body: None,
         }
+    }
+
+    #[test]
+    fn a_body_goes_out_framed_by_its_length() {
+        // A body is the one part of a request that may contain anything, newlines included; its
+        // length is what stops the server reading past it into a second request.
+        let mut r = req(
+            "POST",
+            "/login",
+            &[("Content-Type", "application/x-www-form-urlencoded")],
+        );
+        r.body = Some("user=a&password=b\r\n\r\nGET /admin HTTP/1.0".into());
+        let raw = request_bytes(&r, "app").expect("a body does not stop the request");
+        let (head, body) = raw.split_once("\r\n\r\n").unwrap();
+        assert!(
+            head.contains(&format!("Content-Length: {}", body.len())),
+            "{head}"
+        );
+        assert_eq!(body, r.body.as_deref().unwrap());
     }
 
     #[test]

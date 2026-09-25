@@ -15,6 +15,7 @@ pub mod junit;
 pub mod probes;
 pub mod sbom;
 pub mod secrets;
+pub mod signed_in;
 pub mod suite;
 pub mod verified;
 

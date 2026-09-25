@@ -435,6 +435,27 @@ fn probe_the_running_app(
     Ok((outcome, plan))
 }
 
+/// What the running app showed: the anonymous probes, and the signed-in ones when they ran.
+///
+/// One function for `sv run` and `sv report`, so the two cannot disagree about what was found.
+fn running_app_evidence(
+    outcome: &sv_run::RunOutcome,
+) -> (
+    Vec<sv_check::Finding>,
+    Vec<sv_check::Verified>,
+    Vec<(String, String)>,
+) {
+    let mut findings = probes::evaluate(&outcome.probe_responses);
+    let mut verified = probes::verified(&outcome.probe_responses);
+    let mut not_assessed = Vec::new();
+    if let Some(signed_in) = &outcome.signed_in {
+        findings.extend(signed_in.findings.iter().cloned());
+        verified.extend(signed_in.verified.iter().cloned());
+        not_assessed.extend(signed_in.not_assessed.iter().cloned());
+    }
+    (findings, verified, not_assessed)
+}
+
 fn cmd_run(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -459,8 +480,7 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
         Ok((outcome, plan)) => {
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
-            let findings = probes::evaluate(&outcome.probe_responses);
-            let verified = probes::verified(&outcome.probe_responses);
+            let (findings, verified, signed_in_not_assessed) = running_app_evidence(&outcome);
             println!(
                 "\nAsked it {} question{}, as somebody who has not signed in.",
                 outcome.probe_responses.len(),
@@ -477,9 +497,19 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
                 );
             }
 
+            if let Some(signed_in) = &outcome.signed_in
+                && !signed_in.steps.is_empty()
+            {
+                println!("\nThen, as two test users: {}.", signed_in.steps.join("; "));
+            }
+
             // What the probes cannot reach comes before what they found, for the usual reason.
             println!("\nNot assessed by these probes:");
-            for (requirements, why) in probes::unassessed_requirements() {
+            for (requirements, why) in probes::unassessed_requirements(outcome.signed_in.is_some())
+            {
+                println!("  {requirements} — {why}");
+            }
+            for (requirements, why) in &signed_in_not_assessed {
                 println!("  {requirements} — {why}");
             }
 
@@ -1001,11 +1031,13 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     if options.run_the_app {
         match probe_the_running_app(&manifest, app_dir) {
             Ok((outcome, plan)) => {
-                findings.extend(probes::evaluate(&outcome.probe_responses));
-                probe_verified = probes::verified(&outcome.probe_responses);
+                let (running_findings, running_verified, signed_in_not_assessed) =
+                    running_app_evidence(&outcome);
+                findings.extend(running_findings);
+                probe_verified = running_verified;
                 run_note = Some(format!(
                     "This app was started with {} and asked {} question{} while it ran, as \
-                     somebody who had not signed in. It answered on {}. {}",
+                     somebody who had not signed in. It answered on {}.{} {}",
                     plan.image,
                     outcome.probe_responses.len(),
                     if outcome.probe_responses.len() == 1 {
@@ -1014,12 +1046,28 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         "s"
                     },
                     plan.health_path,
+                    match &outcome.signed_in {
+                        Some(s) if !s.steps.is_empty() => {
+                            format!(" Then, as two test users: {}.", s.steps.join("; "))
+                        }
+                        _ => String::new(),
+                    },
                     outcome.fence.explain()
                 ));
+                for (requirements, why) in signed_in_not_assessed {
+                    gaps.push(sv_report::Gap {
+                        what: format!(
+                            "{requirements}, by asking the running app as a signed-in user"
+                        ),
+                        why,
+                    });
+                }
                 // What asking it could not reach. These replace the "it was never started" gap
                 // rather than removing it: the app running answers some questions and not others,
                 // and the ones it cannot answer are the ones behind a login.
-                for (requirements, why) in probes::unassessed_requirements() {
+                for (requirements, why) in
+                    probes::unassessed_requirements(outcome.signed_in.is_some())
+                {
                     gaps.push(sv_report::Gap {
                         what: format!("{requirements}, by asking the running app"),
                         why: why.to_owned(),
