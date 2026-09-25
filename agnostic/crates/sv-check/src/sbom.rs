@@ -565,6 +565,32 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
 }
 
 /// A finding when the bill of materials cannot be trusted as a complete list.
+/// What the bill of materials may claim to be, when it is complete enough to claim anything.
+///
+/// The mirror of `incompleteness_finding`: exactly one of the two speaks, and which one is decided
+/// by `is_complete`, so a document cannot be reported as both incomplete and a good inventory. An
+/// empty list is not a complete inventory either — an app with no dependencies `sv` could find is
+/// far more often an app whose manifests were not read than an app with no dependencies.
+pub fn completeness_verified(sbom: &Sbom) -> Option<crate::verified::Verified> {
+    if !sbom.is_complete() || sbom.components.is_empty() {
+        return None;
+    }
+    Some(crate::verified::Verified::new(
+        "sbom",
+        &["V15.1.2"],
+        format!(
+            "an inventory of {} third-party librar{}, each at the version actually installed, from \
+             every ecosystem found in the app",
+            sbom.components.len(),
+            if sbom.components.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            }
+        ),
+    ))
+}
+
 pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
     if sbom.is_complete() {
         return None;
@@ -583,7 +609,12 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
         confidence: Confidence::High,
         location: Location { file: "sbom.cdx.json".into(), line: 1 },
         secret: None,
-        requirement_ids: vec!["V1.3.5".into()],
+        // V15.1.2 asks that an inventory catalogue — a software bill of materials — is
+        // maintained of every third-party library in use. This finding says that catalogue is not
+        // complete, which is the thing that requirement is about. It cited V1.3.5 until 24
+        // September 2026, which is about sanitizing user-supplied template and stylesheet content
+        // and has nothing whatever to do with dependencies.
+        requirement_ids: vec!["V15.1.2".into()],
         cwe: vec!["CWE-1104".into()],
         description: reasons.join("; "),
         impact: "A bill of materials is worth the completeness of its list. Asked whether a compromised \

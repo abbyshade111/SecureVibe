@@ -624,7 +624,8 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
 
     let mut findings = scan.findings;
     findings.extend(config.findings);
-    findings.extend(sbom::incompleteness_finding(&sbom::build(&app_dir)));
+    let bill_of_materials = sbom::build(&app_dir);
+    findings.extend(sbom::incompleteness_finding(&bill_of_materials));
     findings.extend(code.findings.clone());
     findings.sort_by(|a, b| {
         a.severity
@@ -638,9 +639,15 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         verified: scan.verified,
     };
 
-    if !config.passed.is_empty() {
-        let names: Vec<&str> = config.passed.iter().map(|p| p.check_id.as_str()).collect();
-        println!("\nChecked and fine: {}.", names.join(", "));
+    // Exactly one of these speaks: the finding above when the list is short of something, this
+    // when it is not. A document cannot be both an incomplete list and a good inventory.
+    let mut passed = config.passed.clone();
+    passed.extend(sbom::completeness_verified(&bill_of_materials));
+    if !passed.is_empty() {
+        println!("\nChecked and fine:");
+        for claim in &passed {
+            println!("  {} — {}", claim.check_id, claim.scope);
+        }
     }
 
     if scan.findings.is_empty() {
@@ -830,7 +837,20 @@ fn cmd_audit(args: &[String]) -> Result<()> {
     }
 
     if result.findings.is_empty() {
-        println!("\nNothing in what was compared matches a record in this database.");
+        // Two different sentences, and which one is said depends on whether the comparison really
+        // covered the app. "Nothing in what was compared" is true either way and is what a reader
+        // skims past; the claim is only made when there is nothing left over to qualify it.
+        match result.verified.first() {
+            Some(claim) => println!(
+                "\nNothing in what was compared matches a record in this database, and there was \
+                 nothing it could not compare:\n  {} — {}",
+                claim.check_id, claim.scope
+            ),
+            None => println!(
+                "\nNothing in what was compared matches a record in this database. That is not a \
+                 clean bill: the lines above say what this comparison could not reach."
+            ),
+        }
         return Ok(());
     }
     println!(

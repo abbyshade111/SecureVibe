@@ -437,6 +437,45 @@ Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands
 `sv`'s own SQL rule — two independent tools agreeing, which is worth more than either alone — while
 `bandit.B104` and a semgrep rule are reported carrying no requirement, because nothing has mapped them.
 
+### Three more wrong citations, in the place the guard could not see
+
+The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were
+guarded by nothing, and there were three of them, all pointing at **V1.3.5** — *sanitizing
+user-supplied scriptable or expression template language content, such as Markdown, CSS or XSL
+stylesheets*:
+
+| check | cited | should be |
+| --- | --- | --- |
+| the bill of materials is incomplete | V1.3.5 | V15.1.2, an inventory catalogue of third-party libraries |
+| a dependency matches a known advisory | V1.3.5 | V15.2.1, components within documented remediation time frames |
+| the ecosystem pins no versions | V1.3.5 | V15.1.2 |
+
+The third one is the worst of them, and shows why this class matters. Its citation was attached to
+the *passing* outcome as well as the failing one, so an app that committed a lockfile earned a green
+line against template sanitization — a requirement nothing had looked at.
+
+So the guard now has a second half that reads the Rust sources. It is deliberately narrow about what
+counts as a citation, and each restriction is a false positive it hit on the way in:
+
+- **`src/` only.** A test may name an id precisely *because* it does not exist — `V1.2.9` stands in
+  for a typo in the suite tests — and flagging those makes the guard something people switch off.
+- **Not comments.** `probes.rs` explains in a comment that it once cited `V14.4.1`, "which is not a
+  requirement at all". That comment is the record of the fix. Reading it as a live citation reports
+  the fix as the bug.
+- **Quoted, and three parts.** `V6.2` in a doc example is a section scope, and scopes are
+  legitimate; `"V15.1.2"` in a literal is a citation.
+
+That half only checks that an id resolves — the `AC-NN` class. It would not have caught any of the
+three wrong citations above, because `V1.3.5` is a perfectly real requirement. The semantic half is
+what catches those: it is built by calling the real code and comparing the finding's own words with
+the requirement's, so a citation cannot drift from the finding it travels with. Breaking it is what
+showed the lockfile check was still unguarded after the first attempt — putting `V1.3.5` back
+produced no failing test at all, because the semantic half only reached the bill of materials. It caught the replacement wording immediately: the clean
+bill-of-materials claim read *"1 package listed at the version actually installed"*, which shares no
+vocabulary with a requirement about an *inventory* of *third-party libraries*. The citation was
+right and the sentence was written in the wrong words, which is the third time that exact thing has
+happened and the reason the guard compares words at all.
+
 ### The citations were all wrong
 
 The mapping from a rule to the requirement it is evidence about is the whole product. A finding whose
@@ -653,6 +692,39 @@ whole ASVS chapters in prose when saying which ones they cannot reach. Its secon
 went unchecked. A guard that silently covers half of what it names is worse than none, because the half
 it misses now looks guarded. It ends by asserting it reached a Rust source and both JSON rule files by
 name, rather than by counting.
+
+### The two checks that said nothing when they found nothing
+
+The credential scan, the rules that read code, the probes and the app's own tests all report what
+they examined and found nothing wrong. The bill of materials and the advisory comparison did not:
+they produced findings when something was wrong and were silent when nothing was, and silence reads
+exactly like a check that never ran.
+
+Both now speak, and both fail closed on their own coverage. The bill of materials may call itself a
+complete inventory only when nothing was unread *and* there is something in it — an app with no
+dependencies `sv` could find is far more often an app whose manifests were never parsed than an app
+with no dependencies, and that is the easiest false green line in the whole area. Exactly one of the
+two sentences is ever said, so a document is never reported as both an incomplete list and a good
+inventory.
+
+The advisory comparison may say it found nothing only when all five of these hold, and each is a way
+a clean answer would mislead:
+
+- **The database held records.** An empty one compares every package against nothing. This one is
+  belt-and-braces and is labelled as such in the code: an empty database covers no ecosystem, so the
+  next condition already stops the claim, and breaking this one alone turns no test red. A condition
+  that carries no weight should say so rather than look load-bearing.
+- **There were components to compare.** Nothing examined is not nothing wrong.
+- **Every ecosystem present was covered.** A database that says nothing about npm did not check the
+  npm packages; it skipped them.
+- **Every version could be compared.** A version no range can place — a git hash, a date, a build
+  tag — is a component whose status is unknown, not clear.
+- **The component list was not known to be short.** A clean answer about the packages `sv` could see
+  is an answer to a question nobody asked: they asked whether the app ships anything vulnerable.
+
+`sv audit` now says two different sentences depending on which of those held. "Nothing in what was
+compared matches a record in this database" is true either way and is exactly what a reader skims
+past, so the claim is only made when there is nothing left over to qualify it.
 
 ## Claims nothing can check
 
