@@ -47,6 +47,55 @@ describe('logging', () => {
     assert.ok(success.userId !== undefined && success.userId !== null, 'a successful login must record the user id');
   });
 
+  test('V16.2.2 every timestamp in the log is UTC with an explicit zone and comes from one clock, so entries can be ordered and compared', async () => {
+    const started = Date.now();
+    await app.login(users.member);
+    await app.waitForEvent('auth.login.success');
+    const finished = Date.now();
+    const lines = app.logLines();
+    assert.ok(lines.length > 0, 'the log must not be empty');
+    for (const l of lines) {
+      for (const key of ['time', 'ts'] as const) {
+        if (key in l) assert.match(String(l[key]), ISO_UTC, `${key} must be an ISO 8601 timestamp in UTC (with the Z): ${String(l[key])}`);
+      }
+      assert.ok('time' in l || 'ts' in l, `a log line without any timestamp: ${JSON.stringify(l).slice(0, 100)}`);
+    }
+    const times = lines.map((l) => Date.parse(String(l.time ?? l.ts))).filter((t) => Number.isFinite(t));
+    assert.equal(times.length, lines.length, 'every timestamp must parse');
+    for (let i = 1; i < times.length; i++) assert.ok(times[i]! >= times[i - 1]! - 1000, 'entries must be written in time order: more than a second out of order means more than one clock');
+    // One clock, and the right one: the newest entry falls inside the window this test just lived through.
+    const newest = Math.max(...times);
+    assert.ok(newest >= started - 1000 && newest <= finished + 2000, `the newest entry (${new Date(newest).toISOString()}) must match the current time, not a different zone or clock`);
+  });
+
+  test('V16.2.4 the log is one common format a log processor can read: every line is a JSON object with the same core fields', async () => {
+    await app.loginRaw(users.member, 'definitely-the-wrong-password', new CookieJar()).then((r) => r.text());
+    await app.login(users.member);
+    const raw = app.logText().split('\n').filter((l) => l.trim() !== '');
+    assert.ok(raw.length >= 3, 'the log must have entries to read');
+    let events = 0;
+    raw.forEach((line, i) => {
+      let entry: unknown;
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        assert.fail(`line ${i + 1} is not JSON, so a log processor could not read it: ${line.slice(0, 80)}`);
+      }
+      assert.ok(entry !== null && typeof entry === 'object' && !Array.isArray(entry), `line ${i + 1} must be a JSON object`);
+      const e = entry as Record<string, unknown>;
+      assert.equal(typeof e.level, 'string', `line ${i + 1} must carry a level`);
+      assert.match(String(e.time), ISO_UTC, `line ${i + 1} must carry a timestamp`);
+      assert.equal(typeof e.app, 'string', `line ${i + 1} must name the application that wrote it`);
+      if (typeof e.event === 'string') {
+        events++;
+        // Security events add the same fields every time, so they can be searched and joined on them.
+        assert.match(String(e.ts), ISO_UTC, `event ${e.event} must carry ts`);
+        assert.ok(['success', 'failure', 'blocked'].includes(String(e.outcome)), `event ${e.event} must carry an outcome`);
+      }
+    });
+    assert.ok(events >= 2, 'the security events must be in the same file and the same format as the rest of the log');
+  });
+
   test('V16.3.1 authentication operations are logged with the factor used, including failures', async () => {
     await app.login(users.admin);
     const events = await app.waitForEvent('auth.login.success', undefined, (e) => e.factor === 'password+totp');

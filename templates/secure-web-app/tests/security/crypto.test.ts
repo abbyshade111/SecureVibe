@@ -1,9 +1,10 @@
 /** Cryptography and secrets (TPL-CRYPTO-01, TPL-SECRETS-01, contract §1.2 field-crypto, §1.3). */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { b64, expectStartupRefusal, runScript, startApp, type RunningApp } from '../helpers/app.ts';
+import { b64, expectStartupRefusal, generateEnv, moduleUrl, runScript, runSnippet, startApp, type RunningApp } from '../helpers/app.ts';
 import { fields, paths, users } from '../helpers/conventions.ts';
 import { templateRoot } from '../helpers/features.ts';
 import { totp, waitForFreshStep } from '../helpers/totp.ts';
@@ -64,6 +65,30 @@ describe('crypto', () => {
     const admin = app.userByEmail(users.admin)!;
     assert.match(String(admin[seedColumn]), ENCRYPTED, "the seeded admin's secret must also be encrypted");
     assert.notEqual(m[2], String(admin[seedColumn]).match(ENCRYPTED)?.[2], 'nonces must be unique per value');
+  });
+
+  test('V11.3.1 no insecure block mode or weak padding: repeated plaintext blocks encrypt differently, equal values differ, and ciphertext is not padded to a block', async () => {
+    // ECB shows itself by repeating identical ciphertext blocks for identical plaintext blocks; a padding scheme
+    // (PKCS#7, PKCS#1 v1.5) shows itself by rounding the length up. GCM has neither, which is what is asserted.
+    const dataDir = mkdtempSync(join(tmpdir(), 'securevibe-ecb-'));
+    const code = `
+      const { encryptField, parseEncrypted } = await import(${JSON.stringify(moduleUrl('src/db/field-crypto.ts'))});
+      const enc = (plain) => parseEncrypted(encryptField(plain, 'users', 'totp_secret', 1));
+      const a = enc('A'.repeat(48));
+      const b = enc('A'.repeat(48));
+      const lengths = [1, 15, 16, 17, 31, 33].map((n) => enc('x'.repeat(n)).ct.length);
+      console.log(JSON.stringify({ blocks: [0, 1, 2].map((i) => a.ct.subarray(i * 16, i * 16 + 16).toString('hex')), first: a.ct.toString('hex'), second: b.ct.toString('hex'), lengths }));
+    `;
+    try {
+      const result = await runSnippet(code, generateEnv(dataDir), 20_000);
+      assert.equal(result.code, 0, `${result.stdout}\n${result.stderr}`);
+      const out = JSON.parse(result.stdout.trim().split('\n').filter((l) => l.startsWith('{')).at(-1)!) as { blocks: string[]; first: string; second: string; lengths: number[] };
+      assert.equal(new Set(out.blocks).size, 3, 'three identical plaintext blocks must not produce identical ciphertext blocks (that is ECB)');
+      assert.notEqual(out.first, out.second, 'the same value encrypted twice must give different ciphertext');
+      assert.deepEqual(out.lengths, [1, 15, 16, 17, 31, 33], 'ciphertext must be exactly as long as the plaintext: no block padding of any scheme');
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 
   test('V11.3.3 authenticated encryption: a tampered ciphertext is rejected instead of decrypted', async () => {
