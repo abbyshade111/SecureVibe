@@ -24,6 +24,7 @@ fn line(id: &str, status: Status) -> RequirementLine {
         findings: Vec::new(),
         checked_by: Vec::new(),
         supported_by: Vec::new(),
+        documented_by: Vec::new(),
     }
 }
 
@@ -196,6 +197,59 @@ fn a_threat_nothing_has_looked_at_is_not_verified() {
 }
 
 #[test]
+fn an_answer_in_the_security_notes_does_not_settle_a_threat() {
+    // The threat model reads the requirement statuses, and one of those is now the owner's own
+    // written answer. Writing down how sign-in is meant to be protected is not evidence that it is,
+    // so a documented requirement must not lift a threat from "not verified" to "checked in part" —
+    // otherwise an app talks its way out of a threat by describing itself.
+    let documented = evaluate(
+        &rules(),
+        &context(&[("auth", true)]),
+        &[line("V6.2.1", Status::Documented)],
+    );
+    assert_eq!(
+        status_of(&documented, "T-01"),
+        Some(ThreatStatus::NotVerified),
+        "a written answer is not evidence about the threat"
+    );
+    let t = documented.iter().find(|t| t.id == "T-01").unwrap();
+    assert!(
+        t.documented.contains(&"V6.2.1".to_owned()),
+        "it is still shown, just not counted: {t:?}"
+    );
+    assert!(
+        t.checked.is_empty(),
+        "nothing the owner wrote may land in the checked list: {t:?}"
+    );
+    // The same requirement, actually checked, does lift it — otherwise the test above would pass
+    // with the threat model ignoring evidence altogether.
+    let checked = evaluate(
+        &rules(),
+        &context(&[("auth", true)]),
+        &[line("V6.2.1", Status::Checked)],
+    );
+    assert_eq!(
+        status_of(&checked, "T-01"),
+        Some(ThreatStatus::CheckedInPart)
+    );
+}
+
+#[test]
+fn the_threat_table_says_an_answer_is_not_evidence() {
+    let documented = evaluate(
+        &rules(),
+        &context(&[("auth", true)]),
+        &[line("V6.2.1", Status::Documented)],
+    );
+    let t = documented.iter().find(|t| t.id == "T-01").unwrap();
+    let words = sv_report::threats::evidence_words(t);
+    assert!(
+        words.contains("not evidence") && words.contains("V6.2.1"),
+        "a reader must not mistake it for a check: {words}"
+    );
+}
+
+#[test]
 fn a_threat_whose_condition_does_not_hold_is_left_out_and_an_unanswered_one_cannot_be_placed() {
     let no = evaluate(
         &rules(),
@@ -339,6 +393,7 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        documented: &[],
         threats: Some((&r, &ctx)),
     })
 }
@@ -422,6 +477,7 @@ fn without_threat_rules_the_report_has_no_threat_section() {
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        documented: &[],
         threats: None,
     });
     assert!(report.threats.is_empty());

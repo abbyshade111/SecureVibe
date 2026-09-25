@@ -87,10 +87,14 @@ another session is not a claim.
   test those numbers against the running app; about eight become checkable, V6.3.1 at Level 1 among
   them. The design questions (16) take the same shape: yes, no, or not sure in securevibe.toml, with
   where in the code, counted as *attested by the owner*; "not sure" adds nothing.
-  **Claimed on 25 September 2026 by session securevibe-e8**, starting with the notes file itself:
-  `data/security-notes.json` (one section per requirement that asks for a document and nothing else),
-  `sv notes` to write it, and the *documented* tier. The policy numbers and the design questions follow
-  after, as their own pieces of work.
+  **Claimed on 25 September 2026 by session securevibe-e8.** The notes file itself is **done**:
+  `data/security-notes.json` (nineteen questions, each a requirement that asks for a written decision
+  and nothing else, and twenty more named with why they are not questions), `sv notes` to write and
+  rewrite `security-notes.md`, and the *documented by the owner* tier in both reports — never folded
+  into *checked*, beaten by a finding and by a check that ran, and deliberately unable to settle a
+  threat. See DESIGN, "The security notes". Left over, each its own piece of work: the policy numbers
+  in securevibe.toml that the probes can test (about eight requirements, V6.3.1 at level 1 among
+  them), and the design questions answered as *attested by the owner*.
 
 - **More questions for the running app, and an `upload` entry.** Asked with what `[stack.run.users]`
   already says: `Cache-Control: no-store` on private pages (V14.3.2), directory listings (V13.4.3), a

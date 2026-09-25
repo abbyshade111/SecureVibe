@@ -12,6 +12,7 @@ pub mod config;
 pub mod cvss;
 pub mod finding;
 pub mod junit;
+pub mod notes;
 pub mod probes;
 pub mod sbom;
 pub mod secrets;
