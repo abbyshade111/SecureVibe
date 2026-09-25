@@ -38,7 +38,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **PDFs written at report time.** SecureVibe writes each report as HTML, JSON and Markdown; the "Save it as PDF"
+- **PDFs written at report time.** **[taken: this session, 25 Sep 2026]** SecureVibe writes each report as HTML, JSON and Markdown; the "Save it as PDF"
   button hands the HTML to the browser's print dialog, so no PDF exists on disk until a person saves one, one
   report and one dialog at a time. The related half landed on 24 September 2026: "Download every app's reports"
   on the across-apps page gives one zip with a folder per app and an index, so an appendix or a handover no longer
