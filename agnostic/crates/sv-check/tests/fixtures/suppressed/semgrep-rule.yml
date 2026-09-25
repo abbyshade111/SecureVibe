@@ -1,0 +1,6 @@
+rules:
+- id: shell-true
+  pattern: subprocess.call(..., shell=True)
+  message: shell
+  languages: [python]
+  severity: WARNING

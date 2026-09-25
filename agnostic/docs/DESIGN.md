@@ -671,6 +671,34 @@ kept run: 9 requirements for a Python app, 5 for a Go app, none for a Ruby app, 
 three. A report that lists no rules credits nothing. Bandit, gosec and Brakeman are unchanged: each runs
 every check it has over its one language, whatever its report lists.
 
+**A tool told to look away, corrected again.** That last sentence was true only of a tool nobody had
+told to skip anything, and the app can tell it. Found by the other session and verified by running the
+tools, each of the four in the version named:
+
+- Bandit 1.9.4 skips a line marked `# nosec`, or one check on a line marked `# nosec B608`, and its
+  SARIF then holds no result, only two counts in `runs[0].properties.metrics._totals` (`nosec` and
+  `skipped_tests`). A `.bandit` file in the app can switch checks and folders off, and nothing in the
+  report says so at all. A search that joined user input into SQL on a `# nosec` line was credited as
+  V1.2.4 checked.
+- gosec 2.29.0 leaves a `#nosec` line out of its SARIF and says nothing, unless asked with
+  `-track-suppressions`, when the issue is there and marked as suppressed.
+- Semgrep 1.178.0 keeps a `// nosemgrep` result in its SARIF, marked as suppressed.
+- Brakeman 8.0.6 keeps a warning listed in `config/brakeman.ignore`, marked as suppressed and naming
+  that file. `skip_checks` in `config/brakeman.yml` hides a check with no trace, and
+  `--config-file /dev/null` does not stop Brakeman reading the file.
+
+Where a tool can be made to look anyway, it is: bandit runs with `--ignore-nosec` and `--ini /dev/null`,
+gosec with `-track-suppressions`. What any tool reports as suppressed is shown as a finding, and says it
+was marked to be ignored and where, since a finding somebody chose to hide is still a finding until
+somebody has looked at why. That is the owner's decision to make with the finding in front of them, not
+one `sv` makes for them by agreeing to look away. What is left, a clean run whose report still counts
+skipped lines or an app with a Brakeman settings file (`switched_off_by` in `adapters.json`), is not
+credited, and the report says why in the gaps.
+
+The same measurement turned up a neighbour that is not fixed here: semgrep, by default, skips files
+under `tests/`, `test/`, `build/`, `dist/`, `vendor/` and a few others, and its SARIF says nothing about
+it. It is in the backlog.
+
 ### Three more wrong citations, in the place the guard could not see
 
 The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were

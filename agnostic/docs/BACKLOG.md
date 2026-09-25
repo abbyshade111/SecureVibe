@@ -115,8 +115,10 @@ another session is not a claim.
   satisfied check about a counterpart is shown beside the control as supporting evidence. Loading
   refuses a crosswalk that leaves a control out or cites an id that does not exist.
 
-- **A suppressed finding makes a tool's run look clean, and it is credited.** Found on 25 September
-  2026 while reviewing the adapter work; not claimed. `# nosec` on a line makes bandit report nothing
+- ~~**A suppressed finding makes a tool's run look clean, and it is credited.**~~ Done on 25 September
+  2026 by session securevibe-e8: bandit and gosec are made to report what they were told to skip, every
+  suppressed result is shown and says so, and what cannot be shown withholds the clean-run credit.
+  `docs/DESIGN.md`, "A tool told to look away, corrected again". What was found: `# nosec` on a line makes bandit report nothing
   about it, so `sv` sees an empty findings list, calls the run clean, and credits every requirement
   that adapter's rules map to — including V1.2.4 for a file whose `search()` concatenates user input
   straight into SQL. Verified by running bandit, not reasoned about:
@@ -140,6 +142,15 @@ another session is not a claim.
   and semgrep cannot start in this sandbox (`ca-certs: empty trust anchors`) — so what their reports
   carry is unverified. If it turns out they say nothing about suppressions, the honest interim is to
   count the markers in the files that were scanned.
+
+- **Semgrep skips some folders by default and does not say so.** Found on 25 September 2026 while
+  fixing suppressions; not claimed. With no `.semgrepignore` of its own, semgrep 1.178.0 leaves out
+  `tests/`, `build/`, `dist/`, `vendor/` and others; its terminal output counts "Files matching
+  .semgrepignore patterns" and its SARIF says nothing. A clean run is credited as if it had read them.
+  An app's own `.semgrepignore` does the same with any pattern. Code under `build/` or `dist/` may well
+  be what ships. Worth measuring whether `--x-ignore-semgrepignore-files` or an explicit empty
+  `.semgrepignore` passed some other way reaches every file, before deciding between reading them and
+  naming them as not read.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
