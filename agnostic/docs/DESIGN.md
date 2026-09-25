@@ -1731,3 +1731,68 @@ overlap test the citations use. Then two more:
   concurrent-session limit, and two more — passed every other guard and were caught by nothing until
   this test existed. Writing it also found the one real fault in the catalog: V2.1.2's question had
   drifted far enough that it fit two other requirements better than its own.
+
+## The design questions, and the weakest tier there is
+
+Sixteen requirements at level 1 and 2 ask for a property of how the app is built rather than a fact
+in the code: is input validation enforced at a trusted service layer, are calls between the app's own
+backend components authenticated, can a load balancer's header fields be faked by a browser. A
+scanner sees a fragment of one at most. The owner knows the answer.
+
+They answer in the `[design]` section of securevibe.toml, one of three words per requirement, with
+`where` naming the file that does it:
+
+```toml
+[design]
+"V8.3.1" = { answer = "yes", where = "server/auth.py" }
+"V2.2.2" = { answer = "no" }
+"V15.3.1" = { answer = "not-sure" }
+```
+
+### Why this ranks below the security notes
+
+The notes credit requirements that ask for a *document*, and writing the document is the thing ASVS
+asks for, so writing it partly satisfies the requirement. Nothing of the kind holds here. V8.3.1 asks
+that authorization be enforced at a trusted service layer; an owner typing `yes` has enforced
+nothing. The answer is worth recording — it is a decision, and `where` points somebody at the code —
+but it is the owner's word about the app rather than the app.
+
+So *attested by the owner* ranks below *documented by the owner*, and two consequences keep the tier
+honest:
+
+- **An attested requirement stays on the list of tests to write.** Every other non-checked tier does,
+  and this one must, because an attestation is precisely the claim a test would settle. Letting the
+  word retire the test is how *attested* would quietly become *checked* with nobody deciding to make
+  it so. Breaking this fails `an_attested_requirement_is_still_a_test_to_write`.
+- **An attestation settles no threat**, for the reason a document does not and more strongly: the
+  threat model could otherwise be cleared by answering yes sixteen times.
+
+### The two answers that are findings
+
+This is what makes the section worth having rather than a way to feel better about a report:
+
+- **`no`** is the owner saying the control is not there, which is the requirement failing on the best
+  authority available. It is reported as *needs attention*, not as a silent nothing.
+- **A `where` naming a file the app does not have** is a pointer that has gone stale — worse than no
+  pointer, because it reads as evidence and leads nowhere. The attestation is withheld and the
+  staleness reported. A rename is all it takes.
+
+`not-sure` and silence come to the same thing, and a fourth word (`true`, `y`) is reported as
+unreadable rather than folded into silence: a question the owner believes they answered, dropped
+without a word, is the quiet failure this section could most easily have.
+
+### What the guards caught
+
+The same three as the security notes — the id exists, the question shares vocabulary with its
+requirement, and it fits its own requirement better than any other — and the third earned its place
+twice over:
+
+- Four questions were written in such plain language that they shared two or three words with their
+  requirement and fitted a neighbor as well. They are rewritten to use ASVS's own terms (*trusted
+  service layer*, *backend service*) and explain them, which is better for the reader anyway, since
+  the report prints the requirement's wording beside the question.
+- **V13.2.2 was simply wrong.** It was written as "traffic between the app's own parts is encrypted";
+  V13.2.2 is about the accounts used between those parts having the least privilege necessary. The
+  question tied with V13.2.1 on vocabulary, which is what surfaced it. Nothing else in the suite
+  would have: a wrong question is answerable, and the owner would have answered it and had the answer
+  credited against a requirement about something else.

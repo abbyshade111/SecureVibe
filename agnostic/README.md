@@ -96,6 +96,18 @@ what it says. A check that found a problem always wins over what the notes say, 
 settle a threat in the threat model — otherwise an app could talk its way out of one by describing
 itself.
 
+Sixteen more ask how the app is built rather than what is in it: is input checked on the server as
+well as in the browser, do the app's own parts prove who they are to each other. You answer those in
+the `[design]` section of `securevibe.toml` with yes, no, or not sure, and where in the code it is
+done.
+
+Answering yes makes the requirement **attested by the owner** — the weakest thing the report says,
+and deliberately so. It is your word about the app, not a check of it, so the requirement stays on
+the list of tests to write, and it cannot settle a threat. Answering **no** is the more useful
+answer: the report says plainly that the control is missing, on your own say-so. If `where` names a
+file that is not there any more, the report says that too, rather than keeping a pointer that leads
+nowhere.
+
 For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
 input placed in the system instructions, no limit on how long an answer may be, a model called in a
 loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks

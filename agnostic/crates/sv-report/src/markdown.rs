@@ -117,6 +117,15 @@ pub fn compliance(report: &Report) -> String {
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
+            Status::Attested => format!(
+                "{} \u{2014} your word, not a check: {}",
+                line.status.label(),
+                line.attested_by
+                    .iter()
+                    .map(|c| c.scope.clone())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
             Status::Documented => format!(
                 "{} \u{2014} you answered this in {}",
                 line.status.label(),

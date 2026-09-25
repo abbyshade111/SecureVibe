@@ -188,6 +188,10 @@ pub struct ThreatLine {
     /// the app is meant to work is not evidence that it does. Letting it lift a threat's status
     /// would let an app talk its way out of a threat.
     pub documented: Vec<String>,
+    /// The answering requirements the owner answered a design question about. Counted toward
+    /// nothing, for the same reason as `documented` and more strongly: this is their word about a
+    /// property of the app, and a threat is settled by evidence or not at all.
+    pub attested: Vec<String>,
     /// The answering requirements that apply and nothing has looked at.
     pub not_verified: Vec<String>,
     /// Answering requirements that are not among this app's, at its level: above the target level,
@@ -254,6 +258,7 @@ pub fn evaluate(
             found: Vec::new(),
             checked: Vec::new(),
             documented: Vec::new(),
+            attested: Vec::new(),
             not_verified: Vec::new(),
             not_at_this_level: Vec::new(),
             unanswered,
@@ -263,6 +268,7 @@ pub fn evaluate(
                 Some(Status::NeedsAttention) => line.found.push(id.clone()),
                 Some(Status::Checked) => line.checked.push(id.clone()),
                 Some(Status::Documented) => line.documented.push(id.clone()),
+                Some(Status::Attested) => line.attested.push(id.clone()),
                 Some(Status::NotVerified) => line.not_verified.push(id.clone()),
                 None => line.not_at_this_level.push(id.clone()),
             }
@@ -366,6 +372,10 @@ pub fn evidence_words(line: &ThreatLine) -> String {
         (
             "you documented, which is not evidence about this threat",
             &line.documented,
+        ),
+        (
+            "you answered yes about, which is not evidence about this threat",
+            &line.attested,
         ),
         ("not verified", &line.not_verified),
         (

@@ -84,6 +84,19 @@ training = false          # does this app train or fine-tune a model?
 self-hosted = false       # does it host or deploy model files itself, rather than calling a vendor's API?
 multi-agent = false       # several AI agents that must identify each other?
 multimodal = false        # does it take images, video or audio, rather than typed text only?
+
+# How the app is built. These are the questions no tool can settle, so only you can answer them.
+# Each one is "yes", "no", or "not-sure", and `where` names the file that does it.
+#   yes       — your word that the control is there. The report calls it "attested by the owner",
+#               which is the weakest thing it says, and still lists the requirement as one to
+#               write a test for, because your word is not the same as evidence.
+#   no        — the control is not there. The report says so, as something to fix.
+#   not-sure  — adds nothing, and is the right answer when you do not know. Leaving a question
+#               out entirely comes to the same thing.
+# Run `sv report` to see the questions that apply to this app; there are at most sixteen.
+[design]
+# "V8.3.1" = { answer = "yes", where = "server/auth.py" }
+# "V2.2.2" = { answer = "not-sure" }
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.
