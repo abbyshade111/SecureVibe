@@ -2,7 +2,8 @@ manifest-version = 1
 
 # An example of [stack.run.users]: `sv run` makes two accounts and an admin with `seed`, signs in as
 # each, and asks what they can reach — each other's notes, the admin page, a note created from
-# another site, the session after signing out.
+# another site, the session after signing out — and signs up through `signup` to ask what passwords
+# the app accepts.
 
 [app]
 name = "Notes with users"
@@ -20,6 +21,8 @@ health = "/"
 
 [stack.run.users]
 seed = "python seed.py"
+# Used only for the password questions: the test users and the admin come from `seed`.
+signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 login = { path = "/login", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 private = ["/account"]

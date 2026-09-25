@@ -123,6 +123,41 @@ take an anti-forgery token from, the sign-out went without one, the app correctl
 first run reported "signing out does not end the session". A sign-out that did not happen is now not
 assessed, and the token is looked for on the user's other pages, as a sign-out button's would be.
 
+### Level 1, asked of the running app
+
+The coverage count showed 49 of the 70 Level 1 requirements with no check at all, and Authentication
+with none. Eight of them can be asked of a running app with what `[stack.run.users]` already says, and
+now are, which takes Level 1 from 21 to 29.
+
+Two need no account: a Content-Type on responses with a body, with a charset on text (V4.1.1), and
+`/.git/HEAD` and `/.git/config` not served (V13.4.1). The Content-Type check is credited only when both
+the page and the error answer had a body; an app whose error is a redirect has shown one answer, and
+one answer does not stand for its responses. The `.git` check needs git's own contents in the answer,
+so a single-page app answering every path with its page is not mistaken for one serving its history.
+
+The password rules are asked through `signup` and answered by signing in, because how an app words a
+refusal is its own business and a sign-in is not. A control goes first: an ordinary strong password,
+32 characters of every kind. If that account cannot sign in, nothing is asked. Each password after it
+differs from the control in one thing, so a refusal is about that thing: 7 characters (V6.2.1), lowercase
+letters alone (V6.2.5), and a password from the 3000 most common (V6.2.4) beside a random one of the same
+length and kinds of character, because an app that wants a capital refuses the common one for that and
+not for being common. That case is not assessed, rather than credited. `signup` works beside `seed`, so
+an app can have its admin made by `seed` and still have its passwords asked.
+
+Three can only ever find something. Four default accounts that do not sign in are four, not none
+(V6.3.2). A password refused in the address shows one address refuses it (V14.2.1). And a session id
+can be shown too short to hold 128 bits, or the same at two sign-ins, but its value never shows it came
+from a secure generator (V7.2.3): the length measure is an upper bound, and a run of one letter passes
+it. A clean answer to any of the three is credited with nothing.
+
+Run against `examples/notes-with-users`, which gained a sign-up page that refuses short and common
+passwords and nothing else: 14 checks confirmed where there were 10, nothing found, in 11 seconds
+rather than 4, most of the difference being the app's own password hashing. Three copies with faults
+switched on found every one: a short password, a common one, `admin`/`admin`, a password in the address
+and an 8-character session id in the first; a rule wanting a capital and a digit in the second, with
+V6.2.4 not assessed beside it as intended; a served `/.git/HEAD` and text without a charset in the
+third.
+
 ## Handover
 
 `sv check ./my-app` is the primitive: any tool, any editor, CI. An MCP server wrapping the same core comes

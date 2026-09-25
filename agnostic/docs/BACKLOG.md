@@ -19,14 +19,16 @@ another session is not a claim.
   is not what the script would write. The script stops if a requirement id or check name is written
   into `sv`'s code that it does not know about.
 
-- **Level 1 checks against the running app.** From the coverage count (`docs/COVERAGE.md`, 25 September
-  2026): 49 of the 70 Level 1 requirements have no check at all, and Authentication (47 requirements)
-  has none. Several can be asked of a running app with the test accounts `[stack.run.users]` already
-  describes: a response's Content-Type and charset (V4.1.1), a reachable `/.git/` (V13.4.1), a short or
-  common password accepted at sign-up (V6.2.1, V6.2.4), a long one refused (V6.2.5), a default
-  `admin`/`admin` account (V6.3.2), session ids too short to be unguessable (V7.2.3), and sign-in
-  accepted in the query string (V14.2.1). Each is a finding when it fails and supporting evidence at
-  most when it holds; V6.3.2 in particular can only ever try a few names.
+- ~~**Level 1 checks against the running app.**~~ Done on 25 September 2026 by session securevibe-e8.
+  V4.1.1 and V13.4.1 as anonymous probes; V6.2.1, V6.2.4 and V6.2.5 through `signup`, beside a control
+  password; V6.3.2, V14.2.1 and V7.2.3 as findings only. Level 1 goes from 21 to 29 of 70. See DESIGN,
+  "Level 1, asked of the running app". Left over: a password change (V6.2.2, V6.2.3) needs the manifest
+  to say how one is made; rate limiting (V6.3.1) is a documentation requirement as much as a behavior.
+
+- **Requirements with no test naming them.** *Claimed 25 September 2026 by session securevibe-e8 (branch
+  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* The app's own passing tests
+  that name a requirement are the one route to evidence for every requirement. The report lists which
+  applicable Level 1 requirements no test names, and `sv init` asks the AI coding tool to write them.
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
