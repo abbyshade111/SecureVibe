@@ -61,6 +61,148 @@ fn clean_python_lets_the_rules_that_read_it_say_so() {
 }
 
 #[test]
+fn an_eval_inside_jsx_in_a_tsx_file_is_found_and_not_called_checked() {
+    // The case that found this. `.tsx` went through the TypeScript grammar, which has no JSX: the
+    // parse broke at the first tag, the `eval` in the click handler was never seen, the file still
+    // counted as read, and the report listed V1.3.2 as checked over it.
+    let dir = scratch("ast-tsx");
+    std::fs::write(
+        dir.join("App.tsx"),
+        "export default function App({ q }: { q: string }) {\n  return (\n    <form>\n      \
+         <button onClick={() => eval(q)}>run</button>\n    </form>\n  );\n}\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        scan.unparsed_files.is_empty(),
+        "valid TSX has to parse cleanly, or every React app loses its clean claims: {:?}",
+        scan.unparsed_files
+    );
+    let found: Vec<(&str, usize)> = scan
+        .findings
+        .iter()
+        .map(|f| (f.rule_id.as_str(), f.location.line))
+        .collect();
+    assert!(
+        found.contains(&("ast.dynamic-code-execution", 4)),
+        "the eval in the handler, on its own line: {found:?}"
+    );
+    assert!(
+        !verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"),
+        "a rule that found something cannot also have checked clean"
+    );
+}
+
+#[test]
+fn clean_tsx_lets_the_rules_say_so() {
+    // The other half: reading TSX properly has to leave room for a clean result, and it counts as
+    // TypeScript, which is what the rules' coverage is written in.
+    let dir = scratch("ast-tsx-clean");
+    std::fs::write(
+        dir.join("App.tsx"),
+        "export const App = ({ n }: { n: number }) => <p className=\"n\">{n + 1}</p>;\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert!(
+        scan.verified.iter().any(|v| v.scope.contains("typescript")),
+        "{:?}",
+        scan.verified
+    );
+}
+
+#[test]
+fn a_file_that_does_not_parse_silences_every_rule_and_keeps_its_findings() {
+    // Whatever the grammar, a parse that comes back with an error in it has not read part of the
+    // file, and says nothing about how much. The clean Python beside it is not enough: what the
+    // broken file hid could be anything.
+    let dir = scratch("ast-broken");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("worker.py"),
+        "def run(q):\n    return eval(q)\n\ndef broken(:\n    pass\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(scan.unparsed_files, vec!["worker.py".to_owned()]);
+    assert!(
+        scan.verified.is_empty(),
+        "no rule may claim a clean result while a file did not parse: {:?}",
+        verified_ids(&scan.verified)
+    );
+    assert!(
+        scan.findings
+            .iter()
+            .any(|f| f.rule_id == "ast.dynamic-code-execution"),
+        "what was found in the readable part still stands: {:?}",
+        scan.findings
+    );
+}
+
+#[test]
+fn a_broken_file_in_one_language_silences_the_rules_about_another() {
+    // The second witness, for a different reason than the first: the Go here is clean and fully
+    // read, and the Go-reading rules still may not say so, because the injection they look for
+    // could be in the JavaScript that did not parse. Same rule as a language with no grammar.
+    let dir = scratch("ast-broken-other");
+    std::fs::write(
+        dir.join("main.go"),
+        "package main\n\nfunc main() { println(\"hi\") }\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("widget.js"), "export function f( {\n  return 1;\n").unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert_eq!(scan.unparsed_files, vec!["widget.js".to_owned()]);
+    assert!(
+        scan.verified.is_empty(),
+        "{:?}",
+        verified_ids(&scan.verified)
+    );
+}
+
+#[test]
+fn a_parse_error_is_noticed_in_every_language_and_a_clean_file_is_not_flagged() {
+    // Asked of the parser directly, so the two tests above cannot pass on an accident of the walk.
+    let rules = ast_rules();
+    for (file, language, clean, broken) in [
+        ("a.py", "python", "x = 1\n", "def (:\n"),
+        ("a.js", "javascript", "const x = 1;\n", "const = ;\n"),
+        (
+            "a.ts",
+            "typescript",
+            "const x: number = 1;\n",
+            "const x: = ;\n",
+        ),
+        (
+            "a.tsx",
+            "typescript",
+            "const a = <b>{1}</b>;\n",
+            "const a = <b>{1</b>;\n",
+        ),
+        ("a.go", "go", "package a\n", "package a\nfunc {\n"),
+        ("a.rb", "ruby", "x = 1\n", "def x(\n"),
+        ("a.php", "php", "<?php $x = 1;\n", "<?php $x = ;\n"),
+        ("A.java", "java", "class A {}\n", "class A {\n"),
+    ] {
+        assert!(
+            !ast::read_file(&rules, language, file, clean).parse_error,
+            "{file}: clean code flagged as unparsed"
+        );
+        assert!(
+            ast::read_file(&rules, language, file, broken).parse_error,
+            "{file}: a parse error went unnoticed"
+        );
+    }
+}
+
+#[test]
 fn a_language_nothing_can_parse_silences_every_rule() {
     // The important one. The app has clean Python and a C++ file no grammar reads. The injection
     // these rules look for could be in the C++, so none of them has established anything about
