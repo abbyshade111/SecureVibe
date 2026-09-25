@@ -22,12 +22,77 @@ fn v2_config() -> ApplicabilityConfig {
 #[test]
 fn loads_every_framework() {
     let f = Frameworks::load(&data_dir().join("frameworks")).expect("frameworks load");
-    // ASVS, AISVS and Appendix C together. The exact count moves when OWASP data is updated;
-    // the assertion is that all three files parsed, not a frozen number.
+    // ASVS, AISVS, Appendix C and the Secure by Design checklist. The exact count moves when OWASP
+    // data is updated; the assertion is that all four files parsed, not a frozen number.
     assert!(f.len() > 500, "only {} requirements loaded", f.len());
     assert!(f.get("V6.2.1").is_some(), "ASVS missing");
     assert!(f.get("C9.2.1").is_some(), "AISVS missing");
     assert!(f.get("AC.4.1").is_some(), "Appendix C missing");
+    assert!(
+        f.get("SBD-AC-01").is_some(),
+        "Secure by Design checklist missing"
+    );
+}
+
+#[test]
+fn the_checklist_loads_whole_and_namespaced() {
+    // `sv --help` and the README claimed this was checked while nothing loaded it, so the count is
+    // asserted rather than the presence of one id: a reader of that claim is owed all 36.
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let controls: Vec<&str> = f
+        .requirements
+        .keys()
+        .filter(|id| id.starts_with("SBD-"))
+        .map(String::as_str)
+        .collect();
+    assert_eq!(controls.len(), 36, "{controls:?}");
+
+    // The namespace is the point. Appendix C owns `AC.5`; the checklist owns `AC-05`, and five
+    // checkers here once cited one for the other. Neither may be reachable under the other's name.
+    assert!(
+        f.get("AC-01").is_none(),
+        "the checklist must not claim a bare AC id"
+    );
+    assert!(f.get("SBD-AC.1.1").is_none());
+    assert_eq!(f.get("AC.1.1").map(|r| r.chapter_id.as_str()), Some("AC.1"));
+
+    // The derived level, on real data rather than a hand-built control.
+    assert_eq!(
+        f.get("SBD-AS-01").map(|r| r.level),
+        Some(1),
+        "critical and high"
+    );
+    assert_eq!(
+        f.get("SBD-AC-03").map(|r| r.level),
+        Some(1),
+        "high, not critical"
+    );
+    assert_eq!(f.get("SBD-DM-01").map(|r| r.level), Some(2), "medium");
+    assert_eq!(f.get("SBD-AS-02").map(|r| r.level), Some(3), "low");
+}
+
+#[test]
+fn no_two_requirement_ids_differ_only_by_how_they_are_punctuated() {
+    // The guard for the mistake this namespace exists to prevent. `AC-05` and `AC.5` are different
+    // strings that a person reads as the same thing, and a citation that resolves to the wrong
+    // framework is worse than one that resolves to nothing, because nothing looks wrong.
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let flatten = |id: &str| -> String {
+        id.split(['.', '-', '_'])
+            .map(|part| part.trim_start_matches('0'))
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join("|")
+            .to_uppercase()
+    };
+    let mut seen: std::collections::BTreeMap<String, &str> = std::collections::BTreeMap::new();
+    let mut clashes = Vec::new();
+    for id in f.requirements.keys() {
+        if let Some(other) = seen.insert(flatten(id), id) {
+            clashes.push(format!("{other} and {id} read as the same id"));
+        }
+    }
+    assert!(clashes.is_empty(), "{}", clashes.join("\n"));
 }
 
 #[test]
@@ -271,6 +336,11 @@ fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
     // written for them, and no rule in the OWASP data keys on either. That is worth pinning: it
     // is surprising, `sv` tells the owner about it, and if a future data update gives one of them
     // a rule, or takes a rule away from something else, somebody should have to notice.
+    //
+    // `internet` was on this list until the Secure by Design checklist was loaded, and came off it
+    // because two of its controls — rate limits and caching at the edge — are the first rules in
+    // any of the data to key on it. That is the test doing its job: the list is meant to change
+    // only when somebody means it to.
     use sv_frameworks::applicability::requirements_gated_on;
     let config = v2_config();
     let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
@@ -289,7 +359,6 @@ fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
             "public-api",
             "payments",
             "scheduler",
-            "internet",
             "level2",
             "self-assessment",
         ],

@@ -1,5 +1,5 @@
 {
-  "_comment": "v2 replacements for the `never` rules in data/knowledge/applicability.json. Each of those rules carries a reason that is a statement about v1's Node template \u2014 'this app is written in TypeScript for Node.js', 'all data lives in its own SQLite database file', 'the model is hosted by the vendor (Anthropic)'. True of a v1 app, unknowable about someone else's. A rule here replaces the rule at the same scope, and states where its answer comes from: `claim` means securevibe.toml says, `derived` means the app's own dependencies say. V15.4 and C5.1 are deliberately absent: their `never` reasons are about ASVS level 3, which is honest and not specific to v1.",
+  "_comment": "v2 replacements for the `never` rules in data/knowledge/applicability.json. Each of those rules carries a reason that is a statement about v1's Node template — 'this app is written in TypeScript for Node.js', 'all data lives in its own SQLite database file', 'the model is hosted by the vendor (Anthropic)'. True of a v1 app, unknowable about someone else's. A rule here replaces the rule at the same scope, and states where its answer comes from: `claim` means securevibe.toml says, `derived` means the app's own dependencies say. V15.4 and C5.1 are deliberately absent: their `never` reasons are about ASVS level 3, which is honest and not specific to v1.  The `SBD-` rules cover the Secure by Design checklist. Fifteen of its thirty-six controls are about the space between services and are gated on `multiple-services`; on a single service they are not passed, they are meaningless. The other twenty-one apply to anything that holds data and runs somewhere, so they carry no rule and silence means they apply. Nothing here can verify any of them: they are design-review controls, and the report says so rather than counting them as things automation looked at and could not confirm.",
   "rules": [
     {
       "scope": "AC.11.7",
@@ -120,6 +120,132 @@
       "condition": "multi-agent",
       "source": "claim",
       "notApplicableReason": "There is a single assistant, not several AI agents that must identify each other."
+    },
+    {
+      "scope": "SBD-AC-01",
+      "condition": "tls",
+      "source": "claim",
+      "notApplicableReason": "This app runs on one computer without HTTPS, so there is no network connection between components to encrypt."
+    },
+    {
+      "scope": "SBD-AC-02",
+      "condition": "auth",
+      "source": "claim",
+      "notApplicableReason": "This app has no sign-in, so there is no identity provider to centralise and no privileged path to put MFA on."
+    },
+    {
+      "scope": "SBD-AC-03",
+      "condition": "auth",
+      "source": "claim",
+      "notApplicableReason": "This app has no sign-in, so there are no roles or attributes to govern access with."
+    },
+    {
+      "scope": "SBD-AC-04",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no gateway or mesh to centralise authorisation at."
+    },
+    {
+      "scope": "SBD-AC-07",
+      "condition": "ci-cd",
+      "source": "claim",
+      "notApplicableReason": "This app has no CI/CD pipeline, so there is no pipeline, no bot account and no third-party tooling to hold to least privilege."
+    },
+    {
+      "scope": "SBD-AS-01",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no trust zones between services to enforce and no cross-zone traffic to route through a gateway."
+    },
+    {
+      "scope": "SBD-AS-02",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is nothing to discover and no addressing scheme to keep consistent."
+    },
+    {
+      "scope": "SBD-AS-03",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no boundaries between services to design and no traffic between them to protect."
+    },
+    {
+      "scope": "SBD-AS-04",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no synchronous chains between services to shorten."
+    },
+    {
+      "scope": "SBD-AS-05",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no contracts between services to version, and no consumers to notify."
+    },
+    {
+      "scope": "SBD-AS-06",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no messaging between services to make durable."
+    },
+    {
+      "scope": "SBD-AS-07",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no service dependencies that might be missing at startup."
+    },
+    {
+      "scope": "SBD-AS-08",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no integration boundary to put an anti-corruption layer behind."
+    },
+    {
+      "scope": "SBD-DM-03",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no message delivery between services that could repeat."
+    },
+    {
+      "scope": "SBD-DM-04",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no transactions spanning services to compensate for."
+    },
+    {
+      "scope": "SBD-DM-06",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is one copy of the data and no consistency model between services to document."
+    },
+    {
+      "scope": "SBD-RR-02",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there are no dependencies between services to put a circuit breaker in front of."
+    },
+    {
+      "scope": "SBD-RR-03",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no asynchronous messaging between services whose semantics need defining."
+    },
+    {
+      "scope": "SBD-RR-04",
+      "condition": "multiple-services",
+      "source": "claim",
+      "notApplicableReason": "This app runs as one service, so there is no shared gateway or bus between services to keep available."
+    },
+    {
+      "scope": "SBD-RR-07",
+      "condition": "internet",
+      "source": "claim",
+      "notApplicableReason": "This app is not on the internet, so there is no edge at which to enforce rate limits or quotas."
+    },
+    {
+      "scope": "SBD-RR-08",
+      "condition": "internet",
+      "source": "claim",
+      "notApplicableReason": "This app is not on the internet, so there is no CDN or edge caching layer to apply."
     },
     {
       "scope": "V1.2.6",

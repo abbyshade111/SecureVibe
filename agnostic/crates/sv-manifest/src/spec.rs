@@ -45,6 +45,7 @@ multi-tenant = false      # do separate customer organisations share one system?
 webrtc = false            # real-time audio or video calls
 out-of-band-auth = false  # sign-in codes sent by phone, SMS or push notification
 shared-hostname = false   # do other applications share this app's address?
+multiple-services = false # does this run as more than one service talking over a network?
 external-apis = []        # host names it calls, e.g. ["api.stripe.com"]
 tls = "terminated-upstream"   # off | self | terminated-upstream
 

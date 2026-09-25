@@ -1052,6 +1052,30 @@ fn cmd_report(args: &[String]) -> Result<()> {
                 .to_owned(),
         });
     }
+    // The Secure by Design checklist is design review, not scanning. Its controls are applicable
+    // and every one is unverified — which is true of a great many ASVS requirements too, and the
+    // difference matters: those could in principle be reached by some check, and these cannot be
+    // reached by any, ever. Counting them together lets a reader think the scanner tried.
+    let design_review = buckets
+        .applicable
+        .iter()
+        .filter(|id| {
+            config_rules.verification_class_for(id) == sv_frameworks::VerificationClass::ManualOnly
+        })
+        .count();
+    if design_review > 0 {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{design_review} requirement{} that are design review, not scanning",
+                if design_review == 1 { "" } else { "s" }
+            ),
+            why: "these ask how the system was designed and how it is run \u{2014} whether trust \
+                  zones are enforced, whether an incident response plan is rehearsed, whether data \
+                  has named owners. No check here reaches them and none ever will, so they are \
+                  counted as applicable and unverified, and a person has to answer them."
+                .to_owned(),
+        });
+    }
     for eco in &scan_report.unpinned {
         gaps.push(sv_report::Gap {
             what: format!("what {} actually installs", eco.name),
