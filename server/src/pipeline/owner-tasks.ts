@@ -17,6 +17,20 @@ import type { DesignProfile } from '@shared/profile.js';
 
 export type OwnerTask = NonNullable<PipelineRun['ownerTasks']>[number];
 
+/** One .env value, for a setting that is a mode rather than a secret (MALWARE_SCANNER=clamd|off). */
+export function envMode(appDir: string, key: string): string | undefined {
+  const file = join(appDir, '.env');
+  if (!existsSync(file)) return undefined;
+  for (const raw of readFileSync(file, 'utf8').split('\n')) {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq <= 0 || line.slice(0, eq).trim() !== key) continue;
+    return line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+  }
+  return undefined;
+}
+
 /** Which .env keys are empty, without keeping any value. A missing key counts as empty. */
 export function emptyEnvKeys(appDir: string, keys: string[]): Set<string> {
   const file = join(appDir, '.env');
@@ -69,6 +83,17 @@ export function ownerTasks(input: OwnerTaskInput): OwnerTask[] {
         title: 'Give the app an AI key: set ANTHROPIC_API_KEY in the environment it runs in (not in a file you share).',
         because: 'You asked for an assistant, and the app has no key of its own to call the AI service with.',
         staysOff: 'Until then the assistant answers nothing.',
+      });
+    }
+    // ADR-011: an app with uploads refuses any file it cannot check, so it depends on a scanner the owner keeps
+    // running, like an outside service with an address. Named here so nobody discovers it as "uploads are broken".
+    if (caps.fileUploads && envMode(input.appDir, 'MALWARE_SCANNER') !== 'off') {
+      tasks.push({
+        id: 'setting-malware-scanner',
+        source: 'setting',
+        title: 'Keep a virus scanner (ClamAV, running as clamd) installed and running on the computer this app runs on, with its signatures kept up to date.',
+        because: 'You asked for file uploads, and this app refuses any uploaded file it cannot check against a scanner rather than keeping it unchecked.',
+        staysOff: 'Until the scanner is running, every upload is refused and the upload page says why. SecureVibe cannot check this for you: its own checks run the app inside a fence the scanner cannot be reached from, so they show the refusal, never a scan.',
       });
     }
     for (const api of caps.externalApis) {

@@ -31,6 +31,7 @@ import {
 } from '@shared/api.js';
 import { DesignProfileSchema, PartialDesignProfileSchema, type DesignProfile, type PartialDesignProfile } from '@shared/profile.js';
 import { HumanCodeReviewSchema, isUploadedApp, type Project } from '@shared/project.js';
+import { withUploadedDefaults } from '@shared/uploaded-questions.js';
 import { isOpen, type Finding } from '@shared/findings.js';
 import { currentFindings, findRunWithFinding, withDecisions } from './findings-view.js';
 import { RUN_ID_PATTERN } from '../store/ids.js';
@@ -295,6 +296,9 @@ export function projectsRouter(deps: ApiDeps): Router {
 
   router.post('/projects/:id/design', (req, res) => {
     const project = deps.store.mustGet(req.params['id']!);
+    // An uploaded app is asked only what applicability needs (shared/uploaded-questions.ts); the rest is filled
+    // with neutral defaults here, named as such, rather than invented by the person checking it.
+    if (isUploadedApp(project)) project.profile = withUploadedDefaults(project.profile as PartialDesignProfile, project.name);
     const parsed = DesignProfileSchema.safeParse(project.profile);
     if (!parsed.success) throw validationError('Your design is not complete yet.', parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })));
     const design = deriveDesign(parsed.data, {

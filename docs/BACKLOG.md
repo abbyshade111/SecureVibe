@@ -42,11 +42,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
   uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
 
-- **A shorter set of questions for uploaded apps.** Somebody checking code they did not write cannot honestly
-  answer half the wizard (which records it keeps, what its features are), and guessing puts made-up facts into a
-  report. The check and the reports no longer wait for the answers, and the AI review reads against ASVS Level 1
-  without them (24 September 2026); what the answers still decide is the applicability of the rules above the
-  floor. A shorter set that asks only what applicability needs would make answering honest for an uploaded app.
 - ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
@@ -67,18 +62,14 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **A report that only becomes a PDF when somebody clicks a dialog is not archivable.** SecureVibe writes each
-  report as HTML, JSON and Markdown; the "Save it as PDF" button hands the HTML to the browser's print dialog,
-  so no PDF exists on disk until a person saves one, one report and one dialog at a time. On 20 September 2026
-  the owner wanted the three reports for every application, for a paper's appendix: seven apps, twenty-two
-  documents, twenty-two dialogs. They were produced instead by driving the same rendering headlessly.
-  That is a workaround, and the need is ordinary rather than exotic — an appendix, an auditor, a handover, a
-  record of what the app looked like on the day somebody signed off on it. Writing the PDFs alongside the HTML
-  at report time would cost a rendering step and remove the manual one entirely. Worth doing as part of the
-  hand-off pack rather than beside it, since that is already the thing somebody sends to another person.
-  The related half: an owner cannot currently export every app's reports at once at all. Each has to be opened
-  in turn.
-
+- **PDFs written at report time.** SecureVibe writes each report as HTML, JSON and Markdown; the "Save it as PDF"
+  button hands the HTML to the browser's print dialog, so no PDF exists on disk until a person saves one, one
+  report and one dialog at a time. The related half landed on 24 September 2026: "Download every app's reports"
+  on the across-apps page gives one zip with a folder per app and an index, so an appendix or a handover no longer
+  means opening each app in turn. What remains is the PDF itself, which needs a browser engine at report time
+  (SecureVibe ships none; the hand-off pack is where it belongs, so whoever receives it has the reports as files
+  rather than pages). Worth deciding whether a dependency on the owner's installed browser is acceptable before
+  building it.
 - ~~**The template suite ran 30 of its 33 files and said it was green.**~~ **Done (list regenerated before each run, count printed); the durable half, moving the repository out of ~/Desktop, stays with the iCloud item.** Original text kept: The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
@@ -92,16 +83,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   whose job is to notice failures.
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
-
-- **The rest of the virus scanning, now the policy and the two scans are in.** Three things were deliberately
-  left out on 20 September 2026 so the mandatory half could land. First, a Settings switch to run the scanner on
-  demand against an app SecureVibe built — the uploaded-app case runs by itself, and the built-app case has
-  nowhere to be turned on from yet. Second, the reports naming the scanner as something the owner has to keep
-  running: an app whose uploads are scanner-gated has a dependency on a background service, and that belongs in
-  "what only you can do" beside an outside service with no address. Third, and most important to get right,
-  the reports must keep two claims apart that are easy to merge — "this app refuses a file it cannot check",
-  which a SecureVibe run does show, and "this app's uploads are scanned", which it cannot show, because the app
-  is checked inside a sandbox that puts the scanner out of reach (ADR-011). V5.4.3 stays unverified by a run.
 
 - **The harness should hold a lock while it runs.** ~~Unclaimed~~ **[taken: recipe-library session, 20 Sep 2026,
   after the query recipe lands]** Two sessions ran it at once for eight minutes on 20 September 2026, each having
@@ -136,9 +117,6 @@ building from nothing.
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
   argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
-- **Find your best Ab needs a clean-up pass.** The first app built from nothing by someone other than the owner,
-  and the one to read carefully before deciding what else matters. Worth going through it feature by feature
-  rather than fixing whatever catches the eye first.
 - **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show

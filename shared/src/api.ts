@@ -68,6 +68,8 @@ export const StatusResponseSchema = z.object({
     aiEnabled: z.boolean(),
     saveCredits: z.boolean(),
     notifyOnFinish: z.boolean(),
+    /** Run the virus scanner over apps SecureVibe built as well as uploaded ones (ADR-011). */
+    scanBuiltAppsForMalware: z.boolean(),
     /** The AI service everything uses unless a step below says otherwise; it needs a key (see aiServices). */
     aiService: z.enum(['anthropic', 'openai', 'google']),
     /** Which service does which step ('default' = the one above). */
@@ -102,6 +104,7 @@ export const UpdateSettingsRequestSchema = z.object({
   aiEnabled: z.boolean().optional(),
   saveCredits: z.boolean().optional(),
   notifyOnFinish: z.boolean().optional(),
+  scanBuiltAppsForMalware: z.boolean().optional(),
   aiService: z.enum(['anthropic', 'openai', 'google']).optional(),
   /** All three values together (a partial object would clear the ones left out). */
   aiServiceFor: z
