@@ -31,7 +31,7 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
-- **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
+- **AISVS, beyond applicability.** **Claimed on 25 September 2026 by session securevibe-e8.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
   its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
   could look for the same. Most of AISVS is about training and operating models and stays out of reach.
