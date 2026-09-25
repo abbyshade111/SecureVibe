@@ -92,6 +92,8 @@ struct RuleFile {
 struct Compiled {
     rule: AstRule,
     queries: BTreeMap<String, Query>,
+    /// The `typescript` query compiled against the TSX grammar, for `.tsx` files.
+    tsx: Option<Query>,
     function: BTreeMap<String, regex::Regex>,
     module: BTreeMap<String, regex::Regex>,
     argument: BTreeMap<String, regex::Regex>,
@@ -133,6 +135,10 @@ fn grammar(language: &str) -> Option<Language> {
         "python" => tree_sitter_python::LANGUAGE.into(),
         "javascript" => tree_sitter_javascript::LANGUAGE.into(),
         "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+        // Not a language of its own to anything but the parser: `.tsx` is TypeScript with JSX in it,
+        // and the plain TypeScript grammar gives up inside the first tag. Rules are written once, as
+        // `typescript`, and compiled a second time against this grammar.
+        "tsx" => tree_sitter_typescript::LANGUAGE_TSX.into(),
         "go" => tree_sitter_go::LANGUAGE.into(),
         "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
         "kotlin" => tree_sitter_kotlin_ng::LANGUAGE.into(),
@@ -434,9 +440,23 @@ impl AstRules {
                     );
                 }
             }
+            let tsx = match rule.queries.get("typescript") {
+                Some(source) => Some(
+                    Query::new(&grammar("tsx").expect("tsx is compiled in"), source).with_context(
+                        || {
+                            format!(
+                                "rule {} has a typescript query the TSX grammar cannot compile",
+                                rule.id
+                            )
+                        },
+                    )?,
+                ),
+                None => None,
+            };
             compiled.push(Compiled {
                 rule,
                 queries,
+                tsx,
                 function,
                 module,
                 argument,
@@ -560,24 +580,58 @@ pub struct AstScan {
     pub parsed_by_language: BTreeMap<String, usize>,
     /// Rules that ran over everything they could read and found nothing.
     pub verified: Vec<crate::Verified>,
+    /// Files in a language `sv` reads whose parse came back with an error in it.
+    ///
+    /// Whatever sat inside the error was not read, and the parser says nothing about how much that
+    /// was. A `.tsx` file once went through a grammar with no JSX, lost everything inside its first
+    /// tag, and still counted as read — so an `eval` in a click handler was missed and the report
+    /// listed the requirement against `eval` as checked. Findings from such a file still stand; what
+    /// it cannot do is support a claim that something is absent.
+    pub unparsed_files: Vec<String>,
 }
 
 /// Runs every rule that has a query for this language over one file.
 pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str) -> Vec<Finding> {
-    let Some(grammar) = grammar(language) else {
-        return Vec::new();
+    read_file(rules, language, relative, source).findings
+}
+
+/// What reading one file produced.
+pub struct FileRead {
+    pub findings: Vec<Finding>,
+    /// The parse came back with an error in it, so some of the file was not read.
+    pub parse_error: bool,
+}
+
+/// Runs every rule over one file, and says whether the whole file was understood.
+///
+/// A `.tsx` file is parsed with the TSX grammar and matched with the rule's `typescript` query
+/// compiled against it; everything else about it — the patterns, the coverage it counts towards — is
+/// TypeScript's.
+pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str) -> FileRead {
+    let unread = FileRead {
+        findings: Vec::new(),
+        parse_error: true,
+    };
+    let tsx = language == "typescript" && relative.to_lowercase().ends_with(".tsx");
+    let Some(grammar) = grammar(if tsx { "tsx" } else { language }) else {
+        return unread;
     };
     let mut parser = Parser::new();
     if parser.set_language(&grammar).is_err() {
-        return Vec::new();
+        return unread;
     }
     let Some(tree) = parser.parse(source, None) else {
-        return Vec::new();
+        return unread;
     };
 
     let mut out = Vec::new();
     for compiled in &rules.compiled {
-        let Some(query) = compiled.queries.get(language) else {
+        let query = if tsx {
+            compiled.tsx.as_ref()
+        } else {
+            compiled.queries.get(language)
+        };
+        let Some(query) = query else {
             continue;
         };
         let arg_index = query.capture_index_for_name("arg");
@@ -659,7 +713,10 @@ pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             .then_with(|| a.rule_id.cmp(&b.rule_id))
     });
     out.dedup_by(|a, b| a.rule_id == b.rule_id && a.location.line == b.location.line);
-    out
+    FileRead {
+        findings: out,
+        parse_error: tree.root_node().has_error(),
+    }
 }
 
 /// Runs the rules over every source file in the app whose language has a grammar.
@@ -686,7 +743,7 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
 /// builds no queries by hand. And no rule says anything at all while a language present in the app
 /// goes unread, because the injection it looks for could be sitting in the Ruby nobody parsed.
 fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
-    if !scan.unread_languages.is_empty() {
+    if !scan.unread_languages.is_empty() || !scan.unparsed_files.is_empty() {
         return Vec::new();
     }
     let mut out = Vec::new();
@@ -805,8 +862,11 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
             .parsed_by_language
             .entry(language.to_owned())
             .or_default() += 1;
-        scan.findings
-            .extend(scan_file(rules, language, &relative, &source));
+        let read = read_file(rules, language, &relative, &source);
+        if read.parse_error {
+            scan.unparsed_files.push(relative);
+        }
+        scan.findings.extend(read.findings);
     }
 }
 

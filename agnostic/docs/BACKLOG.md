@@ -11,12 +11,14 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
 
-- **A `.tsx` file is read with a grammar that has no JSX, and counts as read.** *Claimed 25 September
-  2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25
-  September 2026: `<button onClick={() => eval(q)}>` in a `.tsx` file is not found, and the report then
-  lists V1.3.2 as *checked (ast.dynamic-code-execution over 1 typescript file)*. The grammar gives up
-  inside the JSX and the file is counted as parsed anyway. Two fixes: parse `.tsx` with the TSX grammar,
-  and let no file whose tree holds a parse error support a clean claim, whatever the grammar.
+- ~~**A `.tsx` file is read with a grammar that has no JSX, and counts as read.**~~ Done on 25 September
+  2026. `<button onClick={() => eval(q)}>` in a `.tsx` file was not found, and the report then listed
+  V1.3.2 as *checked (ast.dynamic-code-execution over 1 typescript file)*. `.tsx` is now parsed with the
+  TSX grammar, each rule's `typescript` query compiled a second time against it. And whatever the
+  grammar, a file whose parse holds an error lands in `AstScan::unparsed_files`: its findings stand, but
+  no rule that reads code may claim a clean result while it is there, and `sv check` and the report say
+  which files. Breaking either half turns two or three tests red. `.jsx` needed nothing: the JavaScript
+  grammar reads JSX.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
@@ -24,7 +26,13 @@ another session is not a claim.
   which is a question with two defensible answers.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
-  cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
+  cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
+  least of the candidates for web apps. Worth more, in order: **Dart** (Flutter front ends, which today
+  silence every code rule for the whole app, Python back end included), **Swift** (the same, for iOS
+  clients), and **shell** (`.sh` deploy and setup scripts are in most generated repositories and are
+  where `curl | sh` and unquoted variables live; they are not counted at all today, so they neither
+  silence rules nor get read). Each grammar is only worth adding with at least the shell and
+  code-execution queries written for it, or it turns silence into an unearned clean claim. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
   those two failing, which is the right way round.
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in

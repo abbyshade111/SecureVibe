@@ -591,6 +591,30 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
     }
 
+    if !code.unparsed_files.is_empty() {
+        println!(
+            "\nPartly read — the parser could not make sense of part of {}. Anything found in\n\
+             {} still counts, but while part of the app went unread, no rule can say it found\n\
+             nothing wrong.",
+            if code.unparsed_files.len() == 1 {
+                "this file".to_owned()
+            } else {
+                format!("these {} files", code.unparsed_files.len())
+            },
+            if code.unparsed_files.len() == 1 {
+                "it"
+            } else {
+                "them"
+            }
+        );
+        for file in code.unparsed_files.iter().take(10) {
+            println!("  {file}");
+        }
+        if code.unparsed_files.len() > 10 {
+            println!("  … and {} more", code.unparsed_files.len() - 10);
+        }
+    }
+
     if !config.not_assessed.is_empty() {
         println!("\nNot assessed — these could not be checked here:");
         for (id, why) in &config.not_assessed {
@@ -1036,6 +1060,28 @@ fn cmd_report(args: &[String]) -> Result<()> {
         gaps.push(sv_report::Gap {
             what: format!("code written in {}", names.join(", ")),
             why: "`sv` has no parser for these, so the rules that read code did not run on them"
+                .to_owned(),
+        });
+    }
+    if !code.unparsed_files.is_empty() {
+        let n = code.unparsed_files.len();
+        let mut shown: Vec<&str> = code
+            .unparsed_files
+            .iter()
+            .map(String::as_str)
+            .take(5)
+            .collect();
+        if n > 5 {
+            shown.push("…");
+        }
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "part of {n} file{} that did not parse cleanly ({})",
+                if n == 1 { "" } else { "s" },
+                shown.join(", ")
+            ),
+            why: "whatever sat where the parser gave up was not read, so no rule that reads code \
+                  can say it found nothing wrong anywhere in this app; what it did find stands"
                 .to_owned(),
         });
     }
