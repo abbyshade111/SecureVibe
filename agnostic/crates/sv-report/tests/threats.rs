@@ -25,6 +25,7 @@ fn line(id: &str, status: Status) -> RequirementLine {
         checked_by: Vec::new(),
         supported_by: Vec::new(),
         documented_by: Vec::new(),
+        attested_by: Vec::new(),
     }
 }
 
@@ -235,6 +236,31 @@ fn an_answer_in_the_security_notes_does_not_settle_a_threat() {
 }
 
 #[test]
+fn an_answer_to_a_design_question_does_not_settle_a_threat_either() {
+    // The same rule as the security notes, and it matters more here: a document at least exists,
+    // while an attestation is only the owner saying the control is there. If this lifted a threat,
+    // the threat model could be cleared by answering yes sixteen times.
+    let attested = evaluate(
+        &rules(),
+        &context(&[("auth", true)]),
+        &[line("V6.2.1", Status::Attested)],
+    );
+    assert_eq!(
+        status_of(&attested, "T-01"),
+        Some(ThreatStatus::NotVerified),
+        "your word about the app is not evidence about the threat"
+    );
+    let t = attested.iter().find(|t| t.id == "T-01").unwrap();
+    assert!(
+        t.attested.contains(&"V6.2.1".to_owned()),
+        "still shown: {t:?}"
+    );
+    assert!(t.checked.is_empty(), "and counted toward nothing: {t:?}");
+    let words = sv_report::threats::evidence_words(t);
+    assert!(words.contains("not evidence"), "{words}");
+}
+
+#[test]
 fn the_threat_table_says_an_answer_is_not_evidence() {
     let documented = evaluate(
         &rules(),
@@ -394,6 +420,7 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
         documented: &[],
+        attested: &[],
         threats: Some((&r, &ctx)),
     })
 }
@@ -478,6 +505,7 @@ fn without_threat_rules_the_report_has_no_threat_section() {
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
         documented: &[],
+        attested: &[],
         threats: None,
     });
     assert!(report.threats.is_empty());

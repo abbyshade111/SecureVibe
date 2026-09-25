@@ -81,8 +81,11 @@ RUST_CHECKS = {
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
-# parsed, and a requirement named only to say it is not assessed.
-MENTIONS = {"AC.4.1", "SBD-AC-01", "V6.2.1", "V3.3.1"}
+# parsed, a requirement named only to say it is not assessed, and the two ids `sv init` prints as
+# worked examples of a [design] answer. The design questions cite their requirements in
+# `data/design-questions.json`, and they are deliberately absent from this document: an answer there
+# is the owner's word, which is the one thing this file must not count as coverage.
+MENTIONS = {"AC.4.1", "SBD-AC-01", "V6.2.1", "V3.3.1", "V8.3.1", "V2.2.2"}
 
 ID = r"(?:V|C)\d+\.\d+\.\d+|AC\.\d+\.\d+|SBD-[A-Z]+-\d+"
 

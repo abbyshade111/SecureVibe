@@ -39,6 +39,13 @@ pub enum Status {
     NeedsAttention,
     /// A check that names this requirement ran and was satisfied. One automated check, not a pass.
     Checked,
+    /// The owner answered a design question about this requirement in securevibe.toml.
+    ///
+    /// The weakest tier there is, below *documented*, because the owner asserting a property is not
+    /// the property: writing a document is what a documentation requirement asks for, and writing
+    /// "yes, authorization is on the server" is not authorization being on the server. It stays on
+    /// the list of tests to write for exactly that reason.
+    Attested,
     /// The owner answered this requirement's question in the security notes.
     ///
     /// Its own tier, below *checked* and above *not verified*, because it is a different kind of
@@ -56,6 +63,7 @@ impl Status {
             Status::NeedsAttention => "needs attention",
             Status::Checked => "checked",
             Status::Documented => "documented by the owner",
+            Status::Attested => "attested by the owner",
             Status::NotVerified => "not verified",
         }
     }
@@ -81,6 +89,8 @@ pub struct RequirementLine {
     pub supported_by: Vec<CheckedBy>,
     /// Where in the security notes the owner answered this requirement's question.
     pub documented_by: Vec<CheckedBy>,
+    /// The owner's answer to a design question about this requirement.
+    pub attested_by: Vec<CheckedBy>,
 }
 
 /// One check that was satisfied about a requirement, and what it examined to say so.
@@ -170,6 +180,8 @@ pub struct Counts {
     pub checked: usize,
     /// Requirements the owner answered in the security notes. Never folded into `checked`.
     pub documented: usize,
+    /// Requirements the owner answered a design question about. Never folded into either.
+    pub attested: usize,
     pub not_verified: usize,
     pub not_applicable: usize,
     pub not_assessed: usize,
@@ -260,6 +272,9 @@ pub struct Inputs<'a> {
     /// decision and everything in `verified` is a machine reading the app. Folding them together
     /// would be the one mistake this tier exists to prevent.
     pub documented: &'a [sv_check::Verified],
+    /// Design questions the owner answered `yes`. The weakest evidence here, and still not evidence
+    /// about the app: see `sv_check::design`.
+    pub attested: &'a [sv_check::Verified],
     /// The threat rules, and what is known about the app's conditions, for the threat model. Either
     /// absent leaves the section out of the report and says why.
     pub threats: Option<(
@@ -321,6 +336,15 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 }
             }
         }
+        let attested_by: Vec<CheckedBy> = inputs
+            .attested
+            .iter()
+            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
+            .map(|v| CheckedBy {
+                check_id: v.check_id.clone(),
+                scope: v.scope.clone(),
+            })
+            .collect();
         let documented_by: Vec<CheckedBy> = inputs
             .documented
             .iter()
@@ -340,6 +364,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             Status::Checked
         } else if !documented_by.is_empty() {
             Status::Documented
+        } else if !attested_by.is_empty() {
+            Status::Attested
         } else {
             Status::NotVerified
         };
@@ -353,6 +379,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             checked_by,
             supported_by,
             documented_by,
+            attested_by,
         });
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
@@ -363,7 +390,11 @@ pub fn build(inputs: Inputs<'_>) -> Report {
     let mut named_not_credited = Vec::new();
     let mut not_for_tests = 0;
     for line in &requirements {
-        if line.status != Status::NotVerified {
+        // Attested stays on this list beside not-verified, and that is the honest half of the tier.
+        // An attestation is the owner's word that a control exists; a test naming the requirement is
+        // how it would be shown. Letting the word retire the test is how "attested" would quietly
+        // become "checked" without anyone deciding to make it so.
+        if line.status != Status::NotVerified && line.status != Status::Attested {
             continue;
         }
         if inputs.manual_only.contains(&line.id) || inputs.not_for_tests.contains(&line.id) {
@@ -432,6 +463,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         needs_attention: count(&requirements, Status::NeedsAttention),
         checked: count(&requirements, Status::Checked),
         documented: count(&requirements, Status::Documented),
+        attested: count(&requirements, Status::Attested),
         not_verified: count(&requirements, Status::NotVerified),
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
@@ -595,8 +627,9 @@ impl Ord for Status {
             match s {
                 Status::NeedsAttention => 0,
                 Status::NotVerified => 1,
-                Status::Documented => 2,
-                Status::Checked => 3,
+                Status::Attested => 2,
+                Status::Documented => 3,
+                Status::Checked => 4,
             }
         }
         rank(*self).cmp(&rank(*other))

@@ -333,6 +333,23 @@ pub struct DataSection {
     pub categories: Vec<String>,
 }
 
+/// One answer to a design question: how the app is built, in the owner's own words.
+///
+/// `yes` is the weakest positive answer `sv` has. It is the owner asserting a property, which is
+/// not the property, so it never becomes *checked* and never settles a threat. `no` is the owner
+/// saying the control is missing, which is a finding on their own word. Silence and `not-sure` add
+/// nothing at all, which is the point of having a third answer: a question the owner cannot answer
+/// must not be rounded down to "no" or up to "yes".
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct DesignAnswer {
+    /// `yes`, `no`, or `not-sure`. Anything else is refused at load.
+    pub answer: String,
+    /// The file that does it, so somebody can go and look, and so a stale pointer can be caught.
+    #[serde(default)]
+    pub r#where: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Manifest {
@@ -348,6 +365,9 @@ pub struct Manifest {
     pub capabilities: Capabilities,
     #[serde(default)]
     pub repository: RepositorySection,
+    /// The design questions, keyed by requirement id. See `sv-check::design`.
+    #[serde(default)]
+    pub design: std::collections::BTreeMap<String, DesignAnswer>,
 }
 
 impl Manifest {

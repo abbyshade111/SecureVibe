@@ -420,6 +420,10 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
+fn design_questions_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-questions.json")
+}
+
 fn notes_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json")
 }
@@ -1504,6 +1508,72 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         }
     };
 
+    // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
+    // tier here; `no`, and a `where` naming a file the app does not have, are findings.
+    let design_questions = sv_check::design::Questions::load(&design_questions_path())?;
+    let design_answers: std::collections::BTreeMap<String, sv_check::design::Answer> = manifest
+        .design
+        .iter()
+        .map(|(id, a)| {
+            (
+                id.clone(),
+                sv_check::design::Answer {
+                    answer: a.answer.clone(),
+                    location: a.r#where.clone(),
+                },
+            )
+        })
+        .collect();
+    let design = sv_check::design::evaluate(
+        &design_questions,
+        &design_answers,
+        &|id| buckets.applicable.iter().any(|a| a == id),
+        &|path| app_dir.join(path).exists(),
+    );
+    findings.extend(design.findings.iter().cloned());
+    if !design.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "your answer to {} design question{}",
+                design.unreadable.len(),
+                if design.unreadable.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ),
+            why: format!(
+                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, so \
+                 nothing could be made of it: {}.",
+                if design.unreadable.len() == 1 {
+                    "this"
+                } else {
+                    "these"
+                },
+                design.unreadable.join(", ")
+            ),
+        });
+    }
+    if !design.unanswered.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} question{} about how this app is built",
+                design.unanswered.len(),
+                if design.unanswered.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ),
+            why: format!(
+                "No tool can settle these — whether input is validated on the server, whether the \
+                 app's own services authenticate to each other. Answer them in the [design] \
+                 section of securevibe.toml: {}.",
+                design.unanswered.join(", ")
+            ),
+        });
+    }
+
     Ok(sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -1523,6 +1593,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         named_in_tests,
         not_for_tests,
         documented: &documented,
+        attested: &design.attested,
         threats: Some((&threat_rules, &ctx)),
     }))
 }
@@ -1581,6 +1652,14 @@ fn cmd_report(args: &[String]) -> Result<()> {
         c.not_verified,
         if c.not_verified == 1 { "was" } else { "were" }
     );
+    if c.attested > 0 {
+        println!(
+            "A further {} you answered yes to in the [design] section of securevibe.toml. That is \
+             your word about how the app is built, which is the weakest thing this report says: \
+             each one is still listed as a test to write.",
+            c.attested
+        );
+    }
     if c.documented > 0 {
         println!(
             "A further {} you answered yourself in security-notes.md. That is documented, not \

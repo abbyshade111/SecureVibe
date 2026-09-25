@@ -10,6 +10,7 @@ pub mod advisories;
 pub mod ast;
 pub mod config;
 pub mod cvss;
+pub mod design;
 pub mod finding;
 pub mod junit;
 pub mod notes;

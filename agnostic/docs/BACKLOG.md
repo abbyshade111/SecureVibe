@@ -94,6 +94,14 @@ another session is not a claim.
   threat. See DESIGN, "The security notes". Left over, each its own piece of work: the policy numbers
   in securevibe.toml that the probes can test (about eight requirements, V6.3.1 at level 1 among
   them), and the design questions answered as *attested by the owner*.
+  **The design questions are done, on 25 September 2026 by session securevibe-e8.**
+  `data/design-questions.json` (sixteen questions), a `[design]` section in securevibe.toml answered
+  yes, no, or not-sure with `where`, and an *attested by the owner* tier ranked below *documented*,
+  because the owner asserting a property is not the property — so an attested requirement stays on
+  the list of tests to write, and settles no threat. An answer of no is a finding, and so is a
+  `where` naming a file the app does not have. See DESIGN, "The design questions, and the weakest
+  tier there is". Writing the guards found V13.2.2's question was about the wrong thing entirely.
+  Left over from the whole entry: only the policy numbers, corrected below.
 
   **The "about eight" in the paragraph above was wrong, and is struck out.** It was written from the
   count of requirements that ask for behavior to match a document, without reading them. There are

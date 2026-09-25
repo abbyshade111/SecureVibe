@@ -59,6 +59,7 @@ fn inputs<'a>(
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
         documented: &[],
+        attested: &[],
         threats: None,
     }
 }
@@ -610,6 +611,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
         documented: &[],
+        attested: &[],
         threats: None,
     })
 }
@@ -982,5 +984,104 @@ mod documented {
             !status.to_lowercase().contains("pass") && !status.contains("checked"),
             "got {status}"
         );
+    }
+}
+
+/// The attested tier: the weakest claim in the report, and what keeps it weak.
+mod attested {
+    use super::*;
+    use sv_report::Report;
+
+    fn said_yes(id: &str) -> Verified {
+        Verified::new(
+            "design.attested",
+            &[id],
+            "securevibe.toml: you answered yes. This is your word about the app, not a check of it."
+                .to_owned(),
+        )
+    }
+
+    fn report_with(
+        attested: &[Verified],
+        documented: &[Verified],
+        verified: &[Verified],
+    ) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, vec![], verified);
+        inputs.attested = attested;
+        inputs.documented = documented;
+        build(inputs)
+    }
+
+    fn status_of(report: &Report, id: &str) -> Status {
+        report
+            .requirements
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .status
+    }
+
+    #[test]
+    fn an_answer_of_yes_is_the_weakest_tier_and_not_documented_or_checked() {
+        let report = report_with(&[said_yes("V8.3.1")], &[], &[]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::Attested);
+        assert_eq!(report.counts.attested, 1);
+        assert_eq!(report.counts.documented, 0);
+        assert_eq!(report.counts.checked, 0);
+    }
+
+    #[test]
+    fn an_attested_requirement_is_still_a_test_to_write() {
+        // The honest half of the tier. An attestation is the owner's word that a control exists,
+        // and a test naming the requirement is how that word would be made good. If an attestation
+        // took the requirement off this list, "attested" would have quietly become "checked"
+        // without anyone deciding to make it so.
+        let report = report_with(&[said_yes("V8.3.1")], &[], &[]);
+        assert!(
+            report.tests_to_write.iter().any(|t| t.id == "V8.3.1"),
+            "an attested requirement still wants a test: {:?}",
+            report.tests_to_write
+        );
+        // And a checked one does not, which is what makes the line above mean something.
+        let checked = report_with(
+            &[],
+            &[],
+            &[Verified::new("some.check", &["V8.3.1"], "8 files".into())],
+        );
+        assert!(!checked.tests_to_write.iter().any(|t| t.id == "V8.3.1"));
+    }
+
+    #[test]
+    fn a_document_outranks_an_attestation_and_a_check_outranks_both() {
+        let documented = report_with(&[said_yes("V8.3.1")], &[said_yes("V8.3.1")], &[]);
+        assert_eq!(status_of(&documented, "V8.3.1"), Status::Documented);
+        let checked = report_with(
+            &[said_yes("V8.3.1")],
+            &[said_yes("V8.3.1")],
+            &[Verified::new("some.check", &["V8.3.1"], "8 files".into())],
+        );
+        assert_eq!(status_of(&checked, "V8.3.1"), Status::Checked);
+    }
+
+    #[test]
+    fn the_row_says_it_is_the_owners_word_rather_than_a_check() {
+        let report = report_with(&[said_yes("V8.3.1")], &[], &[]);
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| V8.3.1"))
+            .unwrap_or_else(|| panic!("no row for V8.3.1 in:\n{markdown}"));
+        let status = row.split('|').nth(2).unwrap_or_default();
+        assert!(status.contains("attested by the owner"), "got {row}");
+        assert!(
+            status.contains("your word") && !status.contains("checked"),
+            "a reader must not take this for a check: {status}"
+        );
+        assert!(sv_report::html::page(&report).contains("attested by the owner"));
     }
 }

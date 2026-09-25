@@ -34,6 +34,7 @@ td.n { text-align: right; width: 6rem; }
 .not-verified { color: var(--unknown); }
 .checked { color: var(--dim); }
 .documented { color: var(--dim); font-style: italic; }
+.attested { color: var(--unknown); font-style: italic; }
 .note { color: var(--dim); }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
@@ -179,6 +180,7 @@ pub fn page(report: &Report) -> String {
             Status::NeedsAttention => "needs-attention",
             Status::Checked => "checked",
             Status::Documented => "documented",
+            Status::Attested => "attested",
             Status::NotVerified => "not-verified",
         };
         let detail = match line.status {
@@ -188,6 +190,14 @@ pub fn page(report: &Report) -> String {
                 line.checked_by
                     .iter()
                     .map(|c| format!("{}: {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            Status::Attested => format!(
+                " \u{2014} your word, not a check: {}",
+                line.attested_by
+                    .iter()
+                    .map(|c| c.scope.clone())
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
