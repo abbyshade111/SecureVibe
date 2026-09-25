@@ -31,6 +31,27 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
+- **`sv report` understates a gap that `sv sbom` states correctly.** Found on 25 September 2026 while
+  reviewing the nested-manifest walk; not claimed. For an ecosystem whose manifest versions `sv` cannot
+  read, the report says the list holds what was asked for, when the list holds nothing at all. The two
+  commands on the same app — a `package.json` with `"react": "18.0.0"` and no lockfile:
+
+      sv sbom    npm is in use but nothing readable says which versions are installed,
+                 so none of its packages are listed
+      sv report  package.json pins no versions, so the list of dependencies is what was
+                 asked for rather than what is there
+
+  `sv sbom` is right, and puts a `securevibe:unread:npm` component in the CycloneDX document so a
+  downstream reader sees it too. `sv report` builds its gap from `scan_report.unpinned` with one
+  sentence for every ecosystem, and that sentence is true of pip — `flask==3.0.0` really is the version
+  asked for — and wrong of npm, where no version in a `package.json` is read at all and that
+  ecosystem's bill of materials is empty. A reader is told the list is approximate when it is absent.
+
+  Same root as the entry about `sv report` not running the bill of materials or the advisory
+  comparison: the report reasons about dependencies from the scan alone and never asks the SBOM, which
+  already knows the difference and says it well. Rewording the sentence is probably the wrong fix — one
+  sentence covering two ecosystems will be wrong about one of them again.
+
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
   its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
