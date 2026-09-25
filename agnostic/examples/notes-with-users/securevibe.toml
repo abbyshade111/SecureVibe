@@ -28,6 +28,7 @@ logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 private = ["/account"]
 admin = ["/admin"]
 owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } } }
+change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 
 [data]
 categories = ["contact"]

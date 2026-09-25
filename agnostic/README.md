@@ -107,6 +107,8 @@ that run, and then asks:
   (V6.2.6; V6.2.7, only ever a finding)
 - does visiting the sign-out address, rather than submitting its form, sign the user out? (V3.5.3; only
   ever a finding)
+- with `change-password` set: can the password be changed, and does that need the current one?
+  (V6.2.2, V6.2.3)
 
 When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
 asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone

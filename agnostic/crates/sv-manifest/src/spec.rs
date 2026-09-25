@@ -40,6 +40,7 @@ health = "/"              # a path that returns 200 once the app is up
 # private = ["/account"]    # pages only a signed-in user should see
 # admin = ["/admin"]        # pages only an admin should see (needs `seed`)
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
+# change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 
 [data]
 # What kinds of information the app holds about people.

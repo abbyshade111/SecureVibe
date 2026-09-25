@@ -217,10 +217,12 @@ struct Values<'a> {
     csrf: Option<String>,
     marker: &'a str,
     id: &'a str,
+    new_password: &'a str,
 }
 
 fn fill(text: &str, v: &Values) -> String {
     text.replace("{user}", v.user)
+        .replace("{new_password}", v.new_password)
         .replace("{password}", v.password)
         .replace("{csrf}", v.csrf.as_deref().unwrap_or(""))
         .replace("{marker}", v.marker)
@@ -555,6 +557,26 @@ const PASTE_BLOCKED: Rule = Rule {
     fix: "Remove the handler that blocks pasting into the password field.",
 };
 
+const CHANGE_PASSWORD: Rule = Rule {
+    rule_id: "probe.password-change",
+    requirement_ids: &["V6.2.2"],
+    cwe: &["CWE-620"],
+    impact: "A password that cannot really be changed cannot be changed after it leaks: the old one \
+             keeps working.",
+    fix: "Replace the stored password hash when the password is changed, so only the new password \
+          signs in afterwards.",
+};
+
+const CHANGE_WITHOUT_CURRENT: Rule = Rule {
+    rule_id: "probe.password-change-without-current",
+    requirement_ids: &["V6.2.3"],
+    cwe: &["CWE-620"],
+    impact: "Anybody who gets hold of a signed-in session for a moment, on a shared computer or \
+             through a stolen cookie, can change the password and keep the account.",
+    fix: "Ask for the current password when the password is changed, check it against the stored \
+          hash, and refuse the change when it does not match.",
+};
+
 const SIGN_OUT_ON_GET: Rule = Rule {
     rule_id: "probe.sign-out-on-get",
     requirement_ids: &["V3.5.3"],
@@ -770,7 +792,7 @@ pub fn run(
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
-    password_field_checks(http, users, &mut out);
+    password_field_checks(http, users, Some(&a.session), &mut out);
 
     // 7. Logging out, which ends A's session.
     logout_check(
@@ -786,6 +808,10 @@ pub fn run(
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
     sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
+
+    // 9. Last of all, because it changes a password: with an account made for it when there is a
+    //    sign-up, and with A's own when there is not.
+    change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     out
 }
@@ -1110,29 +1136,45 @@ fn exact_password_checks(
 /// happens to say "password". A page that builds its form with script has no such field in its HTML,
 /// and says so rather than passing. Pasting blocked by a script attached after the page loads cannot
 /// be seen here, so V6.2.7 is only ever a finding.
-fn password_field_checks(http: &mut dyn Http, users: &UsersSection, out: &mut Outcome) {
-    let forms: Vec<(&str, &RequestTemplate)> =
-        [("sign-in", &users.login), ("sign-up", &users.signup)]
-            .into_iter()
-            .filter_map(|(label, t)| t.as_ref().map(|t| (label, t)))
-            .collect();
+fn password_field_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signed_in: Option<&Session>,
+    out: &mut Outcome,
+) {
+    let anonymous = Session::default();
+    // The password-change page is asked for as a signed-in user, since it is only shown to one.
+    let forms: Vec<(&str, &RequestTemplate, &Session)> = [
+        ("sign-in", &users.login, &anonymous),
+        ("sign-up", &users.signup, &anonymous),
+        (
+            "password-change",
+            &users.change_password,
+            signed_in.unwrap_or(&anonymous),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(label, t, session)| t.as_ref().map(|t| (label, t, session)))
+    .collect();
     let mut masked = Vec::new();
     let mut unmasked = Vec::new();
     let mut pasting = Vec::new();
     let mut missing = Vec::new();
-    for (label, template) in forms {
-        let Some(field) = template
+    for (label, template, session) in forms {
+        // Every field a password is sent in: the one of a sign-in, both of a password change.
+        let fields: Vec<&String> = template
             .form
             .iter()
-            .find(|(_, v)| v.contains("{password}"))
-            .map(|(k, _)| k.clone())
-        else {
+            .filter(|(_, v)| v.contains("{password}") || v.contains("{new_password}"))
+            .map(|(k, _)| k)
+            .collect();
+        if fields.is_empty() {
             continue;
-        };
+        }
         let page = http.send(&get(
             &format!("password-field-{label}"),
             &template.path,
-            &Session::default(),
+            session,
         ));
         let inputs: Vec<String> = page
             .as_ref()
@@ -1140,7 +1182,9 @@ fn password_field_checks(http: &mut dyn Http, users: &UsersSection, out: &mut Ou
             .map(|p| tags(&p.body, "input"))
             .unwrap_or_default()
             .into_iter()
-            .filter(|tag| attribute(tag, "name").as_deref() == Some(field.as_str()))
+            .filter(|tag| {
+                attribute(tag, "name").is_some_and(|name| fields.iter().any(|f| **f == name))
+            })
             .collect();
         if inputs.is_empty() {
             missing.push(format!("{} ({})", template.path, status(&page)));
@@ -1206,6 +1250,188 @@ fn password_field_checks(http: &mut dyn Http, users: &UsersSection, out: &mut Ou
             },
         ));
     }
+}
+
+/// Whether a password can be changed (V6.2.2), and whether changing it needs the current one
+/// (V6.2.3), through `change-password`.
+///
+/// The wrong current password first, then the right one, each told by signing in afterwards. If the
+/// change with a wrong current password takes, that is the finding, and it has also shown a
+/// password can be changed. If it does not, the same change with the right current password has to
+/// take, the new password signing in and the old one no longer, or the refusal before it cannot be
+/// told apart from a change that never works.
+fn change_password_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V6.2.2, V6.2.3";
+    let Some(change) = &users.change_password else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether a password can be changed, and whether that needs the current one: \
+             securevibe.toml sets no `change-password` under [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether a password can be changed: telling needs a private page a signed-in user alone \
+             can open, and none was shown."
+                .to_owned(),
+        ));
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    let account = match &users.signup {
+        Some(signup) => {
+            let account = Account {
+                user: format!("change.{}", accounts.a.user),
+                password: format!("Ch-{}-aZ9!", &spare[4..28]),
+            };
+            sign_up(http, signup, "change", &account);
+            account
+        }
+        None => accounts.a.clone(),
+    };
+    if !account_works(http, users, "change", &account, confirm, &mut out.steps) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Whether a password can be changed: the account made for it, {}, could not sign in \
+                 to begin with.",
+                account.user
+            ),
+        ));
+        return;
+    }
+    let wrong = format!("Wr-{}-aZ9!", &spare[6..30]);
+    let first = format!("N1-{}-aZ9!", &spare[8..32]);
+    let second = format!("N2-{}-aZ9!", &spare[2..26]);
+
+    let changed = |http: &mut dyn Http, current: &str, new: &str, label: &str| {
+        let mut quiet = Vec::new();
+        let signed_in = sign_in(http, users, label, &account, &mut quiet)?;
+        let mut session = signed_in.session;
+        let values = Values {
+            user: &account.user,
+            password: current,
+            new_password: new,
+            ..Default::default()
+        };
+        send_template(
+            http,
+            &format!("change-password-{label}"),
+            change,
+            &values,
+            &mut session,
+            &[],
+        )
+        .0
+    };
+    let as_with = |password: &str| Account {
+        user: account.user.clone(),
+        password: password.to_owned(),
+    };
+
+    let answer = changed(http, &wrong, &first, "wrong-current");
+    out.steps.push(format!(
+        "asked to change the password giving a wrong current one ({})",
+        status(&answer)
+    ));
+    if account_works(
+        http,
+        users,
+        "changed",
+        &as_with(&first),
+        confirm,
+        &mut out.steps,
+    ) {
+        out.findings.push(finding(
+            &CHANGE_WITHOUT_CURRENT,
+            "The password can be changed without the current one",
+            Severity::High,
+            format!(
+                "A request to {} giving a wrong current password changed it: the new password then \
+                 signed in.",
+                change.path
+            ),
+        ));
+        out.verified.push(crate::Verified::new(
+            CHANGE_PASSWORD.rule_id,
+            CHANGE_PASSWORD.requirement_ids,
+            format!(
+                "a password change through {}, after which the new password signed in",
+                change.path
+            ),
+        ));
+        return;
+    }
+
+    let answer = changed(http, &account.password, &second, "right-current");
+    out.steps.push(format!(
+        "asked to change the password giving the right current one ({})",
+        status(&answer)
+    ));
+    let new_works = account_works(
+        http,
+        users,
+        "changed",
+        &as_with(&second),
+        confirm,
+        &mut out.steps,
+    );
+    if !new_works {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "A change of password through {} with the right current password did not take: \
+                 the new password did not sign in. Check `change-password` in securevibe.toml. With \
+                 no change that works, a refused one shows nothing.",
+                change.path
+            ),
+        ));
+        return;
+    }
+    let old_works = account_works(http, users, "old", &account, confirm, &mut out.steps);
+    if old_works {
+        out.findings.push(finding(
+            &CHANGE_PASSWORD,
+            "The old password still works after a change",
+            Severity::High,
+            format!(
+                "After changing the password through {}, both the new password and the old one \
+                 signed in.",
+                change.path
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            CHANGE_PASSWORD.rule_id,
+            CHANGE_PASSWORD.requirement_ids,
+            format!(
+                "a password change through {}, after which the new password signed in and the old \
+                 one was refused",
+                change.path
+            ),
+        ));
+    }
+    out.verified.push(crate::Verified::new(
+        CHANGE_WITHOUT_CURRENT.rule_id,
+        CHANGE_WITHOUT_CURRENT.requirement_ids,
+        format!(
+            "a change through {} giving a wrong current password, refused where the same change \
+             with the right one took",
+            change.path
+        ),
+    ));
 }
 
 /// Whether signing out also happens on a plain page visit (V3.5.3).
@@ -1927,6 +2153,8 @@ mod tests {
         sessions: BTreeMap<String, String>,      // session id -> user ("" = not signed in)
         notes: Vec<(String, String)>,            // (owner, text)
         next: u32,
+        /// Old passwords a change left working, under `change_keeps_old`.
+        kept: BTreeMap<String, String>,
     }
 
     #[derive(Default, Clone, Copy)]
@@ -1976,6 +2204,14 @@ mod tests {
         no_form_in_html: bool,
         /// A GET to /logout ends the session.
         logout_on_get: bool,
+        /// A password change does not check the current password.
+        change_without_current: bool,
+        /// A password change adds the new password and leaves the old one working.
+        change_keeps_old: bool,
+        /// A password change answers as if it worked and changes nothing.
+        change_does_nothing: bool,
+        /// The new-password field of the change page alone is an ordinary text field.
+        new_field_shown: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -2045,11 +2281,16 @@ mod tests {
 
         /// The password field as the sign-in and sign-up pages serve it.
         fn password_input(&self) -> String {
+            self.password_input_named("password")
+        }
+
+        /// A password field of this name, with whatever flaws are switched on.
+        fn password_input_named(&self, name: &str) -> String {
             if self.flaws.no_form_in_html {
                 return String::new();
             }
             format!(
-                "<input type=\"{}\" name=\"password\"{}>",
+                "<input type=\"{}\" name=\"{name}\"{}>",
                 if self.flaws.password_shown {
                     "text"
                 } else {
@@ -2206,11 +2447,13 @@ mod tests {
                 ("POST", "/login") => {
                     let f = form(r);
                     let given = f.get("password")?;
+                    let email = f.get("email")?;
                     let good = !self.flaws.broken_login
-                        && self
+                        && (self
                             .users
-                            .get(f.get("email")?)
-                            .is_some_and(|(p, _)| self.password_matches(p, given));
+                            .get(email)
+                            .is_some_and(|(p, _)| self.password_matches(p, given))
+                            || self.kept.get(email) == Some(given));
                     if !good || !token_ok {
                         return Some(Self::respond(403, vec![], "no"));
                     }
@@ -2233,6 +2476,45 @@ mod tests {
                         self.password_input()
                     ),
                 ),
+                ("GET", "/password") => match user {
+                    Some(_) => Self::respond(
+                        200,
+                        vec![],
+                        &format!(
+                            "<input type=hidden name=csrf_token value={CSRF}>{}{}",
+                            self.password_input_named("current"),
+                            if self.flaws.new_field_shown {
+                                "<input type=\"text\" name=\"new\">".to_owned()
+                            } else {
+                                self.password_input_named("new")
+                            }
+                        ),
+                    ),
+                    None => Self::respond(302, vec![("Location", "/login".into())], ""),
+                },
+                ("POST", "/password") => {
+                    let Some(who) = user else {
+                        return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                    };
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let f = form(r);
+                    let (current, new) = (f.get("current")?.clone(), f.get("new")?.clone());
+                    let stored = self.users.get(&who)?.0.clone();
+                    if !self.flaws.change_without_current
+                        && !self.password_matches(&stored, &current)
+                    {
+                        return Some(Self::respond(403, vec![], "wrong password"));
+                    }
+                    if !self.flaws.change_does_nothing {
+                        if self.flaws.change_keeps_old {
+                            self.kept.insert(who.clone(), stored);
+                        }
+                        self.users.get_mut(&who)?.0 = new;
+                    }
+                    Self::respond(303, vec![("Location", "/account".into())], "")
+                }
                 ("GET", "/logout") if self.flaws.logout_on_get => {
                     if let Some(s) = sid {
                         self.sessions.remove(&s);
@@ -2373,6 +2655,14 @@ mod tests {
                 read: None,
                 id_field: None,
             }),
+            change_password: Some(t(
+                "/password",
+                &[
+                    ("current", "{password}"),
+                    ("new", "{new_password}"),
+                    ("csrf_token", "{csrf}"),
+                ],
+            )),
         }
     }
 
@@ -3181,6 +3471,122 @@ mod tests {
     }
 
     #[test]
+    fn a_correct_password_change_confirms_both_questions() {
+        for (how, o) in [
+            ("signing up", run_signing_up(Flaws::default())),
+            ("seeded, with A", run_against(Flaws::default(), &users())),
+        ] {
+            assert!(o.findings.is_empty(), "{how}: {:#?}", o.findings);
+            for id in [CHANGE_PASSWORD.rule_id, CHANGE_WITHOUT_CURRENT.rule_id] {
+                assert!(verified_ids(&o).contains(&id), "{how}: {id}: {:?}", o.steps);
+            }
+        }
+    }
+
+    #[test]
+    fn each_password_change_flaw_is_found_by_its_own_rule() {
+        for (flaw, rule, credited) in [
+            (
+                Flaws {
+                    change_without_current: true,
+                    ..Default::default()
+                },
+                CHANGE_WITHOUT_CURRENT.rule_id,
+                // A change that took has shown the password can be changed.
+                Some(CHANGE_PASSWORD.rule_id),
+            ),
+            (
+                Flaws {
+                    change_keeps_old: true,
+                    ..Default::default()
+                },
+                CHANGE_PASSWORD.rule_id,
+                Some(CHANGE_WITHOUT_CURRENT.rule_id),
+            ),
+        ] {
+            for o in [run_signing_up(flaw), run_against(flaw, &users())] {
+                assert_eq!(rule_ids(&o), vec![rule], "{:?}", o.steps);
+                assert!(
+                    !verified_ids(&o).contains(&rule),
+                    "{rule} both found and credited"
+                );
+                if let Some(other) = credited {
+                    assert!(verified_ids(&o).contains(&other), "{other}: {:?}", o.steps);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_change_that_never_takes_answers_neither_question() {
+        // Refusing the wrong current password means nothing if the right one is refused too.
+        let o = run_signing_up(Flaws {
+            change_does_nothing: true,
+            ..Default::default()
+        });
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        for id in [CHANGE_PASSWORD.rule_id, CHANGE_WITHOUT_CURRENT.rule_id] {
+            assert!(!verified_ids(&o).contains(&id), "{id} credited");
+        }
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.2, V6.2.3")
+            .expect("both are named as not assessed");
+        assert!(why.contains("did not take"), "{why}");
+    }
+
+    #[test]
+    fn with_no_change_password_entry_both_are_not_assessed() {
+        let mut u = with_signup();
+        u.change_password = None;
+        let mut app = FakeApp::new(Flaws::default());
+        let mut acc = accounts();
+        acc.admin = None;
+        let o = run(&mut app, &u, &acc, false);
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.2, V6.2.3")
+            .expect("named as not assessed");
+        assert!(why.contains("`change-password`"), "{why}");
+    }
+
+    #[test]
+    fn the_password_change_page_is_read_signed_in_and_both_its_fields_are_judged() {
+        // The change page sends anybody not signed in to /login; only a signed-in read sees it.
+        let o = run_signing_up(Flaws {
+            password_shown: true,
+            ..Default::default()
+        });
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == UNMASKED_PASSWORD.rule_id)
+            .expect("found");
+        assert!(
+            found.description.contains("password-change page /password"),
+            "{}",
+            found.description
+        );
+    }
+
+    #[test]
+    fn the_new_password_field_is_judged_as_well_as_the_current_one() {
+        let o = run_signing_up(Flaws {
+            new_field_shown: true,
+            ..Default::default()
+        });
+        assert_eq!(
+            rule_ids(&o),
+            vec![UNMASKED_PASSWORD.rule_id],
+            "{:?}",
+            o.steps
+        );
+        assert!(o.findings[0].description.contains("/password"));
+    }
+
+    #[test]
     fn a_password_both_case_folded_and_cut_short_is_one_finding_naming_both() {
         let o = run_signing_up(Flaws {
             case_folded: true,
@@ -3247,7 +3653,7 @@ mod tests {
                 Some(response)
             }
         }
-        password_field_checks(&mut Page(&mut app), &with_signup(), &mut out);
+        password_field_checks(&mut Page(&mut app), &with_signup(), None, &mut out);
         assert!(out.findings.is_empty(), "{:?}", out.findings);
         assert_eq!(verified_ids(&out), [UNMASKED_PASSWORD.rule_id]);
     }
