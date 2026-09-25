@@ -103,6 +103,16 @@ describe('htmlToPdf: paper size', () => {
     expect(letter.equals(htmlToPdf(html, { pageSize: 'letter' }))).toBe(true);
   });
 
+  it.each(['letter', 'a4'] as PageSize[])('uses the whole width of %s paper: text runs to the right margin and the page number is set against it', (pageSize) => {
+    const pdf = readPdf(htmlToPdf(wrapHtml(`<p>${'plenty of ordinary words to fill every line across the page '.repeat(30)}</p>`), { pageSize }));
+    const right = pdf.width - 48;
+    const body = pdf.ops.filter((o) => o.size === 10);
+    const widest = Math.max(...body.map((o) => o.x + textWidth(o.text, o.font as 'F1', o.size)));
+    expect(widest, 'a full line ends within a word of the right margin').toBeGreaterThan(right - 40);
+    const label = pdf.ops.find((o) => /^Page 1 of/.test(o.text))!;
+    expect(label.x + textWidth(label.text, 'F1', label.size)).toBeCloseTo(right, 0);
+  });
+
   it('fills each paper to its own foot: the shorter page holds fewer rows, and every row is still printed', () => {
     const letter = readPdf(htmlToPdf(html, { pageSize: 'letter' }));
     const a4 = readPdf(htmlToPdf(html, { pageSize: 'a4' }));
