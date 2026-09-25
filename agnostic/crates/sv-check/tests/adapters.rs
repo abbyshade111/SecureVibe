@@ -56,7 +56,7 @@ fn a_tool_that_is_not_installed_is_not_run_rather_than_clean() {
                 "and how to get it: {why}"
             );
         }
-        Outcome::Ran { findings } => {
+        Outcome::Ran { findings, .. } => {
             panic!("a missing tool reported as having run, with {findings:?}")
         }
     }
@@ -85,7 +85,7 @@ fn a_tool_that_writes_no_report_is_not_run_either() {
             why.contains("no report"),
             "the reason must say the report is missing: {why}"
         ),
-        Outcome::Ran { findings } => {
+        Outcome::Ran { findings, .. } => {
             panic!("a tool that wrote nothing reported as having run, with {findings:?}")
         }
     }
@@ -597,4 +597,89 @@ fn each_semgrep_finding_lands_on_the_requirement_it_is_about() {
     let eval = first("python.lang.security.audit.eval-detected.eval-detected");
     assert_eq!(eval.location.file, "app/app.py");
     assert_eq!(eval.location.line, 16, "the eval line");
+}
+
+/// The rules the kept semgrep run says it loaded, and the requirements a clean run over an app in
+/// these languages would be credited with.
+fn semgrep_clean_run_evidence(languages: &[&str]) -> Vec<String> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-1.178.0.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
+    adapters::clean_run_evidence(semgrep, &adapters::loaded_rules(&sarif), &languages)
+}
+
+#[test]
+fn a_clean_semgrep_run_credits_only_rules_it_ran_for_the_app_s_languages() {
+    // With the map filled, crediting every mapped requirement on a clean run would have marked 39
+    // requirements checked for any app at all, including zip slip, whose only rule is Go's, on an
+    // app with no Go in it. The same loaded rules, read against the app's languages:
+    assert_eq!(
+        semgrep_clean_run_evidence(&["python"]),
+        [
+            "V1.2.4", "V1.2.5", "V1.3.2", "V1.3.6", "V1.5.2", "V11.4.1", "V12.3.2", "V3.7.2",
+            "V5.3.2"
+        ]
+    );
+    assert_eq!(
+        semgrep_clean_run_evidence(&["go"]),
+        ["V1.2.4", "V11.3.2", "V11.4.1", "V11.5.1", "V12.1.1"]
+    );
+}
+
+#[test]
+fn rules_that_ran_for_none_of_the_app_s_languages_credit_nothing() {
+    // The kept run loaded Python and Go rules. A Ruby app it ran over has been examined by none.
+    let evidence = semgrep_clean_run_evidence(&["ruby"]);
+    assert!(evidence.is_empty(), "{evidence:?}");
+}
+
+#[test]
+fn a_semgrep_report_that_lists_no_rules_credits_nothing() {
+    // A run whose report does not say what it loaded has not shown it looked for anything.
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    let evidence = adapters::clean_run_evidence(
+        semgrep,
+        &std::collections::BTreeSet::new(),
+        &["python".to_owned()],
+    );
+    assert!(evidence.is_empty(), "{evidence:?}");
+}
+
+#[test]
+fn a_one_language_tool_is_still_credited_with_everything_it_maps() {
+    // Bandit runs every one of its checks over Python whatever its report lists, so the narrowing
+    // is for the tool that covers many languages and runs a pack.
+    one_language_tools_keep_their_whole_map(&["bandit"]);
+}
+
+#[test]
+fn so_are_gosec_and_brakeman() {
+    one_language_tools_keep_their_whole_map(&["gosec", "brakeman"]);
+}
+
+fn one_language_tools_keep_their_whole_map(ids: &[&str]) {
+    let adapters = adapters();
+    for id in ids {
+        let tool = adapters.all().iter().find(|a| a.id == *id).unwrap();
+        let evidence = adapters::clean_run_evidence(
+            tool,
+            &std::collections::BTreeSet::new(),
+            std::slice::from_ref(&tool.language),
+        );
+        let mut mapped: Vec<String> = tool
+            .rules
+            .values()
+            .flat_map(|r| r.requirements.iter().cloned())
+            .collect();
+        mapped.sort();
+        mapped.dedup();
+        assert!(!mapped.is_empty(), "{id}");
+        assert_eq!(evidence, mapped, "{id}");
+    }
 }

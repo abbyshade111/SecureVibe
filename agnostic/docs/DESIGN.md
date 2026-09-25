@@ -603,6 +603,20 @@ security findings lands on a requirement, sixteen of them checked against the fa
 produce them, while semgrep's best-practice and
 correctness rules, which fire too, carry none.
 
+**What a clean run is credited with, corrected the same day.** A tool that runs and finds nothing is
+credited with every requirement its map names. With semgrep's map empty that credited nothing; with 998
+rules mapped, a clean run marked 39 requirements checked for any app at all, including zip slip on an
+app with no Go in it, where the only zip-slip rule is Go's, and requirements whose rules are not in the
+pack that ran. The same fail-open the per-rule language claim closed for `sv`'s own rules, reopened by
+an adapter, and found by counting what a clean run claims while writing the coverage analysis.
+
+For a tool that covers several languages and runs a pack, a clean run now counts a rule only if the
+report lists it among the rules it loaded (semgrep's SARIF lists every rule it ran, found or not) and it
+is written for a language the app is in; each mapped rule carries its languages for that. Against the
+kept run: 9 requirements for a Python app, 5 for a Go app, none for a Ruby app, where it was 39 for all
+three. A report that lists no rules credits nothing. Bandit, gosec and Brakeman are unchanged: each runs
+every check it has over its one language, whatever its report lists.
+
 ### Three more wrong citations, in the place the guard could not see
 
 The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were

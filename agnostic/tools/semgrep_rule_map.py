@@ -187,6 +187,22 @@ EXTRA = [
     ("hash-length", ["V11.4.3"], "a hash function whose output length is too short to be collision resistant"),
 ]
 
+# semgrep's language names, in `sv`'s. `generic` and `regex` rules read any file. A language `sv`
+# does not read keeps its own name, which matches nothing, so a clean run is never credited for it.
+LANGUAGES = {
+    "python": "python", "py": "python",
+    "javascript": "javascript", "js": "javascript",
+    "typescript": "typescript", "ts": "typescript",
+    "go": "go", "golang": "go",
+    "ruby": "ruby", "php": "php", "java": "java",
+    "csharp": "csharp", "c#": "csharp",
+    "kotlin": "kotlin", "kt": "kotlin",
+    "rust": "rust", "c": "c", "swift": "swift", "dart": "dart",
+    "bash": "shell", "sh": "shell",
+    "html": "html",
+    "generic": "*", "regex": "*",
+}
+
 # Configuration, not application code.
 LEFT_OUT = ("terraform.", "yaml.", "dockerfile.", "generic.ci.", "json.", "hcl.", "solidity.",
             "generic.visualforce.", "apex.")
@@ -226,6 +242,8 @@ def read_rules(root):
                     cwe = [cwe]
                 out.append({
                     "id": f"{base}.{r['id']}",
+                    "languages": sorted({LANGUAGES.get(str(l).lower(), str(l).lower())
+                                         for l in (r.get("languages") or [])}),
                     "category": meta.get("category"),
                     "cwe": sorted({int(n) for c in cwe for n in re.findall(r"CWE-(\d+)", str(c))}),
                 })
@@ -251,13 +269,14 @@ def main():
         if name is None:
             continue
         reqs, what = by_name[name]
-        mapped[r["id"]] = {"what": what, "requirements": reqs}
+        mapped[r["id"]] = {"what": what, "requirements": reqs, "languages": r["languages"]}
     adapters = json.load(open(adapters_path))
     entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
     entry["rules"] = mapped
     provenance = (f" Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules {commit}: "
                   f"{len(mapped)} of the {len(rules)} security rules there, each only where its CWE and "
-                  "its id agree on what it detects.")
+                  "its id agree on what it detects. A run that finds nothing is evidence only about the "
+                  "rules its report says were loaded, and only those written for a language in the app.")
     entry["note"] = re.sub(r" Its rule ids are mapped by .*$", "", entry["note"]) + provenance
     open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
     print(f"{len(mapped)} of {len(rules)} security rules mapped, from semgrep-rules {commit}")
