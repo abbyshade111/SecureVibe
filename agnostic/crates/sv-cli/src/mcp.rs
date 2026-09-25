@@ -223,6 +223,24 @@ impl Server {
             "out has to be a folder inside the app, written without `..`: {out}"
         );
         let out_dir = app_dir.join(out);
+        // Components are not enough. A symlink inside the app has only `Normal` components and is
+        // followed on the way out, so `out: "elsewhere"` wrote five files wherever it pointed and
+        // said it had succeeded. The folder may not exist yet, so it is created first and then
+        // resolved: `create_dir_all` on an existing symlink-to-a-folder succeeds without creating
+        // anything, and the resolved path is then somewhere else, which is what this catches.
+        // Nothing has been written at this point, so refusing here costs nothing.
+        std::fs::create_dir_all(&out_dir)
+            .with_context(|| format!("{} cannot be created", out_dir.display()))?;
+        let resolved = out_dir
+            .canonicalize()
+            .with_context(|| format!("{} cannot be opened", out_dir.display()))?;
+        anyhow::ensure!(
+            resolved.starts_with(&app_dir),
+            "out resolves to {}, which is outside the app at {}",
+            resolved.display(),
+            app_dir.display()
+        );
+        let out_dir = resolved;
         let report = self.report_for(&app_dir)?;
         let written = crate::write_report_files(&report, &out_dir)?;
         let files: Vec<String> = written
@@ -491,6 +509,82 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
         #[cfg(unix)]
         assert_eq!(result["isError"], true, "{}", text(&result));
+    }
+
+    #[test]
+    fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
+        // `out` is checked by its components — no `..`, nothing absolute — and then joined. A
+        // symlink inside the app has only Normal components and is followed on the way out.
+        // Named for this test, not just for the process. `a_report_is_written_only_below_the_app`
+        // uses `sv-mcp-escaped-<pid>` too, and these run in parallel threads of one process: its
+        // cleanup deleted the evidence this test was about to look for, so this passed while the
+        // guard it checks was broken. A test that another test can quietly satisfy is worse than
+        // no test.
+        let root = std::env::temp_dir().join(format!("sv-mcp-symlink-{}", std::process::id()));
+        let escaped =
+            std::env::temp_dir().join(format!("sv-mcp-symlink-target-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&escaped).ok();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::create_dir_all(&escaped).unwrap();
+        std::fs::copy(
+            examples().join("tested-notes").join("securevibe.toml"),
+            root.join("app").join("securevibe.toml"),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&escaped, root.join("app").join("elsewhere")).unwrap();
+
+        let server = Server::new(&root).unwrap();
+        let result = call(
+            &server,
+            "securevibe_write_report",
+            json!({ "path": "app", "out": "elsewhere" }),
+        );
+        let landed_outside = escaped.join("report.html").exists();
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&escaped).ok();
+        #[cfg(unix)]
+        assert!(
+            !landed_outside,
+            "the report was written outside the app through a symlink: {}",
+            text(&result)
+        );
+        #[cfg(unix)]
+        assert_eq!(result["isError"], true, "{}", text(&result));
+    }
+
+    #[test]
+    fn an_ordinary_out_folder_still_gets_the_report() {
+        // The other half. A guard that refuses everything is worse than the hole it closed, and
+        // this one runs on a path that does not exist yet, which is the case most easily broken.
+        let root = std::env::temp_dir().join(format!("sv-mcp-ok-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::copy(
+            examples().join("tested-notes").join("securevibe.toml"),
+            root.join("app").join("securevibe.toml"),
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(
+            &server,
+            "securevibe_write_report",
+            json!({ "path": "app", "out": "reports/today" }),
+        );
+        let wrote = root
+            .join("app")
+            .join("reports")
+            .join("today")
+            .join("report.html");
+        let landed = wrote.exists();
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(result["isError"], false, "{}", text(&result));
+        assert!(
+            landed,
+            "a plain nested out folder has to work: {}",
+            text(&result)
+        );
     }
 
     #[test]
