@@ -24,7 +24,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::verified::Verified;
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -73,6 +73,11 @@ pub struct MappedRule {
     /// Plain language, and compared against the requirement's own words by the citation guard.
     pub what: String,
     pub requirements: Vec<String>,
+    /// The languages the rule is written for, in `sv`'s names, with `*` for any file. Only read for
+    /// a tool that covers several languages (`language: "*"`): a clean run of it is evidence only
+    /// about rules that were written for a language this app is in.
+    #[serde(default)]
+    pub languages: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,8 +148,12 @@ impl Adapters {
 /// What happened when an adapter was asked to run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
-    /// It ran and produced a report.
-    Ran { findings: Vec<Finding> },
+    /// It ran and produced a report. `loaded` is every rule id the report says was run, whether or
+    /// not it found anything.
+    Ran {
+        findings: Vec<Finding>,
+        loaded: BTreeSet<String>,
+    },
     /// It did not run, and this is why, in words somebody can act on.
     NotRun { why: String },
 }
@@ -271,7 +280,10 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
         };
     };
     match parse_sarif_relative_to(adapter, &text, app_dir) {
-        Ok(findings) => Outcome::Ran { findings },
+        Ok(findings) => Outcome::Ran {
+            findings,
+            loaded: loaded_rules(&text),
+        },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
         },
@@ -290,17 +302,10 @@ pub fn run_all(
         let report_path = scratch.join(format!("sv-{}.sarif", adapter.id));
         std::fs::remove_file(&report_path).ok();
         match run_one(adapter, app_dir, &report_path) {
-            Outcome::Ran { findings } => {
+            Outcome::Ran { findings, loaded } => {
                 if findings.is_empty() {
-                    // Only the requirements this adapter's rules actually map to. A tool finding
-                    // nothing is evidence about what it looks for, not about its whole language.
-                    let mut ids: Vec<&str> = adapter
-                        .rules
-                        .values()
-                        .flat_map(|v| v.requirements.iter().map(String::as_str))
-                        .collect();
-                    ids.sort_unstable();
-                    ids.dedup();
+                    let ids = clean_run_evidence(adapter, &loaded, languages);
+                    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
                     if !ids.is_empty() {
                         run.verified.push(Verified::new(
                             &format!("adapter.{}", adapter.id),
@@ -332,6 +337,55 @@ pub fn run_all(
 }
 
 /// Reads a SARIF 2.1.0 document into findings.
+/// The requirements a run that found nothing is evidence about.
+///
+/// Only the requirements this adapter's rules map to: a tool finding nothing is evidence about what
+/// it looks for, not about its whole language. For a tool that reads one language and runs all its
+/// rules on it, that is every mapped rule. For one that covers several, it is narrower, twice over:
+/// a rule counts only if the report says it was loaded, because the pack that ran is not every rule
+/// the map knows, and only if it is written for a language in this app, because a Go rule for
+/// zip slip that ran over a Python app has said nothing about the Python.
+pub fn clean_run_evidence(
+    adapter: &Adapter,
+    loaded: &BTreeSet<String>,
+    app_languages: &[String],
+) -> Vec<String> {
+    let counts = |rule_id: &str, rule: &MappedRule| {
+        adapter.language != "*"
+            || (loaded.contains(rule_id)
+                && rule
+                    .languages
+                    .iter()
+                    .any(|l| l == "*" || app_languages.iter().any(|a| a == l)))
+    };
+    let ids: BTreeSet<String> = adapter
+        .rules
+        .iter()
+        .filter(|(id, rule)| counts(id, rule))
+        .flat_map(|(_, rule)| rule.requirements.iter().cloned())
+        .collect();
+    ids.into_iter().collect()
+}
+
+/// Every rule id a SARIF report says was run, found or not.
+pub fn loaded_rules(text: &str) -> BTreeSet<String> {
+    let Ok(document) = serde_json::from_str::<serde_json::Value>(text) else {
+        return BTreeSet::new();
+    };
+    document["runs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|run| {
+            run["tool"]["driver"]["rules"]
+                .as_array()
+                .into_iter()
+                .flatten()
+        })
+        .filter_map(|rule| rule["id"].as_str().map(str::to_owned))
+        .collect()
+}
+
 pub fn parse_sarif(adapter: &Adapter, text: &str) -> Result<Vec<Finding>> {
     parse_sarif_relative_to(adapter, text, Path::new(""))
 }
