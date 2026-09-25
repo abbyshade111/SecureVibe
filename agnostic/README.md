@@ -60,8 +60,13 @@ what was **not** examined, say what each check covered when it found nothing wro
 says a requirement passed — `sv` is not able to establish
 that, so it does not claim it.
 
-Not built yet: the MCP server, and the Secure by Design checklist is not yet loaded despite being named
-in the help text.
+The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
+design review rather than scanning — whether trust zones are enforced, whether an incident response plan
+is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
+the reports say exactly that rather than counting them as things that were looked at. Its ids are written
+`SBD-AC-01` to keep them apart from AISVS Appendix C, which numbers its own requirements `AC.1.1`.
+
+Not built yet: the MCP server.
 
 ## Building
 

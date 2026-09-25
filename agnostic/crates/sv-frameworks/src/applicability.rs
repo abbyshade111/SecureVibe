@@ -119,6 +119,13 @@ impl ApplicabilityConfig {
 
     /// Manual-only list first, then the most specific rule that states one, then the default.
     pub fn verification_class_for(&self, id: &str) -> VerificationClass {
+        // Every Secure by Design control is a design-review question — whether trust zones are
+        // enforced, whether an incident response plan is rehearsed, whether data has named owners.
+        // No scanner reaches any of them, and none ever will, so the whole checklist is manual-only
+        // by construction rather than by a list somebody has to remember to extend.
+        if id.starts_with(crate::load::SBD_PREFIX) {
+            return VerificationClass::ManualOnly;
+        }
         if self.manual_only.iter().any(|m| m == id) {
             return VerificationClass::ManualOnly;
         }

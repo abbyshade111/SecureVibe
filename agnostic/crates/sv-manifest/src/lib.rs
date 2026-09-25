@@ -130,6 +130,14 @@ pub struct Capabilities {
     /// Do other applications share this app's hostname?
     #[serde(default)]
     pub shared_hostname: Option<bool>,
+    /// Does this run as more than one service talking to each other over a network?
+    ///
+    /// Fifteen of the Secure by Design checklist's thirty-six controls are about the space between
+    /// services — trust zones, service discovery, contracts between them, sagas, circuit breakers.
+    /// On a single service they are not merely passed, they are meaningless, and nothing else the
+    /// manifest asks comes close to answering it.
+    #[serde(default)]
+    pub multiple_services: Option<bool>,
     #[serde(default)]
     pub ai: AiClaims,
 }
@@ -244,6 +252,7 @@ impl Manifest {
             (Condition::PublicApi, c.public_api),
             (Condition::Scheduler, c.scheduler),
             (Condition::MultiTenant, c.multi_tenant),
+            (Condition::MultipleServices, c.multiple_services),
             (Condition::Webrtc, c.webrtc),
             (
                 Condition::ExternalApis,

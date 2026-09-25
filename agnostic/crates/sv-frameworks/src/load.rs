@@ -38,6 +38,47 @@ pub struct Chapter {
     pub requirements: Vec<Requirement>,
 }
 
+/// Namespace for the Secure by Design checklist's control ids. See `load_checklist`.
+pub const SBD_PREFIX: &str = "SBD-";
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChecklistFile {
+    checklist_domains: Vec<ChecklistDomain>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChecklistDomain {
+    id: String,
+    name: String,
+    controls: Vec<ChecklistControl>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChecklistControl {
+    id: String,
+    statement: String,
+    #[serde(default)]
+    critical: bool,
+    #[serde(default)]
+    severity_if_no: String,
+}
+
+/// The checklist has no levels, so one is derived from how much its absence costs.
+///
+/// This is SecureVibe's mapping and not OWASP's, which is why it is one function with a name rather
+/// than three comparisons spread around.
+fn level_of(control: &ChecklistControl) -> u8 {
+    if control.critical || control.severity_if_no == "high" {
+        1
+    } else if control.severity_if_no == "medium" {
+        2
+    } else {
+        3
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct FrameworkFile {
     #[serde(default)]
@@ -78,6 +119,7 @@ impl Frameworks {
         ] {
             out.load_file(&frameworks_dir.join(file))?;
         }
+        out.load_checklist(&frameworks_dir.join("sbd-checklist-0.5.0.json"))?;
         Ok(out)
     }
 
@@ -94,6 +136,47 @@ impl Frameworks {
                 for req in &section.requirements {
                     self.insert(req, chapter, Some(&section.id));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// The Secure by Design checklist, which is a third schema and not a set of requirements.
+    ///
+    /// `sv --help` and the README claimed this was checked for as long as it was not loaded at all,
+    /// which is the plainest kind of untruth this tool can tell. Two things had to be decided before
+    /// it could be loaded, and both are choices rather than readings:
+    ///
+    /// **Ids are prefixed `SBD-`.** The checklist names its own controls `AC-01` … `AC-07`, and
+    /// AISVS Appendix C already owns `AC.1.1` … `AC.13.4`. Those are different strings and would not
+    /// collide in the map, but they collide in a reader's head — and this codebase has already
+    /// shipped five checkers citing `AC-05` for a family written `AC.5`. A citation that resolves to
+    /// the wrong framework is worse than one that resolves to nothing, because nothing looks wrong.
+    /// So the checklist's ids are namespaced here and the prefix is printed everywhere they appear.
+    ///
+    /// **Levels are derived, because the checklist has none.** It has `critical` and `severityIfNo`
+    /// instead. A control that is critical, or whose absence is high severity, is level 1; medium is
+    /// level 2; low is level 3. That mapping is this tool's, not OWASP's, and is stated wherever the
+    /// level is shown.
+    fn load_checklist(&mut self, path: &Path) -> Result<()> {
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("reading checklist file {}", path.display()))?;
+        let parsed: ChecklistFile = serde_json::from_str(&text)
+            .with_context(|| format!("parsing checklist file {}", path.display()))?;
+        for domain in &parsed.checklist_domains {
+            let chapter = Chapter {
+                id: format!("{SBD_PREFIX}{}", domain.id),
+                name: domain.name.clone(),
+                sections: Vec::new(),
+                requirements: Vec::new(),
+            };
+            for control in &domain.controls {
+                let requirement = Requirement {
+                    id: format!("{SBD_PREFIX}{}", control.id),
+                    description: control.statement.clone(),
+                    level: level_of(control),
+                };
+                self.insert(&requirement, &chapter, None);
             }
         }
         Ok(())
@@ -128,6 +211,11 @@ impl Frameworks {
 
 /// The section id of a requirement id ("V6.2.1" → "V6.2").
 pub fn section_id_of(requirement_id: &str) -> &str {
+    // The checklist has no section level, so a control's section is its family. Without this the
+    // whole id comes back and a rule scoped to a family would never match one.
+    if requirement_id.starts_with(SBD_PREFIX) {
+        return chapter_id_of(requirement_id);
+    }
     match requirement_id.rfind('.') {
         Some(i) => &requirement_id[..i],
         None => requirement_id,
@@ -136,6 +224,13 @@ pub fn section_id_of(requirement_id: &str) -> &str {
 
 /// The chapter id of a requirement or section id ("V6.2.1" → "V6", "AC.4.1" → "AC.4").
 pub fn chapter_id_of(id: &str) -> &str {
+    // "SBD-AC-01" -> "SBD-AC": the family, so one rule can scope every access-control control.
+    if let Some(after_prefix) = id.strip_prefix(SBD_PREFIX) {
+        let end = after_prefix
+            .find('-')
+            .map_or(id.len(), |i| SBD_PREFIX.len() + i);
+        return &id[..end];
+    }
     if let Some(rest) = id.strip_prefix("AC.") {
         // Appendix C ids carry two segments of family, so keep "AC." plus the next one.
         let end = rest.find('.').map_or(id.len(), |i| "AC.".len() + i);
@@ -159,5 +254,46 @@ mod tests {
         assert_eq!(chapter_id_of("AC.4.1"), "AC.4");
         assert_eq!(chapter_id_of("AC.4"), "AC.4");
         assert_eq!(chapter_id_of("C9.2.1"), "C9");
+        // The checklist. "SBD-AC-01" must not be read as Appendix C's "AC." family, and its
+        // section has to be its family or no family-scoped rule would ever match.
+        assert_eq!(chapter_id_of("SBD-AC-01"), "SBD-AC");
+        assert_eq!(chapter_id_of("SBD-MT-07"), "SBD-MT");
+        assert_eq!(section_id_of("SBD-AC-01"), "SBD-AC");
+    }
+
+    #[test]
+    fn the_checklist_level_is_derived_from_what_its_absence_costs() {
+        let critical = ChecklistControl {
+            id: "AS-01".into(),
+            statement: String::new(),
+            critical: true,
+            severity_if_no: "high".into(),
+        };
+        assert_eq!(level_of(&critical), 1);
+        let high_but_not_critical = ChecklistControl {
+            severity_if_no: "high".into(),
+            critical: false,
+            ..ChecklistControl {
+                id: "AC-03".into(),
+                statement: String::new(),
+                critical: false,
+                severity_if_no: "high".into(),
+            }
+        };
+        assert_eq!(level_of(&high_but_not_critical), 1, "high alone is enough");
+        let medium = ChecklistControl {
+            id: "DM-01".into(),
+            statement: String::new(),
+            critical: false,
+            severity_if_no: "medium".into(),
+        };
+        assert_eq!(level_of(&medium), 2);
+        let low = ChecklistControl {
+            id: "AS-02".into(),
+            statement: String::new(),
+            critical: false,
+            severity_if_no: "low".into(),
+        };
+        assert_eq!(level_of(&low), 3);
     }
 }

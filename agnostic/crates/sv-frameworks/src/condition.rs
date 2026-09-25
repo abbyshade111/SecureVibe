@@ -92,6 +92,7 @@ conditions! {
     MultiAgent => "multi-agent", Claim, "There is a single assistant, not several AI agents that must identify each other.";
     MultimodalAi => "multimodal-ai", Claim, "The assistant accepts typed text only; it does not take images, video or audio.";
     SharedHostname => "shared-hostname", Claim, "This is a single application on its own address; no separate applications share its hostname.";
+    MultipleServices => "multiple-services", Claim, "This app runs as one service, so there are no boundaries between services to design, no traffic between them to protect, and no cross-service transactions to get right.";
 
     // Technology questions the dependency manifests answer, so nobody has to be believed.
     Websockets => "websockets", Derived, "No WebSocket library is used; every request is a normal web request.";
