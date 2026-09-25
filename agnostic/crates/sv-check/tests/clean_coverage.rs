@@ -271,15 +271,66 @@ fn untaught_in<'a>(scan: &'a ast::AstScan, rule_id: &str) -> Vec<&'a str> {
         .collect()
 }
 
+/// A rule set of two, written for these tests: every real rule is now taught every language `sv`
+/// reads, so the case where one is not has to be made on purpose.
+///
+/// `t.python-only` has a Python query and nothing else. `t.python-and-c` has the same query, and
+/// says there is nothing to find in C.
+fn partly_taught_rules(name: &str) -> ast::AstRules {
+    let rule = |id: &str, extra: &str| {
+        format!(
+            r#"{{"id": "{id}", "title": "Something is evaluated", "severity": "high",
+                "confidence": "high", "requirementIds": ["V1.3.2"], "cwe": [], "description": "",
+                "impact": "", "fix": "", "literalArgumentIsSafe": true,
+                "functionPatterns": {{"python": "^eval$"}},
+                "queries": {{"python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit"}}
+                {extra}}}"#
+        )
+    };
+    let json = format!(
+        r#"{{"rules": [{}, {}]}}"#,
+        rule("t.python-only", ""),
+        rule(
+            "t.python-and-c",
+            r#", "nothingToFind": {"c": "Said for this test."}"#
+        )
+    );
+    let dir = scratch(&format!("rules-{name}"));
+    let path = dir.join("rules.json");
+    std::fs::write(&path, json).unwrap();
+    let rules = ast::AstRules::load(&path).expect("the test rules load");
+    std::fs::remove_dir_all(&dir).ok();
+    rules
+}
+
+fn scan_with(rules: &ast::AstRules, name: &str, files: &[(&str, &str)]) -> ast::AstScan {
+    let dir = scratch(name);
+    for (file, source) in files {
+        std::fs::write(dir.join(file), source).unwrap();
+    }
+    let scan = ast::scan_dir(rules, &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    scan
+}
+
 #[test]
 fn a_rule_not_taught_a_language_that_was_read_claims_nothing() {
     // The third shape. Everything parsed, the rule has a Python query and found nothing in the
-    // Python — and the Rust beside it is a language the rule was never taught. A shell command
-    // built in the Rust is as possible as ever, so the rule has not ruled one out.
-    let scan = scan_files(
-        "ast-untaught-rust",
+    // Python — and the Rust beside it is a language the rule was never taught. What the rule looks
+    // for is as possible in the Rust as ever, so it has not ruled it out.
+    let rules = partly_taught_rules("rust");
+    let clean_python = ("app.py", "def home():\n    return 'hi'\n");
+    let alone = scan_with(&rules, "untaught-python", &[clean_python]);
+    assert!(
+        verified_ids(&alone.verified).contains(&"t.python-only"),
+        "the setup is wrong: the rule must claim a Python-only app"
+    );
+
+    let scan = scan_with(
+        &rules,
+        "untaught-rust",
         &[
-            ("app.py", "import os\n\ndef home():\n    return 'hi'\n"),
+            clean_python,
             ("worker.rs", "fn main() { println!(\"hi\"); }\n"),
         ],
     );
@@ -291,23 +342,23 @@ fn a_rule_not_taught_a_language_that_was_read_claims_nothing() {
         "{:?}",
         scan.parsed_by_language
     );
-    let verified = verified_ids(&scan.verified);
     assert!(
-        !verified.contains(&"ast.shell-command"),
-        "claimed on the strength of the Python alone: {verified:?}"
+        scan.verified.is_empty(),
+        "claimed on the strength of the Python alone: {:?}",
+        verified_ids(&scan.verified)
     );
-    assert_eq!(untaught_in(&scan, "ast.shell-command"), ["rust"]);
-    // Not a scan that has gone quiet altogether: a rule taught both languages still says so.
-    assert!(verified.contains(&"ast.sql-built-by-hand"), "{verified:?}");
-    assert!(untaught_in(&scan, "ast.sql-built-by-hand").is_empty());
+    assert_eq!(untaught_in(&scan, "t.python-only"), ["rust"]);
+    assert_eq!(untaught_in(&scan, "t.python-and-c"), ["rust"]);
 }
 
 #[test]
-fn a_rule_not_taught_c_claims_nothing_for_an_app_with_c_in_it() {
-    // A second witness, on a different rule and language: redirects are looked for in Python and
-    // not in C, and a CGI program in C can send a `Location:` header as well as anything can.
-    let scan = scan_files(
-        "ast-untaught-c",
+fn nothing_to_find_in_c_lets_the_claim_through_and_its_absence_does_not() {
+    // A second witness, on the same app for both rules: the only difference between them is the
+    // one entry, and it is the whole difference in what they claim.
+    let rules = partly_taught_rules("c");
+    let scan = scan_with(
+        &rules,
+        "untaught-c",
         &[
             ("app.py", "def home():\n    return 'hi'\n"),
             ("cgi.c", "int main(void) { return 0; }\n"),
@@ -315,12 +366,44 @@ fn a_rule_not_taught_c_claims_nothing_for_an_app_with_c_in_it() {
     );
     assert!(scan.findings.is_empty(), "{:?}", scan.findings);
     assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert_eq!(verified_ids(&scan.verified), ["t.python-and-c"]);
+    assert_eq!(untaught_in(&scan, "t.python-only"), ["c"]);
+    assert!(untaught_in(&scan, "t.python-and-c").is_empty());
+}
+
+#[test]
+fn every_real_rule_is_taught_every_language_it_meets_here() {
+    // The real rules, on an app in every language `sv` reads. None of them is left untaught, so no
+    // report carries the gap today; a grammar added later without its queries brings it back.
+    let files: Vec<(&str, &str)> = vec![
+        ("a.py", "x = 1\n"),
+        ("a.js", "let x = 1;\n"),
+        ("a.ts", "let x: number = 1;\n"),
+        ("a.go", "package main\n\nfunc main() {}\n"),
+        ("a.rb", "x = 1\n"),
+        ("a.php", "<?php $x = 1;\n"),
+        ("A.java", "class A {}\n"),
+        ("A.cs", "class A {}\n"),
+        ("a.kt", "fun main() {}\n"),
+        ("a.rs", "fn main() {}\n"),
+        ("a.c", "int main(void) { return 0; }\n"),
+        ("a.dart", "void main() {}\n"),
+        ("a.swift", "let x = 1\n"),
+    ];
+    let scan = scan_files("every-language", &files);
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
     assert!(
-        !verified_ids(&scan.verified).contains(&"ast.open-redirect"),
+        scan.unread_languages.is_empty(),
         "{:?}",
-        verified_ids(&scan.verified)
+        scan.unread_languages
     );
-    assert_eq!(untaught_in(&scan, "ast.open-redirect"), ["c"]);
+    assert_eq!(
+        scan.parsed_by_language.len(),
+        files.len(),
+        "{:?}",
+        scan.parsed_by_language
+    );
+    assert!(scan.untaught.is_empty(), "{:?}", scan.untaught);
 }
 
 #[test]

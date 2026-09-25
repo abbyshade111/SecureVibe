@@ -81,7 +81,8 @@
         "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
         "dart": "[(call_expression function: (member_expression object: (identifier) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg))\n (call_expression function: (member_expression object: (identifier) @mod property: (identifier))\n                  arguments: (arguments . (string_literal) @fn . (list_literal) @arg))] @hit",
         "swift": "[(call_expression (simple_identifier) @fn @mod (call_suffix (value_arguments . (value_argument) @arg)))\n (assignment target: (directly_assignable_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @mod)))\n             result: (array_literal . element: (line_string_literal) @fn) @arg)\n (value_argument name: (value_argument_label (simple_identifier) @mod)\n                 value: (array_literal . element: (line_string_literal) @fn) @arg)] @hit",
-        "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                  arguments: (argument_list . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (interpreted_string_literal) @fn . (_) . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (_) . (interpreted_string_literal) @fn . (_) . (_) @arg))] @hit"
+        "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                  arguments: (argument_list . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (interpreted_string_literal) @fn . (_) . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (_) . (interpreted_string_literal) @fn . (_) . (_) @arg))] @hit",
+        "rust": "[(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                                                                           arguments: (arguments . (string_literal))))\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                  arguments: (arguments . [(array_expression) @arg (reference_expression value: (array_expression) @arg)]))] @hit"
       },
       "functionPatterns": {
         "python": "^(system|popen|getoutput|getstatusoutput)$",
@@ -95,12 +96,14 @@
         "c": "^(system|popen|execl|execlp|execvp|execv)$",
         "dart": "^(run|runSync|start|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\"|'(/bin/|/usr/bin/)?(sh|bash|zsh|dash)')$",
         "swift": "^(system|popen|\"-l?c\")$",
-        "go": "^(Command|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$"
+        "go": "^(Command|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$",
+        "rust": "^(new|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$"
       },
       "modulePatterns": {
         "dart": "^Process$",
         "swift": "^(system|popen|arguments)$",
-        "go": "^exec$"
+        "go": "^exec$",
+        "rust": "(^|::)Command$"
       }
     },
     {
@@ -394,7 +397,8 @@
         "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
         "dart": "[(member_expression object: (identifier) @mod property: (identifier) @fn)\n (call_expression function: (identifier) @fn @mod)] @hit",
         "swift": "(simple_identifier) @fn @hit",
-        "c": "(call_expression function: (identifier) @fn) @hit"
+        "c": "(call_expression function: (identifier) @fn) @hit",
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit"
       },
       "functionPatterns": {
         "python": "^(ECB|MODE_ECB|TripleDES|ARC4|Blowfish|CAST5|IDEA|SEED)$",
@@ -408,7 +412,8 @@
         "kotlin": "^getInstance$",
         "dart": "^(ecb|ECBBlockCipher|DESedeEngine|DESEngine|RC4Engine|BlowfishEngine)$",
         "swift": "^(kCCAlgorithm(DES|3DES|RC4|RC2|Blowfish|CAST)|kCCOptionECBMode|ECB|Blowfish)$",
-        "c": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$"
+        "c": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$",
+        "rust": "^(new|new_from_slice|new_from_slices|des\\w*|aes_\\d+_ecb|rc4|rc2\\w*|bf_\\w+|cast5\\w*|idea\\w*)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES|algorithms)$",
@@ -417,7 +422,8 @@
         "java": "^Cipher$",
         "csharp": "^(CipherMode|DES|TripleDES|RC2)$",
         "kotlin": "^Cipher$",
-        "dart": "^(AESMode|ECBBlockCipher|DESedeEngine|DESEngine|RC4Engine|BlowfishEngine)$"
+        "dart": "^(AESMode|ECBBlockCipher|DESedeEngine|DESEngine|RC4Engine|BlowfishEngine)$",
+        "rust": "(^|::)(Cipher|Des|TdesEde2|TdesEde3|TdesEee2|TdesEee3|Rc4|Rc2|Blowfish|Cast5|Idea)$|(^|::)(ecb::(Encryptor|Decryptor)|Ecb)(::)?(<.*>)?$"
       },
       "argumentPatterns": {
         "javascript": "(?i)^['\"`](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"`]$",
@@ -455,7 +461,8 @@
         "dart": "(call_expression function: (member_expression object: (_) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "swift": "(call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg))) @hit",
         "kotlin": "(call_expression (navigation_expression (_) (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
-        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit"
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "c": "[(call_expression function: (identifier) @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))] @hit"
       },
       "functionPatterns": {
         "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
@@ -469,14 +476,16 @@
         "dart": "^(found|seeOther|movedPermanently|redirect)$",
         "swift": "^redirect$",
         "kotlin": "^(sendRedirect|respondRedirect)$",
-        "rust": "^(to|temporary|permanent|see_other)$"
+        "rust": "^(to|temporary|permanent|see_other)$",
+        "c": "^(printf|fprintf|sprintf|dprintf)$"
       },
       "modulePatterns": {
         "javascript": "^(res|response|reply|ctx)$",
         "typescript": "^(res|response|reply|ctx)$",
         "go": "^http$",
         "dart": "(^|\\.)(Response|response|res)$",
-        "rust": "(^|::)Redirect$"
+        "rust": "(^|::)Redirect$",
+        "c": "(?i)^\"\\s*location\\s*:"
       },
       "argumentPatterns": {
         "php": "(?i)^['\"]\\s*location\\s*:",

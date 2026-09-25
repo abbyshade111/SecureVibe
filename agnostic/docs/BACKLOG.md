@@ -82,12 +82,13 @@ another session is not a claim.
   one of the nine rules either taught each language or saying why there is nothing to find in it
   (`nothingToFind`). The same change made the claim per rule: a rule that met a language it was not
   taught claims nothing and the report names it, which showed gaps in the older languages, most filled
-  at once. Three remain, and are the next entry. See DESIGN, "Thirteen languages".
+  at once, and the last three in the entry below. See DESIGN, "Thirteen languages".
 
-- **Three rules still untaught a language.** Shell commands in Rust (`Command::new("sh").arg("-c")` is
-  a method chain, and the query needs to follow it), weak ciphers in Rust (the RustCrypto crates name
-  them as types, not calls), and redirects in C (a CGI program prints its `Location:` header). Each
-  now shows in the report as a gap for any app containing that language.
+- ~~**Three rules still untaught a language.**~~ Done on 25 September 2026 by session securevibe-e8.
+  Shell commands in Rust (the `Command::new("sh").arg("-c")` chain and the `.args([...])` array), weak
+  ciphers in Rust (RustCrypto's types and the `openssl` crate's functions), and redirects in C (a
+  `Location:` header printed by hand). Every rule is now taught every language `sv` reads, and a test
+  pins it. What each misses is in DESIGN, "Thirteen languages".
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
@@ -122,7 +123,7 @@ another session is not a claim.
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
   would turn an open question into an answer.
 
-- **More adapters, and more of their rules mapped.** Four are listed; semgrep's rule ids are not mapped
+- **More adapters, and more of their rules mapped.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), second, semgrep's rule mapping only in the owner's order.* Four are listed; semgrep's rule ids are not mapped
   to requirements at all, so its findings carry none. `eslint-plugin-security`, `staticcheck` and
   `phpcs-security-audit` are each a data entry. The shape to keep: SARIF only, not installed means not
   run, and rule ids mapped one at a time.
