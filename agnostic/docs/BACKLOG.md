@@ -5,6 +5,14 @@ another session is not a claim.
 
 ## Next
 
+- **Shell scripts.** *Claimed 25 September 2026 by session securevibe-e8 (branch
+  `claude/securevibe-agnostic-variant-935b16`), first in the owner's order.* `.sh` deploy and setup
+  scripts are neither read nor counted as unread today. A grammar, and the code rules taught it.
+
+- **Signed-in checks in one container.** *Claimed 25 September 2026 by session securevibe-e8 (branch
+  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Every probe request starts
+  a container of its own, so a signed-in run takes about a minute.
+
 - **Corroborators for the remaining claims.** `multiple-services` done on 25 September 2026: gRPC and its `.proto`
   contracts, AsyncAPI documents, message-broker clients, microservice frameworks and service discovery,
   in eight ecosystems and ten languages. A `docker-compose.yml` is deliberately not evidence — most
