@@ -127,6 +127,15 @@ SameSite cited for a stolen session cookie (HttpOnly and session-id randomness a
 outbound allowlist for a forged "payment succeeded" message (authenticated backend messages are),
 log protection for a copied database, and five weaker links dropped. The report section is part 2.
 
+**Part 2 of 3, done on 25 September 2026:** a "Threats" section in `compliance.md` and `report.html`,
+after the requirements and before the tests to write: what the section can and cannot say, the parts of
+the app (each one nobody answered for is named with the question in securevibe.toml that would place
+it), a count, and one row per threat with its status and its requirements grouped by what is known
+about them. `sv report` prints the count, and `sv mcp` gives the AI tool the found and not-verified
+threats. The data-flow outline is a list rather than the Mermaid diagram proposed above: `report.html`
+opens offline by double-clicking, and Mermaid draws with a script fetched from the web. No threat is
+ever called mitigated, and a test reads both reports for the word.
+
 ## Decided by the owner, 25 September 2026
 
 1. **No scoring.** v1's likelihood and impact are not carried over. The list is ordered by what the

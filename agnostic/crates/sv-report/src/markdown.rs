@@ -133,6 +133,48 @@ pub fn compliance(report: &Report) -> String {
     }
     out.push('\n');
 
+    if !report.threats.is_empty() {
+        out.push_str("## Threats\n\n");
+        out.push_str(&format!("{}\n\n", crate::threats::INTRO));
+        let parts: Vec<String> = report
+            .threat_parts
+            .iter()
+            .map(|p| match p.present {
+                Some(true) => p.name.clone(),
+                _ => format!(
+                    "{} (not known: securevibe.toml does not answer {})",
+                    p.name,
+                    p.unanswered
+                        .iter()
+                        .map(|c| format!("`{c}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            })
+            .collect();
+        out.push_str(&format!("Parts of the app: {}.\n\n", parts.join("; ")));
+        out.push_str(&format!(
+            "{}\n\n",
+            crate::threats::count_line(&report.threats)
+        ));
+        out.push_str("| threat | status | part of the app | what could happen | the requirements that answer it |\n|---|---|---|---|---|\n");
+        for line in &report.threats {
+            out.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                cell(&format!(
+                    "{} ({})",
+                    line.id,
+                    crate::threats::stride_words(&line.stride)
+                )),
+                cell(line.status.label()),
+                cell(&line.element_name),
+                cell(&line.description),
+                cell(&crate::threats::evidence_words(line))
+            ));
+        }
+        out.push('\n');
+    }
+
     if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
         out.push_str("## Tests to write\n\n");
         out.push_str("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.\n\n");

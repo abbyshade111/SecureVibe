@@ -71,6 +71,13 @@ They also list the tests worth writing: every requirement that applies and has n
 test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
 the one way to give evidence about any requirement, including the many no check here can reach.
 
+The reports also have a threat model: what could go wrong with an app like this one, by the part of it
+each threat concerns (sign-in, stored data, the AI model, uploads, payments, and so on), with what the
+checks showed about each: found, checked in part, not verified, or not known to apply until a question
+in securevibe.toml is answered. It is made from rules, not by asking an AI, and it never calls a threat
+handled, because a threat is only as settled as the requirements that answer it. See
+`docs/THREAT-MODELING.md`.
+
 For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
 input placed in the system instructions, no limit on how long an answer may be, a model called in a
 loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks

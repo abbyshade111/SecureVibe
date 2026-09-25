@@ -305,3 +305,116 @@ fn a_malformed_rule_is_refused_at_load() {
     refused(&|f| f["threats"][1]["id"] = "T-01".into(), "listed twice");
     assert!(load_doctored(|_| {}).is_ok(), "the file itself loads");
 }
+
+// ---- in the report ----
+
+fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
+    let f = Frameworks::load(&data().join("frameworks")).unwrap();
+    let buckets = sv_frameworks::applicability::Buckets {
+        applicable: vec!["V6.2.1".into(), "V6.2.4".into(), "V1.2.4".into()],
+        ..Default::default()
+    };
+    let r = rules();
+    let ctx = context(&[("auth", true), ("uploads", false)]);
+    sv_report::build(sv_report::Inputs {
+        app_name: "Threats",
+        target_level: 1,
+        generated: None,
+        run_note: None,
+        frameworks: &f,
+        buckets: &buckets,
+        claims: &[],
+        findings,
+        verified: &[],
+        gaps: vec![],
+        manual_only: Default::default(),
+        named_in_tests: Default::default(),
+        not_for_tests: Default::default(),
+        threats: Some((&r, &ctx)),
+    })
+}
+
+fn finding_on(requirement: &str) -> sv_check::Finding {
+    sv_check::Finding {
+        rule_id: "probe.short-password-accepted".into(),
+        title: "t".into(),
+        severity: sv_check::Severity::Medium,
+        confidence: sv_check::Confidence::High,
+        location: sv_check::Location {
+            file: "the running app".into(),
+            line: 1,
+        },
+        secret: None,
+        requirement_ids: vec![requirement.into()],
+        cwe: vec![],
+        description: "d".into(),
+        impact: "i".into(),
+        fix: "f".into(),
+    }
+}
+
+#[test]
+fn a_finding_in_the_report_makes_its_threat_found_there_first() {
+    let report = report_with_threats(vec![finding_on("V6.2.1")]);
+    assert_eq!(report.threats[0].id, "T-01");
+    assert_eq!(report.threats[0].status, ThreatStatus::Found);
+    assert!(
+        report
+            .threats
+            .iter()
+            .all(|t| !t.element.starts_with("files")),
+        "no uploads, no upload threats"
+    );
+    let md = sv_report::markdown::compliance(&report);
+    let threats = &md[md.find("## Threats").expect("the section is there")..];
+    assert!(
+        threats.contains("| T-01 (pretending to be someone else) | found |"),
+        "{threats}"
+    );
+    assert!(threats.contains("needs attention: V6.2.1"), "{threats}");
+    let html = sv_report::html::page(&report);
+    assert!(html.contains("<h2>Threats</h2>"));
+    for text in [&md, &html] {
+        let lower = text.to_lowercase();
+        assert!(
+            !lower.contains("mitigated"),
+            "a threat is never called mitigated"
+        );
+    }
+}
+
+#[test]
+fn a_part_nobody_answered_for_is_named_with_the_question() {
+    let report = report_with_threats(vec![]);
+    let md = sv_report::markdown::compliance(&report);
+    assert!(
+        md.contains("The AI model (not known: securevibe.toml does not answer `ai`)"),
+        "{md}"
+    );
+    // Uploads were answered no, so their part is not listed at all.
+    assert!(!md.contains("Uploaded files"), "{md}");
+}
+
+#[test]
+fn without_threat_rules_the_report_has_no_threat_section() {
+    let f = Frameworks::load(&data().join("frameworks")).unwrap();
+    let buckets = sv_frameworks::applicability::Buckets::default();
+    let report = sv_report::build(sv_report::Inputs {
+        app_name: "None",
+        target_level: 1,
+        generated: None,
+        run_note: None,
+        frameworks: &f,
+        buckets: &buckets,
+        claims: &[],
+        findings: vec![],
+        verified: &[],
+        gaps: vec![],
+        manual_only: Default::default(),
+        named_in_tests: Default::default(),
+        not_for_tests: Default::default(),
+        threats: None,
+    });
+    assert!(report.threats.is_empty());
+    assert!(!sv_report::markdown::compliance(&report).contains("## Threats"));
+}
