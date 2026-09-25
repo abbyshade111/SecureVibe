@@ -51,6 +51,18 @@ describe('password', () => {
     assert.equal(r2.accepted, true, `a 12 character password must be accepted (status ${r2.status})`);
   });
 
+  test('V6.2.2 a signed-in user can change their own password from their account, and only the new one works afterwards', async () => {
+    const jar = await app.login(users.member2, { password: current });
+    const { res, html } = await app.page(paths.changePassword, jar);
+    assert.equal(res.status, 200, 'the change-password page must be available to a signed-in user');
+    assert.match(html, new RegExp(`name=["']${fields.currentPassword}["']`), 'the form must ask for the current password');
+    assert.match(html, new RegExp(`name=["']${fields.newPassword}["']`), 'the form must ask for the new password');
+    const next = randomLetters(20);
+    const changed = await attemptChange(next); // asserts that exactly one of the old and new password signs in
+    assert.equal(changed.accepted, true, `a valid new password must be accepted (status ${changed.status})`);
+    assert.equal(await app.canLogin(users.member2, next), true, 'the new password must sign in');
+  });
+
   test('V6.2.4 rejects passwords found in the common-password list', async () => {
     // Deliberately well-known weak passwords, used to prove they are refused.
     for (const common of ['password1234', 'qwertyuiop12', 'iloveyou1234']) { // gitleaks:allow

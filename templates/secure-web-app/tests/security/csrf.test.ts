@@ -63,6 +63,38 @@ describe('csrf', () => {
     assert.ok([200, 201].includes(ok.status), `JSON POST with the CSRF header failed: ${ok.status} ${body.slice(0, 200)}`);
   });
 
+  test('V3.5.2 protection does not rely on CORS preflight: a cross-origin request that triggers no preflight is refused, and no CORS access is ever granted', async () => {
+    // Forms and text/plain posts are "simple" requests: a browser sends them cross-origin without asking first, so a
+    // defence that only works when the browser preflights would not stop them. Here each one carries a valid token
+    // and the victim's cookie and is still refused on its own merits (Origin and Fetch Metadata), and the app never
+    // answers with a CORS grant that would make a preflight the thing standing in the way.
+    const simpleTypes = ['application/x-www-form-urlencoded', 'text/plain', 'multipart/form-data; boundary=x'];
+    for (const type of simpleTypes) {
+      const jar = await app.login(users.member);
+      const token = await app.csrfToken(paths.account, jar);
+      const res = await app.fetch(paths.logout, {
+        method: 'POST',
+        jar,
+        sameOrigin: false,
+        headers: { 'Content-Type': type, Origin: 'https://evil.example', 'Sec-Fetch-Site': 'cross-site' },
+        body: `${fields.csrf}=${encodeURIComponent(token)}`,
+      });
+      await res.text();
+      assert.equal(res.status, 403, `a cross-origin ${type} request must be refused without any preflight`);
+      assert.equal(res.headers.get('access-control-allow-origin'), null, 'no CORS grant may be sent on the refusal');
+      assert.equal(await app.isAuthenticated(jar), true, 'the refused request must not have acted');
+    }
+    const preflight = await app.fetch(paths.logout, {
+      method: 'OPTIONS',
+      sameOrigin: false,
+      headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' },
+    });
+    await preflight.text();
+    for (const h of ['access-control-allow-origin', 'access-control-allow-methods', 'access-control-allow-headers', 'access-control-allow-credentials']) {
+      assert.equal(preflight.headers.get(h), null, `a preflight must not be answered with ${h}: the app grants no cross-origin access`);
+    }
+  });
+
   test('V3.5.3 GET requests never change state (logout via GET keeps the session)', async () => {
     const jar = await app.login(users.member);
     const res = await app.fetch(paths.logout, { jar });

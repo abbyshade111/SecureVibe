@@ -2,9 +2,9 @@
   "version": 1,
   "case": "clinic-bookings",
   "mode": "no-ai",
-  "runId": "r_20260920205843_35nfl6",
+  "runId": "r_20260925171541_vogxra",
   "status": "succeeded",
-  "durationMs": 280937,
+  "durationMs": 304890,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -32,9 +32,9 @@
     "info": 0
   },
   "asvs": {
-    "pass": 115,
+    "pass": 124,
     "applicable": 169,
-    "verifiedPassPercent": 68,
+    "verifiedPassPercent": 73.4,
     "aiAssessed": 0,
     "fail": 0
   },
@@ -46,9 +46,10 @@
     "fail": 2
   },
   "tests": {
-    "total": 246,
-    "passed": 219,
-    "failed": 0
+    "total": 256,
+    "passed": 229,
+    "failed": 0,
+    "skipped": 27
   },
   "costUsd": 0
 }

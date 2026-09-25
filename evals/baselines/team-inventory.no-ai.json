@@ -2,9 +2,9 @@
   "version": 1,
   "case": "team-inventory",
   "mode": "no-ai",
-  "runId": "r_20260920210742_futqqa",
+  "runId": "r_20260925172518_53tcqp",
   "status": "succeeded",
-  "durationMs": 260333,
+  "durationMs": 255515,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -32,16 +32,17 @@
     "info": 0
   },
   "asvs": {
-    "pass": 123,
+    "pass": 132,
     "applicable": 178,
-    "verifiedPassPercent": 69.1,
+    "verifiedPassPercent": 74.2,
     "aiAssessed": 0,
     "fail": 2
   },
   "tests": {
-    "total": 261,
-    "passed": 211,
-    "failed": 0
+    "total": 271,
+    "passed": 221,
+    "failed": 0,
+    "skipped": 50
   },
   "costUsd": 0
 }
