@@ -218,9 +218,9 @@ describe('sast.assistant-form-no-working-state', () => {
     expect(JSON.stringify(first)).toContain('src/features/research/routes.ts');
   });
 
-  it('leaves the same forms alone once the pages are the template’s own (the template checks its own assistant page)', async () => {
+  /** The research route and view of the dirty fixture, with the named files recorded as the template's own. */
+  const withTemplateOrigin = async (files: string[]) => {
     const appDir = fixtureDir('dirty-app');
-    const files = ['src/features/research/routes.ts', 'src/views/research/index.ejs'];
     const ctx = makeScanContext(appDir, {
       provenance: {
         reportSchemaVersion: '1', tool: 'SecureVibe test', securevibeVersion: '0.0.0', templateVersion: '0.0.0',
@@ -232,7 +232,21 @@ describe('sast.assistant-form-no-working-state', () => {
         protectedFileHashes: {}, sandbox: { mode: 'node-permission-model', note: 'file system restricted to the project folder' },
       },
     });
-    expect(await only(ctx)).toEqual([]);
+    return only(ctx);
+  };
+
+  it('leaves the pages alone that are the template’s own (the template checks its own assistant page): the route, the view, or both', async () => {
+    const routes = 'src/features/research/routes.ts';
+    const view = 'src/views/research/index.ejs';
+    expect(await withTemplateOrigin([routes, view])).toEqual([]);
+    expect(await withTemplateOrigin([routes]), 'a route from the template has no form of its own to check').toEqual([]);
+    expect(await withTemplateOrigin([view]), 'a view from the template is not reported, whoever wrote the route').toEqual([]);
+    expect((await withTemplateOrigin([])).length, 'while both are the agent’s, the forms are reported').toBe(3);
+  });
+
+  it('does not take a button on a path for the assistant’s just because another method on that path asks it', async () => {
+    const hits = await only(makeScanContext(fixtureDir('dirty-app')));
+    expect(hits.some((h) => JSON.stringify(h).includes('/research/history'))).toBe(false);
   });
 
   it('finds nothing in the real template, whose assistant page carries data-working', async () => {

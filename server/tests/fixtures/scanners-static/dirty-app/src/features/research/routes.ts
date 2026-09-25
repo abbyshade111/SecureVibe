@@ -25,3 +25,11 @@ defineRoute(router, { method: 'POST', path: '/research/quick', auth: 'user', sch
 defineRoute(router, { method: 'POST', path: '/research/:id/rerun', auth: 'user', schema: { params: z.object({ id: z.string() }) } }, async (req, res) => {
   res.json({ answer: await askForTopic(req.valid.params.id) });
 });
+
+// The same path answers two ways: showing it asks the assistant, and the button on it only clears the list.
+defineRoute(router, { method: 'GET', path: '/research/history', auth: 'user', schema: {} }, async (_req, res) => {
+  res.json({ answer: await askForTopic('what was asked before') });
+});
+defineRoute(router, { method: 'POST', path: '/research/history', auth: 'user', schema: {} }, async (_req, res) => {
+  res.json({ cleared: true });
+});
