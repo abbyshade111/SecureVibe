@@ -42,7 +42,7 @@ another session is not a claim.
   as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
-- **Load the Secure by Design checklist.** `sv --help` and the README say `sv` checks against it, and
+- **Load the Secure by Design checklist.** *Claimed 24 September 2026, session keen-meninsky-691a27.* `sv --help` and the README say `sv` checks against it, and
   `Frameworks::load` reads ASVS, AISVS and Appendix C only — the checklist contributes nothing. Found on
   24 September 2026 while chasing bad citations. It is a third schema (`checklistDomains` → `controls`,
   with a `statement` and no level), so it needs a level decided per control and applicability rules
