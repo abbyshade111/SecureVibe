@@ -144,7 +144,7 @@ another session is not a claim.
   count the markers in the files that were scanned.
 
 - **Semgrep skips some folders by default and does not say so.** Found on 25 September 2026 while
-  fixing suppressions; not claimed. With no `.semgrepignore` of its own, semgrep 1.178.0 leaves out
+  fixing suppressions. **Claimed on 25 September 2026 by session securevibe-e8.** With no `.semgrepignore` of its own, semgrep 1.178.0 leaves out
   `tests/`, `build/`, `dist/`, `vendor/` and others; its terminal output counts "Files matching
   .semgrepignore patterns" and its SARIF says nothing. A clean run is credited as if it had read them.
   An app's own `.semgrepignore` does the same with any pattern. Code under `build/` or `dist/` may well
