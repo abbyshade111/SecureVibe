@@ -727,6 +727,60 @@ What is not handed to it is what no check here reads: `build/`, `dist/`, `vendor
 a shell command built from input in `tests/helpers.py` was not reported at all with the folder, and is
 reported with the files.
 
+### AISVS from semgrep's AI rules: evidence against, never for
+
+Until 25 September 2026 one AISVS requirement had a check, C9.5.4, through the credential scan.
+Semgrep's `ai/ai-best-practices` folder holds 107 security rules about applications that call a
+model, and 33 were already mapped, all to ASVS: a hard-coded key is V13.3.1 and model output passed
+to `eval` is V1.3.2 wherever it appears. None named AISVS.
+
+Reading the two side by side, the rules and AISVS meet in one direction only. A rule that finds user
+input in an OpenAI system prompt has found a system where user instructions are not kept below
+system ones, which is exactly what C2.1.6 asks for. The same rule finding nothing has not found an
+instruction hierarchy: it has found that one way of breaking it is absent, in one vendor's SDK, in two
+languages. Every AISVS pair turned out this way. AISVS asks for controls (a classifier scores every
+prompt, output is bounded by length limits and termination controls, tools run in a least-privilege
+sandbox) and a pattern can show one missing but never present.
+
+The map had no way to say that: a mapped requirement was carried by a finding and credited by a clean
+run, both. So a rule now has two lists. `requirements` are both, as before. `findings_against` are
+carried by a finding and never credited: `clean_run_evidence` does not read them, the loader refuses a
+requirement in both lists, and a test runs the widest clean run there could be (every rule loaded, six
+languages) and asserts no AISVS id comes out of it. The citation guard reads `findings_against` the
+same as `requirements`.
+
+Nine families, 24 rules, eight AISVS requirements:
+
+| Requirement | Found failing by |
+|---|---|
+| C2.1.6 instruction hierarchy | user input in the system prompt: OpenAI, Anthropic, Gemini, Cohere, Mistral |
+| C2.2.1 every prompt scored by a content classifier | OpenAI and Mistral completions with no moderation call, or its verdict unchecked |
+| C7.1.2 output bounded by length limits | OpenAI and Anthropic calls without `max_tokens` |
+| C7.3.1 classifiers block harmful content | Cohere with its safety mode turned off |
+| C9.1.2 per-execution budgets | a model called inside `while True` with no way out |
+| C9.3.1 tools isolated in a least-privilege sandbox | LangChain's `PythonREPL`, `BashProcess` and relatives run (also V1.3.2) |
+| C9.5.4 secrets kept out of the model's context | an MCP tool that returns a credential |
+| C10.4.2 tool responses screened for indirect prompt injection | an MCP tool returning an outside response as is, or a tool description with hidden instructions |
+
+Left out on purpose, each with its reason in `tools/semgrep_rule_map.py`: the rules about the
+developer's own tooling in the repository (Claude Code and Cursor settings, hooks, `SKILL.md`, IDE
+settings), which are about the machine the app was written on rather than the app; the rules that flag
+a missing system prompt or safety setting, which is a provider's default and not the absence of a
+control; and the hard-coded key rules, since a key in the source is not a key in the model's context.
+
+Checked against a real run: semgrep 1.178.0 with eleven of the 24 rules, over a small help-desk
+assistant written with each fault, in Python and again in part in JavaScript, and the same calls written
+carefully (`crates/sv-check/tests/fixtures/semgrep-aisvs`). Twelve findings, all in the faulty files,
+each on the requirement it is about; the other thirteen rules are the same patterns for other
+vendors. Through `sv report --tools` with AISVS in scope, all seven AISVS requirements
+and V1.3.2 read *needs attention*, including C9.5.4, which a clean credential scan had marked
+*checked* while an MCP tool handed its key to the model.
+
+What `sv`'s own code rules could add was looked at and not written. Every one of these is a flow from
+one place to another (a request value into a system prompt, a response into a tool's return value),
+and the code rules match a call and its arguments. A rule that fired on any string reaching
+`messages` would mostly report the user message, which is where user input belongs.
+
 ### Three more wrong citations, in the place the guard could not see
 
 The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were

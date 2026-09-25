@@ -71,6 +71,12 @@ They also list the tests worth writing: every requirement that applies and has n
 test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
 the one way to give evidence about any requirement, including the many no check here can reach.
 
+For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
+input placed in the system instructions, no limit on how long an answer may be, a model called in a
+loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks
+the AISVS requirement it breaks as needing attention. Finding none marks nothing as checked, because
+the absence of one way to get it wrong is not the control AISVS asks for.
+
 The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
 design review rather than scanning — whether trust zones are enforced, whether an incident response plan
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
