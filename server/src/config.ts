@@ -35,6 +35,12 @@ export const SettingsSchema = z.object({
   saveCredits: z.boolean().default(true),
   /** A desktop notification when a build or check ends (the build runs for minutes, usually unattended). */
   notifyOnFinish: z.boolean().default(true),
+  /**
+   * Run the virus scanner (ClamAV) over apps SecureVibe built, too. Uploaded apps are always scanned (ADR-011:
+   * the clearest untrusted content SecureVibe holds); for an app it wrote itself the scan is off unless asked,
+   * because source code is not where virus signatures earn their keep and the scan takes minutes.
+   */
+  scanBuiltAppsForMalware: z.boolean().default(false),
   /** The AI service everything uses unless a step below says otherwise; it needs a key for that service. */
   aiService: z.enum(['anthropic', 'openai', 'google']).default('anthropic'),
   /**

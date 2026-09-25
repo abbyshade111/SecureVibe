@@ -58,6 +58,7 @@ export function statusRouter(deps: ApiDeps): Router {
         aiEnabled: settings.aiEnabled,
         saveCredits: settings.saveCredits,
         notifyOnFinish: settings.notifyOnFinish,
+        scanBuiltAppsForMalware: settings.scanBuiltAppsForMalware,
         aiService: settings.aiService,
         aiServiceFor: settings.aiServiceFor,
         nanoAnalyzer: {

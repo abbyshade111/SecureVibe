@@ -57,6 +57,20 @@ describe('what only you can do', () => {
     expect(listEmpty[0]!.title).toContain('api.weather.example');
   });
 
+  it('names the virus scanner as something the owner keeps running when the app takes uploads', () => {
+    // ADR-011: uploads are refused without a scanner, and SecureVibe's fence keeps its own checks from ever
+    // showing a scan, so the dependency is the owner's to keep, like an outside service.
+    const withUploads = profileWith({ fileUploads: true });
+    const on = ownerTasks({ profile: withUploads, appDir: appWithEnv('MALWARE_SCANNER=clamd\n') });
+    expect(on.map((t) => t.id)).toEqual(['setting-malware-scanner']);
+    expect(on[0]!.staysOff).toMatch(/every upload is refused/);
+    expect(on[0]!.staysOff).toMatch(/never a scan/);
+    // The default (nothing set) is the daemon on this machine, so the dependency stands; "off" means no uploads at all.
+    expect(ownerTasks({ profile: withUploads, appDir: appWithEnv('') }).map((t) => t.id)).toEqual(['setting-malware-scanner']);
+    expect(ownerTasks({ profile: withUploads, appDir: appWithEnv('MALWARE_SCANNER=off\n') })).toEqual([]);
+    expect(ownerTasks({ profile: habitTracker, appDir: appWithEnv('MALWARE_SCANNER=clamd\n') })).toEqual([]);
+  });
+
   it('turns a feature that came back not built into something to try, with the evidence', () => {
     const tasks = ownerTasks({
       profile: habitTracker,
