@@ -20,7 +20,9 @@ another session is not a claim.
   cannot parse. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
   those two failing, which is the right way round.
 
-- **More AST rules.** Five cover code execution, shell, backticks, SQL and deserialization, across seven
+- **More AST rules.** *Claimed 25 September 2026 by session securevibe-e8 (branch
+  `claude/securevibe-agnostic-variant-935b16`): path traversal, weak cryptography, unvalidated redirects.
+  The Secure by Design checklist item is another session's and is not touched.* Five cover code execution, shell, backticks, SQL and deserialization, across seven
   languages. Path traversal, weak cryptography and unvalidated redirects are the obvious next ones, and
   each is a data entry per language.
 
