@@ -418,6 +418,28 @@ const OTHER_USERS_DATA: Rule = Rule {
           record that is not yours is simply not found.",
 };
 
+const PRIVATE_PAGE_CACHING: Rule = Rule {
+    rule_id: "probe.private-page-cached",
+    requirement_ids: &["V14.3.2"],
+    cwe: &["CWE-525"],
+    impact: "A private page a browser is allowed to store stays on the machine after the person \
+             signs out, where the next person to press Back can read it — which is what shared and \
+             public computers make ordinary.",
+    fix: "Send `Cache-Control: no-store` on every response that shows somebody's own data. \
+          `no-cache` is not the same thing: it allows the copy to be kept and asks for it to be \
+          revalidated.",
+};
+
+const SIGN_OUT_LINK: Rule = Rule {
+    rule_id: "probe.no-sign-out-link",
+    requirement_ids: &["V7.4.4"],
+    cwe: &["CWE-613"],
+    impact: "Somebody who cannot find how to sign out stays signed in, and a session left open on \
+             a shared machine is the next person's session.",
+    fix: "Put a visible sign-out control on every page that needs signing in — a link to the \
+          sign-out address, or a small form that posts to it.",
+};
+
 const SESSION_COOKIE: Rule = Rule {
     rule_id: "probe.session-cookie-attributes",
     requirement_ids: &["V3.3.2", "V3.3.4"],
@@ -701,7 +723,7 @@ pub fn run(
     let problems = users.problems();
     if !problems.is_empty() {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V14.3.2, V7.4.4".to_owned(),
             format!(
                 "[stack.run.users] in securevibe.toml cannot be used: {}.",
                 problems.join("; ")
@@ -754,7 +776,7 @@ pub fn run(
     //    refusals to refusals.
     let Some(a) = sign_in(http, users, "a", &accounts.a, &mut out.steps) else {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
             "Signing in as the first test user got no answer from the app.".to_owned(),
         ));
         return out;
@@ -774,7 +796,7 @@ pub fn run(
     };
     if confirm_path.is_some() && !signed_in_works && served_anonymously.is_empty() {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
             format!(
                 "Signing in as the first test user did not open {} — the sign-in request, the \
                  accounts, or the page is not what securevibe.toml says — so nothing here can say \
@@ -804,17 +826,22 @@ pub fn run(
     // 4. The session cookie, and whether signing in made a new one.
     session_checks(&a, signed_in_works || owned_read.is_some(), &mut out);
 
-    // 5. Admin pages, as an ordinary user, confirmed against the admin.
+    // 5. The private pages themselves, read with A's session: what they let a browser keep, and
+    //    whether they show a way out. Before anything that signs another account in, so the
+    //    session that opened them is the one step 2 showed working.
+    private_page_checks(http, users, &a, &mut out);
+
+    // 6. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
 
-    // 6. What sign-up and sign-in let through: passwords and default accounts. These sign in as
+    // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 
-    // 7. Logging out, which ends A's session.
+    // 8. Logging out, which ends A's session.
     logout_check(
         http,
         users,
@@ -823,13 +850,13 @@ pub fn run(
         &mut out,
     );
 
-    // 8. Last, because each signs A in again, and an app that allows one session per user would
+    // 9. Last, because each signs A in again, and an app that allows one session per user would
     //    end the one the checks above were using.
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
     sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
 
-    // 9. Last of all, because it changes a password: with an account made for it when there is a
+    // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
@@ -1628,6 +1655,172 @@ fn delete_account_check(
 ///
 /// A fresh sign-in, shown to open the private page; a GET to the sign-out address; then the private
 /// page again. Only ever a finding: one address refusing a GET says nothing about the others.
+/// Two questions about the private pages themselves, asked with the session that opened them.
+///
+/// Both are read off the same responses, because both need the same thing shown first: that the
+/// page really opened for a signed-in user. A page that answered 302 to the sign-in screen has no
+/// caching headers worth reading and no sign-out link worth looking for, and counting it either way
+/// would be judging the sign-in page instead.
+fn private_page_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signed_in: &SignedIn,
+    out: &mut Outcome,
+) {
+    if users.private.is_empty() {
+        out.not_assessed.push((
+            "V14.3.2, V7.4.4".to_owned(),
+            "[stack.run.users] lists no `private` pages, so there is no signed-in page to read \
+             caching headers from or to look for a sign-out link on."
+                .to_owned(),
+        ));
+        return;
+    }
+    let logout_path = users.logout.as_ref().map(|l| l.path.as_str());
+
+    let mut opened = Vec::new();
+    let mut not_stored = Vec::new();
+    let mut stored = Vec::new();
+    let mut with_link = Vec::new();
+    let mut without_link = Vec::new();
+
+    for path in &users.private {
+        let Some(response) = http.send(&get("private-page-headers", path, &signed_in.session))
+        else {
+            continue;
+        };
+        if !(200..300).contains(&response.status) {
+            continue;
+        }
+        opened.push(path.clone());
+
+        // `no-store` is the only value that means "do not keep a copy". `no-cache` permits the copy
+        // and asks for it to be revalidated, and `private` only says not to keep it in a shared
+        // cache, so neither answers this requirement.
+        let cache_control = response
+            .header("cache-control")
+            .unwrap_or_default()
+            .to_lowercase();
+        if cache_control
+            .split(',')
+            .any(|part| part.trim() == "no-store")
+        {
+            not_stored.push(path.clone());
+        } else {
+            stored.push(path.clone());
+        }
+
+        if logout_path.is_some_and(|logout| points_at(&response.body, logout)) {
+            with_link.push(path.clone());
+        } else {
+            without_link.push(path.clone());
+        }
+    }
+
+    if opened.is_empty() {
+        out.not_assessed.push((
+            "V14.3.2, V7.4.4".to_owned(),
+            "No private page opened for the signed-in test user, so nothing here could read what \
+             it sends or look for its sign-out link."
+                .to_owned(),
+        ));
+        return;
+    }
+
+    // ---- V14.3.2: Cache-Control: no-store
+    out.steps.push(format!(
+        "{} of {} private page{} sent Cache-Control: no-store",
+        not_stored.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" }
+    ));
+    if stored.is_empty() {
+        out.verified.push(crate::Verified::new(
+            PRIVATE_PAGE_CACHING.rule_id,
+            PRIVATE_PAGE_CACHING.requirement_ids,
+            format!(
+                "{} private page{}, each sending Cache-Control: no-store to a signed-in user",
+                opened.len(),
+                if opened.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &PRIVATE_PAGE_CACHING,
+            "A private page may be kept in the browser's cache",
+            Severity::Medium,
+            format!(
+                "Opened by a signed-in user, {} came back without `Cache-Control: no-store`.",
+                stored.join(", ")
+            ),
+        ));
+    }
+
+    // ---- V7.4.4: a visible way to sign out
+    //
+    // Only asked when securevibe.toml says where signing out happens. Without that there is no
+    // address to look for, and "no sign-out link" would be a statement about the manifest.
+    let Some(logout) = logout_path else {
+        out.not_assessed.push((
+            "V7.4.4".to_owned(),
+            "[stack.run.users] has no `logout`, so there is no sign-out address to look for on the \
+             private pages."
+                .to_owned(),
+        ));
+        return;
+    };
+    out.steps.push(format!(
+        "{} of {} private page{} showed a way to reach {logout}",
+        with_link.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" }
+    ));
+    if without_link.is_empty() {
+        out.verified.push(crate::Verified::new(
+            SIGN_OUT_LINK.rule_id,
+            SIGN_OUT_LINK.requirement_ids,
+            format!(
+                "{} private page{}, each carrying a link or form pointing at {logout}",
+                opened.len(),
+                if opened.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &SIGN_OUT_LINK,
+            "A private page offers no visible way to sign out",
+            Severity::Low,
+            format!(
+                "Opened by a signed-in user, {} carried no link or form pointing at {logout}.",
+                without_link.join(", ")
+            ),
+        ));
+    }
+}
+
+/// Whether a page offers a way to reach `target`: a link to it, or a form that posts to it.
+///
+/// Reads the `href` and `action` attributes rather than searching the whole page for the text, so a
+/// sign-out address mentioned in a comment or a script string is not mistaken for a control the
+/// person can see. What it cannot tell is whether the control is *visible* — a link inside a
+/// collapsed menu counts here — which is why finding one is worth no more than this.
+fn points_at(body: &str, target: &str) -> bool {
+    let matches = |value: &str| {
+        let value = value.trim();
+        value == target
+            || value.trim_end_matches('/') == target.trim_end_matches('/')
+            || value.split('?').next().is_some_and(|v| v == target)
+    };
+    tags(body, "a")
+        .iter()
+        .filter_map(|t| attribute(t, "href"))
+        .any(|href| matches(&href))
+        || tags(body, "form")
+            .iter()
+            .filter_map(|t| attribute(t, "action"))
+            .any(|action| matches(&action))
+}
+
 fn sign_out_on_get_check(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -2345,6 +2538,9 @@ mod tests {
         next: u32,
         /// Old passwords a change left working, under `change_keeps_old`.
         kept: BTreeMap<String, String>,
+        /// The exact `Cache-Control` a private page sends. `None` means the correct `no-store`,
+        /// so a test can set a value that only looks right without a flaw flag for each one.
+        cache_control: Option<String>,
     }
 
     #[derive(Default, Clone, Copy)]
@@ -2408,6 +2604,12 @@ mod tests {
         delete_does_nothing: bool,
         /// Sign-up asks for the answer to a secret question.
         secret_question: bool,
+        /// Private pages come back without `Cache-Control: no-store`.
+        private_page_cacheable: bool,
+        /// Private pages carry no link or form pointing at the sign-out address — but do name it
+        /// in a script, which is what a page built by JavaScript looks like and what a check
+        /// searching the whole page for the text would wrongly credit.
+        no_sign_out_link: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -2785,7 +2987,25 @@ mod tests {
                 }
                 ("GET", "/account") => {
                     if user.is_some() || self.flaws.private_open {
-                        Self::respond(200, vec![], "your account")
+                        // A correct private page: not to be kept by the browser, and carrying a
+                        // visible way out. Each half is switched off by its own flaw, so a test
+                        // that breaks one is not quietly relying on the other.
+                        let headers = match (&self.cache_control, self.flaws.private_page_cacheable)
+                        {
+                            (_, true) => vec![],
+                            (Some(value), _) => vec![("Cache-Control", value.clone())],
+                            (None, _) => vec![("Cache-Control", "no-store".to_string())],
+                        };
+                        let body = if self.flaws.no_sign_out_link {
+                            "your account<script>const OUT = '/logout';</script>".to_string()
+                        } else {
+                            format!(
+                                "your account<form method='post' action='/logout'>\
+                                 <input name='csrf_token' value='{CSRF}'>\
+                                 <button>Sign out</button></form>"
+                            )
+                        };
+                        Self::respond(200, headers, &body)
                     } else {
                         Self::respond(302, vec![("Location", "/login".into())], "")
                     }
@@ -2943,6 +3163,8 @@ mod tests {
             OTHER_USERS_DATA.rule_id,
             FORGERY.rule_id,
             LOGOUT.rule_id,
+            PRIVATE_PAGE_CACHING.rule_id,
+            SIGN_OUT_LINK.rule_id,
         ] {
             assert!(
                 verified_ids(&o).contains(&id),
@@ -3060,6 +3282,20 @@ mod tests {
                     ..Default::default()
                 },
                 SIGN_OUT_ON_GET.rule_id,
+            ),
+            (
+                Flaws {
+                    private_page_cacheable: true,
+                    ..Default::default()
+                },
+                PRIVATE_PAGE_CACHING.rule_id,
+            ),
+            (
+                Flaws {
+                    no_sign_out_link: true,
+                    ..Default::default()
+                },
+                SIGN_OUT_LINK.rule_id,
             ),
         ] {
             let o = run_against(flaw, &users());
@@ -4122,5 +4358,212 @@ mod tests {
             &u,
         );
         assert_eq!(rule_ids(&o), vec![COMMON_PASSWORD.rule_id], "{:?}", o.steps);
+    }
+
+    // ---- The private pages themselves: what they let a browser keep (V14.3.2), and whether they
+    // show a way out (V7.4.4).
+
+    #[test]
+    fn no_cache_is_not_no_store() {
+        // The distinction the whole check turns on, and the one an app is most likely to get
+        // half-right. `no-cache` permits the browser to keep the copy and asks it to revalidate;
+        // `private` only says not to keep it in a shared cache. Neither is what V14.3.2 asks for,
+        // and a substring search for "no-store" inside "no-cache, private" would find nothing
+        // anyway — what would pass wrongly is a looser reading of the header.
+        for value in [
+            "no-cache",
+            "private",
+            "max-age=0",
+            "no-cache, private, max-age=0",
+        ] {
+            let mut app = FakeApp::new(Flaws::default());
+            app.cache_control = Some(value.to_string());
+            let acc = accounts();
+            app.users
+                .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+            app.users
+                .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let o = run(&mut app, &users(), &acc, true);
+            assert!(
+                rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was accepted as no-store: {:?}",
+                rule_ids(&o)
+            );
+            assert!(
+                !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was credited as no-store"
+            );
+        }
+    }
+
+    #[test]
+    fn the_run_note_counts_the_pages_that_answered_each_question() {
+        // A second reading of the same two checks, on the surface the owner actually sees. The
+        // findings list says something is wrong; this line says how much of the app was looked at,
+        // and a check that silently examined nothing would still print a reassuring "0 of 0".
+        let correct = run_against(Flaws::default(), &users());
+        let steps = correct.steps.join(" | ");
+        assert!(
+            steps.contains("1 of 1 private page sent Cache-Control: no-store"),
+            "{steps}"
+        );
+        assert!(
+            steps.contains("1 of 1 private page showed a way to reach /logout"),
+            "{steps}"
+        );
+
+        let mut app = FakeApp::new(Flaws::default());
+        app.cache_control = Some("no-cache, private".to_string());
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let loose = run(&mut app, &users(), &acc, true);
+        assert!(
+            loose
+                .steps
+                .join(" | ")
+                .contains("0 of 1 private page sent Cache-Control: no-store"),
+            "`no-cache, private` was counted as no-store in the run note: {:?}",
+            loose.steps
+        );
+    }
+
+    #[test]
+    fn no_store_among_other_directives_is_still_no_store() {
+        // The other direction: a real app writes `no-store, max-age=0` or
+        // `private, no-store, must-revalidate`, and refusing those would be a finding for every
+        // app that gets this right.
+        for value in [
+            "no-store",
+            "no-store, max-age=0",
+            "private, no-store, must-revalidate",
+            "No-Store",
+        ] {
+            let mut app = FakeApp::new(Flaws::default());
+            app.cache_control = Some(value.to_string());
+            let acc = accounts();
+            app.users
+                .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+            app.users
+                .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let o = run(&mut app, &users(), &acc, true);
+            assert!(
+                !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was refused as no-store"
+            );
+            assert!(
+                verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was not credited"
+            );
+        }
+    }
+
+    #[test]
+    fn a_sign_out_address_only_mentioned_in_a_script_is_not_a_visible_way_out() {
+        // `points_at` reads href and action attributes rather than searching the page for the
+        // text. A page that names the sign-out address in a script string or a comment offers the
+        // person nothing, and a substring search would have credited it.
+        assert!(!points_at(
+            "<script>const LOGOUT = '/logout';</script><!-- /logout -->",
+            "/logout"
+        ));
+        assert!(!points_at("you can sign out at /logout one day", "/logout"));
+        assert!(points_at("<a href='/logout'>Sign out</a>", "/logout"));
+        assert!(points_at(
+            "<form method='post' action='/logout'><button>out</button></form>",
+            "/logout"
+        ));
+        // Spellings a real page uses, which must not cost an app the credit.
+        assert!(points_at("<a href=\"/logout/\">out</a>", "/logout"));
+        assert!(points_at("<a href=\"/logout?next=/\">out</a>", "/logout"));
+        assert!(!points_at("<a href='/logout-help'>help</a>", "/logout"));
+    }
+
+    #[test]
+    fn a_private_page_that_never_opened_answers_neither_question() {
+        // The setup-first rule. If the signed-in session cannot open the private page, there are no
+        // headers worth reading and no link worth looking for, and both requirements must come back
+        // not assessed rather than as a pass or a finding.
+        //
+        // A page that never opens also stops the run before these checks are reached at all, so
+        // what this really pins is that the bail-out names them: a requirement nothing asked about
+        // has to be said out loud wherever the asking stopped.
+        let mut broken = users();
+        broken.private = vec!["/nowhere".into()];
+        let o = run_against(Flaws::default(), &broken);
+        assert!(
+            !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "a page that never opened produced a finding: {:?}",
+            rule_ids(&o)
+        );
+        assert!(
+            !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "a page that never opened was credited"
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V14.3.2") && ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_app_with_no_private_pages_listed_answers_neither_question() {
+        // The other way to have nowhere to look. `private = []` reaches the checks rather than
+        // bailing out before them, so this is the branch inside `private_page_checks` itself.
+        let mut none = users();
+        none.private = Vec::new();
+        let o = run_against(Flaws::default(), &none);
+        assert!(
+            !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "{:?}",
+            rule_ids(&o)
+        );
+        assert!(
+            !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "nothing was read, so nothing may be credited"
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V14.3.2") && ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn without_a_sign_out_address_the_link_question_is_not_asked() {
+        // V7.4.4 needs somewhere to look for. With no `logout` in securevibe.toml, "no sign-out
+        // link" would be a statement about the manifest rather than about the app — but the caching
+        // question does not depend on it and must still be answered.
+        let mut no_logout = users();
+        no_logout.logout = None;
+        let o = run_against(Flaws::default(), &no_logout);
+        assert!(!rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id));
+        assert!(!verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id));
+        assert!(
+            o.not_assessed.iter().any(|(ids, _)| ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+            "the caching question does not depend on the sign-out address"
+        );
     }
 }

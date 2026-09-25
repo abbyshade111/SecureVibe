@@ -1230,6 +1230,49 @@ for, and a probe with no answer is already reported as unanswered. The finished 
 before it reaches the sidecar's shell, so nothing in a header value can end the command it travels in — a
 scanner that can be made to run a shell command by the app it is scanning would be a poor advertisement.
 
+### Three more questions for the running app
+
+Three Level 2 requirements that the questions already being asked were one response away from
+answering, with no new manifest entry between them.
+
+**`Cache-Control: no-store` on private pages (V14.3.2).** The signed-in session already opens every
+page `private` names; this reads the headers that came back with it. `no-store` is the only value
+that answers the requirement, and the check says so by matching the directive exactly rather than
+looking for the text: `no-cache` permits the browser to keep the copy and asks it to revalidate, and
+`private` only rules out a shared cache. Both are the half-right answer an app is most likely to
+have, and both leave the page on a shared machine after the person signs out. A looser reading turns
+two tests red.
+
+**A visible sign-out link on private pages (V7.4.4).** The same responses, read for a link or a form
+pointing at the `logout` address. It reads `href` and `action` attributes rather than searching the
+page for the address, because a page that names `/logout` in a script string or a comment offers the
+person nothing — and the fake app's flawed page now does exactly that, so the end-to-end flaw test
+catches the loose reading too. What it cannot tell is whether the control is *visible*: a link
+inside a collapsed menu counts here, which is why finding one is worth no more than it says.
+
+Both need `private` to have opened for the signed-in user first. When it did not, they report *not
+assessed* rather than a pass or a finding — and because a page that never opens ends the run before
+these checks are reached, the three earlier bail-outs now name V14.3.2 and V7.4.4 too. A requirement
+nothing asked about has to be said out loud wherever the asking stopped.
+
+**Directory listings (V13.4.3).** This one is an anonymous probe, beside the `.git` check for
+V13.4.1, rather than a signed-in one: a folder that lists its contents does so for anybody, and
+putting it behind `[stack.run.users]` would have meant asking it only of apps with sign-in. Six
+common folder paths are requested with a trailing slash, and a listing is recognized by what the
+three servers that produce one actually write — Apache and nginx both head the page "Index of /x",
+Python's `http.server` writes "Directory listing for /x".
+
+That precision is also the limit, and it is why this **only ever produces a finding**. Six guesses
+are six guesses, three signatures miss a listing a framework renders in its own words, and finding
+nothing would be a statement about what was guessed rather than about the app. Matching "a page with
+several links in it" instead — the obvious alternative — turns three tests red, because every real
+page is a page with several links in it.
+
+The request id and the check have to agree, or the probe is dead: the request goes out, the response
+comes back, and nothing reads it, with nothing failing anywhere. Both sides call one `listing_id`
+function, and a test builds its responses from the real request list rather than from ids typed into
+the test, so drift between them is caught rather than silently tolerated.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets
