@@ -581,6 +581,10 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
 }
 
 /// A finding when the bill of materials cannot be trusted as a complete list.
+/// The requirement a complete bill of materials is evidence about: an inventory catalogue of every
+/// third-party library in use. Named once so the check and `sv coverage` cannot disagree.
+pub const INVENTORY_REQUIREMENT: &str = "V15.1.2";
+
 /// What the bill of materials may claim to be, when it is complete enough to claim anything.
 ///
 /// The mirror of `incompleteness_finding`: exactly one of the two speaks, and which one is decided
@@ -593,7 +597,7 @@ pub fn completeness_verified(sbom: &Sbom) -> Option<crate::verified::Verified> {
     }
     Some(crate::verified::Verified::new(
         "sbom",
-        &["V15.1.2"],
+        &[INVENTORY_REQUIREMENT],
         format!(
             "an inventory of {} third-party librar{}, each at the version actually installed, from \
              every ecosystem found in the app",
