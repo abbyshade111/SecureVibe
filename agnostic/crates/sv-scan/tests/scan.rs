@@ -955,3 +955,274 @@ fn a_declared_broker_client_answers_multiple_services() {
         found.evidence
     );
 }
+
+// ---- projects that are not at the top of the repository ----
+
+#[test]
+fn a_client_and_server_layout_has_its_dependencies_read() {
+    // The usual shape of a full-stack app from an AI builder, with no manifest at the top. Every
+    // dependency in it used to go unread.
+    let report = scan_files(
+        "client-server",
+        &[
+            (
+                "server/package.json",
+                "{\"name\":\"server\",\"dependencies\":{\"express\":\"^4.19.0\",\"ws\":\"^8.18.0\"}}",
+            ),
+            (
+                "server/package-lock.json",
+                "{\"name\":\"server\",\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            ("server/index.js", "const express = require('express');\n"),
+            (
+                "client/package.json",
+                "{\"name\":\"client\",\"dependencies\":{\"react\":\"^19.0.0\"}}",
+            ),
+            (
+                "client/package-lock.json",
+                "{\"name\":\"client\",\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            (
+                "client/src/main.jsx",
+                "export const App = () => <p>hi</p>;\n",
+            ),
+        ],
+    );
+    let found = answer(&report, Condition::Websockets);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, manifest } if name == "ws" && manifest == "server/package.json"),
+        "{:?}",
+        found.evidence
+    );
+    let manifests: Vec<&str> = report
+        .ecosystems
+        .iter()
+        .map(|e| e.manifest.as_str())
+        .collect();
+    assert_eq!(
+        manifests,
+        vec!["client/package.json", "server/package.json"]
+    );
+    assert!(report.unpinned.is_empty(), "{:?}", report.unpinned);
+}
+
+#[test]
+fn a_nested_project_with_no_lockfile_is_unpinned_and_named() {
+    let dir = scratch("nested-unpinned");
+    std::fs::create_dir_all(dir.join("api")).unwrap();
+    std::fs::write(dir.join("api/requirements.txt"), "flask>=3\n").unwrap();
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let manifests: Vec<&str> = unpinned.iter().map(|e| e.manifest.as_str()).collect();
+    assert_eq!(manifests, vec!["api/requirements.txt"]);
+}
+
+#[test]
+fn a_workspace_member_is_pinned_by_the_lockfile_at_the_workspace_root() {
+    // npm, pnpm, Yarn, Cargo and uv keep one lockfile at the root for every member.
+    let dir = scratch("npm-workspace");
+    std::fs::create_dir_all(dir.join("packages/api")).unwrap();
+    std::fs::write(
+        dir.join("package.json"),
+        "{\"name\":\"shop\",\"private\":true,\"workspaces\":[\"packages/*\"]}",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("package-lock.json"),
+        "{\"lockfileVersion\":3,\"packages\":{}}",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("packages/api/package.json"),
+        "{\"name\":\"api\",\"dependencies\":{\"express\":\"^4.19.0\"}}",
+    )
+    .unwrap();
+    let detected = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let member = detected
+        .iter()
+        .find(|e| e.manifest == "packages/api/package.json")
+        .expect("the member is found");
+    assert_eq!(member.lockfile.as_deref(), Some("package-lock.json"));
+}
+
+#[test]
+fn a_lockfile_at_the_top_does_not_pin_an_unrelated_project_below_it() {
+    // Without a workspace declaration the root lockfile is the root project's alone. Counting it for
+    // `server/` would say the server pins what it installs when nothing does.
+    let dir = scratch("stray-root-lock");
+    std::fs::create_dir_all(dir.join("server")).unwrap();
+    std::fs::write(dir.join("package.json"), "{\"name\":\"site\"}").unwrap();
+    std::fs::write(
+        dir.join("package-lock.json"),
+        "{\"lockfileVersion\":3,\"packages\":{}}",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("server/package.json"),
+        "{\"name\":\"server\",\"dependencies\":{\"express\":\"^4.19.0\"}}",
+    )
+    .unwrap();
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let manifests: Vec<&str> = unpinned.iter().map(|e| e.manifest.as_str()).collect();
+    assert_eq!(manifests, vec!["server/package.json"]);
+}
+
+#[test]
+fn a_manifest_inside_installed_dependencies_is_not_a_project() {
+    let dir = scratch("nested-node-modules");
+    std::fs::create_dir_all(dir.join("node_modules/ws")).unwrap();
+    std::fs::create_dir_all(dir.join("web/node_modules/left-pad")).unwrap();
+    std::fs::write(dir.join("package.json"), "{\"name\":\"app\"}").unwrap();
+    std::fs::write(
+        dir.join("node_modules/ws/package.json"),
+        "{\"name\":\"ws\"}",
+    )
+    .unwrap();
+    std::fs::write(dir.join("web/package.json"), "{\"name\":\"web\"}").unwrap();
+    std::fs::write(
+        dir.join("web/node_modules/left-pad/package.json"),
+        "{\"name\":\"left-pad\"}",
+    )
+    .unwrap();
+    let detected = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let manifests: Vec<&str> = detected.iter().map(|e| e.manifest.as_str()).collect();
+    assert_eq!(manifests, vec!["package.json", "web/package.json"]);
+}
+
+#[test]
+fn cargo_and_pnpm_workspaces_pin_their_members_and_a_plain_crate_does_not() {
+    // The second witness for the workspace rule, in two more ecosystems and in both directions.
+    let dir = scratch("cargo-pnpm-workspaces");
+    for d in ["crates/core", "tools/gen", "web/apps/site"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    std::fs::write(
+        dir.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("Cargo.lock"), "version = 3\n").unwrap();
+    std::fs::write(
+        dir.join("crates/core/Cargo.toml"),
+        "[package]\nname = \"core\"\n",
+    )
+    .unwrap();
+    // A tool with its own Cargo.toml that the workspace does not list: the root lockfile is not its.
+    std::fs::write(
+        dir.join("tools/gen/Cargo.toml"),
+        "[package]\nname = \"gen\"\n",
+    )
+    .unwrap();
+    // A pnpm workspace inside `web/`, whose lockfile covers `web/apps/site`.
+    std::fs::write(
+        dir.join("web/pnpm-workspace.yaml"),
+        "packages:\n  - apps/*\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("web/package.json"),
+        "{\"name\":\"web\",\"private\":true}",
+    )
+    .unwrap();
+    std::fs::write(dir.join("web/pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+    std::fs::write(
+        dir.join("web/apps/site/package.json"),
+        "{\"name\":\"site\"}",
+    )
+    .unwrap();
+    let detected = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let lock_of = |m: &str| {
+        detected
+            .iter()
+            .find(|e| e.manifest == m)
+            .unwrap_or_else(|| panic!("{m} not found: {detected:?}"))
+            .lockfile
+            .clone()
+    };
+    assert_eq!(
+        lock_of("crates/core/Cargo.toml").as_deref(),
+        Some("Cargo.lock")
+    );
+    assert_eq!(
+        lock_of("tools/gen/Cargo.toml"),
+        None,
+        "not a member of the workspace"
+    );
+    assert_eq!(
+        lock_of("web/apps/site/package.json").as_deref(),
+        Some("web/pnpm-lock.yaml")
+    );
+}
+
+#[test]
+fn a_crate_under_a_root_that_is_not_a_workspace_pins_nothing() {
+    // The other direction for Cargo: a root crate's lockfile is its own.
+    let dir = scratch("cargo-not-workspace");
+    std::fs::create_dir_all(dir.join("helper")).unwrap();
+    std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"app\"\n").unwrap();
+    std::fs::write(dir.join("Cargo.lock"), "version = 3\n").unwrap();
+    std::fs::write(
+        dir.join("helper/Cargo.toml"),
+        "[package]\nname = \"helper\"\n",
+    )
+    .unwrap();
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let manifests: Vec<&str> = unpinned.iter().map(|e| e.manifest.as_str()).collect();
+    assert_eq!(manifests, vec!["helper/Cargo.toml"]);
+}
+
+#[test]
+fn a_dependency_declared_only_inside_node_modules_is_not_the_apps() {
+    // Second witness for the skipped folders, through a claim: an installed package that itself
+    // depends on stripe does not mean this app takes payments.
+    let report = scan_files(
+        "node-modules-claim",
+        &[
+            (
+                "package.json",
+                "{\"name\":\"app\",\"dependencies\":{\"billing-kit\":\"1.0.0\"}}",
+            ),
+            (
+                "package-lock.json",
+                "{\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            (
+                "node_modules/billing-kit/package.json",
+                "{\"name\":\"billing-kit\",\"dependencies\":{\"stripe\":\"^16.0.0\"}}",
+            ),
+            ("index.js", "console.log('hi');\n"),
+        ],
+    );
+    let found = answer(&report, Condition::Payments);
+    assert!(
+        !matches!(found.evidence, Evidence::Dependency { .. }),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_project_the_npm_workspace_does_not_list_is_not_pinned_by_its_lockfile() {
+    // `workspaces: ["packages/*"]` covers `packages/api` and not `scripts/seed`, which npm installs
+    // on its own and from nothing.
+    let dir = scratch("npm-workspace-nonmember");
+    std::fs::create_dir_all(dir.join("packages/api")).unwrap();
+    std::fs::create_dir_all(dir.join("scripts/seed")).unwrap();
+    std::fs::write(
+        dir.join("package.json"),
+        "{\"name\":\"shop\",\"workspaces\":{\"packages\":[\"packages/*\"]}}",
+    )
+    .unwrap();
+    std::fs::write(dir.join("package-lock.json"), "{\"lockfileVersion\":3}").unwrap();
+    std::fs::write(dir.join("packages/api/package.json"), "{\"name\":\"api\"}").unwrap();
+    std::fs::write(dir.join("scripts/seed/package.json"), "{\"name\":\"seed\"}").unwrap();
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let manifests: Vec<&str> = unpinned.iter().map(|e| e.manifest.as_str()).collect();
+    assert_eq!(manifests, vec!["scripts/seed/package.json"]);
+}

@@ -192,7 +192,8 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     for eco in &report.unpinned {
         println!(
             "  {} pins no versions ({} has no lockfile), so what is actually installed cannot be known.",
-            eco.name, eco.manifest
+            eco.label(),
+            eco.manifest
         );
     }
     if !report.unread_extensions.is_empty() {
@@ -1174,7 +1175,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     }
     for eco in &scan_report.unpinned {
         gaps.push(sv_report::Gap {
-            what: format!("what {} actually installs", eco.name),
+            what: format!("what {} actually installs", eco.label()),
             why: format!(
                 "{} pins no versions, so the list of dependencies is what was asked for rather \
                  than what is there",

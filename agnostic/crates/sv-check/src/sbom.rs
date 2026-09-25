@@ -93,9 +93,25 @@ pub fn build(app_dir: &Path) -> Sbom {
 }
 
 fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
-    let read = |name: &str| std::fs::read_to_string(app_dir.join(name)).ok();
+    // The file names below decide how each is read; the paths are where they really are, which for a
+    // project in `server/` or a workspace member is not the top of the app folder.
+    let lockfile_path = eco.lockfile.clone().unwrap_or_default();
+    let read = |name: &str| {
+        let path = if sv_scan::ecosystems::file_name(&lockfile_path) == name {
+            lockfile_path.as_str()
+        } else if sv_scan::ecosystems::file_name(&eco.manifest) == name {
+            eco.manifest.as_str()
+        } else {
+            name
+        };
+        std::fs::read_to_string(app_dir.join(path)).ok()
+    };
 
-    let locked: Option<Vec<(String, String)>> = match eco.lockfile.as_deref() {
+    let locked: Option<Vec<(String, String)>> = match eco
+        .lockfile
+        .as_deref()
+        .map(sv_scan::ecosystems::file_name)
+    {
         Some("package-lock.json") => read("package-lock.json").as_deref().map(from_package_lock),
         // npm-shrinkwrap.json is package-lock.json under another name.
         Some("npm-shrinkwrap.json") => read("npm-shrinkwrap.json")
@@ -151,7 +167,7 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
     }
 
     // No lockfile, or one that produced nothing. Fall back to the manifest and say what that means.
-    let declared = match eco.manifest.as_str() {
+    let declared = match sv_scan::ecosystems::file_name(&eco.manifest) {
         "requirements.txt" => read("requirements.txt")
             .as_deref()
             .map(from_pinned_requirements),
@@ -763,6 +779,53 @@ mod tests {
                 .any(|c| c.purl() == "pkg:npm/@babel/core@7.23.0")
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_project_below_the_top_has_its_lockfile_read() {
+        // A `server/` project's packages were missing from the bill of materials, because only the
+        // top of the app folder was looked at.
+        let dir = scratch("nested");
+        fs::create_dir_all(dir.join("server")).unwrap();
+        fs::write(dir.join("server/package.json"), r#"{"name":"server"}"#).unwrap();
+        fs::write(
+            dir.join("server/package-lock.json"),
+            r#"{"lockfileVersion":3,"packages":{"":{"name":"server"},"node_modules/express":{"version":"4.19.2"}}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert!(
+            sbom.components
+                .iter()
+                .any(|c| c.purl() == "pkg:npm/express@4.19.2"),
+            "{sbom:?}"
+        );
+    }
+
+    #[test]
+    fn a_nested_rust_project_has_its_lockfile_read() {
+        // Second witness, another ecosystem and another reader.
+        let dir = scratch("nested-cargo");
+        fs::create_dir_all(dir.join("worker")).unwrap();
+        fs::write(
+            dir.join("worker/Cargo.toml"),
+            "[package]\nname = \"worker\"\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("worker/Cargo.lock"),
+            "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.210\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert!(
+            sbom.components
+                .iter()
+                .any(|c| c.name == "serde" && c.version == "1.0.210"),
+            "{sbom:?}"
+        );
     }
 
     #[test]

@@ -36,22 +36,16 @@ another session is not a claim.
   `golang.org/x/crypto` and never appears in `go.mod`, so it is found in source instead. And
   `build.gradle.kts`, the Kotlin default, is now read, for dependencies and for pinning.
 
-- **Dependency manifests are only read at the top of the repository.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25
-  September 2026. `ecosystems::detect` looks for `package.json`, `go.mod` and the rest in the app folder
-  itself, so a full-stack app laid out as `client/` and `server/` — the usual shape of what an AI
-  builder writes — has no dependency read at all, and the technology conditions fall back to source
-  patterns alone. It is also the pinning check and the SBOM. Walking for manifests means deciding what
-  a nested one belongs to, and skipping `node_modules` and vendored copies, which is why it is its own
-  item.
-
-- ~~**Secure by Design controls excluded on too narrow a question.**~~ Done on 25 September 2026, at
-  the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
-  (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
-  AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
-  Left over from the same review, not done: the derived checklist levels are reported as "above the
-  ASVS level this app targets", which is not what they are; and SBD-AC-05's "no secrets in code" is
-  exactly what the credential scan checks, which the report could show beside the control (Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`) for the
-  SBD-AC-05 half).
+- ~~**Dependency manifests are only read at the top of the repository.**~~ Done on 25 September 2026.
+  `ecosystems::detect` walks the whole app folder (skipping installed dependencies and build output),
+  so a `client/` + `server/` app has its dependencies read, its pinning judged per project, and its
+  packages in the SBOM; every path it returns is relative to the app folder. A lockfile in a parent
+  folder pins a project only when that folder is a workspace root whose member list covers it (npm and
+  Yarn `workspaces`, `pnpm-workspace.yaml`, Cargo `[workspace]`, uv `[tool.uv.workspace]`): a stray
+  root lockfile pinning an unrelated project below it would be a wrong statement in the direction that
+  hides something. A nested project is named by its folder ("npm in server/") so two read as two.
+  Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
+  top only, and a Yarn Berry or Bun lockfile is not one `sv` reads.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —

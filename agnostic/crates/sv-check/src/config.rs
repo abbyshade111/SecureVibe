@@ -239,10 +239,14 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
     let unknown = sv_scan::ecosystems::pinning_unknown(app_dir);
 
     if let Some(first) = unpinned.first() {
-        let names: Vec<&str> = unpinned.iter().map(|e| e.name.as_str()).collect();
+        let names: Vec<String> = unpinned.iter().map(|e| e.label()).collect();
         return Outcome::Failed(Box::new(Finding {
             rule_id: "config.versions-pinned".into(),
-            title: format!("{} does not pin the versions it installs", names.join(" and ")),
+            title: if names.len() == 1 {
+                format!("{} does not pin the versions it installs", names[0])
+            } else {
+                format!("{} do not pin the versions they install", names.join(" and "))
+            },
             severity: Severity::Medium,
             confidence: Confidence::High,
             location: Location { file: first.manifest.clone(), line: 1 },
@@ -264,7 +268,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
     }
 
     if let Some(first) = unknown.first() {
-        let names: Vec<&str> = unknown.iter().map(|e| e.name.as_str()).collect();
+        let names: Vec<String> = unknown.iter().map(|e| e.label()).collect();
         return Outcome::NotAssessed(format!(
             "{} does not use a lockfile at all — versions live in `{}` — and `sv` does not read version \
              ranges out of it yet. Whether this app pins what it installs is still an open question, not \
