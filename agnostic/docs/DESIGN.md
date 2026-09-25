@@ -109,6 +109,20 @@ run was resource-starved rather than report it as a failing one.
 running `sv`. Where none is present, every dynamic requirement reports `not assessed` — not `pass`, and not
 `fail` — and the reports say which applied, as v1's do.
 
+## Signing in (25 September 2026)
+
+The probes signed in as nobody, so authorization and sessions were always *not assessed*. v1 knew how
+to sign in because it wrote the app; `sv` is told, in `[stack.run.users]`, by the same manifest that
+already says how to start the app, and makes its own accounts with passwords made for the run.
+
+The rule every check follows is the one from this project's `CLAUDE.md` about tests whose setup can fail
+quietly. B being refused A's note proves nothing if A was refused it too; a session surviving sign-out
+proves nothing if the sign-out was refused. So each check shows what it relies on first. That rule was
+tested against the real example app and caught the suite itself: the example's `/logout` has no page to
+take an anti-forgery token from, the sign-out went without one, the app correctly refused it, and the
+first run reported "signing out does not end the session". A sign-out that did not happen is now not
+assessed, and the token is looked for on the user's other pages, as a sign-out button's would be.
+
 ## Handover
 
 `sv check ./my-app` is the primitive: any tool, any editor, CI. An MCP server wrapping the same core comes

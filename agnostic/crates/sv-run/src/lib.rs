@@ -97,6 +97,8 @@ pub struct RunPlan {
     pub app_dir: PathBuf,
     /// The port the app listens on inside the container.
     pub port: u16,
+    /// How to sign in, when securevibe.toml says. Absent means the probes sign in as nobody.
+    pub users: Option<sv_manifest::UsersSection>,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -150,6 +152,7 @@ impl RunPlan {
                 .canonicalize()
                 .unwrap_or_else(|_| app_dir.to_path_buf()),
             port: APP_PORT,
+            users: run.users.clone(),
         })
     }
 }
@@ -174,6 +177,40 @@ pub struct RunOutcome {
     pub fence: Fence,
     /// What the probes asked the app while it was up, and what it answered.
     pub probe_responses: Vec<sv_check::probes::ProbeResponse>,
+    /// What asking as signed-in users showed, when securevibe.toml says how to sign in.
+    pub signed_in: Option<sv_check::signed_in::Outcome>,
+}
+
+/// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
+///
+/// Fresh every run and never written anywhere but the app's own container: they exist to be signed
+/// in with once. The password carries every kind of character a password rule asks for, so an app
+/// with a strict policy still accepts it.
+pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
+    let account = |role: &str| {
+        let tag = random_hex(6);
+        sv_check::signed_in::Account {
+            user: format!("sv-{role}-{tag}@example.test"),
+            password: format!("Sv-{}-aZ9!", random_hex(12)),
+        }
+    };
+    sv_check::signed_in::Accounts {
+        a: account("a"),
+        b: account("b"),
+        admin: with_admin.then(|| account("admin")),
+    }
+}
+
+/// Random bytes as hex, from the operating system. A clock-based value would repeat between runs
+/// started in the same instant, and a password is the one thing here that must not be guessable.
+fn random_hex(bytes: usize) -> String {
+    use std::io::Read;
+    let mut buf = vec![0u8; bytes];
+    let filled = std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .is_ok();
+    assert!(filled, "no source of randomness for test passwords");
+    buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,6 +293,36 @@ pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_run_makes_its_own_accounts_with_passwords_nobody_could_guess() {
+        let one = new_accounts(true);
+        let two = new_accounts(false);
+        assert!(two.admin.is_none(), "no admin unless one was asked for");
+        let admin = one.admin.as_ref().expect("an admin when asked for");
+        let passwords = [
+            &one.a.password,
+            &one.b.password,
+            &admin.password,
+            &two.a.password,
+        ];
+        for (i, p) in passwords.iter().enumerate() {
+            assert!(p.len() >= 24, "{p}");
+            // Every kind of character a password rule asks for.
+            assert!(
+                p.chars().any(|c| c.is_ascii_uppercase())
+                    && p.chars().any(|c| c.is_ascii_lowercase())
+            );
+            assert!(
+                p.chars().any(|c| c.is_ascii_digit()) && p.chars().any(|c| !c.is_alphanumeric())
+            );
+            for other in &passwords[i + 1..] {
+                assert_ne!(p, other, "two accounts share a password");
+            }
+        }
+        assert_ne!(one.a.user, one.b.user);
+        assert_ne!(one.a.user, two.a.user, "accounts are fresh every run");
+    }
 
     #[test]
     fn a_manifest_that_does_not_say_how_to_run_says_which_parts_are_missing() {

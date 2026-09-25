@@ -188,6 +188,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sv-frameworks",
+ "sv-manifest",
  "sv-scan",
  "tree-sitter",
  "tree-sitter-c",
