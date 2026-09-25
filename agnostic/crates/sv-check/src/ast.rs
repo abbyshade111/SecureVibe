@@ -17,8 +17,8 @@
 //!
 //! # A language with no grammar is a language not read
 //!
-//! Ruby, PHP and Java have no grammar compiled in yet, so files in them are not scanned — and that is
-//! reported rather than left to look like a clean result, the same way the secrets scanner reports the
+//! C++ has no grammar compiled in yet, so files in it are not scanned — and that is reported rather
+//! than left to look like a clean result, the same way the secrets scanner reports the
 //! files it skipped.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
@@ -60,6 +60,22 @@ pub struct AstRule {
     /// The same, per language, for the `@mod` capture — the object or module the call is on.
     #[serde(default)]
     pub module_patterns: BTreeMap<String, String>,
+    /// Per language, what the `@arg` capture's text must match for the call to be reported at all.
+    ///
+    /// For the rules whose danger is in *which* value is passed rather than whether it was built:
+    /// `createHash("md5")` and `createHash("sha256")` are the same call with a literal argument, and
+    /// only the first is a finding. A match with no `@arg` capture is not reported, so a query that
+    /// forgets the capture reports nothing rather than everything.
+    #[serde(default)]
+    pub argument_patterns: BTreeMap<String, String>,
+    /// Per language, an `@arg` text that is known to be safe, so the call is not reported.
+    ///
+    /// Narrow on purpose, and each one written for a named idiom: `redirect(url_for("index"))` builds
+    /// its destination from the app's own routes, and `res.sendFile(path.join(__dirname, "a.html"))`
+    /// joins nothing but fixed text onto the app's own folder. Neither is a literal, and reporting
+    /// either beside the real thing is how a rule teaches people to skip it.
+    #[serde(default)]
+    pub safe_argument_patterns: BTreeMap<String, String>,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
 }
@@ -78,6 +94,8 @@ struct Compiled {
     queries: BTreeMap<String, Query>,
     function: BTreeMap<String, regex::Regex>,
     module: BTreeMap<String, regex::Regex>,
+    argument: BTreeMap<String, regex::Regex>,
+    safe_argument: BTreeMap<String, regex::Regex>,
 }
 
 pub struct AstRules {
@@ -398,11 +416,31 @@ impl AstRules {
             };
             let function = compile_patterns(&rule.function_patterns, "functionPattern")?;
             let module = compile_patterns(&rule.module_patterns, "modulePattern")?;
+            let argument = compile_patterns(&rule.argument_patterns, "argumentPattern")?;
+            let safe_argument =
+                compile_patterns(&rule.safe_argument_patterns, "safeArgumentPattern")?;
+            // A pattern for a language the rule has no query in is a pattern that never runs, and
+            // the rule reads as if it had been taught that language.
+            for (what, patterns) in [
+                ("functionPattern", &rule.function_patterns),
+                ("modulePattern", &rule.module_patterns),
+                ("argumentPattern", &rule.argument_patterns),
+                ("safeArgumentPattern", &rule.safe_argument_patterns),
+            ] {
+                if let Some(language) = patterns.keys().find(|l| !queries.contains_key(*l)) {
+                    anyhow::bail!(
+                        "rule {} has a {what} for {language} but no {language} query",
+                        rule.id
+                    );
+                }
+            }
             compiled.push(Compiled {
                 rule,
                 queries,
                 function,
                 module,
+                argument,
+                safe_argument,
             });
         }
         Ok(AstRules { compiled })
@@ -570,6 +608,18 @@ pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     Some(name) if pattern.is_match(&name) => {}
                     _ => continue,
                 }
+            }
+            if let Some(pattern) = compiled.argument.get(language) {
+                match text_of(m, arg_index) {
+                    Some(text) if pattern.is_match(&text) => {}
+                    _ => continue,
+                }
+            }
+            if let Some(pattern) = compiled.safe_argument.get(language)
+                && let Some(text) = text_of(m, arg_index)
+                && pattern.is_match(&text)
+            {
+                continue;
             }
             // A literal argument means the call cannot be made to do anything the author did not write.
             if compiled.rule.literal_argument_is_safe
@@ -841,6 +891,24 @@ mod tests {
             Err(e) => format!("{e:#}"),
         };
         assert!(error.contains("cannot compile"), "{error}");
+    }
+
+    #[test]
+    fn a_pattern_for_a_language_the_rule_has_no_query_in_is_refused_at_load() {
+        // It would never run, and the rule would read as if it had been taught that language.
+        let refused = rules_from(
+            &ONE_RULE
+                .replace(
+                    "\"queries\"",
+                    "\"argumentPatterns\":{\"go\":\"md5\"},\"queries\"",
+                )
+                .replace("QUERY", "(call) @hit"),
+        );
+        let error = match refused {
+            Ok(_) => panic!("a pattern with no query must be refused"),
+            Err(e) => format!("{e:#}"),
+        };
+        assert!(error.contains("no go query"), "{error}");
     }
 
     #[test]
@@ -1319,5 +1387,155 @@ mod tests {
             ids(&real).contains(&"ast.unsafe-deserialization"),
             "{real:?}"
         );
+    }
+
+    /// One found case and one not-found case for every language each of these rules has a query in.
+    ///
+    /// Each `false` line is the correct way to do the same thing, or the idiom a careless rule would
+    /// report — the negative half is what stops a query that matches every call from passing.
+    #[rustfmt::skip]
+    const WITNESSES: &[(&str, &str, &str, bool)] = &[
+        // Paths.
+        ("ast.file-path-from-value", "python", "open(os.path.join(UPLOADS, request.args['name']))", true),
+        ("ast.file-path-from-value", "python", "open(os.path.join(UPLOADS, secure_filename(f.filename)))", false),
+        ("ast.file-path-from-value", "python", "open(os.path.join(os.path.dirname(__file__), 'schema.sql'))", false),
+        ("ast.file-path-from-value", "python", "return send_file(request.args['path'])", true),
+        ("ast.file-path-from-value", "python", "open('config.toml')", false),
+        ("ast.file-path-from-value", "javascript", "fs.readFileSync(req.query.file)", true),
+        ("ast.file-path-from-value", "javascript", "res.sendFile(path.join(__dirname, 'public', 'index.html'))", false),
+        ("ast.file-path-from-value", "javascript", "res.sendFile(path.join(__dirname, req.params.name))", true),
+        ("ast.file-path-from-value", "typescript", "await fs.readFile(`uploads/${req.params.name}`)", true),
+        ("ast.file-path-from-value", "typescript", "fs.readFileSync('package.json')", false),
+        ("ast.file-path-from-value", "go", "f, err := os.Open(r.URL.Query().Get(\"f\"))", true),
+        ("ast.file-path-from-value", "go", "f, err := os.Open(\"config.json\")", false),
+        ("ast.file-path-from-value", "php", "<?php echo file_get_contents($_GET['page']);", true),
+        ("ast.file-path-from-value", "php", "<?php echo file_get_contents('about.html');", false),
+        ("ast.file-path-from-value", "ruby", "File.read(params[:name])", true),
+        ("ast.file-path-from-value", "ruby", "File.read('config.yml')", false),
+        ("ast.file-path-from-value", "java", "class A { void f(String n) { new FileInputStream(n); } }", true),
+        ("ast.file-path-from-value", "java", "class A { void f() { new FileInputStream(\"app.properties\"); } }", false),
+        ("ast.file-path-from-value", "csharp", "class A { void F(string n) { var t = File.ReadAllText(n); } }", true),
+        ("ast.file-path-from-value", "csharp", "class A { void F() { var t = File.ReadAllText(\"a.json\"); } }", false),
+        // A bare constant is the app's own configuration, not a request value.
+        ("ast.file-path-from-value", "python", "with open(CONFIG_PATH) as f: pass", false),
+        ("ast.file-path-from-value", "javascript", "fs.readFileSync(CERT_FILE)", false),
+        ("ast.file-path-from-value", "ruby", "File.read(SETTINGS_FILE)", false),
+        ("ast.file-path-from-value", "php", "<?php $s = file_get_contents(SETTINGS_FILE);", false),
+        ("ast.file-path-from-value", "python", "with open(CONFIG_PATH + name) as f: pass", true),
+        // The same method name on something that is not the file system.
+        ("ast.file-path-from-value", "javascript", "const entry = zip.readFile(req.query.name)", false),
+        ("ast.file-path-from-value", "go", "conn, err := pool.Open(r.FormValue(\"db\"))", false),
+        ("ast.file-path-from-value", "ruby", "log = Logger.new(path)", false),
+        ("ast.file-path-from-value", "csharp", "class A { void F(string n) { var t = Cache.Open(n); } }", false),
+        // Hashes.
+        ("ast.weak-hash-function", "python", "digest = hashlib.md5(password.encode()).hexdigest()", true),
+        ("ast.weak-hash-function", "python", "etag = hashlib.md5(body, usedforsecurity=False).hexdigest()", false),
+        ("ast.weak-hash-function", "python", "digest = hashlib.sha256(data).hexdigest()", false),
+        ("ast.weak-hash-function", "javascript", "crypto.createHash('md5').update(pw).digest('hex')", true),
+        ("ast.weak-hash-function", "javascript", "crypto.createHash('sha256').update(pw).digest('hex')", false),
+        ("ast.weak-hash-function", "typescript", "crypto.createHash(\"SHA1\").update(x)", true),
+        ("ast.weak-hash-function", "typescript", "crypto.createHash(\"sha512\").update(x)", false),
+        ("ast.weak-hash-function", "go", "sum := md5.Sum([]byte(pw))", true),
+        ("ast.weak-hash-function", "go", "sum := sha256.Sum256([]byte(pw))", false),
+        ("ast.weak-hash-function", "php", "<?php $h = md5($password);", true),
+        ("ast.weak-hash-function", "php", "<?php $h = password_hash($password, PASSWORD_DEFAULT);", false),
+        ("ast.weak-hash-function", "ruby", "Digest::MD5.hexdigest(password)", true),
+        ("ast.weak-hash-function", "ruby", "Digest::SHA256.hexdigest(password)", false),
+        ("ast.weak-hash-function", "java", "class A { void f() throws Exception { MessageDigest.getInstance(\"MD5\"); } }", true),
+        ("ast.weak-hash-function", "java", "class A { void f() throws Exception { MessageDigest.getInstance(\"SHA-256\"); } }", false),
+        ("ast.weak-hash-function", "csharp", "class A { void F() { using var h = MD5.Create(); } }", true),
+        ("ast.weak-hash-function", "csharp", "class A { void F() { using var h = SHA256.Create(); } }", false),
+        ("ast.weak-hash-function", "kotlin", "fun f() { val d = MessageDigest.getInstance(\"SHA-1\") }", true),
+        ("ast.weak-hash-function", "kotlin", "fun f() { val d = MessageDigest.getInstance(\"SHA-256\") }", false),
+        ("ast.weak-hash-function", "go", "h := sha256.New()", false),
+        // Ciphers.
+        ("ast.weak-cipher", "python", "cipher = AES.new(key, AES.MODE_ECB)", true),
+        ("ast.weak-cipher", "python", "cipher = AES.new(key, AES.MODE_GCM)", false),
+        ("ast.weak-cipher", "python", "c = Cipher(algorithms.AES(key), modes.ECB())", true),
+        ("ast.weak-cipher", "python", "c = Cipher(algorithms.AES(key), modes.GCM(iv))", false),
+        ("ast.weak-cipher", "javascript", "crypto.createCipheriv('aes-128-ecb', key, null)", true),
+        ("ast.weak-cipher", "javascript", "crypto.createCipheriv('aes-256-gcm', key, iv)", false),
+        ("ast.weak-cipher", "typescript", "crypto.createCipheriv(\"des-ede3-cbc\", key, iv)", true),
+        ("ast.weak-cipher", "typescript", "crypto.createCipheriv(\"chacha20-poly1305\", key, iv)", false),
+        ("ast.weak-cipher", "go", "block, err := des.NewTripleDESCipher(key)", true),
+        ("ast.weak-cipher", "go", "block, err := aes.NewCipher(key)", false),
+        ("ast.weak-cipher", "php", "<?php openssl_encrypt($data, 'aes-128-ecb', $key);", true),
+        ("ast.weak-cipher", "php", "<?php openssl_encrypt($data, 'aes-256-gcm', $key, 0, $iv, $tag);", false),
+        ("ast.weak-cipher", "ruby", "c = OpenSSL::Cipher.new('des-ede3-cbc')", true),
+        ("ast.weak-cipher", "ruby", "c = OpenSSL::Cipher.new('aes-256-gcm')", false),
+        ("ast.weak-cipher", "java", "class A { void f() throws Exception { Cipher.getInstance(\"AES\"); } }", true),
+        ("ast.weak-cipher", "java", "class A { void f() throws Exception { Cipher.getInstance(\"AES/GCM/NoPadding\"); } }", false),
+        ("ast.weak-cipher", "csharp", "class A { void F(Aes a) { a.Mode = CipherMode.ECB; } }", true),
+        ("ast.weak-cipher", "csharp", "class A { void F(Aes a) { a.Mode = CipherMode.CBC; } }", false),
+        ("ast.weak-cipher", "kotlin", "fun f() { val c = Cipher.getInstance(\"AES/ECB/PKCS5Padding\") }", true),
+        ("ast.weak-cipher", "kotlin", "fun f() { val c = Cipher.getInstance(\"AES/GCM/NoPadding\") }", false),
+        // Generating a key names the algorithm and no mode: "AES" here is not ECB.
+        ("ast.weak-cipher", "java", "class A { void f() throws Exception { KeyGenerator.getInstance(\"AES\"); } }", false),
+        ("ast.weak-cipher", "kotlin", "fun f() { val k = KeyGenerator.getInstance(\"AES\") }", false),
+        // Redirects.
+        ("ast.open-redirect", "python", "return redirect(request.args.get('next'))", true),
+        ("ast.open-redirect", "python", "return redirect(url_for('index'))", false),
+        ("ast.open-redirect", "python", "return redirect('/login')", false),
+        ("ast.open-redirect", "javascript", "res.redirect(req.query.returnTo)", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/dashboard')", false),
+        ("ast.open-redirect", "typescript", "res.redirect(req.body.next as string)", true),
+        ("ast.open-redirect", "typescript", "res.redirect(`/items`)", false),
+        ("ast.open-redirect", "go", "http.Redirect(w, r, r.URL.Query().Get(\"next\"), http.StatusFound)", true),
+        ("ast.open-redirect", "go", "http.Redirect(w, r, \"/login\", http.StatusFound)", false),
+        ("ast.open-redirect", "javascript", "router.redirect(from, to)", false),
+        ("ast.open-redirect", "go", "cache.Redirect(w, r, next, 302)", false),
+        ("ast.open-redirect", "php", "<?php header('Location: ' . $_GET['next']);", true),
+        ("ast.open-redirect", "php", "<?php header('Content-Type: ' . $type);", false),
+        ("ast.open-redirect", "ruby", "redirect_to params[:return_to]", true),
+        ("ast.open-redirect", "ruby", "redirect_to root_path", false),
+        ("ast.open-redirect", "java", "class A { void f(HttpServletResponse r, String u) throws Exception { r.sendRedirect(u); } }", true),
+        ("ast.open-redirect", "java", "class A { void f(HttpServletResponse r) throws Exception { r.sendRedirect(\"/home\"); } }", false),
+        ("ast.open-redirect", "csharp", "class C { IActionResult F(string returnUrl) { return Redirect(returnUrl); } }", true),
+        ("ast.open-redirect", "csharp", "class C { IActionResult F() { return Redirect(Url.Action(\"Index\")); } }", false),
+    ];
+
+    #[test]
+    fn the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one() {
+        let rules = rules();
+        let mut wrong = Vec::new();
+        for (rule, language, source, expected) in WITNESSES {
+            let findings = scan_file(&rules, language, &format!("src/app.{language}"), source);
+            let found = ids(&findings).contains(rule);
+            if found != *expected {
+                wrong.push(format!(
+                    "{rule} in {language} {} `{source}`",
+                    if *expected { "missed" } else { "reported" }
+                ));
+            }
+            // A negative that another rule reports is still a negative for this one, but a
+            // positive that fires a second, unrelated rule is a query matching too much.
+            if *expected && let Some(other) = findings.iter().find(|f| f.rule_id != *rule) {
+                wrong.push(format!(
+                    "{rule} in {language}: `{source}` also fired {}",
+                    other.rule_id
+                ));
+            }
+        }
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+
+        // Every language each of these rules claims has a witness both ways. A query with no found
+        // case is a query that may never fire; one with no not-found case may fire on everything.
+        let mut unwitnessed = Vec::new();
+        for (rule_id, languages, _) in rules.coverage() {
+            if !WITNESSES.iter().any(|(r, ..)| *r == rule_id) {
+                continue;
+            }
+            for language in languages {
+                for want in [true, false] {
+                    if !WITNESSES
+                        .iter()
+                        .any(|(r, l, _, e)| *r == rule_id && *l == language && *e == want)
+                    {
+                        unwitnessed.push(format!("{rule_id} {language} has no {want} case"));
+                    }
+                }
+            }
+        }
+        assert!(unwitnessed.is_empty(), "{}", unwitnessed.join("\n"));
     }
 }
