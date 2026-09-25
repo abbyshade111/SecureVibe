@@ -953,19 +953,10 @@ fn cmd_report(args: &[String]) -> Result<()> {
                     });
                 }
                 match &outcome.tests {
-                    Some(result) if result.exit_code != 0 => gaps.push(sv_report::Gap {
-                        what: "anything the app's own tests would have shown".to_owned(),
-                        why: format!(
-                            "they failed (exit {}), so nothing can be concluded from them either \
-                             way",
-                            result.exit_code
-                        ),
-                    }),
-                    Some(_) => {
-                        // The suite passed, so the tests that name a requirement are evidence
-                        // about it. Only those: matching a test to a requirement by what it is
-                        // called would credit a requirement on the strength of a name somebody
-                        // chose for other reasons.
+                    Some(result) => {
+                        // Only tests that name a requirement count, and only when something says
+                        // they passed. Matching a test to a requirement by what it is called would
+                        // credit one on the strength of a name somebody chose for other reasons.
                         let known: std::collections::BTreeSet<&str> =
                             frameworks.requirements.keys().map(String::as_str).collect();
                         let named = sv_check::suite::tests_naming_requirements(&app_dir, &known);
@@ -975,9 +966,68 @@ fn cmd_report(args: &[String]) -> Result<()> {
                                 .get(id)
                                 .map(|r| r.description.clone())
                         };
+
+                        // A suite that passed outright needs no report. One that did not is worth
+                        // whatever its runner's own report says still passed — and nothing more,
+                        // which is why an unreadable report falls back to crediting nothing rather
+                        // than to crediting what it managed to understand.
+                        let passed_cases = if result.exit_code == 0 {
+                            None
+                        } else {
+                            match result.report.as_deref().map(sv_check::junit::parse) {
+                                Some(Ok(cases)) => Some(sv_check::junit::passed_names(&cases)),
+                                Some(Err(unreadable)) => {
+                                    gaps.push(sv_report::Gap {
+                                        what: "which of the app's own tests passed".to_owned(),
+                                        why: format!(
+                                            "the suite failed (exit {}) and its report could not \
+                                             be read: {}. Nothing is credited from it.",
+                                            result.exit_code, unreadable.why
+                                        ),
+                                    });
+                                    None
+                                }
+                                None => None,
+                            }
+                        };
+                        let suite_outcome = if result.exit_code == 0 {
+                            sv_check::suite::SuiteOutcome::Passed
+                        } else {
+                            sv_check::suite::SuiteOutcome::Failed {
+                                passed: passed_cases.as_ref(),
+                            }
+                        };
                         let (credited, mismatches) =
-                            sv_check::suite::credit(&named, true, &describe);
-                        if credited.is_empty() {
+                            sv_check::suite::credit(&named, suite_outcome, &describe);
+
+                        if result.exit_code != 0 {
+                            gaps.push(sv_report::Gap {
+                                what: "anything the failing tests would have shown".to_owned(),
+                                why: match (&passed_cases, credited.len()) {
+                                    (Some(_), 0) => format!(
+                                        "the suite failed (exit {}) and no test its runner \
+                                         reported as passing names a requirement",
+                                        result.exit_code
+                                    ),
+                                    (Some(_), n) => format!(
+                                        "the suite failed (exit {}); {n} requirement {} from \
+                                         tests its runner reported as passing, and the rest of \
+                                         the suite says nothing either way",
+                                        result.exit_code,
+                                        if n == 1 { "claim comes" } else { "claims come" }
+                                    ),
+                                    (None, _) => format!(
+                                        "they failed (exit {}) and nothing says which of them did, \
+                                         so nothing can be concluded from them either way. {}",
+                                        result.exit_code,
+                                        result.report_note.as_deref().unwrap_or(
+                                            "Declare test-report in securevibe.toml to have the \
+                                             tests that did pass still count."
+                                        )
+                                    ),
+                                },
+                            });
+                        } else if credited.is_empty() {
                             gaps.push(sv_report::Gap {
                                 what: "what the app's own tests cover".to_owned(),
                                 why: "the suite passed, and no test names the requirement it is \

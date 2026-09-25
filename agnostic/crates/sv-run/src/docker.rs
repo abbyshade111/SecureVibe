@@ -10,7 +10,7 @@
 //! 4. Run the declared test command inside the app container.
 //! 5. Tear everything down, whatever happened.
 
-use crate::{Backend, CannotRun, Fence, RunOutcome, RunPlan, TestResult, output_of};
+use crate::{Backend, CannotRun, Fence, REPORT_DIR, RunOutcome, RunPlan, TestResult, output_of};
 use std::process::Command;
 
 /// How long to wait for the app to answer before calling it not assessed.
@@ -113,6 +113,13 @@ impl Backend for DockerBackend {
                 &network,
                 "-v",
                 &mount,
+                // The one writable place, and it is in memory rather than on the owner's disk.
+                // `/app` is read-only on purpose, so a test runner has nowhere to put its report
+                // unless something is provided — which is how the first version of `test-report`
+                // failed: the runner could not write the file and the report read as "no report",
+                // correctly but uselessly. Findings are still only ever read out with `exec`.
+                "--tmpfs",
+                REPORT_DIR,
                 "-w",
                 "/app",
                 "-e",
@@ -156,9 +163,53 @@ impl Backend for DockerBackend {
 
         // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
-            self.docker(&["exec", &app, "sh", "-c", test_command])
-                .ok()
-                .map(|(exit_code, output)| TestResult { exit_code, output })
+            // A report left over from a previous run — committed into the repository, or baked into
+            // the image — would be read as this run's result and credit tests that never ran here.
+            // So it is removed first, and after the run the file must be there or nothing is read.
+            // This is the same rule as a missing tool in the adapters: absent never reads as clean.
+            let report_path = plan.test_report.as_ref().map(|p| crate::report_path(p));
+            let removed_stale = report_path.as_ref().map(|path| {
+                self.docker(&["exec", &app, "sh", "-c", &format!("rm -f -- '{path}'")])
+                    .map(|(code, _)| code == 0)
+                    .unwrap_or(false)
+            });
+            let (exit_code, output) = self
+                .docker(&["exec", &app, "sh", "-c", test_command])
+                .ok()?;
+            let (report, report_note) = match (&report_path, removed_stale) {
+                (None, _) => (
+                    None,
+                    Some(
+                        "securevibe.toml declares no test-report, so only the exit code is known                          and a suite with one failing test credits nothing"
+                            .to_owned(),
+                    ),
+                ),
+                (Some(path), Some(false)) => (
+                    None,
+                    Some(format!(
+                        "a report left over from an earlier run could not be removed from {path},                          so anything found there now cannot be trusted to be this run's"
+                    )),
+                ),
+                (Some(path), _) => match self.docker(&["exec", &app, "cat", "--", path]) {
+                    Ok((0, xml)) if !xml.trim().is_empty() => (Some(xml), None),
+                    Ok((0, _)) => (
+                        None,
+                        Some(format!("the test runner wrote nothing to {path}")),
+                    ),
+                    _ => (
+                        None,
+                        Some(format!(
+                            "the test runner wrote no report to {path}; only the exit code is known"
+                        )),
+                    ),
+                },
+            };
+            Some(TestResult {
+                exit_code,
+                output,
+                report,
+                report_note,
+            })
         });
 
         drop(guard);

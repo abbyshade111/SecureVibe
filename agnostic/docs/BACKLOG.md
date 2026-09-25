@@ -89,15 +89,11 @@ another session is not a claim.
   shared vocabulary, the same comparison `suite.rs` already makes for tests. A citation nothing checks is
   a citation that drifts.
 
-- **Read the test runner's own report.** *Claimed 24 September 2026, session keen-meninsky-691a27.*
-  `suite.rs` credits a requirement only when the whole suite passed, because `sv run` sees one exit
-  code and cannot say which tests it came from. So one failing test anywhere credits nothing at all,
-  however many of the other forty name a requirement and passed. Every runner in the manifest's
-  languages can write JUnit XML (`pytest --junitxml`, `go test` through gotestsum, `jest
-  --reporters=jest-junit`, surefire, rspec's formatter), and that names each test case and says
-  whether it passed. Reading it turns the all-or-nothing into per-test credit. The trap is that a
-  report which is absent, truncated or from a previous run must never read as "everything passed" —
-  a stale file is the failure mode here, exactly as a missing tool was for the adapters.
+- ~~**Read the test runner's own report.**~~ Done on 24 September 2026. Left over: matching is an exact
+  identifier match, so jest — which concatenates its `describe` blocks into the reported name — mostly
+  will not match and its tests stay uncredited. A runner that reports a name unlike the declaration
+  loses coverage silently rather than loudly. The parser understands JUnit XML only; TAP and the
+  runners that emit their own JSON are not read.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.

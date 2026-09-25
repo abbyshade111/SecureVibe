@@ -7,7 +7,7 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use sv_check::suite::{credit, tests_naming_requirements};
+use sv_check::suite::{SuiteOutcome, credit, declared_test_name, tests_naming_requirements};
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-suite-{name}"));
@@ -23,7 +23,7 @@ fn write(root: &Path, relative: &str, contents: &str) {
 }
 
 fn known() -> BTreeSet<&'static str> {
-    ["V1.2.1", "V1.2.2", "V13.3.1", "AC.1.1"]
+    ["V1.2.1", "V1.2.2", "V1.2.4", "V13.3.1", "AC.1.1"]
         .into_iter()
         .collect()
 }
@@ -156,7 +156,7 @@ fn only_the_test_that_disagrees_is_reported() {
         ),
         _ => None,
     };
-    let (verified, findings) = credit(&found, true, &describe);
+    let (verified, findings) = credit(&found, SuiteOutcome::Passed, &describe);
     assert_eq!(verified.len(), 2, "both are still credited: {verified:?}");
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert_eq!(findings[0].requirement_ids, vec!["V1.2.2".to_string()]);
@@ -188,7 +188,7 @@ fn a_failing_suite_credits_nothing_however_many_tests_name_a_requirement() {
     assert_eq!(found.len(), 3, "{found:?}");
 
     let describe = |_: &str| Some("Verify something".to_owned());
-    let (verified, findings) = credit(&found, false, &describe);
+    let (verified, findings) = credit(&found, SuiteOutcome::Failed { passed: None }, &describe);
     assert!(
         verified.is_empty() && findings.is_empty(),
         "one exit code does not say which of the three it came from: {verified:?} {findings:?}"
@@ -212,7 +212,7 @@ fn a_docstring_repeating_the_id_does_not_credit_the_test_twice() {
     let describe = |_: &str| {
         Some("Verify that the application uses parameterised database queries".to_owned())
     };
-    let (verified, findings) = credit(&found, true, &describe);
+    let (verified, findings) = credit(&found, SuiteOutcome::Passed, &describe);
     assert_eq!(verified.len(), 1, "{verified:?}");
     assert!(
         verified[0].scope.contains("tests/test_search.py:1"),
@@ -220,4 +220,169 @@ fn a_docstring_repeating_the_id_does_not_credit_the_test_twice() {
         verified[0].scope
     );
     assert!(findings.is_empty(), "{findings:?}");
+}
+
+#[test]
+fn a_failing_suite_credits_the_tests_its_runner_says_passed() {
+    // The point of reading the runner's report. One broken test used to cost the credit of every
+    // other test in the suite, because `sv` saw one exit code and could not say which.
+    let root = scratch("partly-passing");
+    write(
+        &root,
+        "tests/test_mixed.py",
+        "def test_V1_2_4_search_is_bound():\n    pass\n\ndef test_V1_2_2_broken():\n    assert False\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    assert_eq!(found.len(), 2, "{found:?}");
+    let describe = |_: &str| None;
+
+    // Without a report, a failing suite still credits nothing at all.
+    let (none, _) = credit(&found, SuiteOutcome::Failed { passed: None }, &describe);
+    assert!(none.is_empty(), "{none:?}");
+
+    // With one, the test the runner named as passing is credited and the other is not.
+    let passed: BTreeSet<String> = ["test_V1_2_4_search_is_bound".to_string()]
+        .into_iter()
+        .collect();
+    let (verified, _) = credit(
+        &found,
+        SuiteOutcome::Failed {
+            passed: Some(&passed),
+        },
+        &describe,
+    );
+    assert_eq!(verified.len(), 1, "{verified:?}");
+    assert_eq!(verified[0].requirement_ids, vec!["V1.2.4".to_string()]);
+    assert!(
+        verified[0].scope.contains("did not"),
+        "the scope has to say the suite failed and this test did not: {}",
+        verified[0].scope
+    );
+}
+
+#[test]
+fn reading_the_report_can_only_ever_add_credit() {
+    // The property the whole design rests on. Whatever the report says, a suite that passed credits
+    // exactly what it credited before — the report is not even consulted — so this can never take
+    // away a claim that used to be made.
+    let root = scratch("monotone");
+    write(
+        &root,
+        "tests/test_a.py",
+        "def test_V1_2_4_one():\n    pass\n\ndef test_V1_2_2_two():\n    pass\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    let describe = |_: &str| None;
+
+    let (whole_suite, _) = credit(&found, SuiteOutcome::Passed, &describe);
+    let nothing_passed: BTreeSet<String> = BTreeSet::new();
+    let (with_empty_report, _) = credit(
+        &found,
+        SuiteOutcome::Failed {
+            passed: Some(&nothing_passed),
+        },
+        &describe,
+    );
+    assert_eq!(whole_suite.len(), 2);
+    assert!(
+        with_empty_report.is_empty(),
+        "a report naming nothing credits nothing, and the passing case is untouched"
+    );
+}
+
+#[test]
+fn a_test_the_runner_named_differently_is_simply_not_credited() {
+    // The safe direction, asserted rather than assumed. Matching is an exact identifier match; a
+    // runner that reports something else (jest concatenates its describe blocks) leaves the test
+    // uncredited, which is where it stood before the report was read at all.
+    let root = scratch("unmatched");
+    write(
+        &root,
+        "tests/search.test.ts",
+        "it('V1.2.4 binds its parameters', () => {});\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        declared_test_name(&found[0].text).as_deref(),
+        Some("V1.2.4 binds its parameters")
+    );
+
+    let jest_style: BTreeSet<String> = ["search > V1.2.4 binds its parameters".to_string()]
+        .into_iter()
+        .collect();
+    let (verified, _) = credit(
+        &found,
+        SuiteOutcome::Failed {
+            passed: Some(&jest_style),
+        },
+        &describe_nothing(),
+    );
+    assert!(
+        verified.is_empty(),
+        "no exact match, so no credit: {verified:?}"
+    );
+}
+
+#[test]
+fn a_test_the_runner_skipped_is_not_credited() {
+    // A skipped test did not run, so it established nothing — and crediting one is the dangerous
+    // direction: a requirement would go green on the strength of a test nobody executed. The
+    // parser decides this, so this asserts it again from the crediting side, end to end.
+    let root = scratch("skipped");
+    write(
+        &root,
+        "tests/test_skip.py",
+        "def test_V1_2_4_needs_a_database():\n    pass\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    assert_eq!(found.len(), 1);
+
+    let report = r#"<testsuite>
+  <testcase classname="c" name="test_V1_2_4_needs_a_database"><skipped message="no database"/></testcase>
+</testsuite>"#;
+    let cases = sv_check::junit::parse(report).expect("the report reads");
+    let passed = sv_check::junit::passed_names(&cases);
+    assert!(
+        passed.is_empty(),
+        "a skipped case is not a passing one: {passed:?}"
+    );
+
+    let (verified, _) = credit(
+        &found,
+        SuiteOutcome::Failed {
+            passed: Some(&passed),
+        },
+        &describe_nothing(),
+    );
+    assert!(
+        verified.is_empty(),
+        "a test that never ran must not credit anything: {verified:?}"
+    );
+}
+
+fn describe_nothing() -> impl Fn(&str) -> Option<String> {
+    |_: &str| None
+}
+
+#[test]
+fn the_names_a_runner_would_report() {
+    for (line, expected) in [
+        ("def test_V1_2_4_search(self):", Some("test_V1_2_4_search")),
+        ("func TestV1_2_4(t *testing.T) {", Some("TestV1_2_4")),
+        ("    fn test_v1_2_4() {", Some("test_v1_2_4")),
+        (
+            "public void testSearchIsBound() {",
+            Some("testSearchIsBound"),
+        ),
+        (
+            "it('binds its parameters', () => {",
+            Some("binds its parameters"),
+        ),
+        ("test(\"binds\", async () => {", Some("binds")),
+        ("# covers V1.2.4", None),
+        ("assert response.status == 200", None),
+    ] {
+        assert_eq!(declared_test_name(line).as_deref(), expected, "{line}");
+    }
 }

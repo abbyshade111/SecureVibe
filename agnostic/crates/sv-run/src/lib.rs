@@ -90,6 +90,8 @@ pub struct RunPlan {
     pub build: Option<String>,
     pub start: String,
     pub test: Option<String>,
+    /// Where the test command writes a JUnit XML report, relative to the app folder.
+    pub test_report: Option<String>,
     pub health_path: String,
     /// Where the app's code is.
     pub app_dir: PathBuf,
@@ -100,6 +102,23 @@ pub struct RunPlan {
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
 /// host, so there is nothing to collide with, and a constant is one less thing to get wrong.
 pub const APP_PORT: u16 = 8080;
+
+/// The only place inside the container a test runner may write.
+///
+/// The app's own folder is mounted read-only, deliberately — `sv` reads code, it does not let the
+/// code it is checking rewrite itself mid-check — so a runner asked to write a JUnit report into
+/// the project simply cannot, and the first version of `test-report` failed exactly that way. This
+/// is a tmpfs: in memory, gone when the container goes, and never on the owner's disk.
+pub const REPORT_DIR: &str = "/sv-reports";
+
+/// Where a declared report really lands, so a relative path does not mean "in the read-only app".
+pub fn report_path(declared: &str) -> String {
+    if declared.starts_with('/') {
+        declared.to_owned()
+    } else {
+        format!("{REPORT_DIR}/{}", declared.trim_start_matches("./"))
+    }
+}
 
 impl RunPlan {
     /// Reads the plan out of the manifest, or says exactly what is missing.
@@ -122,6 +141,7 @@ impl RunPlan {
             build: non_empty(&run.build),
             start: start.expect("checked above"),
             test: non_empty(&run.test),
+            test_report: non_empty(&run.test_report),
             health_path: non_empty(&run.health).unwrap_or_else(|| "/".to_owned()),
             // Absolute, always. Docker reads a relative path as the *name* of a named volume and
             // refuses it, which turns "sv was run from the wrong directory" into an error message
@@ -160,6 +180,14 @@ pub struct RunOutcome {
 pub struct TestResult {
     pub exit_code: i32,
     pub output: String,
+    /// The JUnit XML the runner wrote, when one was declared and was really there afterwards.
+    ///
+    /// `None` covers every way this can go wrong — not declared, not written, unreadable — and they
+    /// are told apart by `report_note` rather than by an empty string, because "the runner wrote no
+    /// report" and "the report says nothing failed" must never arrive as the same thing.
+    pub report: Option<String>,
+    /// What happened when the report was looked for, when it did not simply work.
+    pub report_note: Option<String>,
 }
 
 /// Which fence was in force. Reports say which applied, as v1's do.

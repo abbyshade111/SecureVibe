@@ -250,10 +250,62 @@ fn looks_like_a_test_declaration(line: &str) -> bool {
         || lower.contains("function test")
 }
 
+/// The name a test runner would report this declaration under, if one can be read off it.
+///
+/// Only used to line a source line up with a case in the runner's own report, and only ever to
+/// *add* credit. A line whose name cannot be read, or which the runner named differently, is simply
+/// not matched and not credited — which is where things stood before the report was read at all.
+pub fn declared_test_name(line: &str) -> Option<String> {
+    let text = line.trim();
+    // `def test_x(`, `func TestX(`, `fn test_x(`, `public void testX(`, `sub test_x {`.
+    for keyword in ["def ", "func ", "fn ", "sub ", "void "] {
+        if let Some(at) = text.find(keyword) {
+            let rest = &text[at + keyword.len()..];
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                return Some(name);
+            }
+        }
+    }
+    // `it('…')`, `test("…")`, `describe('…')`: the runner reports the string, not an identifier.
+    for keyword in ["it(", "test(", "describe("] {
+        if let Some(at) = text.find(keyword) {
+            let rest = &text[at + keyword.len()..];
+            let quote = rest.chars().next()?;
+            if quote == '\'' || quote == '"' || quote == '`' {
+                let name: String = rest[1..].chars().take_while(|c| *c != quote).collect();
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// What the run said about the suite as a whole.
+#[derive(Debug, Clone, Copy)]
+pub enum SuiteOutcome<'a> {
+    /// Every test passed. One exit code is enough to credit everything that named a requirement.
+    Passed,
+    /// It did not pass. `passed` is the set of case names the runner's own report said came through,
+    /// when there was a report and it could be read; `None` when there was not.
+    Failed {
+        passed: Option<&'a BTreeSet<String>>,
+    },
+}
+
 /// Turns passing tests into evidence, and says where a test and its requirement share no words.
 ///
-/// `suite_passed` is not a courtesy parameter. A failing suite credits nothing at all — not even the
-/// tests in it that passed, because one exit code does not say which tests it came from.
+/// The outcome is not a courtesy parameter. A failing suite used to credit nothing at all, because
+/// one exit code does not say which tests it came from. A runner's own report does say, so a suite
+/// that mostly passed is now worth what it really established — but only ever *more* than before,
+/// never less: when the suite passed outright the report is not consulted, and when it failed a
+/// test is credited only if the report names it and says it passed. Anything unmatched stays
+/// uncredited, which is exactly where it stood before any of this.
 ///
 /// A requirement is credited **once per file**, however many lines in that file name it. A test that
 /// says `V1.2.1` in its name and again in its docstring is one test, and counting the lines would
@@ -262,15 +314,25 @@ fn looks_like_a_test_declaration(line: &str) -> bool {
 /// declaration is the one reported, because that is the line a reader wants to be sent to.
 pub fn credit(
     tests: &[NamedTest],
-    suite_passed: bool,
+    outcome: SuiteOutcome<'_>,
     describe: &dyn Fn(&str) -> Option<String>,
 ) -> (Vec<Verified>, Vec<Finding>) {
-    if !suite_passed {
+    let tests: Vec<&NamedTest> = match outcome {
+        SuiteOutcome::Passed => tests.iter().collect(),
+        SuiteOutcome::Failed { passed: None } => return (Vec::new(), Vec::new()),
+        SuiteOutcome::Failed {
+            passed: Some(names),
+        } => tests
+            .iter()
+            .filter(|t| declared_test_name(&t.text).is_some_and(|name| names.contains(&name)))
+            .collect(),
+    };
+    if tests.is_empty() {
         return (Vec::new(), Vec::new());
     }
     // (file, requirement) -> the one line that stands for it.
     let mut chosen: BTreeMap<(String, String), &NamedTest> = BTreeMap::new();
-    for test in tests {
+    for test in tests.iter().copied() {
         for id in &test.requirement_ids {
             let key = (test.file.clone(), id.clone());
             match chosen.get(&key) {
@@ -299,10 +361,19 @@ pub fn credit(
         verified.push(Verified::new(
             "app-tests",
             &borrowed,
-            format!(
-                "the app's own test at {}:{}, in a suite that passed",
-                test.file, test.line
-            ),
+            match outcome {
+                SuiteOutcome::Passed => format!(
+                    "the app's own test at {}:{}, in a suite that passed",
+                    test.file, test.line
+                ),
+                // The distinction matters to a reader: the suite did not pass, and this particular
+                // test is credited because the runner's own report named it and said it did.
+                SuiteOutcome::Failed { .. } => format!(
+                    "the app's own test at {}:{}, which the test runner reported as passing in a \
+                     suite that did not",
+                    test.file, test.line
+                ),
+            },
         ));
         for id in &ids {
             let Some(description) = describe(id) else {
@@ -584,10 +655,10 @@ mod tests {
         }];
         let describe =
             |_: &str| Some("Verify that the application uses parameterised queries".to_owned());
-        let (verified, findings) = credit(&tests, false, &describe);
+        let (verified, findings) = credit(&tests, SuiteOutcome::Failed { passed: None }, &describe);
         assert!(verified.is_empty() && findings.is_empty());
 
-        let (verified, _) = credit(&tests, true, &describe);
+        let (verified, _) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert_eq!(verified.len(), 1);
         assert_eq!(verified[0].requirement_ids, vec!["V1.2.1".to_string()]);
         assert!(
@@ -611,7 +682,7 @@ mod tests {
         let describe = |_: &str| {
             Some("Verify that the application uses parameterised database queries".to_owned())
         };
-        let (verified, findings) = credit(&tests, true, &describe);
+        let (verified, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert_eq!(verified.len(), 1, "the credit stands");
         assert_eq!(findings.len(), 1, "and the mismatch is reported");
         assert_eq!(findings[0].severity, Severity::Info);
@@ -634,7 +705,7 @@ mod tests {
         let describe = |_: &str| {
             Some("Verify that the application uses parameterised database queries".to_owned())
         };
-        let (_, findings) = credit(&tests, true, &describe);
+        let (_, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert!(findings.is_empty(), "{findings:?}");
     }
 
@@ -662,7 +733,7 @@ mod tests {
         let describe = |_: &str| {
             Some("Verify that the application uses parameterised database queries".to_owned())
         };
-        let (verified, findings) = credit(&tests, true, &describe);
+        let (verified, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert_eq!(verified.len(), 1, "{verified:?}");
         assert!(
             verified[0].scope.contains("tests/test_search.py:12"),
@@ -691,7 +762,7 @@ mod tests {
             },
         ];
         let describe = |_: &str| None;
-        let (verified, _) = credit(&tests, true, &describe);
+        let (verified, _) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert_eq!(verified.len(), 2, "{verified:?}");
     }
 
@@ -709,7 +780,7 @@ mod tests {
         let describe = |_: &str| {
             Some("Verify that the application uses parameterised database queries".to_owned())
         };
-        let (verified, findings) = credit(&tests, true, &describe);
+        let (verified, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert_eq!(verified.len(), 1);
         assert!(findings.is_empty(), "{findings:?}");
     }
@@ -725,7 +796,7 @@ mod tests {
             line: 4,
         }];
         let describe = |_: &str| Some("Verify that each password is hashed".to_owned());
-        let (_, findings) = credit(&tests, true, &describe);
+        let (_, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert!(findings.is_empty(), "{findings:?}");
     }
 }
