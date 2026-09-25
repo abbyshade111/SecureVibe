@@ -31,8 +31,17 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
-- **`sv report` understates a gap that `sv sbom` states correctly.** Found on 25 September 2026 while
-  reviewing the nested-manifest walk; not claimed. For an ecosystem whose manifest versions `sv` cannot
+- ~~**`sv report` understates a gap that `sv sbom` states correctly.**~~ Done on 25 September 2026 by
+  session securevibe-e9. The report builds an SBOM and asks it, instead of reasoning about dependencies
+  from `scan_report.unpinned`: an unreadable ecosystem is now reported as an empty list rather than an
+  approximate one, a manifest-declared one as what was asked for, and a fully locked one as no gap at
+  all. The sentence was also wrong about pip in the other direction — `flask==3.0.0` does pin a version,
+  and it said `requirements.txt` "pins no versions". See DESIGN, "The report asks the bill of materials".
+  Left over: the report still does not carry the SBOM's incompleteness finding or run the advisory
+  comparison, which is the other half of the entry this shares a root with.
+
+  As originally found, on 25 September 2026 while reviewing the nested-manifest walk. For an ecosystem
+  whose manifest versions `sv` cannot
   read, the report says the list holds what was asked for, when the list holds nothing at all. The two
   commands on the same app — a `package.json` with `"react": "18.0.0"` and no lockfile:
 
@@ -50,7 +59,8 @@ another session is not a claim.
   Same root as the entry about `sv report` not running the bill of materials or the advisory
   comparison: the report reasons about dependencies from the scan alone and never asks the SBOM, which
   already knows the difference and says it well. Rewording the sentence is probably the wrong fix — one
-  sentence covering two ecosystems will be wrong about one of them again.
+  sentence covering two ecosystems will be wrong about one of them again. **Claimed on 25 September
+  2026 by session securevibe-e9.**
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way

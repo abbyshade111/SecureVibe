@@ -1588,6 +1588,47 @@ app does not ship.
 Where the list is not complete, `sv check` says so as a medium finding, because the gap is the point: asked
 whether a compromised library is in this app, nobody could answer from an incomplete document.
 
+### The report asks the bill of materials, instead of reasoning about dependencies itself
+
+Two commands on the same app — a `package.json` with `"react": "18.0.0"` and no lockfile — said different
+things, and the report was the one that was wrong:
+
+    sv sbom    npm is in use but nothing readable says which versions are installed,
+               so none of its packages are listed
+    sv report  package.json pins no versions, so the list of dependencies is what was
+               asked for rather than what is there
+
+There is no list. No version in a `package.json` is read at all, so npm's bill of materials is *empty*, and
+a reader was told it was approximate. "What was asked for" is a description of a list that exists.
+
+The report built that row from `scan_report.unpinned`, which knows exactly one thing: whether an ecosystem
+that pins with a lockfile is missing one. One sentence was then written for every ecosystem, and one
+sentence covering every ecosystem is wrong about some of them. Rewording it would have moved the error
+rather than removed it — pip is the counter-example, where the versions really were read and really are
+what was asked for.
+
+It was wrong about pip too, in the other direction: `flask==3.0.0` pins a version, and the row said
+`requirements.txt` "pins no versions". Both halves of one sentence, each true of one ecosystem and false of
+the other.
+
+`sv sbom` had drawn this distinction correctly all along and had no reader inside `sv`. The report now
+builds an SBOM and asks it, so there are two gaps where there was one:
+
+| what the bill of materials holds | what the report says |
+|---|---|
+| an ecosystem in `unread` | **everything npm installs** — the reason the SBOM gives, and that this is an empty list, not an approximate one |
+| components marked `declared` | **which Python versions are really installed** — read from a manifest rather than a lockfile |
+| components marked `locked` | nothing: there is no gap to report |
+
+The third row is as much of the fix as the first. A gap row for an app whose lockfile was read reads as a
+hole where there is none, and it is what a fix that simply always printed something would produce; three
+tests hold it, one of them over a document with a locked ecosystem beside an unreadable one.
+
+Building the SBOM in the report path reads manifests and lockfiles and opens no network connection, which
+is what made it safe to add. Left over: the report still does not carry the SBOM's own incompleteness
+finding or run the advisory comparison — the other half of the backlog entry this shares a root with, and
+its own piece of work.
+
 ## Matching the list against advisories
 
 `sv audit ./app --advisories ./osv` compares what the app ships with a local OSV database.
