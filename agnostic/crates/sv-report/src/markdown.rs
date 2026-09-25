@@ -72,6 +72,10 @@ pub fn compliance(report: &Report) -> String {
         c.checked
     ));
     out.push_str(&format!(
+        "| Applies, you answered it in the security notes | {} |\n",
+        c.documented
+    ));
+    out.push_str(&format!(
         "| Applies, not verified by anything | {} |\n",
         c.not_verified
     ));
@@ -110,6 +114,15 @@ pub fn compliance(report: &Report) -> String {
                 line.checked_by
                     .iter()
                     .map(|c| format!("{}: {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            Status::Documented => format!(
+                "{} \u{2014} you answered this in {}",
+                line.status.label(),
+                line.documented_by
+                    .iter()
+                    .map(|c| c.scope.clone())
                     .collect::<Vec<_>>()
                     .join("; ")
             ),

@@ -33,6 +33,7 @@ td.n { text-align: right; width: 6rem; }
 .needs-attention { color: var(--bad); font-weight: 600; }
 .not-verified { color: var(--unknown); }
 .checked { color: var(--dim); }
+.documented { color: var(--dim); font-style: italic; }
 .note { color: var(--dim); }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
@@ -96,6 +97,11 @@ pub fn page(report: &Report) -> String {
             "Applies, checked by an automated check",
             c.checked,
             "checked",
+        ),
+        (
+            "Applies, you answered it in the security notes",
+            c.documented,
+            "documented",
         ),
         (
             "Applies, not verified by anything",
@@ -172,6 +178,7 @@ pub fn page(report: &Report) -> String {
         let class = match line.status {
             Status::NeedsAttention => "needs-attention",
             Status::Checked => "checked",
+            Status::Documented => "documented",
             Status::NotVerified => "not-verified",
         };
         let detail = match line.status {
@@ -181,6 +188,14 @@ pub fn page(report: &Report) -> String {
                 line.checked_by
                     .iter()
                     .map(|c| format!("{}: {}", c.check_id, c.scope))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            Status::Documented => format!(
+                " \u{2014} you answered this in {}",
+                line.documented_by
+                    .iter()
+                    .map(|c| c.scope.clone())
                     .collect::<Vec<_>>()
                     .join("; ")
             ),

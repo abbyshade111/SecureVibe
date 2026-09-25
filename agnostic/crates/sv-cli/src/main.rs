@@ -26,6 +26,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
+        Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
         Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
@@ -49,6 +50,7 @@ fn print_help() {
          USAGE:\n  \
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
+         sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
          sv run [PATH]      start the app behind the network fence and check it answers\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
@@ -415,6 +417,146 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     if buckets.not_applicable.len() > 8 {
         println!("  … and {} more", buckets.not_applicable.len() - 8);
     }
+    Ok(())
+}
+
+fn notes_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json")
+}
+
+/// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
+fn notes_facts(
+    manifest: &Manifest,
+    scan_report: &sv_scan::ScanReport,
+    app_name: &str,
+) -> sv_check::notes::Facts {
+    // Each outside service is named by the thing that showed it, never by the condition alone: "the
+    // `stripe` package in package.json" is something the owner can go and look at, and "payments"
+    // is something they have to take on trust.
+    let mut outside_services: Vec<String> = Vec::new();
+    for answer in &scan_report.answers {
+        if answer.value != Some(true) {
+            continue;
+        }
+        if !matches!(
+            answer.condition,
+            Condition::ExternalApis | Condition::Payments | Condition::Email | Condition::Ai
+        ) {
+            continue;
+        }
+        if let sv_scan::Evidence::Dependency { name, manifest } = &answer.evidence {
+            let line = format!("the `{name}` package in {manifest}");
+            if !outside_services.contains(&line) {
+                outside_services.push(line);
+            }
+        }
+    }
+    // The manifest's own list of hosts, which the code cannot show and the owner already wrote.
+    for host in manifest
+        .capabilities
+        .external_apis
+        .iter()
+        .flatten()
+        .filter(|h| !h.is_empty())
+    {
+        let line = format!("{host}, from securevibe.toml");
+        if !outside_services.contains(&line) {
+            outside_services.push(line);
+        }
+    }
+
+    sv_check::notes::Facts {
+        app_name: app_name.to_owned(),
+        data_categories: manifest.data.categories.clone(),
+        outside_services,
+        ecosystems: scan_report
+            .ecosystems
+            .iter()
+            .map(|e| format!("{} ({})", e.name, e.manifest))
+            .collect(),
+        uploads: manifest.capabilities.uploads,
+        sign_in: manifest.capabilities.auth,
+    }
+}
+
+/// Writes `security-notes.md`: the questions no tool can answer, for the requirements that apply.
+fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let manifest_path = app_dir.join("securevibe.toml");
+    if !manifest_path.exists() {
+        bail!(
+            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
+            app_dir.display()
+        );
+    }
+    let manifest = Manifest::load(&manifest_path)?;
+    let data = data_dir()?;
+    let frameworks = load_frameworks(&data)?;
+    let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+    let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+    let scan_report = scan(&app_dir, &signatures)?;
+    let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+    let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
+    let catalog = sv_check::notes::Catalog::load(&notes_path())?;
+
+    let app_name = if manifest.app.name.is_empty() {
+        "This app"
+    } else {
+        &manifest.app.name
+    };
+    let facts = notes_facts(&manifest, &scan_report, app_name);
+    let applicable: std::collections::BTreeSet<String> =
+        buckets.applicable.iter().cloned().collect();
+    let out_path = app_dir.join(&catalog.file);
+    let existing = std::fs::read_to_string(&out_path).ok();
+    let already = existing
+        .as_deref()
+        .map(|text| sv_check::notes::read_answers(text).documented().len())
+        .unwrap_or(0);
+
+    let describe = |id: &str| {
+        frameworks
+            .requirements
+            .get(id)
+            .map(|r| r.description.clone())
+    };
+    let text = sv_check::notes::write_template(
+        &catalog,
+        &applicable,
+        &facts,
+        existing.as_deref(),
+        &describe,
+    );
+    std::fs::write(&out_path, &text).with_context(|| format!("writing {}", out_path.display()))?;
+
+    let asked = catalog
+        .sections
+        .iter()
+        .filter(|s| applicable.contains(&s.id))
+        .count();
+    println!("Wrote {}.", out_path.display());
+    if asked == 0 {
+        println!(
+            "None of the requirements that ask for a written decision apply to this app, so there \
+             is nothing to answer yet."
+        );
+        return Ok(());
+    }
+    println!(
+        "\n{asked} question{} nobody but you can answer: what the rules are, who may do what, how \
+         long things are kept. {}",
+        if asked == 1 { "" } else { "s" },
+        if already == 0 {
+            "None is answered yet.".to_owned()
+        } else {
+            format!("{already} already answered.")
+        }
+    );
+    println!(
+        "\nAnswering one makes its requirement *documented* in the report. That is not the same as \
+         checked: nothing here reads whether your answer is right, or whether the app does what it \
+         says."
+    );
     Ok(())
 }
 
@@ -1328,6 +1470,40 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         .cloned()
         .collect();
 
+    // The owner's answers, from the notes file beside the app. Absent when they have not run
+    // `sv notes`, which is the common case and not a gap: the report then says the file exists to
+    // be written.
+    let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
+    let documented = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
+        Ok(text) => sv_check::notes::evidence(
+            &notes_catalog,
+            &sv_check::notes::read_answers(&text),
+            &notes_catalog.file,
+        ),
+        Err(_) => {
+            let asked = notes_catalog
+                .sections
+                .iter()
+                .filter(|s| buckets.applicable.contains(&s.id))
+                .count();
+            if asked > 0 {
+                gaps.push(sv_report::Gap {
+                    what: format!(
+                        "{asked} requirement{} that ask for a written decision",
+                        if asked == 1 { "" } else { "s" }
+                    ),
+                    why: format!(
+                        "No tool can answer these: they ask what your rules are, who may do what, \
+                         and how long things are kept. Run `sv notes` to write {}, answer the \
+                         questions in it, and they become documented.",
+                        notes_catalog.file
+                    ),
+                });
+            }
+            Vec::new()
+        }
+    };
+
     Ok(sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -1346,6 +1522,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         manual_only,
         named_in_tests,
         not_for_tests,
+        documented: &documented,
         threats: Some((&threat_rules, &ctx)),
     }))
 }
@@ -1404,6 +1581,14 @@ fn cmd_report(args: &[String]) -> Result<()> {
         c.not_verified,
         if c.not_verified == 1 { "was" } else { "were" }
     );
+    if c.documented > 0 {
+        println!(
+            "A further {} you answered yourself in security-notes.md. That is documented, not \
+             checked: nothing here reads whether the answer is right, or whether the app does what \
+             it says.",
+            c.documented
+        );
+    }
     if !report.out_of_scope.is_empty() {
         println!(
             "{} finding{} name a requirement this app is not being assessed against; the reports \

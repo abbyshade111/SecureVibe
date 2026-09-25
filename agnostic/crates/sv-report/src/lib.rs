@@ -39,6 +39,13 @@ pub enum Status {
     NeedsAttention,
     /// A check that names this requirement ran and was satisfied. One automated check, not a pass.
     Checked,
+    /// The owner answered this requirement's question in the security notes.
+    ///
+    /// Its own tier, below *checked* and above *not verified*, because it is a different kind of
+    /// thing: a person's written decision, not a machine's reading of the code. Nothing here reads
+    /// whether the answer is right, or whether the app does what it says — several of these
+    /// requirements have a twin that asks exactly that, and the twins stay not verified.
+    Documented,
     /// Nothing has produced evidence about this either way. The honest default, and the common one.
     NotVerified,
 }
@@ -48,6 +55,7 @@ impl Status {
         match self {
             Status::NeedsAttention => "needs attention",
             Status::Checked => "checked",
+            Status::Documented => "documented by the owner",
             Status::NotVerified => "not verified",
         }
     }
@@ -71,6 +79,8 @@ pub struct RequirementLine {
     /// "checked", it would claim the other two; dropped, it would hide the part that was examined.
     /// So it is shown here, and the requirement stays not verified until a person answers it.
     pub supported_by: Vec<CheckedBy>,
+    /// Where in the security notes the owner answered this requirement's question.
+    pub documented_by: Vec<CheckedBy>,
 }
 
 /// One check that was satisfied about a requirement, and what it examined to say so.
@@ -158,6 +168,8 @@ pub struct Counts {
     pub applicable: usize,
     pub needs_attention: usize,
     pub checked: usize,
+    /// Requirements the owner answered in the security notes. Never folded into `checked`.
+    pub documented: usize,
     pub not_verified: usize,
     pub not_applicable: usize,
     pub not_assessed: usize,
@@ -242,6 +254,12 @@ pub struct Inputs<'a> {
     /// Requirements an application's own tests cannot show: ones that ask for documentation, a
     /// deployment setting, or a development process. Left out of the tests to write, and counted.
     pub not_for_tests: BTreeSet<String>,
+    /// The requirements the owner answered in the security notes, each with where the answer is.
+    ///
+    /// Kept apart from `verified` rather than folded in, because this is a person's written
+    /// decision and everything in `verified` is a machine reading the app. Folding them together
+    /// would be the one mistake this tier exists to prevent.
+    pub documented: &'a [sv_check::Verified],
     /// The threat rules, and what is known about the app's conditions, for the threat model. Either
     /// absent leaves the section out of the report and says why.
     pub threats: Option<(
@@ -303,12 +321,25 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 }
             }
         }
+        let documented_by: Vec<CheckedBy> = inputs
+            .documented
+            .iter()
+            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
+            .map(|v| CheckedBy {
+                check_id: v.check_id.clone(),
+                scope: v.scope.clone(),
+            })
+            .collect();
         // A finding beats a satisfied check: one check being happy says nothing about what another
-        // one found, and the report must never let the happier of two answers hide the other.
+        // one found, and the report must never let the happier of two answers hide the other. An
+        // answer in the notes comes last of the three, because it is the owner's word about the app
+        // rather than anything read from it.
         let status = if !findings.is_empty() {
             Status::NeedsAttention
         } else if !checked_by.is_empty() {
             Status::Checked
+        } else if !documented_by.is_empty() {
+            Status::Documented
         } else {
             Status::NotVerified
         };
@@ -321,6 +352,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             findings,
             checked_by,
             supported_by,
+            documented_by,
         });
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
@@ -399,6 +431,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         applicable: requirements.len(),
         needs_attention: count(&requirements, Status::NeedsAttention),
         checked: count(&requirements, Status::Checked),
+        documented: count(&requirements, Status::Documented),
         not_verified: count(&requirements, Status::NotVerified),
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
@@ -562,7 +595,8 @@ impl Ord for Status {
             match s {
                 Status::NeedsAttention => 0,
                 Status::NotVerified => 1,
-                Status::Checked => 2,
+                Status::Documented => 2,
+                Status::Checked => 3,
             }
         }
         rank(*self).cmp(&rank(*other))

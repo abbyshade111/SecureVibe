@@ -58,6 +58,7 @@ fn inputs<'a>(
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        documented: &[],
         threats: None,
     }
 }
@@ -608,6 +609,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         manual_only,
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        documented: &[],
         threats: None,
     })
 }
@@ -853,4 +855,132 @@ fn what_a_test_cannot_show_is_counted_and_not_listed() {
         md.contains("2 more have no evidence and are not listed"),
         "{md}"
     );
+}
+
+/// The security notes tier: the owner's written answer, and everything it must not become.
+mod documented {
+    use super::*;
+    use sv_report::Report;
+
+    fn answered(id: &str) -> Verified {
+        Verified::new(
+            "notes.documented",
+            &[id],
+            format!("security-notes.md, under \"{id} — a question\""),
+        )
+    }
+
+    fn report_with(
+        documented: &[Verified],
+        verified: &[Verified],
+        findings: Vec<Finding>,
+    ) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V6.1.1".into(), "V8.1.1".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, findings, verified);
+        inputs.documented = documented;
+        build(inputs)
+    }
+
+    fn status_of(report: &Report, id: &str) -> Status {
+        report
+            .requirements
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap_or_else(|| panic!("{id} is missing from the report"))
+            .status
+    }
+
+    #[test]
+    fn an_answer_in_the_notes_is_its_own_tier_and_not_checked() {
+        let report = report_with(&[answered("V6.1.1")], &[], vec![]);
+        assert_eq!(status_of(&report, "V6.1.1"), Status::Documented);
+        assert_eq!(status_of(&report, "V8.1.1"), Status::NotVerified);
+        assert_eq!(report.counts.documented, 1);
+        assert_eq!(
+            report.counts.checked, 0,
+            "a written answer is never counted as a check that ran"
+        );
+    }
+
+    #[test]
+    fn the_report_says_where_the_answer_is() {
+        // "Documented" with nowhere to look is a line a reader has to take on trust.
+        let report = report_with(&[answered("V6.1.1")], &[], vec![]);
+        let line = report
+            .requirements
+            .iter()
+            .find(|r| r.id == "V6.1.1")
+            .unwrap();
+        assert!(
+            line.documented_by
+                .iter()
+                .any(|d| d.scope.contains("security-notes.md")),
+            "got {:?}",
+            line.documented_by
+        );
+        let markdown = sv_report::markdown::compliance(&report);
+        assert!(markdown.contains("security-notes.md"), "{markdown}");
+        let html = sv_report::html::page(&report);
+        assert!(html.contains("security-notes.md"), "{html}");
+    }
+
+    #[test]
+    fn a_finding_beats_an_answer_in_the_notes() {
+        // The owner writing "we rate limit sign-in" must never bury a check that found otherwise.
+        let report = report_with(
+            &[answered("V6.1.1")],
+            &[],
+            vec![finding("some.rule", &["V6.1.1"])],
+        );
+        assert_eq!(status_of(&report, "V6.1.1"), Status::NeedsAttention);
+    }
+
+    #[test]
+    fn a_check_that_ran_beats_an_answer_in_the_notes() {
+        let report = report_with(
+            &[answered("V6.1.1")],
+            &[Verified::new("some.check", &["V6.1.1"], "8 files".into())],
+            vec![],
+        );
+        assert_eq!(
+            status_of(&report, "V6.1.1"),
+            Status::Checked,
+            "evidence read from the app outranks the owner's word about it"
+        );
+    }
+
+    #[test]
+    fn a_documented_requirement_is_not_listed_as_a_test_to_write() {
+        let report = report_with(&[answered("V6.1.1")], &[], vec![]);
+        assert!(
+            !report.tests_to_write.iter().any(|t| t.id == "V6.1.1"),
+            "got {:?}",
+            report.tests_to_write
+        );
+    }
+
+    #[test]
+    fn the_row_calls_it_documented_and_never_a_pass() {
+        // Both reports carry a line saying nothing here is a pass, so the whole-document search
+        // that first stood here matched its own disclaimer. The claim worth making is narrower:
+        // the requirement's own row says documented, and says it in those words.
+        let report = report_with(&[answered("V6.1.1")], &[], vec![]);
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| `V6.1.1`") || l.starts_with("| V6.1.1"))
+            .unwrap_or_else(|| panic!("no row for V6.1.1 in:\n{markdown}"));
+        // The status cell alone. The requirement's own wording is in the same row and says
+        // "password", which is what a whole-row search for "pass" finds.
+        let status = row.split('|').nth(2).unwrap_or_default();
+        assert!(status.contains("documented by the owner"), "got {row}");
+        assert!(
+            !status.to_lowercase().contains("pass") && !status.contains("checked"),
+            "got {status}"
+        );
+    }
 }

@@ -182,6 +182,12 @@ pub struct ThreatLine {
     pub found: Vec<String>,
     /// The answering requirements that were checked.
     pub checked: Vec<String>,
+    /// The answering requirements the owner answered in the security notes.
+    ///
+    /// Shown, and deliberately not counted toward *checked in part*: a written decision about how
+    /// the app is meant to work is not evidence that it does. Letting it lift a threat's status
+    /// would let an app talk its way out of a threat.
+    pub documented: Vec<String>,
     /// The answering requirements that apply and nothing has looked at.
     pub not_verified: Vec<String>,
     /// Answering requirements that are not among this app's, at its level: above the target level,
@@ -247,6 +253,7 @@ pub fn evaluate(
             status: ThreatStatus::CannotPlace,
             found: Vec::new(),
             checked: Vec::new(),
+            documented: Vec::new(),
             not_verified: Vec::new(),
             not_at_this_level: Vec::new(),
             unanswered,
@@ -255,6 +262,7 @@ pub fn evaluate(
             match requirements.iter().find(|r| &r.id == id).map(|r| r.status) {
                 Some(Status::NeedsAttention) => line.found.push(id.clone()),
                 Some(Status::Checked) => line.checked.push(id.clone()),
+                Some(Status::Documented) => line.documented.push(id.clone()),
                 Some(Status::NotVerified) => line.not_verified.push(id.clone()),
                 None => line.not_at_this_level.push(id.clone()),
             }
@@ -355,6 +363,10 @@ pub fn evidence_words(line: &ThreatLine) -> String {
     for (label, ids) in [
         ("needs attention", &line.found),
         ("checked", &line.checked),
+        (
+            "you documented, which is not evidence about this threat",
+            &line.documented,
+        ),
         ("not verified", &line.not_verified),
         (
             "not among this app's requirements at its level",

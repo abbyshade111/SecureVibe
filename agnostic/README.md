@@ -78,6 +78,24 @@ in securevibe.toml is answered. It is made from rules, not by asking an AI, and 
 handled, because a threat is only as settled as the requirements that answer it. See
 `docs/THREAT-MODELING.md`.
 
+### The questions no tool can answer
+
+Nineteen of the requirements at level 1 and 2 ask for a written decision and nothing else: what counts
+as valid input, who may do what, how long somebody stays signed in, how soon a library with a known
+vulnerability gets updated. Nothing can read those out of the code, because what they ask for is a
+decision somebody made.
+
+`sv notes` writes `security-notes.md` beside your app: one question per requirement, in plain words,
+with what `sv` already found underneath it — the outside services by the package that showed each one,
+the kinds of data you said the app holds. You write the answer. Running it again keeps everything you
+have written.
+
+An answer makes that requirement **documented by the owner** in the report. That is its own line in
+the table and never *checked*: nothing reads whether your answer is right, or whether the app does
+what it says. A check that found a problem always wins over what the notes say, and an answer cannot
+settle a threat in the threat model — otherwise an app could talk its way out of one by describing
+itself.
+
 For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
 input placed in the system instructions, no limit on how long an answer may be, a model called in a
 loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks
