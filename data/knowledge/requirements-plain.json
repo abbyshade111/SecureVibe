@@ -951,15 +951,18 @@
  },
  {
   "id": "V5.4.3",
-  "plain": "Files from outside should be scanned for viruses. The generated app does not include a virus scanner; if you accept files from the public, add one on the server.",
+  "plain": "Files from outside are scanned for viruses before they are kept. The app SecureVibe built sends every uploaded file to a virus scanner (ClamAV) on the computer it runs on and refuses any file it cannot check. SecureVibe's own checks show the refusal, because they run the app inside a fence the scanner cannot be reached from; they cannot show a scan. Whether uploads are scanned is something only you can confirm, by running the app normally with the scanner on.",
   "manual": {
-   "whoCanDo": "hosting-provider",
+   "whoCanDo": "owner",
+   "question": "With the app running normally on its own computer and ClamAV (clamd) running, does uploading the harmless EICAR test file get refused with a message about the scanner, and an ordinary file go through?",
    "steps": [
-    "Install a virus scanner (for example ClamAV) on the server.",
-    "Configure it to scan DATA_DIR/uploads regularly or on write."
+    "Install ClamAV and start its daemon (clamd) on the computer the app runs on, and update its signatures (freshclam).",
+    "Start the app normally (npm start), sign in, and upload an ordinary file: it should be accepted.",
+    "Upload the EICAR test file (a harmless file every scanner recognizes; search for \"EICAR test file\"): it should be refused, and the page should say the file was recognized as unsafe.",
+    "Stop clamd and upload the ordinary file again: it should be refused, and the page should say the file could not be checked. Start clamd again afterwards."
    ],
-   "whatCountsAsEvidence": "Scanner installation and a recent scan log.",
-   "estimatedEffort": "day"
+   "whatCountsAsEvidence": "The two refusals and the one acceptance, seen by you, with the date. A test in SecureVibe's own run only ever shows the refusal of an uncheckable file, which is a different claim from \"uploads are scanned\".",
+   "estimatedEffort": "hour"
   }
  },
  {

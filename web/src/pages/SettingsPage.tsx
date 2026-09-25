@@ -212,6 +212,30 @@ export function SettingsPage() {
       </Card>
 
       <Card>
+        <h2>Virus scan of apps SecureVibe built</h2>
+        <p className="sv-help">
+          An app you upload is always checked against a database of known viruses and malicious documents (ClamAV,
+          if it is installed on this computer). An app SecureVibe built is not, unless you switch this on: source
+          code SecureVibe wrote is not where virus signatures find anything, and the scan takes minutes. Switch it
+          on if you have put files into an app&apos;s folder yourself.
+        </p>
+        <label className="sv-checkbox-row">
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Virus-scan apps SecureVibe built"
+            aria-checked={status.settings.scanBuiltAppsForMalware}
+            checked={status.settings.scanBuiltAppsForMalware}
+            disabled={saving}
+            onChange={(e) => void save({ scanBuiltAppsForMalware: e.target.checked })}
+          />
+          <span>
+            <strong>{status.settings.scanBuiltAppsForMalware ? 'Built apps are virus-scanned on each check' : 'Only uploaded apps are virus-scanned'}</strong>
+          </span>
+        </label>
+      </Card>
+
+      <Card>
         <h2>Extra AI scanner (experimental)</h2>
         <p className="sv-help">
           nano-analyzer is a free program by other people that reads your code with an AI service and says what it
