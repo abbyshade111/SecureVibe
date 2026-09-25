@@ -411,8 +411,27 @@ missing. The claim itself still names only the languages the rule has a query fo
 Adding the rule turned up the gaps it was built to show, and most were filled in the same change:
 Kotlin and C# `eval`, JavaScript's `unserialize`, PHP's backticks, Go's `exec.Command("sh", "-c", …)`,
 file paths in Kotlin, Rust and C, weak hashes in Rust and C, weak ciphers in C, and redirects in Kotlin
-and Rust. Three remain, and a report on an app containing them says so: shell commands in Rust, weak
-ciphers in Rust, and redirects in C.
+and Rust. The last three followed: shell commands in Rust, weak ciphers in Rust, and redirects in C.
+Every rule is now taught every language `sv` reads, and a test pins it, so a grammar added without its
+queries shows up there before it shows up as a gap in someone's report. The tests of the mechanism
+itself use a small rule file written for them, since the real rules no longer produce the case.
+
+What those three look for, and what they miss:
+
+- **Rust's shell command is a method chain.** `Command::new("sh").arg("-c").arg(cmd)` is three calls,
+  each the receiver of the next, so the query follows the chain back two links to the `new` whose
+  argument is a shell. `.args(["-c", cmd])` is the same thing written as an array, which is literal when
+  every element is. A `Command` built in one statement and given its arguments in another is not
+  followed, and neither is a shell named by a variable. `Command::new(exe)` with a value is reported
+  whatever the arguments.
+- **Rust's weak ciphers are types.** RustCrypto names them (`TdesEde3::new_from_slice`,
+  `ecb::Encryptor::<Aes128>::new`) and the `openssl` crate has a function per cipher
+  (`Cipher::des_ede3_cbc()`, `Cipher::aes_128_ecb()`). Both are a call on a path, and the path says
+  which. A cipher type imported under another name is not seen.
+- **C's redirect is a header printed by hand.** A CGI program writes `Location: …` to standard output,
+  so the query is `printf`, `fprintf`, `sprintf` or `dprintf` whose format string begins with
+  `Location:` and has a value after it. A header built with `strcat` first, or written with `puts`, is
+  not seen.
 
 ### Dart and Swift
 

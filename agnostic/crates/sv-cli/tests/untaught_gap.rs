@@ -1,7 +1,10 @@
-//! A rule that met a language it was never taught says so, in the terminal and in the report.
+//! An app whose every language every rule was taught gets no "not looked for" account at all.
 //!
-//! Withholding the claim is half of it. The other half is the owner being told why a rule that
-//! read their Python has nothing to say, rather than finding the line simply missing.
+//! The wording itself is tested beside the functions that write it (`untaught_lines`,
+//! `untaught_gaps`); every real rule is now taught every language `sv` reads, so an app cannot
+//! produce the account through the real rules. What an app can show is its absence, and that is
+//! worth pinning: an empty section, or a gap row for nothing, would read as a hole where there is
+//! none.
 
 use std::process::Command;
 
@@ -11,11 +14,12 @@ fn app(name: &str) -> std::path::PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
     std::fs::write(dir.join("worker.rs"), "fn main() { println!(\"hi\"); }\n").unwrap();
+    std::fs::write(dir.join("cgi.c"), "int main(void) { return 0; }\n").unwrap();
     dir
 }
 
 #[test]
-fn the_terminal_names_the_rule_and_the_language() {
+fn the_terminal_has_no_such_section() {
     let dir = app("check");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
         .arg("check")
@@ -24,20 +28,16 @@ fn the_terminal_names_the_rule_and_the_language() {
         .expect("sv runs");
     std::fs::remove_dir_all(&dir).ok();
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("Not looked for"), "{stdout}");
     assert!(
-        stdout.contains("(ast.shell-command) — not in rust"),
-        "{stdout}"
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
     );
-    // A rule taught both languages is not on the list.
-    assert!(
-        !stdout.contains("(ast.sql-built-by-hand) — not in"),
-        "{stdout}"
-    );
+    assert!(!stdout.contains("Not looked for"), "{stdout}");
 }
 
 #[test]
-fn the_report_lists_it_as_a_gap() {
+fn the_report_has_no_such_gap() {
     let dir = app("report");
     let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../examples/tested-notes/securevibe.toml");
@@ -57,9 +57,6 @@ fn the_report_lists_it_as_a_gap() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(
-        compliance.contains("(ast.shell-command), in rust"),
-        "{compliance}"
-    );
-    assert!(compliance.contains("has not been taught what to look for in rust"));
+    assert!(!compliance.is_empty(), "the report was not written");
+    assert!(!compliance.contains("has not been taught"), "{compliance}");
 }

@@ -666,19 +666,8 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
     }
 
-    if !code.untaught.is_empty() {
-        println!(
-            "\nNot looked for — these rules read other languages in this app, but have not been\n\
-             taught the ones named, so they claim nothing for it:"
-        );
-        for u in &code.untaught {
-            println!(
-                "  {} ({}) — not in {}",
-                u.title,
-                u.rule_id,
-                u.languages.join(", ")
-            );
-        }
+    for line in untaught_lines(&code.untaught) {
+        println!("{line}");
     }
 
     if !config.not_assessed.is_empty() {
@@ -1248,21 +1237,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 .to_owned(),
         });
     }
-    for u in &code.untaught {
-        gaps.push(sv_report::Gap {
-            what: format!(
-                "{} ({}), in {}",
-                u.title.trim_end_matches('.'),
-                u.rule_id,
-                u.languages.join(", ")
-            ),
-            why: format!(
-                "this rule has not been taught what to look for in {}, so it claims nothing for this \
-                 app; what it found elsewhere stands",
-                u.languages.join(" or ")
-            ),
-        });
-    }
+    gaps.extend(untaught_gaps(&code.untaught));
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions
@@ -1417,9 +1392,86 @@ fn cmd_report(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// The terminal's account of rules that met a language they were not taught.
+fn untaught_lines(untaught: &[sv_check::ast::Untaught]) -> Vec<String> {
+    if untaught.is_empty() {
+        return Vec::new();
+    }
+    let mut lines = vec![
+        "\nNot looked for — these rules read other languages in this app, but have not been\n\
+         taught the ones named, so they claim nothing for it:"
+            .to_owned(),
+    ];
+    for u in untaught {
+        lines.push(format!(
+            "  {} ({}) — not in {}",
+            u.title,
+            u.rule_id,
+            u.languages.join(", ")
+        ));
+    }
+    lines
+}
+
+/// The same, as gaps in the written report.
+fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
+    untaught
+        .iter()
+        .map(|u| sv_report::Gap {
+            what: format!(
+                "{} ({}), in {}",
+                u.title.trim_end_matches('.'),
+                u.rule_id,
+                u.languages.join(", ")
+            ),
+            why: format!(
+                "this rule has not been taught what to look for in {}, so it claims nothing for this \
+                 app; what it found elsewhere stands",
+                u.languages.join(" or ")
+            ),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn untaught() -> Vec<sv_check::ast::Untaught> {
+        vec![sv_check::ast::Untaught {
+            rule_id: "ast.shell-command".to_owned(),
+            title: "A shell command is built from a value".to_owned(),
+            languages: vec!["rust".to_owned(), "zig".to_owned()],
+        }]
+    }
+
+    #[test]
+    fn the_terminal_names_each_untaught_rule_and_its_languages() {
+        let lines = untaught_lines(&untaught());
+        assert!(lines[0].contains("Not looked for"), "{lines:?}");
+        assert_eq!(
+            lines[1],
+            "  A shell command is built from a value (ast.shell-command) — not in rust, zig"
+        );
+        assert!(untaught_lines(&[]).is_empty(), "no heading over nothing");
+    }
+
+    #[test]
+    fn the_report_carries_each_untaught_rule_as_a_gap() {
+        let gaps = untaught_gaps(&untaught());
+        assert_eq!(gaps.len(), 1);
+        assert_eq!(
+            gaps[0].what,
+            "A shell command is built from a value (ast.shell-command), in rust, zig"
+        );
+        assert!(
+            gaps[0]
+                .why
+                .contains("has not been taught what to look for in rust or zig"),
+            "{}",
+            gaps[0].why
+        );
+    }
 
     fn data() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data")

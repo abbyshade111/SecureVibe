@@ -556,8 +556,11 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
             .is_some_and(|value| is_literal(value, source));
     }
     // `["-c", "ls"]` is as fixed as the strings in it, and `["-c", cmd]` is not: a command handed to
-    // a shell as the second element of a list is the Dart and Swift way to write `sh -c`.
-    if matches!(node.kind(), "list_literal" | "array_literal") {
+    // a shell as the second element of a list is the Dart, Swift, and Rust way to write `sh -c`.
+    if matches!(
+        node.kind(),
+        "list_literal" | "array_literal" | "array_expression"
+    ) {
         let mut cursor = node.walk();
         return node
             .named_children(&mut cursor)
@@ -1786,6 +1789,28 @@ mod tests {
         ("ast.open-redirect", "kotlin", "fun f() { call.respondRedirect(\"/login\") }", false),
         ("ast.open-redirect", "rust", "async fn f(q: Query<Next>) -> Redirect { Redirect::to(&q.next) }", true),
         ("ast.open-redirect", "rust", "async fn f() -> Redirect { Redirect::to(\"/login\") }", false),
+        // The last three a rule had not been taught.
+        ("ast.shell-command", "rust", "fn f(c: &str) { Command::new(\"sh\").arg(\"-c\").arg(c).output(); }", true),
+        ("ast.shell-command", "rust", "fn f(c: &str) { Command::new(\"/bin/bash\").args([\"-c\", c]).status(); }", true),
+        ("ast.shell-command", "rust", "fn f(c: &str) { std::process::Command::new(\"sh\").args(&[\"-c\", c]).spawn(); }", true),
+        ("ast.shell-command", "rust", "fn f(exe: &str) { Command::new(exe).spawn(); }", true),
+        ("ast.shell-command", "rust", "fn f() { Command::new(\"sh\").arg(\"-c\").arg(\"ls -la\").output(); }", false),
+        ("ast.shell-command", "rust", "fn f() { Command::new(\"sh\").args([\"-c\", \"ls -la\"]).output(); }", false),
+        ("ast.shell-command", "rust", "fn f() { Command::new(\"bash\").args(&[\"-c\", \"date\"]).output(); }", false),
+        ("ast.shell-command", "rust", "fn f(b: &str) { Command::new(\"git\").arg(\"log\").arg(b).output(); }", false),
+        ("ast.shell-command", "rust", "fn f(b: &str) { Command::new(\"git\").args([\"log\", b]).output(); }", false),
+        ("ast.weak-cipher", "rust", "fn f() { let c = Cipher::des_ede3_cbc(); }", true),
+        ("ast.weak-cipher", "rust", "fn f() { let c = Cipher::aes_128_ecb(); }", true),
+        ("ast.weak-cipher", "rust", "fn f(k: &[u8]) { let c = TdesEde3::new_from_slice(k); }", true),
+        ("ast.weak-cipher", "rust", "fn f(k: &Key) { let e = ecb::Encryptor::<Aes128>::new(k); }", true),
+        ("ast.weak-cipher", "rust", "fn f() { let c = Cipher::aes_256_gcm(); }", false),
+        ("ast.weak-cipher", "rust", "fn f(k: &Key) { let e = cbc::Encryptor::<Aes128>::new(k, iv); }", false),
+        ("ast.weak-cipher", "rust", "fn f(k: &Key) { let c = Aes256Gcm::new(k); }", false),
+        ("ast.open-redirect", "c", "void f(const char *u) { printf(\"Location: %s\\r\\n\\r\\n\", u); }", true),
+        ("ast.open-redirect", "c", "void f(const char *u) { fprintf(stdout, \"Location: %s\\n\\n\", u); }", true),
+        ("ast.open-redirect", "c", "void f(void) { printf(\"Location: /login\\n\\n\"); }", false),
+        ("ast.open-redirect", "c", "void f(void) { printf(\"Location: %s\\n\\n\", \"/login\"); }", false),
+        ("ast.open-redirect", "c", "void f(const char *t) { printf(\"Content-Type: %s\\n\\n\", t); }", false),
     ];
 
     #[test]
