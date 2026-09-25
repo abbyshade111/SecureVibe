@@ -398,12 +398,33 @@ impl DockerBackend {
     /// Runs a command where requests to the app are made from: in the sidecar, or in a throw-away
     /// container on the same internal network when there is no sidecar.
     fn inside_fence(&self, via: &Via, command: &[&str]) -> Result<(i32, String), String> {
-        let mut args: Vec<&str> = match via {
-            Via::Sidecar(name) => vec!["exec", name],
-            Via::FreshContainer(network) => vec!["run", "--rm", "--network", network, PROBE_IMAGE],
-        };
+        let mut args = self.fence_args(via);
         args.extend_from_slice(command);
         self.docker(&args)
+    }
+
+    /// How a container that talks to the app is started, either way. Separate so the two paths can
+    /// be compared without starting anything.
+    fn fence_args<'a>(&self, via: &Via<'a>) -> Vec<&'a str> {
+        match via {
+            Via::Sidecar(name) => vec!["exec", name],
+            // The same hardening as the sidecar. It had none of it: the flags were added where the
+            // fast path was written and not where the fallback already lived, so a run that could
+            // not start a sidecar quietly made every request from a container with its capabilities
+            // and a writable file system — while the comment said the fallback was only slower.
+            Via::FreshContainer(network) => vec![
+                "run",
+                "--rm",
+                "--network",
+                network,
+                "--read-only",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                PROBE_IMAGE,
+            ],
+        }
     }
 
     /// Polls the health path from inside the fence.
@@ -635,6 +656,32 @@ impl DockerBackend {
 #[cfg(test)]
 mod probe_tests {
     use super::*;
+
+    /// The flags a container making requests to the app must carry, whichever path started it.
+    const HARDENING: [&str; 4] = ["--read-only", "--cap-drop", "ALL", "no-new-privileges"];
+
+    #[test]
+    fn both_ways_of_reaching_the_app_are_fenced_the_same() {
+        // The sidecar was hardened where it was written; the fallback three lines away was not, so
+        // a run that could not start a sidecar made every request from a container with its
+        // capabilities and a writable file system. The two paths are compared against each other
+        // rather than each read on its own, because that is the shape the mistake had: correct in
+        // one place and absent beside it.
+        let backend = DockerBackend::new();
+        let fresh = backend.fence_args(&Via::FreshContainer("net"));
+        for flag in HARDENING {
+            assert!(
+                fresh.contains(&flag),
+                "the fallback container is missing {flag}: {fresh:?}"
+            );
+        }
+        assert!(
+            fresh.contains(&"--network"),
+            "and it still has to be on the fenced network: {fresh:?}"
+        );
+        // Measured against a real sidecar on 25 September 2026, with the host reaching 1.1.1.1:53
+        // as the control: outbound blocked, DNS blocked, every path read-only, CapEff all zeroes.
+    }
 
     fn req(method: &str, path: &str, headers: &[(&str, &str)]) -> sv_check::probes::ProbeRequest {
         sv_check::probes::ProbeRequest {
