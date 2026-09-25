@@ -204,6 +204,38 @@ pub fn page(report: &Report) -> String {
     }
     b.push_str("</table>\n");
 
+    if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
+        b.push_str("<h2>Tests to write</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.")));
+        if report.not_for_tests > 0 {
+            b.push_str(&format!(
+                "<p class=\"note\">{}</p>\n",
+                escape(&format!("{} more have no evidence and are not listed, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.", report.not_for_tests))
+            ));
+        }
+        if !report.named_not_credited.is_empty() {
+            b.push_str(&format!(
+                "<p class=\"note\">Named in a test and still without evidence, because the tests \
+                 were not run here or did not pass: {}.</p>\n",
+                escape(&report.named_not_credited.join(", "))
+            ));
+        }
+        if !report.tests_to_write.is_empty() {
+            b.push_str(
+                "<table>\n<tr><th>requirement</th><th>level</th><th>what it asks for</th></tr>\n",
+            );
+            for t in &report.tests_to_write {
+                b.push_str(&format!(
+                    "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                    escape(&t.id),
+                    t.level,
+                    escape(&t.description)
+                ));
+            }
+            b.push_str("</table>\n");
+        }
+    }
+
     if !report.checklist_above_level.is_empty() {
         b.push_str("<h2>Secure by Design controls above this app's target level</h2>\n");
         b.push_str(

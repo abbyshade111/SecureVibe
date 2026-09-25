@@ -158,6 +158,25 @@ and an 8-character session id in the first; a rule wanting a capital and a digit
 V6.2.4 not assessed beside it as intended; a served `/.git/HEAD` and text without a charset in the
 third.
 
+### Tests to write
+
+The coverage count said 290 ASVS requirements have no check in `sv`, and that the one route to evidence
+for every requirement is the app's own passing test naming it. Nothing turned that into something to act
+on: a requirement nobody had written a test for read exactly like one whose test did not run.
+
+The report now has a section, "Tests to write": every applicable requirement with no evidence of any
+kind and no test in the app naming it, lowest level first, ASVS before AISVS. The test files are read
+whether or not the tests ran, so a requirement named in a test that did not run here is listed apart,
+as named and not credited, rather than as a test to write. `sv mcp` gives the AI coding tool the same
+list, the first 30 lines of it, because the tool is the one that writes the tests; `sv init` tells it to
+work down the list, fixing what the app does not yet meet before writing the test that shows it.
+
+What a test of the application cannot show is left out and counted: a requirement classed as
+documentation or a deployment setting, design review, the AISVS appendix on the development process,
+and any whose own words ask for documentation. Leaving something off a to-do list credits nothing, so
+this can err only towards a shorter list. On `examples/tested-notes`: 71 tests to write, 18 at level 1,
+and 84 left out with the reason.
+
 ## Handover
 
 `sv check ./my-app` is the primitive: any tool, any editor, CI. An MCP server wrapping the same core comes

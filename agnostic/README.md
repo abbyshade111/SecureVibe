@@ -67,6 +67,10 @@ what was **not** examined, say what each check covered when it found nothing wro
 says a requirement passed — `sv` is not able to establish
 that, so it does not claim it.
 
+They also list the tests worth writing: every requirement that applies and has no evidence yet, and no
+test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
+the one way to give evidence about any requirement, including the many no check here can reach.
+
 The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
 design review rather than scanning — whether trust zones are enforced, whether an incident response plan
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and

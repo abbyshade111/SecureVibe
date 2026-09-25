@@ -56,6 +56,8 @@ fn inputs<'a>(
         verified,
         gaps: vec![],
         manual_only: Default::default(),
+        named_in_tests: Default::default(),
+        not_for_tests: Default::default(),
     }
 }
 
@@ -603,6 +605,8 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         verified: &scan.verified,
         gaps: vec![],
         manual_only,
+        named_in_tests: Default::default(),
+        not_for_tests: Default::default(),
     })
 }
 
@@ -767,4 +771,84 @@ fn counterpart_evidence_supports_a_control_even_when_nothing_marked_it_manual() 
     let line = &report.requirements[0];
     assert_eq!(line.status, Status::NotVerified);
     assert_eq!(line.supported_by.len(), 1, "{:?}", line.supported_by);
+}
+
+#[test]
+fn tests_to_write_are_what_nothing_answered_and_no_test_names_lowest_level_first() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: [
+            "V1.3.10", "V1.3.7", "V1.2.2", "V1.3.2", "V1.2.1", "V1.2.4", "V11.1.1", "V2.1.1",
+        ]
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect(),
+        ..Default::default()
+    };
+    let passed = vec![Verified::new(
+        "ast.sql-built-by-hand",
+        &["V1.2.4"],
+        "the code".to_owned(),
+    )];
+    let mut i = inputs(&f, &buckets, vec![finding("x", &["V1.2.1"])], &passed);
+    i.manual_only = BTreeSet::from(["V11.1.1".to_owned()]);
+    i.named_in_tests = BTreeSet::from(["V2.1.1".to_owned()]);
+    let report = build(i);
+    let ids: Vec<(&str, u8)> = report
+        .tests_to_write
+        .iter()
+        .map(|t| (t.id.as_str(), t.level))
+        .collect();
+    // Found (V1.2.1), checked (V1.2.4), a person's to answer (V11.1.1), and named in a test that
+    // did not run (V2.1.1) are all left out; the rest by level, then in the order a reader counts.
+    assert_eq!(
+        ids,
+        [("V1.2.2", 1), ("V1.3.2", 1), ("V1.3.7", 2), ("V1.3.10", 2)]
+    );
+    assert_eq!(report.named_not_credited, ["V2.1.1"]);
+}
+
+#[test]
+fn the_tests_to_write_are_in_the_written_report() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.2".into(), "V2.1.1".into()],
+        ..Default::default()
+    };
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.named_in_tests = BTreeSet::from(["V2.1.1".to_owned()]);
+    let report = build(i);
+    let md = sv_report::markdown::compliance(&report);
+    assert!(md.contains("## Tests to write"), "{md}");
+    assert!(md.contains("| V1.2.2 | 1 |"), "{md}");
+    assert!(md.contains("still without evidence") && md.contains("V2.1.1"));
+    let html = sv_report::html::page(&report);
+    assert!(html.contains("<h2>Tests to write</h2>"));
+}
+
+#[test]
+fn what_a_test_cannot_show_is_counted_and_not_listed() {
+    // A test of the application cannot show a policy was written or a process followed. Listing
+    // those as tests to write would send somebody to write tests that prove nothing.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.2".into(), "V2.1.1".into(), "V11.1.1".into()],
+        ..Default::default()
+    };
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.not_for_tests = BTreeSet::from(["V2.1.1".to_owned()]);
+    i.manual_only = BTreeSet::from(["V11.1.1".to_owned()]);
+    let report = build(i);
+    let ids: Vec<&str> = report
+        .tests_to_write
+        .iter()
+        .map(|t| t.id.as_str())
+        .collect();
+    assert_eq!(ids, ["V1.2.2"]);
+    assert_eq!(report.not_for_tests, 2);
+    let md = sv_report::markdown::compliance(&report);
+    assert!(
+        md.contains("2 more have no evidence and are not listed"),
+        "{md}"
+    );
 }
