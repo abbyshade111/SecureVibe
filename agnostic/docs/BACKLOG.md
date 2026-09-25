@@ -42,12 +42,12 @@ another session is not a claim.
   as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
-- **Load the Secure by Design checklist.** *Claimed 24 September 2026, session keen-meninsky-691a27.* `sv --help` and the README say `sv` checks against it, and
-  `Frameworks::load` reads ASVS, AISVS and Appendix C only — the checklist contributes nothing. Found on
-  24 September 2026 while chasing bad citations. It is a third schema (`checklistDomains` → `controls`,
-  with a `statement` and no level), so it needs a level decided per control and applicability rules
-  written, which is why it is its own item and not a one-line fix. Until it is done, the help text and
-  README overstate what runs.
+- ~~**Load the Secure by Design checklist.**~~ Done on 24 September 2026. Left over: `multiple-services`
+  is a claim with no corroborator, so nothing looks for a compose file or a set of deployment manifests
+  to check it against — the one question gating fifteen controls rests entirely on somebody's word. The
+  checklist's `scoring`, `processSteps`, `principles` and `escalationTriggers` are read past, not used.
+  It was found on 24 September 2026 while chasing bad citations: `sv --help` had named the checklist
+  since the first commit while `Frameworks::load` read ASVS, AISVS and Appendix C only.
 
 - **Clean coverage from the remaining checks.** The credential scan, the rules that read code and the
   probes now report what they examined and found nothing wrong; the SBOM and advisory checks do not, and

@@ -76,6 +76,12 @@ fn no_two_requirement_ids_differ_only_by_how_they_are_punctuated() {
     // The guard for the mistake this namespace exists to prevent. `AC-05` and `AC.5` are different
     // strings that a person reads as the same thing, and a citation that resolves to the wrong
     // framework is worse than one that resolves to nothing, because nothing looks wrong.
+    //
+    // Requirement ids alone are not enough, and assuming they were is a mistake this test made on
+    // the way in. `AC.5` is a *family* — a chapter — and not a requirement at all, so comparing
+    // only requirement ids would have let the original `AC-05` collision through while looking
+    // like it covered it. Applicability rules scope to chapters and sections as well, so every id
+    // anything can be addressed by has to be in the comparison.
     let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
     let flatten = |id: &str| -> String {
         id.split(['.', '-', '_'])
@@ -85,14 +91,95 @@ fn no_two_requirement_ids_differ_only_by_how_they_are_punctuated() {
             .join("|")
             .to_uppercase()
     };
-    let mut seen: std::collections::BTreeMap<String, &str> = std::collections::BTreeMap::new();
+    let mut addressable: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (id, info) in &f.requirements {
+        addressable.insert(id.clone());
+        addressable.insert(info.chapter_id.clone());
+        if let Some(section) = &info.section_id {
+            addressable.insert(section.clone());
+        }
+    }
+    assert!(
+        addressable.contains("AC.5"),
+        "the family the original mistake cited has to be in the comparison"
+    );
+
+    let mut seen: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     let mut clashes = Vec::new();
-    for id in f.requirements.keys() {
-        if let Some(other) = seen.insert(flatten(id), id) {
+    for id in &addressable {
+        if let Some(other) = seen.insert(flatten(id), id.clone()) {
             clashes.push(format!("{other} and {id} read as the same id"));
         }
     }
     assert!(clashes.is_empty(), "{}", clashes.join("\n"));
+}
+
+#[test]
+fn the_design_review_count_a_report_would_print_is_a_real_subset() {
+    // The second witness, at the level the CLI actually works: it filters `buckets.applicable` by
+    // the verification class to build the gap that says how many requirements no check can reach.
+    // The first witness asks the config directly, which would still pass if bucketing dropped the
+    // class on the way through.
+    use sv_frameworks::VerificationClass;
+    use sv_frameworks::applicability::bucket;
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let ctx = ConditionContext::default(); // nothing answered
+    let buckets = bucket(&f, &config, &ctx, 3);
+
+    let design_review: Vec<&String> = buckets
+        .applicable
+        .iter()
+        .filter(|id| config.verification_class_for(id) == VerificationClass::ManualOnly)
+        .collect();
+    let checklist = design_review
+        .iter()
+        .filter(|id| id.starts_with("SBD-"))
+        .count();
+
+    assert!(checklist > 0, "no checklist control survived bucketing");
+    assert!(
+        design_review.len() > checklist,
+        "the count has to include the requirements already on the manualOnly list, not only the \
+         checklist: {} design review, {checklist} of them from the checklist",
+        design_review.len()
+    );
+    assert!(
+        design_review.len() < buckets.applicable.len(),
+        "a count covering everything applicable would tell a reader nothing"
+    );
+}
+
+#[test]
+fn every_checklist_control_is_design_review_and_not_everything_is() {
+    // The claim that makes loading the checklist honest rather than noisy: these are applicable and
+    // unverified, like many ASVS requirements, but unlike those they cannot be reached by any check
+    // that could ever be written. Without this the class was set by a line of code nothing tested.
+    use sv_frameworks::VerificationClass;
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+
+    let checklist: Vec<&String> = f
+        .requirements
+        .keys()
+        .filter(|id| id.starts_with("SBD-"))
+        .collect();
+    assert_eq!(checklist.len(), 36);
+    for id in &checklist {
+        assert_eq!(
+            config.verification_class_for(id),
+            VerificationClass::ManualOnly,
+            "{id} is a design-review control and has to be classed as one"
+        );
+    }
+
+    // And the other half: a class that applied to everything would say nothing. Something a check
+    // really can reach must not come back manual-only.
+    assert_ne!(
+        config.verification_class_for("V1.2.4"),
+        VerificationClass::ManualOnly,
+        "parameterized queries are reachable by a scanner; the class must discriminate"
+    );
 }
 
 #[test]
