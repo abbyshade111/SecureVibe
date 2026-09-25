@@ -84,8 +84,9 @@ fn a_declared_dependency_answers_its_condition() {
 
 #[test]
 fn source_sv_cannot_read_makes_every_absence_unknown() {
-    // A Swift file `sv` has no reader for. It cannot say GraphQL is absent from an app it has only
-    // partly read, and "I did not find it" must not be reported as "it is not there".
+    // A Swift file. The code rules read Swift, but the technology scan does not: it reads no
+    // `Package.swift` and has no Swift patterns. It cannot say GraphQL is absent from an app it has
+    // only partly looked in, and "I did not find it" must not be reported as "it is not there".
     let report = scan_fixture("unreadable-language");
     assert!(report.unread_extensions.contains("swift"));
     let graphql = answer(&report, Condition::Graphql);
@@ -1225,4 +1226,26 @@ fn a_project_the_npm_workspace_does_not_list_is_not_pinned_by_its_lockfile() {
     std::fs::remove_dir_all(&dir).ok();
     let manifests: Vec<&str> = unpinned.iter().map(|e| e.manifest.as_str()).collect();
     assert_eq!(manifests, vec!["scripts/seed/package.json"]);
+}
+
+#[test]
+fn a_language_only_the_code_rules_read_still_leaves_absences_unknown() {
+    // A Dart server whose GraphQL is a pub package. `pubspec.yaml` is not read, so the one place
+    // the answer sits is a place the scan never looks, and calling GraphQL absent would be wrong.
+    let report = scan_fixture("dart-server");
+    assert!(report.languages.contains("dart"), "{:?}", report.languages);
+    assert!(
+        report.unread_extensions.contains("dart"),
+        "{:?}",
+        report.unread_extensions
+    );
+    let graphql = answer(&report, Condition::Graphql);
+    assert_eq!(graphql.value, None, "{:?}", graphql.evidence);
+    let wrongly_absent: Vec<&str> = report
+        .answers
+        .iter()
+        .filter(|a| a.value == Some(false))
+        .map(|a| a.condition.name())
+        .collect();
+    assert!(wrongly_absent.is_empty(), "{wrongly_absent:?}");
 }

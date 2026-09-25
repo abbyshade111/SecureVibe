@@ -23,9 +23,11 @@ cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding t
 ```
 
 The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
-Rust and C. A language
+Rust, C, Dart and Swift. A language
 outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
-anything about the app at all, and the report says which language stopped it. A script written into a web page —
+anything about the app at all, and the report says which language stopped it. The same holds one rule at
+a time: a rule that has not been taught a language in your app claims nothing, and the report names the
+rule and the language. A script written into a web page —
 in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
 is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
