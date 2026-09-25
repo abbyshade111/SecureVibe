@@ -5,7 +5,8 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators for the remaining claims.** Eleven of the twelve were written on 24 September 2026;
+- **Corroborators for the remaining claims.** *`multiple-services` claimed 25 September 2026 by session securevibe-e8
+  (branch `claude/securevibe-agnostic-variant-935b16`); the other three are not.* Eleven of the twelve were written on 24 September 2026;
   `shared-hostname` is recorded as uncheckable instead (`noCorroborator`), because it is a fact about
   deployment that the repository does not hold. What is left is the weaker half of what was written:
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
@@ -19,6 +20,13 @@ another session is not a claim.
   no rule that reads code may claim a clean result while it is there, and `sv check` and the report say
   which files. Breaking either half turns two or three tests red. `.jsx` needed nothing: the JavaScript
   grammar reads JSX.
+
+- **Dependencies `sv` declares it read, and cannot match.** *Claimed 25 September 2026 by session
+  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25 September 2026: a Go
+  app declaring and using `github.com/gorilla/websocket` has V4.4.1–V4.4.4 excluded as "No WebSocket
+  library is used". `go.mod` gives full module paths, the signatures name `gorilla/websocket`, and the
+  comparison is exact, so no Go package signature has ever matched. Also `build.gradle.kts`, the default
+  for Kotlin, is not read at all.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
