@@ -56,8 +56,13 @@ describe('computeApplicability: local-only, no sign-in, no personal data (level 
   });
 
   it('marks OAuth, JWT and authentication requirements not applicable with plain reasons', () => {
+    // V10.4 is the authorization server's own section, and it has its own condition. A v1 app is
+    // neither an OAuth client nor an authorization server, so it is excluded either way — the rule
+    // that excludes it, and the sentence the owner reads, are the only things that changed.
     expect(bucketOf(result.asvs, 'V10.4.1')).toBe('not-applicable');
-    expect(reasonOf(result.asvs, 'V10.4.1')).toMatch(/local accounts/);
+    // V10.4.1 to V10.4.5 are the only Level 1 requirements in the whole of V10, so the chapter's
+    // own "local accounts" reason cannot be seen from this profile at all.
+    expect(reasonOf(result.asvs, 'V10.4.1')).toMatch(/does not run an OAuth authorization server/);
     expect(bucketOf(result.asvs, 'V9.1.1')).toBe('not-applicable');
     expect(bucketOf(result.asvs, 'V6.2.1')).toBe('not-applicable');
     expect(reasonOf(result.asvs, 'V6.2.1')).toMatch(/no sign-in/);

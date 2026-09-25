@@ -104,6 +104,14 @@ pub struct Capabilities {
     pub auth: Option<bool>,
     #[serde(default)]
     pub oauth: Option<bool>,
+    /// Does this app *run* an OAuth authorization server or OpenID provider, rather than sign in
+    /// through somebody else's?
+    ///
+    /// A separate question from `oauth`, because ASVS V10.4, V10.6, and V10.7 are written for
+    /// whoever runs the server. An app with "Sign in with Google" answers `oauth = true` and this
+    /// one `false`, and is then not asked about a server it does not have.
+    #[serde(default)]
+    pub authorization_server: Option<bool>,
     #[serde(default)]
     pub jwt: Option<bool>,
     #[serde(default)]
@@ -401,9 +409,24 @@ impl Manifest {
             Some(true) => v,
             None => None,
         };
+        // Running an OAuth authorization server is a way of using OAuth, so an app that uses
+        // none is certainly not one. That is an entailment rather than a guess, which is why it
+        // is drawn here at all: the applicability engine deliberately guesses nothing, and a
+        // manifest written before this question existed would otherwise leave V10.4, V10.6, and
+        // V10.7 unanswered for every app that has no OAuth anywhere near it.
+        //
+        // An explicit yes is taken first and never overruled. A manifest that says "no OAuth" and
+        // "runs an authorization server" contradicts itself, and the reading that keeps the
+        // requirements is the only safe one to act on.
+        let authorization_server = match (c.oauth, c.authorization_server) {
+            (_, Some(true)) => Some(true),
+            (Some(false), _) => Some(false),
+            (_, stated) => stated,
+        };
         vec![
             (Condition::Auth, c.auth),
             (Condition::Oauth, c.oauth),
+            (Condition::AuthorizationServer, authorization_server),
             (Condition::Jwt, c.jwt),
             (Condition::Uploads, c.uploads),
             (Condition::Payments, c.payments),
@@ -743,5 +766,105 @@ mod tests {
 
     fn state_of(resolved: &[ResolvedClaim], c: Condition) -> ClaimState {
         resolved.iter().find(|r| r.condition == c).unwrap().state
+    }
+}
+
+#[cfg(test)]
+mod authorization_server_tests {
+    use super::*;
+
+    fn manifest(toml_text: &str) -> Manifest {
+        toml::from_str(toml_text).expect("manifest parses")
+    }
+
+    /// What the pipeline would act on, with nothing in the code corroborating anything.
+    fn effective(toml_text: &str, condition: Condition) -> Option<bool> {
+        resolve(&manifest(toml_text), &|_| None).0.get(condition)
+    }
+
+    #[test]
+    fn an_app_with_no_oauth_at_all_is_not_an_authorization_server() {
+        // The entailment, and the reason a manifest written before this question existed does not
+        // have to be rewritten for V10.4 to be answered: running an authorization server is a way
+        // of using OAuth, so an app that uses none is certainly not one.
+        let m = "[capabilities]\nauth = true\noauth = false\n";
+        assert_eq!(effective(m, Condition::AuthorizationServer), Some(false));
+    }
+
+    #[test]
+    fn an_oauth_app_that_has_not_said_which_side_it_is_on_leaves_it_unanswered() {
+        // `oauth = true` alone does not say whether the app signs in *through* a provider or *is*
+        // one, and guessing either way is exactly what this must not do.
+        let m = "[capabilities]\nauth = true\noauth = true\n";
+        assert_eq!(effective(m, Condition::AuthorizationServer), None);
+    }
+
+    #[test]
+    fn saying_yes_survives_a_manifest_that_contradicts_itself() {
+        // "No OAuth" and "runs an authorization server" cannot both be true. The reading that
+        // keeps the requirements is the only safe one to act on, so the explicit yes wins over
+        // the entailment rather than being quietly discarded by it.
+        let m = "[capabilities]\noauth = false\nauthorization-server = true\n";
+        assert_eq!(effective(m, Condition::AuthorizationServer), Some(true));
+    }
+
+    #[test]
+    fn the_code_can_answer_it_over_a_manifest_that_says_no() {
+        // `effective = claimed || found_in_code`, on this condition like every other: an app
+        // shipping an authorization server gets V10.4 back whatever securevibe.toml says.
+        let m = "[capabilities]\noauth = true\nauthorization-server = false\n";
+        let found = |c: Condition| (c == Condition::AuthorizationServer).then_some(true);
+        let (ctx, resolved) = resolve(&manifest(m), &found);
+        assert_eq!(ctx.get(Condition::AuthorizationServer), Some(true));
+        assert_eq!(
+            resolved
+                .iter()
+                .find(|r| r.condition == Condition::AuthorizationServer)
+                .map(|r| r.state),
+            Some(ClaimState::Contradicted)
+        );
+    }
+
+    #[test]
+    fn a_self_contradicting_manifest_still_gets_the_authorization_server_requirements() {
+        // The second witness for the rule above, at the level a reader of the report would feel
+        // it. The claim being `Some(true)` is an implementation detail; what must not happen is
+        // that "no OAuth" quietly deletes V10.4 from the requirements of somebody who has just
+        // said in the same file that they run an authorization server.
+        use sv_frameworks::Frameworks;
+        use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
+
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let config = ApplicabilityConfig::load_v2(
+            &root.join("../data/knowledge"),
+            &root.join("data/applicability-v2.json"),
+        )
+        .unwrap();
+        let frameworks = Frameworks::load(&root.join("../data/frameworks")).unwrap();
+
+        let m = "[capabilities]\noauth = false\nauthorization-server = true\n";
+        let (ctx, _) = resolve(&manifest(m), &|_| None);
+        let buckets = bucket(&frameworks, &config, &ctx, 2);
+        for id in ["V10.4.1", "V10.6.1", "V10.7.1"] {
+            assert!(
+                buckets.applicable.iter().any(|a| a == id),
+                "{id} was dropped for an owner who said they run an authorization server"
+            );
+        }
+    }
+
+    #[test]
+    fn the_answer_the_context_acts_on_is_the_one_the_resolved_claim_reports() {
+        // The entailment is drawn in `claims()`, before resolution, so that these two cannot
+        // disagree. Drawing it afterwards would leave the report saying "nothing answered this"
+        // beside an exclusion made on the strength of an answer.
+        let m = "[capabilities]\noauth = false\n";
+        let (ctx, resolved) = resolve(&manifest(m), &|_| None);
+        let claim = resolved
+            .iter()
+            .find(|r| r.condition == Condition::AuthorizationServer)
+            .expect("authorization-server is among the resolved claims");
+        assert_eq!(claim.effective, ctx.get(Condition::AuthorizationServer));
+        assert_eq!(claim.effective, Some(false));
     }
 }

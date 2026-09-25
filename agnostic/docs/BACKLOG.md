@@ -31,8 +31,17 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
-- **`sv report` understates a gap that `sv sbom` states correctly.** Found on 25 September 2026 while
-  reviewing the nested-manifest walk; not claimed. For an ecosystem whose manifest versions `sv` cannot
+- ~~**`sv report` understates a gap that `sv sbom` states correctly.**~~ Done on 25 September 2026 by
+  session securevibe-e9. The report builds an SBOM and asks it, instead of reasoning about dependencies
+  from `scan_report.unpinned`: an unreadable ecosystem is now reported as an empty list rather than an
+  approximate one, a manifest-declared one as what was asked for, and a fully locked one as no gap at
+  all. The sentence was also wrong about pip in the other direction — `flask==3.0.0` does pin a version,
+  and it said `requirements.txt` "pins no versions". See DESIGN, "The report asks the bill of materials".
+  Left over: the report still does not carry the SBOM's incompleteness finding or run the advisory
+  comparison, which is the other half of the entry this shares a root with.
+
+  As originally found, on 25 September 2026 while reviewing the nested-manifest walk. For an ecosystem
+  whose manifest versions `sv` cannot
   read, the report says the list holds what was asked for, when the list holds nothing at all. The two
   commands on the same app — a `package.json` with `"react": "18.0.0"` and no lockfile:
 
@@ -50,7 +59,8 @@ another session is not a claim.
   Same root as the entry about `sv report` not running the bill of materials or the advisory
   comparison: the report reasons about dependencies from the scan alone and never asks the SBOM, which
   already knows the difference and says it well. Rewording the sentence is probably the wrong fix — one
-  sentence covering two ecosystems will be wrong about one of them again.
+  sentence covering two ecosystems will be wrong about one of them again. **Claimed on 25 September
+  2026 by session securevibe-e9.**
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
@@ -134,12 +144,15 @@ another session is not a claim.
   becomes a "before going live" list in the report. The fence and what the probes may send need
   thinking through first: this reaches outside the machine, which nothing in `sv` does yet.
 
-- **OAuth requirements for authorization servers are applied to OAuth clients.** Found in the same
-  analysis. V10.4.1 to V10.4.5 (Level 1) and the rest of V10.4, V10.6, and V10.7 are about running an
-  authorization server; `sv` applies them whenever the app uses OAuth, so an app with "Sign in with
-  Google" is asked about an authorization server it does not run. A condition for being the
-  authorization server, separate from using OAuth, would fix it; `data/knowledge/applicability.json` is
-  shared with v1, so the change is decided there for both.
+- ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
+  2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
+  V10.7, so an app with "Sign in with Google" keeps the client's requirements (V10.1, V10.2, V10.3,
+  V10.5) and is no longer asked about a server it does not run. Running one is a way of using OAuth, so
+  `oauth = false` answers it without anyone rewriting a manifest, while an explicit yes always wins over
+  that entailment. It has a corroborator, from which dual-purpose libraries — Authlib above all — are
+  deliberately absent: putting `authlib` back in its package list undid the fix and passed the entire
+  suite, so there is now a test that writes a `requirements.txt`. See DESIGN, "Using OAuth and being the
+  authorization server". For v1 no requirement moves buckets; only the exclusion reason changes.
 
 - ~~**Threat modeling that does not depend on the AI tool.**~~ Done. Asked for by the owner on 25 September
   2026. The investigation is done (session securevibe-e8): `docs/THREAT-MODELING.md`. In short, v1's

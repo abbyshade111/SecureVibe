@@ -75,7 +75,11 @@ describe('applicability.json', () => {
 
   it('never-style conditions always carry a plain-language reason', () => {
     const missing = knowledge.applicability.rules
-      .filter((r) => ['never', 'oauth', 'webrtc', 'jwt', 'rag', 'mcp', 'multi-tenant', 'training'].includes(r.condition))
+      .filter((r) =>
+        ['never', 'oauth', 'authorization-server', 'webrtc', 'jwt', 'rag', 'mcp', 'multi-tenant', 'training'].includes(
+          r.condition,
+        ),
+      )
       .filter((r) => !r.notApplicableReason)
       .map((r) => r.scope);
     expect(missing).toEqual([]);
