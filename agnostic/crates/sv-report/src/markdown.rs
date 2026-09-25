@@ -133,6 +133,33 @@ pub fn compliance(report: &Report) -> String {
     }
     out.push('\n');
 
+    if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
+        out.push_str("## Tests to write\n\n");
+        out.push_str("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.\n\n");
+        if report.not_for_tests > 0 {
+            out.push_str(&format!("{} more have no evidence and are not listed, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.\n\n", report.not_for_tests));
+        }
+        if !report.named_not_credited.is_empty() {
+            out.push_str(&format!(
+                "Named in a test and still without evidence, because the tests were not run here or \
+                 did not pass: {}.\n\n",
+                report.named_not_credited.join(", ")
+            ));
+        }
+        if !report.tests_to_write.is_empty() {
+            out.push_str("| requirement | level | what it asks for |\n|---|---|---|\n");
+            for t in &report.tests_to_write {
+                out.push_str(&format!(
+                    "| {} | {} | {} |\n",
+                    cell(&t.id),
+                    t.level,
+                    cell(&t.description)
+                ));
+            }
+            out.push('\n');
+        }
+    }
+
     if !report.checklist_above_level.is_empty() {
         out.push_str("## Secure by Design controls above this app's target level\n\n");
         out.push_str(

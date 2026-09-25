@@ -193,7 +193,25 @@ pub struct Report {
     /// and still tells the reader something untrue.
     pub satisfied_elsewhere: Vec<SatisfiedElsewhere>,
     pub checklist_above_level: Vec<ChecklistAboveLevel>,
+    /// Applicable requirements with no evidence of any kind and no test in the app naming them,
+    /// lowest level first. A test that names a requirement and passes is the one route to evidence
+    /// for every requirement, including the ones no check here can reach, so this is the list of
+    /// what to write.
+    pub tests_to_write: Vec<TestToWrite>,
+    /// Applicable requirements a test in the app names, still without evidence: the tests were not
+    /// run, or did not pass.
+    pub named_not_credited: Vec<String>,
+    /// How many unverified requirements were left out of `tests_to_write` because a test cannot
+    /// show them: documentation, deployment, a development process, or design review.
+    pub not_for_tests: usize,
     pub gaps: Vec<Gap>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TestToWrite {
+    pub id: String,
+    pub level: u8,
+    pub description: String,
 }
 
 /// Everything the renderers need, gathered from the crates that produced it.
@@ -213,6 +231,11 @@ pub struct Inputs<'a> {
     /// Requirements no check can settle: design review, answered by a person. A satisfied check
     /// about one of these is supporting evidence, never "checked".
     pub manual_only: BTreeSet<String>,
+    /// Requirement ids written into the app's test files, whether or not the tests ran.
+    pub named_in_tests: BTreeSet<String>,
+    /// Requirements an application's own tests cannot show: ones that ask for documentation, a
+    /// deployment setting, or a development process. Left out of the tests to write, and counted.
+    pub not_for_tests: BTreeSet<String>,
 }
 
 pub fn build(inputs: Inputs<'_>) -> Report {
@@ -289,6 +312,43 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         });
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
+
+    // What a test could still answer: nothing produced evidence, and a person is not the only one
+    // who can. Design review is left out; a test cannot settle how a system was designed.
+    let mut tests_to_write = Vec::new();
+    let mut named_not_credited = Vec::new();
+    let mut not_for_tests = 0;
+    for line in &requirements {
+        if line.status != Status::NotVerified {
+            continue;
+        }
+        if inputs.manual_only.contains(&line.id) || inputs.not_for_tests.contains(&line.id) {
+            not_for_tests += 1;
+            continue;
+        }
+        if inputs.named_in_tests.contains(&line.id) {
+            named_not_credited.push(line.id.clone());
+            continue;
+        }
+        tests_to_write.push(TestToWrite {
+            id: line.id.clone(),
+            level: inputs.frameworks.get(&line.id).map_or(0, |r| r.level),
+            description: line.description.clone(),
+        });
+    }
+    let natural = |id: &str| -> Vec<u32> {
+        id.split(|c: char| !c.is_ascii_digit())
+            .filter_map(|n| n.parse().ok())
+            .collect()
+    };
+    // ASVS before AISVS at the same level: the web application's own requirements first.
+    let framework = |id: &str| u8::from(!id.starts_with('V'));
+    tests_to_write.sort_by(|a, b| {
+        a.level
+            .cmp(&b.level)
+            .then_with(|| framework(&a.id).cmp(&framework(&b.id)))
+            .then_with(|| natural(&a.id).cmp(&natural(&b.id)))
+    });
 
     let excluded: Vec<ExcludedRequirement> = inputs
         .buckets
@@ -428,6 +488,9 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         out_of_scope,
         satisfied_elsewhere,
         checklist_above_level,
+        tests_to_write,
+        named_not_credited,
+        not_for_tests,
         gaps: inputs.gaps,
     }
 }

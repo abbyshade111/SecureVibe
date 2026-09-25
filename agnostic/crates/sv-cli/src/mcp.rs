@@ -393,6 +393,27 @@ fn summary(report: &sv_report::Report) -> String {
             out.push_str(&format!("- {}: {}\n", claim.name, claim.note));
         }
     }
+    if !report.tests_to_write.is_empty() {
+        const SHOWN: usize = 30;
+        out.push_str(&format!(
+            "\nTESTS TO WRITE — {} applicable requirements have no evidence and no test naming \
+             them. A test that really checks one, with its id in the test's name, is how it gets \
+             evidence. Lowest level first:\n",
+            report.tests_to_write.len()
+        ));
+        for t in report.tests_to_write.iter().take(SHOWN) {
+            out.push_str(&format!(
+                "- {} (level {}): {}\n",
+                t.id, t.level, t.description
+            ));
+        }
+        if report.tests_to_write.len() > SHOWN {
+            out.push_str(&format!(
+                "- and {} more, in compliance.md\n",
+                report.tests_to_write.len() - SHOWN
+            ));
+        }
+    }
     if report.findings.is_empty() {
         out.push_str("\nNo findings. That is not the same as secure: see what was not examined.\n");
     } else {

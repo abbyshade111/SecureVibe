@@ -25,10 +25,11 @@ another session is not a claim.
   "Level 1, asked of the running app". Left over: a password change (V6.2.2, V6.2.3) needs the manifest
   to say how one is made; rate limiting (V6.3.1) is a documentation requirement as much as a behavior.
 
-- **Requirements with no test naming them.** *Claimed 25 September 2026 by session securevibe-e8 (branch
-  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* The app's own passing tests
-  that name a requirement are the one route to evidence for every requirement. The report lists which
-  applicable Level 1 requirements no test names, and `sv init` asks the AI coding tool to write them.
+- ~~**Requirements with no test naming them.**~~ Done on 25 September 2026 by session securevibe-e8.
+  The report's "Tests to write" lists every applicable requirement with no evidence and no test
+  naming it, lowest level first, and leaves out and counts what an app's tests cannot show; `sv mcp`
+  gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
+  write".
 
 - **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
