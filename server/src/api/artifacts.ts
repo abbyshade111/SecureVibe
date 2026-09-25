@@ -9,7 +9,7 @@ import { basename, extname, join } from 'node:path';
 import { ZipArchive } from 'archiver';
 import { Router, type Response } from 'express';
 import { REPORT_CSS } from '../reports/page.js';
-import { htmlToPdf } from '../reports/pdf/index.js';
+import { htmlToPdf, pageSizeOf } from '../reports/pdf/index.js';
 import { handoffMarkdown } from '../reports/handoff.js';
 import { buildScanData, scanDataFileName } from '../reports/scan-data.js';
 import { isRunId } from '../store/index.js';
@@ -42,6 +42,13 @@ export function reportCsp(html: string): string {
 
 /** Never packed into app.zip: installed packages, runtime data, and anything holding a secret. */
 export const ZIP_EXCLUDE = ['node_modules/**', 'data/**', 'home/**', 'tmp/**', '.git/**', '.claude/**', '.env', '.env.*', 'FIRST-LOGIN.txt'] as const;
+
+function sendPdf(res: Response, name: string, pdf: Buffer): void {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${basename(name)}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.send(pdf);
+}
 
 export function artifactsRouter(deps: ApiDeps): Router {
   const router = Router();
@@ -203,9 +210,11 @@ export function artifactsRouter(deps: ApiDeps): Router {
     const run = runFor(project.id, project.lastRunId, runQuery);
     if (!run) throw notFound('That file could not be found.');
     const ref = run.artifacts.find((a) => a.name === name);
-    // A run made before PDFs were written with the reports has none; its HTML report is turned into one on request.
-    const pdfSource = !ref && name.endsWith('.pdf') ? run.artifacts.find((a) => a.name === name.replace(/\.pdf$/, '.html')) : undefined;
-    if (!ref && !pdfSource) throw notFound('That file could not be found.');
+    // A PDF is the report's HTML laid out on paper. One saved with the reports is served as it is when it is on the
+    // paper size set in Settings; otherwise, and for a run made before PDFs were written with the reports, it is
+    // made again from the saved HTML in the size set now (the saved file is left as it was).
+    const htmlSource = name.endsWith('.pdf') ? run.artifacts.find((a) => a.name === name.replace(/\.pdf$/, '.html')) : undefined;
+    if (!ref && !htmlSource) throw notFound('That file could not be found.');
 
     const locate = (artifact: { path: string }): string => {
       try {
@@ -218,16 +227,21 @@ export function artifactsRouter(deps: ApiDeps): Router {
         throw err;
       }
     };
-    const absolute = locate((ref ?? pdfSource)!);
+    const absolute = locate((ref ?? htmlSource)!);
     if (!existsSync(absolute)) throw notFound('That file could not be found.');
 
-    if (!ref) {
-      const html = readFileSync(absolute, 'utf8');
-      const pdf = htmlToPdf(html, { createdAt: run.finishedAt ?? run.startedAt });
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${basename(pdfSource!.name).replace(/\.html$/, '.pdf')}"`);
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.send(pdf);
+    if (name.endsWith('.pdf')) {
+      const wanted = deps.config.settings.get().pdfPageSize;
+      const saved = ref ? readFileSync(absolute) : undefined;
+      const source = htmlSource ? locate(htmlSource) : undefined;
+      const stale = !saved || pageSizeOf(saved) !== wanted;
+      if (!saved || (stale && source && existsSync(source))) {
+        if (!source || !existsSync(source)) throw notFound('That file could not be found.');
+        const pdf = htmlToPdf(readFileSync(source, 'utf8'), { createdAt: run.finishedAt ?? run.startedAt, pageSize: wanted });
+        sendPdf(res, name, pdf);
+        return;
+      }
+      sendPdf(res, name, saved);
       return;
     }
 
@@ -245,7 +259,6 @@ export function artifactsRouter(deps: ApiDeps): Router {
       return;
     }
     res.setHeader('Content-Type', type);
-    if (extname(absolute) === '.pdf') res.setHeader('Content-Disposition', `attachment; filename="${basename(absolute)}"`);
     res.setHeader('Content-Length', String(statSync(absolute).size));
     res.setHeader('X-Content-Type-Options', 'nosniff');
     createReadStream(absolute).pipe(res);

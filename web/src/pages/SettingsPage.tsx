@@ -236,6 +236,29 @@ export function SettingsPage() {
       </Card>
 
       <Card>
+        <h2>Paper size for PDF reports</h2>
+        <p className="sv-help">
+          Every report can be downloaded as a PDF. Choose the paper it is laid out for: US Letter (8.5 by 11 inches) or
+          A4 (the size used almost everywhere else). A PDF you download from the results page is made in the size chosen
+          here, including for older checks. The PDF files stored with each check, which the hand-off pack and the
+          all-apps zip carry, keep the size that was set when that check ran.
+        </p>
+        <label className="sv-label" htmlFor="pdfPageSize">
+          Paper size
+        </label>
+        <select
+          id="pdfPageSize"
+          className="sv-select"
+          value={status.settings.pdfPageSize}
+          disabled={saving}
+          onChange={(e) => void save({ pdfPageSize: e.target.value as 'letter' | 'a4' })}
+        >
+          <option value="letter">US Letter (8.5 x 11 in)</option>
+          <option value="a4">A4 (210 x 297 mm)</option>
+        </select>
+      </Card>
+
+      <Card>
         <h2>Extra AI scanner (experimental)</h2>
         <p className="sv-help">
           nano-analyzer is a free program by other people that reads your code with an AI service and says what it

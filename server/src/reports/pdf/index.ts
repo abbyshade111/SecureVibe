@@ -7,7 +7,7 @@
  */
 import { parseHtml, textOf, type HtmlNode } from './html.js';
 import { layoutDocument } from './layout.js';
-import { writePdf } from './writer.js';
+import { DEFAULT_PAGE_SIZE, writePdf, type PageSize } from './writer.js';
 
 function findTitle(node: HtmlNode): string | undefined {
   for (const child of node.children) {
@@ -21,6 +21,8 @@ function findTitle(node: HtmlNode): string | undefined {
 
 export interface PdfOptions {
   title?: string;
+  /** The paper: US Letter unless told otherwise. */
+  pageSize?: PageSize;
   /** ISO timestamp recorded as the creation date, so the same report always produces the same file. */
   createdAt?: string;
 }
@@ -28,8 +30,9 @@ export interface PdfOptions {
 export function htmlToPdf(html: string, options: PdfOptions = {}): Buffer {
   const root = parseHtml(html);
   const title = options.title ?? findTitle(root) ?? 'SecureVibe report';
-  const { pages, outline } = layoutDocument(root, title);
-  return writePdf(pages, outline, { title, createdAt: options.createdAt });
+  const { pages, outline } = layoutDocument(root, title, options.pageSize ?? DEFAULT_PAGE_SIZE);
+  return writePdf(pages, outline, { title, size: options.pageSize ?? DEFAULT_PAGE_SIZE, createdAt: options.createdAt });
 }
 
 export { fullyRepresentable } from './fonts.js';
+export { DEFAULT_PAGE_SIZE, PAGE_SIZES, pageSizeOf, type PageSize } from './writer.js';

@@ -12,6 +12,7 @@ import type { DesignProfile } from '@shared/profile.js';
 import type { Project } from '@shared/project.js';
 import type { Knowledge } from '../frameworks/index.js';
 import type { ProbeResultLike, TestResult } from '../compliance/types.js';
+import type { PageSize } from './pdf/writer.js';
 
 export interface ReportModel {
   project: Project;
@@ -31,6 +32,8 @@ export interface ReportModel {
   appDir: string;
   outDir: string;
   securevibeVersion: string;
+  /** Paper size of the PDF copies (US Letter when left out). */
+  pdfPageSize?: PageSize;
   /** design.md content when the design engine already rendered it; rendered here from `design`+`profile` otherwise. */
   designMarkdown?: string;
   /** Findings of the previous run, for the "delta vs previous" summary line. */
