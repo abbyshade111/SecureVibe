@@ -816,8 +816,8 @@ and one "SecureVibe self-assessment" project is reused. Recorded request paths r
 
 `workspace/projects/<id>/project.json` (Project), `design/` (design.json, design.md, security-contract.md, adr/*.md,
 threat-model.md, diagram.mmd), `app/` (current generated app), `app-v<N>/` (previous versions), `pipeline/<runId>/`
-(run.json, stages/*.log, llm/, fixes/, dast/), `reports/<runId>/` (overview.html, compliance-report.{html,md,json},
-security-report.{html,md,json}, design.md, going-online.md, findings.sarif, sbom.cdx.json, provenance.json, app.zip).
+(run.json, stages/*.log, llm/, fixes/, dast/), `reports/<runId>/` (overview.{html,pdf}, compliance-report.{html,pdf,md,json},
+security-report.{html,pdf,md,json}, design.md, going-online.{md,html,pdf}, findings.sarif, sbom.cdx.json, provenance.json, app.zip).
 Atomic writes (`tmp` + rename); every path resolved with `realpath` and checked against the workspace root
 (case-folded prefix, NUL/UNC rejected).
 
@@ -991,7 +991,7 @@ writes the starter app from the answers (pages for every record, no AI-written f
 runs, and no plan approval is needed. The Build page offers "Build without AI (free)" for any unbuilt app when a key
 is configured (in preview mode every build is already without AI) and "Check again without AI (free)" for built
 ones. The results page leads the Reports section with the one-page summary: verdict, headline, "can I use it", the
-first three top actions, and buttons to open `overview.html` or save it as PDF.
+first three top actions, and buttons to open `overview.html` or download `overview.pdf`. Every `<report>.html` has a `<report>.pdf` beside it (ADR-013); the artifact route makes the PDF on request for a run that predates them.
 
 ## Network fence for generated code (added 2026-09-18)
 

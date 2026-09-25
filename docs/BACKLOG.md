@@ -38,14 +38,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **PDFs written at report time.** **[taken: this session, 25 Sep 2026]** SecureVibe writes each report as HTML, JSON and Markdown; the "Save it as PDF"
-  button hands the HTML to the browser's print dialog, so no PDF exists on disk until a person saves one, one
-  report and one dialog at a time. The related half landed on 24 September 2026: "Download every app's reports"
-  on the across-apps page gives one zip with a folder per app and an index, so an appendix or a handover no longer
-  means opening each app in turn. What remains is the PDF itself, which needs a browser engine at report time
-  (SecureVibe ships none; the hand-off pack is where it belongs, so whoever receives it has the reports as files
-  rather than pages). Worth deciding whether a dependency on the owner's installed browser is acceptable before
-  building it.
 - ~~**The template suite ran 30 of its 33 files and said it was green.**~~ **Done (list regenerated before each run, count printed); the durable half, moving the repository out of ~/Desktop, stays with the iCloud item.** Original text kept: The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
