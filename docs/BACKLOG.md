@@ -52,8 +52,8 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **The harness should hold a lock while it runs.** ~~Unclaimed~~ **[taken: recipe-library session, 20 Sep 2026,
-  after the query recipe lands]** Two sessions ran it at once for eight minutes on 20 September 2026, each having
+- **The harness should hold a lock while it runs.** Unclaimed. (Was **[taken: recipe-library session, 20 Sep 2026]**; released 25 Sep 2026, because no such session is running.)
+  Two sessions ran it at once for eight minutes on 20 September 2026, each having
   said in a message that they would say something first. Almost nothing is actually shared — each session has its
   own checkout of the baselines and the template, each run makes its own scratch workspace with its own tool
   caches, and the apps bind ephemeral ports — so the collision is one laptop's processor, memory and disk, plus
@@ -75,7 +75,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
 Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
 building from nothing.
 
-- **A recipe for querying records.** **[taken: recipe-library session, 20 Sep 2026]** The engine landed in the
+- **A recipe for querying records.** Unclaimed. (Was taken by the recipe-library session on 20 Sep 2026; released 25 Sep 2026, because no such session is running.) The engine landed in the
   template on 20 September 2026 (`src/db/query.ts`, `eb35de0`): search, filter, sort and paginate settled once,
   with the ownership clause structural and fifteen tests on it. What remains is the per-entity half — turning a
   record type's fields into a query, fixing the scope once from its `access` answer so no call site chooses, and
@@ -85,7 +85,7 @@ building from nothing.
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
   argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
-- **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in the health-tracking app returns nothing
+- **An assistant that is working should say so.** Unclaimed. (Was taken by the recipe-library session on 20 Sep 2026; released 25 Sep 2026, because no such session is running.) Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
@@ -98,6 +98,8 @@ building from nothing.
   2026. Same family as the mislabelled requirement names: an id is a claim, and a claim wants something behind it.
 
 ## The recipe-library session's half
+
+No session holds this list any more (released 25 Sep 2026); anyone may claim an item from it the usual way.
 
 - The chart recipe (landed 19 September 2026), then a "needs attention" view, then keeping an assistant's answer
   as a record with its sources, then an outside-service connection recipe now the wizard carries a host.
