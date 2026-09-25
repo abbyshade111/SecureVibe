@@ -116,7 +116,19 @@ Three pull requests, each small enough to review:
 3. The new threats for what `sv` sees and v1 did not: MCP, retrieval, several services, WebSockets,
    multi-tenant.
 
-## Questions for the owner
+## Decided by the owner, 25 September 2026
+
+1. **No scoring.** v1's likelihood and impact are not carried over. The list is ordered by what the
+   evidence says (found, then not verified, then checked in part), with no low/medium/high attached.
+2. **One copy.** v1 is to read the same `threats.json` later, so a threat is fixed in one place. That
+   change to v1's design engine is its own piece of work, after this one.
+3. **A section of the report**, not a file of its own: in the HTML and Markdown reports, beside
+   compliance and security.
+
+So proposal step 4 ("sorted by what matters") becomes: found first, then not verified, then checked in
+part, then cannot place; within each, in the order of the parts of the app in the data-flow outline.
+
+## The questions as they were asked
 
 1. **Scoring.** v1 scores likelihood and impact low/medium/high from the answers. That is a judgement,
    and it orders the list. Keep it, as v1 does, or order only by *found* then *not verified* and
