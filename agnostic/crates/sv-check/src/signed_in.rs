@@ -4396,6 +4396,9 @@ mod tests {
                     && v.requirement_ids.iter().any(|r| r == "V6.3.1")),
             "and it must be credited: {:?}",
             out.verified
+                .iter()
+                .map(|v| v.check_id.as_str())
+                .collect::<Vec<_>>()
         );
     }
 
@@ -4486,17 +4489,20 @@ mod tests {
             locks_out_after: Some(2),
             ..Flaws::default()
         };
-        let (out, app, acc) = run_keeping_app(flaws, &policy(Some(2)));
+        let (_out, app, acc) = run_keeping_app(flaws, &policy(Some(2)));
         assert!(
             !app.guessed_at.is_empty(),
-            "no wrong password reached the app at all, so this proves nothing: {:?}",
-            out.steps
+            "no wrong password reached the app at all, so this proves nothing"
         );
-        for who in [&acc.a.user, &acc.b.user] {
+        // Counted and labeled rather than printed. The accounts these come from carry generated
+        // passwords, and a failure message is a log line like any other: nothing built from an
+        // `Accounts` belongs in one, whatever the particular field happens to hold.
+        for (label, who) in [("A", &acc.a.user), ("B", &acc.b.user)] {
             assert!(
                 !app.guessed_at.contains(who),
-                "the guessing attacked {who}, whose session the checks above depend on: {:?}",
-                app.guessed_at
+                "the guessing attacked {label}, whose session the checks above depend on \
+                 ({} accounts were guessed at)",
+                app.guessed_at.len()
             );
         }
     }
