@@ -69,6 +69,11 @@ RUST_CHECKS = {
     "probe.default-account": ("signed-in", ["V6.3.2"]),
     "probe.password-in-url": ("signed-in", ["V14.2.1"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
+    "probe.password-altered": ("signed-in", ["V6.2.8"]),
+    "probe.long-password-refused": ("signed-in", ["V6.2.9"]),
+    "probe.password-field-unmasked": ("signed-in", ["V6.2.6"]),
+    "probe.password-paste-blocked": ("signed-in", ["V6.2.7"]),
+    "probe.sign-out-on-get": ("signed-in", ["V3.5.3"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
@@ -137,7 +142,10 @@ def evidence():
             for q in rule.get("findings_against", []):
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
-                FINDINGS_ONLY[q].add(rule_id.split(".")[2])
+                # The AI rules by their folder, which names the family across vendors and
+                # languages; the rest by their own id.
+                parts = rule_id.split(".")
+                FINDINGS_ONLY[q].add(parts[2] if parts[0] == "ai" else parts[-1])
     for check, (tier, ids) in RUST_CHECKS.items():
         for q in ids:
             ev[q][tier].append(check)
@@ -277,7 +285,10 @@ def main():
                     if len(names) > 4:
                         shown += f" and {len(names) - 4} more"
                     checks.append(f"{name}: {shown}")
-            w(f"| {q} | L{asvs[q]['level']} | {'; '.join(checks)} |")
+            only = (" (semgrep only ever as a finding: "
+                    + ", ".join(f"`{r}`" for r in sorted(FINDINGS_ONLY[q])) + ")"
+                    if q in FINDINGS_ONLY else "")
+            w(f"| {q} | L{asvs[q]['level']} | {'; '.join(checks)}{only} |")
         w("")
 
     w("## ASVS 5.0 requirement by requirement\n")

@@ -515,6 +515,57 @@ const WEAK_SESSION_ID: Rule = Rule {
           cryptographically secure generator, rather than making them by hand.",
 };
 
+const ALTERED_PASSWORD: Rule = Rule {
+    rule_id: "probe.password-altered",
+    requirement_ids: &["V6.2.8"],
+    cwe: &["CWE-521"],
+    impact: "A password that still works when its capitals are changed, or when everything past a \
+             certain length is left off, is a much smaller thing to guess than the one the person \
+             chose.",
+    fix: "Compare the password exactly as it was typed: no changing its case, no cutting it short. \
+          If the hashing function has a length limit (bcrypt stops at 72 bytes), hash a digest of the \
+          password, or use one without the limit, such as Argon2id.",
+};
+
+const LONG_PASSWORD: Rule = Rule {
+    rule_id: "probe.long-password-refused",
+    requirement_ids: &["V6.2.9"],
+    cwe: &["CWE-521"],
+    impact: "People who use a password manager or a long passphrase are told to choose something \
+             shorter, which is weaker.",
+    fix: "Allow passwords of at least 64 characters; there is no need for a maximum below 128.",
+};
+
+const UNMASKED_PASSWORD: Rule = Rule {
+    rule_id: "probe.password-field-unmasked",
+    requirement_ids: &["V6.2.6"],
+    cwe: &["CWE-549"],
+    impact: "A password typed into an ordinary text field is shown on the screen for anybody nearby \
+             to read, and may be remembered by the browser as ordinary text.",
+    fix: "Use `<input type=\"password\">` for every password field. A button that lets the person \
+          show what they typed is fine; showing it by default is not.",
+};
+
+const PASTE_BLOCKED: Rule = Rule {
+    rule_id: "probe.password-paste-blocked",
+    requirement_ids: &["V6.2.7"],
+    cwe: &["CWE-521"],
+    impact: "Stopping people pasting a password stops them using a password manager, which pushes \
+             them towards short passwords they can type from memory.",
+    fix: "Remove the handler that blocks pasting into the password field.",
+};
+
+const SIGN_OUT_ON_GET: Rule = Rule {
+    rule_id: "probe.sign-out-on-get",
+    requirement_ids: &["V3.5.3"],
+    cwe: &["CWE-352"],
+    impact: "Signing out by visiting an address means any page, image, or link can sign a person out \
+             without their asking, and it is a sign that other actions may be reachable the same \
+             way.",
+    fix: "Accept sign-out, and anything else that changes something, only as a POST (or PUT, PATCH, \
+          DELETE), and answer a GET to it with an error or a page asking to confirm.",
+};
+
 /// A password from the top 3000 most common that meets an 8-character rule: line 1,238 of
 /// `data/knowledge/common-passwords.txt`.
 const COMMON: &str = "123qweasdzxc";
@@ -719,6 +770,7 @@ pub fn run(
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
+    password_field_checks(http, users, &mut out);
 
     // 7. Logging out, which ends A's session.
     logout_check(
@@ -733,6 +785,7 @@ pub fn run(
     //    end the one the checks above were using.
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
+    sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
 
     out
 }
@@ -813,7 +866,7 @@ fn password_checks(
     confirm: Option<&str>,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5";
+    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5, V6.2.8, V6.2.9";
     let Some(signup) = &users.signup else {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -940,6 +993,277 @@ fn password_checks(
                  kinds of character, so the refusal cannot be told apart from another rule."
             ),
         )),
+    }
+
+    exact_password_checks(http, users, signup, &control, spare, confirm, out);
+}
+
+/// Whether the password is checked exactly as typed (V6.2.8), and whether a long one is allowed at
+/// all (V6.2.9).
+///
+/// Two ways an app alters a password before comparing it, each asked against an account that is
+/// shown to work with its real password first. Its capitals swapped, on the control account: an app
+/// that lowercases passwords lets it in. And an 83-character password cut to its first 72: an app
+/// that hashes with bcrypt, which stops reading at 72 bytes, lets that in too. Signing that account
+/// up at all is the V6.2.9 question.
+fn exact_password_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signup: &RequestTemplate,
+    control: &Account,
+    spare: &str,
+    confirm: &str,
+    out: &mut Outcome,
+) {
+    let swapped = Account {
+        user: control.user.clone(),
+        password: control
+            .password
+            .chars()
+            .map(|c| {
+                if c.is_ascii_lowercase() {
+                    c.to_ascii_uppercase()
+                } else {
+                    c.to_ascii_lowercase()
+                }
+            })
+            .collect(),
+    };
+    let case_works = account_works(http, users, "case", &swapped, confirm, &mut out.steps);
+
+    let long = Account {
+        user: format!("long.{}", control.user.trim_start_matches("control.")),
+        password: format!("Lg-{0}{0}{1}-aZ9!", &spare[..32], &spare[..11]),
+    };
+    sign_up(http, signup, "long", &long);
+    let long_works = account_works(http, users, "long", &long, confirm, &mut out.steps);
+    let cut = Account {
+        user: long.user.clone(),
+        password: long.password.chars().take(72).collect(),
+    };
+    let cut_works = long_works && account_works(http, users, "cut", &cut, confirm, &mut out.steps);
+
+    if long_works {
+        out.verified.push(crate::Verified::new(
+            LONG_PASSWORD.rule_id,
+            LONG_PASSWORD.requirement_ids,
+            format!(
+                "a {}-character password, accepted at sign-up and signed in with",
+                long.password.len()
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &LONG_PASSWORD,
+            "A long password is refused",
+            Severity::Low,
+            format!(
+                "The app did not let an account sign up with a {}-character password and sign in \
+                 with it, where it accepted one of 32 characters of the same kinds.",
+                long.password.len()
+            ),
+        ));
+    }
+
+    let mut altered = Vec::new();
+    if case_works {
+        altered.push("with the capitals in the password swapped".to_owned());
+    }
+    if cut_works {
+        altered.push(format!(
+            "with only the first 72 of its {} characters",
+            long.password.len()
+        ));
+    }
+    if !altered.is_empty() {
+        out.findings.push(finding(
+            &ALTERED_PASSWORD,
+            "The password is not checked exactly as typed",
+            Severity::Medium,
+            format!("Signing in worked {}.", altered.join(", and ")),
+        ));
+    } else if long_works {
+        out.verified.push(crate::Verified::new(
+            ALTERED_PASSWORD.rule_id,
+            ALTERED_PASSWORD.requirement_ids,
+            format!(
+                "the password with its capitals swapped, and an {}-character one cut to 72, both \
+                 refused where the exact passwords signed in",
+                long.password.len()
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V6.2.8".to_owned(),
+            "Whether a password is cut short before it is checked: the app would not take a long \
+             password to begin with. A password with its capitals swapped was refused."
+                .to_owned(),
+        ));
+    }
+}
+
+/// The password field on the sign-in and sign-up pages: masked (V6.2.6), and not refusing a paste
+/// (V6.2.7).
+///
+/// Read from the page's HTML, which is what a browser is given. The field is the one securevibe.toml
+/// sends `{password}` in, so what is looked at is the field the app reads, not any input that
+/// happens to say "password". A page that builds its form with script has no such field in its HTML,
+/// and says so rather than passing. Pasting blocked by a script attached after the page loads cannot
+/// be seen here, so V6.2.7 is only ever a finding.
+fn password_field_checks(http: &mut dyn Http, users: &UsersSection, out: &mut Outcome) {
+    let forms: Vec<(&str, &RequestTemplate)> =
+        [("sign-in", &users.login), ("sign-up", &users.signup)]
+            .into_iter()
+            .filter_map(|(label, t)| t.as_ref().map(|t| (label, t)))
+            .collect();
+    let mut masked = Vec::new();
+    let mut unmasked = Vec::new();
+    let mut pasting = Vec::new();
+    let mut missing = Vec::new();
+    for (label, template) in forms {
+        let Some(field) = template
+            .form
+            .iter()
+            .find(|(_, v)| v.contains("{password}"))
+            .map(|(k, _)| k.clone())
+        else {
+            continue;
+        };
+        let page = http.send(&get(
+            &format!("password-field-{label}"),
+            &template.path,
+            &Session::default(),
+        ));
+        let inputs: Vec<String> = page
+            .as_ref()
+            .filter(|p| p.status == 200)
+            .map(|p| tags(&p.body, "input"))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|tag| attribute(tag, "name").as_deref() == Some(field.as_str()))
+            .collect();
+        if inputs.is_empty() {
+            missing.push(format!("{} ({})", template.path, status(&page)));
+            continue;
+        }
+        let where_ = format!("the {label} page {}", template.path);
+        if inputs
+            .iter()
+            .all(|tag| attribute(tag, "type").is_some_and(|t| t.eq_ignore_ascii_case("password")))
+        {
+            masked.push(where_.clone());
+        } else {
+            unmasked.push(where_.clone());
+        }
+        if inputs.iter().any(|tag| attribute(tag, "onpaste").is_some()) {
+            pasting.push(where_);
+        }
+    }
+    if !unmasked.is_empty() {
+        out.findings.push(finding(
+            &UNMASKED_PASSWORD,
+            "A password field shows what is typed",
+            Severity::Medium,
+            format!(
+                "The password field on {} is not `type=\"password\"`.",
+                unmasked.join(" and on ")
+            ),
+        ));
+    } else if !masked.is_empty() {
+        out.verified.push(crate::Verified::new(
+            UNMASKED_PASSWORD.rule_id,
+            UNMASKED_PASSWORD.requirement_ids,
+            format!(
+                "the password field securevibe.toml names, on {}, served as type=password",
+                masked.join(" and ")
+            ),
+        ));
+    }
+    if !pasting.is_empty() {
+        out.findings.push(finding(
+            &PASTE_BLOCKED,
+            "Pasting into a password field is blocked",
+            Severity::Low,
+            format!(
+                "The password field on {} has an `onpaste` handler.",
+                pasting.join(" and on ")
+            ),
+        ));
+    }
+    if masked.is_empty() && unmasked.is_empty() {
+        out.not_assessed.push((
+            "V6.2.6".to_owned(),
+            if missing.is_empty() {
+                "Whether password fields are masked: securevibe.toml names no form with a \
+                 `{password}` field."
+                    .to_owned()
+            } else {
+                format!(
+                    "Whether password fields are masked: the field securevibe.toml names was not in \
+                     the HTML of {}. A page that builds its form with script cannot be read here.",
+                    missing.join(" or ")
+                )
+            },
+        ));
+    }
+}
+
+/// Whether signing out also happens on a plain page visit (V3.5.3).
+///
+/// A fresh sign-in, shown to open the private page; a GET to the sign-out address; then the private
+/// page again. Only ever a finding: one address refusing a GET says nothing about the others.
+fn sign_out_on_get_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    account: &Account,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let (Some(confirm), Some(logout)) = (confirm, &users.logout) else {
+        return;
+    };
+    let mut quiet = Vec::new();
+    let Some(signed_in) = sign_in(http, users, "get-logout", account, &mut quiet) else {
+        return;
+    };
+    if !ok(&http.send(&get(
+        "private-before-get-logout",
+        confirm,
+        &signed_in.session,
+    ))) {
+        return;
+    }
+    let mut session = signed_in.session.clone();
+    if let Some(response) = http.send(&get("logout-by-get", &logout.path, &session)) {
+        session.absorb(&response);
+    }
+    // The session as it was, so a cookie the answer cleared in the browser does not count as the
+    // session ending on the server.
+    let ended = !ok(&http.send(&get(
+        "private-after-get-logout",
+        confirm,
+        &signed_in.session,
+    )));
+    out.steps.push(format!(
+        "visited {} as a plain page: {}",
+        logout.path,
+        if ended {
+            "signed out"
+        } else {
+            "still signed in"
+        }
+    ));
+    if ended {
+        out.findings.push(finding(
+            &SIGN_OUT_ON_GET,
+            "Signing out happens on a plain page visit",
+            Severity::Low,
+            format!(
+                "A GET to {}, with no form and no token, ended the session: afterwards {confirm} \
+                 was refused.",
+                logout.path
+            ),
+        ));
     }
 }
 
@@ -1638,6 +1962,20 @@ mod tests {
         long_minimum: bool,
         /// Sign-up answers as if it worked and makes no account.
         signup_does_nothing: bool,
+        /// Passwords are compared with their case folded.
+        case_folded: bool,
+        /// Passwords are compared on their first 72 characters, as bcrypt does.
+        cut_at_72: bool,
+        /// Sign-up refuses a password longer than 64 characters.
+        longest_64: bool,
+        /// The password fields are ordinary text fields.
+        password_shown: bool,
+        /// The password fields refuse a paste.
+        paste_blocked: bool,
+        /// The pages carry no password field in their HTML: a form built by script.
+        no_form_in_html: bool,
+        /// A GET to /logout ends the session.
+        logout_on_get: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -1689,7 +2027,46 @@ mod tests {
             )
         }
 
+        fn password_matches(&self, stored: &str, given: &str) -> bool {
+            let fold = |p: &str| {
+                let p: String = if self.flaws.cut_at_72 {
+                    p.chars().take(72).collect()
+                } else {
+                    p.to_owned()
+                };
+                if self.flaws.case_folded {
+                    p.to_lowercase()
+                } else {
+                    p
+                }
+            };
+            fold(stored) == fold(given)
+        }
+
+        /// The password field as the sign-in and sign-up pages serve it.
+        fn password_input(&self) -> String {
+            if self.flaws.no_form_in_html {
+                return String::new();
+            }
+            format!(
+                "<input type=\"{}\" name=\"password\"{}>",
+                if self.flaws.password_shown {
+                    "text"
+                } else {
+                    "password"
+                },
+                if self.flaws.paste_blocked {
+                    " onpaste=\"return false\""
+                } else {
+                    ""
+                }
+            )
+        }
+
         fn password_allowed(&self, password: &str) -> bool {
+            if self.flaws.longest_64 && password.chars().count() > 64 {
+                return false;
+            }
             if password.chars().count() < 8 && !self.flaws.short_password_ok {
                 return false;
             }
@@ -1821,17 +2198,19 @@ mod tests {
                         200,
                         vec![("Set-Cookie", format!("sid={id}; {attrs}"))],
                         &format!(
-                            "<form><input type=\"hidden\" name=\"csrf_token\" value=\"{CSRF}\"></form>"
+                            "<form><input type=\"hidden\" name=\"csrf_token\" value=\"{CSRF}\">{}</form>",
+                            self.password_input()
                         ),
                     )
                 }
                 ("POST", "/login") => {
                     let f = form(r);
+                    let given = f.get("password")?;
                     let good = !self.flaws.broken_login
                         && self
                             .users
                             .get(f.get("email")?)
-                            .is_some_and(|(p, _)| Some(p) == f.get("password"));
+                            .is_some_and(|(p, _)| self.password_matches(p, given));
                     if !good || !token_ok {
                         return Some(Self::respond(403, vec![], "no"));
                     }
@@ -1849,8 +2228,17 @@ mod tests {
                 ("GET", "/signup") => Self::respond(
                     200,
                     vec![],
-                    &format!("<input type=hidden name=csrf_token value={CSRF}>"),
+                    &format!(
+                        "<input type=hidden name=csrf_token value={CSRF}>{}",
+                        self.password_input()
+                    ),
                 ),
+                ("GET", "/logout") if self.flaws.logout_on_get => {
+                    if let Some(s) = sid {
+                        self.sessions.remove(&s);
+                    }
+                    Self::respond(303, vec![("Location", "/".into())], "")
+                }
                 ("POST", "/signup") => {
                     if !token_ok {
                         return Some(Self::respond(403, vec![], "refused"));
@@ -2135,6 +2523,27 @@ mod tests {
                     ..Default::default()
                 },
                 WEAK_SESSION_ID.rule_id,
+            ),
+            (
+                Flaws {
+                    password_shown: true,
+                    ..Default::default()
+                },
+                UNMASKED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    paste_blocked: true,
+                    ..Default::default()
+                },
+                PASTE_BLOCKED.rule_id,
+            ),
+            (
+                Flaws {
+                    logout_on_get: true,
+                    ..Default::default()
+                },
+                SIGN_OUT_ON_GET.rule_id,
             ),
         ] {
             let o = run_against(flaw, &users());
@@ -2643,6 +3052,9 @@ mod tests {
             SHORT_PASSWORD.rule_id,
             COMMON_PASSWORD.rule_id,
             COMPOSITION_RULES.rule_id,
+            ALTERED_PASSWORD.rule_id,
+            LONG_PASSWORD.rule_id,
+            UNMASKED_PASSWORD.rule_id,
         ] {
             assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
         }
@@ -2651,6 +3063,8 @@ mod tests {
             DEFAULT_ACCOUNT.rule_id,
             PASSWORD_IN_URL.rule_id,
             WEAK_SESSION_ID.rule_id,
+            PASTE_BLOCKED.rule_id,
+            SIGN_OUT_ON_GET.rule_id,
         ] {
             assert!(!verified_ids(&o).contains(&id), "{id} was credited");
         }
@@ -2713,6 +3127,48 @@ mod tests {
                 },
                 WEAK_SESSION_ID.rule_id,
             ),
+            (
+                Flaws {
+                    case_folded: true,
+                    ..Default::default()
+                },
+                ALTERED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    cut_at_72: true,
+                    ..Default::default()
+                },
+                ALTERED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    longest_64: true,
+                    ..Default::default()
+                },
+                LONG_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    password_shown: true,
+                    ..Default::default()
+                },
+                UNMASKED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    paste_blocked: true,
+                    ..Default::default()
+                },
+                PASTE_BLOCKED.rule_id,
+            ),
+            (
+                Flaws {
+                    logout_on_get: true,
+                    ..Default::default()
+                },
+                SIGN_OUT_ON_GET.rule_id,
+            ),
         ] {
             let o = run_signing_up(flaw);
             let found = rule_ids(&o);
@@ -2722,6 +3178,78 @@ mod tests {
                 "{rule} both found and confirmed"
             );
         }
+    }
+
+    #[test]
+    fn a_password_both_case_folded_and_cut_short_is_one_finding_naming_both() {
+        let o = run_signing_up(Flaws {
+            case_folded: true,
+            cut_at_72: true,
+            ..Default::default()
+        });
+        let altered: Vec<&Finding> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == ALTERED_PASSWORD.rule_id)
+            .collect();
+        assert_eq!(altered.len(), 1, "{:?}", o.findings);
+        let said = &altered[0].description;
+        assert!(
+            said.contains("capitals") && said.contains("first 72"),
+            "{said}"
+        );
+    }
+
+    #[test]
+    fn a_long_password_refused_leaves_the_cut_short_question_unanswered() {
+        // Nothing can be cut short if nothing long was taken. The case question still ran.
+        let o = run_signing_up(Flaws {
+            longest_64: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&o).contains(&ALTERED_PASSWORD.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.8")
+            .expect("V6.2.8 is named as not assessed");
+        assert!(why.contains("capitals swapped was refused"), "{why}");
+    }
+
+    #[test]
+    fn a_form_built_by_script_is_not_assessed_rather_than_passed() {
+        let o = run_signing_up(Flaws {
+            no_form_in_html: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&o).contains(&UNMASKED_PASSWORD.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.6")
+            .expect("V6.2.6 is named as not assessed");
+        assert!(why.contains("/login") && why.contains("/signup"), "{why}");
+    }
+
+    #[test]
+    fn the_password_field_is_the_one_the_form_sends_not_any_input() {
+        // A search box that happens to be a text field is not the password field: only the input
+        // named by the template's `{password}` is judged.
+        let mut app = FakeApp::new(Flaws::default());
+        let mut out = Outcome::default();
+        struct Page<'a>(&'a mut FakeApp);
+        impl Http for Page<'_> {
+            fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+                let mut response = self.0.send(r)?;
+                if r.path == "/login" && r.method == "GET" {
+                    response.body.push_str("<input type=\"text\" name=\"q\">");
+                }
+                Some(response)
+            }
+        }
+        password_field_checks(&mut Page(&mut app), &with_signup(), &mut out);
+        assert!(out.findings.is_empty(), "{:?}", out.findings);
+        assert_eq!(verified_ids(&out), [UNMASKED_PASSWORD.rule_id]);
     }
 
     #[test]

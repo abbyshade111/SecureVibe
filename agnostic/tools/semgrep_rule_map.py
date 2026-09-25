@@ -230,6 +230,30 @@ AISVS = {
 }
 
 
+# ASVS requirements a finding is evidence against and a clean run is not, keyed by the whole rule id.
+# From the Level 1 pass of 25 September 2026: requirements no check reached, where a rule can show
+# the control missing and not present.
+ASVS_AGAINST = {
+    # Text written into the page as HTML, where a safe rendering function (textContent,
+    # createTextNode) was wanted. These rules are also V1.2.1 (output encoding), credited as before.
+    r"(javascript\.browser|html)\.security\.(audit\.)?insecure-document-method\..*"
+    r"|javascript\.browser\.security\.insecure-innerhtml\..*"
+    r"|typescript\.react\.security\.audit\.react-dangerouslysetinnerhtml\..*"
+    r"|javascript\.vue\.security\.audit\.xss\.templates\.avoid-v-html\..*":
+        (["V3.2.2"], "content rendered as HTML with innerHTML, document.write, "
+                     "dangerouslySetInnerHTML or v-html, rather than a safe rendering function"),
+    r"csharp\.lang\.security\.ad\.jwt-tokenvalidationparameters-no-expiry-validation\..*":
+        (["V9.2.1"], "a token accepted without its validity time span (exp) being verified"),
+}
+
+
+def asvs_against_for(rule_id):
+    for pattern, entry in ASVS_AGAINST.items():
+        if re.fullmatch(pattern, rule_id):
+            return entry
+    return None
+
+
 def aisvs_for(rule_id):
     """The AISVS entry for a rule, when its folder under ai/ai-best-practices is one of AISVS's."""
     parts = rule_id.split(".")
@@ -323,7 +347,7 @@ def main():
         reqs, what = by_name[name]
         mapped[r["id"]] = {"what": what, "requirements": reqs, "languages": r["languages"]}
     for r in sorted(rules, key=lambda r: r["id"]):
-        entry = aisvs_for(r["id"])
+        entry = aisvs_for(r["id"]) or asvs_against_for(r["id"])
         if entry is None:
             continue
         against, what = entry
@@ -334,20 +358,23 @@ def main():
             mapped[r["id"]] = {"what": what, "requirements": [], "findings_against": against,
                                "languages": r["languages"]}
     families = {f for f in AISVS if not any(aisvs_for(i) and re.fullmatch(f, i.split(".")[2]) for i in ids)}
+    families |= {p for p in ASVS_AGAINST if not any(re.fullmatch(p, i) for i in ids)}
     if families:
         sys.exit("AISVS families naming no rule:\n  " + "\n  ".join(sorted(families)))
     adapters = json.load(open(adapters_path))
     entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
     entry["rules"] = mapped
     asvs = sum(1 for m in mapped.values() if m["requirements"])
-    aisvs = sum(1 for m in mapped.values() if m.get("findings_against"))
+    aisvs = sum(1 for i, m in mapped.items() if m.get("findings_against") and i.startswith("ai."))
+    against = sum(1 for i, m in mapped.items() if m.get("findings_against") and not i.startswith("ai."))
     provenance = (f" Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules {commit}: "
                   f"{asvs} of the {len(rules)} security rules there to ASVS, each only where its CWE and "
                   "its id agree on what it detects. A run that finds nothing is evidence only about the "
                   "rules its report says were loaded, and only those written for a language in the app. "
                   f"{aisvs} rules about applications that call a model also name the AISVS requirement "
                   "a finding is evidence against (`findings_against`); a run that finds nothing credits "
-                  "none of those.")
+                  f"none of those. So do {against} others for ASVS requirements a pattern can show "
+                  "missing and not present (V3.2.2, V9.2.1).")
     entry["note"] = re.sub(r" Its rule ids are mapped by .*$", "", entry["note"]) + provenance
     open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
     print(f"{asvs} of {len(rules)} security rules mapped to ASVS, {aisvs} with AISVS findings, "

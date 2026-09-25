@@ -158,6 +158,39 @@ and an 8-character session id in the first; a rule wanting a capital and a digit
 V6.2.4 not assessed beside it as intended; a served `/.git/HEAD` and text without a charset in the
 third.
 
+### Level 1 again: the password as typed, the field, and sign-out by visiting
+
+A second pass over the Level 1 requirements nothing reached, on 25 September 2026, found five more that
+the running app can answer from what `[stack.run.users]` already says, and two semgrep can speak to.
+Level 1 went from 29 of 70 to 35.
+
+Whether the password is checked exactly as typed (V6.2.8) is asked twice, each against an account first
+shown to work with its real password. The control account with its capitals swapped: an app that
+lowercases passwords lets it in. And an account signed up with an 83-character password, signed into
+with its first 72: an app that hashes with bcrypt, which stops reading at 72 bytes, lets that in. Both
+refused is credited; either accepted is one finding naming what worked. Signing that account up at all
+is V6.2.9, passwords of at least 64 characters allowed, credited or found beside it. An app that refuses
+the long password has left the truncation question unasked, and V6.2.8 is not assessed rather than
+credited on the case question alone.
+
+Whether the password field is masked (V6.2.6) is read from the HTML of the sign-in and sign-up pages.
+The field looked at is the one securevibe.toml sends `{password}` in, so a search box on the same page
+is not mistaken for it, and a page whose form is built by script has no such field and says so. The
+same field with an `onpaste` handler is a finding for V6.2.7; a handler attached by script cannot be
+seen, so a clean answer is credited with nothing. Sign-out by visiting its address (V3.5.3) is asked
+last, after a fresh sign-in shown to work: a GET to the sign-out path, then the private page again with
+the session as it was. Also only ever a finding, since one address refusing a GET says nothing of the
+others.
+
+`examples/notes-with-users` had no password field in its HTML at all, only the hidden token, so V6.2.6
+came back not assessed, which was correct; its form now has the fields a browser would show. Run for
+real: V6.2.6, V6.2.8, and V6.2.9 confirmed, sign-out by visiting refused. A copy with a text field for
+the password, an `onpaste` handler, and `GET /logout` ending the session found all three.
+
+Semgrep's rules for text written into a page as HTML (`innerHTML`, `document.write`,
+`dangerouslySetInnerHTML`, `v-html`) now count against V3.2.2, and C#'s token validation with expiry
+turned off against V9.2.1, through `findings_against`: a finding marks them, a clean run does not.
+
 ### Tests to write
 
 The coverage count said 290 ASVS requirements have no check in `sv`, and that the one route to evidence
