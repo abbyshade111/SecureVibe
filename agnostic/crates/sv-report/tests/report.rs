@@ -539,7 +539,7 @@ fn a_clean_check_about_a_design_review_requirement_supports_it_and_does_not_chec
         ("html", sv_report::html::page(&report)),
     ] {
         assert!(
-            text.contains("a person has to answer it; supporting: secrets.scan over 12 files"),
+            text.contains("a person has to answer it; supporting: secrets.scan: 12 files"),
             "{what} does not show the supporting evidence"
         );
     }

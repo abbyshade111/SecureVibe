@@ -1567,6 +1567,27 @@ database query joined together from pieces, and data from outside deserialised w
 objects. Each is a tree-sitter query per language in `data/ast-rules.json`, so teaching one about Ruby is
 a data entry.
 
+### Saying what a clean result looked for
+
+A clean result used to say only what was read: "1 shell file". Beside the path rule, that reads as "the
+shell scripts were checked for path traversal", when in shell the rule looks only at commands such as
+`cat` or `rm` given a web request variable, which is right for a CGI script and says nothing about a path
+built from any other variable. Found by the other session in review, 25 September 2026, and true of every
+rule in some language.
+
+So each rule says in plain words what it looks for (`looksFor`), and, per language, where it looks for
+something narrower (`looksForIn`), and a clean result names both beside the files:
+
+    a file opened, written, or deleted at a path built from a value rather than written out, in
+    2 python files; only commands such as cat, rm, or cp given a path from a web request variable
+    (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at, in
+    1 shell file
+
+Every rule that reads shell has its shell wording, because commands and variables are a different shape
+from calls and arguments, and a test holds that; a phrase for a language the rule has no query for is
+refused at load. The phrases were written from the queries and their patterns, not from what the rule
+is meant to catch.
+
 ### What a query cannot decide
 
 Whether the argument is a literal. `eval("1 + 1")` cannot be made to run anything its author did not

@@ -86,6 +86,17 @@ pub struct AstRule {
     /// it carries its reason, and a language cannot have both this and a query.
     #[serde(default)]
     pub nothing_to_find: BTreeMap<String, String>,
+    /// What the rule looks for, in plain words, shown beside a clean result so it says what was
+    /// looked for and not only how many files were read.
+    ///
+    /// "1 shell file" beside a path-traversal rule reads as "your shell scripts were checked for path
+    /// traversal", when in shell the rule only looks at commands given a web request variable. A
+    /// clean result is a claim about what the rule can see, and it should say so.
+    #[serde(default)]
+    pub looks_for: String,
+    /// Per language, where the rule looks for something narrower than `looks_for` says.
+    #[serde(default)]
+    pub looks_for_in: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -450,6 +461,13 @@ impl AstRules {
                         rule.id
                     );
                 }
+            }
+            for language in rule.looks_for_in.keys() {
+                anyhow::ensure!(
+                    rule.queries.contains_key(language),
+                    "rule {} says what it looks for in `{language}`, and has no {language} query",
+                    rule.id
+                );
             }
             for (language, why) in &rule.nothing_to_find {
                 anyhow::ensure!(
@@ -867,23 +885,58 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
         {
             continue;
         }
-        let covered: Vec<String> = languages
-            .iter()
-            .filter_map(|language| {
-                let n = scan.parsed_by_language.get(*language).copied()?;
-                (n > 0).then(|| format!("{n} {language} file{}", if n == 1 { "" } else { "s" }))
-            })
-            .collect();
-        if covered.is_empty() {
+        let rule = rules.rules().find(|r| r.id == rule_id);
+        // Files read, grouped by what the rule looks for in them: the rule's own words, or the
+        // narrower ones it has for a language.
+        let mut groups: Vec<(&str, Vec<String>)> = Vec::new();
+        for language in &languages {
+            let Some(n) = scan.parsed_by_language.get(*language).copied() else {
+                continue;
+            };
+            if n == 0 {
+                continue;
+            }
+            let files = format!("{n} {language} file{}", if n == 1 { "" } else { "s" });
+            let phrase = rule
+                .and_then(|r| r.looks_for_in.get(*language))
+                .or(rule.map(|r| &r.looks_for))
+                .map(String::as_str)
+                .unwrap_or("");
+            match groups.iter_mut().find(|(p, _)| *p == phrase) {
+                Some((_, files_for)) => files_for.push(files),
+                None => groups.push((phrase, vec![files])),
+            }
+        }
+        if groups.is_empty() {
             continue;
         }
-        out.push(crate::Verified::new(
-            rule_id,
-            &requirement_ids,
-            covered.join(", "),
-        ));
+        // The rule's own words first, then each narrower one.
+        groups.sort_by_key(|(p, _)| rule.is_none_or(|r| *p != r.looks_for));
+        let scope = groups
+            .iter()
+            .map(|(phrase, files)| {
+                let files = and_list(files);
+                if phrase.is_empty() {
+                    files
+                } else {
+                    format!("{phrase}, in {files}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        out.push(crate::Verified::new(rule_id, &requirement_ids, scope));
     }
     out
+}
+
+/// "a", "a and b", "a, b, and c".
+fn and_list(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [one] => one.clone(),
+        [a, b] => format!("{a} and {b}"),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
 }
 
 /// Reads the script out of a page and scans it as the language it is.

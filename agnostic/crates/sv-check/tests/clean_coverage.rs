@@ -1163,3 +1163,100 @@ fn a_version_that_cannot_be_compared_stops_the_claim() {
         "an undecidable version is not a clean one"
     );
 }
+
+// ---- what a clean result says it looked for ----
+
+fn scope_of<'a>(scan: &'a ast::AstScan, rule_id: &str) -> &'a str {
+    scan.verified
+        .iter()
+        .find(|v| v.check_id == rule_id)
+        .unwrap_or_else(|| panic!("{rule_id} made no clean claim: {:?}", scan.verified))
+        .scope
+        .as_str()
+}
+
+#[test]
+fn a_clean_result_says_what_the_rule_looked_for_and_where_it_looked_for_less() {
+    // Found in review: "1 shell file" beside the path rule reads as "the shell scripts were checked
+    // for path traversal", when in shell it only looks at commands given a web request variable.
+    let scan = scan_files(
+        "looks-for",
+        &[
+            ("app.py", "def home():\n    return 'hello'\n"),
+            ("deploy.sh", "#!/bin/sh\ncp build/app.tar /srv/\n"),
+        ],
+    );
+    assert_eq!(
+        scope_of(&scan, "ast.file-path-from-value"),
+        "a file opened, written, or deleted at a path built from a value rather than written out, \
+         in 1 python file; only commands such as cat, rm, or cp given a path from a web request \
+         variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not \
+         looked at, in 1 shell file"
+    );
+    // A rule whose shell reach is the same kind of thing still names it in shell's own terms.
+    assert!(
+        scope_of(&scan, "ast.weak-hash-function")
+            .ends_with("; md5sum, sha1sum, or openssl asked for MD5 or SHA-1, in 1 shell file"),
+        "{}",
+        scope_of(&scan, "ast.weak-hash-function")
+    );
+}
+
+#[test]
+fn languages_the_rule_reads_alike_share_one_phrase() {
+    let scan = scan_files(
+        "looks-for-alike",
+        &[
+            ("app.py", "def home():\n    return 'hello'\n"),
+            ("util.py", "def two():\n    return 2\n"),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+            ("tasks.rb", "def two\n  2\nend\n"),
+        ],
+    );
+    assert_eq!(
+        scope_of(&scan, "ast.sql-built-by-hand"),
+        "a database query joined together from text and values, rather than sent with its values \
+         kept separate, in 1 go file, 2 python files, and 1 ruby file"
+    );
+}
+
+#[test]
+fn every_real_rule_says_what_it_looks_for_and_what_it_looks_for_in_shell() {
+    // Shell is commands and variables, not calls and arguments, so every rule that reads it says in
+    // shell's own terms what it matches there.
+    for rule in ast_rules().rules() {
+        assert!(
+            !rule.looks_for.trim().is_empty(),
+            "{} says nothing",
+            rule.id
+        );
+        if rule.queries.contains_key("shell") && rule.id != "ast.download-piped-to-shell" {
+            assert!(
+                rule.looks_for_in.contains_key("shell"),
+                "{} reads shell and does not say what it looks for there",
+                rule.id
+            );
+        }
+    }
+}
+
+#[test]
+fn a_phrase_for_a_language_the_rule_has_no_query_for_is_refused() {
+    let dir = scratch("looks-for-refused");
+    let path = dir.join("rules.json");
+    std::fs::write(
+        &path,
+        r#"{"rules": [{"id": "t.x", "title": "t", "severity": "high", "confidence": "high",
+            "requirementIds": ["V1.3.2"], "cwe": [], "description": "", "impact": "", "fix": "",
+            "functionPatterns": {"python": "^eval$"},
+            "queries": {"python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit"},
+            "looksFor": "eval", "looksForIn": {"ruby": "eval in Ruby"}}]}"#,
+    )
+    .unwrap();
+    let loaded = ast::AstRules::load(&path);
+    std::fs::remove_dir_all(&dir).ok();
+    let Err(e) = loaded else {
+        panic!("a phrase for a language with no query was accepted");
+    };
+    assert!(e.to_string().contains("has no ruby query"), "{e}");
+}
