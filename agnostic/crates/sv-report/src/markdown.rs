@@ -109,7 +109,7 @@ pub fn compliance(report: &Report) -> String {
                 line.status.label(),
                 line.checked_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
@@ -118,7 +118,7 @@ pub fn compliance(report: &Report) -> String {
                 line.status.label(),
                 line.supported_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),

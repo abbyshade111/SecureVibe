@@ -55,6 +55,10 @@
         "c": "C has no way to run a string as C. A shell command is the shell-command rule's, and an embedded interpreter such as Lua is not looked for.",
         "go": "Go has no built-in way to run a string as code. An embedded interpreter such as yaegi would be one, and is not looked for.",
         "rust": "Rust has no built-in way to run a string as code. An embedded interpreter such as rhai would be one, and is not looked for."
+      },
+      "looksFor": "code built from a value and handed to something that runs it, such as eval",
+      "looksForIn": {
+        "shell": "eval given something other than fixed text"
       }
     },
     {
@@ -110,6 +114,10 @@
         "go": "^exec$",
         "rust": "(^|::)Command$",
         "shell": "^-c$"
+      },
+      "looksFor": "a command line built from a value and handed to a shell to run",
+      "looksForIn": {
+        "shell": "sh, bash, or another shell asked to run (-c) a command built from a variable"
       }
     },
     {
@@ -164,6 +172,10 @@
       },
       "modulePatterns": {
         "shell": "^(-c|-e|--command|--execute|--query)$|\\.(db|sqlite3?)$"
+      },
+      "looksFor": "a database query joined together from text and values, rather than sent with its values kept separate",
+      "looksForIn": {
+        "shell": "psql, mysql, sqlite3, or a similar client given a query built from a variable"
       }
     },
     {
@@ -215,7 +227,8 @@
         "go": "Go's decoders (encoding/json, encoding/gob, encoding/xml) fill in a type the program names; none of them builds whatever type the data asks for.",
         "rust": "serde fills in a type the program names; no deserializer in common use builds whatever type the data asks for.",
         "shell": "A shell script has no objects to deserialize; it passes text between programs."
-      }
+      },
+      "looksFor": "data read with a reader that can build any kind of object, such as pickle, Marshal, or PHP's unserialize"
     },
     {
       "id": "ast.shell-command-backticks",
@@ -249,7 +262,8 @@
         "shell": "In a shell script backticks are command substitution, the ordinary way to use a command's output; a command built from a value is the shell-command rule's (`sh -c`).",
         "swift": "Backticks in Swift quote a name, not a command.",
         "typescript": "Backticks in TypeScript make a template string, not a command; a command is the shell-command rule's."
-      }
+      },
+      "looksFor": "backticks that run a command built from text"
     },
     {
       "id": "ast.file-path-from-value",
@@ -318,6 +332,10 @@
       "argumentPatterns": {
         "swift": "^(atPath|contentsOfFile|contentsOf|forReadingAtPath|forWritingAtPath|forUpdatingAtPath|at|toFile)\\s*:",
         "shell": "^(QUERY_STRING|PATH_INFO|PATH_TRANSLATED|REQUEST_URI|HTTP_[A-Z_]+)$"
+      },
+      "looksFor": "a file opened, written, or deleted at a path built from a value rather than written out",
+      "looksForIn": {
+        "shell": "only commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at"
       }
     },
     {
@@ -387,6 +405,10 @@
       },
       "safeArgumentPatterns": {
         "python": "usedforsecurity\\s*=\\s*False"
+      },
+      "looksFor": "MD5 or SHA-1 used as a hash function",
+      "looksForIn": {
+        "shell": "md5sum, sha1sum, or openssl asked for MD5 or SHA-1"
       }
     },
     {
@@ -454,6 +476,10 @@
         "java": "(?i)^\"(aes|[^\"]*/ecb(/[^\"]*)?|desede[^\"]*|des(/[^\"]*)?|rc4|arcfour|rc2|blowfish[^\"]*)\"$",
         "kotlin": "(?i)^\"(aes|[^\"]*/ecb(/[^\"]*)?|desede[^\"]*|des(/[^\"]*)?|rc4|arcfour|rc2|blowfish[^\"]*)\"$",
         "shell": "^-(des\\S*|rc4\\S*|rc2\\S*|bf\\S*|blowfish\\S*|aes-\\d+-ecb|cast\\S*|idea\\S*)$"
+      },
+      "looksFor": "encryption in ECB mode, or with a retired cipher such as DES, triple DES, RC4, RC2, or Blowfish",
+      "looksForIn": {
+        "shell": "openssl asked to encrypt with one of those ciphers or modes"
       }
     },
     {
@@ -521,6 +547,12 @@
         "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$",
         "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(",
         "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$"
+      },
+      "looksFor": "a redirect to a destination built from a value",
+      "looksForIn": {
+        "shell": "only a Location header printed with echo or printf from a variable, the way a CGI script redirects",
+        "c": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
+        "php": "a Location header set with header() from a value"
       }
     },
     {
@@ -560,7 +592,8 @@
         "rust": "Rust has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "swift": "Swift has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
-      }
+      },
+      "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter"
     }
   ]
 }

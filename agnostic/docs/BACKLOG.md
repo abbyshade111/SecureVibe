@@ -206,8 +206,15 @@ another session is not a claim.
   checked against a real SARIF run. See DESIGN, "Semgrep: a thousand rules". Left over from it: the
   map is keyed on the registry's form of a rule id, which was reproduced rather than observed, so one
   run of `p/security-audit` on a machine that can reach semgrep.dev is owed (the fixture's README has
-  the command). `eslint-plugin-security`, `staticcheck` and `phpcs-security-audit` are each a data
-  entry. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
+  the command). `staticcheck` and `phpcs-security-audit` are each a data entry.
+  `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
+  already include its rules under their own names (`detect-child-process`,
+  `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
+  `detect-pseudoRandomBytes`, and others), mapped to ASVS, so it would add the same checks twice. And
+  ESLint 10 loads its plugins from the folder it runs in: run over an app, it would load an
+  `eslint-plugin-security` from the app's own `node_modules`, which runs that app's code on the
+  owner's machine outside the network fence, while TypeScript needs a parser the plugin does not
+  bring. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
   can be shown to be about its requirement.
 
 - **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that

@@ -180,7 +180,7 @@ pub fn page(report: &Report) -> String {
                 " ({})",
                 line.checked_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
@@ -188,7 +188,7 @@ pub fn page(report: &Report) -> String {
                 " \u{2014} a person has to answer it; supporting: {}",
                 line.supported_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),

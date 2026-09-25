@@ -520,7 +520,7 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
                     if verified.len() == 1 { "" } else { "s" }
                 );
                 for v in &verified {
-                    println!("  {} — checked over {}", v.check_id, v.scope);
+                    println!("  {} — checked: {}", v.check_id, v.scope);
                     if !v.requirement_ids.is_empty() {
                         println!("     evidence about: {}", v.requirement_ids.join(", "));
                     }
