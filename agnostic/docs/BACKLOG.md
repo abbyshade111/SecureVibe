@@ -40,7 +40,7 @@ another session is not a claim.
   V6.2.8 (see DESIGN, "Level 1 again"); creating a record by a plain page visit was left out, because
   telling whether a GET made one needs a page that lists them.
 
-- **Three more Level 1 questions.** **Claimed on 25 September 2026 by session securevibe-e8.** V7.4.2
+- ~~**Three more Level 1 questions.**~~ Done on 25 September 2026 by session securevibe-e8. V7.4.2
   (every session ends when an account is deleted, through a `delete-account` entry), V6.4.2 (no password
   hints or secret questions on the sign-up and sign-in pages, only ever a finding), and V4.4.1
   (unencrypted `ws://` WebSocket addresses in the code, only ever a finding).

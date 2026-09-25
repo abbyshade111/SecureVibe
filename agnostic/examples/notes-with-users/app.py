@@ -171,6 +171,18 @@ class Handler(BaseHTTPRequestHandler):
             with db() as conn:
                 conn.execute("delete from sessions where id = ?", (sid,))
             return self.send(303, headers=[("Location", "/"), ("Set-Cookie", "sid=; Max-Age=0")])
+        if self.path == "/account/delete":
+            row = db().execute("select hash, salt from users where email = ?", (email,)).fetchone()
+            if not row or not hmac.compare_digest(
+                row[0], hash_password(form.get("password", ""), row[1])
+            ):
+                return self.send(403, page("No", "That is not your password."))
+            with db() as conn:
+                conn.execute("delete from notes where owner = ?", (email,))
+                conn.execute("delete from users where email = ?", (email,))
+                # Every session of the account, not only this one: V7.4.2.
+                conn.execute("delete from sessions where email = ?", (email,))
+            return self.send(303, headers=[("Location", "/"), ("Set-Cookie", "sid=; Max-Age=0")])
         if self.path == "/password":
             row = db().execute("select hash, salt from users where email = ?", (email,)).fetchone()
             if not row or not hmac.compare_digest(

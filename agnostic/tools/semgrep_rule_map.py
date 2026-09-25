@@ -244,6 +244,10 @@ ASVS_AGAINST = {
                      "dangerouslySetInnerHTML or v-html, rather than a safe rendering function"),
     r"csharp\.lang\.security\.ad\.jwt-tokenvalidationparameters-no-expiry-validation\..*":
         (["V9.2.1"], "a token accepted without its validity time span (exp) being verified"),
+    # A ws:// address written in the code. Also V12.3.1, credited as before; for V4.4.1 only a
+    # finding, since an address assembled at run time is not text a pattern can see.
+    r"javascript\.lang\.security\.detect-insecure-websocket\..*":
+        (["V4.4.1"], "a WebSocket connection over ws:// rather than WebSocket over TLS (WSS)"),
 }
 
 
@@ -374,7 +378,7 @@ def main():
                   f"{aisvs} rules about applications that call a model also name the AISVS requirement "
                   "a finding is evidence against (`findings_against`); a run that finds nothing credits "
                   f"none of those. So do {against} others for ASVS requirements a pattern can show "
-                  "missing and not present (V3.2.2, V9.2.1).")
+                  "missing and not present (V3.2.2, V4.4.1, V9.2.1).")
     entry["note"] = re.sub(r" Its rule ids are mapped by .*$", "", entry["note"]) + provenance
     open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
     print(f"{asvs} of {len(rules)} security rules mapped to ASVS, {aisvs} with AISVS findings, "

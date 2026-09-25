@@ -76,6 +76,8 @@ RUST_CHECKS = {
     "probe.sign-out-on-get": ("signed-in", ["V3.5.3"]),
     "probe.password-change": ("signed-in", ["V6.2.2"]),
     "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
+    "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
+    "probe.password-hints": ("signed-in", ["V6.4.2"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are

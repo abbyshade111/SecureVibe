@@ -109,6 +109,10 @@ that run, and then asks:
   ever a finding)
 - with `change-password` set: can the password be changed, and does that need the current one?
   (V6.2.2, V6.2.3)
+- with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
+  only ever done to an account made for it)
+- is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a
+  finding)
 
 When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
 asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone

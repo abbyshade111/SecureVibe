@@ -236,6 +236,10 @@ pub struct UsersSection {
     /// no `signup`.
     #[serde(default)]
     pub change_password: Option<RequestTemplate>,
+    /// Deletes the signed-in user's own account; `{password}` if it asks for the password again.
+    /// Only ever used on an account made for it through `signup`, never on A or B.
+    #[serde(default)]
+    pub delete_account: Option<RequestTemplate>,
 }
 
 impl UsersSection {
@@ -279,6 +283,7 @@ impl UsersSection {
             &self.login,
             &self.logout,
             &self.change_password,
+            &self.delete_account,
         ]
         .into_iter()
         .flatten()
