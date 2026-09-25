@@ -63,8 +63,10 @@ another session is not a claim.
   exit code, so a suite with one failing test credits nothing. Reading a test runner's own report
   (JUnit XML, `pytest --junitxml`) would fix that and is its own item.
 
-- **Almost every rule-to-requirement citation is semantically wrong.** *Claimed 24 September 2026, session
-  keen-meninsky-691a27.* Found on 24 September 2026 by the
+- ~~**Almost every rule-to-requirement citation is semantically wrong.**~~ Done on 24 September 2026 —
+  remapped, and guarded by `crates/sv-check/tests/citations.rs`. Left over: Brakeman's rule ids have
+  never been seen in a real SARIF run, and the guard cannot catch a swap between requirements that
+  share vocabulary. Found on 24 September 2026 by the
   test-crediting mismatch check, firing on the example app written to demonstrate it. ASVS 5.0 `V1.2.1`
   is *output encoding for an HTTP response, HTML or XML document*. It is cited by `ast.sql-built-by-hand`,
   `ast.dynamic-code-execution`, bandit's `B608` and `B307`, gosec's `G201`/`G202`, and three Brakeman
