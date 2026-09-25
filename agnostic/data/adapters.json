@@ -542,7 +542,7 @@
         ]
       },
       "install": "pip install semgrep",
-      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 6 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V9.2.1).",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 7 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V4.4.1, V9.2.1).",
       "network": true,
       "rules": {
         "ai.ai-best-practices.anthropic-hardcoded-api-key.anthropic-hardcoded-api-key-go.anthropic-hardcoded-api-key-go": {
@@ -5562,12 +5562,15 @@
           ]
         },
         "javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket": {
-          "what": "a connection made without an encrypted protocol such as TLS",
+          "what": "a connection made without an encrypted protocol such as TLS; a WebSocket connection over ws:// rather than WebSocket over TLS (WSS)",
           "requirements": [
             "V12.3.1"
           ],
           "languages": [
             "*"
+          ],
+          "findings_against": [
+            "V4.4.1"
           ]
         },
         "javascript.lang.security.detect-no-csrf-before-method-override.detect-no-csrf-before-method-override": {

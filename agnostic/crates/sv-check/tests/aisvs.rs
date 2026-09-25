@@ -181,6 +181,7 @@ fn the_asvs_requirements_only_a_finding_can_speak_to_are_carried_and_never_credi
         against("V9.2.1"),
         ["jwt-tokenvalidationparameters-no-expiry-validation"]
     );
+    assert_eq!(against("V4.4.1"), ["detect-insecure-websocket"]);
     let loaded = semgrep.rules.keys().cloned().collect();
     let languages: Vec<String> = ["javascript", "typescript", "csharp", "html"]
         .iter()
@@ -188,7 +189,9 @@ fn the_asvs_requirements_only_a_finding_can_speak_to_are_carried_and_never_credi
         .collect();
     let evidence = adapters::clean_run_evidence(semgrep, &loaded, &languages);
     assert!(
-        !evidence.iter().any(|id| id == "V3.2.2" || id == "V9.2.1"),
+        !evidence
+            .iter()
+            .any(|id| id == "V3.2.2" || id == "V9.2.1" || id == "V4.4.1"),
         "{evidence:?}"
     );
     assert!(

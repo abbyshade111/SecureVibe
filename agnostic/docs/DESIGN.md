@@ -198,6 +198,22 @@ signing in afterwards is a finding against V6.2.2. The change page is read signe
 its password fields. Run for real against the example, which gained a change page: both confirmed; a
 copy that skips the current-password check found it.
 
+Three more, from the same pass. Whether deleting an account ends every session it had (V7.4.2) takes a
+`delete-account` entry, and is asked only of an account made for it through `signup`: A and B, which
+every other question stands on, are never deleted, and without `signup` it is not assessed. The account
+is signed in twice, as two browsers would be, both sessions shown to open the private page, and deleted
+from the first. The deletion is shown to have happened (its password no longer signs in) before the
+second session is asked for the private page; still opening it is the finding. The anti-forgery token for
+the request is looked for where sign-out looks for it, on the private pages, since a delete button is
+usually on the account's own page and not at the address it posts to; the change of password does the
+same now. A password hint or secret question (V6.4.2) is looked for on the pages already read for the
+password field, by its words ("security question", "mother's maiden name") or a field's name (`hint`,
+`security_answer`), and is only ever a finding. And semgrep's `detect-insecure-websocket`, already
+V12.3.1, counts against V4.4.1 too, as a finding only, since an address assembled at run time is not
+text a pattern can see. Run for real against the example, which gained an account deletion that ends
+every session: V7.4.2 confirmed; a copy that ends only the current session, with a password hint on
+its forms, found both. Level 1: 40 of 70.
+
 Semgrep's rules for text written into a page as HTML (`innerHTML`, `document.write`,
 `dangerouslySetInnerHTML`, `v-html`) now count against V3.2.2, and C#'s token validation with expiry
 turned off against V9.2.1, through `findings_against`: a finding marks them, a clean run does not.

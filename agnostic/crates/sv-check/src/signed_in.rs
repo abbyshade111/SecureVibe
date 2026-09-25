@@ -577,6 +577,26 @@ const CHANGE_WITHOUT_CURRENT: Rule = Rule {
           hash, and refuse the change when it does not match.",
 };
 
+const SESSIONS_SURVIVE_DELETION: Rule = Rule {
+    rule_id: "probe.sessions-survive-deletion",
+    requirement_ids: &["V7.4.2"],
+    cwe: &["CWE-613"],
+    impact: "An account that has been deleted can still be used from any browser that was signed in \
+             to it, so deleting a compromised or departed person's account does not lock them out.",
+    fix: "When an account is deleted or disabled, delete every session belonging to it from the \
+          session store, or check on each request that the session's account still exists.",
+};
+
+const PASSWORD_HINTS: Rule = Rule {
+    rule_id: "probe.password-hints",
+    requirement_ids: &["V6.4.2"],
+    cwe: &["CWE-640"],
+    impact: "A password hint or a secret question is a second, weaker password: the answer to \
+             \"your first pet\" is often on a social media profile.",
+    fix: "Remove password hints and secret questions; recover accounts through a link sent to the \
+          email address or phone the person registered.",
+};
+
 const SIGN_OUT_ON_GET: Rule = Rule {
     rule_id: "probe.sign-out-on-get",
     requirement_ids: &["V3.5.3"],
@@ -812,6 +832,7 @@ pub fn run(
     // 9. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
 
     out
 }
@@ -1160,6 +1181,7 @@ fn password_field_checks(
     let mut unmasked = Vec::new();
     let mut pasting = Vec::new();
     let mut missing = Vec::new();
+    let mut hints = Vec::new();
     for (label, template, session) in forms {
         // Every field a password is sent in: the one of a sign-in, both of a password change.
         let fields: Vec<&String> = template
@@ -1176,6 +1198,13 @@ fn password_field_checks(
             &template.path,
             session,
         ));
+        if let Some(what) = page
+            .as_ref()
+            .filter(|p| p.status == 200)
+            .and_then(|p| password_hint(&p.body))
+        {
+            hints.push(format!("the {label} page {} ({what})", template.path));
+        }
         let inputs: Vec<String> = page
             .as_ref()
             .filter(|p| p.status == 200)
@@ -1221,6 +1250,14 @@ fn password_field_checks(
                 "the password field securevibe.toml names, on {}, served as type=password",
                 masked.join(" and ")
             ),
+        ));
+    }
+    if !hints.is_empty() {
+        out.findings.push(finding(
+            &PASSWORD_HINTS,
+            "A password hint or secret question is offered",
+            Severity::Medium,
+            format!("Found on {}.", hints.join(" and on ")),
         ));
     }
     if !pasting.is_empty() {
@@ -1326,13 +1363,16 @@ fn change_password_checks(
             new_password: new,
             ..Default::default()
         };
+        // As for deletion: the form may be on the account page rather than at the address it posts
+        // to.
+        let pages: Vec<String> = users.private.clone();
         send_template(
             http,
             &format!("change-password-{label}"),
             change,
             &values,
             &mut session,
-            &[],
+            &pages,
         )
         .0
     };
@@ -1432,6 +1472,156 @@ fn change_password_checks(
             change.path
         ),
     ));
+}
+
+/// A password hint or a secret question on a page, in the page's words or a field's name.
+///
+/// Only ever a finding: a page with none of these words can still ask for one in a way no list of
+/// phrases foresees, and the same page may be one step of several.
+fn password_hint(body: &str) -> Option<String> {
+    let words = regex::Regex::new(
+        r"(?i)\b(security question|secret question|password hint|mother'?s maiden name|name of your first pet|first pet'?s name|what city were you born)\b",
+    )
+    .ok()?;
+    if let Some(m) = words.find(body) {
+        return Some(format!("\"{}\"", m.as_str()));
+    }
+    let names = regex::Regex::new(
+        r"(?i)^(password_?hint|hint|security_?question|secret_?question|security_?answer|secret_?answer)$",
+    )
+    .ok()?;
+    ["input", "select", "textarea"]
+        .iter()
+        .flat_map(|t| tags(body, t))
+        .filter_map(|tag| attribute(&tag, "name"))
+        .find(|name| names.is_match(name))
+        .map(|name| format!("a field named `{name}`"))
+}
+
+/// Whether deleting an account ends every session it had (V7.4.2), through `delete-account`.
+///
+/// Only ever on an account made for it through `signup`; A and B are never deleted. It is signed in
+/// twice, as two browsers would be, and both sessions are shown to open the private page. The
+/// account is deleted from the first; then the second is asked for the private page again. The
+/// deletion itself is shown first: the account's password must no longer sign in, or a surviving
+/// session says nothing about deletion.
+fn delete_account_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V7.4.2";
+    let Some(delete) = &users.delete_account else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: securevibe.toml sets no \
+             `delete-account` under [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(signup) = &users.signup else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: only an account made for the purpose is \
+             ever deleted, and securevibe.toml sets no `signup` to make one."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    let account = Account {
+        user: format!("delete.{}", accounts.a.user),
+        password: format!("De-{}-aZ9!", &spare[3..27]),
+    };
+    sign_up(http, signup, "delete", &account);
+    let mut quiet = Vec::new();
+    let (Some(first), Some(second)) = (
+        sign_in(http, users, "delete-1", &account, &mut quiet),
+        sign_in(http, users, "delete-2", &account, &mut quiet),
+    ) else {
+        return;
+    };
+    let opens = |http: &mut dyn Http, s: &Session, id: &str| ok(&http.send(&get(id, confirm, s)));
+    if !(opens(http, &first.session, "delete-before-1")
+        && opens(http, &second.session, "delete-before-2"))
+    {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: the account made for it could not be \
+             signed in twice to begin with."
+                .to_owned(),
+        ));
+        return;
+    }
+    let mut session = first.session.clone();
+    let values = Values {
+        user: &account.user,
+        password: &account.password,
+        ..Default::default()
+    };
+    // The token is looked for where sign-out looks for it: the delete button is usually on a page
+    // of its own account, not at the address it posts to.
+    let pages: Vec<String> = users
+        .private
+        .iter()
+        .cloned()
+        .chain(users.owned.as_ref().map(|o| o.create.path.clone()))
+        .collect();
+    let (answer, _) = send_template(
+        http,
+        "delete-account",
+        delete,
+        &values,
+        &mut session,
+        &pages,
+    );
+    out.steps.push(format!(
+        "deleted an account made for it, signed in twice ({})",
+        status(&answer)
+    ));
+    if account_works(http, users, "deleted", &account, confirm, &mut out.steps) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Whether deleting an account ends its sessions: after the request to {}, the \
+                 account still signed in, so it was not deleted. Check `delete-account` in \
+                 securevibe.toml.",
+                delete.path
+            ),
+        ));
+        return;
+    }
+    if opens(http, &second.session, "delete-after") {
+        out.findings.push(finding(
+            &SESSIONS_SURVIVE_DELETION,
+            "A deleted account's other sessions keep working",
+            Severity::High,
+            format!(
+                "After the account was deleted through {}, a second session signed in to it earlier \
+                 still opened {confirm}.",
+                delete.path
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            SESSIONS_SURVIVE_DELETION.rule_id,
+            SESSIONS_SURVIVE_DELETION.requirement_ids,
+            format!(
+                "an account signed in twice and deleted through {} from one session: the other was \
+                 refused afterwards, and the account's password no longer signed in",
+                delete.path
+            ),
+        ));
+    }
 }
 
 /// Whether signing out also happens on a plain page visit (V3.5.3).
@@ -2212,6 +2402,12 @@ mod tests {
         change_does_nothing: bool,
         /// The new-password field of the change page alone is an ordinary text field.
         new_field_shown: bool,
+        /// Deleting an account leaves its other sessions working.
+        deletion_keeps_sessions: bool,
+        /// Deleting an account answers as if it worked and deletes nothing.
+        delete_does_nothing: bool,
+        /// Sign-up asks for the answer to a secret question.
+        secret_question: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -2472,8 +2668,13 @@ mod tests {
                     200,
                     vec![],
                     &format!(
-                        "<input type=hidden name=csrf_token value={CSRF}>{}",
-                        self.password_input()
+                        "<input type=hidden name=csrf_token value={CSRF}>{}{}",
+                        self.password_input(),
+                        if self.flaws.secret_question {
+                            "<label>Favourite teacher <input name=security_answer></label>"
+                        } else {
+                            ""
+                        }
                     ),
                 ),
                 ("GET", "/password") => match user {
@@ -2514,6 +2715,27 @@ mod tests {
                         self.users.get_mut(&who)?.0 = new;
                     }
                     Self::respond(303, vec![("Location", "/account".into())], "")
+                }
+                ("POST", "/account/delete") => {
+                    let Some(who) = user else {
+                        return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                    };
+                    let f = form(r);
+                    let stored = self.users.get(&who)?.0.clone();
+                    if !token_ok || !self.password_matches(&stored, f.get("password")?) {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    if !self.flaws.delete_does_nothing {
+                        self.users.remove(&who);
+                        if self.flaws.deletion_keeps_sessions {
+                            if let Some(s) = sid {
+                                self.sessions.remove(&s);
+                            }
+                        } else {
+                            self.sessions.retain(|_, u| *u != who);
+                        }
+                    }
+                    Self::respond(303, vec![("Location", "/".into())], "")
                 }
                 ("GET", "/logout") if self.flaws.logout_on_get => {
                     if let Some(s) = sid {
@@ -2662,6 +2884,10 @@ mod tests {
                     ("new", "{new_password}"),
                     ("csrf_token", "{csrf}"),
                 ],
+            )),
+            delete_account: Some(t(
+                "/account/delete",
+                &[("password", "{password}"), ("csrf_token", "{csrf}")],
             )),
         }
     }
@@ -3459,6 +3685,20 @@ mod tests {
                 },
                 SIGN_OUT_ON_GET.rule_id,
             ),
+            (
+                Flaws {
+                    deletion_keeps_sessions: true,
+                    ..Default::default()
+                },
+                SESSIONS_SURVIVE_DELETION.rule_id,
+            ),
+            (
+                Flaws {
+                    secret_question: true,
+                    ..Default::default()
+                },
+                PASSWORD_HINTS.rule_id,
+            ),
         ] {
             let o = run_signing_up(flaw);
             let found = rule_ids(&o);
@@ -3584,6 +3824,86 @@ mod tests {
             o.steps
         );
         assert!(o.findings[0].description.contains("/password"));
+    }
+
+    #[test]
+    fn deleting_an_account_ends_its_other_sessions_and_says_so() {
+        let o = run_signing_up(Flaws::default());
+        assert!(
+            verified_ids(&o).contains(&SESSIONS_SURVIVE_DELETION.rule_id),
+            "{:?}\n{:?}",
+            o.steps,
+            o.not_assessed
+        );
+        let o = run_signing_up(Flaws {
+            deletion_keeps_sessions: true,
+            ..Default::default()
+        });
+        assert_eq!(
+            rule_ids(&o),
+            vec![SESSIONS_SURVIVE_DELETION.rule_id],
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_deletion_that_did_not_happen_answers_nothing() {
+        // The account still signing in means nothing was deleted, and a live session afterwards
+        // would otherwise be blamed on the sessions.
+        let o = run_signing_up(Flaws {
+            delete_does_nothing: true,
+            ..Default::default()
+        });
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert!(!verified_ids(&o).contains(&SESSIONS_SURVIVE_DELETION.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V7.4.2")
+            .expect("named as not assessed");
+        assert!(why.contains("was not deleted"), "{why}");
+    }
+
+    #[test]
+    fn without_sign_up_no_account_is_ever_deleted() {
+        // A and B are the accounts every other question stands on; deleting one is never done.
+        let o = run_against(Flaws::default(), &users());
+        assert!(!verified_ids(&o).contains(&SESSIONS_SURVIVE_DELETION.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V7.4.2")
+            .expect("named as not assessed");
+        assert!(why.contains("`signup`"), "{why}");
+        assert!(
+            !o.steps.iter().any(|s| s.contains("deleted")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_secret_question_is_found_by_its_field_and_by_its_words() {
+        let o = run_signing_up(Flaws {
+            secret_question: true,
+            ..Default::default()
+        });
+        assert_eq!(rule_ids(&o), vec![PASSWORD_HINTS.rule_id], "{:?}", o.steps);
+        assert!(o.findings[0].description.contains("security_answer"));
+        assert_eq!(
+            password_hint("<p>Choose a security question.</p>").as_deref(),
+            Some("\"security question\"")
+        );
+        assert_eq!(
+            password_hint("<input name=hint>").as_deref(),
+            Some("a field named `hint`")
+        );
+        // Ordinary words that are not a hint: "hints" in prose, a "question" field of a form.
+        assert_eq!(
+            password_hint("<p>Some hints for a strong password</p><input name=question>"),
+            None
+        );
     }
 
     #[test]
