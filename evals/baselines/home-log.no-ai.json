@@ -2,9 +2,9 @@
   "version": 1,
   "case": "home-log",
   "mode": "no-ai",
-  "runId": "r_20260920210324_kcff2c",
+  "runId": "r_20260925172045_4ox5mr",
   "status": "succeeded",
-  "durationMs": 258261,
+  "durationMs": 273120,
   "stages": {
     "design-freeze": "passed",
     "scaffold": "passed",
@@ -32,16 +32,17 @@
     "info": 1
   },
   "asvs": {
-    "pass": 103,
+    "pass": 112,
     "applicable": 149,
-    "verifiedPassPercent": 69.1,
+    "verifiedPassPercent": 75.2,
     "aiAssessed": 0,
     "fail": 0
   },
   "tests": {
-    "total": 266,
-    "passed": 200,
-    "failed": 0
+    "total": 276,
+    "passed": 210,
+    "failed": 0,
+    "skipped": 66
   },
   "costUsd": 0
 }
