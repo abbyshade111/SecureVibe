@@ -536,4 +536,25 @@ fn a_checklist_control_is_never_said_to_be_above_an_asvs_level() {
             "the summary has to say whose judgement the derived level is"
         );
     }
+
+    // And the other direction: an app with no checklist controls above its level must not be told
+    // about derived levels at all. A note that always appears is one a reader learns to skip, and
+    // then it is not there when it matters.
+    let asvs_only = Buckets {
+        applicable: vec![],
+        not_applicable: vec![],
+        not_assessed: vec![],
+        out_of_level: vec!["V16.5.1".to_owned()],
+    };
+    let report = build(inputs(&f, &asvs_only, vec![], &verified));
+    assert_eq!(report.counts.out_of_level_derived, 0);
+    for rendered in [
+        sv_report::markdown::compliance(&report),
+        sv_report::html::page(&report),
+    ] {
+        assert!(
+            !rendered.contains("Secure by Design controls"),
+            "nothing here has a derived level, so the note must not appear"
+        );
+    }
 }
