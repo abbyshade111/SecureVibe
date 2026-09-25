@@ -85,7 +85,7 @@ building from nothing.
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
   argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
-- **An assistant that is working should say so.** **[taken: this session, 25 Sep 2026]** (Was taken by the recipe-library session on 20 Sep 2026; released 25 Sep 2026, because no such session is running.) Pressing "Run research" in the health-tracking app returns nothing
+- ~~**An assistant that is working should say so.**~~ **Done 25 September 2026.** The mechanism landed on 20 September (`data-working`, the shared script, the template's assistant page, SC-26 told to the agent); what was missing was any check that the agent used it, and that is `sast.assistant-form-no-working-state`. Still not checked, and written next to SC-26 so nobody assumes it is: any slow route that does not go through the assistant's own client, and the sentence about the wait. Original text kept: Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
