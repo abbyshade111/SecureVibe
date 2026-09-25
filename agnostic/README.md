@@ -67,6 +67,8 @@ design review rather than scanning — whether trust zones are enforced, whether
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
 the reports say exactly that rather than counting them as things that were looked at. Its ids are written
 `SBD-AC-01` to keep them apart from AISVS Appendix C, which numbers its own requirements `AC.1.1`.
+The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
+thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
 
 Not built yet: the MCP server.
 

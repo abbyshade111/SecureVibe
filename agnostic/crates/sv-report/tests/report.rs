@@ -421,7 +421,11 @@ fn a_satisfied_check_outside_the_tables_is_shown_rather_than_vanishing() {
     );
 
     let trace = &report.satisfied_elsewhere[0];
-    assert!(trace.why.contains("above the ASVS level"), "{}", trace.why);
+    assert!(
+        trace.why.contains("above this app's target level"),
+        "{}",
+        trace.why
+    );
     let contact = &report.satisfied_elsewhere[1];
     assert!(contact.why.contains("no requirement"), "{}", contact.why);
 
@@ -462,7 +466,7 @@ fn a_check_whose_requirements_landed_in_different_places_says_so_for_each() {
     )];
     let report = build(inputs(&f, &buckets, vec![], &verified));
     let why = &report.satisfied_elsewhere[0].why;
-    assert!(why.contains("above the ASVS level"), "{why}");
+    assert!(why.contains("above this app's target level"), "{why}");
     assert!(why.contains("not assessed"), "{why}");
     assert!(why.contains("excluded"), "{why}");
 }
@@ -648,4 +652,119 @@ fn end_to_end_a_committed_secret_is_against_no_secrets_in_code() {
             line.findings
         );
     }
+}
+
+fn frameworks_with_crosswalk() -> Frameworks {
+    let mut f = frameworks();
+    f.apply_crosswalk(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/sbd-asvs-crosswalk.json"),
+    )
+    .expect("the crosswalk applies");
+    f
+}
+
+#[test]
+fn a_checklist_control_above_the_target_says_where_its_level_came_from() {
+    // "Above the ASVS level this app targets" was said of checklist controls whose level ASVS never
+    // gave. Each is now listed with its basis, in the table and wherever a check lands on one.
+    let f = frameworks_with_crosswalk();
+    let buckets = Buckets {
+        out_of_level: vec!["SBD-DM-01".into(), "V13.3.1".into()],
+        ..Default::default()
+    };
+    let report = build(inputs(
+        &f,
+        &buckets,
+        vec![finding("some.rule", &["SBD-DM-01"])],
+        &[],
+    ));
+    assert_eq!(
+        report.checklist_above_level.len(),
+        1,
+        "ASVS's own are not listed"
+    );
+    assert_eq!(report.checklist_above_level[0].id, "SBD-DM-01");
+    assert_eq!(report.checklist_above_level[0].basis, "level 2, as V14.1.1");
+    let landed = &report.out_of_scope[0].landed_in;
+    assert!(
+        landed.starts_with("above this app's target level") && landed.contains("as V14.1.1"),
+        "{landed}"
+    );
+    for (what, text) in [
+        ("markdown", sv_report::markdown::compliance(&report)),
+        ("html", sv_report::html::page(&report)),
+    ] {
+        assert!(!text.contains("Above ASVS level"), "{what} still says it");
+        assert!(
+            text.contains("level 2, as V14.1.1"),
+            "{what} does not show the basis"
+        );
+    }
+}
+
+#[test]
+fn evidence_about_an_asvs_counterpart_supports_the_control_and_checks_nothing() {
+    // A satisfied check about V16.5.2 (operate securely when a dependency fails) is evidence about
+    // part of what SBD-RR-02 asks; it is shown beside it, and the control stays not verified.
+    let f = frameworks_with_crosswalk();
+    let buckets = Buckets {
+        applicable: vec!["SBD-RR-02".into(), "V16.5.2".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new(
+        "probe.dependency-down",
+        &["V16.5.2"],
+        "one probe".into(),
+    )];
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.manual_only = BTreeSet::from(["SBD-RR-02".to_owned()]);
+    let report = build(i);
+    let line = |id: &str| report.requirements.iter().find(|l| l.id == id).unwrap();
+    assert_eq!(
+        line("V16.5.2").status,
+        Status::Checked,
+        "the counterpart itself is checked"
+    );
+    let control = line("SBD-RR-02");
+    assert_eq!(control.status, Status::NotVerified);
+    assert!(control.checked_by.is_empty());
+    assert_eq!(control.supported_by.len(), 1);
+    assert!(
+        control.supported_by[0]
+            .scope
+            .ends_with("as evidence about V16.5.2"),
+        "{}",
+        control.supported_by[0].scope
+    );
+}
+
+#[test]
+fn a_satisfied_check_on_a_checklist_control_above_the_target_names_the_basis_too() {
+    // Second witness for the basis, through the other place a requirement's fate is reported: a
+    // satisfied check whose requirement is not in the tables.
+    let f = frameworks_with_crosswalk();
+    let buckets = Buckets {
+        out_of_level: vec!["SBD-DM-01".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new("some.check", &["SBD-DM-01"], "x".into())];
+    let report = build(inputs(&f, &buckets, vec![], &passed));
+    let why = &report.satisfied_elsewhere[0].why;
+    assert!(why.contains("as V14.1.1"), "{why}");
+}
+
+#[test]
+fn counterpart_evidence_supports_a_control_even_when_nothing_marked_it_manual() {
+    // Second witness for the crosswalk's evidence, by the other route: the control is not in the
+    // manual-only set handed in, and evidence about its counterpart still only supports it.
+    let f = frameworks_with_crosswalk();
+    let buckets = Buckets {
+        applicable: vec!["SBD-AC-01".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new("probe.tls", &["V12.3.1"], "one probe".into())];
+    let report = build(inputs(&f, &buckets, vec![], &passed));
+    let line = &report.requirements[0];
+    assert_eq!(line.status, Status::NotVerified);
+    assert_eq!(line.supported_by.len(), 1, "{:?}", line.supported_by);
 }

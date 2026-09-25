@@ -114,7 +114,7 @@ pub fn page(report: &Report) -> String {
         ));
     }
     b.push_str(&format!(
-        "<tr><td>Above ASVS level {}</td><td class=\"n\">{}</td></tr>\n</table>\n",
+        "<tr><td>Above this app's target level (ASVS level {})</td><td class=\"n\">{}</td></tr>\n</table>\n",
         report.target_level, c.out_of_level
     ));
 
@@ -204,6 +204,25 @@ pub fn page(report: &Report) -> String {
     }
     b.push_str("</table>\n");
 
+    if !report.checklist_above_level.is_empty() {
+        b.push_str("<h2>Secure by Design controls above this app's target level</h2>\n");
+        b.push_str(
+            "<p>The checklist has no levels of its own. Each control takes the level of the ASVS \
+             requirement that asks the same thing, or is shown at every level when none does; a few \
+             keep the level <code>sv</code> derived from the checklist's severity, which is lower.</p>\n\
+             <table>\n<tr><th>control</th><th>where its level came from</th><th>what it asks for</th></tr>\n",
+        );
+        for line in &report.checklist_above_level {
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                escape(&line.id),
+                escape(&line.basis),
+                escape(&line.description)
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
     if !report.undecided.is_empty() {
         b.push_str("<h2>Requirements nobody has placed</h2>\n");
         b.push_str(
@@ -256,7 +275,7 @@ pub fn page(report: &Report) -> String {
                 "<tr><td><code>{}</code></td><td><code>{}</code></td><td>{}</td></tr>\n",
                 escape(&line.rule_id),
                 escape(&line.requirement_id),
-                escape(line.landed_in)
+                escape(&line.landed_in)
             ));
         }
         b.push_str("</table>\n");

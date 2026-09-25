@@ -75,6 +75,22 @@ fn overlay_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/applicability-v2.json")
 }
 
+/// The Secure by Design checklist's controls against the ASVS requirements that ask the same thing.
+fn crosswalk_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/sbd-asvs-crosswalk.json")
+}
+
+/// The OWASP data with the checklist's levels grounded in ASVS. Every command loads it this way, so
+/// no two of them can disagree about which controls apply at a level.
+fn load_frameworks(data: &std::path::Path) -> Result<Frameworks> {
+    let mut frameworks =
+        Frameworks::load(&data.join("frameworks")).context("loading the OWASP frameworks")?;
+    frameworks
+        .apply_crosswalk(&crosswalk_path())
+        .context("grounding the Secure by Design levels in ASVS")?;
+    Ok(frameworks)
+}
+
 /// What each `derived` condition looks like in real code.
 fn signatures_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
@@ -152,8 +168,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let manifest = Manifest::load(&manifest_path)?;
 
     let data = data_dir()?;
-    let frameworks =
-        Frameworks::load(&data.join("frameworks")).context("loading the OWASP frameworks")?;
+    let frameworks = load_frameworks(&data)?;
     let overlay = overlay_path();
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay)?;
 
@@ -914,7 +929,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let manifest = Manifest::load(&manifest_path)?;
 
     let data = data_dir()?;
-    let frameworks = Frameworks::load(&data.join("frameworks"))?;
+    let frameworks = load_frameworks(&data)?;
     let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
     let scan_report = scan(&app_dir, &signatures)?;
@@ -1279,4 +1294,53 @@ fn cmd_report(args: &[String]) -> Result<()> {
          nothing here can establish that."
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn data() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data")
+    }
+
+    #[test]
+    fn every_command_sees_the_checklist_levels_grounded_in_asvs() {
+        // `scope`, `check` and `report` all load the frameworks through this one function. Without
+        // the crosswalk step a checklist control keeps the level `sv` invented for it, and a report
+        // files it as above the target on that alone.
+        let frameworks = load_frameworks(&data()).expect("the frameworks load");
+        let as02 = frameworks
+            .get("SBD-AS-02")
+            .expect("the checklist is loaded");
+        assert_eq!(
+            as02.level, 1,
+            "nothing in ASVS asks for unified service discovery"
+        );
+        assert_eq!(
+            frameworks
+                .get("SBD-DM-01")
+                .and_then(|r| r.level_basis.as_deref()),
+            Some("level 2, as V14.1.1")
+        );
+    }
+
+    #[test]
+    fn a_level_one_app_is_asked_the_controls_asvs_has_no_level_for() {
+        // The same step seen from where it matters: bucketing. At level 1 a control nothing in ASVS
+        // matches is applicable, not set aside on a level `sv` made up.
+        let frameworks = load_frameworks(&data()).unwrap();
+        let config =
+            ApplicabilityConfig::load_v2(&data().join("knowledge"), &overlay_path()).unwrap();
+        let buckets = sv_frameworks::applicability::bucket(
+            &frameworks,
+            &config,
+            &sv_frameworks::applicability::ConditionContext::default(),
+            1,
+        );
+        assert!(
+            !buckets.out_of_level.iter().any(|id| id == "SBD-MT-02"),
+            "SBD-MT-02 (metrics and dashboards) was set aside at level 1"
+        );
+    }
 }

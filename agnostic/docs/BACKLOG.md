@@ -40,8 +40,8 @@ another session is not a claim.
   the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
   (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
   AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
-  Left over from the same review: the derived checklist levels are reported as "above the ASVS level
-  this app targets", which is not what they are. (This entry was deleted by accident on 25 September
+  The last point from the same review — derived levels reported as ASVS ones — is the crosswalk item
+  below, done the same day. (This entry was deleted by accident on 25 September
   2026 by the commit that finished the nested-manifests item, and restored.)
 
 - ~~**SBD-AC-05's "no secrets in code" is what the credential scan checks.**~~ Done on 25 September
@@ -62,23 +62,16 @@ another session is not a claim.
   Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
   top only, and a Yarn Berry or Bun lockfile is not one `sv` reads.
 
-- **Ground the Secure by Design levels in ASVS.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`); the owner agreed the design.* Proposed 25 September 2026. The
-  checklist has no levels; `sv` derives one from `critical` and `severityIfNo`, and the report then
-  files the controls above the target as "above the ASVS level this app targets", which they are not.
-  In order of cost: (1) say which it is in the report — "above this app's target level; the checklist
-  has none, `sv` set this one from its severity"; (2) a crosswalk file mapping each control to the ASVS
-  requirements that ask the same thing — about twenty-two of the thirty-six have clear ones, e.g.
-  AC-05 ↔ V13.3.1 and V13.3.2 (L2), DM-01 ↔ V14.1.1 and V14.1.2 (L2), MT-01 ↔ V16.2.1 (L2), MT-07 ↔
-  V16.4.2 (L2), RR-07 ↔ V2.4.1 (L2) and V6.1.1 (L1), AC-03 ↔ V8.2.1 (L1), DM-02 ↔ V12.2.1 (L1) and
-  V12.3.1 (L2), RR-01 ↔ V16.5.3 (L2), RR-05 ↔ V2.3.4 (L2) — held to the same vocabulary guard as every
-  other citation; (3) a control's level becomes the lower of its derived level and the lowest level
-  among its ASVS counterparts, so the crosswalk can only bring a control in sooner, never hide one, and
-  the report says "level 2, as V13.3.1"; (4) the controls with no ASVS counterpart — the architecture
-  ones (AS-*, DM-04, DM-06, RR-02 to RR-04) and MT-06, incident response — are shown at every target
-  level, because dropping them would rest on `sv`'s own invention alone; (5) evidence about a
-  crosswalked ASVS requirement is shown beside the control as supporting, the way the credential scan
-  now is for AC-05. The derived levels already disagree with the crosswalk in places: AC-05 derives as
-  level 1 and V13.3.1 is level 2.
+- ~~**Ground the Secure by Design levels in ASVS.**~~ Done on 25 September 2026, with the owner's
+  agreement to the design. `data/sbd-asvs-crosswalk.json` maps each of the thirty-six controls to the
+  ASVS requirements that ask the same thing — seventeen have counterparts, thirty pairs in all — and
+  each pair carries a few words naming what the two share, which the citation guard holds against
+  both texts. `Frameworks::apply_crosswalk` sets a control's level to the lower of its derived level and
+  its counterparts' lowest, so it can only ever come into scope sooner; a control with no counterpart
+  is level 1, shown at every target. Every control records where its level came from, the report lists
+  the controls above the target with that basis instead of calling them "above the ASVS level", and a
+  satisfied check about a counterpart is shown beside the control as supporting evidence. Loading
+  refuses a crosswalk that leaves a control out or cites an id that does not exist.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —

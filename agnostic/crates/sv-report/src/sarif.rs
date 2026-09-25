@@ -107,6 +107,7 @@ mod tests {
             claims: vec![],
             findings: vec![],
             out_of_scope: vec![],
+            checklist_above_level: vec![],
             satisfied_elsewhere: vec![],
             gaps,
         }

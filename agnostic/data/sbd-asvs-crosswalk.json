@@ -1,0 +1,88 @@
+{
+  "_comment": "Each Secure by Design control against the ASVS 5.0 requirements that ask the same thing, chosen by reading both texts on 25 September 2026. The checklist has no levels of its own; sv derives one from its critical flag and severityIfNo. Through this file a control's level becomes the lower of that and the lowest level among its ASVS counterparts, so a crosswalk entry can bring a control in sooner and never hide one. A control with no counterpart (an empty list: nothing in ASVS asks the same thing) is shown at every target level, because dropping it would rest on sv's own invention alone. Evidence about a counterpart is shown beside the control as supporting, never as checking it. Each counterpart carries a few words naming what the two ask in common, and the citation guard requires those words to share vocabulary with both texts: the checklist's statements are too terse for a direct comparison (`TLS` is shorter than the guard's shortest word), and a bridge that must agree with both sides is a stricter test than either side alone. Every control must be listed, empty or not, so a new one cannot default silently; every citation is held to the same vocabulary guard as the rest (crates/sv-check/tests/citations.rs).",
+  "controls": {
+    "SBD-AS-01": {},
+    "SBD-AS-02": {},
+    "SBD-AS-03": {},
+    "SBD-AS-04": {},
+    "SBD-AS-05": {},
+    "SBD-AS-06": {},
+    "SBD-AS-07": {
+      "V16.5.2": "services keep operating securely when a dependency they access fails, handled with fallback patterns"
+    },
+    "SBD-AS-08": {},
+    "SBD-DM-01": {
+      "V14.1.1": "data classified into protection levels",
+      "V14.1.2": "each data classification has documented protection controls"
+    },
+    "SBD-DM-02": {
+      "V12.2.1": "encryption in transit with TLS for every client connection",
+      "V12.3.1": "encryption in transit with TLS for every inbound and outbound connection"
+    },
+    "SBD-DM-03": {},
+    "SBD-DM-04": {
+      "V2.3.3": "transactions that either succeed entirely or are rolled back"
+    },
+    "SBD-DM-05": {
+      "V14.1.2": "retention requirements defined for each data class",
+      "V14.2.7": "retention classification that deletes outdated data"
+    },
+    "SBD-DM-06": {},
+    "SBD-RR-01": {
+      "V16.5.1": "safe error handling that exposes nothing when an exception occurs",
+      "V16.5.3": "safe error handling that fails securely when an exception occurs"
+    },
+    "SBD-RR-02": {
+      "V16.5.2": "circuit breakers and graceful degradation when a dependency fails"
+    },
+    "SBD-RR-03": {},
+    "SBD-RR-04": {},
+    "SBD-RR-05": {
+      "V2.3.4": "locking and concurrency controls against double-booking"
+    },
+    "SBD-RR-06": {
+      "V13.2.6": "timeouts and retry strategies on every connection to other services",
+      "V13.1.3": "timeouts and failure handling defined for every external service"
+    },
+    "SBD-RR-07": {
+      "V2.4.1": "rate limits and quotas against excessive calls"
+    },
+    "SBD-RR-08": {},
+    "SBD-AC-01": {
+      "V12.3.1": "all communications encrypted with TLS on every connection",
+      "V12.3.3": "all communications between internal services encrypted with TLS",
+      "V12.3.4": "service identity verified with trusted certificates between internal services",
+      "V12.3.5": "service identity verified with strong authentication, such as TLS client certificates, between services"
+    },
+    "SBD-AC-02": {
+      "V6.3.3": "multi-factor authentication (MFA) enforced"
+    },
+    "SBD-AC-03": {
+      "V8.1.1": "access rules that apply least privilege by permissions and attributes",
+      "V8.2.1": "access restricted to explicit permissions, least privilege"
+    },
+    "SBD-AC-04": {
+      "V8.3.1": "authorization enforced centrally at a trusted service layer"
+    },
+    "SBD-AC-05": {
+      "V13.3.1": "secrets kept in a secret manager or key vault",
+      "V13.3.2": "least privilege access to secrets",
+      "V13.3.4": "secrets that expire and are rotated"
+    },
+    "SBD-AC-06": {},
+    "SBD-AC-07": {},
+    "SBD-MT-01": {
+      "V16.1.1": "logs with a documented structure, formats and storage",
+      "V16.2.1": "log entries carrying the metadata needed to trace an event",
+      "V16.4.3": "logs sent to a separate, centralized system"
+    },
+    "SBD-MT-02": {},
+    "SBD-MT-03": {},
+    "SBD-MT-04": {},
+    "SBD-MT-05": {},
+    "SBD-MT-06": {},
+    "SBD-MT-07": {
+      "V16.4.2": "audit logs protected so they cannot be modified, tamper-evident"
+    }
+  }
+}
