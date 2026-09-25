@@ -113,7 +113,7 @@ describe('htmlToPdf: what gets onto the page', () => {
   });
 
   it('decodes character references and keeps accented letters and typographic punctuation', () => {
-    const { text } = readPdf(htmlToPdf(wrapHtml('<p>Zo&euml; &amp; caf&#233; &mdash; &ldquo;quoted&rdquo; &lt;b&gt; 5 &gt;= 3 → done</p>')));
+    const { text } = readPdf(htmlToPdf(wrapHtml('<p>Zo&#235; &amp; caf&#233; &mdash; &ldquo;quoted&rdquo; &lt;b&gt; 5 &gt;= 3 → done</p>')));
     expect(text).toContain('Zoë & café — “quoted” <b> 5 >= 3 -> done');
   });
 
