@@ -41,16 +41,12 @@ another session is not a claim.
   telling whether a GET made one needs a page that lists them.
 
 - **Threat modeling that does not depend on the AI tool.** Asked for by the owner on 25 September
-  2026, for consideration. **Investigation claimed on 25 September 2026 by session securevibe-e8.** `sv` has the app's description in securevibe.toml, the
-  scanner's answers about what the code does (accounts, uploads, payments, outside services, AI), and
-  the Secure by Design checklist, whose threat-modeling controls are design review a person answers.
-  Worth investigating whether those can produce a first threat model on their own, without asking the
-  connected AI system: a data-flow outline from what was detected, the threats that go with each
-  element (STRIDE per element, or OWASP's threat-modeling cheat sheet), each tied to the ASVS or AISVS
-  requirements that answer it and to whether those were checked. The question to answer first is what
-  such a model could claim honestly: a list of threats that apply to what was found is fair; saying a
-  threat is mitigated needs the same evidence a requirement does, and saying there are no other
-  threats is something no generated model can say.
+  2026. The investigation is done (session securevibe-e8): `docs/THREAT-MODELING.md`. In short, v1's
+  rule-based STRIDE model (32 threats citing 80 different requirements, decided by about 20 facts about the app) needs no
+  AI, and `sv` already knows nearly every fact it asks; ported to a data file, each threat would show
+  what the evidence says about it (found, checked in part, not verified, cannot place) and never that
+  it is mitigated. Three pull requests. Not claimed: it waits on the owner's answers to the three
+  questions at the end of that document.
 
 - ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
   AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
