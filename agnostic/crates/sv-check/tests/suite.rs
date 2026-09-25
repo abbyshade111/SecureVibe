@@ -115,6 +115,87 @@ fn an_id_that_resolves_to_nothing_is_not_credited() {
 }
 
 #[test]
+fn an_unknown_id_beside_a_known_one_drops_only_itself() {
+    // The other half of the filter. A guard that throws the file away on one typo would lose the
+    // real test sitting next to it, and the report would read the same either way.
+    let root = scratch("unknown-beside-known");
+    write(
+        &root,
+        "tests/test_mixed.py",
+        "def test_V1_2_9_typo():\n    pass\n\ndef test_V1_2_1_search_is_bound():\n    pass\n",
+    );
+
+    let found = tests_naming_requirements(&root, &known());
+    let ids: Vec<&str> = found
+        .iter()
+        .flat_map(|t| t.requirement_ids.iter().map(String::as_str))
+        .collect();
+    assert_eq!(ids, vec!["V1.2.1"], "{found:?}");
+    assert_eq!(found[0].line, 4);
+}
+
+#[test]
+fn only_the_test_that_disagrees_is_reported() {
+    // Not "does it report" but "does it report the right one". A check that flags everything and a
+    // check that flags nothing both pass a test that only counts findings on a single test.
+    let root = scratch("one-mismatch");
+    write(
+        &root,
+        "tests/test_pages.py",
+        "def test_V1_2_1_search_uses_parameterised_queries():\n    pass\n\ndef test_V1_2_2_the_homepage_renders():\n    pass\n",
+    );
+
+    let found = tests_naming_requirements(&root, &known());
+    let describe = |id: &str| match id {
+        "V1.2.1" => {
+            Some("Verify that the application uses parameterised database queries".to_owned())
+        }
+        "V1.2.2" => Some(
+            "Verify that the application never passes input to an operating system shell"
+                .to_owned(),
+        ),
+        _ => None,
+    };
+    let (verified, findings) = credit(&found, true, &describe);
+    assert_eq!(verified.len(), 2, "both are still credited: {verified:?}");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].requirement_ids, vec!["V1.2.2".to_string()]);
+    assert_eq!(findings[0].location.line, 4);
+}
+
+#[test]
+fn a_failing_suite_credits_nothing_however_many_tests_name_a_requirement() {
+    // The unit test for this hands `credit` one test. The fear is a suite of forty where one
+    // broke, so the witness has to be a folder with several.
+    let root = scratch("failing-suite");
+    write(
+        &root,
+        "tests/test_a.py",
+        "def test_V1_2_1_search_is_bound():\n    pass\n",
+    );
+    write(
+        &root,
+        "tests/test_b.py",
+        "def test_V1_2_2_no_shell():\n    pass\n",
+    );
+    write(
+        &root,
+        "tests/test_c.py",
+        "def test_V13_3_1_no_literal_secret():\n    pass\n",
+    );
+
+    let found = tests_naming_requirements(&root, &known());
+    assert_eq!(found.len(), 3, "{found:?}");
+
+    let describe = |_: &str| Some("Verify something".to_owned());
+    let (verified, findings) = credit(&found, false, &describe);
+    assert!(
+        verified.is_empty() && findings.is_empty(),
+        "one exit code does not say which of the three it came from: {verified:?} {findings:?}"
+    );
+}
+
+#[test]
 fn a_docstring_repeating_the_id_does_not_credit_the_test_twice() {
     // The shape the example app is written in, end to end through the walk rather than through
     // hand-built values: two lines name V1.2.1, and the report has to say one test, at line 1.
