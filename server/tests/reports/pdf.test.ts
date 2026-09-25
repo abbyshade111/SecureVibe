@@ -108,7 +108,7 @@ describe('htmlToPdf: paper size', () => {
     const right = pdf.width - 48;
     const body = pdf.ops.filter((o) => o.size === 10);
     const widest = Math.max(...body.map((o) => o.x + textWidth(o.text, o.font as 'F1', o.size)));
-    expect(widest, 'a full line ends within a word of the right margin').toBeGreaterThan(right - 40);
+    expect(widest, 'a full line ends close to the right margin').toBeGreaterThan(right - 12);
     const label = pdf.ops.find((o) => /^Page 1 of/.test(o.text))!;
     expect(label.x + textWidth(label.text, 'F1', label.size)).toBeCloseTo(right, 0);
   });
