@@ -1,0 +1,9 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "1a969e30b5f7e4cc3ed4b54c663c6eac077aca4e6108939b2def70e74c3f2370",
+      "note": "Checked by hand."
+    }
+  ],
+  "brakeman_version": "8.0.6"
+}
