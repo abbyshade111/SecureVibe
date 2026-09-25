@@ -683,3 +683,109 @@ fn one_language_tools_keep_their_whole_map(ids: &[&str]) {
         assert_eq!(evidence, mapped, "{id}");
     }
 }
+
+// ---- a tool that was told to look away ----
+
+#[test]
+fn a_run_with_a_suppression_in_it_is_not_a_clean_run() {
+    // Verified against real bandit output before this was written: `# nosec` on a line holding a
+    // SQL injection makes bandit report `"results": []` and `"nosec": 1` in the same document. The
+    // empty results array is indistinguishable from a file with nothing wrong in it, and crediting
+    // it is the missing-tool mistake one layer in — worse, because the report says a check looked.
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let report = serde_json::json!({
+        "runs": [{
+            "tool": { "driver": { "name": "Bandit", "rules": [] } },
+            "results": [],
+            "properties": { "metrics": { "_totals": { "nosec": 1, "skipped_tests": 0, "loc": 3 } } }
+        }]
+    })
+    .to_string();
+
+    let dir = std::env::temp_dir().join("sv-suppressions-none");
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let said = adapters::suppressions(bandit, &report, &dir);
+    assert_eq!(said.len(), 1, "{said:?}");
+    assert!(
+        said[0].contains("1 line(s) marked to be skipped"),
+        "{}",
+        said[0]
+    );
+
+    // And a report that says nothing was skipped, over a folder with no markers, stays silent.
+    let clean = serde_json::json!({
+        "runs": [{
+            "tool": { "driver": { "name": "Bandit", "rules": [] } },
+            "results": [],
+            "properties": { "metrics": { "_totals": { "nosec": 0, "skipped_tests": 0 } } }
+        }]
+    })
+    .to_string();
+    assert!(adapters::suppressions(bandit, &clean, &dir).is_empty());
+}
+
+#[test]
+fn a_marker_in_the_code_counts_when_the_tool_does_not_say() {
+    // gosec and semgrep could not be checked here — gosec is not installed and semgrep cannot start
+    // in this sandbox — so for a report that says nothing about suppressions the markers in the
+    // files are counted instead. Blunter, and blunt in the safe direction: it withholds a claim.
+    let adapters = adapters();
+    let gosec = adapters.all().iter().find(|a| a.id == "gosec").unwrap();
+    let dir = std::env::temp_dir().join("sv-suppressions-marker");
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("main.go"),
+        "cmd := exec.Command(\"sh\", \"-c\", userInput) // #nosec G204\n",
+    )
+    .unwrap();
+    let report =
+        serde_json::json!({"runs":[{"tool":{"driver":{"name":"gosec","rules":[]}},"results":[]}]})
+            .to_string();
+    let said = adapters::suppressions(gosec, &report, &dir);
+    assert_eq!(said.len(), 1, "{said:?}");
+    assert!(
+        said[0].contains("main.go"),
+        "it has to name the file: {}",
+        said[0]
+    );
+
+    // Another tool's marker is not counted against this one.
+    let brakeman = adapters.all().iter().find(|a| a.id == "brakeman").unwrap();
+    assert!(adapters::suppressions(brakeman, &report, &dir).is_empty());
+}
+
+#[test]
+fn a_suppression_stops_the_clean_run_claim_itself() {
+    // The decision the whole suppression fix turns on, tested directly. It lived inside a match arm
+    // and breaking it turned no test red: `suppressions()` was covered and the thing that consults
+    // it was not. Both halves are asserted here, because a claim that can never be made is not a
+    // guard, it is a disabled check.
+    use std::collections::BTreeSet;
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let languages = vec!["python".to_owned()];
+    let loaded = BTreeSet::new();
+
+    let clean = adapters::clean_run_claim(bandit, &loaded, &languages, &[], &[])
+        .expect("a run with nothing found and nothing suppressed may say so");
+    assert!(
+        clean.requirement_ids.contains(&"V1.2.4".to_owned()),
+        "{:?}",
+        clean.requirement_ids
+    );
+
+    assert!(
+        adapters::clean_run_claim(
+            bandit,
+            &loaded,
+            &languages,
+            &[],
+            &["Bandit reports 1 line(s) marked to be skipped".to_owned()],
+        )
+        .is_none(),
+        "a run that was told to look away has not found nothing"
+    );
+}

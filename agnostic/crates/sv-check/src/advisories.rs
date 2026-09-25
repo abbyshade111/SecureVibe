@@ -270,6 +270,10 @@ fn matches(component: &Component, affected: &Affected) -> Option<bool> {
     if any_comparable { Some(false) } else { None }
 }
 
+/// The requirement a clean comparison is evidence about: the app contains only components that have
+/// not breached the documented remediation time frames. Named once, so `sv coverage` cannot drift.
+pub const COMPONENTS_REQUIREMENT: &str = "V15.2.1";
+
 /// Matches every component against the database.
 pub fn audit(sbom: &Sbom, database: &[Advisory]) -> AuditResult {
     let mut result = AuditResult {
@@ -347,7 +351,7 @@ pub fn audit(sbom: &Sbom, database: &[Advisory]) -> AuditResult {
     {
         result.verified.push(Verified::new(
             "advisories",
-            &["V15.2.1"],
+            &[COMPONENTS_REQUIREMENT],
             format!(
                 "all {} package{} in the bill of materials, compared against {} advisor{}",
                 result.components_checked,

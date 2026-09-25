@@ -1016,6 +1016,20 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 why,
             });
         }
+        // A tool that was told to look away found nothing for a reason that has nothing to do with
+        // the code being sound. The credit is already withheld; this is the reader being told why,
+        // because a suppression is somebody's decision and a report that hides it is picking a side.
+        for (id, what) in outcome.suppressed {
+            tool_gaps.push(sv_report::Gap {
+                what: format!("whether `{id}` would have found anything where it was told not to look"),
+                why: format!(
+                    "{}. A run with a suppression in it is not a clean run, so nothing was credited \
+                     from this tool — the suppressed lines may be fine, and nothing here has \
+                     checked them.",
+                    what.join("; ")
+                ),
+            });
+        }
     } else {
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
