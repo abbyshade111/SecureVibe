@@ -84,6 +84,7 @@ const EXPECTED: Expectation[] = [
   { ruleId: 'sast.disallowed-import', file: 'src/features/ai/assistant.ts', line: 2 },
   { ruleId: 'sast.sensitive-in-get-param', file: 'src/features/notes/routes.ts', line: 29 },
   { ruleId: 'sast.todo-security', file: 'src/views/notes/show.ejs', line: 1 },
+  { ruleId: 'sast.assistant-form-no-working-state', file: 'src/views/research/index.ejs', line: 1 },
 ];
 
 /** Rules that legitimately fire more than once in this fixture, and how many times. */
@@ -91,6 +92,7 @@ const EXTRA_OCCURRENCES: Record<string, number> = {
   'sast.db-raw-outside-wrapper': 2, // the import, and the .prepare() call on the same object
   'sast.fs-user-path': 2, // two request-driven file reads
   'sast.req-body-unvalidated': 4, // every raw req.body/query/params read in the fixture
+  'sast.assistant-form-no-working-state': 3, // the unmarked forms only (through a helper, direct, with a path parameter): the marked one, the other route and the GET form are left alone
 };
 
 describe('sast rule coverage (dirty-app fixture)', () => {
@@ -193,6 +195,50 @@ describe('sast.protected-file-modified', () => {
     });
     const result = await runSast(ctx);
     expect(result.findings.some((f) => f.ruleId === 'sast.protected-file-modified')).toBe(false);
+  });
+});
+
+describe('sast.assistant-form-no-working-state', () => {
+  const only = async (ctx: ReturnType<typeof makeScanContext>) => (await runSast(ctx)).findings.filter((f) => f.ruleId === 'sast.assistant-form-no-working-state');
+
+  it('reports each unmarked form that posts to a route asking the assistant, and no other form', async () => {
+    const hits = await only(makeScanContext(fixtureDir('dirty-app')));
+    const forms = hits.map((h) => h.location?.line).sort();
+    // Line 1 (a route that reaches the assistant through a helper), 18 (direct use), 22 (a path parameter).
+    // Not: the marked form at 6, the note form at 11, the GET form at 15.
+    expect(forms).toEqual([1, 18, 22]);
+    expect(hits.every((h) => h.location?.file === 'src/views/research/index.ejs')).toBe(true);
+    expect(hits.every((h) => h.severity === 'low')).toBe(true);
+  });
+
+  it('says in the evidence which route and file the form posts to', async () => {
+    const hits = await only(makeScanContext(fixtureDir('dirty-app')));
+    const first = hits.find((h) => h.location?.line === 1)!;
+    expect(JSON.stringify(first)).toContain('/research/run');
+    expect(JSON.stringify(first)).toContain('src/features/research/routes.ts');
+  });
+
+  it('leaves the same forms alone once the pages are the template’s own (the template checks its own assistant page)', async () => {
+    const appDir = fixtureDir('dirty-app');
+    const files = ['src/features/research/routes.ts', 'src/views/research/index.ejs'];
+    const ctx = makeScanContext(appDir, {
+      provenance: {
+        reportSchemaVersion: '1', tool: 'SecureVibe test', securevibeVersion: '0.0.0', templateVersion: '0.0.0',
+        frameworkVersions: { asvs: '5.0.0', aisvs: '1.0.0', sbd: '0.5.0' }, toolVersions: {}, runId: 'test-run-1', projectId: 'p_test',
+        generatedAt: new Date().toISOString(), mode: 'full',
+        humanInvolvement: { summary: 'test', peerReviewDecisions: [], attestations: 0, humanCodeReview: false },
+        designProfileHash: 'x', designHash: 'x', codeTreeHash: 'x',
+        generatedFiles: files.map((path) => ({ path, origin: 'template' as const, sha256: createHash('sha256').update(readFileSync(join(appDir, path))).digest('hex') })),
+        protectedFileHashes: {}, sandbox: { mode: 'node-permission-model', note: 'file system restricted to the project folder' },
+      },
+    });
+    expect(await only(ctx)).toEqual([]);
+  });
+
+  it('finds nothing in the real template, whose assistant page carries data-working', async () => {
+    const template = join(fixtureDir('dirty-app'), '..', '..', '..', '..', '..', 'templates', 'secure-web-app');
+    expect(readFileSync(join(template, 'src/views/ai/index.ejs'), 'utf8')).toContain('data-working');
+    expect(await only(makeScanContext(template))).toEqual([]);
   });
 });
 
