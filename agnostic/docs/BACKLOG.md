@@ -54,12 +54,40 @@ another session is not a claim.
   neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
   which is the pattern to follow.
 
-- **Credit the app's own test suite.** `sv run` runs the tests the manifest declares, and a passing
-  suite is real evidence; `sv report --run` records that they passed and takes no credit, because
-  nothing yet decides which requirement a given test is about. v1's `compliance/test-name-match.ts`
-  compares a test's name and body with a requirement's wording and is honest about its limits — about a
-  third of its flags are honest tests phrased differently, and it is blind to a swap between neighbouring
-  requirements that share vocabulary. Port that shape, not a stricter one.
+- ~~**Credit the app's own test suite.**~~ Done on 24 September 2026 — `crates/sv-check/src/suite.rs`.
+  A test counts only for a requirement it names, and only when the suite it belongs to passed. Matching
+  tests to requirements by their words was considered and refused: it would credit a requirement on the
+  strength of a name somebody chose for other reasons. v1's mismatch check is ported as it was —
+  reporting, never withholding credit, because about a third of its flags are honest tests phrased
+  differently. What is left over from this item: the suite's coverage is still all-or-nothing on one
+  exit code, so a suite with one failing test credits nothing. Reading a test runner's own report
+  (JUnit XML, `pytest --junitxml`) would fix that and is its own item.
+
+- ~~**Almost every rule-to-requirement citation is semantically wrong.**~~ Done on 24 September 2026 —
+  remapped, and guarded by `crates/sv-check/tests/citations.rs`. Left over: Brakeman's rule ids have
+  never been seen in a real SARIF run, and the guard cannot catch a swap between requirements that
+  share vocabulary. Found on 24 September 2026 by the
+  test-crediting mismatch check, firing on the example app written to demonstrate it. ASVS 5.0 `V1.2.1`
+  is *output encoding for an HTTP response, HTML or XML document*. It is cited by `ast.sql-built-by-hand`,
+  `ast.dynamic-code-execution`, bandit's `B608` and `B307`, gosec's `G201`/`G202`, and three Brakeman
+  rules — none of which have anything to do with output encoding. Parameterised queries are **V1.2.4**;
+  OS command injection is **V1.2.5**, not the `V1.2.2` that nine adapter rules cite (`V1.2.2` is URL
+  encoding). The pattern repeats across the file: eight rules cite `V11.3.1` (block modes and padding)
+  for weak hashes, which are `V11.4.1`; `G404` (`math/rand`) cites `V11.4.1` (hash functions) when
+  unpredictable randomness is `V11.5.1`; `G304` (file paths) cites `V1.2.3` (JavaScript encoding) when
+  it is `V5.3.2`; `G107` (SSRF) cites `V1.2.4` (database queries) when it is `V1.3.6`; `G402`/`B501`
+  (TLS verification off) cite `V13.1.1`, which asks that communication needs be *documented*.
+
+  This is the third time this class has been found here — five checkers citing `AC-NN` ids that did not
+  exist, then every probe citation being semantically wrong — and it is the failure the whole product is
+  most exposed to, because a wrong citation is not visibly wrong. It puts a finding, or a green line,
+  against a requirement nobody examined, and the reader has no way to tell.
+
+  Two things are needed, and the second matters more. Remap `data/adapters.json` and `data/ast-rules.json`
+  by reading each requirement's text. Then write the guard that would have caught it without an example
+  app happening to exist: every citation in the data files compared against the requirement it names, by
+  shared vocabulary, the same comparison `suite.rs` already makes for tests. A citation nothing checks is
+  a citation that drifts.
 
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.

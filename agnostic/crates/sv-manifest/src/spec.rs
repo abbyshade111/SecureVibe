@@ -23,7 +23,7 @@ languages = []            # e.g. ["python", "typescript"]
 image = ""                # container image, e.g. "python:3.12-slim"
 build = ""                # e.g. "pip install -r requirements.txt"
 start = ""                # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"
-test = ""                 # e.g. "pytest -q"
+test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
 health = "/"              # a path that returns 200 once the app is up
 
 [data]
@@ -91,4 +91,25 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
 `sv` does not take this file at its word. It looks for each claim in the code and reports what it
 finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable. A claim of "no" never
 switches off a requirement the code says applies.
+
+  Naming requirements in your tests
+
+  If a test exists to satisfy a particular OWASP requirement, write that requirement's id into the
+  test — in its name, or in a comment on the line above it:
+
+      def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
+          ...
+
+  `sv` reads those ids back and, when the whole suite passes, reports that requirement as checked
+  by the app's own tests, naming the file and line so anybody can go and look. Ids may be written
+  with underscores or dots; `V1.2.4` and `V1_2_4` are the same requirement.
+
+  This is the only way a test counts. Matching tests to requirements by what they are called would
+  credit a requirement on the strength of a name somebody chose for other reasons, and `sv` will
+  not do that. A test that names nothing is not evidence about anything in particular, which is a
+  perfectly fair thing for a test to be — most tests are.
+
+  Name only what the test really covers. Nothing here can check that the test does what it says,
+  and a test pointed at the wrong requirement leaves that requirement looking examined when nothing
+  examined it.
 "#;

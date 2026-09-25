@@ -7,8 +7,7 @@
       "severity": "high",
       "confidence": "medium",
       "requirementIds": [
-        "V1.2.1",
-        "V1.3.1"
+        "V1.3.2"
       ],
       "cwe": [
         "CWE-95",
@@ -41,7 +40,7 @@
       "severity": "high",
       "confidence": "medium",
       "requirementIds": [
-        "V1.2.2"
+        "V1.2.5"
       ],
       "cwe": [
         "CWE-78"
@@ -79,8 +78,7 @@
       "severity": "high",
       "confidence": "medium",
       "requirementIds": [
-        "V1.2.1",
-        "V1.3.1"
+        "V1.2.4"
       ],
       "cwe": [
         "CWE-89"
@@ -159,7 +157,7 @@
       "severity": "high",
       "confidence": "medium",
       "requirementIds": [
-        "V1.2.2"
+        "V1.2.5"
       ],
       "cwe": [
         "CWE-78"

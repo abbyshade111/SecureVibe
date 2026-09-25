@@ -102,7 +102,10 @@ fn a_rule_the_map_does_not_name_carries_no_requirement() {
         &[("B608", "error", "Possible SQL injection", "app.py", 12)],
     );
     let mapped = adapters::parse_sarif(bandit, &report).unwrap();
-    assert_eq!(mapped[0].requirement_ids, vec!["V1.2.1".to_owned()]);
+    // V1.2.4 is parameterized database queries. This test asserted V1.2.1 — output encoding for an
+    // HTTP response — for as long as the map said so, which is how a wrong citation survives: the
+    // test is written from the map rather than from the requirement.
+    assert_eq!(mapped[0].requirement_ids, vec!["V1.2.4".to_owned()]);
 
     let report = sarif("Bandit", &[("B999", "error", "Something new", "app.py", 3)]);
     let unmapped = adapters::parse_sarif(bandit, &report).unwrap();
@@ -226,8 +229,8 @@ fn every_requirement_an_adapter_maps_to_is_one_that_exists() {
     let mut unknown = Vec::new();
     let mut mapped = 0;
     for adapter in adapters.all() {
-        for (rule, ids) in &adapter.rules {
-            for id in ids {
+        for (rule, mapped_rule) in &adapter.rules {
+            for id in &mapped_rule.requirements {
                 mapped += 1;
                 if !frameworks.requirements.contains_key(id) {
                     unknown.push(format!("{}:{rule} -> {id}", adapter.id));

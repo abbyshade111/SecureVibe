@@ -56,9 +56,23 @@ pub struct Adapter {
     /// Whether this tool reaches the network. `sv` itself never does; one that does is named.
     #[serde(default)]
     pub network: bool,
-    /// The tool's own rule ids, mapped to the requirements each is about.
+    /// The tool's own rule ids, mapped to what each detects and the requirements it is about.
     #[serde(default)]
-    pub rules: BTreeMap<String, Vec<String>>,
+    pub rules: BTreeMap<String, MappedRule>,
+}
+
+/// One of a tool's rules: what it detects, and which requirements that is evidence about.
+///
+/// `what` exists so the citation can be checked. A bare id-to-id mapping gives a guard nothing to
+/// compare, and every citation in `adapters.json` was wrong before one existed — `V1.2.1` is output
+/// encoding and was cited for SQL injection by seven rules, because nothing ever read the
+/// requirement back. `crates/sv-check/tests/citations.rs` now does.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MappedRule {
+    /// Plain language, and compared against the requirement's own words by the citation guard.
+    pub what: String,
+    pub requirements: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -283,7 +297,7 @@ pub fn run_all(
                     let mut ids: Vec<&str> = adapter
                         .rules
                         .values()
-                        .flat_map(|v| v.iter().map(String::as_str))
+                        .flat_map(|v| v.requirements.iter().map(String::as_str))
                         .collect();
                     ids.sort_unstable();
                     ids.dedup();
@@ -369,7 +383,11 @@ pub fn parse_sarif_relative_to(
             let line = location["region"]["startLine"].as_u64().unwrap_or(1) as usize;
             let file = relative_to(&file, app_dir);
             let (short, full) = help.get(rule_id.as_str()).copied().unwrap_or(("", ""));
-            let requirement_ids = adapter.rules.get(&rule_id).cloned().unwrap_or_default();
+            let requirement_ids = adapter
+                .rules
+                .get(&rule_id)
+                .map(|r| r.requirements.clone())
+                .unwrap_or_default();
             out.push(Finding {
                 rule_id: format!("{}.{}", adapter.id, rule_id),
                 title: if short.is_empty() {

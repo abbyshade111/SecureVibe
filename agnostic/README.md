@@ -40,6 +40,19 @@ of, and whether it echoes requests back. What those questions cannot reach — a
 printed as *not assessed* before any finding, because a suite that only tries the front door and says
 nothing reads exactly like one that found nothing wrong.
 
+If your app has its own tests, they can count too — but only for requirements they name. Write the id
+into the test, in its name or in a comment on the line above it:
+
+```python
+def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
+```
+
+When the whole suite passes, `sv` reports those requirements as checked by your own tests and says which
+file and line to go and look at. There is no clever matching behind this, on purpose: guessing that
+`test_login` is about a particular authentication requirement would credit it on the strength of a name
+somebody chose for other reasons. A test that names nothing is not evidence about anything in particular,
+which is a perfectly fair thing for a test to be — most tests are.
+
 `sv report` writes the whole thing out (add `--run` to start the app behind the fence and include what
 it answers, and `--tools` to run the security tool your language already has): one HTML file you can open by double-clicking it, the same
 thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
