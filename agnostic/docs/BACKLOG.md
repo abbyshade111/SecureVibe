@@ -5,14 +5,33 @@ another session is not a claim.
 
 ## Next
 
-- **A clean credential scan claims V11.1.1 and C9.5.4.** *Claimed 25 September 2026 by session
-  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), first in the owner's order.* A
-  repository with no committed secrets says nothing about a documented key policy (V11.1.1) or about
-  secrets kept out of an agent's context (C9.5.4).
+- ~~**A clean credential scan claims V11.1.1 and C9.5.4.**~~ Withdrawn on 25 September 2026 by session
+  securevibe-e8: not a fault. V11.1.1 and V13.3.1 are on `manualOnly` in `data/knowledge/applicability.json`,
+  so a clean scan supports them and checks neither (pinned by
+  `the_requirements_a_clean_scan_cannot_settle_include_the_ones_it_was_settling` and
+  `end_to_end_a_clean_scan_supports_the_secrets_controls_and_checks_none_of_them`); the coverage count
+  that suggested otherwise had not read that list. C9.5.4 is classified `scanner-clean` on purpose, and
+  stays; `docs/COVERAGE.md` says what a clean scan does and does not show about it.
 
-- **A coverage document, generated.** *Claimed 25 September 2026 by session securevibe-e8 (branch
-  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Which requirements of
-  ASVS, AISVS, and the Secure by Design checklist any check can speak to, and what each needs to run.
+- ~~**A coverage document, generated.**~~ Done on 25 September 2026 by session securevibe-e8.
+  `docs/COVERAGE.md`, written by `tools/coverage.py` from the checks' own citations and the
+  manual-only list, and kept current by `crates/sv-check/tests/coverage_doc.rs`, which fails when it
+  is not what the script would write. The script stops if a requirement id or check name is written
+  into `sv`'s code that it does not know about.
+
+- **Level 1 checks against the running app.** From the coverage count (`docs/COVERAGE.md`, 25 September
+  2026): 49 of the 70 Level 1 requirements have no check at all, and Authentication (47 requirements)
+  has none. Several can be asked of a running app with the test accounts `[stack.run.users]` already
+  describes: a response's Content-Type and charset (V4.1.1), a reachable `/.git/` (V13.4.1), a short or
+  common password accepted at sign-up (V6.2.1, V6.2.4), a long one refused (V6.2.5), a default
+  `admin`/`admin` account (V6.3.2), session ids too short to be unguessable (V7.2.3), and sign-in
+  accepted in the query string (V14.2.1). Each is a finding when it fails and supporting evidence at
+  most when it holds; V6.3.2 in particular can only ever try a few names.
+
+- **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
+  (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
+  its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
+  could look for the same. Most of AISVS is about training and operating models and stays out of reach.
 
 - ~~**Shell scripts.**~~ Done on 25 September 2026 by session securevibe-e8. `.sh` and `.bash` are
   read as `shell`, every rule is taught it or says why not, and a new rule,
