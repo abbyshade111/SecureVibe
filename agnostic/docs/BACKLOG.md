@@ -41,7 +41,7 @@ another session is not a claim.
   telling whether a GET made one needs a page that lists them.
 
 - **Threat modeling that does not depend on the AI tool.** Asked for by the owner on 25 September
-  2026, for consideration; not claimed. `sv` has the app's description in securevibe.toml, the
+  2026, for consideration. **Investigation claimed on 25 September 2026 by session securevibe-e8.** `sv` has the app's description in securevibe.toml, the
   scanner's answers about what the code does (accounts, uploads, payments, outside services, AI), and
   the Secure by Design checklist, whose threat-modeling controls are design review a person answers.
   Worth investigating whether those can produce a first threat model on their own, without asking the
