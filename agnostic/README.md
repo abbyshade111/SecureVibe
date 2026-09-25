@@ -19,6 +19,7 @@ cargo run -p sv-cli -- check ./my-app    # credentials, configuration, and rules
 cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
 cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
 cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
+cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding tool (see below)
 ```
 
 The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
@@ -70,7 +71,30 @@ the reports say exactly that rather than counting them as things that were looke
 The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
 thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
 
-Not built yet: the MCP server.
+## From inside your AI coding tool
+
+`sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
+mid-conversation and work through the findings with you. Build it once (`cargo build --release -p
+sv-cli`), then register it — for Claude Code:
+
+```bash
+claude mcp add securevibe -- /path/to/agnostic/target/release/sv mcp --root ~/code
+```
+
+or, for a tool configured with JSON:
+
+```json
+{ "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
+```
+
+It offers four tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_check` (what
+applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
+its framework's own words) and `securevibe_write_report` (the full reports, into the app's folder).
+
+Two limits are deliberate. It only reads apps under the folder given to `--root`; a path outside it is
+refused, `..` and symbolic links included. And it never starts your app or runs other people's security
+tools — each of those runs code, and that stays your decision at a terminal (`sv report --run --tools`).
+The results say both were not done, the same way the written report does.
 
 ## Building
 
