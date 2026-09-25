@@ -107,7 +107,8 @@ another session is not a claim.
   authorization server; `sv` applies them whenever the app uses OAuth, so an app with "Sign in with
   Google" is asked about an authorization server it does not run. A condition for being the
   authorization server, separate from using OAuth, would fix it; `data/knowledge/applicability.json` is
-  shared with v1, so the change is decided there for both.
+  shared with v1, so the change is decided there for both. **Claimed on 25 September 2026 by session
+  securevibe-e9.**
 
 - ~~**Threat modeling that does not depend on the AI tool.**~~ Done. Asked for by the owner on 25 September
   2026. The investigation is done (session securevibe-e8): `docs/THREAT-MODELING.md`. In short, v1's
