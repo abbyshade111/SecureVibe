@@ -90,6 +90,15 @@ that run, and then asks:
 - is a request from another website accepted with the user's cookies? (V3.5.1)
 - does signing in issue a new session, and does signing out end it? (V7.2.4, V7.4.1)
 - is the session cookie out of reach of scripts and other sites? (V3.3.4, V3.3.2)
+- is the session id long enough to guess, and different each time? (V7.2.3; only ever a finding)
+- does a known default account, such as `admin` / `admin`, sign in? (V6.3.2; only ever a finding)
+- is a password accepted in the address rather than the body? (V14.2.1; only ever a finding)
+
+When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
+asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone
+(V6.2.5), and a common one beside a random one of the same shape (V6.2.4). Each is compared with an
+ordinary strong password signed up first, and whether a password was accepted is told by signing in
+with it.
 
 Each question first shows the thing it depends on actually worked — the session opens a private page,
 the owner can read back what they made, the admin can open the admin page — and when it cannot show

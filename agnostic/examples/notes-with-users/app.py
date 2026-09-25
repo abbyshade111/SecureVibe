@@ -15,6 +15,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 DB = os.environ.get("NOTES_DB", "/tmp/notes.db")
+# The 3000 most common passwords, refused at sign-up (ASVS V6.2.4). Length is the only other rule:
+# at least 8 characters (V6.2.1; 15 is the recommendation), and nothing about which kinds of character
+# a password must contain (V6.2.5).
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "common-passwords.txt")) as f:
+    COMMON = {line.strip() for line in f if line.strip()}
 OWN_ORIGINS = {f"http://{h}" for h in ("localhost", "127.0.0.1")}
 
 
@@ -84,11 +89,12 @@ class Handler(BaseHTTPRequestHandler):
         sid, email, csrf = self.session()
         if self.path == "/":
             return self.send(200, page("Notes", "<a href='/login'>Sign in</a>"))
-        if self.path == "/login":
+        if self.path in ("/login", "/signup"):
             # A session before sign-in, for the form's token. Sign-in replaces it.
             sid, csrf = self.new_session(None)
             form = f"<form method=post><input type=hidden name=csrf_token value='{csrf}'></form>"
-            return self.send(200, page("Sign in", form), [self.cookie(sid)])
+            title = "Sign in" if self.path == "/login" else "Sign up"
+            return self.send(200, page(title, form), [self.cookie(sid)])
         if not email:
             return self.send(302, headers=[("Location", "/login")])
         if self.path == "/account":
@@ -128,6 +134,22 @@ class Handler(BaseHTTPRequestHandler):
                 conn.execute("delete from sessions where id = ?", (sid,))
             new_sid, _ = self.new_session(form["email"])
             return self.send(303, headers=[("Location", "/account"), self.cookie(new_sid)])
+        if self.path == "/signup":
+            if self.forged(form, csrf):
+                return self.send(403, page("No", "Refused."))
+            new_email, password = form.get("email", ""), form.get("password", "")
+            if len(password) < 8 or password in COMMON:
+                return self.send(422, page("No", "Choose a longer or less common password."))
+            salt = secrets.token_hex(16)
+            try:
+                with db() as conn:
+                    conn.execute(
+                        "insert into users values (?, ?, ?, 0)",
+                        (new_email, hash_password(password, salt), salt),
+                    )
+            except sqlite3.IntegrityError:
+                return self.send(422, page("No", "That account exists."))
+            return self.send(303, headers=[("Location", "/login")])
         if not email:
             return self.send(302, headers=[("Location", "/login")])
         if self.forged(form, csrf):
