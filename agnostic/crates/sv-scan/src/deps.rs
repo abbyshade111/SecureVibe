@@ -31,7 +31,7 @@ pub fn read(app_dir: &Path) -> Vec<Declared> {
             "Gemfile" => from_gemfile(&text),
             "composer.json" => from_composer(&text),
             "pom.xml" => from_pom(&text),
-            "build.gradle" => from_gradle(&text),
+            "build.gradle" | "build.gradle.kts" => from_gradle(&text),
             _ => Vec::new(),
         };
         for name in names {

@@ -21,12 +21,23 @@ another session is not a claim.
   which files. Breaking either half turns two or three tests red. `.jsx` needed nothing: the JavaScript
   grammar reads JSX.
 
-- **Dependencies `sv` declares it read, and cannot match.** *Claimed 25 September 2026 by session
-  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25 September 2026: a Go
-  app declaring and using `github.com/gorilla/websocket` has V4.4.1–V4.4.4 excluded as "No WebSocket
-  library is used". `go.mod` gives full module paths, the signatures name `gorilla/websocket`, and the
-  comparison is exact, so no Go package signature has ever matched. Also `build.gradle.kts`, the default
-  for Kotlin, is not read at all.
+- ~~**Dependencies `sv` declares it read, and cannot match.**~~ Done on 25 September 2026. A Go app
+  declaring and using `github.com/gorilla/websocket` had V4.4.1–V4.4.4 excluded as "No WebSocket
+  library is used": `go.mod` gives full module paths, the signatures named `gorilla/websocket`, and the
+  comparison was exact, so no Go package signature had ever matched. A Go signature now matches the
+  module path or its tail on a `/` boundary, with a `/vN` suffix set aside. Most Go names in both data
+  files were also wrong in themselves — `goth`, `stripe-go`, `go-openai` are not what `go.mod` says —
+  and are now module paths, with a test refusing a bare name; `autocert` is a package inside
+  `golang.org/x/crypto` and never appears in `go.mod`, so it is found in source instead. And
+  `build.gradle.kts`, the Kotlin default, is now read, for dependencies and for pinning.
+
+- **Dependency manifests are only read at the top of the repository.** Found on 25 September 2026 and
+  not claimed. `ecosystems::detect` looks for `package.json`, `go.mod` and the rest in the app folder
+  itself, so a full-stack app laid out as `client/` and `server/` — the usual shape of what an AI
+  builder writes — has no dependency read at all, and the technology conditions fall back to source
+  patterns alone. It is also the pinning check and the SBOM. Walking for manifests means deciding what
+  a nested one belongs to, and skipping `node_modules` and vendored copies, which is why it is its own
+  item.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —

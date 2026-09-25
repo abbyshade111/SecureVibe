@@ -70,7 +70,7 @@
           "laravel/sanctum"
         ],
         "Go": [
-          "goth",
+          "markbates/goth",
           "gorilla/sessions"
         ],
         "Rust": [
@@ -238,8 +238,8 @@
           "lcobucci/jwt"
         ],
         "Go": [
-          "golang-jwt",
-          "github.com/golang-jwt/jwt"
+          "golang-jwt/jwt",
+          "dgrijalva/jwt-go"
         ],
         "Rust": [
           "jsonwebtoken"
@@ -402,7 +402,7 @@
           "omnipay/common"
         ],
         "Go": [
-          "stripe-go"
+          "stripe/stripe-go"
         ],
         "Rust": [
           "stripe-rust",
@@ -479,7 +479,9 @@
           "swiftmailer/swiftmailer"
         ],
         "Go": [
-          "gomail"
+          "gopkg.in/gomail.v2",
+          "go-mail/mail",
+          "wneessen/go-mail"
         ],
         "Rust": [
           "lettre"
@@ -685,7 +687,9 @@
           "openai-php/client"
         ],
         "Go": [
-          "go-openai"
+          "sashabaranov/go-openai",
+          "anthropics/anthropic-sdk-go",
+          "openai/openai-go"
         ],
         "Rust": [
           "async-openai"
@@ -762,7 +766,7 @@
           "sentence-transformers"
         ],
         "Go": [
-          "qdrant"
+          "qdrant/go-client"
         ],
         "Rust": [
           "qdrant-client"
@@ -820,7 +824,8 @@
           "rmcp"
         ],
         "Go": [
-          "mcp-go"
+          "mark3labs/mcp-go",
+          "modelcontextprotocol/go-sdk"
         ]
       },
       "source": {
@@ -908,7 +913,7 @@
           "llm"
         ],
         "Go": [
-          "ollama"
+          "ollama/ollama"
         ]
       },
       "files": [
@@ -964,7 +969,7 @@
           "twilio/sdk"
         ],
         "Go": [
-          "twilio-go"
+          "twilio/twilio-go"
         ],
         "Rust": [
           "twilio"
@@ -1042,7 +1047,8 @@
           "symfony/http-client"
         ],
         "Go": [
-          "resty"
+          "go-resty/resty",
+          "resty.dev"
         ],
         "Rust": [
           "reqwest",
@@ -1148,7 +1154,8 @@
           "darkaonline/l5-swagger"
         ],
         "Go": [
-          "swaggo"
+          "swaggo/swag",
+          "swaggo/http-swagger"
         ],
         "Rust": [
           "utoipa"
@@ -1321,9 +1328,6 @@
           "https-proxy-agent",
           "greenlock",
           "node-forge"
-        ],
-        "Go": [
-          "autocert"
         ]
       },
       "files": [
@@ -1357,7 +1361,8 @@
         "go": [
           "listenandservetls",
           "tls.config{",
-          "tls.loadx509keypair"
+          "tls.loadx509keypair",
+          "autocert."
         ],
         "java": [
           "server.ssl.",

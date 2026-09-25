@@ -670,3 +670,221 @@ fn a_signature_that_cannot_check_anything_carries_no_patterns() {
         );
     }
 }
+
+// ---- dependency names as each ecosystem really writes them ----
+
+/// Writes an app from (path, contents) pairs and scans it with both signature sets.
+fn scan_files(name: &str, files: &[(&str, &str)]) -> ScanReport {
+    let dir = scratch(name);
+    for (path, contents) in files {
+        let path = dir.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, contents).unwrap();
+    }
+    let report = scan(&dir, &all_signatures()).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    report
+}
+
+const GO_WEBSOCKET_APP: &[(&str, &str)] = &[
+    (
+        "go.mod",
+        "module example.com/chat\n\ngo 1.22\n\nrequire (\n\tgithub.com/gorilla/websocket v1.5.3\n\tgithub.com/golang-jwt/jwt/v5 v5.2.1\n)\n",
+    ),
+    (
+        "go.sum",
+        "github.com/gorilla/websocket v1.5.3 h1:x\ngithub.com/golang-jwt/jwt/v5 v5.2.1 h1:y\n",
+    ),
+    // Imported under an alias, which is how the source pattern `websocket.Upgrader` was being
+    // missed: the dependency is the evidence here, and it has to be read.
+    (
+        "main.go",
+        "package main\n\nimport (\n\t\"net/http\"\n\tws \"github.com/gorilla/websocket\"\n)\n\nvar up = ws.Upgrader{}\n\nfunc handler(w http.ResponseWriter, r *http.Request) {\n\tc, _ := up.Upgrade(w, r, nil)\n\tdefer c.Close()\n}\n",
+    ),
+];
+
+#[test]
+fn a_go_module_path_matches_the_package_a_signature_names() {
+    // Found on a Go app that declared and used gorilla/websocket and had the WebSocket requirements
+    // excluded as "no WebSocket library is used": go.mod says `github.com/gorilla/websocket`, the
+    // signature says `gorilla/websocket`, and the comparison was exact.
+    let report = scan_files("go-websocket", GO_WEBSOCKET_APP);
+    let found = answer(&report, Condition::Websockets);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, .. } if name == "github.com/gorilla/websocket"),
+        "the dependency is what has to answer it: {:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_go_major_version_suffix_does_not_hide_the_package() {
+    // `/v5` is part of the module path from v2 on, and says nothing about what the package is.
+    let report = scan_files("go-jwt-v5", GO_WEBSOCKET_APP);
+    let found = answer(&report, Condition::Jwt);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { .. }),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_go_module_matches_only_on_a_path_boundary() {
+    // The tail has to be a whole path segment: `example.com/notgorilla/websocket-docs` is not
+    // gorilla/websocket, and neither is a module that merely ends in the same letters.
+    let report = scan_files(
+        "go-near-miss",
+        &[
+            (
+                "go.mod",
+                "module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/example/xgorilla/websocket v1.0.0\n\tgithub.com/example/gorilla/websocket-docs v1.0.0\n)\n",
+            ),
+            (
+                "go.sum",
+                "github.com/example/xgorilla/websocket v1.0.0 h1:x\ngithub.com/example/gorilla/websocket-docs v1.0.0 h1:y\n",
+            ),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+        ],
+    );
+    let found = answer(&report, Condition::Websockets);
+    assert!(
+        !matches!(found.evidence, Evidence::Dependency { .. }),
+        "a near-miss module name matched: {:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_kotlin_build_script_is_read_for_its_dependencies() {
+    // `build.gradle.kts` is what a Kotlin project gets by default, and it was not read at all.
+    let report = scan_files(
+        "gradle-kts",
+        &[
+            (
+                "build.gradle.kts",
+                "plugins { kotlin(\"jvm\") version \"2.0.0\" }\n\ndependencies {\n    implementation(\"org.springframework:spring-websocket:6.1.0\")\n}\n",
+            ),
+            (
+                "gradle.lockfile",
+                "org.springframework:spring-websocket:6.1.0=runtimeClasspath\n",
+            ),
+            ("src/main/kotlin/App.kt", "fun main() { println(\"hi\") }\n"),
+        ],
+    );
+    let found = answer(&report, Condition::Websockets);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { manifest, .. } if manifest == "build.gradle.kts"),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn every_go_signature_names_a_module_path_that_go_mod_could_contain() {
+    // `goth`, `stripe-go`, `go-openai` and `autocert` were all in the data files, and none of them
+    // is anything `go.mod` ever says: it says `github.com/markbates/goth`, a module path. A bare
+    // name can never match, so it is refused here rather than left to look like coverage. The one
+    // shape allowed without a `/` is a vanity domain such as `resty.dev`.
+    let mut wrong = Vec::new();
+    for file in ["tech-signatures.json", "claim-corroborators.json"] {
+        let sigs = Signatures::load(&data(file)).unwrap();
+        for sig in &sigs.signatures {
+            for name in sig.packages.get("Go").into_iter().flatten() {
+                if !name.contains('/') && !name.contains('.') {
+                    wrong.push(format!("{file} {}: `{name}`", sig.condition));
+                }
+            }
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn go_modules_at_a_later_major_version_answer_their_claims() {
+    // The second witness for the version suffix, on three different claims, each in the form the
+    // project's own README tells people to `go get`.
+    let report = scan_files(
+        "go-versions",
+        &[
+            (
+                "go.mod",
+                "module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/robfig/cron/v3 v3.0.1\n\tgithub.com/stripe/stripe-go/v76 v76.0.0\n\tgithub.com/go-ldap/ldap/v3 v3.4.8\n)\n",
+            ),
+            (
+                "go.sum",
+                "github.com/robfig/cron/v3 v3.0.1 h1:a\ngithub.com/stripe/stripe-go/v76 v76.0.0 h1:b\ngithub.com/go-ldap/ldap/v3 v3.4.8 h1:c\n",
+            ),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+        ],
+    );
+    for condition in [Condition::Scheduler, Condition::Payments, Condition::Ldap] {
+        let found = answer(&report, condition);
+        assert!(
+            matches!(&found.evidence, Evidence::Dependency { .. }),
+            "{condition:?}: {:?}",
+            found.evidence
+        );
+    }
+}
+
+#[test]
+fn a_go_module_whose_owner_merely_ends_the_same_way_is_not_matched() {
+    // Second witness for the boundary: `xrobfig/cron` is somebody else's cron.
+    let report = scan_files(
+        "go-near-miss-2",
+        &[
+            (
+                "go.mod",
+                "module example.com/app\n\ngo 1.22\n\nrequire github.com/xrobfig/cron v1.0.0\n",
+            ),
+            ("go.sum", "github.com/xrobfig/cron v1.0.0 h1:a\n"),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+        ],
+    );
+    let found = answer(&report, Condition::Scheduler);
+    assert!(
+        !matches!(found.evidence, Evidence::Dependency { .. }),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_claim_is_corroborated_from_a_kotlin_build_script() {
+    // Second witness for `build.gradle.kts`, through a claim rather than a technology: Spring
+    // Security declared in the Kotlin DSL is sign-in, and it used to be invisible.
+    let report = scan_files(
+        "gradle-kts-auth",
+        &[
+            (
+                "build.gradle.kts",
+                "dependencies {\n    implementation(\"org.springframework.boot:spring-boot-starter-security\")\n}\n",
+            ),
+            ("src/main/kotlin/App.kt", "fun main() {}\n"),
+        ],
+    );
+    let found = answer(&report, Condition::Auth);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, .. } if name == "spring-boot-starter-security"),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn a_kotlin_build_script_with_no_lockfile_pins_nothing() {
+    // The third place the missing ecosystem showed: a Kotlin project with no lockfile was not
+    // reported as pinning nothing, because it was not recognised as a project at all.
+    let dir = scratch("gradle-kts-unpinned");
+    std::fs::write(dir.join("build.gradle.kts"), "dependencies {}\n").unwrap();
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        unpinned.iter().any(|e| e.manifest == "build.gradle.kts"),
+        "{unpinned:?}"
+    );
+}
