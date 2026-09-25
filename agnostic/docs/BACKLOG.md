@@ -84,8 +84,7 @@ another session is not a claim.
   its own, never *checked*, the way a test naming a requirement is. For the twelve that ask for the app
   to behave as documented, the owner states the policy as numbers in securevibe.toml (failed sign-ins
   before a lockout, the idle and absolute session timeouts, sessions allowed at once), and the probes
-  test those numbers against the running app; about eight become checkable, V6.3.1 at Level 1 among
-  them. The design questions (16) take the same shape: yes, no, or not sure in securevibe.toml, with
+  test those numbers against the running app. The design questions (16) take the same shape: yes, no, or not sure in securevibe.toml, with
   where in the code, counted as *attested by the owner*; "not sure" adds nothing.
   **Claimed on 25 September 2026 by session securevibe-e8.** The notes file itself is **done**:
   `data/security-notes.json` (nineteen questions, each a requirement that asks for a written decision
@@ -95,6 +94,17 @@ another session is not a claim.
   threat. See DESIGN, "The security notes". Left over, each its own piece of work: the policy numbers
   in securevibe.toml that the probes can test (about eight requirements, V6.3.1 at level 1 among
   them), and the design questions answered as *attested by the owner*.
+
+  **The "about eight" in the paragraph above was wrong, and is struck out.** It was written from the
+  count of requirements that ask for behavior to match a document, without reading them. There are
+  eleven, and asking a running app reaches three: V6.3.1 (Level 1 — make the stated number of failed
+  sign-ins and see whether the app slows down or locks out) and V7.3.1 and V7.3.2, the idle and
+  absolute session timeouts, the second of which is awkward when the real answer is measured in days.
+  The other eight are out of reach for reasons that will not change: V2.3.2's business limits are
+  whatever the app is for; V14.2.4, V16.2.3, and V16.3.3 need the logs or the stored data read, not
+  the app asked; V15.2.1 is already the advisory check's; V6.2.11 needs the word list, which is the
+  document itself; and V7.6.1 needs a real identity provider. So this is worth doing for V6.3.1 at
+  Level 1 and two at Level 2, which is a smaller prize than the entry promised.
 
 - **More questions for the running app, and an `upload` entry.** Asked with what `[stack.run.users]`
   already says: `Cache-Control: no-store` on private pages (V14.3.2), directory listings (V13.4.3), a
