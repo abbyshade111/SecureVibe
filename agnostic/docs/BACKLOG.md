@@ -91,7 +91,8 @@ another session is not a claim.
   what the evidence says about it (found, checked in part, not verified, cannot place) and never that
   it is mitigated. Three pull requests. The owner answered the three
   questions on 25 September 2026: no likelihood/impact scoring, v1 to read the same data file later,
-  and a section of the report rather than a file of its own. Ready to build; not claimed.
+  and a section of the report rather than a file of its own. **Claimed on 25 September 2026 by session
+  securevibe-e8**, starting with the first of the three: the rules as data and each threat's status.
 
 - ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
   AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
