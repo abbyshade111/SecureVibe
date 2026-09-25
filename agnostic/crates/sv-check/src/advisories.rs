@@ -25,6 +25,7 @@
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::sbom::{Component, Sbom};
+use crate::verified::Verified;
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -90,6 +91,12 @@ pub struct Event {
 #[derive(Debug, Default)]
 pub struct AuditResult {
     pub findings: Vec<Finding>,
+    /// What the comparison may claim to have examined and found nothing wrong in.
+    ///
+    /// Empty unless every condition below holds, because each one is a way a clean result would be
+    /// a lie: no advisory database, no components, an ecosystem the database says nothing about,
+    /// a version that could not be compared, or a component list known to be partial.
+    pub verified: Vec<Verified>,
     /// Ecosystems in the app for which the database held no records at all.
     pub uncovered: BTreeSet<String>,
     /// Components whose version could not be compared, so nothing can be said about them.
@@ -313,6 +320,51 @@ pub fn audit(sbom: &Sbom, database: &[Advisory]) -> AuditResult {
     result
         .findings
         .dedup_by(|a, b| a.rule_id == b.rule_id && a.title == b.title);
+
+    // What this comparison may say it looked at. A finding is a claim about something that is
+    // there; this is the mirror, and it is only worth the coverage behind it — so every way the
+    // coverage could be short switches it off entirely rather than qualifying it.
+    //
+    // Each condition below is a real way a clean result would mislead. An empty database compares
+    // every component against nothing. No components is nothing examined. An ecosystem the database
+    // says nothing about means the packages in it were never really checked. A version that could
+    // not be compared is a component whose status is unknown, not clear. And a component list known
+    // to be incomplete is a clean answer about the wrong question: nobody asked whether the
+    // packages `sv` could see are safe, they asked whether the app ships anything vulnerable.
+    // `advisories_read > 0` below cannot currently be the condition that blocks a claim on its own:
+    // an empty database covers no ecosystem, so `uncovered` is already non-empty and stops it first.
+    // Breaking it produces no failing test, which is exactly what a condition carrying no weight
+    // looks like. It is kept as the statement of intent — the claim is about what was compared
+    // against, and that must never be nothing — and labelled rather than left to look load-bearing.
+    // The test asserts the behaviour, not which condition produced it.
+    let complete_enough = sbom.unread.is_empty();
+    if result.findings.is_empty()
+        && result.advisories_read > 0
+        && result.components_checked > 0
+        && result.uncovered.is_empty()
+        && result.uncomparable.is_empty()
+        && complete_enough
+    {
+        result.verified.push(Verified::new(
+            "advisories",
+            &["V15.2.1"],
+            format!(
+                "all {} package{} in the bill of materials, compared against {} advisor{}",
+                result.components_checked,
+                if result.components_checked == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                result.advisories_read,
+                if result.advisories_read == 1 {
+                    "y"
+                } else {
+                    "ies"
+                }
+            ),
+        ));
+    }
     result
 }
 
@@ -360,7 +412,11 @@ fn finding_for(component: &Component, advisory: &Advisory) -> Finding {
             line: 1,
         },
         secret: None,
-        requirement_ids: vec!["V1.3.5".into()],
+        // V15.2.1 asks that the application only contains components which have not breached
+        // the documented update and remediation time frames. A component with a published
+        // advisory against the version being shipped is the evidence that bears on it. This cited
+        // V1.3.5 — user-supplied template content — until 24 September 2026.
+        requirement_ids: vec!["V15.2.1".into()],
         cwe: vec![],
         description: if advisory.summary.is_empty() {
             format!(
