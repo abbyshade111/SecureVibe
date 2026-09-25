@@ -661,7 +661,7 @@ class Pager implements Gfx {
       if (d.bg) this.rect(d.x, y, d.w, a.height, d.bg);
       if (d.bar) this.rect(d.x, y, 3, a.height, d.bar);
     }
-    if (a.marker) this.text(a.x - 12, y + (a.firstBase ?? 10), a.marker, { font: 'F1', size: BODY, color: DARK });
+    if (a.marker) this.text(a.x - 4 - textWidth(a.marker, 'F1', BODY), y + (a.firstBase ?? 10), a.marker, { font: 'F1', size: BODY, color: DARK }); // right-aligned, so "10." does not run into its text
     if (a.outline) this.outline.push({ title: a.outline, page: this.pages.length - 1, y });
     a.draw(this, 0, y);
     if (a.rule) this.rect(a.x, y + a.height - 4, a.width, 0.8, BORDER);
