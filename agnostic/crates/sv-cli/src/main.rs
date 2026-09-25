@@ -15,6 +15,8 @@ use sv_manifest::{ClaimState, Manifest, consistency, spec};
 use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures, scan};
 
+mod mcp;
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -29,6 +31,7 @@ fn main() -> Result<()> {
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
         Some("audit") => cmd_audit(&args[1..]),
         Some("report") => cmd_report(&args[1..]),
+        Some("mcp") => mcp::cmd_mcp(&args[1..]),
         Some("--help") | Some("-h") | None => {
             print_help();
             Ok(())
@@ -52,7 +55,9 @@ fn print_help() {
          sv audit [PATH] --advisories DIR\n                     \
              match what the app ships against a local OSV database\n  \
          sv report [PATH] [--out DIR] [--run] [--tools]\n                     \
-             write the reports: what applies, what was found, what nobody has answered\n"
+             write the reports: what applies, what was found, what nobody has answered\n  \
+         sv mcp [--root DIR]\n                     \
+             serve the checks to an AI coding tool over MCP, for the apps under DIR\n"
     );
 }
 
@@ -893,32 +898,39 @@ fn cmd_audit(args: &[String]) -> Result<()> {
 /// Everything here runs offline and without a container. The probes need a running app, so unless
 /// `sv run` has been used they are recorded as a gap rather than as nothing to report — a section
 /// missing from a report reads as a section with nothing in it.
-fn cmd_report(args: &[String]) -> Result<()> {
-    let mut app_dir = PathBuf::from(".");
-    let mut out_dir: Option<PathBuf> = None;
-    // Opt-in. Everything else `sv report` does reads files; this starts somebody's code. It runs
-    // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
-    // computer — and it is still their decision to make rather than a default.
-    let mut run_the_app = false;
-    // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
-    // of them fetches its rules over the network the first time it runs.
-    let mut run_tools = false;
-    let mut rest = args.iter();
-    while let Some(arg) = rest.next() {
-        match arg.as_str() {
-            "--out" => {
-                out_dir = Some(PathBuf::from(
-                    rest.next().context("--out needs a directory")?,
-                ));
-            }
-            "--run" => run_the_app = true,
-            "--tools" => run_tools = true,
-            other if other.starts_with('-') => bail!("unknown option: {other}"),
-            other => app_dir = PathBuf::from(other),
-        }
+/// Writes the five renderings of a report into `out_dir`, and says which were written.
+fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
+    std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    let written = [
+        ("report.html", sv_report::html::page(report)),
+        ("compliance.md", sv_report::markdown::compliance(report)),
+        ("security.md", sv_report::markdown::security(report)),
+        ("findings.sarif", sv_report::sarif::render(report)),
+        ("report.json", serde_json::to_string_pretty(report)? + "\n"),
+    ];
+    for (name, contents) in &written {
+        std::fs::write(out_dir.join(name), contents).with_context(|| format!("writing {name}"))?;
     }
-    let out_dir = out_dir.unwrap_or_else(|| app_dir.join("securevibe-report"));
+    Ok(written.iter().map(|(name, _)| *name).collect())
+}
 
+/// What a report is built from, and what the person asked for.
+struct ReportOptions {
+    /// Start the app behind the fence and ask it questions. Opt-in: this runs somebody's code.
+    run_the_app: bool,
+    /// Run the language's own security tool. Opt-in: these are other people's programs.
+    run_tools: bool,
+    /// Said in the report when the app was not started, in the words of whoever built it.
+    why_not_run: &'static str,
+    /// Said in the report when the tools were not run.
+    why_no_tools: &'static str,
+}
+
+/// Everything `sv report` knows about an app, built once for every caller.
+///
+/// `sv report` and the MCP server both call this, so what an AI coding tool is told about an app
+/// is exactly what the written report says — not a second, drifting summary of it.
+fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report::Report> {
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -932,15 +944,15 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let frameworks = load_frameworks(&data)?;
     let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan(&app_dir, &signatures)?;
+    let scan_report = scan(app_dir, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
 
     let secret_rules = SecretRules::load(&secret_rules_path())?;
-    let secrets = scan_dir(&secret_rules, &app_dir);
-    let config = check_dir(&app_dir);
+    let secrets = scan_dir(&secret_rules, app_dir);
+    let config = check_dir(app_dir);
     let ast_rules = ast::AstRules::load(&ast_rules_path())?;
-    let code = ast::scan_dir(&ast_rules, &app_dir);
+    let code = ast::scan_dir(&ast_rules, app_dir);
 
     let mut probe_verified = Vec::new();
     let mut tool_verified = Vec::new();
@@ -953,12 +965,12 @@ fn cmd_report(args: &[String]) -> Result<()> {
     // The language's own tool, where there is one and it is here. A tool that is not installed is
     // recorded as not run, with how to install it — never as having found nothing.
     let mut tool_gaps = Vec::new();
-    if run_tools {
+    if options.run_tools {
         let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
         let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
         let outcome = sv_check::adapters::run_all(
             &adapters,
-            &app_dir,
+            app_dir,
             &languages,
             &sv_check::adapters::scratch_dir(),
         );
@@ -973,10 +985,11 @@ fn cmd_report(args: &[String]) -> Result<()> {
     } else {
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
-            why: "`sv report` does not run other people's tools unless you pass --tools. bandit, \
-                  gosec and brakeman each know their own language far better than the handful of \
-                  rules built in here."
-                .to_owned(),
+            why: format!(
+                "{} bandit, gosec and brakeman each know their own language far better than the \
+                 handful of rules built in here.",
+                options.why_no_tools
+            ),
         });
     }
 
@@ -985,8 +998,8 @@ fn cmd_report(args: &[String]) -> Result<()> {
     let mut gaps = Vec::new();
     let mut run_note = None;
 
-    if run_the_app {
-        match probe_the_running_app(&manifest, &app_dir) {
+    if options.run_the_app {
+        match probe_the_running_app(&manifest, app_dir) {
             Ok((outcome, plan)) => {
                 findings.extend(probes::evaluate(&outcome.probe_responses));
                 probe_verified = probes::verified(&outcome.probe_responses);
@@ -1019,7 +1032,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                         // credit one on the strength of a name somebody chose for other reasons.
                         let known: std::collections::BTreeSet<&str> =
                             frameworks.requirements.keys().map(String::as_str).collect();
-                        let named = sv_check::suite::tests_naming_requirements(&app_dir, &known);
+                        let named = sv_check::suite::tests_naming_requirements(app_dir, &known);
                         let describe = |id: &str| {
                             frameworks
                                 .requirements
@@ -1113,10 +1126,11 @@ fn cmd_report(args: &[String]) -> Result<()> {
     } else {
         gaps.push(sv_report::Gap {
             what: "the running app".to_owned(),
-            why: "`sv report` does not start the app unless you pass --run. Without it, nothing \
-                  here has asked the app anything — what it sends to a browser, what it says when \
-                  something goes wrong, which sites it accepts."
-                .to_owned(),
+            why: format!(
+                "{} Without it, nothing here has asked the app anything — what it sends to a \
+                 browser, what it says when something goes wrong, which sites it accepts.",
+                options.why_not_run
+            ),
         });
     }
     gaps.extend(tool_gaps);
@@ -1224,7 +1238,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
     verified.extend(tool_verified.iter().cloned());
     verified.extend(test_verified.iter().cloned());
 
-    let report = sv_report::build(sv_report::Inputs {
+    Ok(sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
         } else {
@@ -1240,23 +1254,50 @@ fn cmd_report(args: &[String]) -> Result<()> {
         verified: &verified,
         gaps,
         manual_only,
-    });
+    }))
+}
 
-    std::fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
-    let written = [
-        ("report.html", sv_report::html::page(&report)),
-        ("compliance.md", sv_report::markdown::compliance(&report)),
-        ("security.md", sv_report::markdown::security(&report)),
-        ("findings.sarif", sv_report::sarif::render(&report)),
-        ("report.json", serde_json::to_string_pretty(&report)? + "\n"),
-    ];
-    for (name, contents) in &written {
-        std::fs::write(out_dir.join(name), contents).with_context(|| format!("writing {name}"))?;
+fn cmd_report(args: &[String]) -> Result<()> {
+    let mut app_dir = PathBuf::from(".");
+    let mut out_dir: Option<PathBuf> = None;
+    // Opt-in. Everything else `sv report` does reads files; this starts somebody's code. It runs
+    // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
+    // computer — and it is still their decision to make rather than a default.
+    let mut run_the_app = false;
+    // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
+    // of them fetches its rules over the network the first time it runs.
+    let mut run_tools = false;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--out" => {
+                out_dir = Some(PathBuf::from(
+                    rest.next().context("--out needs a directory")?,
+                ));
+            }
+            "--run" => run_the_app = true,
+            "--tools" => run_tools = true,
+            other if other.starts_with('-') => bail!("unknown option: {other}"),
+            other => app_dir = PathBuf::from(other),
+        }
     }
+    let out_dir = out_dir.unwrap_or_else(|| app_dir.join("securevibe-report"));
+
+    let report = assemble_report(
+        &app_dir,
+        &ReportOptions {
+            run_the_app,
+            run_tools,
+            why_not_run: "`sv report` does not start the app unless you pass --run.",
+            why_no_tools: "`sv report` does not run other people's tools unless you pass --tools.",
+        },
+    )?;
+
+    let written = write_report_files(&report, &out_dir)?;
 
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
-    for (name, _) in &written {
+    for name in &written {
         println!("  {name}");
     }
     println!(

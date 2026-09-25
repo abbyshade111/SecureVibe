@@ -184,8 +184,14 @@ another session is not a claim.
   loses coverage silently rather than loudly. The parser understands JUnit XML only; TAP and the
   runners that emit their own JSON are not read.
 
-- **The MCP server.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
-  `sv check` finished first.
+- ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
+  (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,
+  `securevibe_explain` and `securevibe_write_report`. `securevibe_check` is `assemble_report`, the
+  function `sv report` now calls too, so a model is told exactly what the written report says, gaps first.
+  Every path is resolved against `--root` and refused outside it, `..` and symlinks included; a report is
+  written only below the app. Starting the app and running other people's tools are not offered: each
+  runs code, and that stays the person's decision at a terminal. Left over: MCP resources (the report
+  files as resources rather than paths) and progress notifications for a long check.
 
 ## Decided, not yet written down as ADRs
 
