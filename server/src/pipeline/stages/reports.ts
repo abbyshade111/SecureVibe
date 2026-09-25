@@ -54,6 +54,7 @@ export async function runReportsStage(ctx: PipelineCtx): Promise<StageResult> {
         knowledge: ctx.knowledge,
         frameworks: ctx.frameworks,
         securevibeVersion: ctx.config.version,
+        pdfPageSize: ctx.settings.pdfPageSize,
       });
       ctx.run.artifacts = outcome.artifacts;
       return finishStage(
@@ -86,6 +87,7 @@ export async function runReportsStage(ctx: PipelineCtx): Promise<StageResult> {
     knowledge: ctx.knowledge,
     frameworks: ctx.frameworks,
     securevibeVersion: ctx.config.version,
+    pdfPageSize: ctx.settings.pdfPageSize,
   });
 
   if (!outcome.ok) {

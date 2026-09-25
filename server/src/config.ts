@@ -41,6 +41,12 @@ export const SettingsSchema = z.object({
    * because source code is not where virus signatures earn their keep and the scan takes minutes.
    */
   scanBuiltAppsForMalware: z.boolean().default(false),
+  /**
+   * The paper size of the PDF copies of the reports. Letter, because most owners print on it; A4 for the rest of the
+   * world. It applies to PDFs written from now on and to every PDF downloaded from the results page, which is made
+   * again in the size set here when the saved file is on the other one.
+   */
+  pdfPageSize: z.enum(['letter', 'a4']).default('letter'),
   /** The AI service everything uses unless a step below says otherwise; it needs a key for that service. */
   aiService: z.enum(['anthropic', 'openai', 'google']).default('anthropic'),
   /**

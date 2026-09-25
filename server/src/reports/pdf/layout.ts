@@ -7,12 +7,11 @@
  */
 import { classesOf, textOf, type HtmlNode } from './html.js';
 import { encode, hex, textWidth, type FontKey } from './fonts.js';
-import { PAGE_HEIGHT, PAGE_WIDTH, type OutlineEntry, type PageLink, type PdfPage } from './writer.js';
+import { PAGE_SIZES, type OutlineEntry, type PageLink, type PageSize, type PdfPage } from './writer.js';
 
 const MARGIN_X = 48;
 const TOP = 52;
-const BOTTOM = PAGE_HEIGHT - 60;
-const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN_X;
+const FOOT = 60;
 const BODY = 10;
 const CELL = 8.5;
 const LEADING = 1.36;
@@ -619,8 +618,14 @@ class Pager implements Gfx {
   outline: OutlineEntry[] = [];
   y = TOP;
   lastTable: number | undefined;
+  readonly width: number;
+  readonly height: number;
+  readonly bottom: number;
 
-  constructor() {
+  constructor(size: PageSize) {
+    this.width = PAGE_SIZES[size].width;
+    this.height = PAGE_SIZES[size].height;
+    this.bottom = this.height - FOOT;
     this.newPage();
   }
 
@@ -640,19 +645,19 @@ class Pager implements Gfx {
   text(x: number, baseline: number, text: string, style: Style): void {
     const bytes = encode(text);
     if (bytes.length === 0) return;
-    this.page.ops.push(`BT /${style.font} ${this.num(style.size)} Tf ${style.color} rg ${this.num(x)} ${this.num(PAGE_HEIGHT - baseline)} Td <${hex(bytes)}> Tj ET`);
+    this.page.ops.push(`BT /${style.font} ${this.num(style.size)} Tf ${style.color} rg ${this.num(x)} ${this.num(this.height - baseline)} Td <${hex(bytes)}> Tj ET`);
   }
 
   rect(x: number, y: number, w: number, h: number, fill: string): void {
-    this.page.ops.push(`${fill} rg ${this.num(x)} ${this.num(PAGE_HEIGHT - y - h)} ${this.num(w)} ${this.num(h)} re f`);
+    this.page.ops.push(`${fill} rg ${this.num(x)} ${this.num(this.height - y - h)} ${this.num(w)} ${this.num(h)} re f`);
   }
 
   frame(x: number, y: number, w: number, h: number): void {
-    this.page.ops.push(`${BORDER} RG 0.5 w ${this.num(x)} ${this.num(PAGE_HEIGHT - y - h)} ${this.num(w)} ${this.num(h)} re S`);
+    this.page.ops.push(`${BORDER} RG 0.5 w ${this.num(x)} ${this.num(this.height - y - h)} ${this.num(w)} ${this.num(h)} re S`);
   }
 
   link(x: number, y: number, w: number, h: number, uri: string): void {
-    this.page.links.push({ x1: x, y1: PAGE_HEIGHT - y - h, x2: x + w, y2: PAGE_HEIGHT - y, uri });
+    this.page.links.push({ x1: x, y1: this.height - y - h, x2: x + w, y2: this.height - y, uri });
   }
 
   place(a: Atom): void {
@@ -674,7 +679,7 @@ function paginate(atoms: Atom[], pager: Pager): void {
   const queue = [...atoms];
   while (queue.length > 0) {
     const a = queue.shift()!;
-    const avail = BOTTOM - pager.y;
+    const avail = pager.bottom - pager.y;
     const fresh = pager.y <= TOP + 0.5;
     if (a.keepNext && !fresh && queue.length > 0) {
       const next = queue[0]!;
@@ -711,19 +716,19 @@ export interface LaidOut {
   outline: OutlineEntry[];
 }
 
-export function layoutDocument(root: HtmlNode, title: string): LaidOut {
-  const ctx: Ctx = { x: MARGIN_X, width: CONTENT_WIDTH, style: { font: 'F1', size: BODY, color: DARK }, decos: [], tight: false };
+export function layoutDocument(root: HtmlNode, title: string, size: PageSize): LaidOut {
+  const pager = new Pager(size);
+  const ctx: Ctx = { x: MARGIN_X, width: pager.width - 2 * MARGIN_X, style: { font: 'F1', size: BODY, color: DARK }, decos: [], tight: false };
   const atoms = layoutChildren(root.children, ctx);
-  const pager = new Pager();
   paginate(atoms, pager);
   const total = pager.pages.length;
   const footer: Style = { font: 'F1', size: 8, color: MUTED };
   const pages: PdfPage[] = pager.pages.map((p, i) => {
     const label = `Page ${i + 1} of ${total}`;
-    const g = new Pager();
+    const g = new Pager(size);
     g.pages = [p];
-    g.text(MARGIN_X, PAGE_HEIGHT - 34, title.length > 90 ? `${title.slice(0, 89)}…` : title, footer);
-    g.text(PAGE_WIDTH - MARGIN_X - textWidth(label, 'F1', 8), PAGE_HEIGHT - 34, label, footer);
+    g.text(MARGIN_X, pager.height - 34, title.length > 90 ? `${title.slice(0, 89)}…` : title, footer);
+    g.text(pager.width - MARGIN_X - textWidth(label, 'F1', 8), pager.height - 34, label, footer);
     return { ops: p.ops.join('\n'), links: p.links };
   });
   return { pages, outline: pager.outline };

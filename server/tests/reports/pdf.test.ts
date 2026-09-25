@@ -9,7 +9,7 @@ import { renderOverview } from '../../src/reports/overview.js';
 import { renderSecurityReport } from '../../src/reports/security-report.js';
 import { textWidth, fullyRepresentable } from '../../src/reports/pdf/fonts.js';
 import { decodeEntities } from '../../src/reports/pdf/html.js';
-import { htmlToPdf } from '../../src/reports/pdf/index.js';
+import { PAGE_SIZES, htmlToPdf, pageSizeOf, type PageSize } from '../../src/reports/pdf/index.js';
 import type { ReportModel } from '../../src/reports/types.js';
 import { buildReportModel } from '../fixtures/reports/model.js';
 
@@ -51,7 +51,8 @@ function readPdf(pdf: Buffer) {
       ops.push({ page, font: op[1]!, size: Number(op[2]), x: Number(op[3]), y: Number(op[4]), text });
     }
   }
-  return { raw, pageCount, ops, text: ops.map((o) => o.text).join('\n') };
+  const box = /\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/.exec(raw);
+  return { raw, pageCount, ops, text: ops.map((o) => o.text).join('\n'), width: Number(box?.[1]), height: Number(box?.[2]) };
 }
 
 const wrapHtml = (body: string, title = 'Test report') => `<!doctype html><html><head><title>${title}</title><style>body{}</style></head><body><div class="page"><main>${body}</main></div></body></html>`;
@@ -85,6 +86,34 @@ describe('htmlToPdf: the file', () => {
     expect((raw.match(/\/Title <feff/g) ?? []).length).toBe(3); // the document title and two bookmarks
     expect(raw).toContain('/CreationDate (D:20260925120000Z)');
     expect(raw).toContain('/DisplayDocTitle true');
+  });
+});
+
+describe('htmlToPdf: paper size', () => {
+  const html = wrapHtml(`<h2>Sizes</h2><table><thead><tr><th>Id</th><th>Note</th></tr></thead><tbody>${Array.from({ length: 90 }, (_, i) => `<tr><td>R-${i}</td><td>${'word '.repeat(12)}</td></tr>`).join('')}</tbody></table>`);
+
+  it('is US Letter unless told otherwise, and A4 on request, and says so in the file', () => {
+    const letter = htmlToPdf(html);
+    const a4 = htmlToPdf(html, { pageSize: 'a4' });
+    expect([readPdf(letter).width, readPdf(letter).height]).toEqual([612, 792]);
+    expect([readPdf(a4).width, readPdf(a4).height]).toEqual([595.28, 841.89]);
+    expect(pageSizeOf(letter)).toBe('letter');
+    expect(pageSizeOf(a4)).toBe('a4');
+    expect(pageSizeOf(Buffer.from('%PDF-1.4 not ours'))).toBeUndefined();
+    expect(letter.equals(htmlToPdf(html, { pageSize: 'letter' }))).toBe(true);
+  });
+
+  it('fills each paper to its own foot: the shorter page holds fewer rows, and every row is still printed', () => {
+    const letter = readPdf(htmlToPdf(html, { pageSize: 'letter' }));
+    const a4 = readPdf(htmlToPdf(html, { pageSize: 'a4' }));
+    const rowsOnFirstPage = (pdf: ReturnType<typeof readPdf>) => pdf.ops.filter((o) => o.page === 1 && /^R-\d+$/.test(o.text)).length;
+    expect(rowsOnFirstPage(letter)).toBeLessThan(rowsOnFirstPage(a4));
+    for (const pdf of [letter, a4]) for (let i = 0; i < 90; i++) expect(pdf.text).toContain(`R-${i}`);
+    // The last body line on each page stays above the footer, whatever the paper.
+    for (const pdf of [letter, a4]) {
+      const foot = pdf.height - 60;
+      for (const o of pdf.ops.filter((x) => /^R-\d+$/.test(x.text))) expect(pdf.height - o.y, o.text).toBeLessThanOrEqual(foot + 0.5);
+    }
   });
 });
 
@@ -130,7 +159,7 @@ describe('htmlToPdf: what gets onto the page', () => {
   it('never runs text off the page: a path longer than the line is cut, at a slash where there is one', () => {
     const long = `/very/long/${'segment-'.repeat(40)}end`;
     const pdf = readPdf(htmlToPdf(wrapHtml(`<p>${long}</p><pre>${'x'.repeat(400)}</pre>`)));
-    for (const o of pdf.ops) expect(o.x + textWidth(o.text, o.font as 'F1', o.size), o.text.slice(0, 30)).toBeLessThanOrEqual(595.28 - 48 + 0.5);
+    for (const o of pdf.ops) expect(o.x + textWidth(o.text, o.font as 'F1', o.size), o.text.slice(0, 30)).toBeLessThanOrEqual(pdf.width - 48 + 0.5);
     expect(pdf.ops.map((o) => o.text).join('').replace(/\s/g, '')).toContain(long.replace(/\s/g, ''));
   });
 });
@@ -209,11 +238,14 @@ describe('htmlToPdf: the real reports', () => {
     ];
   }
 
-  it('lays out every report inside the margins, with every heading and the app name present', () => {
+  it.each(['letter', 'a4'] as PageSize[])('lays out every report on %s paper inside the margins, with every heading and the app name present', (pageSize) => {
     for (const [name, html] of reports()) {
-      const pdf = readPdf(htmlToPdf(html));
+      const pdf = readPdf(htmlToPdf(html, { pageSize }));
       expect(pdf.pageCount, name).toBeGreaterThan(0);
-      for (const o of pdf.ops) expect(o.x + textWidth(o.text, o.font as 'F1', o.size), `${name}: ${o.text.slice(0, 30)}`).toBeLessThanOrEqual(595.28 - 48 + 0.5);
+      expect([pdf.width, pdf.height]).toEqual([PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height]);
+      for (const o of pdf.ops) expect(o.x + textWidth(o.text, o.font as 'F1', o.size), `${name}: ${o.text.slice(0, 30)}`).toBeLessThanOrEqual(pdf.width - 48 + 0.5);
+      for (const o of pdf.ops) expect(o.y, `${name}: ${o.text.slice(0, 30)}`).toBeGreaterThan(0);
+      expect(Math.max(...pdf.ops.map((o) => o.y)), name).toBeLessThanOrEqual(pdf.height);
       for (const h of html.matchAll(/<h2>([^<]+)<\/h2>/g)) {
         const heading = decodeEntities(h[1]!);
         expect(pdf.text, `${name}: ${heading}`).toContain(heading.split(' ')[0]!);

@@ -5,8 +5,20 @@
 import { deflateSync } from 'node:zlib';
 import { FONTS, type FontKey } from './fonts.js';
 
-export const PAGE_WIDTH = 595.28;
-export const PAGE_HEIGHT = 841.89;
+/** Paper sizes in points (1/72 inch). US Letter is the default; A4 is the other one people ask for. */
+export const PAGE_SIZES = {
+  letter: { width: 612, height: 792 },
+  a4: { width: 595.28, height: 841.89 },
+} as const;
+export type PageSize = keyof typeof PAGE_SIZES;
+export const DEFAULT_PAGE_SIZE: PageSize = 'letter';
+
+/** The paper size a PDF written by this module says it is on, or undefined for any other file. */
+export function pageSizeOf(pdf: Buffer): PageSize | undefined {
+  const m = /\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/.exec(pdf.subarray(0, 8192).toString('latin1')); // the first page object sits near the start
+  if (!m) return undefined;
+  return (Object.keys(PAGE_SIZES) as PageSize[]).find((k) => Math.abs(PAGE_SIZES[k].width - Number(m[1])) < 0.1 && Math.abs(PAGE_SIZES[k].height - Number(m[2])) < 0.1);
+}
 
 export interface PageLink {
   x1: number;
@@ -30,6 +42,7 @@ export interface OutlineEntry {
 
 export interface PdfMeta {
   title: string;
+  size: PageSize;
   /** ISO timestamp for the creation date; left out when it does not parse. */
   createdAt?: string;
 }
@@ -55,6 +68,7 @@ function pdfDate(iso: string | undefined): string | undefined {
 const num = (n: number) => (Math.round(n * 100) / 100).toString();
 
 export function writePdf(pages: PdfPage[], outline: OutlineEntry[], meta: PdfMeta): Buffer {
+  const { width: PAGE_WIDTH, height: PAGE_HEIGHT } = PAGE_SIZES[meta.size];
   const objects: Buffer[] = []; // objects[i] is object number i + 1
   const add = (body: string | Buffer): number => {
     objects.push(Buffer.isBuffer(body) ? body : Buffer.from(body, 'latin1'));

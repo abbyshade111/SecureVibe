@@ -38,6 +38,7 @@ async function main(): Promise<void> {
     knowledge: loadKnowledge(),
     frameworks: loadFrameworks(),
     securevibeVersion: config.version,
+    pdfPageSize: config.settings.get().pdfPageSize,
   });
   if (!outcome.ok) throw new Error(outcome.reason);
   run.artifacts = outcome.result.artifacts;

@@ -31,6 +31,8 @@ export interface RenderReportsInput {
   knowledge: Knowledge;
   frameworks: Frameworks;
   securevibeVersion: string;
+  /** Paper size of the PDF copies; US Letter when left out. */
+  pdfPageSize?: 'letter' | 'a4';
 }
 
 export interface RenderReportsResult {
