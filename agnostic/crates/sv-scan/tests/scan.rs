@@ -508,6 +508,16 @@ const WITNESSES: &[(&str, &str, &str)] = &[
         "describe.py",
         "content = [\n    {\"type\": \"text\", \"text\": prompt},\n    {\"type\": \"image_url\", \"image_url\": {\"url\": data_url}},\n]\n",
     ),
+    (
+        "multiple-services",
+        "orders_client.py",
+        "import grpc\nfrom . import inventory_pb2_grpc\n\nchannel = grpc.insecure_channel(\"inventory:50051\")\nstock = inventory_pb2_grpc.InventoryStub(channel)\n",
+    ),
+    (
+        "multiple-services",
+        "consumer.ts",
+        "@Controller()\nexport class OrdersController {\n  @MessagePattern('order_created')\n  handle(@Payload() order: Order) {\n    return this.billing.charge(order);\n  }\n}\n",
+    ),
 ];
 
 #[test]
@@ -540,6 +550,8 @@ fn the_file_based_corroborators_fire_on_the_paths_they_name() {
         ("public-api", "openapi.yaml"),
         ("tls", "Caddyfile"),
         ("internet", "fly.toml"),
+        ("multiple-services", "inventory.proto"),
+        ("multiple-services", "asyncapi.yaml"),
     ];
     let sigs = all_signatures();
     for (condition_name, file) in cases {
@@ -886,5 +898,60 @@ fn a_kotlin_build_script_with_no_lockfile_pins_nothing() {
     assert!(
         unpinned.iter().any(|e| e.manifest == "build.gradle.kts"),
         "{unpinned:?}"
+    );
+}
+
+#[test]
+fn an_app_with_a_database_beside_it_is_not_multiple_services() {
+    // The commonest shape of all: one web app, a compose file that starts it next to Postgres, an
+    // HTTP client for an outside API. None of that is services talking to each other, and a
+    // contradiction banner telling this owner otherwise would be noise they learn to skip.
+    let report = scan_files(
+        "single-service",
+        &[
+            (
+                "docker-compose.yml",
+                "services:\n  web:\n    build: .\n    ports: [\"8000:8000\"]\n  db:\n    image: postgres:16\n",
+            ),
+            (
+                "requirements.txt",
+                "flask==3.0.0\nrequests==2.32.0\npsycopg==3.2.0\n",
+            ),
+            (
+                "requirements.lock",
+                "flask==3.0.0\nrequests==2.32.0\npsycopg==3.2.0\n",
+            ),
+            (
+                "app.py",
+                "import requests\nfrom flask import Flask\n\napp = Flask(__name__)\n\n@app.get('/rates')\ndef rates():\n    return requests.get('https://example.test/rates', timeout=5).json()\n",
+            ),
+        ],
+    );
+    let found = answer(&report, Condition::MultipleServices);
+    assert_ne!(found.value, Some(true), "{:?}", found.evidence);
+}
+
+#[test]
+fn a_declared_broker_client_answers_multiple_services() {
+    // The dependency route, which neither witness above takes.
+    let report = scan_files(
+        "broker-dep",
+        &[
+            (
+                "package.json",
+                "{\"name\":\"orders\",\"dependencies\":{\"kafkajs\":\"^2.2.4\"}}",
+            ),
+            (
+                "package-lock.json",
+                "{\"name\":\"orders\",\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            ("index.js", "console.log('orders');\n"),
+        ],
+    );
+    let found = answer(&report, Condition::MultipleServices);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, .. } if name == "kafkajs"),
+        "{:?}",
+        found.evidence
     );
 }
