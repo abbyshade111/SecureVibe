@@ -11,9 +11,10 @@ another session is not a claim.
   scripts". Left over: unquoted variables are ShellCheck's, which cannot write SARIF; a request value
   copied into another variable before it reaches a path or a redirect is not followed.
 
-- **Signed-in checks in one container.** *Claimed 25 September 2026 by session securevibe-e8 (branch
-  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Every probe request starts
-  a container of its own, so a signed-in run takes about a minute.
+- ~~**Signed-in checks in one container.**~~ Done on 25 September 2026 by session securevibe-e8. Every
+  request is now an `exec` into one sidecar started per run, not a container of its own: a signed-in run
+  of `examples/notes-with-users` went from 11–13 seconds to 4.3, with the same answers. See DESIGN,
+  "One sidecar per run".
 
 - **Corroborators for the remaining claims.** `multiple-services` done on 25 September 2026: gRPC and its `.proto`
   contracts, AsyncAPI documents, message-broker clients, microservice frameworks and service discovery,

@@ -6,9 +6,12 @@
 //!    from this computer. That last part is the reason there is no published port anywhere below.
 //! 2. Start the app on it, with its folder mounted read-only and no credentials in its environment.
 //! 3. Wait for it to answer its health path — from a **sidecar container on the same network**,
-//!    because the host cannot reach it.
-//! 4. Run the declared test command inside the app container.
-//! 5. Tear everything down, whatever happened.
+//!    because the host cannot reach it. The sidecar is started once and every request after is an
+//!    `exec` into it: a container started per request cost about half a second each, and a
+//!    signed-in run makes twenty-odd requests.
+//! 4. Ask the probes, anonymous and signed in, through the same sidecar; then remove it.
+//! 5. Run the declared test command inside the app container.
+//! 6. Tear everything down, whatever happened.
 
 use crate::{Backend, CannotRun, Fence, REPORT_DIR, RunOutcome, RunPlan, TestResult, output_of};
 use std::process::Command;
@@ -17,6 +20,10 @@ use std::process::Command;
 const READY_TIMEOUT_SECONDS: u64 = 60;
 /// The image the probes run from. Tiny, and already needed for the health check.
 const PROBE_IMAGE: &str = "busybox:1.36";
+/// How long the sidecar may live if nothing removes it. It is removed as soon as the probes are
+/// done, and by the teardown whatever happens; this is the bound for a run that dies without either,
+/// so a crash cannot leave a container behind on the owner's machine for longer than this.
+const SIDECAR_SECONDS: u64 = 900;
 
 pub struct DockerBackend {
     binary: String,
@@ -69,10 +76,11 @@ impl Backend for DockerBackend {
         let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
+        let sidecar = format!("{run_id}-probe");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
-            container: app.clone(),
+            containers: vec![app.clone(), sidecar.clone()],
         };
 
         // 1. The fence.
@@ -139,8 +147,15 @@ impl Backend for DockerBackend {
             });
         }
 
-        // 3. Ready, judged from inside the fence.
-        let healthy = self.wait_until_ready(&network, &app, plan);
+        // 3. Ready, judged from inside the fence, by the sidecar every request goes through. If it
+        //    cannot be started, each request starts a container of its own instead, as before:
+        //    slower, and the same answers.
+        let via = if self.start_sidecar(&network, &sidecar) {
+            Via::Sidecar(&sidecar)
+        } else {
+            Via::FreshContainer(&network)
+        };
+        let healthy = self.wait_until_ready(&via, &app, plan);
         if !healthy {
             let logs = self
                 .docker(&["logs", "--tail", "20", &app])
@@ -158,7 +173,7 @@ impl Backend for DockerBackend {
         //    and "the app has no Content-Security-Policy" are not the same sentence.
         let probe_responses = probes
             .iter()
-            .filter_map(|request| self.probe(&network, &app, plan.port, request))
+            .filter_map(|request| self.probe(&via, &app, plan.port, request))
             .collect();
 
         // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
@@ -166,7 +181,11 @@ impl Backend for DockerBackend {
         let signed_in = plan
             .users
             .as_ref()
-            .map(|users| self.signed_in(&network, &app, plan, users));
+            .map(|users| self.signed_in(&via, &app, plan, users));
+
+        // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
+        // the tests, which can take as long as they like.
+        let _ = self.docker(&["rm", "-f", &sidecar]);
 
         // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
@@ -234,7 +253,7 @@ impl Backend for DockerBackend {
 /// probes are made, so signing in happens inside the fence too.
 struct DockerHttp<'a> {
     backend: &'a DockerBackend,
-    network: &'a str,
+    via: &'a Via<'a>,
     app: &'a str,
     port: u16,
 }
@@ -244,8 +263,7 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
         &mut self,
         request: &sv_check::probes::ProbeRequest,
     ) -> Option<sv_check::probes::ProbeResponse> {
-        self.backend
-            .probe(self.network, self.app, self.port, request)
+        self.backend.probe(self.via, self.app, self.port, request)
     }
 }
 
@@ -253,7 +271,7 @@ impl DockerBackend {
     /// Makes the accounts, then asks what they can do.
     fn signed_in(
         &self,
-        network: &str,
+        via: &Via,
         app: &str,
         plan: &RunPlan,
         users: &sv_manifest::UsersSection,
@@ -261,7 +279,7 @@ impl DockerBackend {
         let accounts = crate::new_accounts(!users.admin.is_empty());
         let mut http = DockerHttp {
             backend: self,
-            network,
+            via,
             app,
             port: plan.port,
         };
@@ -347,12 +365,53 @@ impl DockerBackend {
         }
     }
 
-    /// Polls the health path from a throw-away container on the same internal network.
+    /// Starts the container every request to the app is sent from, on the app's fenced network.
+    ///
+    /// It has nothing to write and nothing to be allowed, so it is given neither: a read-only file
+    /// system, no capabilities, and no way to gain privileges. It runs `sleep` and nothing else until
+    /// a request is `exec`ed into it. `--rm` and the time limit mean a run that dies without its
+    /// teardown still leaves nothing behind for long.
+    fn start_sidecar(&self, network: &str, name: &str) -> bool {
+        let limit = SIDECAR_SECONDS.to_string();
+        matches!(
+            self.docker(&[
+                "run",
+                "-d",
+                "--rm",
+                "--name",
+                name,
+                "--network",
+                network,
+                "--read-only",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                PROBE_IMAGE,
+                "sleep",
+                &limit,
+            ]),
+            Ok((0, _))
+        )
+    }
+
+    /// Runs a command where requests to the app are made from: in the sidecar, or in a throw-away
+    /// container on the same internal network when there is no sidecar.
+    fn inside_fence(&self, via: &Via, command: &[&str]) -> Result<(i32, String), String> {
+        let mut args: Vec<&str> = match via {
+            Via::Sidecar(name) => vec!["exec", name],
+            Via::FreshContainer(network) => vec!["run", "--rm", "--network", network, PROBE_IMAGE],
+        };
+        args.extend_from_slice(command);
+        self.docker(&args)
+    }
+
+    /// Polls the health path from inside the fence.
     ///
     /// This is the part that could not be done from the host. An `--internal` network is
     /// unreachable from this computer whether or not a port is published, so the probe has to live
     /// inside the fence with the app.
-    fn wait_until_ready(&self, network: &str, app: &str, plan: &RunPlan) -> bool {
+    fn wait_until_ready(&self, via: &Via, app: &str, plan: &RunPlan) -> bool {
         let url = format!("http://{app}:{}{}", plan.port, plan.health_path);
         let deadline =
             std::time::Instant::now() + std::time::Duration::from_secs(READY_TIMEOUT_SECONDS);
@@ -363,20 +422,9 @@ impl DockerBackend {
             {
                 return false;
             }
-            if let Ok((0, _)) = self.docker(&[
-                "run",
-                "--rm",
-                "--network",
-                network,
-                PROBE_IMAGE,
-                "wget",
-                "-q",
-                "-T",
-                "3",
-                "-O",
-                "/dev/null",
-                &url,
-            ]) {
+            if let Ok((0, _)) =
+                self.inside_fence(via, &["wget", "-q", "-T", "3", "-O", "/dev/null", &url])
+            {
                 return true;
             }
             std::thread::sleep(std::time::Duration::from_secs(2));
@@ -385,16 +433,26 @@ impl DockerBackend {
     }
 }
 
-/// Removes the container and the network however the run ended, including on an early return.
+/// Where requests to the app are sent from.
+enum Via<'a> {
+    /// The run's sidecar, by name: each request is an `exec` into it.
+    Sidecar(&'a str),
+    /// A container started for the one request, on this network, when there is no sidecar.
+    FreshContainer(&'a str),
+}
+
+/// Removes the containers and the network however the run ended, including on an early return.
 struct Teardown<'a> {
     backend: &'a DockerBackend,
     network: String,
-    container: String,
+    containers: Vec<String>,
 }
 
 impl Drop for Teardown<'_> {
     fn drop(&mut self) {
-        let _ = self.backend.docker(&["rm", "-f", &self.container]);
+        for container in &self.containers {
+            let _ = self.backend.docker(&["rm", "-f", container]);
+        }
         let _ = self.backend.docker(&["network", "rm", &self.network]);
     }
 }
@@ -549,14 +607,14 @@ fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse
 }
 
 impl DockerBackend {
-    /// Makes one request to the app from a throw-away container on the same fenced network.
+    /// Makes one request to the app from inside the fence.
     ///
     /// HTTP is spoken directly over a socket rather than through a client, for two reasons found by
     /// trying the alternative: `wget` returns no body at all for a 404 or a 500, which is exactly the
     /// response the error-page probe needs to read, and it cannot send a method other than GET or POST.
-    pub fn probe(
+    fn probe(
         &self,
-        network: &str,
+        via: &Via,
         app: &str,
         port: u16,
         request: &sv_check::probes::ProbeRequest,
@@ -566,18 +624,7 @@ impl DockerBackend {
             "echo {} | base64 -d | nc -w 5 {app} {port}",
             base64(raw.as_bytes())
         );
-        let (code, out) = self
-            .docker(&[
-                "run",
-                "--rm",
-                "--network",
-                network,
-                PROBE_IMAGE,
-                "sh",
-                "-c",
-                &script,
-            ])
-            .ok()?;
+        let (code, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
         if code != 0 && out.trim().is_empty() {
             return None;
         }

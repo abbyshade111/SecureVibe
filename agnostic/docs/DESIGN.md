@@ -942,6 +942,28 @@ used `alpine:3`, whose busybox has no `httpd` applet: every container exited imm
 made the *default bridge* look fenced too. The table above comes from a run with a live target and a host
 baseline confirming this machine can reach the outside at all — without that line, "blocked" means nothing.
 
+### One sidecar per run, not one per request
+
+The sidecar used to be a new container for every request: `docker run --rm` into the fence, one
+request, gone. That is simple and each request is clean, and it cost about half a second a request.
+The anonymous probes are four requests, so nobody noticed. The signed-in checks are twenty-odd, made
+one after another because each depends on the cookies the last one returned, and a run of
+`examples/notes-with-users` took 11 to 13 seconds on the machine that measured it, 22 on a busy one, and
+by an earlier estimate about a minute on a slow one. Logging every Docker call showed where the time
+went: 26 throwaway containers were 13 of those seconds, and nothing else was more than a quarter of one.
+
+Now the sidecar is started once, just before the health check, and every request is an `exec` into it:
+0.11 seconds against 0.48 measured side by side. It is removed as soon as the last request is made,
+before the tests run, and by the teardown whatever happens. It has nothing to write and nothing to be
+allowed, so it is given neither: a read-only file system, no capabilities, no way to gain privileges.
+It runs `sleep` with `--rm` and a 15-minute limit, so a run that dies without its teardown leaves
+nothing behind for longer than that. If it cannot be started, each request starts its own container
+as before: slower, the same answers.
+
+The same run, three times each way: 11 to 13 seconds before, 4.3 after, the same ten checks confirmed,
+and a text-identical report. A copy of the example with five flaws switched on had all five found in 4.2
+seconds, and no container or network was left behind by any of it.
+
 ### What the probes ask, and what they cannot
 
 Four requests, made from the sidecar over a plain socket rather than through an HTTP client. `wget` was
