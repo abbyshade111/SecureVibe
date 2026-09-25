@@ -23,7 +23,7 @@ cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding t
 ```
 
 The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
-Rust, C, Dart and Swift. A language
+Rust, C, Dart, Swift, and shell scripts. A language
 outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
 anything about the app at all, and the report says which language stopped it. The same holds one rule at
 a time: a rule that has not been taught a language in your app claims nothing, and the report names the

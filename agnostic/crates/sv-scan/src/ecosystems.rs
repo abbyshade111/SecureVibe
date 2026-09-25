@@ -345,6 +345,7 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
         "c" | "h" => "c",
         "dart" => "dart",
         "swift" => "swift",
+        "sh" | "bash" => "shell",
         "cc" | "cpp" | "cxx" | "hpp" | "hh" => "cpp",
         "html" | "htm" | "vue" | "svelte" => "html",
         _ => return None,
@@ -354,6 +355,11 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
 /// Languages the code rules read that the technology scan does not: none of their dependency files
 /// (`pubspec.yaml`, `Package.swift`) is read, and no signature has a source pattern for them. Their
 /// files count as not looked in, so a technology is never called absent on their account.
+///
+/// Shell is read by the code rules and deliberately not listed. Before it had a grammar a `.sh` file
+/// was invisible to this scan, which drew its conclusions without it; listing it would take every
+/// "this app does not use X" answer away from any app with one deploy script, to cover a technology
+/// written only in shell, which is rare. The price is stated in DESIGN rather than paid silently.
 pub const NO_TECHNOLOGY_READER: &[&str] = &["dart", "swift"];
 
 /// Directories never worth walking: installed dependencies, build output, version control. Their

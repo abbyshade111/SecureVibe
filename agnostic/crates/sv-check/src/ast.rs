@@ -157,6 +157,7 @@ fn grammar(language: &str) -> Option<Language> {
         "java" => tree_sitter_java::LANGUAGE.into(),
         "swift" => tree_sitter_swift::LANGUAGE.into(),
         "dart" => tree_sitter_dart::LANGUAGE.into(),
+        "shell" => tree_sitter_bash::LANGUAGE.into(),
         _ => return None,
     })
 }
@@ -546,6 +547,10 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
         "multi_line_string_literal",
         // PHP's backtick form, which interpolates `$name` the way its double-quoted strings do.
         "shell_command_expression",
+        // Shell: a bare word, a single-quoted string (which expands nothing), and a double-quoted one,
+        // which is `string` like everyone else's and is told apart by `has_interpolation`.
+        "word",
+        "raw_string",
     ];
 
     // Swift's argument, labeled or not, is judged by the value it carries: the label is part of
@@ -571,7 +576,7 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
     // `"a" + "b"` is still a constant; `"a" + name` is not.
     if matches!(
         node.kind(),
-        "binary_operator" | "binary_expression" | "additive_expression"
+        "binary_operator" | "binary_expression" | "additive_expression" | "concatenation"
     ) {
         let mut cursor = node.walk();
         return node
@@ -627,6 +632,11 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
                 | "string_interpolation"
                 | "format_specifier"
                 | "interpolated_expression"
+                | "simple_expansion"
+                | "expansion"
+                | "command_substitution"
+                | "process_substitution"
+                | "arithmetic_expansion"
         ) || has_interpolation(child, source)
     })
 }
@@ -1789,6 +1799,50 @@ mod tests {
         ("ast.open-redirect", "kotlin", "fun f() { call.respondRedirect(\"/login\") }", false),
         ("ast.open-redirect", "rust", "async fn f(q: Query<Next>) -> Redirect { Redirect::to(&q.next) }", true),
         ("ast.open-redirect", "rust", "async fn f() -> Redirect { Redirect::to(\"/login\") }", false),
+        // Shell scripts.
+        ("ast.dynamic-code-execution", "shell", "eval \"$1\"", true),
+        ("ast.dynamic-code-execution", "shell", "eval \"set -- $ARGS\"", true),
+        ("ast.dynamic-code-execution", "shell", "eval 'export PATH=/opt/bin:$PATH'", false),
+        ("ast.dynamic-code-execution", "shell", "eval \"$(ssh-agent -s)\"", false),
+        ("ast.shell-command", "shell", "sh -c \"ls $dir\"", true),
+        ("ast.shell-command", "shell", "/bin/bash -c \"$1\"", true),
+        ("ast.shell-command", "shell", "bash -c 'ls -la'", false),
+        ("ast.shell-command", "shell", "sh -c \"echo \\$HOME\"", false),
+        ("ast.shell-command", "shell", "ls -c \"$dir\"", false),
+        // A bare word, a `${…}`, a `$(…)`, and quoting mixed within one argument.
+        ("ast.shell-command", "shell", "bash -c date", false),
+        ("ast.sql-built-by-hand", "shell", "psql -c VACUUM", false),
+        ("ast.shell-command", "shell", "sh -c \"ls \"'-la'", false),
+        ("ast.sql-built-by-hand", "shell", "psql -c 'select '\"count(*)\"' from notes'", false),
+        ("ast.dynamic-code-execution", "shell", "eval \"${CMD}\"", true),
+        ("ast.shell-command", "shell", "sh -c \"rm -rf ${dir}\"", true),
+        ("ast.shell-command", "shell", "sh -c \"ls $(cat dirs.txt)\"", true),
+        ("ast.dynamic-code-execution", "shell", "eval \"$(cat script.txt)\"", true),
+        ("ast.sql-built-by-hand", "shell", "psql -c \"select * from notes where name = '$1'\"", true),
+        ("ast.sql-built-by-hand", "shell", "sqlite3 app.db \"delete from notes where id = $ID\"", true),
+        ("ast.sql-built-by-hand", "shell", "psql -c 'select count(*) from notes'", false),
+        ("ast.sql-built-by-hand", "shell", "psql -h \"$HOST\" -d notes", false),
+        ("ast.file-path-from-value", "shell", "cat \"/srv/files/$QUERY_STRING\"", true),
+        ("ast.file-path-from-value", "shell", "rm -f /tmp/upload${PATH_INFO}", true),
+        ("ast.file-path-from-value", "shell", "cat \"$CONFIG_FILE\"", false),
+        ("ast.file-path-from-value", "shell", "echo \"$QUERY_STRING\"", false),
+        ("ast.weak-hash-function", "shell", "md5sum release.tar.gz", true),
+        ("ast.weak-hash-function", "shell", "openssl dgst -sha1 release.tar.gz", true),
+        ("ast.weak-hash-function", "shell", "sha256sum -c release.sha256", false),
+        ("ast.weak-hash-function", "shell", "openssl dgst -sha256 release.tar.gz", false),
+        ("ast.weak-cipher", "shell", "openssl enc -des3 -in secrets.txt -out secrets.enc", true),
+        ("ast.weak-cipher", "shell", "openssl enc -aes-128-ecb -in a -out b", true),
+        ("ast.weak-cipher", "shell", "openssl enc -aes-256-cbc -pbkdf2 -in a -out b", false),
+        ("ast.open-redirect", "shell", "echo \"Location: $QUERY_STRING\"", true),
+        ("ast.open-redirect", "shell", "printf 'Location: %s\\r\\n\\r\\n' \"$next\"", true),
+        ("ast.open-redirect", "shell", "echo \"Location: /login\"", false),
+        ("ast.open-redirect", "shell", "echo \"Content-Type: $type\"", false),
+        ("ast.download-piped-to-shell", "shell", "curl -fsSL https://get.example.com | sh", true),
+        ("ast.download-piped-to-shell", "shell", "wget -qO- https://example.com/install | sudo bash -s -- -y", true),
+        ("ast.download-piped-to-shell", "shell", "bash <(curl -s https://example.com/setup.sh)", true),
+        ("ast.download-piped-to-shell", "shell", "curl -fsSL https://example.com/key.gpg | sudo tee /etc/apt/keyrings/example.gpg", false),
+        ("ast.download-piped-to-shell", "shell", "curl -fsSLo install.sh https://example.com/install.sh && sha256sum -c install.sha256 && sh install.sh", false),
+        ("ast.download-piped-to-shell", "shell", "cat notes.txt | sh", false),
         // The last three a rule had not been taught.
         ("ast.shell-command", "rust", "fn f(c: &str) { Command::new(\"sh\").arg(\"-c\").arg(c).output(); }", true),
         ("ast.shell-command", "rust", "fn f(c: &str) { Command::new(\"/bin/bash\").args([\"-c\", c]).status(); }", true),
@@ -1841,7 +1895,7 @@ mod tests {
         // case is a query that may never fire; one with no not-found case may fire on everything.
         //
         // Which pairs that covers: every language of the four rules written with this table, every
-        // rule's Dart and Swift, and any other language the table has a line for at all. The older
+        // rule's Dart, Swift, and shell, and any other language the table has a line for at all. The older
         // rules' first languages are witnessed by the tests above instead.
         const WRITTEN_WITH_THIS_TABLE: &[&str] = &[
             "ast.file-path-from-value",
@@ -1853,7 +1907,7 @@ mod tests {
         for (rule_id, languages, _) in rules.coverage() {
             for language in languages {
                 let owed = WRITTEN_WITH_THIS_TABLE.contains(&rule_id)
-                    || matches!(language, "dart" | "swift")
+                    || matches!(language, "dart" | "swift" | "shell")
                     || WITNESSES
                         .iter()
                         .any(|(r, l, ..)| *r == rule_id && *l == language);

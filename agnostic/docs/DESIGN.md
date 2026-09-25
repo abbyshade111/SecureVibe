@@ -487,6 +487,44 @@ wrong reason: `config.load(path)` was being excluded by the query's own shape, b
 receiver is an `identifier` and the query asks for a `constant`. The receiver pattern could have been
 deleted with every test still green. `Settings.load(path)` is the case that actually exercises it.
 
+### Shell scripts
+
+AI coding tools put a deploy or setup script in most repositories, and until 25 September 2026 `sv`
+did not count `.sh` at all: not read, and not listed as unread either. Now `.sh` and `.bash` are read with
+the Bash grammar, as the language `shell`, and every rule is taught it or says why there is nothing to
+find. A shell script is not an application, so most of what the rules look for looks different in one:
+
+- **Code and commands.** `eval "$x"` is the code-execution rule's and `sh -c "… $x"` is the
+  shell-command rule's. `eval "$(ssh-agent -s)"` is the idiom every setup guide prints, running the
+  output of a fixed program, and is named as safe. Single quotes expand nothing, so `sh -c '…'` is a
+  literal whatever it holds, and a double-quoted string is literal unless something is expanded in it.
+- **A download piped into a shell** is a rule of its own, `ast.download-piped-to-shell`, citing V15.2.4
+  (third-party components included from the expected repository). `curl … | sh`, `wget -qO- … | sudo
+  bash`, and `bash <(curl …)` run whatever the address serves, unchecked. `curl … | sudo tee` writes a
+  file and is not reported, and neither is the download-check-run form the rule's fix describes.
+  `sh -c "$(curl …)"` is found by the shell-command rule instead. Every other language has no pipe
+  syntax, and says so; a literal `curl … | sh` written inside a Python string and handed to a shell is
+  found by neither rule, because the shell-command rule only reports commands built from a value.
+- **SQL, hashes, and ciphers** are the command-line tools: `psql -c`, `mysql -e`, `sqlite3 app.db`,
+  `md5sum`, `openssl dgst -sha1`, `openssl enc -des3`.
+- **Paths and redirects only for CGI.** In a deploy script `cat "$FILE"` is the whole point, and a
+  path-from-a-value rule would report every line. What V5.3.2 and V3.7.2 are about in shell is a CGI
+  script, so those two look only at the request variables the web server sets (`QUERY_STRING`,
+  `PATH_INFO`, `REQUEST_URI`, `HTTP_*`), written into a path or a `Location:` header. A request value
+  copied into another variable first is not followed.
+
+Two things stay out on purpose. Unquoted variables are the commonest shell bug, but they are word
+splitting rather than an ASVS requirement, and ShellCheck already finds them; it cannot write SARIF, so
+it cannot be an adapter under the rule that adapters speak SARIF only. And the technology scan does not
+treat shell as a language it failed to look in, as it does Dart and Swift: before the grammar a `.sh`
+file was invisible to it, and listing shell would take every "this app does not use X" answer away from
+any app with a deploy script. The price is that a technology written only in shell, a CGI app in Bash
+using XML, say, is called absent.
+
+A shell file whose parse holds an error silences every rule's claim for the app, the same as any other
+language. The Bash grammar reads Bash; a `.sh` file written in zsh's own syntax may not parse, and the
+report then names it.
+
 ## The language's own tool
 
 Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already

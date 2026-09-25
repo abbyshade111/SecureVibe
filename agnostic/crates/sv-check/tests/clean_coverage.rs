@@ -389,6 +389,7 @@ fn every_real_rule_is_taught_every_language_it_meets_here() {
         ("a.c", "int main(void) { return 0; }\n"),
         ("a.dart", "void main() {}\n"),
         ("a.swift", "let x = 1\n"),
+        ("a.sh", "echo hi\n"),
     ];
     let scan = scan_files("every-language", &files);
     assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
