@@ -94,6 +94,10 @@ another session is not a claim.
   threat. See DESIGN, "The security notes". Left over, each its own piece of work: the policy numbers
   in securevibe.toml that the probes can test (about eight requirements, V6.3.1 at level 1 among
   them), and the design questions answered as *attested by the owner*.
+  **The design questions are claimed on 25 September 2026 by session securevibe-e8**, as the next
+  piece: `data/design-questions.json`, a `[design]` section in securevibe.toml, and an *attested*
+  tier weaker than *documented*, because the owner asserting a property is not the property. An
+  answer of no, and a `where` pointing at a file that is not there, are both findings.
 
   **The "about eight" in the paragraph above was wrong, and is struck out.** It was written from the
   count of requirements that ask for behavior to match a document, without reading them. There are
