@@ -85,6 +85,12 @@ pub struct AstRules {
 }
 
 impl AstRules {
+    /// Every rule as it was loaded. Used by the citation guard, which reads each rule's own words
+    /// back against the requirement it names.
+    pub fn rules(&self) -> impl Iterator<Item = &AstRule> {
+        self.compiled.iter().map(|c| &c.rule)
+    }
+
     /// Every rule, with the languages it can read and the requirements it is about.
     ///
     /// Needed to say what a clean scan covered: a rule is evidence only for the languages it has a

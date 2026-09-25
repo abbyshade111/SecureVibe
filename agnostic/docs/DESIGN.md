@@ -420,10 +420,11 @@ Three decisions, each a way of not lying:
 - **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
   right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
   bandit's install line names two packages, since its SARIF formatter is a separate one.
-- **Rule ids map to requirements one at a time.** Crediting everything a tool knows about to every run
-  of it would make one clean bandit run look like an assessment of injection, secrets, weak hashing and
-  debug mode at once. A finding whose rule id is not in the map carries no requirement, which is a fair
-  thing to be and is shown as such.
+- **Rule ids map to requirements one at a time, and each says what it detects.** Crediting everything a
+  tool knows about to every run of it would make one clean bandit run look like an assessment of
+  injection, secrets, weak hashing and debug mode at once. A finding whose rule id is not in the map
+  carries no requirement, which is a fair thing to be and is shown as such. Each entry's `what` is
+  prose, and it is not decoration — see *The citations were all wrong* below.
 
 Running it is what taught it the distinction it was missing. Semgrep is installed on the machine this
 was written on and cannot start under the sandbox, and the first version reported it as *not installed*
@@ -435,6 +436,59 @@ an owner may send on, and the layout of their home directory is not part of what
 Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands on the same line as
 `sv`'s own SQL rule — two independent tools agreeing, which is worth more than either alone — while
 `bandit.B104` and a semgrep rule are reported carrying no requirement, because nothing has mapped them.
+
+### The citations were all wrong
+
+The mapping from a rule to the requirement it is evidence about is the whole product. A finding whose
+citation is wrong is not a smaller finding — it is a green line, or a red one, against a requirement
+nobody examined, and the report gives its reader no way to tell. On 24 September 2026 nearly every
+citation in `data/adapters.json` and `data/ast-rules.json` was found to be wrong.
+
+ASVS 5.0 `V1.2.1` is *output encoding for an HTTP response, HTML document, or XML document*. It was
+cited for SQL injection and for `eval` by seven rules. `V1.2.2` is *URL encoding*; nine rules cited it
+for OS command injection, which is `V1.2.5`. Eight cited `V11.3.1` — *insecure block modes and weak
+padding* — for MD5 and SHA1, which are `V11.4.1`. `G404`, Go's non-cryptographic random number
+generator, cited the hash-function requirement rather than `V11.5.1`. `G304`, a file path built from
+user input, cited the JavaScript-encoding requirement rather than `V5.3.2`. `G107`, server-side request
+forgery, cited the *database query* requirement. Parameterized queries — the thing half the map is
+actually about — are `V1.2.4`, and nothing cited it.
+
+How this survives is the interesting part, and it is not carelessness. The ids are plausible: they sit
+in the right chapter, in the right family, one or two digits from correct. Nothing in a report looks
+wrong, because the requirement text is not printed next to the rule that cited it. And the tests were
+written *from the map* rather than from the requirement — `a_rule_the_map_does_not_name_carries_no_requirement`
+asserted `B608 -> V1.2.1` and passed for as long as the map said so, which is a test that checks the
+code against itself.
+
+It had been found twice before, both times by accident: five checkers citing `AC-NN` ids that did not
+exist, then every runtime probe citation. The third time was an accident too — an example app written
+to demonstrate test crediting tripped the test-name comparison, which reported that a test named for
+`V1.2.1` shared no words with it. The comparison was right and the example was wrong.
+
+So that same comparison now runs over the data files. `crates/sv-check/tests/citations.rs` reads every
+citation in both files and checks two things: that the id resolves to a loaded requirement, and that the
+rule's own description shares at least one substantive word with the requirement's text. For the second
+to be possible at all, each adapter rule now carries a `what` in prose — a bare id-to-id mapping gives a
+guard nothing to compare, which is precisely why nothing checked it for so long.
+
+The guard is deliberately weak: one word in common, not agreement. It cannot catch a swap between
+neighbouring requirements that share vocabulary — `V1.2.4` cited where `V1.2.7` belongs would pass, both
+being about parameterized queries — and it is stated here so nobody reads a green run as more than it
+is. What it catches is a citation pointing at a different subject altogether, which is every mistake
+actually made here across three occasions. A check that is weak and runs beats a check that is strict
+and gets turned off.
+
+It earned its keep immediately, on the work that introduced it: three of the replacement descriptions
+shared no words with the requirement they cited. All three were correct citations described in the
+wrong vocabulary — "subprocess started with `shell=True`" against a requirement that says *operating
+system command* — and the fix was to describe the rule in the terms the requirement uses, which is the
+discipline the guard exists to impose.
+
+One thing it cannot check, and which is now written down rather than assumed: Brakeman's rule ids in
+`adapters.json` come from its documented warning codes and have never been seen in a real SARIF run,
+because Brakeman cannot be installed in this sandbox. An id that is simply wrong maps nothing, so it
+shows as a finding carrying no requirement rather than as a wrong one — the safe direction, but not a
+verified one.
 
 ### A report from a run
 
@@ -458,8 +512,8 @@ names, and only when the suite it belongs to actually passed.**
 Matching tests to requirements by their words was the obvious design and is refused. A test called
 `test_login` might be about authentication, or sessions, or neither; crediting a requirement on the
 strength of a name somebody chose for other reasons is how a compliance report becomes fiction. `sv init`
-therefore asks the app's author to write the id into the test — `def test_V1_2_1_search_uses_bound_parameters`
-or `# covers V1.2.1` on the line above — and `suite.rs` reads that back. A test that names nothing is not
+therefore asks the app's author to write the id into the test — `def test_V1_2_4_search_uses_bound_parameters`
+or `# covers V1.2.4` on the line above — and `suite.rs` reads that back. A test that names nothing is not
 evidence about anything in particular, which is a perfectly fair thing for a test to be; most tests are.
 
 Three things have to hold before one requirement is credited, and each of them is a way the credit would

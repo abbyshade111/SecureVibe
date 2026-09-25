@@ -445,7 +445,12 @@ const NOISE: &[&str] = &[
     "aisvs",
 ];
 
-fn shares_no_words(test_text: &str, requirement: &str) -> bool {
+/// Whether two pieces of prose have no substantive word in common.
+///
+/// Public because the citation guard (`tests/citations.rs`) compares a rule's description with the
+/// requirement it cites using exactly this test. Two comparisons that are meant to be the same and
+/// are written twice are two comparisons that drift.
+pub fn shares_no_words(test_text: &str, requirement: &str) -> bool {
     let words = |text: &str| -> BTreeSet<String> {
         text.split(|c: char| !c.is_ascii_alphanumeric())
             .map(|w| w.to_lowercase())
