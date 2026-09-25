@@ -535,12 +535,14 @@
           "--sarif",
           "--output",
           "{output}",
+          "--json-output={scanned}",
           "--quiet",
-          "{dir}"
+          "--",
+          "{files}"
         ]
       },
       "install": "pip install semgrep",
-      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app.",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app.",
       "network": true,
       "rules": {
         "ai.ai-best-practices.anthropic-hardcoded-api-key.anthropic-hardcoded-api-key-go.anthropic-hardcoded-api-key-go": {
@@ -9659,7 +9661,8 @@
             "typescript"
           ]
         }
-      }
+      },
+      "working_directory": "{dir}"
     }
   ]
 }

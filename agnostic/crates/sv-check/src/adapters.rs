@@ -99,7 +99,16 @@ pub struct Adapters {
 }
 
 /// A placeholder in an adapter's arguments that this code knows how to fill.
-const PLACEHOLDERS: &[&str] = &["{dir}", "{output}"];
+///
+/// `{files}` stands alone and becomes one argument per code file in the app, relative to it, for a
+/// tool that decides by itself which files in a folder to skip (see `code_files`). `{scanned}` is
+/// where such a tool writes the list of files it read, which is checked against the list it was
+/// given.
+const PLACEHOLDERS: &[&str] = &["{dir}", "{output}", "{files}", "{scanned}"];
+
+/// How much a list of file names may add to a command line. Well inside the smallest limit of the
+/// systems this runs on (macOS allows 1 MiB for arguments and environment together).
+const MOST_FILE_ARGUMENT_BYTES: usize = 256 * 1024;
 
 impl Adapters {
     pub fn load(path: &Path) -> Result<Self> {
@@ -130,6 +139,21 @@ impl Adapters {
                 if let Some(p) = unknown {
                     anyhow::bail!("adapter `{}` uses an unknown placeholder {p}", adapter.id);
                 }
+                if arg.contains("{files}") && arg != "{files}" {
+                    anyhow::bail!(
+                        "adapter `{}` puts {{files}} inside another argument: {arg:?}",
+                        adapter.id
+                    );
+                }
+            }
+            // The file names are relative to the app, so the tool has to be started inside it.
+            if adapter.run.args.iter().any(|a| a == "{files}")
+                && adapter.working_directory.is_none()
+            {
+                anyhow::bail!(
+                    "adapter `{}` is given {{files}} and not run inside the app folder",
+                    adapter.id
+                );
             }
         }
         Ok(Adapters {
@@ -254,12 +278,53 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
         }
     }
 
+    let scanned_path = report_path.with_extension("scanned.json");
+    let names_files = adapter.run.args.iter().any(|a| a == "{files}");
+    let lists_scanned = adapter.run.args.iter().any(|a| a.contains("{scanned}"));
+    // A list left behind by an earlier run would vouch for files this one never read.
+    std::fs::remove_file(&scanned_path).ok();
+    let files = if names_files {
+        code_files(app_dir)
+    } else {
+        Vec::new()
+    };
+    if names_files {
+        if files.is_empty() {
+            return Outcome::NotRun {
+                why: format!(
+                    "there is no code in this app in a language `sv` reads, so {} was given \
+                     nothing to read",
+                    adapter.name
+                ),
+            };
+        }
+        let bytes: usize = files.iter().map(|f| f.len() + 3).sum();
+        if bytes > MOST_FILE_ARGUMENT_BYTES {
+            return Outcome::NotRun {
+                why: format!(
+                    "this app has {} code files, too many to name to {} one by one, and given \
+                     the folder instead it leaves some out without saying which",
+                    files.len(),
+                    adapter.name
+                ),
+            };
+        }
+    }
+
     let fill = |arg: &str| {
         arg.replace("{dir}", &app_dir.to_string_lossy())
             .replace("{output}", &report_path.to_string_lossy())
+            .replace("{scanned}", &scanned_path.to_string_lossy())
     };
     let mut command = Command::new(&adapter.run.command);
-    command.args(adapter.run.args.iter().map(|a| fill(a)));
+    for arg in &adapter.run.args {
+        if arg == "{files}" {
+            // `./` as well as the `--` before it in the data: a file called `-x.py` is a file.
+            command.args(files.iter().map(|f| format!("./{f}")));
+        } else {
+            command.arg(fill(arg));
+        }
+    }
     if adapter.working_directory.is_some() {
         command.current_dir(app_dir);
     }
@@ -287,11 +352,19 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
             ),
         };
     };
+    let scanned = std::fs::read_to_string(&scanned_path).ok();
+    std::fs::remove_file(&scanned_path).ok();
     match parse_sarif_relative_to(adapter, &text, app_dir) {
         Ok(findings) => Outcome::Ran {
             findings,
             loaded: loaded_rules(&text),
-            looked_away: looked_away(adapter, &text, app_dir),
+            looked_away: {
+                let mut reasons = looked_away(adapter, &text, app_dir);
+                if lists_scanned {
+                    reasons.extend(unread_files(&files, scanned.as_deref()));
+                }
+                reasons
+            },
         },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
@@ -446,6 +519,85 @@ pub fn loaded_rules(text: &str) -> BTreeSet<String> {
         })
         .filter_map(|rule| rule["id"].as_str().map(str::to_owned))
         .collect()
+}
+
+/// The app's code files, relative to its folder: every file outside `SKIP_DIRS` whose extension is a
+/// language `sv` knows. The same folders `sv`'s own reading leaves out, and no others.
+///
+/// Given a folder, semgrep 1.178.0 also leaves out `tests/` and `test/`, anything `.gitignore`
+/// covers, and whatever the app's own `.semgrepignore` names, and says nothing about any of it in
+/// its SARIF. Given file names, it reads them all. So a tool that is handed this list reads what
+/// `sv` counts as the app, and what the app says about ignoring does not decide it.
+pub fn code_files(app_dir: &Path) -> Vec<String> {
+    fn walk(root: &Path, dir: &Path, out: &mut Vec<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            // Not followed: a link can lead out of the app, and the tool would read what it found.
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() {
+                if !sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_str()) {
+                    walk(root, &path, out);
+                }
+            } else if kind.is_file()
+                && path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .is_some_and(|e| sv_scan::ecosystems::language_of(&e.to_lowercase()).is_some())
+                && let Ok(relative) = path.strip_prefix(root)
+            {
+                out.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(app_dir, app_dir, &mut out);
+    out.sort();
+    out
+}
+
+/// Which of the files a tool was given it did not read, as a reason not to credit its clean run.
+///
+/// `scanned` is the tool's own list (semgrep's `--json-output`, `paths.scanned`). No list at all is a
+/// reason too: a tool that does not say what it read has not shown it read anything.
+pub fn unread_files(given: &[String], scanned: Option<&str>) -> Option<String> {
+    let Some(document) = scanned.and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+    else {
+        return Some("it did not write the list of files it read".to_owned());
+    };
+    let Some(list) = document["paths"]["scanned"].as_array() else {
+        return Some("the list of files it wrote does not say which it read".to_owned());
+    };
+    let read: BTreeSet<&str> = list
+        .iter()
+        .filter_map(|p| p.as_str())
+        .map(|p| p.trim_start_matches("./"))
+        .collect();
+    let unread: Vec<&str> = given
+        .iter()
+        .map(String::as_str)
+        .filter(|f| !read.contains(f))
+        .collect();
+    if unread.is_empty() {
+        return None;
+    }
+    let shown: Vec<String> = unread.iter().take(5).map(|f| format!("`{f}`")).collect();
+    Some(format!(
+        "it did not read {} of the {} code files it was given ({}{})",
+        unread.len(),
+        given.len(),
+        shown.join(", "),
+        if unread.len() > shown.len() {
+            ", and others"
+        } else {
+            ""
+        }
+    ))
 }
 
 /// Reads a SARIF 2.1.0 document into findings.
