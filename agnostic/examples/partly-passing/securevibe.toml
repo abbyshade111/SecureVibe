@@ -1,0 +1,27 @@
+manifest-version = 1
+
+# A suite where one test fails. `sv report ./examples/partly-passing --run` still credits V1.2.4,
+# because the test runner's own report says that test passed — before `sv` read that report, one
+# broken test anywhere cost the credit of every other test in the suite.
+
+[app]
+name = "Partly passing notes"
+description = "The notes app again, with one deliberately failing test."
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["python"]
+
+[stack.run]
+image = "python:3.12-slim"
+start = "python app.py"
+test = "python run_tests.py"
+test-report = "junit.xml"   # relative paths land in /sv-reports, the one writable place
+health = "/"
+
+[data]
+categories = ["contact"]
+
+[capabilities]
+multiple-services = false

@@ -127,6 +127,12 @@ another session is not a claim.
   shared vocabulary, the same comparison `suite.rs` already makes for tests. A citation nothing checks is
   a citation that drifts.
 
+- ~~**Read the test runner's own report.**~~ Done on 24 September 2026. Left over: matching is an exact
+  identifier match, so jest — which concatenates its `describe` blocks into the reported name — mostly
+  will not match and its tests stay uncredited. A runner that reports a name unlike the declaration
+  loses coverage silently rather than loudly. The parser understands JUnit XML only; TAP and the
+  runners that emit their own JSON are not read.
+
 - **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.
 

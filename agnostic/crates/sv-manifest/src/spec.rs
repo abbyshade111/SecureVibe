@@ -24,6 +24,7 @@ image = ""                # container image, e.g. "python:3.12-slim"
 build = ""                # e.g. "pip install -r requirements.txt"
 start = ""                # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"
 test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
+test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
 health = "/"              # a path that returns 200 once the app is up
 
 [data]
@@ -109,6 +110,20 @@ switches off a requirement the code says applies.
   credit a requirement on the strength of a name somebody chose for other reasons, and `sv` will
   not do that. A test that names nothing is not evidence about anything in particular, which is a
   perfectly fair thing for a test to be — most tests are.
+
+  Writing a test report
+
+  If your test command can write JUnit XML, say where in `test-report` and have the command write
+  it there. Every common runner can: `pytest --junitxml=/sv-reports/junit.xml`, `gotestsum
+  --junitfile=…`, `jest --reporters=jest-junit`, Maven's surefire, RSpec's JUnit formatter.
+
+  It matters more than it sounds. Without a report `sv` sees one exit code, so a suite with a
+  single failing test credits nothing at all — not even the forty tests that passed and named a
+  requirement. With one, those still count.
+
+  Write it under `/sv-reports`. Your app's own folder is mounted read-only while it runs, because
+  `sv` reads code and does not let the code it is checking rewrite itself mid-check, so that is the
+  one place a runner can put a file. A relative path in `test-report` is taken as relative to it.
 
   Name only what the test really covers. Nothing here can check that the test does what it says,
   and a test pointed at the wrong requirement leaves that requirement looking examined when nothing

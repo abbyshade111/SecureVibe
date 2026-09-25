@@ -47,8 +47,10 @@ into the test, in its name or in a comment on the line above it:
 def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
 ```
 
-When the whole suite passes, `sv` reports those requirements as checked by your own tests and says which
-file and line to go and look at. There is no clever matching behind this, on purpose: guessing that
+When the suite passes, `sv` reports those requirements as checked by your own tests and says which file
+and line to go and look at. If your runner can write a JUnit XML report, point `test-report` at it and
+the tests that passed still count even when others in the suite failed — without one, `sv` sees a single
+exit code and one broken test costs the credit of every other test. There is no clever matching behind this, on purpose: guessing that
 `test_login` is about a particular authentication requirement would credit it on the strength of a name
 somebody chose for other reasons. A test that names nothing is not evidence about anything in particular,
 which is a perfectly fair thing for a test to be — most tests are.

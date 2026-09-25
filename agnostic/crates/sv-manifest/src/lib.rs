@@ -154,6 +154,11 @@ pub struct RunSection {
     pub start: Option<String>,
     #[serde(default)]
     pub test: Option<String>,
+    /// Where the test command writes a JUnit XML report, relative to the app folder.
+    ///
+    /// Without it a failing suite credits nothing at all, because one exit code does not say which
+    /// tests it came from. With it, the tests the runner reports as passing still count.
+    pub test_report: Option<String>,
     #[serde(default)]
     pub health: Option<String>,
 }

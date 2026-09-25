@@ -549,6 +549,54 @@ reader would have concluded they never ran. Findings already had a section for t
 checks did not. A vanishing positive claim is safer than a vanishing finding and still tells the reader
 something untrue.
 
+### A suite that mostly passed
+
+`suite.rs` credited a requirement only when the *whole* suite passed, because a run sees one exit code
+and cannot say which tests it came from. One broken test anywhere therefore credited nothing at all,
+however many of the other forty named a requirement and passed — which is a fair reading of one exit
+code and a poor reading of what the suite established.
+
+Every runner in the languages the manifest knows can write JUnit XML, so `securevibe.toml` gains
+`test-report` and the run reads what lands there. Three things make it safe rather than merely useful.
+
+**The rule is strictly additive.** A suite that passed outright does not consult the report at all, so
+it credits exactly what it credited before — reading a report can only ever *add* a claim, never remove
+one. A suite that failed credits only tests the report names and says passed, matched on an exact
+identifier read off the declaration. Anything unmatched stays uncredited, which is precisely where it
+stood before any of this. jest concatenates its `describe` blocks into the reported name, so jest tests
+mostly will not match, and that costs coverage rather than correctness.
+
+**The parser fails closed, and that is its whole design.** No XML crate is cached in this environment
+and adding a dependency to a security tool to read a test report is not a trade worth making, so it is
+hand-written — and hand-written XML is wrong in the direction that matters here, reading a failed case
+as passed. So anything surprising refuses the *entire* report rather than returning what it managed to
+understand: an unclosed tag, an entity it does not know, an element it has never heard of. A refused
+report falls back to the exit code, which is where this started. Every weakness of the parser becomes
+lost coverage instead of a false claim. Ten refusals are tested, and the one worth naming is a CDATA
+section holding what looks like `</testcase><testcase name="invented"/>` — a naive reader invents a
+passing test out of captured output.
+
+A skipped test is not a passing test. It did not run, so it established nothing, and crediting one
+would put a requirement green on the strength of a test nobody executed.
+
+**A stale report must never read as a pass.** One left over from an earlier run — committed into the
+repository, or baked into the image — would be read as this run's result. So it is deleted before the
+suite runs and must be there afterwards, or nothing is read. This is the adapters' rule again: absent
+never reads as clean.
+
+#### The read-only mount, which made the first version impossible
+
+The first version had the runner write its report into the app folder, and it could never have worked:
+the app is mounted `:ro`, deliberately, because `sv` reads code and does not let the code it is checking
+rewrite itself mid-check. So the file was never written, and the feature reported *the test runner wrote
+no report* — correctly, and uselessly, every single time.
+
+Nothing about that was visible from reading the code; it took running it against an app whose suite
+really fails. The container now gets a `--tmpfs` at `/sv-reports`: writable, in memory rather than on
+the owner's disk, gone when the container goes, and read out with `exec` like everything else. A
+relative `test-report` resolves there, and `sv init` says so, because an owner who writes
+`reports/junit.xml` by habit would otherwise hit exactly the same wall.
+
 ### Saying a check looked and found nothing
 
 A finding is a claim about something that is there. `Verified` is the mirror: a claim about something
