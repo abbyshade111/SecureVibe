@@ -50,21 +50,21 @@ health = "/"              # a path that returns 200 once the app is up
 categories = []
 
 [capabilities]
-auth = false              # does anyone sign in?
-oauth = false             # sign-in through Google/Microsoft/etc.
+auth = false                  # does anyone sign in?
+oauth = false                 # sign-in through Google/Microsoft/etc.
 authorization-server = false  # do OTHER apps sign their users in through THIS one?
-jwt = false               # self-contained tokens (JWT) rather than opaque session ids
-uploads = false           # can anyone upload a file?
-payments = false          # does it take money?
-email = false             # does it send email?
-public-api = false        # can other programs connect with an API key?
-scheduler = false         # are there background or scheduled jobs?
-multi-tenant = false      # do separate customer organizations share one system?
-webrtc = false            # real-time audio or video calls
-out-of-band-auth = false  # sign-in codes sent by phone, SMS or push notification
-shared-hostname = false   # do other applications share this app's address?
-multiple-services = false # does this run as more than one service talking over a network?
-external-apis = []        # host names it calls, e.g. ["api.stripe.com"]
+jwt = false                   # self-contained tokens (JWT) rather than opaque session ids
+uploads = false               # can anyone upload a file?
+payments = false              # does it take money?
+email = false                 # does it send email?
+public-api = false            # can other programs connect with an API key?
+scheduler = false             # are there background or scheduled jobs?
+multi-tenant = false          # do separate customer organizations share one system?
+webrtc = false                # real-time audio or video calls
+out-of-band-auth = false      # sign-in codes sent by phone, SMS or push notification
+shared-hostname = false       # do other applications share this app's address?
+multiple-services = false     # does this run as more than one service talking over a network?
+external-apis = []            # host names it calls, e.g. ["api.stripe.com"]
 tls = "terminated-upstream"   # off | self | terminated-upstream
 
 [repository]
