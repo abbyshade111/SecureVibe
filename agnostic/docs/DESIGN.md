@@ -522,6 +522,49 @@ Against a small Flask app with bandit and semgrep installed, `bandit.B608` lands
 `sv`'s own SQL rule — two independent tools agreeing, which is worth more than either alone — while
 `bandit.B104` and a semgrep rule are reported carrying no requirement, because nothing has mapped them.
 
+### Semgrep: a thousand rules, mapped by rule rather than by hand
+
+Semgrep's findings carried no requirement at all until 25 September 2026, because its map was empty.
+The other tools' maps were written one entry at a time, which works for Brakeman's forty codes and not
+for the 1,321 security rules in semgrep's own repository. So the map is generated, by
+`tools/semgrep_rule_map.py` from a checkout of `semgrep/semgrep-rules`, and the judgement went into
+how it decides rather than into each entry.
+
+**Two keys, both required.** A rule is mapped only when its CWE is one of a class's and its id says the
+same thing in words: CWE-89 and an id about SQL, CWE-601 and an id about a redirect. Neither key is
+enough alone, and reading the result showed why. semgrep tags Go's `dangerous-exec-cmd` as code
+injection when it runs an operating system command, the AI rules about user input in a system prompt as
+OS command injection, and Flask's and Django's tainted-SQL rules as type conversion and mass
+assignment. Words alone fail the other way, because `exec`, `template` and `load` each belong to
+several classes. Where the keys disagree the rule stays unmapped, and its finding carries no
+requirement, which is a fair thing for it to be.
+
+**Every class's members were read**, except the 224 generic secret detectors
+(`generic.secrets.*`, one per credential format), which were checked as a group. That found 88 rules the two keys put in the wrong class or in a
+class they do not belong to: key sizes filed as unapproved ciphers (they are V11.2.3's), SSLv3 filed as a
+cipher, `hashids-with-django-secret` filed as a weak hash, `XMLDecoder` filed as XXE when it
+deserializes. Each is an entry in `OVERRIDES` with its reason, and the script refuses to run if an
+override names a rule that no longer exists, which is how fourteen mistyped ids were caught. Configuration
+rules (Terraform, GitHub Actions, Kubernetes, Dockerfiles) are left out: they are about deployment, not
+the requirements an application's code is checked against. The result is 998 rules across 39
+requirements, and every `what` passes the citation guard.
+
+**The ids were measured, and one thing could not be.** Semgrep names a rule differently by how it was
+loaded. From a folder it prefixes the rule's own id with the folder, so the file's name drops out:
+`use_of_weak_crypto.yaml`'s `use-of-DES` is `go.lang.security.audit.crypto.use-of-DES`. The registry
+names it by the file's path and the id together,
+`go.lang.security.audit.crypto.use_of_weak_crypto.use-of-DES`, and that is what the map is keyed on,
+since the adapter runs the registry pack `p/security-audit`. The registry could not be reached from where
+this was written, so the kept SARIF was made by putting each rule file in a folder of its own name,
+which makes semgrep's own prefixing produce the registry's form. Semgrep did the matching; only the
+folder layout was arranged. A run against the registry on a machine that can reach it is the one check
+still owed, and the fixture's README says how.
+
+Against that run, over a Flask app and a Go program with one of each fault, every one of the 29
+security findings lands on a requirement, sixteen of them checked against the fault written to
+produce them, while semgrep's best-practice and
+correctness rules, which fire too, carry none.
+
 ### Three more wrong citations, in the place the guard could not see
 
 The citation guard reads `adapters.json` and `ast-rules.json`. Citations hard-coded in Rust were
