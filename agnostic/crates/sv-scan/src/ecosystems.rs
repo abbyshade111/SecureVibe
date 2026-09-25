@@ -343,11 +343,18 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
         "php" => "php",
         "cs" => "csharp",
         "c" | "h" => "c",
+        "dart" => "dart",
+        "swift" => "swift",
         "cc" | "cpp" | "cxx" | "hpp" | "hh" => "cpp",
         "html" | "htm" | "vue" | "svelte" => "html",
         _ => return None,
     })
 }
+
+/// Languages the code rules read that the technology scan does not: none of their dependency files
+/// (`pubspec.yaml`, `Package.swift`) is read, and no signature has a source pattern for them. Their
+/// files count as not looked in, so a technology is never called absent on their account.
+pub const NO_TECHNOLOGY_READER: &[&str] = &["dart", "swift"];
 
 /// Directories never worth walking: installed dependencies, build output, version control. Their
 /// contents belong to the dependency scan, not to the app's own source.

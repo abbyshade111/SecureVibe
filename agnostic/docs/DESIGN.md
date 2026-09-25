@@ -346,10 +346,10 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
-## Eleven languages, and why the twelfth silences everything
+## Thirteen languages, and why the fourteenth silences everything
 
 The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
-Kotlin, Rust and C. Each one is worth more than one more entry suggests, because of how the fail-closed
+Kotlin, Rust, C, Dart and Swift. Each one is worth more than one more entry suggests, because of how the fail-closed
 rule works: **no rule may speak while a language present in the app goes unparsed.** One Ruby file used
 to silence every rule for the whole app — correct behaviour on an app `sv` could not read, and a lot of
 silence. Every language added is one fewer kind of app that gets nothing.
@@ -393,10 +393,51 @@ The terminal's wording followed the behaviour twice: it said *there is no gramma
 page was unread, then *a page with a script written into it* when only those were, and now says what is
 actually true — that something in the page could not be taken out of it.
 
-Not every rule covers every language, and that is deliberate rather than unfinished. Rust has no `eval`
-and its `Command` takes an argument list, so it has the SQL rule and nothing else; C has shell and SQL
-and neither of the others. A rule with no query for a language says nothing about it and claims no
-coverage of it, which is what keeps the clean-coverage claim honest.
+### A language that was read is not a language every rule looked in
+
+A rule with no query for a language says nothing about it. That used to be the whole of it, and it left
+a hole: in an app of Python and Rust, the shell-command rule read the Python, found nothing, and claimed
+V1.2.5 for the app, with the Rust beside it never looked at by that rule. The parser having read a file
+is not the same as each rule having looked in it.
+
+So every rule now accounts for every language `sv` reads, one of two ways: a query, or an entry in
+`nothingToFind` saying why the language has nothing for that rule to find. Go has no `eval`; Dart's
+decoders give back maps and lists; backticks in Swift quote a name. Each entry carries its reason, and a
+language cannot have both. A rule that met a language with neither claims nothing for the app, and the
+report says which rule and which language (`AstScan::untaught`), rather than letting the line go
+missing. The claim itself still names only the languages the rule has a query for, so an entry in
+`nothingToFind` can let a claim through but never widens one.
+
+Adding the rule turned up the gaps it was built to show, and most were filled in the same change:
+Kotlin and C# `eval`, JavaScript's `unserialize`, PHP's backticks, Go's `exec.Command("sh", "-c", …)`,
+file paths in Kotlin, Rust and C, weak hashes in Rust and C, weak ciphers in C, and redirects in Kotlin
+and Rust. Three remain, and a report on an app containing them says so: shell commands in Rust, weak
+ciphers in Rust, and redirects in C.
+
+### Dart and Swift
+
+Both used to be read by nothing, which silenced every code rule for any app with a Flutter front end or
+an iOS client, back end included. Now each of the nine rules has a query for both or a reason there is
+nothing to find. What they needed that the others did not:
+
+- **A shell command is a list.** Neither language has a `system` in common use; Dart writes
+  `Process.run('sh', ['-c', cmd])` and Swift `task.arguments = ["-c", cmd]`. A list literal is literal
+  when every element in it is, so `['-c', 'ls -la']` is left alone. Dart's `<String>[…]` puts a type in
+  the list, which is not an element and is skipped. The Swift query takes the list when its first element
+  is `"-c"`, so `["log", name]`, an argument rather than a command, is not reported.
+- **Swift's arguments are labeled, and the label matters.** GRDB's `db.execute(literal: "… \(n)")`
+  binds what it interpolates, while `db.execute(sql: q)` runs `q` as written. So the Swift queries capture
+  the whole argument, label included; the literal check looks at the value inside it, and a pattern can
+  read the label: `literal:` is safe, and a file-path call is reported only with a path label
+  (`atPath:`, `contentsOfFile:`), so `String(describing: n)` is not.
+- **Swift interpolation is `\(x)`**, an `interpolated_expression` node, including inside a raw string
+  written `#"…\#(x)"#`. Dart's `$x` and `${x}` are `template_substitution`, which JavaScript already had.
+- **Concatenation is an `additive_expression`** in both, and `'a' + 'b'` is as fixed as its parts.
+
+The code rules reading Dart and Swift does not mean the technology scan does. That scan reads no
+`pubspec.yaml` or `Package.swift` and has no patterns for either language, so a GraphQL server in Dart
+would go unseen and be called absent. Their files still count as not looked in there
+(`NO_TECHNOLOGY_READER`), and no technology is called absent on their account.
 
 The queries were written against dumped parse trees rather than against what the grammars plausibly
 produce, which is two minutes' work and settled three things guessing would have got wrong. Ruby uses

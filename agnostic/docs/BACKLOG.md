@@ -78,14 +78,25 @@ another session is not a claim.
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
   which is a question with two defensible answers.
 
-- **Grammars for C++, and for HTML's embedded scripts.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`) for Dart and Swift only, fourth in the owner's order.* C++ is the last language the scanner counts and
+- ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
+  one of the nine rules either taught each language or saying why there is nothing to find in it
+  (`nothingToFind`). The same change made the claim per rule: a rule that met a language it was not
+  taught claims nothing and the report names it, which showed gaps in the older languages, most filled
+  at once. Three remain, and are the next entry. See DESIGN, "Thirteen languages".
+
+- **Three rules still untaught a language.** Shell commands in Rust (`Command::new("sh").arg("-c")` is
+  a method chain, and the query needs to follow it), weak ciphers in Rust (the RustCrypto crates name
+  them as types, not calls), and redirects in C (a CGI program prints its `Location:` header). Each
+  now shows in the report as a gap for any app containing that language.
+
+- **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
-  least of the candidates for web apps. Worth more, in order: **Dart** (Flutter front ends, which today
-  silence every code rule for the whole app, Python back end included), **Swift** (the same, for iOS
-  clients), and **shell** (`.sh` deploy and setup scripts are in most generated repositories and are
+  least of the candidates for web apps. Dart and Swift, which were worth more, are done (above). Also worth
+  more than C++: **shell** (`.sh` deploy and setup scripts are in most generated repositories and are
   where `curl | sh` and unquoted variables live; they are not counted at all today, so they neither
-  silence rules nor get read). Each grammar is only worth adding with at least the shell and
-  code-execution queries written for it, or it turns silence into an unearned clean claim. It is also what the two "no grammar" tests now stand on, so whoever adds it will find
+  silence rules nor get read). Since the claim became per rule, a grammar added without queries
+  no longer turns silence into a clean claim; it moves the silence from the whole app to the rules not
+  yet taught that language, and the report names them. C++ is also what the two "no grammar" tests now stand on, so whoever adds it will find
   those two failing, which is the right way round.
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in

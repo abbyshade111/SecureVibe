@@ -223,7 +223,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
             .map(String::as_str)
             .collect();
         println!(
-            "  `sv` has no reader for these file types, so it cannot say a technology is absent: {}.",
+            "  The technology scan did not look in these file types, so it cannot say a technology is absent: {}.",
             exts.join(", ")
         );
     }
@@ -663,6 +663,21 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
         if code.unparsed_files.len() > 10 {
             println!("  … and {} more", code.unparsed_files.len() - 10);
+        }
+    }
+
+    if !code.untaught.is_empty() {
+        println!(
+            "\nNot looked for — these rules read other languages in this app, but have not been\n\
+             taught the ones named, so they claim nothing for it:"
+        );
+        for u in &code.untaught {
+            println!(
+                "  {} ({}) — not in {}",
+                u.title,
+                u.rule_id,
+                u.languages.join(", ")
+            );
         }
     }
 
@@ -1233,6 +1248,21 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 .to_owned(),
         });
     }
+    for u in &code.untaught {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} ({}), in {}",
+                u.title.trim_end_matches('.'),
+                u.rule_id,
+                u.languages.join(", ")
+            ),
+            why: format!(
+                "this rule has not been taught what to look for in {}, so it claims nothing for this \
+                 app; what it found elsewhere stands",
+                u.languages.join(" or ")
+            ),
+        });
+    }
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions
@@ -1242,8 +1272,10 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         exts.sort_unstable();
         gaps.push(sv_report::Gap {
             what: format!("files ending {}", exts.join(", ")),
-            why: "nothing read these, so no technology can be called absent on their account"
-                .to_owned(),
+            why:
+                "the technology scan did not look in these, so no technology can be called absent \
+                  on their account"
+                    .to_owned(),
         });
     }
     // The Secure by Design checklist is design review, not scanning. Its controls are applicable

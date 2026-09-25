@@ -1,0 +1,6 @@
+name: notes
+environment:
+  sdk: ^3.5.0
+dependencies:
+  shelf: ^1.4.0
+  graphql_server: ^2.2.0

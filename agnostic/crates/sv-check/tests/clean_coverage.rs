@@ -252,6 +252,143 @@ fn a_rule_says_nothing_about_a_language_it_never_saw() {
     }
 }
 
+/// Writes the files, scans them, and removes the folder again.
+fn scan_files(name: &str, files: &[(&str, &str)]) -> ast::AstScan {
+    let dir = scratch(name);
+    for (file, source) in files {
+        std::fs::write(dir.join(file), source).unwrap();
+    }
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    scan
+}
+
+fn untaught_in<'a>(scan: &'a ast::AstScan, rule_id: &str) -> Vec<&'a str> {
+    scan.untaught
+        .iter()
+        .filter(|u| u.rule_id == rule_id)
+        .flat_map(|u| u.languages.iter().map(String::as_str))
+        .collect()
+}
+
+#[test]
+fn a_rule_not_taught_a_language_that_was_read_claims_nothing() {
+    // The third shape. Everything parsed, the rule has a Python query and found nothing in the
+    // Python — and the Rust beside it is a language the rule was never taught. A shell command
+    // built in the Rust is as possible as ever, so the rule has not ruled one out.
+    let scan = scan_files(
+        "ast-untaught-rust",
+        &[
+            ("app.py", "import os\n\ndef home():\n    return 'hi'\n"),
+            ("worker.rs", "fn main() { println!(\"hi\"); }\n"),
+        ],
+    );
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert_eq!(
+        scan.parsed_by_language.len(),
+        2,
+        "{:?}",
+        scan.parsed_by_language
+    );
+    let verified = verified_ids(&scan.verified);
+    assert!(
+        !verified.contains(&"ast.shell-command"),
+        "claimed on the strength of the Python alone: {verified:?}"
+    );
+    assert_eq!(untaught_in(&scan, "ast.shell-command"), ["rust"]);
+    // Not a scan that has gone quiet altogether: a rule taught both languages still says so.
+    assert!(verified.contains(&"ast.sql-built-by-hand"), "{verified:?}");
+    assert!(untaught_in(&scan, "ast.sql-built-by-hand").is_empty());
+}
+
+#[test]
+fn a_rule_not_taught_c_claims_nothing_for_an_app_with_c_in_it() {
+    // A second witness, on a different rule and language: redirects are looked for in Python and
+    // not in C, and a CGI program in C can send a `Location:` header as well as anything can.
+    let scan = scan_files(
+        "ast-untaught-c",
+        &[
+            ("app.py", "def home():\n    return 'hi'\n"),
+            ("cgi.c", "int main(void) { return 0; }\n"),
+        ],
+    );
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert!(
+        !verified_ids(&scan.verified).contains(&"ast.open-redirect"),
+        "{:?}",
+        verified_ids(&scan.verified)
+    );
+    assert_eq!(untaught_in(&scan, "ast.open-redirect"), ["c"]);
+}
+
+#[test]
+fn a_language_with_nothing_to_find_does_not_hold_a_rule_back() {
+    // The other side. Go has no `eval`, and the rule says so in its data, so a Go file beside the
+    // Python does not stop the code-execution rule reporting the Python it read.
+    let scan = scan_files(
+        "ast-nothing-to-find",
+        &[
+            ("app.py", "def home():\n    return 'hi'\n"),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+        ],
+    );
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(untaught_in(&scan, "ast.dynamic-code-execution").is_empty());
+    let claim = scan
+        .verified
+        .iter()
+        .find(|v| v.check_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("{:?}", verified_ids(&scan.verified)));
+    // The claim names what was read with a query, and only that.
+    assert!(claim.scope.contains("python"), "{}", claim.scope);
+    assert!(!claim.scope.contains("go"), "{}", claim.scope);
+}
+
+#[test]
+fn a_clean_dart_and_swift_app_can_say_it_was_read() {
+    // A Flutter front end and an iOS client used to silence every code rule for the whole app,
+    // back end included. Now both are read, and every rule is either taught them or says why there
+    // is nothing to find.
+    let scan = scan_files(
+        "ast-dart-swift",
+        &[
+            (
+                "main.dart",
+                "import 'dart:io';\n\nFuture<String> load(Database db, String id) async {\n                   final rows = await db.rawQuery('select body from notes where id = ?', [id]);\n                   return File('config.json').readAsString();\n}\n",
+            ),
+            (
+                "Notes.swift",
+                "import Foundation\n\nfunc load(db: OpaquePointer, id: String) throws -> String {\n                     let d = SHA256.hash(data: Data(id.utf8))\n                     return try String(contentsOfFile: \"/etc/notes.conf\")\n}\n",
+            ),
+        ],
+    );
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(
+        scan.unread_languages.is_empty(),
+        "{:?}",
+        scan.unread_languages
+    );
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert!(scan.untaught.is_empty(), "{:?}", scan.untaught);
+    let verified = verified_ids(&scan.verified);
+    for rule in [
+        "ast.dynamic-code-execution",
+        "ast.shell-command",
+        "ast.sql-built-by-hand",
+        "ast.unsafe-deserialization",
+        "ast.file-path-from-value",
+        "ast.weak-hash-function",
+        "ast.weak-cipher",
+        "ast.open-redirect",
+    ] {
+        assert!(verified.contains(&rule), "{rule} missing from {verified:?}");
+    }
+    // Backticks are nothing in either language, which is not the same as having looked.
+    assert!(!verified.contains(&"ast.shell-command-backticks"));
+}
+
 #[test]
 fn a_rule_that_found_something_does_not_also_report_itself_clean() {
     let dir = scratch("ast-dirty");

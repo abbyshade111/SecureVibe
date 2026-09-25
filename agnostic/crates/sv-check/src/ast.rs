@@ -78,6 +78,14 @@ pub struct AstRule {
     pub safe_argument_patterns: BTreeMap<String, String>,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
+    /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
+    ///
+    /// Go has no `eval`, and a Go file cannot hide one. Without this entry a Go file would stop the
+    /// rule claiming anything for a mixed app, because a language the rule reads nothing in is
+    /// otherwise a language it has not ruled out. Each entry is a statement about the language, so
+    /// it carries its reason, and a language cannot have both this and a query.
+    #[serde(default)]
+    pub nothing_to_find: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -147,6 +155,8 @@ fn grammar(language: &str) -> Option<Language> {
         "ruby" => tree_sitter_ruby::LANGUAGE.into(),
         "php" => tree_sitter_php::LANGUAGE_PHP.into(),
         "java" => tree_sitter_java::LANGUAGE.into(),
+        "swift" => tree_sitter_swift::LANGUAGE.into(),
+        "dart" => tree_sitter_dart::LANGUAGE.into(),
         _ => return None,
     })
 }
@@ -440,6 +450,24 @@ impl AstRules {
                     );
                 }
             }
+            for (language, why) in &rule.nothing_to_find {
+                anyhow::ensure!(
+                    grammar(language).is_some(),
+                    "rule {} says there is nothing to find in `{language}`, which has no grammar",
+                    rule.id
+                );
+                anyhow::ensure!(
+                    !rule.queries.contains_key(language),
+                    "rule {} has a {language} query and also says there is nothing to find in \
+                     {language}",
+                    rule.id
+                );
+                anyhow::ensure!(
+                    !why.trim().is_empty(),
+                    "rule {} says there is nothing to find in {language} without saying why",
+                    rule.id
+                );
+            }
             let tsx = match rule.queries.get("typescript") {
                 Some(source) => Some(
                     Query::new(&grammar("tsx").expect("tsx is compiled in"), source).with_context(
@@ -512,10 +540,36 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
         // PHP's double-quoted strings, which interpolate `$name` without any `{}` around it.
         "encapsed_string",
         "string_value",
+        // Swift's strings, one line and several. Interpolation is `\(x)`, which the grammar gives a
+        // node of its own; see `has_interpolation`.
+        "line_string_literal",
+        "multi_line_string_literal",
+        // PHP's backtick form, which interpolates `$name` the way its double-quoted strings do.
+        "shell_command_expression",
     ];
 
+    // Swift's argument, labeled or not, is judged by the value it carries: the label is part of
+    // the text a pattern can read, and never part of what was built.
+    if node.kind() == "value_argument" {
+        return node
+            .child_by_field_name("value")
+            .is_some_and(|value| is_literal(value, source));
+    }
+    // `["-c", "ls"]` is as fixed as the strings in it, and `["-c", cmd]` is not: a command handed to
+    // a shell as the second element of a list is the Dart and Swift way to write `sh -c`.
+    if matches!(node.kind(), "list_literal" | "array_literal") {
+        let mut cursor = node.walk();
+        return node
+            .named_children(&mut cursor)
+            .filter(|c| c.kind() != "type_arguments")
+            .all(|c| is_literal(c, source));
+    }
+
     // `"a" + "b"` is still a constant; `"a" + name` is not.
-    if matches!(node.kind(), "binary_operator" | "binary_expression") {
+    if matches!(
+        node.kind(),
+        "binary_operator" | "binary_expression" | "additive_expression"
+    ) {
         let mut cursor = node.walk();
         return node
             .named_children(&mut cursor)
@@ -551,7 +605,7 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
 
     // PHP puts a plain `variable_name` inside a double-quoted string, with no wrapper node to
     // recognise: `"select ... $name"` is a built string that looks like a literal to the list below.
-    if node.kind() == "encapsed_string" {
+    if matches!(node.kind(), "encapsed_string" | "shell_command_expression") {
         let mut cursor = node.walk();
         if node
             .named_children(&mut cursor)
@@ -565,7 +619,11 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
     node.children(&mut cursor).any(|child| {
         matches!(
             child.kind(),
-            "interpolation" | "template_substitution" | "string_interpolation" | "format_specifier"
+            "interpolation"
+                | "template_substitution"
+                | "string_interpolation"
+                | "format_specifier"
+                | "interpolated_expression"
         ) || has_interpolation(child, source)
     })
 }
@@ -588,6 +646,20 @@ pub struct AstScan {
     /// listed the requirement against `eval` as checked. Findings from such a file still stand; what
     /// it cannot do is support a claim that something is absent.
     pub unparsed_files: Vec<String>,
+    /// Rules that met a language `sv` reads but the rule has not been taught, and so claim nothing.
+    ///
+    /// A shell-command rule with no Rust query that met a Rust file has not ruled out a shell
+    /// command built in Rust. Before this was kept, such a rule claimed the requirement on the
+    /// strength of the Python beside it.
+    pub untaught: Vec<Untaught>,
+}
+
+/// One rule, and the languages in this app it was not able to look in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Untaught {
+    pub rule_id: String,
+    pub title: String,
+    pub languages: Vec<String>,
 }
 
 /// Runs every rule that has a query for this language over one file.
@@ -732,23 +804,54 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
             .then_with(|| a.location.file.cmp(&b.location.file))
             .then_with(|| a.location.line.cmp(&b.location.line))
     });
+    scan.untaught = untaught(rules, &scan);
     scan.verified = clean_rules(rules, &scan);
     scan
 }
 
+/// Every rule, with the languages read in this app that it has neither a query for nor a reason
+/// to have none.
+fn untaught(rules: &AstRules, scan: &AstScan) -> Vec<Untaught> {
+    rules
+        .compiled
+        .iter()
+        .filter_map(|c| {
+            let languages: Vec<String> = scan
+                .parsed_by_language
+                .iter()
+                .filter(|(language, n)| {
+                    **n > 0
+                        && !c.queries.contains_key(*language)
+                        && !c.rule.nothing_to_find.contains_key(*language)
+                })
+                .map(|(language, _)| language.clone())
+                .collect();
+            (!languages.is_empty()).then(|| Untaught {
+                rule_id: c.rule.id.clone(),
+                title: c.rule.title.clone(),
+                languages,
+            })
+        })
+        .collect()
+}
+
 /// The rules that read everything they could have read, and found nothing.
 ///
-/// Fail closed twice over. A rule says nothing unless it parsed at least one file in a language it
-/// has a query for — a SQL rule that never saw a line of Python has not established that the app
-/// builds no queries by hand. And no rule says anything at all while a language present in the app
-/// goes unread, because the injection it looks for could be sitting in the Ruby nobody parsed.
+/// Fail closed three times over. A rule says nothing unless it parsed at least one file in a
+/// language it has a query for — a SQL rule that never saw a line of Python has not established
+/// that the app builds no queries by hand. No rule says anything at all while a language present in
+/// the app goes unread, because the injection it looks for could be sitting in the Ruby nobody
+/// parsed. And a rule says nothing while a language that *was* read is one it was never taught:
+/// the parser having read the Swift does not mean this rule looked in it.
 fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     if !scan.unread_languages.is_empty() || !scan.unparsed_files.is_empty() {
         return Vec::new();
     }
     let mut out = Vec::new();
     for (rule_id, languages, requirement_ids) in rules.coverage() {
-        if scan.findings.iter().any(|f| f.rule_id == rule_id) {
+        if scan.findings.iter().any(|f| f.rule_id == rule_id)
+            || scan.untaught.iter().any(|u| u.rule_id == rule_id)
+        {
             continue;
         }
         let covered: Vec<String> = languages
@@ -951,6 +1054,32 @@ mod tests {
             Err(e) => format!("{e:#}"),
         };
         assert!(error.contains("cannot compile"), "{error}");
+    }
+
+    fn one_rule(extra: &str) -> String {
+        format!(
+            r#"{{"rules": [{{"id": "t", "title": "t", "severity": "high", "confidence": "high",
+                "requirementIds": ["V1.3.2"], "cwe": [], "description": "", "impact": "", "fix": "",
+                "queries": {{"python": "(call) @hit"}} {extra} }}]}}"#
+        )
+    }
+
+    #[test]
+    fn nothing_to_find_is_refused_beside_a_query_without_a_reason_or_without_a_grammar() {
+        let both = one_rule(r#", "nothingToFind": {"python": "Python has no such thing."}"#);
+        let err = rules_from(&both).err().expect("refused").to_string();
+        assert!(err.contains("also says there is nothing to find"), "{err}");
+
+        let no_reason = one_rule(r#", "nothingToFind": {"go": "  "}"#);
+        let err = rules_from(&no_reason).err().expect("refused").to_string();
+        assert!(err.contains("without saying why"), "{err}");
+
+        let no_grammar = one_rule(r#", "nothingToFind": {"cpp": "C++ has none."}"#);
+        let err = rules_from(&no_grammar).err().expect("refused").to_string();
+        assert!(err.contains("no grammar"), "{err}");
+
+        let fine = one_rule(r#", "nothingToFind": {"go": "Go has no eval."}"#);
+        assert!(rules_from(&fine).is_ok());
     }
 
     #[test]
@@ -1552,6 +1681,111 @@ mod tests {
         ("ast.open-redirect", "java", "class A { void f(HttpServletResponse r) throws Exception { r.sendRedirect(\"/home\"); } }", false),
         ("ast.open-redirect", "csharp", "class C { IActionResult F(string returnUrl) { return Redirect(returnUrl); } }", true),
         ("ast.open-redirect", "csharp", "class C { IActionResult F() { return Redirect(Url.Action(\"Index\")); } }", false),
+        // Dart and Swift, and the gaps the per-language rule showed in the others. Every rule has
+        // both halves in both languages, or says there is nothing to find in it.
+        ("ast.dynamic-code-execution", "dart", "void f(String u) { Isolate.spawnUri(Uri.parse(u), [], null); }", true),
+        ("ast.dynamic-code-execution", "dart", "void f(String p) { Isolate.spawnUri(Uri.file(p), [], null); }", true),
+        ("ast.dynamic-code-execution", "dart", "void f() { Isolate.spawnUri(Uri.parse('worker.dart'), [], null); }", false),
+        ("ast.dynamic-code-execution", "dart", "void f() { Isolate.spawn(worker, null); }", false),
+        ("ast.dynamic-code-execution", "swift", "func f(code: String) { ctx.evaluateScript(code) }", true),
+        ("ast.dynamic-code-execution", "swift", "func f(s: String) { let e = NSExpression(format: s) }", true),
+        ("ast.dynamic-code-execution", "swift", "func f() { ctx.evaluateScript(\"1 + 1\") }", false),
+        ("ast.dynamic-code-execution", "swift", "func f(x: Int) { let e = NSExpression(format: \"%d + 1\", x) }", false),
+        ("ast.dynamic-code-execution", "csharp", "class A { async void F(string c) { await CSharpScript.EvaluateAsync(c); } }", true),
+        ("ast.dynamic-code-execution", "csharp", "class A { async void F() { await CSharpScript.EvaluateAsync(\"1 + 1\"); } }", false),
+        ("ast.dynamic-code-execution", "kotlin", "fun f(code: String) { engine.eval(code) }", true),
+        ("ast.dynamic-code-execution", "kotlin", "fun f() { engine.eval(\"1 + 1\") }", false),
+        ("ast.shell-command", "dart", "void f(String cmd) { Process.run('sh', ['-c', cmd]); }", true),
+        ("ast.shell-command", "dart", "void f(String dir) { Process.run(\"/bin/bash\", [\"-c\", \"ls $dir\"]); }", true),
+        ("ast.shell-command", "dart", "void f(String exe) { Process.start(exe, []); }", true),
+        ("ast.shell-command", "dart", "void f() { Process.run('sh', ['-c', 'ls -la']); }", false),
+        ("ast.shell-command", "dart", "void f(String branch) { Process.run('git', ['log', branch]); }", false),
+        ("ast.shell-command", "dart", "void f(String cmd) { Pool.run('sh', ['-c', cmd]); }", false),
+        ("ast.shell-command", "dart", "void f() { Process.run('sh', <String>['-c', 'ls -la']); }", false),
+        ("ast.shell-command", "dart", "void f() { Process.runSync('/bin/sh', <String>['-c', 'date']); }", false),
+        ("ast.shell-command", "swift", "func f() { task.arguments = [\"-c\", \"ls \" + \"-la\"] }", false),
+        ("ast.shell-command", "swift", "func f(cmd: String) { task.arguments = [\"-c\", cmd] }", true),
+        ("ast.shell-command", "swift", "func f(cmd: String) { let p = Process.launchedProcess(launchPath: \"/bin/sh\", arguments: [\"-c\", cmd]) }", true),
+        ("ast.shell-command", "swift", "func f(cmd: String) { system(cmd) }", true),
+        ("ast.shell-command", "swift", "func f() { task.arguments = [\"-c\", \"ls -la\"] }", false),
+        ("ast.shell-command", "swift", "func f(name: String) { task.arguments = [\"log\", name] }", false),
+        ("ast.shell-command", "swift", "func f() { system(\"ls\") }", false),
+        ("ast.shell-command", "go", "func f(c string) { exec.Command(\"sh\", \"-c\", c).Run() }", true),
+        ("ast.shell-command", "go", "func f(ctx context.Context, c string) { exec.CommandContext(ctx, \"bash\", \"-c\", c).Run() }", true),
+        ("ast.shell-command", "go", "func f(name string) { exec.Command(name).Run() }", true),
+        ("ast.shell-command", "go", "func f() { exec.Command(\"sh\", \"-c\", \"ls -la\").Run() }", false),
+        ("ast.shell-command", "go", "func f(b string) { exec.Command(\"git\", \"log\", b).Run() }", false),
+        ("ast.sql-built-by-hand", "dart", "Future f(String n) => db.rawQuery(\"select * from notes where name = '$n'\");", true),
+        ("ast.sql-built-by-hand", "dart", "Future f(String n) => db.rawQuery('select * from notes where name = ' + n);", true),
+        ("ast.sql-built-by-hand", "dart", "Future f(String n) => db.rawQuery('select * from notes where name = ?', [n]);", false),
+        ("ast.sql-built-by-hand", "dart", "Future f(String t) => db.query(t, where: 'id = ?', whereArgs: [1]);", false),
+        ("ast.sql-built-by-hand", "dart", "Future f() => db.rawQuery('select * ' + 'from notes');", false),
+        ("ast.sql-built-by-hand", "swift", "func f(n: String) { sqlite3_exec(db, \"delete from notes where name = '\\(n)'\", nil, nil, nil) }", true),
+        ("ast.sql-built-by-hand", "swift", "func f(q: String) throws { try db.execute(sql: q) }", true),
+        ("ast.sql-built-by-hand", "swift", "func f() { sqlite3_exec(db, \"create table notes (name text)\", nil, nil, nil) }", false),
+        ("ast.sql-built-by-hand", "swift", "func f(n: String) throws { try db.execute(literal: \"insert into notes values (\\(n))\") }", false),
+        ("ast.sql-built-by-hand", "swift", "func f(n: String) throws { try db.execute(sql: \"insert into notes values (?)\", arguments: [n]) }", false),
+        ("ast.unsafe-deserialization", "swift", "func f(d: Data) { let o = NSKeyedUnarchiver.unarchiveObject(with: d) }", true),
+        ("ast.unsafe-deserialization", "swift", "func f(d: Data) throws { let o = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(d) }", true),
+        ("ast.unsafe-deserialization", "swift", "func f(d: Data) throws { let o = try NSKeyedUnarchiver.unarchivedObject(ofClass: Note.self, from: d) }", false),
+        ("ast.unsafe-deserialization", "javascript", "const obj = serialize.unserialize(req.cookies.profile)", true),
+        ("ast.unsafe-deserialization", "javascript", "const obj = JSON.parse(req.cookies.profile)", false),
+        ("ast.unsafe-deserialization", "typescript", "const obj = unserialize(req.body.data as string)", true),
+        ("ast.unsafe-deserialization", "typescript", "const obj = JSON.parse(req.body.data as string)", false),
+        ("ast.shell-command-backticks", "php", "<?php $out = `ls {$_GET['dir']}`;", true),
+        ("ast.shell-command-backticks", "php", "<?php $out = `cat $file`;", true),
+        ("ast.shell-command-backticks", "php", "<?php $out = `ls -la`;", false),
+        ("ast.shell-command-backticks", "php", "<?php echo `whoami`;", false),
+        ("ast.file-path-from-value", "dart", "Future f(Request r) => File(r.url.queryParameters['f']!).readAsString();", true),
+        ("ast.file-path-from-value", "dart", "Future f(String name) => File('uploads/$name').readAsString();", true),
+        ("ast.file-path-from-value", "dart", "Future f() => File('config.json').readAsString();", false),
+        ("ast.file-path-from-value", "swift", "func f(p: String) { let d = FileManager.default.contents(atPath: p) }", true),
+        ("ast.file-path-from-value", "swift", "func f(p: String) throws { let s = try String(contentsOfFile: p) }", true),
+        ("ast.file-path-from-value", "swift", "func f() throws { let s = try String(contentsOfFile: \"/etc/app.conf\") }", false),
+        ("ast.file-path-from-value", "swift", "func f(n: Int) { let s = String(describing: n) }", false),
+        ("ast.file-path-from-value", "swift", "func f() throws { let d = try Data(contentsOf: URL(fileURLWithPath: \"/etc/app.conf\")) }", false),
+        ("ast.file-path-from-value", "kotlin", "fun f(name: String) { val t = File(name).readText() }", true),
+        ("ast.file-path-from-value", "kotlin", "fun f() { val t = File(\"app.conf\").readText() }", false),
+        ("ast.file-path-from-value", "rust", "fn f(p: &str) { let t = fs::read_to_string(p); }", true),
+        ("ast.file-path-from-value", "rust", "fn f(p: String) { let t = File::open(&p); }", true),
+        ("ast.file-path-from-value", "rust", "fn f() { let t = File::open(\"app.toml\"); }", false),
+        ("ast.file-path-from-value", "rust", "fn f(p: &str) { let t = Path::new(p); }", false),
+        ("ast.file-path-from-value", "c", "void f(const char *p) { FILE *fp = fopen(p, \"r\"); }", true),
+        ("ast.file-path-from-value", "c", "void f(void) { FILE *fp = fopen(\"/etc/app.conf\", \"r\"); }", false),
+        ("ast.weak-hash-function", "dart", "String f(List<int> b) => md5.convert(b).toString();", true),
+        ("ast.weak-hash-function", "dart", "String f(List<int> b) => sha1.convert(b).toString();", true),
+        ("ast.weak-hash-function", "dart", "String f(List<int> b) => sha256.convert(b).toString();", false),
+        ("ast.weak-hash-function", "swift", "func f(d: Data) { let h = Insecure.MD5.hash(data: d) }", true),
+        ("ast.weak-hash-function", "swift", "func f(p: UnsafeRawPointer, n: CC_LONG) { CC_SHA1(p, n, &out) }", true),
+        ("ast.weak-hash-function", "swift", "func f(d: Data) { let h = SHA256.hash(data: d) }", false),
+        ("ast.weak-hash-function", "swift", "func f(p: UnsafeRawPointer, n: CC_LONG) { CC_SHA256(p, n, &out) }", false),
+        ("ast.weak-hash-function", "rust", "fn f(b: &[u8]) { let d = md5::compute(b); }", true),
+        ("ast.weak-hash-function", "rust", "fn f() { let h = Sha1::new(); }", true),
+        ("ast.weak-hash-function", "rust", "fn f() { let h = Sha256::new(); }", false),
+        ("ast.weak-hash-function", "c", "void f(const unsigned char *d, size_t n, unsigned char *o) { MD5(d, n, o); }", true),
+        ("ast.weak-hash-function", "c", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha1(), NULL); }", true),
+        ("ast.weak-hash-function", "c", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha256(), NULL); }", false),
+        ("ast.weak-cipher", "dart", "final e = Encrypter(AES(key, mode: AESMode.ecb));", true),
+        ("ast.weak-cipher", "dart", "final c = ECBBlockCipher(AESEngine());", true),
+        ("ast.weak-cipher", "dart", "final e = Encrypter(AES(key, mode: AESMode.gcm));", false),
+        ("ast.weak-cipher", "swift", "func f() { let s = CCCrypt(op, CCAlgorithm(kCCAlgorithmDES), 0, k, n, nil, i, m, o, l, &w) }", true),
+        ("ast.weak-cipher", "swift", "func f() throws { let a = try AES(key: k, blockMode: ECB()) }", true),
+        ("ast.weak-cipher", "swift", "func f() throws { let b = try AES.GCM.seal(d, using: key) }", false),
+        ("ast.weak-cipher", "swift", "func f() { let s = CCCrypt(op, CCAlgorithm(kCCAlgorithmAES), 0, k, n, iv, i, m, o, l, &w) }", false),
+        ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_128_ecb(), NULL, k, NULL); }", true),
+        ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_des_ede3_cbc(), NULL, k, iv); }", true),
+        ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_gcm(), NULL, k, iv); }", false),
+        ("ast.open-redirect", "dart", "Response f(Request r) => Response.found(r.url.queryParameters['next']!);", true),
+        ("ast.open-redirect", "dart", "void f(HttpRequest r, String next) { r.response.redirect(Uri.parse(next)); }", true),
+        ("ast.open-redirect", "dart", "Response f() => Response.found('/login');", false),
+        ("ast.open-redirect", "dart", "void f(HttpRequest r) { r.response.redirect(Uri.parse('/home')); }", false),
+        ("ast.open-redirect", "swift", "func f(req: Request, next: String) -> Response { return req.redirect(to: next) }", true),
+        ("ast.open-redirect", "swift", "func f(req: Request) -> Response { return req.redirect(to: \"/login\") }", false),
+        ("ast.open-redirect", "swift", "func f(req: Request, next: String) -> Response { return req.redirect(to: \"/r/\\(next)\") }", true),
+        ("ast.open-redirect", "kotlin", "fun f(next: String) { call.respondRedirect(next) }", true),
+        ("ast.open-redirect", "kotlin", "fun f() { call.respondRedirect(\"/login\") }", false),
+        ("ast.open-redirect", "rust", "async fn f(q: Query<Next>) -> Redirect { Redirect::to(&q.next) }", true),
+        ("ast.open-redirect", "rust", "async fn f() -> Redirect { Redirect::to(\"/login\") }", false),
     ];
 
     #[test]
@@ -1580,12 +1814,27 @@ mod tests {
 
         // Every language each of these rules claims has a witness both ways. A query with no found
         // case is a query that may never fire; one with no not-found case may fire on everything.
+        //
+        // Which pairs that covers: every language of the four rules written with this table, every
+        // rule's Dart and Swift, and any other language the table has a line for at all. The older
+        // rules' first languages are witnessed by the tests above instead.
+        const WRITTEN_WITH_THIS_TABLE: &[&str] = &[
+            "ast.file-path-from-value",
+            "ast.weak-hash-function",
+            "ast.weak-cipher",
+            "ast.open-redirect",
+        ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {
-            if !WITNESSES.iter().any(|(r, ..)| *r == rule_id) {
-                continue;
-            }
             for language in languages {
+                let owed = WRITTEN_WITH_THIS_TABLE.contains(&rule_id)
+                    || matches!(language, "dart" | "swift")
+                    || WITNESSES
+                        .iter()
+                        .any(|(r, l, ..)| *r == rule_id && *l == language);
+                if !owed {
+                    continue;
+                }
                 for want in [true, false] {
                     if !WITNESSES
                         .iter()
@@ -1597,5 +1846,20 @@ mod tests {
             }
         }
         assert!(unwitnessed.is_empty(), "{}", unwitnessed.join("\n"));
+    }
+
+    /// Prints the parse tree of a snippet, for writing a query against what the grammar really
+    /// produces rather than what it plausibly does. Not a test; run by hand:
+    ///
+    /// `SV_DUMP_LANG=dart SV_DUMP_SRC='…' cargo test -p sv-check --lib dump_trees -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn dump_trees() {
+        let lang = std::env::var("SV_DUMP_LANG").unwrap();
+        let src = std::env::var("SV_DUMP_SRC").unwrap();
+        let mut parser = Parser::new();
+        parser.set_language(&grammar(&lang).unwrap()).unwrap();
+        let tree = parser.parse(&src, None).unwrap();
+        println!("{}", tree.root_node().to_sexp());
     }
 }

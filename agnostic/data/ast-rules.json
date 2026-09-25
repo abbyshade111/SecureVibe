@@ -23,7 +23,11 @@
         "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (new_expression constructor: (identifier) @fn arguments: (arguments . (_) @arg))] @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
-        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit"
+        "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "dart": "(call_expression function: (member_expression object: (identifier) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "swift": "[(call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))\n (call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) @arg)))] @hit",
+        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit",
+        "kotlin": "(call_expression (navigation_expression (_) (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit"
       },
       "functionPatterns": {
         "python": "^(eval|exec|compile)$",
@@ -31,7 +35,23 @@
         "typescript": "^(eval|Function)$",
         "ruby": "^(eval|instance_eval|class_eval|module_eval)$",
         "php": "^(eval|assert|create_function)$",
-        "java": "^eval$"
+        "java": "^eval$",
+        "dart": "^spawnUri$",
+        "swift": "^(evaluateScript|evaluateJavaScript|callAsyncJavaScript|NSExpression)$",
+        "csharp": "^(EvaluateAsync|RunAsync|Evaluate|Run|Create)$",
+        "kotlin": "^eval$"
+      },
+      "modulePatterns": {
+        "dart": "^Isolate$",
+        "csharp": "^CSharpScript$"
+      },
+      "safeArgumentPatterns": {
+        "dart": "^Uri\\.(parse|file)\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$"
+      },
+      "nothingToFind": {
+        "c": "C has no way to run a string as C. A shell command is the shell-command rule's, and an embedded interpreter such as Lua is not looked for.",
+        "go": "Go has no built-in way to run a string as code. An embedded interpreter such as yaegi would be one, and is not looked for.",
+        "rust": "Rust has no built-in way to run a string as code. An embedded interpreter such as rhai would be one, and is not looked for."
       }
     },
     {
@@ -58,7 +78,10 @@
         "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
         "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
         "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
-        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
+        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
+        "dart": "[(call_expression function: (member_expression object: (identifier) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg))\n (call_expression function: (member_expression object: (identifier) @mod property: (identifier))\n                  arguments: (arguments . (string_literal) @fn . (list_literal) @arg))] @hit",
+        "swift": "[(call_expression (simple_identifier) @fn @mod (call_suffix (value_arguments . (value_argument) @arg)))\n (assignment target: (directly_assignable_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @mod)))\n             result: (array_literal . element: (line_string_literal) @fn) @arg)\n (value_argument name: (value_argument_label (simple_identifier) @mod)\n                 value: (array_literal . element: (line_string_literal) @fn) @arg)] @hit",
+        "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                  arguments: (argument_list . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (interpreted_string_literal) @fn . (_) . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (_) . (interpreted_string_literal) @fn . (_) . (_) @arg))] @hit"
       },
       "functionPatterns": {
         "python": "^(system|popen|getoutput|getstatusoutput)$",
@@ -69,7 +92,15 @@
         "java": "^(exec|command)$",
         "csharp": "^(Start)$",
         "kotlin": "^(exec|start)$",
-        "c": "^(system|popen|execl|execlp|execvp|execv)$"
+        "c": "^(system|popen|execl|execlp|execvp|execv)$",
+        "dart": "^(run|runSync|start|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\"|'(/bin/|/usr/bin/)?(sh|bash|zsh|dash)')$",
+        "swift": "^(system|popen|\"-l?c\")$",
+        "go": "^(Command|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$"
+      },
+      "modulePatterns": {
+        "dart": "^Process$",
+        "swift": "^(system|popen|arguments)$",
+        "go": "^exec$"
       }
     },
     {
@@ -98,7 +129,9 @@
         "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
         "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
         "rust": "(call_expression function: (field_expression field: (field_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
-        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
+        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
+        "dart": "(call_expression function: (member_expression property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) . (value_argument) @arg)))\n (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))] @hit"
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw)$",
@@ -111,7 +144,12 @@
         "csharp": "^(ExecuteReader|ExecuteNonQuery|ExecuteScalar|FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync)$",
         "kotlin": "^(rawQuery|execSQL|executeQuery|executeUpdate|createQuery|createNativeQuery)$",
         "rust": "^(execute|query|query_row|query_map|prepare|batch_execute)$",
-        "c": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
+        "c": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$",
+        "dart": "^(rawQuery|rawInsert|rawUpdate|rawDelete|execute|mappedResultsQuery|customSelect|customStatement|customUpdate|customInsert|prepare)$",
+        "swift": "^(sqlite3_exec|sqlite3_prepare|sqlite3_prepare_v2|sqlite3_prepare_v3|execute|executeQuery|executeUpdate|executeStatements)$"
+      },
+      "safeArgumentPatterns": {
+        "swift": "^literal\\s*:"
       }
     },
     {
@@ -135,7 +173,10 @@
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
         "java": "(method_invocation name: (identifier) @fn) @hit",
         "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit",
-        "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit"
+        "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
+        "swift": "(call_expression (navigation_expression target: (simple_identifier) @mod\n                                      suffix: (navigation_suffix suffix: (simple_identifier) @fn))) @hit",
+        "javascript": "[(call_expression function: (identifier) @fn)\n (call_expression function: (member_expression property: (property_identifier) @fn))] @hit",
+        "typescript": "[(call_expression function: (identifier) @fn)\n (call_expression function: (member_expression property: (property_identifier) @fn))] @hit"
       },
       "functionPatterns": {
         "python": "^(load|loads|Unpickler)$",
@@ -143,12 +184,22 @@
         "php": "^unserialize$",
         "java": "^readObject$",
         "csharp": "^(Deserialize|UnsafeDeserialize)$",
-        "kotlin": "^readObject$"
+        "kotlin": "^readObject$",
+        "swift": "^(unarchiveObject|unarchiveTopLevelObjectWithData)$",
+        "javascript": "^unserialize$",
+        "typescript": "^unserialize$"
       },
       "modulePatterns": {
         "python": "^(pickle|cPickle|dill|shelve|yaml|marshal)$",
         "ruby": "^(Marshal|YAML|Psych)$",
-        "csharp": "^(BinaryFormatter|NetDataContractSerializer|SoapFormatter|LosFormatter|ObjectStateFormatter)$"
+        "csharp": "^(BinaryFormatter|NetDataContractSerializer|SoapFormatter|LosFormatter|ObjectStateFormatter)$",
+        "swift": "^(NSKeyedUnarchiver|NSUnarchiver)$"
+      },
+      "nothingToFind": {
+        "c": "C has no object deserializer. Reading bytes into a struct is a memory-safety question, which this rule does not ask.",
+        "dart": "Dart's decoders, jsonDecode among them, give back maps and lists; no library call in common use builds whatever object the data names.",
+        "go": "Go's decoders (encoding/json, encoding/gob, encoding/xml) fill in a type the program names; none of them builds whatever type the data asks for.",
+        "rust": "serde fills in a type the program names; no deserializer in common use builds whatever type the data asks for."
       }
     },
     {
@@ -167,7 +218,21 @@
       "fix": "Run the program directly with its arguments as a list, rather than building one string for a shell to pull apart.",
       "literalArgumentIsSafe": true,
       "queries": {
-        "ruby": "(subshell) @hit @arg"
+        "ruby": "(subshell) @hit @arg",
+        "php": "(shell_command_expression) @hit @arg"
+      },
+      "nothingToFind": {
+        "c": "C has no backtick syntax.",
+        "csharp": "C# has no backtick syntax.",
+        "dart": "Dart has no backtick syntax.",
+        "go": "Backticks in Go make a raw string, not a command.",
+        "java": "Java has no backtick syntax.",
+        "javascript": "Backticks in JavaScript make a template string, not a command; a command is the shell-command rule's.",
+        "kotlin": "Backticks in Kotlin quote a name, not a command.",
+        "python": "Python has no backtick syntax.",
+        "rust": "Rust has no backtick syntax.",
+        "swift": "Backticks in Swift quote a name, not a command.",
+        "typescript": "Backticks in TypeScript make a template string, not a command; a command is the shell-command rule's."
       }
     },
     {
@@ -194,7 +259,12 @@
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
         "ruby": "(call receiver: (constant) @mod method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "java": "(object_creation_expression type: (type_identifier) @fn\n                            arguments: (argument_list . (_) @arg)) @hit",
-        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit"
+        "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit",
+        "dart": "(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg)) @hit",
+        "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) @arg)))\n (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))] @hit",
+        "kotlin": "(call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg))) @hit",
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(open|send_file|FileResponse)$",
@@ -204,21 +274,31 @@
         "php": "^(file_get_contents|file_put_contents|fopen|readfile|file|unlink)$",
         "ruby": "^(read|binread|readlines|open|new|write|binwrite|delete|unlink)$",
         "java": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)$",
-        "csharp": "^(ReadAllText|ReadAllBytes|ReadAllLines|OpenRead|OpenWrite|Open|WriteAllText|WriteAllBytes|AppendAllText|Delete)$"
+        "csharp": "^(ReadAllText|ReadAllBytes|ReadAllLines|OpenRead|OpenWrite|Open|WriteAllText|WriteAllBytes|AppendAllText|Delete)$",
+        "dart": "^(File|Directory|Link)$",
+        "swift": "^(String|NSString|Data|NSData|FileHandle|contents|contentsOfDirectory|removeItem|createFile|copyItem|moveItem|streamFile|write)$",
+        "kotlin": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)$",
+        "rust": "^(open|create|read|read_to_string|write|remove_file|remove_dir_all|new)$",
+        "c": "^(fopen|freopen|open|unlink|remove)$"
       },
       "modulePatterns": {
         "javascript": "^(fs|fsp|res|response)$",
         "typescript": "^(fs|fsp|res|response)$",
         "go": "^(os|ioutil)$",
         "ruby": "^(File|IO)$",
-        "csharp": "^File$"
+        "csharp": "^File$",
+        "rust": "(^|::)(File|fs|NamedFile|ServeFile|ServeDir)$"
       },
       "safeArgumentPatterns": {
         "python": "^[A-Z][A-Z0-9_]*$|secure_filename\\(|safe_join\\(|^os\\.path\\.join\\(\\s*(os\\.path\\.dirname\\(\\s*(os\\.path\\.abspath\\(\\s*)?__file__\\s*\\)\\)?|BASE_DIR)(\\s*,\\s*('[^'{}]*'|\"[^\"{}]*\"))*\\s*,?\\s*\\)$",
         "javascript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
         "typescript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
         "ruby": "^[A-Z][A-Z0-9_]*$",
-        "php": "^[A-Z][A-Z0-9_]*$"
+        "php": "^[A-Z][A-Z0-9_]*$",
+        "swift": "^\\w+\\s*:\\s*(URL\\(fileURLWithPath:\\s*\"[^\"\\\\]*\"\\)|Bundle\\.main\\.)"
+      },
+      "argumentPatterns": {
+        "swift": "^(atPath|contentsOfFile|contentsOf|forReadingAtPath|forWritingAtPath|forUpdatingAtPath|at|toFile)\\s*:"
       }
     },
     {
@@ -245,7 +325,11 @@
         "ruby": "(call receiver: (scope_resolution name: (constant) @mod) method: (identifier) @fn) @hit",
         "java": "(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
         "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)) @hit",
-        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit"
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
+        "dart": "(call_expression function: (member_expression object: (identifier) @mod property: (identifier) @fn)) @hit",
+        "swift": "[(call_expression (navigation_expression target: (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @mod))\n                                      suffix: (navigation_suffix suffix: (simple_identifier) @fn)))\n (call_expression (navigation_expression target: (simple_identifier) @mod\n                                      suffix: (navigation_suffix suffix: (simple_identifier) @fn)))\n (call_expression (simple_identifier) @fn @mod)] @hit",
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
+        "c": "(call_expression function: (identifier) @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(md5|sha1|md4)$",
@@ -256,7 +340,11 @@
         "ruby": "^(hexdigest|digest|base64digest|new|file)$",
         "java": "^getInstance$",
         "csharp": "^(Create|HashData|ComputeHash)$",
-        "kotlin": "^getInstance$"
+        "kotlin": "^getInstance$",
+        "dart": "^(convert|startChunkedConversion)$",
+        "swift": "^(hash|MD5|SHA1|CC_MD5|CC_SHA1|CC_MD4)$",
+        "rust": "^(compute|new|digest|new_with_prefix|chain)$",
+        "c": "^(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$"
       },
       "modulePatterns": {
         "python": "^hashlib$",
@@ -264,7 +352,10 @@
         "ruby": "^(MD5|SHA1)$",
         "java": "^MessageDigest$",
         "csharp": "^(MD5|SHA1)$",
-        "kotlin": "^MessageDigest$"
+        "kotlin": "^MessageDigest$",
+        "dart": "^(md5|sha1)$",
+        "swift": "^(MD5|SHA1|Insecure|CC_MD5|CC_SHA1|CC_MD4)$",
+        "rust": "(^|::)(md5|Md5|Md4|sha1|Sha1)$"
       },
       "argumentPatterns": {
         "javascript": "(?i)^['\"`](md5|md4|sha1|sha-1|ripemd160)['\"`]$",
@@ -300,7 +391,10 @@
         "ruby": "(call receiver: (scope_resolution name: (constant) @mod) method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "java": "(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
         "csharp": "(member_access_expression expression: (identifier) @mod name: (identifier) @fn) @hit",
-        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit"
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
+        "dart": "[(member_expression object: (identifier) @mod property: (identifier) @fn)\n (call_expression function: (identifier) @fn @mod)] @hit",
+        "swift": "(simple_identifier) @fn @hit",
+        "c": "(call_expression function: (identifier) @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(ECB|MODE_ECB|TripleDES|ARC4|Blowfish|CAST5|IDEA|SEED)$",
@@ -311,7 +405,10 @@
         "ruby": "^new$",
         "java": "^getInstance$",
         "csharp": "^(ECB|Create)$",
-        "kotlin": "^getInstance$"
+        "kotlin": "^getInstance$",
+        "dart": "^(ecb|ECBBlockCipher|DESedeEngine|DESEngine|RC4Engine|BlowfishEngine)$",
+        "swift": "^(kCCAlgorithm(DES|3DES|RC4|RC2|Blowfish|CAST)|kCCOptionECBMode|ECB|Blowfish)$",
+        "c": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES|algorithms)$",
@@ -319,7 +416,8 @@
         "ruby": "^Cipher$",
         "java": "^Cipher$",
         "csharp": "^(CipherMode|DES|TripleDES|RC2)$",
-        "kotlin": "^Cipher$"
+        "kotlin": "^Cipher$",
+        "dart": "^(AESMode|ECBBlockCipher|DESedeEngine|DESEngine|RC4Engine|BlowfishEngine)$"
       },
       "argumentPatterns": {
         "javascript": "(?i)^['\"`](aes-?\\d*-ecb|des[-\\w]*|rc4[-\\w]*|rc2[-\\w]*|bf[-\\w]*|blowfish[-\\w]*)['\"`]$",
@@ -353,7 +451,11 @@
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
         "ruby": "(call method: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
         "java": "(method_invocation name: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
-        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit"
+        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
+        "dart": "(call_expression function: (member_expression object: (_) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "swift": "(call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg))) @hit",
+        "kotlin": "(call_expression (navigation_expression (_) (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
@@ -363,20 +465,28 @@
         "php": "^header$",
         "ruby": "^redirect_to$",
         "java": "^sendRedirect$",
-        "csharp": "^(Redirect|RedirectPermanent)$"
+        "csharp": "^(Redirect|RedirectPermanent)$",
+        "dart": "^(found|seeOther|movedPermanently|redirect)$",
+        "swift": "^redirect$",
+        "kotlin": "^(sendRedirect|respondRedirect)$",
+        "rust": "^(to|temporary|permanent|see_other)$"
       },
       "modulePatterns": {
         "javascript": "^(res|response|reply|ctx)$",
         "typescript": "^(res|response|reply|ctx)$",
-        "go": "^http$"
+        "go": "^http$",
+        "dart": "(^|\\.)(Response|response|res)$",
+        "rust": "(^|::)Redirect$"
       },
       "argumentPatterns": {
-        "php": "(?i)^['\"]\\s*location\\s*:"
+        "php": "(?i)^['\"]\\s*location\\s*:",
+        "swift": "^to\\s*:"
       },
       "safeArgumentPatterns": {
         "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(",
         "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$",
-        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\("
+        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(",
+        "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$"
       }
     }
   ]

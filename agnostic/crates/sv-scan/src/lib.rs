@@ -137,7 +137,8 @@ pub struct ScanReport {
     /// Every path in the app, whatever its type, so a configuration file can be looked for.
     pub all_paths: BTreeSet<String>,
     pub files_read: usize,
-    /// Files that look like source but whose language `sv` cannot read, with their extensions.
+    /// Extensions of source files the technology scan did not look in: a language `sv` cannot read
+    /// at all, or one only the code rules read (`ecosystems::NO_TECHNOLOGY_READER`).
     pub unread_extensions: BTreeSet<String>,
     pub answers: Vec<Answer>,
 }
@@ -435,7 +436,15 @@ fn walk(
         };
         match ecosystems::language_of(&ext.to_lowercase()) {
             Some(language) => match std::fs::read_to_string(&path) {
-                Ok(contents) => files.push((language.to_owned(), relative, contents)),
+                Ok(contents) => {
+                    // Read by the code rules, and present as a language, but not looked in for
+                    // technologies: no dependency file of theirs is read and no signature has a
+                    // pattern for them, so a Dart app's GraphQL would go unseen and be called absent.
+                    if ecosystems::NO_TECHNOLOGY_READER.contains(&language) {
+                        report.unread_extensions.insert(ext.to_lowercase());
+                    }
+                    files.push((language.to_owned(), relative, contents));
+                }
                 // A source file that cannot be read is a hole in the coverage, not an empty file.
                 Err(_) => {
                     report.unread_extensions.insert(ext.to_lowercase());
@@ -457,15 +466,13 @@ fn walk(
 fn looks_like_source(ext: &str) -> bool {
     matches!(
         ext.to_lowercase().as_str(),
-        "swift"
-            | "scala"
+        "scala"
             | "clj"
             | "ex"
             | "exs"
             | "erl"
             | "hs"
             | "ml"
-            | "dart"
             | "lua"
             | "pl"
             | "r"
