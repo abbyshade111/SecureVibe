@@ -89,8 +89,9 @@ another session is not a claim.
   rule-based STRIDE model (32 threats citing 80 different requirements, decided by about 20 facts about the app) needs no
   AI, and `sv` already knows nearly every fact it asks; ported to a data file, each threat would show
   what the evidence says about it (found, checked in part, not verified, cannot place) and never that
-  it is mitigated. Three pull requests. Not claimed: it waits on the owner's answers to the three
-  questions at the end of that document.
+  it is mitigated. Three pull requests. The owner answered the three
+  questions on 25 September 2026: no likelihood/impact scoring, v1 to read the same data file later,
+  and a section of the report rather than a file of its own. Ready to build; not claimed.
 
 - ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
   AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
