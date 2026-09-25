@@ -62,7 +62,7 @@ another session is not a claim.
   Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
   top only, and a Yarn Berry or Bun lockfile is not one `sv` reads.
 
-- **Ground the Secure by Design levels in ASVS.** Proposed 25 September 2026, not claimed. The
+- **Ground the Secure by Design levels in ASVS.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`); the owner agreed the design.* Proposed 25 September 2026. The
   checklist has no levels; `sv` derives one from `critical` and `severityIfNo`, and the report then
   files the controls above the target as "above the ASVS level this app targets", which they are not.
   In order of cost: (1) say which it is in the report — "above this app's target level; the checklist
@@ -85,7 +85,7 @@ another session is not a claim.
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
   which is a question with two defensible answers.
 
-- **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
+- **Grammars for C++, and for HTML's embedded scripts.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`) for Dart and Swift only, fourth in the owner's order.* C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Worth more, in order: **Dart** (Flutter front ends, which today
   silence every code rule for the whole app, Python back end included), **Swift** (the same, for iOS
@@ -128,7 +128,7 @@ another session is not a claim.
   handling per route and anything that sends data need either a manifest describing the app's routes or a
   session — both of which are their own items below.
 
-- **Seeded users.** The probes sign in as nobody, so authorisation, session handling and CSRF are reported
+- **Seeded users.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), third in the owner's order.* The probes sign in as nobody, so authorisation, session handling and CSRF are reported
   as *not assessed* and named as such. v1's probes sign in as users it created. Doing that for an arbitrary app means the manifest
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
@@ -191,7 +191,7 @@ another session is not a claim.
   loses coverage silently rather than loudly. The parser understands JUnit XML only; TAP and the
   runners that emit their own JSON are not read.
 
-- **The MCP server.** Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
+- **The MCP server.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Wraps the same core so an AI coding tool can run the checks mid-conversation. Wants
   `sv check` finished first.
 
 ## Decided, not yet written down as ADRs
