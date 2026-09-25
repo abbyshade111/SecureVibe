@@ -84,7 +84,7 @@ another session is not a claim.
   taught claims nothing and the report names it, which showed gaps in the older languages, most filled
   at once. Three remain, and are the next entry. See DESIGN, "Thirteen languages".
 
-- **Three rules still untaught a language.** Shell commands in Rust (`Command::new("sh").arg("-c")` is
+- **Three rules still untaught a language.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), first in the owner's order.* Shell commands in Rust (`Command::new("sh").arg("-c")` is
   a method chain, and the query needs to follow it), weak ciphers in Rust (the RustCrypto crates name
   them as types, not calls), and redirects in C (a CGI program prints its `Location:` header). Each
   now shows in the report as a gap for any app containing that language.
@@ -122,7 +122,7 @@ another session is not a claim.
   pinning lives in `pom.xml` and `build.gradle` rather than a lockfile. Reading a range out of either
   would turn an open question into an answer.
 
-- **More adapters, and more of their rules mapped.** Four are listed; semgrep's rule ids are not mapped
+- **More adapters, and more of their rules mapped.** *Claimed 25 September 2026 by session securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), second, semgrep's rule mapping only in the owner's order.* Four are listed; semgrep's rule ids are not mapped
   to requirements at all, so its findings carry none. `eslint-plugin-security`, `staticcheck` and
   `phpcs-security-audit` are each a data entry. The shape to keep: SARIF only, not installed means not
   run, and rule ids mapped one at a time.
