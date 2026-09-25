@@ -70,6 +70,13 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
         manifest: "build.gradle",
         lockfiles: &["gradle.lockfile"],
     },
+    // The Kotlin DSL, which is what `gradle init` and Spring Initializr write for a Kotlin project.
+    // Not listing it left every such app with no dependencies read at all.
+    EcosystemDef {
+        name: "Java (Gradle)",
+        manifest: "build.gradle.kts",
+        lockfiles: &["gradle.lockfile"],
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -36,8 +36,8 @@
           "roxmltree"
         ],
         "Go": [
-          "etree",
-          "xmlquery"
+          "beevik/etree",
+          "antchfx/xmlquery"
         ],
         "Java (Maven)": [
           "dom4j",
@@ -129,8 +129,8 @@
           "jaxen"
         ],
         "Go": [
-          "xmlquery",
-          "htmlquery"
+          "antchfx/xmlquery",
+          "antchfx/htmlquery"
         ],
         "Rust": [
           "sxd-xpath"
@@ -196,7 +196,7 @@
           "symfony/ldap"
         ],
         "Go": [
-          "go-ldap"
+          "go-ldap/ldap"
         ],
         "Rust": [
           "ldap3"
@@ -319,7 +319,7 @@
           "memcached"
         ],
         "Go": [
-          "gomemcache"
+          "bradfitz/gomemcache"
         ],
         "Rust": [
           "memcache"
@@ -397,6 +397,7 @@
         "Go": [
           "gorilla/websocket",
           "nhooyr.io/websocket",
+          "coder/websocket",
           "gobwas/ws"
         ],
         "Rust": [
@@ -484,8 +485,9 @@
           "webonyx/graphql-php"
         ],
         "Go": [
-          "graphql-go",
-          "gqlgen"
+          "graphql-go/graphql",
+          "graph-gophers/graphql-go",
+          "99designs/gqlgen"
         ],
         "Rust": [
           "async-graphql",

@@ -220,7 +220,9 @@ fn evaluate(
     // 3. A declared dependency.
     for declared in &report.declared {
         if let Some(names) = sig.packages.get(&declared.ecosystem)
-            && names.iter().any(|n| eq_ignore_case(n, &declared.name))
+            && names
+                .iter()
+                .any(|n| package_matches(&declared.ecosystem, n, &declared.name))
         {
             {
                 return Answer {
@@ -352,6 +354,37 @@ fn matching_path(paths: &BTreeSet<String>, pattern: &str) -> Option<String> {
             p == wanted || p.starts_with(&format!("{wanted}/"))
         })
         .cloned()
+}
+
+/// Whether a declared dependency is the package a signature names.
+///
+/// Exact everywhere except Go, where `go.mod` declares a full module path —
+/// `github.com/gorilla/websocket`, `github.com/golang-jwt/jwt/v5` — and a signature names the part
+/// people say, `gorilla/websocket`. Compared exactly, no Go signature had ever matched, and a Go app
+/// using a WebSocket library had the WebSocket requirements excluded because "no WebSocket library
+/// is used". So a Go signature matches the whole path, or its tail on a `/` boundary, with a major
+/// version suffix (`/v5`) set aside first. Matching on a boundary keeps `ws` from matching
+/// `gobwas/ws`'s neighbours; over-matching here would add requirements, never remove them.
+fn package_matches(ecosystem: &str, signature: &str, declared: &str) -> bool {
+    if eq_ignore_case(signature, declared) {
+        return true;
+    }
+    if ecosystem != "Go" {
+        return false;
+    }
+    let declared = declared.to_lowercase();
+    let path = match declared.rsplit_once('/') {
+        Some((head, tail))
+            if tail.len() > 1
+                && tail.starts_with('v')
+                && tail[1..].chars().all(|c| c.is_ascii_digit()) =>
+        {
+            head
+        }
+        _ => declared.as_str(),
+    };
+    let signature = signature.to_lowercase();
+    path == signature || path.ends_with(&format!("/{signature}"))
 }
 
 fn eq_ignore_case(a: &str, b: &str) -> bool {
