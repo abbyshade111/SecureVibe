@@ -1,5 +1,5 @@
 {
-  "_comment": "Threats to a web app, by the part of it they concern, STRIDE category, and the conditions under which they apply. Each names the ASVS and AISVS requirements that answer it; nothing here says a threat is handled, which is for the evidence about those requirements to show. Ported on 25 September 2026 from v1's rule-based model (server/src/design/threat-model.ts) without its likelihood and impact, at the owner's decision, and without its template controls, which are v1's own code. v1's three threats per outside API are one set here. Read by sv (agnostic/crates/sv-report/src/threats.rs); v1 is to read it too, later. See agnostic/docs/THREAT-MODELING.md. Each requirement carries a few words naming what the threat and the requirement share (`because`), which the citation guard holds against both texts, as for the crosswalk.",
+  "_comment": "Threats to a web app, by the part of it they concern, STRIDE category, and the conditions under which they apply. Each names the ASVS and AISVS requirements that answer it; nothing here says a threat is handled, which is for the evidence about those requirements to show. Ported on 25 September 2026 from v1's rule-based model (server/src/design/threat-model.ts) without its likelihood and impact, at the owner's decision, and without its template controls, which are v1's own code. v1's three threats per outside API are one set here. T-31 onward are new in sv, for what v1 did not model: MCP tools, retrieval, several services, WebSockets, and several tenants. Read by sv (agnostic/crates/sv-report/src/threats.rs); v1 is to read it too, later. See agnostic/docs/THREAT-MODELING.md. Each requirement carries a few words naming what the threat and the requirement share (`because`), which the citation guard holds against both texts, as for the crosswalk.",
   "elements": [
     {
       "id": "browser-to-app",
@@ -73,6 +73,40 @@
       "description": "Work the app does on a timer, with nobody present.",
       "when": [
         "scheduler"
+      ]
+    },
+    {
+      "id": "mcp-tools",
+      "name": "Tools the model can use (MCP)",
+      "description": "Tools reached over the Model Context Protocol, and the servers that provide them.",
+      "when": [
+        "ai",
+        "mcp"
+      ]
+    },
+    {
+      "id": "document-store",
+      "name": "The documents the model searches",
+      "description": "The documents, embeddings, or vector database the app searches to answer (retrieval-augmented generation).",
+      "when": [
+        "ai",
+        "rag"
+      ]
+    },
+    {
+      "id": "services",
+      "name": "The app's own services",
+      "description": "The separate services the app is made of, and the calls between them.",
+      "when": [
+        "multiple-services"
+      ]
+    },
+    {
+      "id": "websockets",
+      "name": "Live connections (WebSockets)",
+      "description": "Connections a browser keeps open for messages in both directions.",
+      "when": [
+        "websockets"
       ]
     }
   ],
@@ -748,6 +782,218 @@
         {
           "id": "V15.2.2",
           "because": "a long, resource-demanding job that makes the app unavailable"
+        }
+      ]
+    },
+    {
+      "id": "T-31",
+      "stride": "tampering",
+      "element": "mcp-tools",
+      "when": [],
+      "description": "A tool's description or response carries hidden instructions that the model follows (indirect prompt injection).",
+      "requirements": [
+        {
+          "id": "C10.4.2",
+          "because": "tool responses screened for indirect prompt injection"
+        },
+        {
+          "id": "C10.4.1",
+          "because": "tool responses validated against their schemas before the model reads them"
+        }
+      ]
+    },
+    {
+      "id": "T-32",
+      "stride": "elevation-of-privilege",
+      "element": "mcp-tools",
+      "when": [],
+      "description": "The model calls a tool, or passes it arguments, that the signed-in person is not allowed to use.",
+      "requirements": [
+        {
+          "id": "C10.2.5",
+          "because": "access control on every tool invocation and its arguments"
+        },
+        {
+          "id": "C10.2.4",
+          "because": "tools listed only when the person's scopes allow them"
+        },
+        {
+          "id": "C9.5.1",
+          "because": "the tools the model may invoke, restricted by policy"
+        }
+      ]
+    },
+    {
+      "id": "T-33",
+      "stride": "spoofing",
+      "element": "mcp-tools",
+      "when": [],
+      "description": "Someone reaches the app's MCP server without a valid token, or with a token meant for another service.",
+      "requirements": [
+        {
+          "id": "C10.2.1",
+          "because": "a token validated for each request to the MCP server"
+        },
+        {
+          "id": "C10.2.2",
+          "because": "a token's issuer and audience checked"
+        },
+        {
+          "id": "C10.2.7",
+          "because": "a client's token passed on to another service"
+        }
+      ]
+    },
+    {
+      "id": "T-34",
+      "stride": "tampering",
+      "element": "mcp-tools",
+      "when": [],
+      "description": "A malicious or look-alike MCP server is installed, or a local one reaches files and networks it should not.",
+      "requirements": [
+        {
+          "id": "C10.1.1",
+          "because": "MCP servers obtained only from trusted sources"
+        },
+        {
+          "id": "C10.1.2",
+          "because": "only allow-listed MCP servers"
+        },
+        {
+          "id": "C10.1.3",
+          "because": "a local MCP server kept in a sandbox without file system and network access"
+        }
+      ]
+    },
+    {
+      "id": "T-35",
+      "stride": "information-disclosure",
+      "element": "document-store",
+      "when": [],
+      "description": "The model answers one person with documents another person may not see, because retrieval does not check who is asking.",
+      "requirements": [
+        {
+          "id": "C5.2.2",
+          "because": "retrieval that enforces the person's authorization"
+        },
+        {
+          "id": "C8.1.3",
+          "because": "retrieval limited to the scope the person may see"
+        }
+      ]
+    },
+    {
+      "id": "T-36",
+      "stride": "tampering",
+      "element": "document-store",
+      "when": [],
+      "description": "Documents written into the store, including the model's own output, steer its later answers.",
+      "requirements": [
+        {
+          "id": "C8.2.3",
+          "because": "model and tool outputs written into memory without validation"
+        },
+        {
+          "id": "C8.1.2",
+          "because": "a document's metadata changed after it was written"
+        }
+      ]
+    },
+    {
+      "id": "T-37",
+      "stride": "information-disclosure",
+      "element": "document-store",
+      "when": [],
+      "description": "Sensitive fields are embedded into the store, where any search can bring them back.",
+      "requirements": [
+        {
+          "id": "C8.2.1",
+          "because": "sensitive fields masked before embedding"
+        }
+      ]
+    },
+    {
+      "id": "T-38",
+      "stride": "spoofing",
+      "element": "services",
+      "when": [],
+      "description": "One of the app's own services is called by something that is not another of its services, because the calls between them are not authenticated.",
+      "requirements": [
+        {
+          "id": "V13.2.1",
+          "because": "calls between backend components authenticated"
+        },
+        {
+          "id": "V13.2.2",
+          "because": "calls between the services made with the least privileges needed"
+        },
+        {
+          "id": "V13.2.3",
+          "because": "services authenticated with a default credential"
+        }
+      ]
+    },
+    {
+      "id": "T-39",
+      "stride": "tampering",
+      "element": "websockets",
+      "when": [],
+      "description": "Another website opens a live connection to the app with the person's cookies and sends messages as them.",
+      "requirements": [
+        {
+          "id": "V4.4.2",
+          "because": "a connection from another website, refused by checking its Origin"
+        },
+        {
+          "id": "V4.4.4",
+          "because": "a live connection whose session tokens come from the person's signed-in session"
+        }
+      ]
+    },
+    {
+      "id": "T-40",
+      "stride": "information-disclosure",
+      "element": "websockets",
+      "when": [],
+      "description": "Messages on a live connection are read on the network.",
+      "requirements": [
+        {
+          "id": "V4.4.1",
+          "because": "live connection messages sent over WSS rather than plain ws"
+        }
+      ]
+    },
+    {
+      "id": "T-41",
+      "stride": "information-disclosure",
+      "element": "stored-data",
+      "when": [
+        "multi-tenant"
+      ],
+      "description": "One customer organization (tenant) sees or changes another tenant's records in a system they share.",
+      "requirements": [
+        {
+          "id": "V8.4.1",
+          "because": "operations restricted to the tenant with permission"
+        }
+      ]
+    },
+    {
+      "id": "T-42",
+      "stride": "information-disclosure",
+      "element": "document-store",
+      "when": [
+        "multi-tenant"
+      ],
+      "description": "One tenant's documents come back in another tenant's searches.",
+      "requirements": [
+        {
+          "id": "C8.1.1",
+          "because": "vector namespaces kept unique per tenant"
+        },
+        {
+          "id": "C5.3.1",
+          "because": "one tenant's embedding operations observed by another tenant"
         }
       ]
     }
