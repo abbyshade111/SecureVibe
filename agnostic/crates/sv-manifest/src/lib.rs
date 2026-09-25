@@ -170,8 +170,8 @@ pub struct RunSection {
 
 /// One request the probes make on the app's behalf: how to sign up, sign in, or create something.
 ///
-/// Values may use `{user}`, `{password}`, `{csrf}` (a token read from the page first) and `{marker}`
-/// (a unique string the probe can look for afterwards). A body is sent as a form unless `json` is
+/// Values may use `{user}`, `{password}`, `{csrf}` (a token read from the page first), `{marker}`
+/// (a unique string the probe can look for afterwards), and, in `change-password`, `{new_password}`. A body is sent as a form unless `json` is
 /// used instead; never both.
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
@@ -231,6 +231,15 @@ pub struct UsersSection {
     pub admin: Vec<String>,
     #[serde(default)]
     pub owned: Option<OwnedSection>,
+    /// Changes the signed-in user's password: `{password}` is the current one, `{new_password}`
+    /// the new. Asked last, with an account made for it through `signup`, or with A when there is
+    /// no `signup`.
+    #[serde(default)]
+    pub change_password: Option<RequestTemplate>,
+    /// Deletes the signed-in user's own account; `{password}` if it asks for the password again.
+    /// Only ever used on an account made for it through `signup`, never on A or B.
+    #[serde(default)]
+    pub delete_account: Option<RequestTemplate>,
 }
 
 impl UsersSection {
@@ -256,10 +265,29 @@ impl UsersSection {
                     .to_owned(),
             );
         }
-        for t in [&self.signup, &self.login, &self.logout]
-            .into_iter()
-            .flatten()
-            .chain(self.owned.as_ref().map(|o| &o.create))
+        if let Some(t) = &self.change_password
+            && !t
+                .form
+                .values()
+                .chain(t.json.values())
+                .any(|v| v.contains("{new_password}"))
+        {
+            out.push(format!(
+                "`change-password` ({}) has no field with `{{new_password}}`, so there is nothing to \
+                 change the password to",
+                t.path
+            ));
+        }
+        for t in [
+            &self.signup,
+            &self.login,
+            &self.logout,
+            &self.change_password,
+            &self.delete_account,
+        ]
+        .into_iter()
+        .flatten()
+        .chain(self.owned.as_ref().map(|o| &o.create))
         {
             if !t.form.is_empty() && !t.json.is_empty() {
                 out.push(format!("{} sets both `form` and `json`; pick one", t.path));
@@ -504,6 +532,39 @@ pub fn resolve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_password_change_with_nothing_to_change_to_is_named_as_a_problem() {
+        let template = |fields: &[(&str, &str)]| RequestTemplate {
+            method: "POST".into(),
+            path: "/password".into(),
+            form: fields
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            json: Default::default(),
+        };
+        let mut users = UsersSection {
+            seed: Some("seed".into()),
+            login: Some(template(&[("password", "{password}")])),
+            private: vec!["/account".into()],
+            change_password: Some(template(&[
+                ("current", "{password}"),
+                ("new", "{password}"),
+            ])),
+            ..Default::default()
+        };
+        let problems = users.problems();
+        assert!(
+            problems.iter().any(|p| p.contains("{new_password}")),
+            "{problems:?}"
+        );
+        users.change_password = Some(template(&[
+            ("current", "{password}"),
+            ("new", "{new_password}"),
+        ]));
+        assert!(users.problems().is_empty(), "{:?}", users.problems());
+    }
 
     #[test]
     fn code_evidence_overrides_a_claim_of_no() {

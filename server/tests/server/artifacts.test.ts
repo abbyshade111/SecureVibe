@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PipelineRunSchema } from '@shared/pipeline.js';
 import { unpackZip } from '../../src/api/zip.js';
+import { htmlToPdf, pageSizeOf } from '../../src/reports/pdf/index.js';
 import { newRunId } from '../../src/store/index.js';
 import { buildHarness, signIn, type TestHarness } from './helpers.js';
 
@@ -14,6 +15,53 @@ describe('report downloads', () => {
     harness = await buildHarness();
   });
   afterEach(() => harness?.cleanup());
+
+  it('serves a PDF in the paper size set in Settings: the saved file when it matches, the report laid out again when it does not', async () => {
+    const project = harness.store.create({ name: 'Paper test', mode: 'guided' });
+    const runId = newRunId();
+    const dir = harness.store.reportsDir(project.id, runId);
+    mkdirSync(dir, { recursive: true });
+    const html = '<!doctype html><title>Paper</title><h2>Chapter</h2><p>report text</p>';
+    writeFileSync(join(dir, 'overview.html'), html);
+    const savedLetter = htmlToPdf(html, { pageSize: 'letter' });
+    writeFileSync(join(dir, 'overview.pdf'), savedLetter);
+    writeFileSync(join(dir, 'kept.pdf'), htmlToPdf('<p>no html beside this one</p>', { pageSize: 'letter' }));
+    const ref = (name: string, format: 'html' | 'pdf') => ({ name, path: `reports/${runId}/${name}`, kind: 'overview' as const, format, sizeBytes: 1, description: 'x' });
+    await harness.store.writeRun(
+      PipelineRunSchema.parse({ id: runId, projectId: project.id, mode: 'full', startedAt: new Date().toISOString(), status: 'succeeded', stages: [], artifacts: [ref('overview.html', 'html'), ref('overview.pdf', 'pdf'), ref('kept.pdf', 'pdf')] }),
+    );
+    harness.store.update(project.id, (p) => {
+      p.lastRunId = runId;
+    });
+    const { cookie, csrfToken } = await signIn(harness);
+    const binary = (res: import('superagent').Response, done: (err: Error | null, body: Buffer) => void) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => done(null, Buffer.concat(chunks)));
+    };
+    const get = async (name: string) =>
+      (await request(harness.server).get(`/api/projects/${project.id}/artifacts/${name}`).set('Host', '127.0.0.1').set('Cookie', cookie).buffer(true).parse(binary)).body as Buffer;
+
+    // Letter is the default, and the saved file is on it: it is served byte for byte.
+    const status = await request(harness.server).get('/api/status').set('Host', '127.0.0.1').set('Cookie', cookie);
+    expect(status.body.settings.pdfPageSize).toBe('letter');
+    expect((await get('overview.pdf')).equals(savedLetter)).toBe(true);
+
+    // A4 is chosen: the download is laid out again on A4, and the file on disk is left alone.
+    const put = (body: object) => request(harness.server).put('/api/settings').set('Host', '127.0.0.1').set('Cookie', cookie).set('X-CSRF-Token', csrfToken).send(body);
+    expect((await put({ pdfPageSize: 'a4' })).status).toBe(200);
+    const made = await get('overview.pdf');
+    expect(pageSizeOf(made)).toBe('a4');
+    expect(readFileSync(join(dir, 'overview.pdf')).equals(savedLetter)).toBe(true);
+
+    // A PDF with no HTML beside it has nothing to lay out again, so it is served as it was saved.
+    expect(pageSizeOf(await get('kept.pdf'))).toBe('letter');
+
+    // Only the two sizes are accepted.
+    expect((await put({ pdfPageSize: 'legal' })).status).toBe(400);
+    expect((await put({ pdfPageSize: 'letter' })).status).toBe(200);
+    expect((await get('overview.pdf')).equals(savedLetter)).toBe(true);
+  });
 
   it('serves reports listed with project-relative paths and with the older file-name-only paths', async () => {
     const project = harness.store.create({ name: 'Report test', mode: 'guided' });
@@ -49,15 +97,29 @@ describe('report downloads', () => {
     const hash = createHash('sha256').update('body{color:red}').digest('base64');
     expect(page.headers['content-security-policy']).toContain(`style-src 'sha256-${hash}'`);
     expect(page.headers['content-security-policy']).toContain("default-src 'none'");
-    // Only SecureVibe's own page may frame a report (to print it); other sites may not.
-    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'self'");
-    expect(page.headers['x-frame-options']).toBe('SAMEORIGIN');
+    // Nothing frames a report: the PDF is a file SecureVibe writes, not a print dialog opened in a hidden frame.
+    expect(page.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(page.headers['x-frame-options']).toBe('DENY');
     expect(page.headers['content-security-policy']).not.toContain('unsafe-inline');
 
     // A report saved by an older version is shown with the current stylesheet (readable in dark mode).
     const older = await request(harness.server).get(`/api/projects/${project.id}/artifacts/security-report.html`).set('Host', '127.0.0.1').set('Cookie', cookie);
     expect(older.text).toContain('prefers-color-scheme: dark');
     expect(older.text).not.toContain('a{color:blue}');
+
+    // A run saved before PDFs were written with the reports has none: the PDF is made from its HTML on request.
+    const binary = (res: import('superagent').Response, done: (err: Error | null, body: Buffer) => void) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => done(null, Buffer.concat(chunks)));
+    };
+    const made = await request(harness.server).get(`/api/projects/${project.id}/artifacts/overview.pdf`).set('Host', '127.0.0.1').set('Cookie', cookie).buffer(true).parse(binary);
+    expect(made.status).toBe(200);
+    expect(made.headers['content-type']).toBe('application/pdf');
+    expect(made.headers['content-disposition']).toBe('attachment; filename="overview.pdf"');
+    expect((made.body as Buffer).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const nothing = await request(harness.server).get(`/api/projects/${project.id}/artifacts/no-such-report.pdf`).set('Host', '127.0.0.1').set('Cookie', cookie);
+    expect(nothing.status).toBe(404);
 
     // The run is listed in the report history and its reports are reachable by run, also after a newer run.
     const history = await request(harness.server).get(`/api/projects/${project.id}/report-runs`).set('Host', '127.0.0.1').set('Cookie', cookie);

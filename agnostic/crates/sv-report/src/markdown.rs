@@ -109,7 +109,7 @@ pub fn compliance(report: &Report) -> String {
                 line.status.label(),
                 line.checked_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
@@ -118,7 +118,7 @@ pub fn compliance(report: &Report) -> String {
                 line.status.label(),
                 line.supported_by
                     .iter()
-                    .map(|c| format!("{} over {}", c.check_id, c.scope))
+                    .map(|c| format!("{}: {}", c.check_id, c.scope))
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
@@ -132,6 +132,48 @@ pub fn compliance(report: &Report) -> String {
         ));
     }
     out.push('\n');
+
+    if !report.threats.is_empty() {
+        out.push_str("## Threats\n\n");
+        out.push_str(&format!("{}\n\n", crate::threats::INTRO));
+        let parts: Vec<String> = report
+            .threat_parts
+            .iter()
+            .map(|p| match p.present {
+                Some(true) => p.name.clone(),
+                _ => format!(
+                    "{} (not known: securevibe.toml does not answer {})",
+                    p.name,
+                    p.unanswered
+                        .iter()
+                        .map(|c| format!("`{c}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            })
+            .collect();
+        out.push_str(&format!("Parts of the app: {}.\n\n", parts.join("; ")));
+        out.push_str(&format!(
+            "{}\n\n",
+            crate::threats::count_line(&report.threats)
+        ));
+        out.push_str("| threat | status | part of the app | what could happen | the requirements that answer it |\n|---|---|---|---|---|\n");
+        for line in &report.threats {
+            out.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                cell(&format!(
+                    "{} ({})",
+                    line.id,
+                    crate::threats::stride_words(&line.stride)
+                )),
+                cell(line.status.label()),
+                cell(&line.element_name),
+                cell(&line.description),
+                cell(&crate::threats::evidence_words(line))
+            ));
+        }
+        out.push('\n');
+    }
 
     if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
         out.push_str("## Tests to write\n\n");

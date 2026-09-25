@@ -18,30 +18,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   the stuck file — a loop printing each file before running it, ninety seconds each, stopping after three —
   is preserved at `876cbe6` on `claude/query-recipe`. Blocked until 22 September 2026 on metered minutes; the
   repository is public now, so the minutes are free and this is unblocked.
-- **Scanning uploaded files for malware (ASVS V5.4.3).** **[taken: this session, 20 Sep 2026]** Policy settled in
-  `docs/adr/ADR-011.md`: mandatory wherever files arrive from outside, and mandatory means an unscannable file is
-  refused rather than stored and flagged. The entry below predates that decision and is kept for its reasoning. Our scanners ask whether the code has a weakness; an
-  antivirus scanner asks whether a file is known-bad content. Nothing we run does the second. The template
-  already stops a file pretending to be an image — size enforced before the body finishes, magic bytes sniffed,
-  declared type and extension cross-checked, stored outside the web root under a random name — but a genuine
-  image carrying a known exploit, or a document with a malicious macro, passes all of that. Worth adding as an
-  optional connection to a scanner the owner runs (ClamAV being the usual one) for apps that accept uploads, with
-  the same wizard shape as an outside service. It must stay honest when absent: the app says uploads are
-  unscanned rather than implying they were checked. Not a new build-time scanner: malicious packages are rarely
-  in antivirus signatures, and that risk is already covered by disabled install scripts, a minimum package age
-  and the OSV check. V5.4.3 stays manual-only until an app actually scans.
-- **The same scanner, on SecureVibe's own Security page.** **[taken: this session, 20 Sep 2026]** A second use of the same connection, and the stronger
-  of the two for SecureVibe itself: an opt-in external tool beside Trivy, Semgrep and the AI scanner, run on
-  demand like any other check. It earns its place most on an **uploaded** app — code SecureVibe is handed and
-  never runs is precisely untrusted content — and on a built app's own uploads folder, where whatever an owner
-  has been trying out is sitting. It must behave like the other opt-in tools when absent: say the check did not
-  run, never imply a clean result. Expect few hits on ordinary source; the honest claim is "nothing known-bad in
-  these files", not "this code is safe".
-  For an **uploaded** app this belongs in the ordinary run rather than behind a switch: the owner is handing
-  SecureVibe files from somewhere else, so asking whether any of them is known-bad is part of checking them, not
-  an extra. Still conditional on the scanner being installed, and still silent about what it did not check — an
-  uploaded app whose scan did not run must say so on the page and in the report, beside the checks that did.
-
 - ~~**A report that says 0 of 106 when the truth is "we did not look".**~~ **Done 24 September 2026.** All three parts: every report says what was read and in which languages (codeCoverage), an app whose code was not read is "Not assessed" rather than scored, the language boundary is settled in ADR-012 and the upload page says what the check will read before anything is uploaded; the AI review now reads every listed language (PR #41). Original text kept: The first app anybody handed SecureVibe
   from outside, on 20 September 2026, was a Python Flask app: 7 `.py` files including `auth.py`, `db.py` and a
   21KB `main.py`. The run finished, cost twenty cents, and reported **0 of 106 applicable ASVS requirements
@@ -62,14 +38,6 @@ building the query recipe: each read this file, each correctly saw the item uncl
   upload page which languages are actually checked, before somebody spends twenty cents finding out.
 
 
-- **PDFs written at report time.** SecureVibe writes each report as HTML, JSON and Markdown; the "Save it as PDF"
-  button hands the HTML to the browser's print dialog, so no PDF exists on disk until a person saves one, one
-  report and one dialog at a time. The related half landed on 24 September 2026: "Download every app's reports"
-  on the across-apps page gives one zip with a folder per app and an index, so an appendix or a handover no longer
-  means opening each app in turn. What remains is the PDF itself, which needs a browser engine at report time
-  (SecureVibe ships none; the hand-off pack is where it belongs, so whoever receives it has the reports as files
-  rather than pages). Worth deciding whether a dependency on the owner's installed browser is acceptable before
-  building it.
 - ~~**The template suite ran 30 of its 33 files and said it was green.**~~ **Done (list regenerated before each run, count printed); the durable half, moving the repository out of ~/Desktop, stays with the iCloud item.** Original text kept: The launcher takes an explicit list of
   test files, and three were never added to it: `tests/nav.test.ts`, `tests/theme.test.ts` (four tests moved
   there on 20 September) and `tests/assistant-progress.test.ts` (written that evening). Twelve tests, including
@@ -84,8 +52,8 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **The harness should hold a lock while it runs.** ~~Unclaimed~~ **[taken: recipe-library session, 20 Sep 2026,
-  after the query recipe lands]** Two sessions ran it at once for eight minutes on 20 September 2026, each having
+- **The harness should hold a lock while it runs.** Unclaimed. (Was **[taken: recipe-library session, 20 Sep 2026]**; released 25 Sep 2026, because no such session is running.)
+  Two sessions ran it at once for eight minutes on 20 September 2026, each having
   said in a message that they would say something first. Almost nothing is actually shared — each session has its
   own checkout of the baselines and the template, each run makes its own scratch workspace with its own tool
   caches, and the apps bind ephemeral ports — so the collision is one laptop's processor, memory and disk, plus
@@ -107,7 +75,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
 Watched rather than reported: these came from two owners using it, one on an app built days earlier and one
 building from nothing.
 
-- **A recipe for querying records.** **[taken: recipe-library session, 20 Sep 2026]** The engine landed in the
+- **A recipe for querying records.** Unclaimed. (Was taken by the recipe-library session on 20 Sep 2026; released 25 Sep 2026, because no such session is running.) The engine landed in the
   template on 20 September 2026 (`src/db/query.ts`, `eb35de0`): search, filter, sort and paginate settled once,
   with the ownership clause structural and fifteen tests on it. What remains is the per-entity half — turning a
   record type's fields into a query, fixing the scope once from its `access` answer so no call site chooses, and
@@ -117,7 +85,7 @@ building from nothing.
   written fresh per feature, which is both the most repetitive thing the agent does and the place a mistake is
   most expensive — a missing ownership clause in a query is a data leak, not a cosmetic bug. It is the same
   argument the other recipes won: settle it once, test it once, and stop paying an AI to rediscover it.
-- **An assistant that is working should say so.** **[taken: recipe-library session, 20 Sep 2026]** Pressing "Run research" in the health-tracking app returns nothing
+- ~~**An assistant that is working should say so.**~~ **Done 25 September 2026.** The mechanism landed on 20 September (`data-working`, the shared script, the template's assistant page, SC-26 told to the agent); what was missing was any check that the agent used it, and that is `sast.assistant-form-no-working-state`. Still not checked, and written next to SC-26 so nobody assumes it is: any slow route that does not go through the assistant's own client, and the sentence about the wait. Original text kept: Pressing "Run research" in the health-tracking app returns nothing
   until the answer arrives: no page of its own, no progress, no sign the request was even received. An owner
   cannot tell a slow answer from a broken button, and the honest fix is the one the build page just got — show
   the work happening. Every app with an assistant has this, so it belongs in the template or a recipe, not in one
@@ -130,6 +98,8 @@ building from nothing.
   2026. Same family as the mislabelled requirement names: an id is a claim, and a claim wants something behind it.
 
 ## The recipe-library session's half
+
+No session holds this list any more (released 25 Sep 2026); anyone may claim an item from it the usual way.
 
 - The chart recipe (landed 19 September 2026), then a "needs attention" view, then keeping an assistant's answer
   as a record with its sources, then an outside-service connection recipe now the wizard carries a host.

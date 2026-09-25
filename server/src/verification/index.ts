@@ -175,6 +175,7 @@ export async function refreshReportsWithAnswers(deps: RefreshDeps, projectId: st
     knowledge: deps.knowledge,
     frameworks: deps.frameworks,
     securevibeVersion: deps.config.version,
+    pdfPageSize: deps.config.settings.get().pdfPageSize,
   });
   if (!outcome.ok) throw new Error(outcome.reason);
   run.artifacts = outcome.result.artifacts;

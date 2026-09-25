@@ -56,6 +56,79 @@ another session is not a claim.
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
   its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
   could look for the same. Most of AISVS is about training and operating models and stays out of reach.
+- ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
+  the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
+  exactly as typed, not cut short or case-folded), V6.2.6 (password fields masked), V6.2.7 (paste not
+  blocked), and V3.5.3 (sign-out and creating a record refused as a plain page visit); semgrep's rules
+  for text written into a page as HTML against V3.2.2 and C#'s turned-off token expiry against V9.2.1,
+  as findings only; then a `change-password` entry for V6.2.2 and V6.2.3. All done, with V6.2.9 beside
+  V6.2.8 (see DESIGN, "Level 1 again"); creating a record by a plain page visit was left out, because
+  telling whether a GET made one needs a page that lists them.
+
+- ~~**Three more Level 1 questions.**~~ Done on 25 September 2026 by session securevibe-e8. V7.4.2
+  (every session ends when an account is deleted, through a `delete-account` entry), V6.4.2 (no password
+  hints or secret questions on the sign-up and sign-in pages, only ever a finding), and V4.4.1
+  (unencrypted `ws://` WebSocket addresses in the code, only ever a finding).
+
+- **What the remaining Level 1 and 2 requirements need.** An analysis on 25 September 2026 (session
+  securevibe-e8) of the 181 ASVS requirements at Level 1 and 2 that no check reached, 30 of them at
+  Level 1, by the kind of answer each needs: a document (18), a document plus behavior matching it (12),
+  a design decision (16), deployment and infrastructure (22), more questions for the running app (19),
+  code review (24), file uploads (9), OAuth, MFA, and JWT details (40), and unusual setups such as SAML
+  or LaTeX (21). The items below are what came of it, in the suggested order; none is claimed.
+
+- **A security-notes file, and policy numbers the probes can test.** For the 30 requirements that ask for
+  a document. `sv init` writes a template with one section per applicable one, headed by its id and
+  filled in from what was detected (the outside services, by the package that showed them; the data
+  held, from `[data]`). A section the owner has written counts as *documented by the owner*: a tier of
+  its own, never *checked*, the way a test naming a requirement is. For the twelve that ask for the app
+  to behave as documented, the owner states the policy as numbers in securevibe.toml (failed sign-ins
+  before a lockout, the idle and absolute session timeouts, sessions allowed at once), and the probes
+  test those numbers against the running app; about eight become checkable, V6.3.1 at Level 1 among
+  them. The design questions (16) take the same shape: yes, no, or not sure in securevibe.toml, with
+  where in the code, counted as *attested by the owner*; "not sure" adds nothing.
+
+- **More questions for the running app, and an `upload` entry.** Asked with what `[stack.run.users]`
+  already says: `Cache-Control: no-store` on private pages (V14.3.2), directory listings (V13.4.3), a
+  visible sign-out link on private pages (V7.4.4), and whether the app's own output (the container's
+  log) recorded the failed sign-ins the probes made (V16.3.1, V16.3.2). Password reset needs an entry of
+  its own. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
+  its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
+
+- **A production check.** `sv probe https://…`: read-only requests to the owner's own live address, for
+  what the repository cannot say. HSTS (V3.4.1), TLS with a publicly trusted certificate and no fallback
+  to plain HTTP (V12.2.1, V12.2.2), redirects to HTTPS only where a browser is the client (V4.1.2), and
+  the `__Host-` cookie prefix (V3.3.3), which only means anything over HTTPS. The rest of deployment
+  becomes a "before going live" list in the report. The fence and what the probes may send need
+  thinking through first: this reaches outside the machine, which nothing in `sv` does yet.
+
+- **OAuth requirements for authorization servers are applied to OAuth clients.** Found in the same
+  analysis. V10.4.1 to V10.4.5 (Level 1) and the rest of V10.4, V10.6, and V10.7 are about running an
+  authorization server; `sv` applies them whenever the app uses OAuth, so an app with "Sign in with
+  Google" is asked about an authorization server it does not run. A condition for being the
+  authorization server, separate from using OAuth, would fix it; `data/knowledge/applicability.json` is
+  shared with v1, so the change is decided there for both.
+
+- **Threat modeling that does not depend on the AI tool.** Asked for by the owner on 25 September
+  2026. The investigation is done (session securevibe-e8): `docs/THREAT-MODELING.md`. In short, v1's
+  rule-based STRIDE model (32 threats citing 80 different requirements, decided by about 20 facts about the app) needs no
+  AI, and `sv` already knows nearly every fact it asks; ported to a data file, each threat would show
+  what the evidence says about it (found, checked in part, not verified, cannot place) and never that
+  it is mitigated. Three pull requests. The owner answered the three
+  questions on 25 September 2026: no likelihood/impact scoring, v1 to read the same data file later,
+  and a section of the report rather than a file of its own. **Claimed on 25 September 2026 by session
+  securevibe-e8.** The first two of the three are done: the rules as data, 30 threats and 90
+  citations, each threat's status from the evidence, and a "Threats" section in the reports. Next, the
+  threats for what `sv` sees and v1 did not: MCP, retrieval, several services, WebSockets,
+  multi-tenant.
+
+- ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
+  AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
+  C10.4.2) through a new `findings_against` list: a finding is evidence against them, and a clean run
+  credits none, because these patterns can show a control missing and never present. See DESIGN,
+  "AISVS from semgrep's AI rules". Left over: `sv`'s own code rules match a call and its arguments,
+  and every one of these is a flow from one place to another, so none was written. Seen firing in a real
+  run: 11 of the 24 rules, in Python and JavaScript; the rest are the same patterns for other vendors.
 
 - ~~**Shell scripts.**~~ Done on 25 September 2026 by session securevibe-e8. `.sh` and `.bash` are
   read as `shell`, every rule is taught it or says why not, and a new rule,
@@ -224,8 +297,15 @@ another session is not a claim.
   checked against a real SARIF run. See DESIGN, "Semgrep: a thousand rules". Left over from it: the
   map is keyed on the registry's form of a rule id, which was reproduced rather than observed, so one
   run of `p/security-audit` on a machine that can reach semgrep.dev is owed (the fixture's README has
-  the command). `eslint-plugin-security`, `staticcheck` and `phpcs-security-audit` are each a data
-  entry. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
+  the command). `staticcheck` and `phpcs-security-audit` are each a data entry.
+  `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
+  already include its rules under their own names (`detect-child-process`,
+  `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
+  `detect-pseudoRandomBytes`, and others), mapped to ASVS, so it would add the same checks twice. And
+  ESLint 10 loads its plugins from the folder it runs in: run over an app, it would load an
+  `eslint-plugin-security` from the app's own `node_modules`, which runs that app's code on the
+  owner's machine outside the network fence, while TypeScript needs a parser the plugin does not
+  bring. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
   can be shown to be about its requirement.
 
 - **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that

@@ -69,6 +69,15 @@ RUST_CHECKS = {
     "probe.default-account": ("signed-in", ["V6.3.2"]),
     "probe.password-in-url": ("signed-in", ["V14.2.1"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
+    "probe.password-altered": ("signed-in", ["V6.2.8"]),
+    "probe.long-password-refused": ("signed-in", ["V6.2.9"]),
+    "probe.password-field-unmasked": ("signed-in", ["V6.2.6"]),
+    "probe.password-paste-blocked": ("signed-in", ["V6.2.7"]),
+    "probe.sign-out-on-get": ("signed-in", ["V3.5.3"]),
+    "probe.password-change": ("signed-in", ["V6.2.2"]),
+    "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
+    "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
+    "probe.password-hints": ("signed-in", ["V6.4.2"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
@@ -114,6 +123,11 @@ def rust_literals():
     return found
 
 
+# Requirement id -> the rules that can only ever raise it as a finding (`findings_against` in
+# adapters.json), by their folder name. A clean run credits none of these.
+FINDINGS_ONLY = defaultdict(set)
+
+
 def evidence():
     """Requirement id -> {tier: [check, ...]}."""
     ev = defaultdict(lambda: defaultdict(list))
@@ -128,6 +142,14 @@ def evidence():
             for q in rule["requirements"]:
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
+        for rule_id, rule in adapter["rules"].items():
+            for q in rule.get("findings_against", []):
+                if adapter["id"] not in ev[q]["tools"]:
+                    ev[q]["tools"].append(adapter["id"])
+                # The AI rules by their folder, which names the family across vendors and
+                # languages; the rest by their own id.
+                parts = rule_id.split(".")
+                FINDINGS_ONLY[q].add(parts[2] if parts[0] == "ai" else parts[-1])
     for check, (tier, ids) in RUST_CHECKS.items():
         for q in ids:
             ev[q][tier].append(check)
@@ -267,7 +289,10 @@ def main():
                     if len(names) > 4:
                         shown += f" and {len(names) - 4} more"
                     checks.append(f"{name}: {shown}")
-            w(f"| {q} | L{asvs[q]['level']} | {'; '.join(checks)} |")
+            only = (" (semgrep only ever as a finding: "
+                    + ", ".join(f"`{r}`" for r in sorted(FINDINGS_ONLY[q])) + ")"
+                    if q in FINDINGS_ONLY else "")
+            w(f"| {q} | L{asvs[q]['level']} | {'; '.join(checks)}{only} |")
         w("")
 
     w("## ASVS 5.0 requirement by requirement\n")
@@ -297,13 +322,31 @@ def main():
         p = sum(supports_only(q) for q in reqs)
         w(f"| {cid} {name} | {len(reqs)} | {s} | {p} | {len(reqs) - s - p} |")
     w("")
-    settled_ai = sorted(q for q in list(aisvs) + list(appendix) if settles(q))
+    settled_ai = sorted((q for q in list(aisvs) + list(appendix) if settles(q)),
+                        key=lambda q: [int(x) for x in re.findall(r"\d+", q)])
+
+    def credited_by_other(q):
+        return any(c for tier, checks in ev[q].items() for c in checks
+                   if not (tier == "tools" and c == "semgrep" and FINDINGS_ONLY.get(q)))
+
+    only = [q for q in settled_ai if q in FINDINGS_ONLY and not credited_by_other(q)]
+    w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: semgrep's rules")
+    w("about applications that call a model can show the control missing, and finding nothing does not")
+    w("show it present, so a clean run credits none of them. Each needs `--tools`.\n")
     for q in settled_ai:
-        names = [c for t in ev[q].values() for c in t]
-        w(f"- {q} can be settled by: {', '.join(f'`{c}`' for c in names[:4])}"
-          + (f" and {len(names) - 4} more" if len(names) > 4 else "")
-          + ". Its applicability rule classifies it `scanner-clean`, so a clean credential scan counts;"
-          " the scan reads the repository, not what reaches the model's context at run time.")
+        rules = sorted(FINDINGS_ONLY.get(q, ()))
+        names = [c for tier, checks in ev[q].items() for c in checks
+                 if not (tier == "tools" and c == "semgrep" and rules)]
+        parts = []
+        if names:
+            parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"
+                         + (f" and {len(names) - 4} more" if len(names) > 4 else "")
+                         + " (its applicability rule classifies it `scanner-clean`, so a clean credential"
+                         " scan counts; the scan reads the repository, not what reaches the model's"
+                         " context at run time)")
+        if rules:
+            parts.append("found failing by semgrep's " + ", ".join(f"`{r}`" for r in rules))
+        w(f"- {q}: " + "; and ".join(parts) + ".")
     w("")
 
     # ---- SbD

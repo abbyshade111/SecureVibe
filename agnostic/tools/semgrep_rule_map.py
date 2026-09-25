@@ -189,6 +189,86 @@ EXTRA = [
 
 # semgrep's language names, in `sv`'s. `generic` and `regex` rules read any file. A language `sv`
 # does not read keeps its own name, which matches nothing, so a clean run is never credited for it.
+# AISVS, from semgrep's rules about applications that call a model. Keyed by the rule's folder under
+# `ai/ai-best-practices/`, and read one family at a time. Each is written to `findings_against`, not
+# `requirements`: a finding is evidence against the AISVS requirement, and a run that finds nothing is
+# evidence of nothing about it. That no call puts user input into a system prompt does not show an
+# instruction hierarchy is enforced; that every call sets max_tokens is one half of "length limits
+# and termination controls". So these never make an AISVS requirement read as checked, only as
+# needing attention when the fault is there.
+#
+# Left out on purpose: the `claude-settings-*`, `hooks-*`, `skill-md-*` and IDE rules are about the
+# developer's own AI tooling in the repository, not about the application; `*-missing-system-prompt`,
+# `*-missing-safety-settings` and `*-missing-safe-prompt` flag a provider's default, which is not the
+# absence of a control; `llm-output-to-exec` is already V1.3.2, and nothing in AISVS says more
+# precisely than that "do not run what the model wrote"; and the hard-coded key rules are V13.3.1,
+# since a key in source is not a key in the model's context (C9.5.4).
+AISVS = {
+    r"(openai|anthropic|gemini|cohere|mistral)-user-input-in-system-prompt":
+        (["C2.1.6"], "user input placed into the system instructions, where it can override "
+                     "system and developer messages"),
+    r"(openai|anthropic)-missing-max-tokens":
+        (["C7.1.2"], "a model call with no limit on the length of the output it may generate"),
+    r"agent-unbounded-loop":
+        (["C9.1.2"], "a model called in a loop with no limit on iterations, token use, or spend"),
+    r"(openai|mistral)-missing-moderation(-check)?":
+        (["C2.2.1"], "prompts sent to the model without a content classifier scoring them, or its "
+                     "verdict not checked"),
+    r"cohere-safety-mode-off":
+        (["C7.3.1"], "the provider's classifiers that block harmful content turned off"),
+    r"langchain-dangerous-exec":
+        (["C9.3.1"], "an agent tool that runs arbitrary code, not isolated in a least-privilege "
+                     "sandbox"),
+    r"mcp-credential-in-response":
+        (["C9.5.4"], "an MCP tool that returns secrets or credentials into the model's context"),
+    r"mcp-unsanitized-return":
+        (["C10.4.2"], "an MCP tool that returns an outside response unscreened for indirect prompt "
+                      "injection into the model context"),
+    r"mcp-tool-poisoning":
+        (["C10.4.2"], "an MCP tool whose description carries hidden instructions, an indirect "
+                      "prompt injection in its tools/list entry"),
+}
+
+
+# ASVS requirements a finding is evidence against and a clean run is not, keyed by the whole rule id.
+# From the Level 1 pass of 25 September 2026: requirements no check reached, where a rule can show
+# the control missing and not present.
+ASVS_AGAINST = {
+    # Text written into the page as HTML, where a safe rendering function (textContent,
+    # createTextNode) was wanted. These rules are also V1.2.1 (output encoding), credited as before.
+    r"(javascript\.browser|html)\.security\.(audit\.)?insecure-document-method\..*"
+    r"|javascript\.browser\.security\.insecure-innerhtml\..*"
+    r"|typescript\.react\.security\.audit\.react-dangerouslysetinnerhtml\..*"
+    r"|javascript\.vue\.security\.audit\.xss\.templates\.avoid-v-html\..*":
+        (["V3.2.2"], "content rendered as HTML with innerHTML, document.write, "
+                     "dangerouslySetInnerHTML or v-html, rather than a safe rendering function"),
+    r"csharp\.lang\.security\.ad\.jwt-tokenvalidationparameters-no-expiry-validation\..*":
+        (["V9.2.1"], "a token accepted without its validity time span (exp) being verified"),
+    # A ws:// address written in the code. Also V12.3.1, credited as before; for V4.4.1 only a
+    # finding, since an address assembled at run time is not text a pattern can see.
+    r"javascript\.lang\.security\.detect-insecure-websocket\..*":
+        (["V4.4.1"], "a WebSocket connection over ws:// rather than WebSocket over TLS (WSS)"),
+}
+
+
+def asvs_against_for(rule_id):
+    for pattern, entry in ASVS_AGAINST.items():
+        if re.fullmatch(pattern, rule_id):
+            return entry
+    return None
+
+
+def aisvs_for(rule_id):
+    """The AISVS entry for a rule, when its folder under ai/ai-best-practices is one of AISVS's."""
+    parts = rule_id.split(".")
+    if parts[:2] != ["ai", "ai-best-practices"] or len(parts) < 3:
+        return None
+    for family, entry in AISVS.items():
+        if re.fullmatch(family, parts[2]):
+            return entry
+    return None
+
+
 LANGUAGES = {
     "python": "python", "py": "python",
     "javascript": "javascript", "js": "javascript",
@@ -270,16 +350,39 @@ def main():
             continue
         reqs, what = by_name[name]
         mapped[r["id"]] = {"what": what, "requirements": reqs, "languages": r["languages"]}
+    for r in sorted(rules, key=lambda r: r["id"]):
+        entry = aisvs_for(r["id"]) or asvs_against_for(r["id"])
+        if entry is None:
+            continue
+        against, what = entry
+        if r["id"] in mapped:
+            mapped[r["id"]]["what"] += "; " + what
+            mapped[r["id"]]["findings_against"] = against
+        else:
+            mapped[r["id"]] = {"what": what, "requirements": [], "findings_against": against,
+                               "languages": r["languages"]}
+    families = {f for f in AISVS if not any(aisvs_for(i) and re.fullmatch(f, i.split(".")[2]) for i in ids)}
+    families |= {p for p in ASVS_AGAINST if not any(re.fullmatch(p, i) for i in ids)}
+    if families:
+        sys.exit("AISVS families naming no rule:\n  " + "\n  ".join(sorted(families)))
     adapters = json.load(open(adapters_path))
     entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
     entry["rules"] = mapped
+    asvs = sum(1 for m in mapped.values() if m["requirements"])
+    aisvs = sum(1 for i, m in mapped.items() if m.get("findings_against") and i.startswith("ai."))
+    against = sum(1 for i, m in mapped.items() if m.get("findings_against") and not i.startswith("ai."))
     provenance = (f" Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules {commit}: "
-                  f"{len(mapped)} of the {len(rules)} security rules there, each only where its CWE and "
+                  f"{asvs} of the {len(rules)} security rules there to ASVS, each only where its CWE and "
                   "its id agree on what it detects. A run that finds nothing is evidence only about the "
-                  "rules its report says were loaded, and only those written for a language in the app.")
+                  "rules its report says were loaded, and only those written for a language in the app. "
+                  f"{aisvs} rules about applications that call a model also name the AISVS requirement "
+                  "a finding is evidence against (`findings_against`); a run that finds nothing credits "
+                  f"none of those. So do {against} others for ASVS requirements a pattern can show "
+                  "missing and not present (V3.2.2, V4.4.1, V9.2.1).")
     entry["note"] = re.sub(r" Its rule ids are mapped by .*$", "", entry["note"]) + provenance
     open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
-    print(f"{len(mapped)} of {len(rules)} security rules mapped, from semgrep-rules {commit}")
+    print(f"{asvs} of {len(rules)} security rules mapped to ASVS, {aisvs} with AISVS findings, "
+          f"from semgrep-rules {commit}")
 
 
 if __name__ == "__main__":

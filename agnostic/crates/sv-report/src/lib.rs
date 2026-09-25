@@ -22,6 +22,7 @@
 pub mod html;
 pub mod markdown;
 pub mod sarif;
+pub mod threats;
 
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -204,6 +205,11 @@ pub struct Report {
     /// How many unverified requirements were left out of `tests_to_write` because a test cannot
     /// show them: documentation, deployment, a development process, or design review.
     pub not_for_tests: usize,
+    /// What could go wrong with this app, and what the evidence says about each. Empty when the
+    /// threat rules were not given.
+    pub threats: Vec<threats::ThreatLine>,
+    /// The parts of the app the threats concern, and whether each is there.
+    pub threat_parts: Vec<threats::PartLine>,
     pub gaps: Vec<Gap>,
 }
 
@@ -236,6 +242,12 @@ pub struct Inputs<'a> {
     /// Requirements an application's own tests cannot show: ones that ask for documentation, a
     /// deployment setting, or a development process. Left out of the tests to write, and counted.
     pub not_for_tests: BTreeSet<String>,
+    /// The threat rules, and what is known about the app's conditions, for the threat model. Either
+    /// absent leaves the section out of the report and says why.
+    pub threats: Option<(
+        &'a threats::ThreatRules,
+        &'a sv_frameworks::ConditionContext,
+    )>,
 }
 
 pub fn build(inputs: Inputs<'_>) -> Report {
@@ -474,6 +486,14 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         })
         .collect();
 
+    let (threats, threat_parts) = match inputs.threats {
+        Some((rules, ctx)) => (
+            threats::evaluate(rules, ctx, &requirements),
+            threats::parts(rules, ctx),
+        ),
+        None => (Vec::new(), Vec::new()),
+    };
+
     Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
@@ -491,6 +511,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         tests_to_write,
         named_not_credited,
         not_for_tests,
+        threats,
+        threat_parts,
         gaps: inputs.gaps,
     }
 }

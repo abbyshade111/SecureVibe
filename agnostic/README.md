@@ -71,6 +71,19 @@ They also list the tests worth writing: every requirement that applies and has n
 test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
 the one way to give evidence about any requirement, including the many no check here can reach.
 
+The reports also have a threat model: what could go wrong with an app like this one, by the part of it
+each threat concerns (sign-in, stored data, the AI model, uploads, payments, and so on), with what the
+checks showed about each: found, checked in part, not verified, or not known to apply until a question
+in securevibe.toml is answered. It is made from rules, not by asking an AI, and it never calls a threat
+handled, because a threat is only as settled as the requirements that answer it. See
+`docs/THREAT-MODELING.md`.
+
+For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
+input placed in the system instructions, no limit on how long an answer may be, a model called in a
+loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks
+the AISVS requirement it breaks as needing attention. Finding none marks nothing as checked, because
+the absence of one way to get it wrong is not the control AISVS asks for.
+
 The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
 design review rather than scanning — whether trust zones are enforced, whether an incident response plan
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
@@ -97,10 +110,22 @@ that run, and then asks:
 - is the session id long enough to guess, and different each time? (V7.2.3; only ever a finding)
 - does a known default account, such as `admin` / `admin`, sign in? (V6.3.2; only ever a finding)
 - is a password accepted in the address rather than the body? (V14.2.1; only ever a finding)
+- is the password field on the sign-in and sign-up pages masked, and can a password be pasted into it?
+  (V6.2.6; V6.2.7, only ever a finding)
+- does visiting the sign-out address, rather than submitting its form, sign the user out? (V3.5.3; only
+  ever a finding)
+- with `change-password` set: can the password be changed, and does that need the current one?
+  (V6.2.2, V6.2.3)
+- with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
+  only ever done to an account made for it)
+- is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a
+  finding)
 
 When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
 asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone
-(V6.2.5), and a common one beside a random one of the same shape (V6.2.4). Each is compared with an
+(V6.2.5), a common one beside a random one of the same shape (V6.2.4), and one of 83 characters
+(V6.2.9), which is then tried with only its first 72, and the strong one with its capitals swapped, to
+see that the password is checked exactly as typed (V6.2.8). Each is compared with an
 ordinary strong password signed up first, and whether a password was accepted is told by signing in
 with it.
 

@@ -520,7 +520,7 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
                     if verified.len() == 1 { "" } else { "s" }
                 );
                 for v in &verified {
-                    println!("  {} — checked over {}", v.check_id, v.scope);
+                    println!("  {} — checked: {}", v.check_id, v.scope);
                     if !v.requirement_ids.is_empty() {
                         println!("     evidence about: {}", v.requirement_ids.join(", "));
                     }
@@ -981,6 +981,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let scan_report = scan(app_dir, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
+    // Shared with v1, beside the applicability rules, so a threat is corrected in one place.
+    let threat_rules =
+        sv_report::threats::ThreatRules::load(&data.join("knowledge").join("threats.json"))?;
 
     let secret_rules = SecretRules::load(&secret_rules_path())?;
     let secrets = scan_dir(&secret_rules, app_dir);
@@ -1343,6 +1346,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         manual_only,
         named_in_tests,
         not_for_tests,
+        threats: Some((&threat_rules, &ctx)),
     }))
 }
 
@@ -1429,6 +1433,12 @@ fn cmd_report(args: &[String]) -> Result<()> {
             "{} have no evidence and no test naming them ({level_one} at level 1): compliance.md \
              lists them under \"Tests to write\".",
             report.tests_to_write.len()
+        );
+    }
+    if !report.threats.is_empty() {
+        println!(
+            "{} compliance.md lists them under \"Threats\".",
+            sv_report::threats::count_line(&report.threats)
         );
     }
     println!(

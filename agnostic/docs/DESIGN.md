@@ -158,6 +158,66 @@ and an 8-character session id in the first; a rule wanting a capital and a digit
 V6.2.4 not assessed beside it as intended; a served `/.git/HEAD` and text without a charset in the
 third.
 
+### Level 1 again: the password as typed, the field, and sign-out by visiting
+
+A second pass over the Level 1 requirements nothing reached, on 25 September 2026, found five more that
+the running app can answer from what `[stack.run.users]` already says, and two semgrep can speak to.
+Level 1 went from 29 of 70 to 35.
+
+Whether the password is checked exactly as typed (V6.2.8) is asked twice, each against an account first
+shown to work with its real password. The control account with its capitals swapped: an app that
+lowercases passwords lets it in. And an account signed up with an 83-character password, signed into
+with its first 72: an app that hashes with bcrypt, which stops reading at 72 bytes, lets that in. Both
+refused is credited; either accepted is one finding naming what worked. Signing that account up at all
+is V6.2.9, passwords of at least 64 characters allowed, credited or found beside it. An app that refuses
+the long password has left the truncation question unasked, and V6.2.8 is not assessed rather than
+credited on the case question alone.
+
+Whether the password field is masked (V6.2.6) is read from the HTML of the sign-in and sign-up pages.
+The field looked at is the one securevibe.toml sends `{password}` in, so a search box on the same page
+is not mistaken for it, and a page whose form is built by script has no such field and says so. The
+same field with an `onpaste` handler is a finding for V6.2.7; a handler attached by script cannot be
+seen, so a clean answer is credited with nothing. Sign-out by visiting its address (V3.5.3) is asked
+last, after a fresh sign-in shown to work: a GET to the sign-out path, then the private page again with
+the session as it was. Also only ever a finding, since one address refusing a GET says nothing of the
+others.
+
+`examples/notes-with-users` had no password field in its HTML at all, only the hidden token, so V6.2.6
+came back not assessed, which was correct; its form now has the fields a browser would show. Run for
+real: V6.2.6, V6.2.8, and V6.2.9 confirmed, sign-out by visiting refused. A copy with a text field for
+the password, an `onpaste` handler, and `GET /logout` ending the session found all three.
+
+Changing a password (V6.2.2, and V6.2.3, needing the current one to do it) takes a new entry,
+`change-password`, with `{password}` for the current password and `{new_password}` for the new. It is
+asked last, since it changes a password: with an account made for it when there is a `signup`, with A
+when there is not. The wrong current password first: if the new password then signs in, that is the
+finding, and the change taking has also shown a password can be changed. Otherwise the same change with
+the right current password has to take, the new password signing in and the old one refused, before the
+refusal means anything; a change that never takes leaves both not assessed. The old password still
+signing in afterwards is a finding against V6.2.2. The change page is read signed in for V6.2.6, both of
+its password fields. Run for real against the example, which gained a change page: both confirmed; a
+copy that skips the current-password check found it.
+
+Three more, from the same pass. Whether deleting an account ends every session it had (V7.4.2) takes a
+`delete-account` entry, and is asked only of an account made for it through `signup`: A and B, which
+every other question stands on, are never deleted, and without `signup` it is not assessed. The account
+is signed in twice, as two browsers would be, both sessions shown to open the private page, and deleted
+from the first. The deletion is shown to have happened (its password no longer signs in) before the
+second session is asked for the private page; still opening it is the finding. The anti-forgery token for
+the request is looked for where sign-out looks for it, on the private pages, since a delete button is
+usually on the account's own page and not at the address it posts to; the change of password does the
+same now. A password hint or secret question (V6.4.2) is looked for on the pages already read for the
+password field, by its words ("security question", "mother's maiden name") or a field's name (`hint`,
+`security_answer`), and is only ever a finding. And semgrep's `detect-insecure-websocket`, already
+V12.3.1, counts against V4.4.1 too, as a finding only, since an address assembled at run time is not
+text a pattern can see. Run for real against the example, which gained an account deletion that ends
+every session: V7.4.2 confirmed; a copy that ends only the current session, with a password hint on
+its forms, found both. Level 1: 40 of 70.
+
+Semgrep's rules for text written into a page as HTML (`innerHTML`, `document.write`,
+`dangerouslySetInnerHTML`, `v-html`) now count against V3.2.2, and C#'s token validation with expiry
+turned off against V9.2.1, through `findings_against`: a finding marks them, a clean run does not.
+
 ### Tests to write
 
 The coverage count said 290 ASVS requirements have no check in `sv`, and that the one route to evidence
@@ -726,6 +786,60 @@ What is not handed to it is what no check here reads: `build/`, `dist/`, `vendor
 `SKIP_DIRS`. Checked against a real run through `sv report --tools`, with a rule loaded from a file:
 a shell command built from input in `tests/helpers.py` was not reported at all with the folder, and is
 reported with the files.
+
+### AISVS from semgrep's AI rules: evidence against, never for
+
+Until 25 September 2026 one AISVS requirement had a check, C9.5.4, through the credential scan.
+Semgrep's `ai/ai-best-practices` folder holds 107 security rules about applications that call a
+model, and 33 were already mapped, all to ASVS: a hard-coded key is V13.3.1 and model output passed
+to `eval` is V1.3.2 wherever it appears. None named AISVS.
+
+Reading the two side by side, the rules and AISVS meet in one direction only. A rule that finds user
+input in an OpenAI system prompt has found a system where user instructions are not kept below
+system ones, which is exactly what C2.1.6 asks for. The same rule finding nothing has not found an
+instruction hierarchy: it has found that one way of breaking it is absent, in one vendor's SDK, in two
+languages. Every AISVS pair turned out this way. AISVS asks for controls (a classifier scores every
+prompt, output is bounded by length limits and termination controls, tools run in a least-privilege
+sandbox) and a pattern can show one missing but never present.
+
+The map had no way to say that: a mapped requirement was carried by a finding and credited by a clean
+run, both. So a rule now has two lists. `requirements` are both, as before. `findings_against` are
+carried by a finding and never credited: `clean_run_evidence` does not read them, the loader refuses a
+requirement in both lists, and a test runs the widest clean run there could be (every rule loaded, six
+languages) and asserts no AISVS id comes out of it. The citation guard reads `findings_against` the
+same as `requirements`.
+
+Nine families, 24 rules, eight AISVS requirements:
+
+| Requirement | Found failing by |
+|---|---|
+| C2.1.6 instruction hierarchy | user input in the system prompt: OpenAI, Anthropic, Gemini, Cohere, Mistral |
+| C2.2.1 every prompt scored by a content classifier | OpenAI and Mistral completions with no moderation call, or its verdict unchecked |
+| C7.1.2 output bounded by length limits | OpenAI and Anthropic calls without `max_tokens` |
+| C7.3.1 classifiers block harmful content | Cohere with its safety mode turned off |
+| C9.1.2 per-execution budgets | a model called inside `while True` with no way out |
+| C9.3.1 tools isolated in a least-privilege sandbox | LangChain's `PythonREPL`, `BashProcess` and relatives run (also V1.3.2) |
+| C9.5.4 secrets kept out of the model's context | an MCP tool that returns a credential |
+| C10.4.2 tool responses screened for indirect prompt injection | an MCP tool returning an outside response as is, or a tool description with hidden instructions |
+
+Left out on purpose, each with its reason in `tools/semgrep_rule_map.py`: the rules about the
+developer's own tooling in the repository (Claude Code and Cursor settings, hooks, `SKILL.md`, IDE
+settings), which are about the machine the app was written on rather than the app; the rules that flag
+a missing system prompt or safety setting, which is a provider's default and not the absence of a
+control; and the hard-coded key rules, since a key in the source is not a key in the model's context.
+
+Checked against a real run: semgrep 1.178.0 with eleven of the 24 rules, over a small help-desk
+assistant written with each fault, in Python and again in part in JavaScript, and the same calls written
+carefully (`crates/sv-check/tests/fixtures/semgrep-aisvs`). Twelve findings, all in the faulty files,
+each on the requirement it is about; the other thirteen rules are the same patterns for other
+vendors. Through `sv report --tools` with AISVS in scope, all seven AISVS requirements
+and V1.3.2 read *needs attention*, including C9.5.4, which a clean credential scan had marked
+*checked* while an MCP tool handed its key to the model.
+
+What `sv`'s own code rules could add was looked at and not written. Every one of these is a flow from
+one place to another (a request value into a system prompt, a response into a tool's return value),
+and the code rules match a call and its arguments. A rule that fired on any string reaching
+`messages` would mostly report the user message, which is where user input belongs.
 
 ### Three more wrong citations, in the place the guard could not see
 
@@ -1512,6 +1626,27 @@ Four rules so far: code built and executed at run time, a shell command assemble
 database query joined together from pieces, and data from outside deserialised with a reader that builds
 objects. Each is a tree-sitter query per language in `data/ast-rules.json`, so teaching one about Ruby is
 a data entry.
+
+### Saying what a clean result looked for
+
+A clean result used to say only what was read: "1 shell file". Beside the path rule, that reads as "the
+shell scripts were checked for path traversal", when in shell the rule looks only at commands such as
+`cat` or `rm` given a web request variable, which is right for a CGI script and says nothing about a path
+built from any other variable. Found by the other session in review, 25 September 2026, and true of every
+rule in some language.
+
+So each rule says in plain words what it looks for (`looksFor`), and, per language, where it looks for
+something narrower (`looksForIn`), and a clean result names both beside the files:
+
+    a file opened, written, or deleted at a path built from a value rather than written out, in
+    2 python files; only commands such as cat, rm, or cp given a path from a web request variable
+    (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at, in
+    1 shell file
+
+Every rule that reads shell has its shell wording, because commands and variables are a different shape
+from calls and arguments, and a test holds that; a phrase for a language the rule has no query for is
+refused at load. The phrases were written from the queries and their patterns, not from what the rule
+is meant to catch.
 
 ### What a query cannot decide
 

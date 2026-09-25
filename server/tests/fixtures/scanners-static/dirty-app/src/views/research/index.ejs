@@ -1,0 +1,29 @@
+<form method="post" action="/research/run">
+  <%- csrfField %>
+  <input name="topic" />
+  <button type="submit">Run research</button>
+</form>
+<form method="post" action="/research/run" data-working="Asking the assistant…">
+  <%- csrfField %>
+  <input name="topic" />
+  <button type="submit">Run research again</button>
+</form>
+<form method="post" action="/notes/raw-body">
+  <%- csrfField %>
+  <button type="submit">Save a note</button>
+</form>
+<form method="get" action="/research/run">
+  <button type="submit">Not a post</button>
+</form>
+<form method="post" action="/research/quick">
+  <%- csrfField %>
+  <button type="submit">Quick answer</button>
+</form>
+<form method="post" action="/research/<%= topic.id %>/rerun">
+  <%- csrfField %>
+  <button type="submit">Rerun</button>
+</form>
+<form method="post" action="/research/history">
+  <%- csrfField %>
+  <button type="submit">Clear the list</button>
+</form>

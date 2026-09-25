@@ -94,8 +94,9 @@ report. semgrep and trivy download their rules and vulnerability data from the i
 **Delete** removes it and everything built for it from this computer, after you type its name to confirm.
 
 **Reading your reports:** on **My apps**, click **Reports** next to an app. Pick any earlier build under
-**Reports from**, then **Open**, **Download** or **Save as PDF**. Save as PDF opens your browser's print window; choose
-"Save as PDF" there. The compliance report ends with the full text of every architecture decision record (ADR), and each
+**Reports from**, then **Open** or **Download**. Each report is also a PDF file that SecureVibe writes itself, with no
+browser or print window involved, on US Letter or A4 paper as chosen in Settings; it shows Western European letters and leaves out emoji, so the web version stays the
+complete one. The compliance report ends with the full text of every architecture decision record (ADR), and each
 ADR id in the report links to it.
 
 ## How a build works

@@ -78,6 +78,12 @@ pub struct MappedRule {
     /// Plain language, and compared against the requirement's own words by the citation guard.
     pub what: String,
     pub requirements: Vec<String>,
+    /// Requirements a finding of this rule is evidence against, and a run that finds nothing is
+    /// evidence of nothing about. A pattern can show a control missing without being able to show it
+    /// present: no user input reaching a system prompt is not an enforced instruction hierarchy
+    /// (AISVS C2.1.6). So these are carried on a finding and never credited by a clean run.
+    #[serde(default)]
+    pub findings_against: Vec<String>,
     /// The languages the rule is written for, in `sv`'s names, with `*` for any file. Only read for
     /// a tool that covers several languages (`language: "*"`): a clean run of it is evidence only
     /// about rules that were written for a language this app is in.
@@ -142,6 +148,19 @@ impl Adapters {
                 if arg.contains("{files}") && arg != "{files}" {
                     anyhow::bail!(
                         "adapter `{}` puts {{files}} inside another argument: {arg:?}",
+                        adapter.id
+                    );
+                }
+            }
+            for (rule_id, rule) in &adapter.rules {
+                if let Some(both) = rule
+                    .findings_against
+                    .iter()
+                    .find(|r| rule.requirements.contains(r))
+                {
+                    anyhow::bail!(
+                        "adapter `{}` rule `{rule_id}` names {both} both as credited by a clean run \
+                         and as only ever a finding",
                         adapter.id
                     );
                 }
@@ -655,7 +674,13 @@ pub fn parse_sarif_relative_to(
             let requirement_ids = adapter
                 .rules
                 .get(&rule_id)
-                .map(|r| r.requirements.clone())
+                .map(|r| {
+                    r.requirements
+                        .iter()
+                        .chain(&r.findings_against)
+                        .cloned()
+                        .collect()
+                })
                 .unwrap_or_default();
             out.push(Finding {
                 rule_id: format!("{}.{}", adapter.id, rule_id),

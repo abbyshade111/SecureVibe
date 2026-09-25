@@ -59,6 +59,7 @@ export function statusRouter(deps: ApiDeps): Router {
         saveCredits: settings.saveCredits,
         notifyOnFinish: settings.notifyOnFinish,
         scanBuiltAppsForMalware: settings.scanBuiltAppsForMalware,
+        pdfPageSize: settings.pdfPageSize,
         aiService: settings.aiService,
         aiServiceFor: settings.aiServiceFor,
         nanoAnalyzer: {

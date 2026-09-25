@@ -9,6 +9,7 @@ import { basename, extname, join } from 'node:path';
 import { ZipArchive } from 'archiver';
 import { Router, type Response } from 'express';
 import { REPORT_CSS } from '../reports/page.js';
+import { htmlToPdf, pageSizeOf } from '../reports/pdf/index.js';
 import { handoffMarkdown } from '../reports/handoff.js';
 import { buildScanData, scanDataFileName } from '../reports/scan-data.js';
 import { isRunId } from '../store/index.js';
@@ -23,6 +24,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.sarif': 'application/sarif+json',
   '.zip': 'application/zip',
+  '.pdf': 'application/pdf',
 };
 
 /** CSP for a generated report page: its inline <style> blocks by hash, images only from itself or data URLs. */
@@ -34,12 +36,19 @@ export function reportCsp(html: string): string {
     "img-src 'self' data:",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'self'", // SecureVibe's own page loads a report in a hidden frame to print it (Save as PDF)
+    "frame-ancestors 'none'", // nothing frames a report any more: the PDF is a file, not a print dialog
   ].join('; ');
 }
 
 /** Never packed into app.zip: installed packages, runtime data, and anything holding a secret. */
 export const ZIP_EXCLUDE = ['node_modules/**', 'data/**', 'home/**', 'tmp/**', '.git/**', '.claude/**', '.env', '.env.*', 'FIRST-LOGIN.txt'] as const;
+
+function sendPdf(res: Response, name: string, pdf: Buffer): void {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${basename(name)}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.send(pdf);
+}
 
 export function artifactsRouter(deps: ApiDeps): Router {
   const router = Router();
@@ -200,20 +209,41 @@ export function artifactsRouter(deps: ApiDeps): Router {
 
     const run = runFor(project.id, project.lastRunId, runQuery);
     if (!run) throw notFound('That file could not be found.');
-    const ref = run?.artifacts.find((a) => a.name === name);
-    if (!ref) throw notFound('That file could not be found.');
+    const ref = run.artifacts.find((a) => a.name === name);
+    // A PDF is the report's HTML laid out on paper. One saved with the reports is served as it is when it is on the
+    // paper size set in Settings; otherwise, and for a run made before PDFs were written with the reports, it is
+    // made again from the saved HTML in the size set now (the saved file is left as it was).
+    const htmlSource = name.endsWith('.pdf') ? run.artifacts.find((a) => a.name === name.replace(/\.pdf$/, '.html')) : undefined;
+    if (!ref && !htmlSource) throw notFound('That file could not be found.');
 
-    let absolute: string;
-    try {
-      // Runs saved before paths were made project-relative list only the file name of the report.
-      absolute = ref.path.includes('/')
-        ? deps.store.projectPath(project.id, ...ref.path.split('/'))
-        : join(deps.store.reportsDir(project.id, run.id), basename(ref.path));
-    } catch (err) {
-      if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
-      throw err;
-    }
+    const locate = (artifact: { path: string }): string => {
+      try {
+        // Runs saved before paths were made project-relative list only the file name of the report.
+        return artifact.path.includes('/')
+          ? deps.store.projectPath(project.id, ...artifact.path.split('/'))
+          : join(deps.store.reportsDir(project.id, run.id), basename(artifact.path));
+      } catch (err) {
+        if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
+        throw err;
+      }
+    };
+    const absolute = locate((ref ?? htmlSource)!);
     if (!existsSync(absolute)) throw notFound('That file could not be found.');
+
+    if (name.endsWith('.pdf')) {
+      const wanted = deps.config.settings.get().pdfPageSize;
+      const saved = ref ? readFileSync(absolute) : undefined;
+      const source = htmlSource ? locate(htmlSource) : undefined;
+      const stale = !saved || pageSizeOf(saved) !== wanted;
+      if (!saved || (stale && source && existsSync(source))) {
+        if (!source || !existsSync(source)) throw notFound('That file could not be found.');
+        const pdf = htmlToPdf(readFileSync(source, 'utf8'), { createdAt: run.finishedAt ?? run.startedAt, pageSize: wanted });
+        sendPdf(res, name, pdf);
+        return;
+      }
+      sendPdf(res, name, saved);
+      return;
+    }
 
     const type = CONTENT_TYPES[extname(absolute)] ?? 'application/octet-stream';
     if (extname(absolute) === '.html') {
@@ -223,7 +253,7 @@ export function artifactsRouter(deps: ApiDeps): Router {
       const saved = readFileSync(absolute, 'utf8');
       const html = /class="report-header"/.test(saved) ? saved.replace(/<style>[\s\S]*?<\/style>/, () => `<style>${REPORT_CSS}</style>`) : saved;
       res.setHeader('Content-Security-Policy', reportCsp(html));
-      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.type(type).send(html);
       return;
