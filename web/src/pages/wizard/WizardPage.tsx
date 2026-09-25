@@ -6,6 +6,7 @@ import { useProject } from '../../hooks/useProject';
 import { useWizardCopy } from '../../hooks/useWizardCopy';
 import { getPath } from '../../lib/paths';
 import { QUESTION_STEP_IDS } from '../../lib/wizardSteps';
+import { UPLOADED_QUESTION_IDS, UPLOADED_STEP_IDS } from '@shared/uploaded-questions.js';
 import { ErrorNotice, LoadingScreen } from '../../components/Bits';
 import { NotSureButton, QuestionInput, WhyAndChanges } from './QuestionRenderer';
 import { QuickFlow } from './QuickFlow';
@@ -26,17 +27,27 @@ export function WizardPage() {
   const { copy, loading: copyLoading } = useWizardCopy();
   const [qIndex, setQIndex] = useState(0);
 
-  const stepIndex = QUESTION_STEP_IDS.indexOf((step as (typeof QUESTION_STEP_IDS)[number]) ?? 'about');
   const profile = project?.profile;
+  // An uploaded app is asked only what decides which rules apply (shared/uploaded-questions.ts): four steps, a
+  // short list, no questions about records, features or looks, which the person checking it could not answer.
+  const uploaded = project?.origin?.kind === 'uploaded';
+  const stepIds: readonly string[] = uploaded ? UPLOADED_STEP_IDS : QUESTION_STEP_IDS;
+  const stepIndex = stepIds.indexOf(step ?? 'about');
 
   const stepQuestions = useMemo(() => {
     if (!copy || !profile) return [];
     return copy.questions.filter((q) => {
       if (q.step !== step) return false;
+      if (uploaded && !UPLOADED_QUESTION_IDS.includes(q.id)) return false;
       if (!q.showWhen) return true;
       return getPath(profile, q.showWhen.path) === q.showWhen.equals;
     });
-  }, [copy, profile, step]);
+  }, [copy, profile, step, uploaded]);
+
+  // A link into a step an uploaded app does not have (the "about" step every other link starts at) lands on its first.
+  useEffect(() => {
+    if (uploaded && step && !UPLOADED_STEP_IDS.includes(step) && id) navigate(`/projects/${id}/wizard/${UPLOADED_STEP_IDS[0]}`, { replace: true });
+  }, [uploaded, step, id, navigate]);
 
   // Coming back to a step (or continuing an unfinished app): start at the first question not answered yet.
   const [positionedFor, setPositionedFor] = useState<string | undefined>(undefined);
@@ -70,7 +81,7 @@ export function WizardPage() {
   const question = stepQuestions[qIndex];
 
   function goToStep(targetStep: string, index = 0) {
-    setWizardStep(QUESTION_STEP_IDS.indexOf(targetStep as (typeof QUESTION_STEP_IDS)[number]));
+    setWizardStep(Math.max(0, QUESTION_STEP_IDS.indexOf(targetStep as (typeof QUESTION_STEP_IDS)[number])));
     navigate(`/projects/${id}/wizard/${targetStep}`);
     setQIndex(index);
     setPositionedFor(targetStep);
@@ -82,9 +93,12 @@ export function WizardPage() {
       return;
     }
     void flush();
-    const nextStep = QUESTION_STEP_IDS[stepIndex + 1];
+    const nextStep = stepIds[stepIndex + 1];
     if (nextStep) {
       goToStep(nextStep, 0);
+    } else if (uploaded) {
+      // Nothing is built for an uploaded app, so there are no features to suggest: straight to which rules apply.
+      navigate(`/projects/${id}/summary`);
     } else {
       // The last answer leads into the follow-up questions, which offer a way straight on to the design.
       navigate(`/projects/${id}/refine`);
@@ -96,7 +110,7 @@ export function WizardPage() {
       setQIndex(qIndex - 1);
       return;
     }
-    const prevStep = QUESTION_STEP_IDS[stepIndex - 1];
+    const prevStep = stepIds[stepIndex - 1];
     if (prevStep) {
       void flush();
       navigate(`/projects/${id}/wizard/${prevStep}`);
@@ -121,7 +135,7 @@ export function WizardPage() {
     <div className="sv-stack">
       <nav aria-label="Wizard progress">
         <ol className="sv-steps">
-          {QUESTION_STEP_IDS.map((sid, i) => {
+          {stepIds.map((sid, i) => {
             const sc = copy.steps.find((s) => s.id === sid);
             const state = i < stepIndex ? 'done' : i === stepIndex ? 'current' : 'upcoming';
             return (
@@ -145,6 +159,12 @@ export function WizardPage() {
         <div>
           <h1>{stepCopy.title}</h1>
           <p className="sv-muted">{stepCopy.intro}</p>
+          {uploaded && (
+            <p className="sv-faint">
+              For an app you uploaded, these answers only decide which security rules apply to it; nothing is built from
+              them. If you did not write the app and cannot answer one, choose &ldquo;not sure&rdquo; rather than guessing.
+            </p>
+          )}
         </div>
       )}
 
@@ -190,7 +210,7 @@ export function WizardPage() {
             }}
           />
 
-          <WhyAndChanges question={question} value={value} common={copy.common} />
+          <WhyAndChanges question={question} value={value} common={copy.common} hideChanges={uploaded} />
         </div>
       )}
 
@@ -208,7 +228,7 @@ export function WizardPage() {
             disabled={!!question && !isAnswered(question, value) && !forcedSignIn}
             onClick={handleNext}
           >
-            {qIndex < stepQuestions.length - 1 ? 'Next' : stepIndex === QUESTION_STEP_IDS.length - 1 ? 'Finish my answers' : 'Next: ' + (copy.steps.find((s) => s.id === QUESTION_STEP_IDS[stepIndex + 1])?.title ?? '')}
+            {qIndex < stepQuestions.length - 1 ? 'Next' : stepIndex === stepIds.length - 1 ? 'Finish my answers' : 'Next: ' + (copy.steps.find((s) => s.id === stepIds[stepIndex + 1])?.title ?? '')}
           </button>
         </div>
       </div>
