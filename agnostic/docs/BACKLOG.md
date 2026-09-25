@@ -5,6 +5,15 @@ another session is not a claim.
 
 ## Next
 
+- **A clean credential scan claims V11.1.1 and C9.5.4.** *Claimed 25 September 2026 by session
+  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`), first in the owner's order.* A
+  repository with no committed secrets says nothing about a documented key policy (V11.1.1) or about
+  secrets kept out of an agent's context (C9.5.4).
+
+- **A coverage document, generated.** *Claimed 25 September 2026 by session securevibe-e8 (branch
+  `claude/securevibe-agnostic-variant-935b16`), second in the owner's order.* Which requirements of
+  ASVS, AISVS, and the Secure by Design checklist any check can speak to, and what each needs to run.
+
 - ~~**Shell scripts.**~~ Done on 25 September 2026 by session securevibe-e8. `.sh` and `.bash` are
   read as `shell`, every rule is taught it or says why not, and a new rule,
   `ast.download-piped-to-shell` (V15.2.4), finds `curl … | sh` and its relatives. See DESIGN, "Shell
