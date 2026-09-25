@@ -31,10 +31,13 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
-- **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
-  (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
-  its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
-  could look for the same. Most of AISVS is about training and operating models and stays out of reach.
+- ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
+  AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
+  C10.4.2) through a new `findings_against` list: a finding is evidence against them, and a clean run
+  credits none, because these patterns can show a control missing and never present. See DESIGN,
+  "AISVS from semgrep's AI rules". Left over: `sv`'s own code rules match a call and its arguments,
+  and every one of these is a flow from one place to another, so none was written. Seen firing in a real
+  run: 11 of the 24 rules, in Python and JavaScript; the rest are the same patterns for other vendors.
 
 - ~~**Shell scripts.**~~ Done on 25 September 2026 by session securevibe-e8. `.sh` and `.bash` are
   read as `shell`, every rule is taught it or says why not, and a new rule,

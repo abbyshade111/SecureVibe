@@ -542,7 +542,7 @@
         ]
       },
       "install": "pip install semgrep",
-      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app.",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those.",
       "network": true,
       "rules": {
         "ai.ai-best-practices.anthropic-hardcoded-api-key.anthropic-hardcoded-api-key-go.anthropic-hardcoded-api-key-go": {
@@ -685,12 +685,15 @@
           ]
         },
         "ai.ai-best-practices.langchain-dangerous-exec.langchain-dangerous-exec.langchain-dangerous-exec-python": {
-          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "what": "dynamic code execution, such as eval, on data that may be untrusted; an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox",
           "requirements": [
             "V1.3.2"
           ],
           "languages": [
             "python"
+          ],
+          "findings_against": [
+            "C9.3.1"
           ]
         },
         "ai.ai-best-practices.llm-api-key-in-source.llm-api-key-in-source-go.llm-api-key-in-source-go": {
@@ -9659,6 +9662,244 @@
           "languages": [
             "javascript",
             "typescript"
+          ]
+        },
+        "ai.ai-best-practices.agent-unbounded-loop.agent-unbounded-loop.agent-unbounded-loop-python": {
+          "what": "a model called in a loop with no limit on iterations, token use, or spend",
+          "requirements": [],
+          "findings_against": [
+            "C9.1.2"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.anthropic-missing-max-tokens.anthropic-missing-max-tokens-javascript.anthropic-missing-max-tokens-javascript": {
+          "what": "a model call with no limit on the length of the output it may generate",
+          "requirements": [],
+          "findings_against": [
+            "C7.1.2"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.anthropic-missing-max-tokens.anthropic-missing-max-tokens-python.anthropic-missing-max-tokens-python": {
+          "what": "a model call with no limit on the length of the output it may generate",
+          "requirements": [],
+          "findings_against": [
+            "C7.1.2"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.anthropic-user-input-in-system-prompt.anthropic-user-input-in-system-prompt-js.anthropic-user-input-in-system-prompt-js": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.anthropic-user-input-in-system-prompt.anthropic-user-input-in-system-prompt-python.anthropic-user-input-in-system-prompt-python": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.cohere-safety-mode-off.cohere-safety-mode-off-javascript.cohere-safety-mode-off-javascript": {
+          "what": "the provider's classifiers that block harmful content turned off",
+          "requirements": [],
+          "findings_against": [
+            "C7.3.1"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.cohere-safety-mode-off.cohere-safety-mode-off-python.cohere-safety-mode-off-python": {
+          "what": "the provider's classifiers that block harmful content turned off",
+          "requirements": [],
+          "findings_against": [
+            "C7.3.1"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.cohere-user-input-in-system-prompt.cohere-user-input-in-system-prompt-js.cohere-user-input-in-system-prompt-js": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.cohere-user-input-in-system-prompt.cohere-user-input-in-system-prompt-python.cohere-user-input-in-system-prompt-python": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.gemini-user-input-in-system-prompt.gemini-user-input-in-system-prompt-js.gemini-user-input-in-system-prompt-js": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.gemini-user-input-in-system-prompt.gemini-user-input-in-system-prompt-python.gemini-user-input-in-system-prompt-python": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.mcp-credential-in-response.mcp-credential-in-response.mcp-credential-in-response-python": {
+          "what": "an MCP tool that returns secrets or credentials into the model's context",
+          "requirements": [],
+          "findings_against": [
+            "C9.5.4"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.mcp-tool-poisoning.mcp-tool-poisoning.mcp-tool-poisoning-generic": {
+          "what": "an MCP tool whose description carries hidden instructions, an indirect prompt injection in its tools/list entry",
+          "requirements": [],
+          "findings_against": [
+            "C10.4.2"
+          ],
+          "languages": [
+            "*"
+          ]
+        },
+        "ai.ai-best-practices.mcp-unsanitized-return.mcp-unsanitized-return.mcp-unsanitized-return-python": {
+          "what": "an MCP tool that returns an outside response unscreened for indirect prompt injection into the model context",
+          "requirements": [],
+          "findings_against": [
+            "C10.4.2"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.mistral-missing-moderation.mistral-missing-moderation.mistral-missing-moderation": {
+          "what": "prompts sent to the model without a content classifier scoring them, or its verdict not checked",
+          "requirements": [],
+          "findings_against": [
+            "C2.2.1"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.mistral-user-input-in-system-prompt.mistral-user-input-in-system-prompt-js.mistral-user-input-in-system-prompt-js": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.mistral-user-input-in-system-prompt.mistral-user-input-in-system-prompt-python.mistral-user-input-in-system-prompt-python": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.openai-missing-max-tokens.openai-missing-max-tokens-javascript.openai-missing-max-tokens-javascript": {
+          "what": "a model call with no limit on the length of the output it may generate",
+          "requirements": [],
+          "findings_against": [
+            "C7.1.2"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.openai-missing-max-tokens.openai-missing-max-tokens-python.openai-missing-max-tokens-python": {
+          "what": "a model call with no limit on the length of the output it may generate",
+          "requirements": [],
+          "findings_against": [
+            "C7.1.2"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.openai-missing-moderation-check.openai-missing-moderation-check.openai-missing-moderation-check": {
+          "what": "prompts sent to the model without a content classifier scoring them, or its verdict not checked",
+          "requirements": [],
+          "findings_against": [
+            "C2.2.1"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.openai-missing-moderation.openai-missing-moderation.openai-missing-moderation": {
+          "what": "prompts sent to the model without a content classifier scoring them, or its verdict not checked",
+          "requirements": [],
+          "findings_against": [
+            "C2.2.1"
+          ],
+          "languages": [
+            "python"
+          ]
+        },
+        "ai.ai-best-practices.openai-user-input-in-system-prompt.openai-user-input-in-system-prompt-js.openai-user-input-in-system-prompt-js": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ]
+        },
+        "ai.ai-best-practices.openai-user-input-in-system-prompt.openai-user-input-in-system-prompt-python.openai-user-input-in-system-prompt-python": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ],
+          "languages": [
+            "python"
           ]
         }
       },

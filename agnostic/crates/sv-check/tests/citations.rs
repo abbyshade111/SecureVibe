@@ -56,7 +56,7 @@ fn every_citation() -> Vec<(String, String, String)> {
     let adapters = Adapters::load(&data("adapters.json")).expect("the adapters load");
     for adapter in adapters.all() {
         for (rule_id, rule) in &adapter.rules {
-            for requirement in &rule.requirements {
+            for requirement in rule.requirements.iter().chain(&rule.findings_against) {
                 out.push((
                     format!("adapters.json {} {rule_id}", adapter.id),
                     requirement.clone(),

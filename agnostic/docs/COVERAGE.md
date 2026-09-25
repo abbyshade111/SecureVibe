@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 61 (18%) | 2 | 282 |
-| OWASP AISVS 1.0 | 191 | 1 (1%) | 0 | 190 |
+| OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
 
@@ -174,19 +174,30 @@ does not reach.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 0 | 0 | 12 |
+| C2 Input Validation | 12 | 2 | 0 | 10 |
 | C3 Model Lifecycle Management & Change Control | 15 | 0 | 0 | 15 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 0 | 0 | 14 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
 | C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
-| C7 Model Behavior, Output Control & Safety Assurance | 13 | 0 | 0 | 13 |
+| C7 Model Behavior, Output Control & Safety Assurance | 13 | 2 | 0 | 11 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 1 | 0 | 33 |
-| C10 Model Context Protocol (MCP) Security | 23 | 0 | 0 | 23 |
+| C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
+| C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
 | C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
 
-- C9.5.4 can be settled by: `secrets.anthropic-key`. Its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time.
+7 of these 8 can only ever be marked *needs attention*: semgrep's rules
+about applications that call a model can show the control missing, and finding nothing does not
+show it present, so a clean run credits none of them. Each needs `--tools`.
+
+- C2.1.6: found failing by semgrep's `anthropic-user-input-in-system-prompt`, `cohere-user-input-in-system-prompt`, `gemini-user-input-in-system-prompt`, `mistral-user-input-in-system-prompt`, `openai-user-input-in-system-prompt`.
+- C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C7.1.2: found failing by semgrep's `anthropic-missing-max-tokens`, `openai-missing-max-tokens`.
+- C7.3.1: found failing by semgrep's `cohere-safety-mode-off`.
+- C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
+- C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
+- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
+- C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 
 ## Secure by Design checklist 0.5.0 by domain
 
