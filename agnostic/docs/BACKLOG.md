@@ -87,10 +87,12 @@ another session is not a claim.
   It was found on 24 September 2026 while chasing bad citations: `sv --help` had named the checklist
   since the first commit while `Frameworks::load` read ASVS, AISVS and Appendix C only.
 
-- **Clean coverage from the remaining checks.** The credential scan, the rules that read code and the
-  probes now report what they examined and found nothing wrong; the SBOM and advisory checks do not, and
-  neither does the app's own test suite when `sv run` runs it. Each fails closed on its own coverage,
-  which is the pattern to follow.
+- **Clean coverage from the remaining checks.** *Claimed 24 September 2026, session keen-meninsky-691a27.*
+  The credential scan, the rules that read code, the probes and now the app's own test suite all report
+  what they examined and found nothing wrong. The SBOM and advisory checks still do not: they produce
+  findings when something is wrong and say nothing at all when nothing is, which reads to a reader
+  exactly like a check that never ran. Each fails closed on its own coverage, which is the pattern to
+  follow.
 
 - ~~**Credit the app's own test suite.**~~ Done on 24 September 2026 — `crates/sv-check/src/suite.rs`.
   A test counts only for a requirement it names, and only when the suite it belongs to passed. Matching
