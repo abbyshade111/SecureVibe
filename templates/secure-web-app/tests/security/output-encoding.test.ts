@@ -61,18 +61,19 @@ describe('output encoding', () => {
   });
 
   test('V1.2.3 a value can neither break out of a script element nor become JavaScript or JSON: no user value is written into script content', async () => {
+    // (An end tag may carry whitespace or even attributes, and browsers still accept it, so the patterns below allow both.)
     // The pages build no JavaScript from data, so the proof is that even a value written to close a script element
     // and start another, or to break a JavaScript string or a JSON document, is inert: it appears only as escaped
     // text, and no <script> element carries any part of it.
     const hostile = `</script><script>window.__pwned=1</script>";alert(1);//\\u2028'}]}`;
     const { account, form } = await renderWithName(hostile);
     for (const html of [account, form]) {
-      const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)];
+      const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script[^>]*>/gi)];
       for (const s of scripts) {
         assert.equal(/__pwned|alert\(1\)|\\u2028/.test(s[1] ?? ''), false, `user text reached a <script> element: ${(s[1] ?? '').slice(0, 80)}`);
       }
       assert.equal(html.includes('<script>window.__pwned'), false, 'an injected script element must not exist');
-      assert.equal(/<script\b(?![^>]*\bsrc=)[^>]*>(?!\s*<\/script\s*>)/i.test(html), false, 'no page may carry an inline script that could hold data');
+      assert.equal(/<script\b(?![^>]*\bsrc=)[^>]*>(?!\s*<\/script[^>]*>)/i.test(html), false, 'no page may carry an inline script that could hold data');
     }
     assert.ok(account.includes('&lt;/script&gt;&lt;script&gt;window.__pwned=1&lt;/script&gt;'), 'the value must appear as escaped text');
   });
