@@ -116,7 +116,7 @@ another session is not a claim.
   refuses a crosswalk that leaves a control out or cites an id that does not exist.
 
 - **A suppressed finding makes a tool's run look clean, and it is credited.** Found on 25 September
-  2026 while reviewing the adapter work; not claimed. `# nosec` on a line makes bandit report nothing
+  2026 while reviewing the adapter work. **Claimed on 25 September 2026 by session securevibe-e8.** `# nosec` on a line makes bandit report nothing
   about it, so `sv` sees an empty findings list, calls the run clean, and credits every requirement
   that adapter's rules map to — including V1.2.4 for a file whose `search()` concatenates user input
   straight into SQL. Verified by running bandit, not reasoned about:
