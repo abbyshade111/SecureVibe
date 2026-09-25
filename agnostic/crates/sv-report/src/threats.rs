@@ -14,6 +14,9 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use sv_frameworks::{Condition, ConditionContext};
 
+/// What the threat section can and cannot say, at its head in every report.
+pub const INTRO: &str = "What could go wrong with an app like this one, by the part of it each threat concerns, and what the checks showed about each. These are the threats sv has rules for, for what was found in this app: not every threat there is. None is called handled. A threat is only as settled as the requirements that answer it, and each of those is one automated check at most, so the best a threat can be here is checked in part. Found threats come first, then those nothing has looked at.";
+
 const STRIDE: &[&str] = &[
     "spoofing",
     "tampering",
@@ -281,4 +284,86 @@ pub fn evaluate(
             .then_with(|| a.id.cmp(&b.id))
     });
     out
+}
+
+/// A part of the app, as the outline in the report shows it.
+#[derive(Debug, Clone, Serialize)]
+pub struct PartLine {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// `Some(true)` there, `None` not known; parts that are not there are left out.
+    pub present: Option<bool>,
+    /// For a part not known to be there: the conditions nobody answered.
+    pub unanswered: Vec<String>,
+}
+
+/// The parts of this app the threats concern: those there, and those nobody has said are not.
+pub fn parts(rules: &ThreatRules, ctx: &ConditionContext) -> Vec<PartLine> {
+    rules
+        .elements
+        .iter()
+        .filter_map(|e| {
+            let (present, unanswered) = holds(ctx, &e.when);
+            (present != Some(false)).then(|| PartLine {
+                id: e.id.clone(),
+                name: e.name.clone(),
+                description: e.description.clone(),
+                present,
+                unanswered,
+            })
+        })
+        .collect()
+}
+
+/// The STRIDE category in plain words, for somebody who has not met the acronym.
+pub fn stride_words(stride: &str) -> &'static str {
+    match stride {
+        "spoofing" => "pretending to be someone else",
+        "tampering" => "changing what should not change",
+        "repudiation" => "denying having done something",
+        "information-disclosure" => "exposing information",
+        "denial-of-service" => "making the app unavailable",
+        "elevation-of-privilege" => "gaining more access than allowed",
+        _ => "",
+    }
+}
+
+/// "30 threats: 2 found, 20 not verified, 5 checked in part, 3 cannot place."
+pub fn count_line(lines: &[ThreatLine]) -> String {
+    let n = |s: ThreatStatus| lines.iter().filter(|l| l.status == s).count();
+    format!(
+        "{} threat{}: {} found, {} not verified, {} checked in part, {} cannot place.",
+        lines.len(),
+        if lines.len() == 1 { "" } else { "s" },
+        n(ThreatStatus::Found),
+        n(ThreatStatus::NotVerified),
+        n(ThreatStatus::CheckedInPart),
+        n(ThreatStatus::CannotPlace)
+    )
+}
+
+/// The requirements under a threat, grouped by what is known about them, in words.
+pub fn evidence_words(line: &ThreatLine) -> String {
+    if line.status == ThreatStatus::CannotPlace {
+        return format!(
+            "whether this applies is not known: answer {} in securevibe.toml",
+            line.unanswered.join(", ")
+        );
+    }
+    let mut parts = Vec::new();
+    for (label, ids) in [
+        ("needs attention", &line.found),
+        ("checked", &line.checked),
+        ("not verified", &line.not_verified),
+        (
+            "not among this app's requirements at its level",
+            &line.not_at_this_level,
+        ),
+    ] {
+        if !ids.is_empty() {
+            parts.push(format!("{label}: {}", ids.join(", ")));
+        }
+    }
+    parts.join("; ")
 }

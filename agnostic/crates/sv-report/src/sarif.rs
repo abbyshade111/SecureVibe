@@ -111,6 +111,8 @@ mod tests {
             tests_to_write: vec![],
             named_not_credited: vec![],
             not_for_tests: 0,
+            threats: Vec::new(),
+            threat_parts: Vec::new(),
             satisfied_elsewhere: vec![],
             gaps,
         }

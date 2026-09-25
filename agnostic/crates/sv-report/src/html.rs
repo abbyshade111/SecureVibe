@@ -204,6 +204,49 @@ pub fn page(report: &Report) -> String {
     }
     b.push_str("</table>\n");
 
+    if !report.threats.is_empty() {
+        b.push_str("<h2>Threats</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape(crate::threats::INTRO)));
+        b.push_str("<p><strong>Parts of the app:</strong></p>\n<ul>\n");
+        for p in &report.threat_parts {
+            let known = match p.present {
+                Some(true) => String::new(),
+                _ => format!(
+                    " <span class=\"note\">(not known: securevibe.toml does not answer {})</span>",
+                    escape(&p.unanswered.join(", "))
+                ),
+            };
+            b.push_str(&format!(
+                "<li><strong>{}</strong>: {}{known}</li>\n",
+                escape(&p.name),
+                escape(&p.description)
+            ));
+        }
+        b.push_str("</ul>\n");
+        b.push_str(&format!(
+            "<p>{}</p>\n",
+            escape(&crate::threats::count_line(&report.threats))
+        ));
+        b.push_str("<table>\n<tr><th>threat</th><th>status</th><th>part of the app</th><th>what could happen</th><th>the requirements that answer it</th></tr>\n");
+        for line in &report.threats {
+            let class = match line.status {
+                crate::threats::ThreatStatus::Found => "needs-attention",
+                crate::threats::ThreatStatus::CheckedInPart => "checked",
+                _ => "not-verified",
+            };
+            b.push_str(&format!(
+                "<tr><td><code>{}</code> {}</td><td class=\"{class}\">{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                escape(&line.id),
+                escape(crate::threats::stride_words(&line.stride)),
+                escape(line.status.label()),
+                escape(&line.element_name),
+                escape(&line.description),
+                escape(&crate::threats::evidence_words(line))
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
     if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
         b.push_str("<h2>Tests to write</h2>\n");
         b.push_str(&format!("<p>{}</p>\n", escape("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.")));

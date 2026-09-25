@@ -411,6 +411,38 @@ fn summary(report: &sv_report::Report) -> String {
             out.push_str(&format!("- {}: {}\n", claim.name, claim.note));
         }
     }
+    if !report.threats.is_empty() {
+        use sv_report::threats::ThreatStatus;
+        out.push_str(&format!(
+            "\nTHREATS — {} None is handled: a threat is only as settled as the requirements \
+             that answer it.\n",
+            sv_report::threats::count_line(&report.threats)
+        ));
+        for t in report
+            .threats
+            .iter()
+            .filter(|t| t.status == ThreatStatus::Found)
+        {
+            out.push_str(&format!(
+                "- found: {} {}: {} ({})\n",
+                t.id,
+                t.element_name,
+                t.description,
+                t.found.join(", ")
+            ));
+        }
+        for t in report
+            .threats
+            .iter()
+            .filter(|t| t.status == ThreatStatus::NotVerified)
+        {
+            out.push_str(&format!(
+                "- not verified: {} {}: {}\n",
+                t.id, t.element_name, t.description
+            ));
+        }
+    }
+
     if !report.tests_to_write.is_empty() {
         const SHOWN: usize = 30;
         out.push_str(&format!(

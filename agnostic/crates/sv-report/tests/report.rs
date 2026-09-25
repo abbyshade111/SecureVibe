@@ -58,6 +58,7 @@ fn inputs<'a>(
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        threats: None,
     }
 }
 
@@ -607,6 +608,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         manual_only,
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
+        threats: None,
     })
 }
 
