@@ -20,7 +20,7 @@
 //!    vocabulary, and that is enough to catch every fault listed above.
 //!
 //! The overlap test is deliberately weak — it asks for one word in common, not agreement — because
-//! it must not be a thing people route around. It cannot catch a swap between neighbouring
+//! it must not be a thing people route around. It cannot catch a swap between neighboring
 //! requirements that share vocabulary, and `V1.2.4` against `V1.2.7` (both parameterized queries)
 //! would pass. What it does catch is a citation pointing at a different subject altogether, which is
 //! every mistake made here so far.

@@ -47,7 +47,7 @@ pub enum Confidence {
 /// A credential that has been found. The value is redacted on construction and cannot be recovered.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Secret {
-    /// Enough to recognise it in the file, never enough to use it.
+    /// Enough to recognize it in the file, never enough to use it.
     redacted: String,
     /// How long the original was, which is sometimes the only way to tell two findings apart.
     length: usize,

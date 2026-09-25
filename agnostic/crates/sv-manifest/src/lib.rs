@@ -193,7 +193,7 @@ fn post() -> String {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct OwnedSection {
-    /// Creates it, as the first user. Put `{marker}` in a field so it can be recognised later.
+    /// Creates it, as the first user. Put `{marker}` in a field so it can be recognized later.
     pub create: RequestTemplate,
     /// Where it is read, with `{id}` for what `create` returned. Without `{id}`, the `Location`
     /// header the create response sends is used instead.
@@ -457,7 +457,7 @@ pub struct ResolvedClaim {
 /// Turns claims plus corroboration into the context the applicability engine runs on.
 ///
 /// The one rule that matters: `effective = claimed || found_in_code`. A claim of "no" cannot
-/// switch off a requirement the code says applies, and a claim of "yes" is honoured even when
+/// switch off a requirement the code says applies, and a claim of "yes" is honored even when
 /// nothing corroborates it. Both directions add requirements; neither removes one.
 ///
 /// The asymmetry is the safety argument. A wrong claim costs the user a requirement they did not

@@ -8,10 +8,10 @@
 //! decides these: there is no honest hand-rolled alternative to a parser, it is actively maintained, and
 //! four grammars build in about four seconds.
 //!
-//! # Queries are data, judgement is code
+//! # Queries are data, judgment is code
 //!
 //! `data/ast-rules.json` holds a tree-sitter query per language, so teaching a rule about Ruby is a data
-//! entry. What a query cannot express is judgement — "the argument is a literal, so this `eval` is ugly
+//! entry. What a query cannot express is judgment — "the argument is a literal, so this `eval` is ugly
 //! rather than dangerous" — and that lives here, in Rust, where it can be tested. It is the same split
 //! as the secrets scanner: patterns as data, the decision about what they mean as code.
 //!
@@ -630,7 +630,7 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
     }
 
     // PHP puts a plain `variable_name` inside a double-quoted string, with no wrapper node to
-    // recognise: `"select ... $name"` is a built string that looks like a literal to the list below.
+    // recognize: `"select ... $name"` is a built string that looks like a literal to the list below.
     if matches!(node.kind(), "encapsed_string" | "shell_command_expression") {
         let mut cursor = node.walk();
         if node
@@ -1622,20 +1622,20 @@ mod tests {
     #[test]
     fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
         // `load` is far too common a method name to report on its own. The receiver is what makes
-        // it a deserialisation, and over-reporting here would teach somebody to skip the rule.
+        // it a deserialization, and over-reporting here would teach somebody to skip the rule.
         // A lower-case receiver is an `identifier`, which the query's own shape excludes.
         let findings = scan_file(&rules(), "ruby", "app.rb", "config.load(path)");
         assert!(
             !ids(&findings).contains(&"ast.unsafe-deserialization"),
             "{findings:?}"
         );
-        // A capitalised one is a `constant`, which the query does match — so only the receiver
+        // A capitalized one is a `constant`, which the query does match — so only the receiver
         // pattern stops it. Without this case the pattern could be deleted and every test here
         // would still pass, because the one above was being excluded by the node kind instead.
         let other_constant = scan_file(&rules(), "ruby", "app.rb", "Settings.load(path)");
         assert!(
             !ids(&other_constant).contains(&"ast.unsafe-deserialization"),
-            "a constant that is not a deserialiser must not be reported: {other_constant:?}"
+            "a constant that is not a deserializer must not be reported: {other_constant:?}"
         );
         let real = scan_file(&rules(), "ruby", "app.rb", "YAML.load(untrusted)");
         assert!(

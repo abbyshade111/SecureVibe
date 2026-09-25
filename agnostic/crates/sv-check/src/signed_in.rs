@@ -13,7 +13,7 @@
 //! can read what A created, the admin can open the admin page — and when it cannot, the check reports
 //! *not assessed* with the reason, never a pass.
 //!
-//! # Judgement here, requests elsewhere
+//! # Judgment here, requests elsewhere
 //!
 //! Like `probes.rs`, this decides what to ask and how to read the answers; it talks to the app only
 //! through [`Http`]. `sv-run` supplies one that speaks from inside the network fence, and the tests
@@ -2671,7 +2671,7 @@ mod tests {
                         "<input type=hidden name=csrf_token value={CSRF}>{}{}",
                         self.password_input(),
                         if self.flaws.secret_question {
-                            "<label>Favourite teacher <input name=security_answer></label>"
+                            "<label>Favorite teacher <input name=security_answer></label>"
                         } else {
                             ""
                         }

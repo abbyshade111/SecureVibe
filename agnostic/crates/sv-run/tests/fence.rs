@@ -282,7 +282,7 @@ fn the_probes_reach_the_app_through_the_fence_or_sv_says_it_was_not_assessed() {
     assert_eq!(
         cors.header("access-control-allow-origin"),
         Some(sent_origin.as_str()),
-        "the Origin this probe sent came back, so the header really travelled: {cors:?}"
+        "the Origin this probe sent came back, so the header really traveled: {cors:?}"
     );
 
     // And that a body is read for a status a client library would have thrown away. This is the

@@ -363,7 +363,7 @@ another session is not a claim.
   test-crediting mismatch check, firing on the example app written to demonstrate it. ASVS 5.0 `V1.2.1`
   is *output encoding for an HTTP response, HTML or XML document*. It is cited by `ast.sql-built-by-hand`,
   `ast.dynamic-code-execution`, bandit's `B608` and `B307`, gosec's `G201`/`G202`, and three Brakeman
-  rules — none of which have anything to do with output encoding. Parameterised queries are **V1.2.4**;
+  rules — none of which have anything to do with output encoding. Parameterized queries are **V1.2.4**;
   OS command injection is **V1.2.5**, not the `V1.2.2` that nine adapter rules cite (`V1.2.2` is URL
   encoding). The pattern repeats across the file: eight rules cite `V11.3.1` (block modes and padding)
   for weak hashes, which are `V11.4.1`; `G404` (`math/rand`) cites `V11.4.1` (hash functions) when

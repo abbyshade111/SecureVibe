@@ -160,7 +160,7 @@ part, then cannot place; within each, in the order of the parts of the app in th
 
 ## The questions as they were asked
 
-1. **Scoring.** v1 scores likelihood and impact low/medium/high from the answers. That is a judgement,
+1. **Scoring.** v1 scores likelihood and impact low/medium/high from the answers. That is a judgment,
    and it orders the list. Keep it, as v1 does, or order only by *found* then *not verified* and
    leave out the scores?
 2. **One copy or two.** Should v1 later read the same `threats.json`, so a threat is fixed in one

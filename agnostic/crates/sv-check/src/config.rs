@@ -251,7 +251,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
             confidence: Confidence::High,
             location: Location { file: first.manifest.clone(), line: 1 },
             secret: None,
-            // V15.1.2 asks that an inventory catalogue of third-party libraries is maintained.
+            // V15.1.2 asks that an inventory catalog of third-party libraries is maintained.
             // A lockfile is what makes that inventory the versions actually installed rather than
             // the versions asked for. This cited V1.3.5 — sanitizing user-supplied template and
             // stylesheet content — until 24 September 2026, and that citation was also attached to
@@ -298,7 +298,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
     ];
     if PLACES.iter().any(|p| app_dir.join(p).exists()) {
         // Deliberately empty. Nothing in ASVS, AISVS or Appendix C requires a way to report a
-        // vulnerability; it is an organisational control rather than an application one. This check
+        // vulnerability; it is an organizational control rather than an application one. This check
         // is worth running and is evidence about no requirement in particular, which the reports
         // show rather than hide.
         return Outcome::Passed(&[]);

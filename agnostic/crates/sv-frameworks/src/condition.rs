@@ -78,7 +78,7 @@ conditions! {
     Jwt => "jwt", Claim, "This app does not issue self-contained tokens such as JWTs.";
     Rag => "rag", Claim, "The AI does not search a document store or vector database (no retrieval-augmented generation).";
     Mcp => "mcp", Claim, "The AI does not use the Model Context Protocol (MCP) to talk to tools.";
-    MultiTenant => "multi-tenant", Claim, "This app serves one organisation, not several separate customer organisations sharing one system.";
+    MultiTenant => "multi-tenant", Claim, "This app serves one organization, not several separate customer organizations sharing one system.";
     Training => "training", Claim, "This app does not train or fine-tune any AI model.";
     SelfAssessment => "self-assessment", Claim, "This is only evaluated when SecureVibe assesses itself.";
 

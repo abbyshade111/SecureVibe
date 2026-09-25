@@ -145,7 +145,7 @@ fn the_findings_carry_where_they_came_from() {
 #[test]
 fn an_adapter_naming_something_other_than_a_program_is_refused_at_load() {
     // The commands come from this repository rather than from the app, so this is not the last line
-    // of defence. A security tool that can be made to run something else by an edit to a data file
+    // of defense. A security tool that can be made to run something else by an edit to a data file
     // would still be a poor advertisement.
     let dir = scratch("injection");
     for bad in [
@@ -175,7 +175,7 @@ fn an_unknown_placeholder_is_refused_rather_than_passed_through() {
     // literal brace, which is a silently wrong argument rather than an error.
     let dir = scratch("placeholder");
     let file = std::fs::read_to_string(data()).unwrap();
-    // Targets the placeholder itself rather than its neighbours: the JSON has been reformatted
+    // Targets the placeholder itself rather than its neighbors: the JSON has been reformatted
     // once already, and a test that matches on surrounding whitespace stops doctoring anything
     // while still passing.
     let doctored = file.replace("\"{dir}\"", "\"{app_folder}\"");

@@ -46,7 +46,7 @@ The same three artifacts are produced for SecureVibe itself: see [`artifacts/sel
   a typical app then costs roughly $2–4, and the default $5 cap is shared between writing the app (up to 55%), the code
   review and the fixes, so a build always finishes within it.
   Without a key SecureVibe runs in **Preview without AI** mode: you can complete the design and build the hardened
-  starter app, but nothing is customised or reviewed by AI, and the reports say so.
+  starter app, but nothing is customized or reviewed by AI, and the reports say so.
 * Internet access the first time you build (to download packages). Later builds can work offline.
 
 ## Run it
@@ -152,7 +152,7 @@ securevibe/
 
 See [`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for the full design.
 
-## Licence and attribution
+## License and attribution
 
 MIT. Framework content: OWASP ASVS 5.0.0, OWASP AISVS 1.0 and the OWASP Secure by Design Framework v0.5 are
 © OWASP Foundation, licensed under CC BY-SA 4.0. SecureVibe embeds their requirement texts for verification purposes.

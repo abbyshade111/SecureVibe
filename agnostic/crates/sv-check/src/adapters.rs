@@ -125,7 +125,7 @@ impl Adapters {
 
         for adapter in &file.adapters {
             // The commands come from this repository rather than from the app, so this is not the
-            // last line of defence — but a security tool that can be made to run something else by
+            // last line of defense — but a security tool that can be made to run something else by
             // an edit to a data file would be a poor advertisement, and the check costs nothing.
             for command in [&adapter.version.command, &adapter.run.command] {
                 if command.is_empty()

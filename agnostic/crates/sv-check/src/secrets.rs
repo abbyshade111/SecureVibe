@@ -2,14 +2,14 @@
 //!
 //! Two kinds of rule, and the split is the point. The **pattern** rules live in
 //! `data/secret-rules.json` because a well-known credential format is data: adding Azure or Twilio should
-//! be a data-file entry, not a Rust change. The **judgement** rules are Rust, because deciding whether a
+//! be a data-file entry, not a Rust change. The **judgment** rules are Rust, because deciding whether a
 //! high-entropy string is a credential or a content hash is not something a regex can do.
 //!
 //! What stops this being noise:
 //!
 //! * A placeholder is not a secret. `your-api-key-here`, `changeme`, `${SOMETHING}` and an empty value are
 //!   what a template looks like, and reporting them teaches an owner to ignore the scanner.
-//! * `.env` is *expected* to hold real, high-entropy credentials, so the judgement rules do not run there.
+//! * `.env` is *expected* to hold real, high-entropy credentials, so the judgment rules do not run there.
 //!   What matters about `.env` is whether it is committed, which is its own rule.
 //! * Nothing that did not get read is reported as clean. The caller is told which files were skipped.
 
@@ -205,7 +205,7 @@ fn is_secret_name(name: &str) -> bool {
     NAMES.iter().any(|k| n.ends_with(k) || n.contains(k))
 }
 
-/// `.env` is meant to hold real credentials, so the judgement rules would fire on every line of it.
+/// `.env` is meant to hold real credentials, so the judgment rules would fire on every line of it.
 fn is_env_file(relative: &str) -> bool {
     let name = relative.rsplit('/').next().unwrap_or(relative);
     name == ".env" || name.starts_with(".env.")

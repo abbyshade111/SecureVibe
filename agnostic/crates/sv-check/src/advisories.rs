@@ -339,8 +339,8 @@ pub fn audit(sbom: &Sbom, database: &[Advisory]) -> AuditResult {
     // an empty database covers no ecosystem, so `uncovered` is already non-empty and stops it first.
     // Breaking it produces no failing test, which is exactly what a condition carrying no weight
     // looks like. It is kept as the statement of intent — the claim is about what was compared
-    // against, and that must never be nothing — and labelled rather than left to look load-bearing.
-    // The test asserts the behaviour, not which condition produced it.
+    // against, and that must never be nothing — and labeled rather than left to look load-bearing.
+    // The test asserts the behavior, not which condition produced it.
     let complete_enough = sbom.unread.is_empty();
     if result.findings.is_empty()
         && result.advisories_read > 0
@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn a_low_rated_advisory_is_not_promoted_to_medium() {
-        // The old code called everything it could not recognise medium, so a genuinely minor advisory
+        // The old code called everything it could not recognize medium, so a genuinely minor advisory
         // and an unrated one looked identical. They are different facts.
         let low = advisory(
             r#"{"id":"GHSA-low","summary":"Minor information leak.",

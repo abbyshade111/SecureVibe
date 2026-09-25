@@ -352,7 +352,7 @@ fn configuration_in_the_repository_can_be_ruled_out_because_it_is_a_file() {
 fn a_dot_directory_is_not_skipped_when_the_pipeline_lives_in_one() {
     // `.github` is a dot-directory and is exactly where CI lives. A blanket dot-skip in the walk
     // would answer "no CI/CD" for every repository that has one — a wrong statement in a report
-    // produced by an optimisation.
+    // produced by an optimization.
     let report = scan_fixture_with("stripe-checkout", &all_signatures());
     assert!(
         report.all_paths.iter().any(|p| p.contains(".github")),
@@ -891,7 +891,7 @@ fn a_claim_is_corroborated_from_a_kotlin_build_script() {
 #[test]
 fn a_kotlin_build_script_with_no_lockfile_pins_nothing() {
     // The third place the missing ecosystem showed: a Kotlin project with no lockfile was not
-    // reported as pinning nothing, because it was not recognised as a project at all.
+    // reported as pinning nothing, because it was not recognized as a project at all.
     let dir = scratch("gradle-kts-unpinned");
     std::fs::write(dir.join("build.gradle.kts"), "dependencies {}\n").unwrap();
     let unpinned = sv_scan::ecosystems::unpinned(&dir);
