@@ -264,48 +264,247 @@
         ]
       },
       "install": "gem install brakeman",
-      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. The rule ids here are taken from Brakeman's documented warning codes and have not been checked against a real SARIF run, because Brakeman cannot be installed in this sandbox. An id that is wrong maps nothing, which shows as a finding carrying no requirement rather than as a wrong one.",
+      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one.",
       "rules": {
+        "BRAKE0000": {
+          "what": "SQL injection: a database query built from user input",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
         "BRAKE0001": {
-          "what": "SQL query built by string interpolation or concatenation",
+          "what": "SQL injection through a query's limit or offset built from user input",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
+        "BRAKE0092": {
+          "what": "SQL injection through a dynamic finder method built from user input",
           "requirements": [
             "V1.2.4"
           ]
         },
         "BRAKE0002": {
-          "what": "a database query built from user-submitted parameters",
+          "what": "cross-site scripting: user input written into an HTML response without output encoding",
           "requirements": [
-            "V1.2.4"
+            "V1.2.1"
+          ]
+        },
+        "BRAKE0003": {
+          "what": "cross-site scripting through a link whose text is user input written into HTML without output encoding",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "BRAKE0004": {
+          "what": "cross-site scripting through a link whose href is user input, such as a javascript: URL written into HTML",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "BRAKE0005": {
+          "what": "cross-site scripting through JSON built from user input and written into JavaScript content without escaping",
+          "requirements": [
+            "V1.2.3"
+          ]
+        },
+        "BRAKE0053": {
+          "what": "cross-site scripting through an HTML tag built from user input without output encoding",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "BRAKE0084": {
+          "what": "template injection: user input rendered as an inline template",
+          "requirements": [
+            "V1.3.7"
+          ]
+        },
+        "BRAKE0117": {
+          "what": "template injection: an ERB template built from user input",
+          "requirements": [
+            "V1.3.7"
+          ]
+        },
+        "BRAKE0006": {
+          "what": "cross-site request forgery protection is disabled, so requests are not validated to originate from the application",
+          "requirements": [
+            "V3.5.1"
+          ]
+        },
+        "BRAKE0007": {
+          "what": "cross-site request forgery protection is missing, so requests are not validated to originate from the application",
+          "requirements": [
+            "V3.5.1"
+          ]
+        },
+        "BRAKE0086": {
+          "what": "cross-site request forgery protection does not raise an exception, so forged requests are not refused",
+          "requirements": [
+            "V3.5.1"
           ]
         },
         "BRAKE0013": {
-          "what": "an operating system command executed from user-submitted input",
+          "what": "dangerous eval: user input handed to eval or another dynamic code execution feature",
           "requirements": [
-            "V1.2.5"
+            "V1.3.2"
+          ]
+        },
+        "BRAKE0023": {
+          "what": "dangerous send: a method chosen by user input is called, a dynamic code execution feature",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "BRAKE0024": {
+          "what": "unsafe reflection: a class chosen by user input is loaded with constantize, a dynamic code execution feature",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "BRAKE0119": {
+          "what": "unsafe method reflection: a method chosen by user input is looked up and called, a dynamic code execution feature",
+          "requirements": [
+            "V1.3.2"
           ]
         },
         "BRAKE0014": {
-          "what": "a shell command built by string interpolation",
+          "what": "OS command injection: an operating system command built from user input",
           "requirements": [
             "V1.2.5"
           ]
         },
         "BRAKE0015": {
-          "what": "a file path built out of user-submitted input",
+          "what": "a template file path for rendering built from user-submitted input",
+          "requirements": [
+            "V5.3.2"
+          ]
+        },
+        "BRAKE0099": {
+          "what": "a template file path for rendering built from user-submitted input, in a way that can run code",
           "requirements": [
             "V5.3.2"
           ]
         },
         "BRAKE0016": {
-          "what": "a database query built by string interpolation",
+          "what": "file access: a file path for a file operation built from user-submitted input",
           "requirements": [
-            "V1.2.4"
+            "V5.3.2"
           ]
         },
-        "BRAKE0102": {
-          "what": "a credential or secret written into the source as a string",
+        "BRAKE0125": {
+          "what": "path traversal: a file path built with Pathname from user-submitted input",
           "requirements": [
-            "V13.3.1"
+            "V5.3.2"
+          ]
+        },
+        "BRAKE0018": {
+          "what": "open redirect: the application redirects to a URL taken from user input, which can be a different domain",
+          "requirements": [
+            "V3.7.2"
+          ]
+        },
+        "BRAKE0025": {
+          "what": "unsafe deserialization of untrusted data with Marshal or YAML",
+          "requirements": [
+            "V1.5.2"
+          ]
+        },
+        "BRAKE0110": {
+          "what": "cookies deserialized with Marshal, unsafe deserialization of untrusted data",
+          "requirements": [
+            "V1.5.2"
+          ]
+        },
+        "BRAKE0017": {
+          "what": "mass assignment: a model is created or updated from all submitted fields",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "BRAKE0054": {
+          "what": "mass assignment without protection: a model accepts fields that were not intended for the action",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "BRAKE0070": {
+          "what": "mass assignment: permit! allows every submitted field to be inserted or updated",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "BRAKE0105": {
+          "what": "mass assignment: a dangerous field such as an admin flag is permitted for the action",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "BRAKE0112": {
+          "what": "mass assignment: permit_all_parameters allows every submitted field for every controller and action",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "BRAKE0027": {
+          "what": "cookies are sent without the Secure attribute",
+          "requirements": [
+            "V3.3.1"
+          ]
+        },
+        "BRAKE0071": {
+          "what": "TLS certificate verification is turned off, so the TLS client does not validate certificates",
+          "requirements": [
+            "V12.3.2"
+          ]
+        },
+        "BRAKE0090": {
+          "what": "a weak hash function such as MD5 or SHA-1 is used",
+          "requirements": [
+            "V11.4.1"
+          ]
+        },
+        "BRAKE0091": {
+          "what": "a weak hash function such as MD5 or SHA-1 is used for an HMAC",
+          "requirements": [
+            "V11.4.1"
+          ]
+        },
+        "BRAKE0101": {
+          "what": "a secret such as a password or key is written into the application source code",
+          "requirements": [
+            "V13.3.1",
+            "SBD-AC-05"
+          ]
+        },
+        "BRAKE0126": {
+          "what": "RSA encryption with a weak padding scheme such as PKCS#1 v1.5",
+          "requirements": [
+            "V11.3.1"
+          ]
+        },
+        "BRAKE0128": {
+          "what": "an RSA key size too small for 128 bits of security",
+          "requirements": [
+            "V11.2.3"
+          ]
+        },
+        "BRAKE0076": {
+          "what": "regular expression denial of service: a regular expression built from user input can cause exponential backtracking",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "BRAKE0120": {
+          "what": "an end-of-life Rails version: a component past its update and remediation time frames",
+          "requirements": [
+            "V15.2.1"
+          ]
+        },
+        "BRAKE0121": {
+          "what": "an end-of-life Ruby version: a component past its update and remediation time frames",
+          "requirements": [
+            "V15.2.1"
           ]
         }
       }

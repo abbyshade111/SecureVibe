@@ -389,3 +389,75 @@ fn a_path_that_is_not_under_the_app_folder_is_left_alone() {
     .unwrap();
     assert_eq!(findings[0].location.file, "/elsewhere/lib.py");
 }
+
+// ---- Brakeman, against its own output ----
+
+/// A real SARIF report from Brakeman 8.0.6, run over `tests/fixtures/brakeman/app` — a small Rails
+/// app with one of each kind of fault in it — and kept beside the app, so what is checked here is what
+/// the tool really writes rather than what its documentation was read to say.
+fn brakeman_real_run() -> Vec<sv_check::Finding> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/brakeman/brakeman-8.0.6.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let brakeman = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "brakeman")
+        .expect("brakeman is listed");
+    adapters::parse_sarif(brakeman, &sarif).expect("the real report parses")
+}
+
+#[test]
+fn every_rule_brakeman_really_reported_is_mapped() {
+    // The mapping was written from documented warning codes and never seen in a real run, and it
+    // was mostly wrong. An unmapped id is not wrong, only uninformative — but every id in a real run
+    // over faults that all have a requirement should land on one.
+    let findings = brakeman_real_run();
+    assert!(findings.len() >= 15, "only {} findings", findings.len());
+    let unmapped: Vec<&str> = findings
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+}
+
+#[test]
+fn each_brakeman_finding_lands_on_the_requirement_it_is_about() {
+    // Each of these was a line of the fixture written to produce exactly that fault. The first three
+    // were each mapped to the wrong requirement until the real run: 0002 as SQL, 0013 as OS command
+    // injection, 0016 as SQL.
+    let findings = brakeman_real_run();
+    let first = |rule: &str| {
+        findings
+            .iter()
+            .find(|f| f.rule_id == format!("brakeman.{rule}"))
+            .unwrap_or_else(|| panic!("{rule} is in the real run"))
+    };
+    for (rule, requirement) in [
+        ("BRAKE0002", "V1.2.1"),
+        ("BRAKE0013", "V1.3.2"),
+        ("BRAKE0016", "V5.3.2"),
+        ("BRAKE0000", "V1.2.4"),
+        ("BRAKE0014", "V1.2.5"),
+        ("BRAKE0025", "V1.5.2"),
+        ("BRAKE0070", "V15.3.3"),
+        ("BRAKE0071", "V12.3.2"),
+        ("BRAKE0084", "V1.3.7"),
+        ("BRAKE0126", "V11.3.1"),
+    ] {
+        let found = first(rule);
+        assert_eq!(
+            found.requirement_ids,
+            vec![requirement.to_owned()],
+            "{rule}"
+        );
+    }
+    // And the location is where the fault was written, not somewhere near it.
+    let sql = first("BRAKE0000");
+    assert_eq!(sql.location.file, "app/controllers/users_controller.rb");
+    assert_eq!(sql.location.line, 5, "the find_by_sql line");
+}
