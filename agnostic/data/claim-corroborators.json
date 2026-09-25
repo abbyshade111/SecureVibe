@@ -70,7 +70,7 @@
           "laravel/sanctum"
         ],
         "Go": [
-          "goth",
+          "markbates/goth",
           "gorilla/sessions"
         ],
         "Rust": [
@@ -238,8 +238,8 @@
           "lcobucci/jwt"
         ],
         "Go": [
-          "golang-jwt",
-          "github.com/golang-jwt/jwt"
+          "golang-jwt/jwt",
+          "dgrijalva/jwt-go"
         ],
         "Rust": [
           "jsonwebtoken"
@@ -402,7 +402,7 @@
           "omnipay/common"
         ],
         "Go": [
-          "stripe-go"
+          "stripe/stripe-go"
         ],
         "Rust": [
           "stripe-rust",
@@ -479,7 +479,9 @@
           "swiftmailer/swiftmailer"
         ],
         "Go": [
-          "gomail"
+          "gopkg.in/gomail.v2",
+          "go-mail/mail",
+          "wneessen/go-mail"
         ],
         "Rust": [
           "lettre"
@@ -685,7 +687,9 @@
           "openai-php/client"
         ],
         "Go": [
-          "go-openai"
+          "sashabaranov/go-openai",
+          "anthropics/anthropic-sdk-go",
+          "openai/openai-go"
         ],
         "Rust": [
           "async-openai"
@@ -762,7 +766,7 @@
           "sentence-transformers"
         ],
         "Go": [
-          "qdrant"
+          "qdrant/go-client"
         ],
         "Rust": [
           "qdrant-client"
@@ -820,7 +824,8 @@
           "rmcp"
         ],
         "Go": [
-          "mcp-go"
+          "mark3labs/mcp-go",
+          "modelcontextprotocol/go-sdk"
         ]
       },
       "source": {
@@ -908,7 +913,7 @@
           "llm"
         ],
         "Go": [
-          "ollama"
+          "ollama/ollama"
         ]
       },
       "files": [
@@ -964,7 +969,7 @@
           "twilio/sdk"
         ],
         "Go": [
-          "twilio-go"
+          "twilio/twilio-go"
         ],
         "Rust": [
           "twilio"
@@ -1042,7 +1047,8 @@
           "symfony/http-client"
         ],
         "Go": [
-          "resty"
+          "go-resty/resty",
+          "resty.dev"
         ],
         "Rust": [
           "reqwest",
@@ -1148,7 +1154,8 @@
           "darkaonline/l5-swagger"
         ],
         "Go": [
-          "swaggo"
+          "swaggo/swag",
+          "swaggo/http-swagger"
         ],
         "Rust": [
           "utoipa"
@@ -1321,9 +1328,6 @@
           "https-proxy-agent",
           "greenlock",
           "node-forge"
-        ],
-        "Go": [
-          "autocert"
         ]
       },
       "files": [
@@ -1357,7 +1361,8 @@
         "go": [
           "listenandservetls",
           "tls.config{",
-          "tls.loadx509keypair"
+          "tls.loadx509keypair",
+          "autocert."
         ],
         "java": [
           "server.ssl.",
@@ -1778,6 +1783,155 @@
       "noCorroborator": true,
       "absenceIsEvidence": false,
       "note": "Whether another application answers on the same hostname is a fact about where this app is deployed, not about how it is written. Nothing in the repository records it: the same code is one site on its own address in one deployment and one of five behind a shared proxy in another, and a reverse-proxy configuration that would show it is almost never in the app's own repository. `sv` has no way to check this claim and says so rather than looking in the wrong place and reporting nothing found."
+    },
+    {
+      "condition": "multiple-services",
+      "absenceIsEvidence": false,
+      "note": "Services that talk to each other over a network need a way to do it, and the common ones are recognizable: gRPC and its .proto contracts, a message broker client (Kafka, RabbitMQ, NATS), a microservice framework, service discovery. A docker-compose file is deliberately not evidence, because most single-service apps ship one with only a database beside them. This over-matches on an app that only publishes to a broker somebody else consumes, and that error adds requirements rather than removing them. Services that call each other with plain HTTP leave nothing that tells them apart from calling an outside API, which is why absence settles nothing.",
+      "packages": {
+        "npm": [
+          "@grpc/grpc-js",
+          "@nestjs/microservices",
+          "moleculer",
+          "kafkajs",
+          "amqplib",
+          "amqp-connection-manager",
+          "nats",
+          "@dapr/dapr",
+          "@temporalio/client"
+        ],
+        "Python": [
+          "grpcio",
+          "nameko",
+          "pika",
+          "aio-pika",
+          "kafka-python",
+          "confluent-kafka",
+          "aiokafka",
+          "nats-py",
+          "dapr",
+          "temporalio"
+        ],
+        "Go": [
+          "google.golang.org/grpc",
+          "nats-io/nats.go",
+          "segmentio/kafka-go",
+          "IBM/sarama",
+          "rabbitmq/amqp091-go",
+          "dapr/go-sdk",
+          "go.temporal.io/sdk",
+          "go-micro.dev"
+        ],
+        "Rust": [
+          "tonic",
+          "lapin",
+          "rdkafka",
+          "async-nats"
+        ],
+        "Ruby": [
+          "grpc",
+          "bunny",
+          "ruby-kafka",
+          "rdkafka"
+        ],
+        "PHP": [
+          "php-amqplib/php-amqplib"
+        ],
+        "Java (Maven)": [
+          "grpc-stub",
+          "grpc-netty-shaded",
+          "spring-kafka",
+          "spring-boot-starter-amqp",
+          "spring-cloud-starter-openfeign",
+          "spring-cloud-starter-netflix-eureka-client",
+          "spring-cloud-starter-consul-discovery",
+          "spring-cloud-starter-gateway"
+        ],
+        "Java (Gradle)": [
+          "grpc-stub",
+          "grpc-netty-shaded",
+          "spring-kafka",
+          "spring-boot-starter-amqp",
+          "spring-cloud-starter-openfeign",
+          "spring-cloud-starter-netflix-eureka-client",
+          "spring-cloud-starter-consul-discovery",
+          "spring-cloud-starter-gateway"
+        ]
+      },
+      "files": [
+        "*.proto",
+        "asyncapi.yaml",
+        "asyncapi.yml",
+        "asyncapi.json",
+        "skaffold.yaml",
+        "Tiltfile"
+      ],
+      "source": {
+        "python": [
+          "grpc.insecure_channel",
+          "grpc.secure_channel",
+          "add_insecure_port",
+          "pika.blockingconnection",
+          "kafkaproducer",
+          "kafkaconsumer"
+        ],
+        "javascript": [
+          "@messagepattern",
+          "clientproxy",
+          "transport.grpc",
+          "transport.kafka",
+          "transport.rmq",
+          "amqp.connect",
+          "new kafka("
+        ],
+        "typescript": [
+          "@messagepattern",
+          "clientproxy",
+          "transport.grpc",
+          "transport.kafka",
+          "transport.rmq",
+          "amqp.connect",
+          "new kafka("
+        ],
+        "go": [
+          "grpc.newserver",
+          "grpc.dial",
+          "grpc.newclient",
+          "nats.connect",
+          "kafka.newreader",
+          "kafka.newwriter"
+        ],
+        "java": [
+          "@feignclient",
+          "@kafkalistener",
+          "@rabbitlistener",
+          "@enablediscoveryclient",
+          "managedchannelbuilder"
+        ],
+        "kotlin": [
+          "@feignclient",
+          "@kafkalistener",
+          "@rabbitlistener",
+          "@enablediscoveryclient",
+          "managedchannelbuilder"
+        ],
+        "csharp": [
+          "grpcchannel.foraddress",
+          "addmasstransit",
+          "iconsumer<"
+        ],
+        "ruby": [
+          "bunny.new",
+          "grpc::"
+        ],
+        "php": [
+          "amqpstreamconnection"
+        ],
+        "rust": [
+          "tonic::",
+          "lapin::"
+        ]
+      }
     }
   ]
 }

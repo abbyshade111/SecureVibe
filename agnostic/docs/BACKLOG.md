@@ -5,8 +5,13 @@ another session is not a claim.
 
 ## Next
 
-- **Corroborators for the remaining claims.** *`multiple-services` claimed 25 September 2026 by session securevibe-e8
-  (branch `claude/securevibe-agnostic-variant-935b16`); the other three are not.* Eleven of the twelve were written on 24 September 2026;
+- **Corroborators for the remaining claims.** `multiple-services` done on 25 September 2026: gRPC and its `.proto`
+  contracts, AsyncAPI documents, message-broker clients, microservice frameworks and service discovery,
+  in eight ecosystems and ten languages. A `docker-compose.yml` is deliberately not evidence — most
+  single apps ship one with only a database in it — and a test pins that. Left over from it: reading a
+  compose file for two or more services with their own `build:` would be the strongest evidence of all,
+  and needs the scanner to read YAML contents, which it does not. Services that call each other over
+  plain HTTP stay invisible. Eleven of the twelve were written on 24 September 2026;
   `shared-hostname` is recorded as uncheckable instead (`noCorroborator`), because it is a fact about
   deployment that the repository does not hold. What is left is the weaker half of what was written:
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
@@ -21,12 +26,31 @@ another session is not a claim.
   which files. Breaking either half turns two or three tests red. `.jsx` needed nothing: the JavaScript
   grammar reads JSX.
 
-- **Dependencies `sv` declares it read, and cannot match.** *Claimed 25 September 2026 by session
-  securevibe-e8 (branch `claude/securevibe-agnostic-variant-935b16`).* Found on 25 September 2026: a Go
-  app declaring and using `github.com/gorilla/websocket` has V4.4.1–V4.4.4 excluded as "No WebSocket
-  library is used". `go.mod` gives full module paths, the signatures name `gorilla/websocket`, and the
-  comparison is exact, so no Go package signature has ever matched. Also `build.gradle.kts`, the default
-  for Kotlin, is not read at all.
+- ~~**Dependencies `sv` declares it read, and cannot match.**~~ Done on 25 September 2026. A Go app
+  declaring and using `github.com/gorilla/websocket` had V4.4.1–V4.4.4 excluded as "No WebSocket
+  library is used": `go.mod` gives full module paths, the signatures named `gorilla/websocket`, and the
+  comparison was exact, so no Go package signature had ever matched. A Go signature now matches the
+  module path or its tail on a `/` boundary, with a `/vN` suffix set aside. Most Go names in both data
+  files were also wrong in themselves — `goth`, `stripe-go`, `go-openai` are not what `go.mod` says —
+  and are now module paths, with a test refusing a bare name; `autocert` is a package inside
+  `golang.org/x/crypto` and never appears in `go.mod`, so it is found in source instead. And
+  `build.gradle.kts`, the Kotlin default, is now read, for dependencies and for pinning.
+
+- **Dependency manifests are only read at the top of the repository.** Found on 25 September 2026 and
+  not claimed. `ecosystems::detect` looks for `package.json`, `go.mod` and the rest in the app folder
+  itself, so a full-stack app laid out as `client/` and `server/` — the usual shape of what an AI
+  builder writes — has no dependency read at all, and the technology conditions fall back to source
+  patterns alone. It is also the pinning check and the SBOM. Walking for manifests means deciding what
+  a nested one belongs to, and skipping `node_modules` and vendored copies, which is why it is its own
+  item.
+
+- ~~**Secure by Design controls excluded on too narrow a question.**~~ Done on 25 September 2026, at
+  the owner's request after review. RR-02, DM-03, AS-06, RR-03 and AC-01 each gained a second rule
+  (`external-apis`, `payments`/`scheduler`, `internet`) so a single app that needs them keeps them;
+  AS-07 lost its gate. Pinned per control and as the whole checklist for a single-service web shop.
+  Left over from the same review, not done: the derived checklist levels are reported as "above the
+  ASVS level this app targets", which is not what they are; and SBD-AC-05's "no secrets in code" is
+  exactly what the credential scan checks, which the report could show beside the control.
 
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
@@ -81,8 +105,7 @@ another session is not a claim.
   declaring how, or the probes running unauthenticated and saying which requirements that leaves unassessed.
 
 - ~~**Load the Secure by Design checklist.**~~ Done on 24 September 2026. Left over: `multiple-services`
-  is a claim with no corroborator, so nothing looks for a compose file or a set of deployment manifests
-  to check it against — the one question gating fifteen controls rests entirely on somebody's word. The
+  had no corroborator until 25 September 2026 (see the corroborators item). The
   checklist's `scoring`, `processSteps`, `principles` and `escalationTriggers` are read past, not used.
   It was found on 24 September 2026 while chasing bad citations: `sv --help` had named the checklist
   since the first commit while `Frameworks::load` read ASVS, AISVS and Appendix C only.
