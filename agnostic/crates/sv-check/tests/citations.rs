@@ -136,6 +136,171 @@ fn every_citation_shares_vocabulary_with_the_requirement_it_names() {
     );
 }
 
+/// Every requirement-id-shaped token in the Rust sources, with the file and line it sits on.
+fn ids_written_into_the_code() -> Vec<(String, usize, String)> {
+    let crates = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut out = Vec::new();
+    let mut stack = vec![crates];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|n| n == "target") {
+                    continue;
+                }
+                stack.push(path);
+                continue;
+            }
+            if path.extension().is_none_or(|e| e != "rs") {
+                continue;
+            }
+            // Only what ships. A test may name an id on purpose *because* it does not exist —
+            // `V1.2.9` stands in for a typo in the suite tests — and flagging those would make the
+            // guard something people turn off.
+            if !path.components().any(|c| c.as_os_str() == "src") {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let name = path.display().to_string();
+            for (index, line) in text.lines().enumerate() {
+                let trimmed = line.trim_start();
+                // Prose about a citation is not a citation. `probes.rs` explains in a comment that
+                // it once cited `V14.4.1`, "which is not a requirement at all" — the comment is the
+                // record of the fix, and reading it as a live citation would report the fix as the
+                // bug.
+                if trimmed.starts_with("//") || trimmed.starts_with('*') {
+                    continue;
+                }
+                for id in sv_check::suite::requirement_ids_in(line) {
+                    // A citation is quoted and names a requirement, not a chapter or a section.
+                    // `V6.2` in a doc example is a scope, and scopes are legitimate.
+                    if id.matches('.').count() < 2 || !line.contains(&format!("\"{id}\"")) {
+                        continue;
+                    }
+                    out.push((name.clone(), index + 1, id));
+                }
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn every_requirement_id_written_into_the_code_is_one_that_exists() {
+    // The data files are guarded above. Citations hard-coded in Rust were not guarded at all, and
+    // on 24 September 2026 three of them were found pointing at V1.3.5 — sanitizing user-supplied
+    // template and stylesheet content — for the bill of materials, the advisory comparison and the
+    // lockfile check. One of those three was attached to a *passing* outcome, so an app with a
+    // lockfile earned a green line against template sanitization.
+    //
+    // This half is cheap and broad: it cannot tell whether a citation is about the right subject,
+    // but it does catch the `AC-NN` class, where an id resolves to nothing and the finding lands
+    // against a requirement the app is not even assessed on.
+    let known = requirements();
+    let missing: Vec<String> = ids_written_into_the_code()
+        .into_iter()
+        .filter(|(_, _, id)| !known.contains_key(id))
+        .map(|(file, line, id)| format!("{file}:{line} writes {id}, which resolves to nothing"))
+        .collect();
+    assert!(missing.is_empty(), "{}", missing.join("\n"));
+}
+
+#[test]
+fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
+    // The semantic half, for the checks whose citations were wrong. These are built by calling the
+    // real code rather than by reading the source, so a citation cannot drift from the finding it
+    // travels with.
+    use sv_check::sbom::{Component, Sbom, VersionSource};
+    let known = requirements();
+
+    let incomplete = Sbom {
+        components: vec![Component {
+            name: "flask".into(),
+            version: "3.0.0".into(),
+            ecosystem: "Python".into(),
+            source: VersionSource::Declared,
+        }],
+        unread: vec![("npm".into(), "no lockfile".into())],
+    };
+    let finding = sv_check::sbom::incompleteness_finding(&incomplete).expect("it is incomplete");
+    let complete = Sbom {
+        components: vec![Component {
+            name: "flask".into(),
+            version: "3.0.0".into(),
+            ecosystem: "Python".into(),
+            source: VersionSource::Locked,
+        }],
+        unread: vec![],
+    };
+    let claim = sv_check::sbom::completeness_verified(&complete).expect("it is complete");
+
+    let mut pairs: Vec<(String, String, String)> = Vec::new();
+    for id in &finding.requirement_ids {
+        pairs.push((
+            "sbom.incomplete".into(),
+            id.clone(),
+            format!("{} {}", finding.title, finding.impact),
+        ));
+    }
+    for id in &claim.requirement_ids {
+        pairs.push(("sbom (clean)".into(), id.clone(), claim.scope.clone()));
+    }
+
+    // The configuration checks, which is where the third wrong citation lived. Each is run against
+    // a folder built to make it fail, because the failing side carries the prose — the passing side
+    // records only that the check ran, and both cite the same ids by construction.
+    let dir = std::env::temp_dir().join("sv-citations-config");
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    // A manifest with no lockfile beside it: `config.versions-pinned` fails.
+    std::fs::write(dir.join("requirements.txt"), "flask==3.0.0\n").unwrap();
+    let config = sv_check::config::check_dir(&dir);
+    assert!(
+        config
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "config.versions-pinned"),
+        "the fixture has to actually trip the check, or this tests nothing: {:?}",
+        config
+            .findings
+            .iter()
+            .map(|f| &f.rule_id)
+            .collect::<Vec<_>>()
+    );
+    for finding in &config.findings {
+        for id in &finding.requirement_ids {
+            pairs.push((
+                finding.rule_id.clone(),
+                id.clone(),
+                format!(
+                    "{} {} {}",
+                    finding.title, finding.description, finding.impact
+                ),
+            ));
+        }
+    }
+
+    let mut wrong = Vec::new();
+    for (what, id, words) in pairs {
+        let Some(description) = known.get(&id) else {
+            wrong.push(format!("{what} cites {id}, which does not exist"));
+            continue;
+        };
+        if shares_no_words(&words, description) {
+            wrong.push(format!(
+                "{what} cites {id}\n    it is about: {words}\n    {id} asks:   {}",
+                description.chars().take(110).collect::<String>()
+            ));
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
 #[test]
 fn the_guard_catches_the_mistake_that_was_really_made() {
     // Breaking the guard proves it fails; this proves it fails on the *actual* historical fault

@@ -251,15 +251,22 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
             confidence: Confidence::High,
             location: Location { file: first.manifest.clone(), line: 1 },
             secret: None,
-            requirement_ids: vec!["V1.3.5".into()],
+            // V15.1.2 asks that an inventory catalogue of third-party libraries is maintained.
+            // A lockfile is what makes that inventory the versions actually installed rather than
+            // the versions asked for. This cited V1.3.5 — sanitizing user-supplied template and
+            // stylesheet content — until 24 September 2026, and that citation was also attached to
+            // the *passing* outcome below, so a lockfile put a green line against template
+            // sanitization.
+            requirement_ids: vec!["V15.1.2".into()],
             cwe: vec!["CWE-1104".into()],
             description: format!(
                 "`{}` is in use and there is no lockfile beside it, so the versions installed today and \
                  the versions installed tomorrow can differ.",
                 first.manifest
             ),
-            impact: "Nobody can say what is actually running, which means nobody can say whether a known \
-                     vulnerability applies to it — and a dependency that is compromised upstream arrives \
+            impact: "The inventory of third-party libraries this app ships is then a list of what was \
+                     asked for rather than what is installed, so nobody can say whether a known \
+                     vulnerability applies to it — and a component that is compromised upstream arrives \
                      on the next install without anything changing here."
                 .into(),
             fix: "Install once and commit the lockfile that produces, then install from it from then on."
@@ -278,7 +285,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
         ));
     }
 
-    Outcome::Passed(&["V1.3.5"])
+    Outcome::Passed(&["V15.1.2"])
 }
 
 /// Whether there is a way to report a security problem. Not a vulnerability; an absence.

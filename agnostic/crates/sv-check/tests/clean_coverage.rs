@@ -796,3 +796,149 @@ fn a_url_whose_quotes_are_percent_escaped_still_parses() {
         "the eval behind the escapes: {ids:?}"
     );
 }
+
+// ---- the bill of materials, and the comparison against advisories ----
+//
+// These two said nothing at all when they found nothing wrong, which reads to anybody exactly like
+// a check that never ran. Saying something is the easy half; the conditions under which they must
+// stay silent are the half that matters, because a green line is not something a reader questions.
+
+use sv_check::advisories::{Advisory, audit};
+use sv_check::sbom::{Component, Sbom, VersionSource, completeness_verified};
+
+fn locked(name: &str, version: &str, ecosystem: &str) -> Component {
+    Component {
+        name: name.into(),
+        version: version.into(),
+        ecosystem: ecosystem.into(),
+        source: VersionSource::Locked,
+    }
+}
+
+fn one_advisory_about(ecosystem: &str, package: &str, fixed: &str) -> Advisory {
+    let json = serde_json::json!({
+        "id": "GHSA-test",
+        "summary": "A made-up advisory",
+        "affected": [{
+            "package": { "ecosystem": ecosystem, "name": package },
+            "ranges": [{ "type": "ECOSYSTEM", "events": [{ "introduced": "0" }, { "fixed": fixed }] }]
+        }]
+    });
+    serde_json::from_value(json).expect("the fixture parses")
+}
+
+#[test]
+fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
+    let complete = Sbom {
+        components: vec![locked("flask", "3.0.0", "Python")],
+        unread: vec![],
+    };
+    let claim = completeness_verified(&complete).expect("a complete list may say it is one");
+    assert_eq!(claim.requirement_ids, vec!["V15.1.2".to_string()]);
+
+    // An app with no dependencies `sv` could find is far more often an app whose manifests were
+    // never read. Claiming a complete inventory of nothing is the easiest false green line here.
+    let empty = Sbom {
+        components: vec![],
+        unread: vec![],
+    };
+    assert!(completeness_verified(&empty).is_none());
+
+    // And the two are mutually exclusive: whatever else happens, a document must never be reported
+    // as both an incomplete list and a good inventory.
+    for sbom in [&complete, &empty] {
+        let says_incomplete = sv_check::sbom::incompleteness_finding(sbom).is_some();
+        let says_complete = completeness_verified(sbom).is_some();
+        assert!(!(says_incomplete && says_complete), "both at once");
+    }
+}
+
+#[test]
+fn an_unread_ecosystem_stops_the_bill_of_materials_claiming_anything() {
+    let partial = Sbom {
+        components: vec![locked("flask", "3.0.0", "Python")],
+        unread: vec![("npm".into(), "package-lock.json could not be read".into())],
+    };
+    assert!(
+        completeness_verified(&partial).is_none(),
+        "a list missing a whole ecosystem is not a complete inventory"
+    );
+}
+
+#[test]
+fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
+    let sbom = Sbom {
+        components: vec![locked("flask", "3.0.0", "Python")],
+        unread: vec![],
+    };
+    // The positive case first, because a check that can never speak is not a check.
+    let database = vec![one_advisory_about("PyPI", "django", "9.9.9")];
+    let result = audit(&sbom, &database);
+    assert!(result.findings.is_empty(), "{:?}", result.findings);
+    assert_eq!(
+        verified_ids(&result.verified),
+        vec!["advisories"],
+        "a full comparison that found nothing may say so"
+    );
+    assert_eq!(
+        result.verified[0].requirement_ids,
+        vec!["V15.2.1".to_string()]
+    );
+
+    // Every way the coverage can be short, each of which would otherwise produce a green line.
+    // An empty database compares every package against nothing at all.
+    assert!(audit(&sbom, &[]).verified.is_empty(), "no database");
+
+    // Nothing to compare is nothing examined.
+    let nothing = Sbom {
+        components: vec![],
+        unread: vec![],
+    };
+    assert!(
+        audit(&nothing, &database).verified.is_empty(),
+        "no packages"
+    );
+
+    // An ecosystem the database says nothing about: those packages were never really checked.
+    let two_ecosystems = Sbom {
+        components: vec![
+            locked("flask", "3.0.0", "Python"),
+            locked("left-pad", "1.0.0", "npm"),
+        ],
+        unread: vec![],
+    };
+    let result = audit(&two_ecosystems, &database);
+    assert!(!result.uncovered.is_empty());
+    assert!(result.verified.is_empty(), "npm was never covered");
+
+    // A component list known to be partial is a clean answer to a question nobody asked.
+    let incomplete = Sbom {
+        components: vec![locked("flask", "3.0.0", "Python")],
+        unread: vec![("npm".into(), "no lockfile".into())],
+    };
+    assert!(
+        audit(&incomplete, &database).verified.is_empty(),
+        "the list itself was short"
+    );
+}
+
+#[test]
+fn a_version_that_cannot_be_compared_stops_the_claim() {
+    // The subtle one. The package is in a covered ecosystem and matches no advisory, so the naive
+    // reading is that it is fine — but nothing could actually be decided about it.
+    let odd = Sbom {
+        components: vec![locked("flask", "not-a-version", "Python")],
+        unread: vec![],
+    };
+    let database = vec![one_advisory_about("PyPI", "flask", "3.0.0")];
+    let result = audit(&odd, &database);
+    assert!(
+        !result.uncomparable.is_empty(),
+        "this version cannot be placed in any range: {:?}",
+        result.uncomparable
+    );
+    assert!(
+        result.verified.is_empty(),
+        "an undecidable version is not a clean one"
+    );
+}
