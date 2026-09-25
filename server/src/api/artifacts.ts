@@ -9,6 +9,7 @@ import { basename, extname, join } from 'node:path';
 import { ZipArchive } from 'archiver';
 import { Router, type Response } from 'express';
 import { REPORT_CSS } from '../reports/page.js';
+import { htmlToPdf } from '../reports/pdf/index.js';
 import { handoffMarkdown } from '../reports/handoff.js';
 import { buildScanData, scanDataFileName } from '../reports/scan-data.js';
 import { isRunId } from '../store/index.js';
@@ -23,6 +24,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.sarif': 'application/sarif+json',
   '.zip': 'application/zip',
+  '.pdf': 'application/pdf',
 };
 
 /** CSP for a generated report page: its inline <style> blocks by hash, images only from itself or data URLs. */
@@ -34,7 +36,7 @@ export function reportCsp(html: string): string {
     "img-src 'self' data:",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'self'", // SecureVibe's own page loads a report in a hidden frame to print it (Save as PDF)
+    "frame-ancestors 'none'", // nothing frames a report any more: the PDF is a file, not a print dialog
   ].join('; ');
 }
 
@@ -200,20 +202,34 @@ export function artifactsRouter(deps: ApiDeps): Router {
 
     const run = runFor(project.id, project.lastRunId, runQuery);
     if (!run) throw notFound('That file could not be found.');
-    const ref = run?.artifacts.find((a) => a.name === name);
-    if (!ref) throw notFound('That file could not be found.');
+    const ref = run.artifacts.find((a) => a.name === name);
+    // A run made before PDFs were written with the reports has none; its HTML report is turned into one on request.
+    const pdfSource = !ref && name.endsWith('.pdf') ? run.artifacts.find((a) => a.name === name.replace(/\.pdf$/, '.html')) : undefined;
+    if (!ref && !pdfSource) throw notFound('That file could not be found.');
 
-    let absolute: string;
-    try {
-      // Runs saved before paths were made project-relative list only the file name of the report.
-      absolute = ref.path.includes('/')
-        ? deps.store.projectPath(project.id, ...ref.path.split('/'))
-        : join(deps.store.reportsDir(project.id, run.id), basename(ref.path));
-    } catch (err) {
-      if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
-      throw err;
-    }
+    const locate = (artifact: { path: string }): string => {
+      try {
+        // Runs saved before paths were made project-relative list only the file name of the report.
+        return artifact.path.includes('/')
+          ? deps.store.projectPath(project.id, ...artifact.path.split('/'))
+          : join(deps.store.reportsDir(project.id, run.id), basename(artifact.path));
+      } catch (err) {
+        if (err instanceof PathConfinementError) throw forbidden('That path is not allowed.');
+        throw err;
+      }
+    };
+    const absolute = locate((ref ?? pdfSource)!);
     if (!existsSync(absolute)) throw notFound('That file could not be found.');
+
+    if (!ref) {
+      const html = readFileSync(absolute, 'utf8');
+      const pdf = htmlToPdf(html, { createdAt: run.finishedAt ?? run.startedAt });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${basename(pdfSource!.name).replace(/\.html$/, '.pdf')}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.send(pdf);
+      return;
+    }
 
     const type = CONTENT_TYPES[extname(absolute)] ?? 'application/octet-stream';
     if (extname(absolute) === '.html') {
@@ -223,12 +239,13 @@ export function artifactsRouter(deps: ApiDeps): Router {
       const saved = readFileSync(absolute, 'utf8');
       const html = /class="report-header"/.test(saved) ? saved.replace(/<style>[\s\S]*?<\/style>/, () => `<style>${REPORT_CSS}</style>`) : saved;
       res.setHeader('Content-Security-Policy', reportCsp(html));
-      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.type(type).send(html);
       return;
     }
     res.setHeader('Content-Type', type);
+    if (extname(absolute) === '.pdf') res.setHeader('Content-Disposition', `attachment; filename="${basename(absolute)}"`);
     res.setHeader('Content-Length', String(statSync(absolute).size));
     res.setHeader('X-Content-Type-Options', 'nosniff');
     createReadStream(absolute).pipe(res);

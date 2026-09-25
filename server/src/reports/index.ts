@@ -29,6 +29,7 @@ import { renderSecurityReport, type SecurityReportInput } from './security-repor
 import { escapeHtml } from './escape.js';
 import { htmlList } from './html-table.js';
 import { renderPage } from './page.js';
+import { htmlToPdf } from './pdf/index.js';
 import { coverageRanText, type ReportModel } from './types.js';
 
 /** Best-effort extraction of a stage's structured details, tolerant of the field the pipeline actually used. */
@@ -94,6 +95,24 @@ async function writeFileArtifact(outDir: string, name: string, content: string, 
   return { name, path: `reports/${basename(outDir)}/${name}`, kind, format, sizeBytes: s.size, description };
 }
 
+
+/**
+ * The same report as a PDF file, written here rather than by whoever opens the page: no browser and no print dialog
+ * is involved (SecureVibe ships none). A report that cannot be laid out as a PDF still keeps its HTML, so a failure
+ * here leaves the PDF out rather than the report; the download route makes the PDF on request and says why if it cannot.
+ */
+async function writePdfArtifact(outDir: string, htmlName: string, html: string, kind: ArtifactRef['kind'], description: string, createdAt: string): Promise<ArtifactRef[]> {
+  try {
+    const name = htmlName.replace(/\.html$/, '.pdf');
+    const path = join(outDir, name);
+    await writeFile(path, htmlToPdf(html, { createdAt }));
+    const s = await stat(path);
+    return [{ name, path: `reports/${basename(outDir)}/${name}`, kind, format: 'pdf', sizeBytes: s.size, description }];
+  } catch {
+    return [];
+  }
+}
+
 /** The fuller entry point: use this when the caller already has testResults/probeResults/profile/sbomPath in hand. */
 export async function renderReportsFromModel(model: ReportModel): Promise<RenderReportsResult> {
   await mkdir(model.outDir, { recursive: true });
@@ -101,18 +120,21 @@ export async function renderReportsFromModel(model: ReportModel): Promise<Render
 
   const artifacts: ArtifactRef[] = [];
 
-  artifacts.push(
-    await writeFileArtifact(model.outDir, 'overview.html', renderOverview(model), 'overview', 'html', 'Plain-language summary: can I use it, top actions, scorecards.'),
-  );
+  const madeAt = model.run.finishedAt ?? model.run.startedAt;
+  const overview = renderOverview(model);
+  artifacts.push(await writeFileArtifact(model.outDir, 'overview.html', overview, 'overview', 'html', 'Plain-language summary: can I use it, top actions, scorecards.'));
+  artifacts.push(...(await writePdfArtifact(model.outDir, 'overview.html', overview, 'overview', 'The one-page summary as a PDF file.', madeAt)));
 
   const compliance = renderComplianceReport(model);
   artifacts.push(await writeFileArtifact(model.outDir, 'compliance-report.html', compliance.html, 'compliance-report', 'html', 'Full compliance report (ASVS, AISVS, Secure by Design, Appendix C).'));
   artifacts.push(await writeFileArtifact(model.outDir, 'compliance-report.md', compliance.md, 'compliance-report', 'md', 'Compliance report in Markdown.'));
+  artifacts.push(...(await writePdfArtifact(model.outDir, 'compliance-report.html', compliance.html, 'compliance-report', 'Full compliance report as a PDF file.', madeAt)));
   artifacts.push(await writeFileArtifact(model.outDir, 'compliance-report.json', compliance.json, 'compliance-report', 'json', 'Compliance report data (source of truth).'));
 
   const security = renderSecurityReport(model);
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.html', security.html, 'security-report', 'html', 'Every finding with what it is, why it matters and how to fix it.'));
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.md', security.md, 'security-report', 'md', 'Security report in Markdown.'));
+  artifacts.push(...(await writePdfArtifact(model.outDir, 'security-report.html', security.html, 'security-report', 'Security report as a PDF file.', madeAt)));
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.json', security.json, 'security-report', 'json', 'Security report data (findings, coverage, probes, tests).'));
 
   artifacts.push(await writeFileArtifact(model.outDir, 'design.md', renderDesignDoc(model), 'design-doc', 'md', 'The design document (Secure by Design steps 1-8).'));
@@ -121,6 +143,7 @@ export async function renderReportsFromModel(model: ReportModel): Promise<Render
     const goingOnline = renderGoingOnline(model);
     artifacts.push(await writeFileArtifact(model.outDir, 'going-online.md', goingOnline.md, 'going-online-checklist', 'md', 'What to do before this app is reachable beyond this computer.'));
     artifacts.push(await writeFileArtifact(model.outDir, 'going-online.html', goingOnline.html, 'going-online-checklist', 'html', 'Going-online checklist.'));
+    artifacts.push(...(await writePdfArtifact(model.outDir, 'going-online.html', goingOnline.html, 'going-online-checklist', 'Going-online checklist as a PDF file.', madeAt)));
   }
 
   const sarif = JSON.stringify(buildSarif(model.findings, model.securevibeVersion), null, 2);
@@ -166,12 +189,14 @@ export async function renderReportsWithoutAnswers(input: Omit<RenderReportsInput
     securevibeVersion: input.securevibeVersion,
   };
   const artifacts: ArtifactRef[] = [];
-  artifacts.push(
-    await writeFileArtifact(model.outDir, 'overview.html', renderOverviewWithoutAnswers(model), 'overview', 'html', 'What the checks found, and why there is no compliance report yet.'),
-  );
+  const madeAt = model.run.finishedAt ?? model.run.startedAt;
+  const overview = renderOverviewWithoutAnswers(model);
+  artifacts.push(await writeFileArtifact(model.outDir, 'overview.html', overview, 'overview', 'html', 'What the checks found, and why there is no compliance report yet.'));
+  artifacts.push(...(await writePdfArtifact(model.outDir, 'overview.html', overview, 'overview', 'The summary as a PDF file.', madeAt)));
   const security = renderSecurityReport(model);
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.html', security.html, 'security-report', 'html', 'Every finding with what it is, why it matters and how to fix it.'));
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.md', security.md, 'security-report', 'md', 'Security report in Markdown.'));
+  artifacts.push(...(await writePdfArtifact(model.outDir, 'security-report.html', security.html, 'security-report', 'Security report as a PDF file.', madeAt)));
   artifacts.push(await writeFileArtifact(model.outDir, 'security-report.json', security.json, 'security-report', 'json', 'Security report data (findings, coverage, probes, tests).'));
   const sarif = JSON.stringify(buildSarif(model.findings, model.securevibeVersion), null, 2);
   artifacts.push(await writeFileArtifact(model.outDir, 'findings.sarif', sarif, 'sarif', 'sarif', 'Findings in SARIF 2.1.0, for editors and CI tools that understand it.'));
