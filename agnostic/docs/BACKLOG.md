@@ -31,6 +31,13 @@ another session is not a claim.
   gives the list to the AI coding tool and `sv init` tells it to work down it. See DESIGN, "Tests to
   write".
 
+- **More Level 1 from the ASVS pass.** **Claimed on 25 September 2026 by session securevibe-e8.** From
+  the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
+  exactly as typed, not cut short or case-folded), V6.2.6 (password fields masked), V6.2.7 (paste not
+  blocked), and V3.5.3 (sign-out and creating a record refused as a plain page visit); semgrep's rules
+  for text written into a page as HTML against V3.2.2 and C#'s turned-off token expiry against V9.2.1,
+  as findings only; then a `change-password` entry for V6.2.2 and V6.2.3.
+
 - ~~**AISVS, beyond applicability.**~~ Done on 25 September 2026 by session securevibe-e8. Semgrep's
   AI rules now name eight AISVS requirements (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4,
   C10.4.2) through a new `findings_against` list: a finding is evidence against them, and a clean run
