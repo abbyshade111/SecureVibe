@@ -461,3 +461,140 @@ fn each_brakeman_finding_lands_on_the_requirement_it_is_about() {
     assert_eq!(sql.location.file, "app/controllers/users_controller.rb");
     assert_eq!(sql.location.line, 5, "the find_by_sql line");
 }
+
+// ---- Semgrep, against its own output ----
+
+/// A real SARIF report from Semgrep 1.178.0, run over `tests/fixtures/semgrep/app` — a Flask app and a
+/// Go program with one of each kind of fault in them. How the run was made, and why its rule ids have
+/// the registry's form, is in the fixture's README.
+fn semgrep_real_run() -> Vec<sv_check::Finding> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-1.178.0.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let semgrep = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed");
+    adapters::parse_sarif(semgrep, &sarif).expect("the real report parses")
+}
+
+#[test]
+fn every_security_rule_semgrep_really_reported_is_mapped() {
+    // Before this map, every semgrep finding carried no requirement at all. Semgrep's own
+    // best-practice and correctness rules fire here too, and stay unmapped: a missing timeout is not
+    // a security requirement.
+    let findings = semgrep_real_run();
+    assert!(findings.len() >= 30, "only {} findings", findings.len());
+    let (security, other): (Vec<_>, Vec<_>) = findings
+        .iter()
+        .partition(|f| f.rule_id.contains(".security."));
+    assert!(
+        security.len() >= 25,
+        "only {} security findings",
+        security.len()
+    );
+    let unmapped: Vec<&str> = security
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+    assert!(!other.is_empty(), "the fixture is meant to include some");
+    for f in other {
+        assert!(f.requirement_ids.is_empty(), "{} is mapped", f.rule_id);
+    }
+}
+
+#[test]
+fn each_semgrep_finding_lands_on_the_requirement_it_is_about() {
+    // Each is a line of the fixture written to produce exactly that fault. The two tainted-SQL rules
+    // are the ones semgrep itself tags with the wrong CWE (type conversion, and mass assignment), so
+    // the map's two keys refused them and a reviewed override put them back.
+    let findings = semgrep_real_run();
+    let first = |rule: &str| {
+        findings
+            .iter()
+            .find(|f| f.rule_id == format!("semgrep.{rule}"))
+            .unwrap_or_else(|| panic!("{rule} is in the real run"))
+    };
+    for (rule, requirement) in [
+        (
+            "python.lang.security.audit.eval-detected.eval-detected",
+            "V1.3.2",
+        ),
+        (
+            "python.lang.security.audit.formatted-sql-query.formatted-sql-query",
+            "V1.2.4",
+        ),
+        (
+            "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+            "V1.2.4",
+        ),
+        (
+            "python.django.security.injection.tainted-sql-string.tainted-sql-string",
+            "V1.2.4",
+        ),
+        (
+            "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+            "V1.2.5",
+        ),
+        (
+            "python.lang.security.deserialization.pickle.avoid-pickle",
+            "V1.5.2",
+        ),
+        (
+            "python.flask.security.open-redirect.open-redirect",
+            "V3.7.2",
+        ),
+        (
+            "python.flask.security.injection.ssrf-requests.ssrf-requests",
+            "V1.3.6",
+        ),
+        (
+            "python.flask.security.injection.path-traversal-open.path-traversal-open",
+            "V5.3.2",
+        ),
+        (
+            "python.requests.security.disabled-cert-validation.disabled-cert-validation",
+            "V12.3.2",
+        ),
+        (
+            "python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+            "V11.4.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.use_of_weak_crypto.use-of-DES",
+            "V11.3.2",
+        ),
+        (
+            "go.lang.security.audit.crypto.use_of_weak_crypto.use-of-md5",
+            "V11.4.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.math_random.math-random-used",
+            "V11.5.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.missing-ssl-minversion.missing-ssl-minversion",
+            "V12.1.1",
+        ),
+        (
+            "go.lang.security.audit.database.string-formatted-query.string-formatted-query",
+            "V1.2.4",
+        ),
+    ] {
+        assert_eq!(
+            first(rule).requirement_ids,
+            vec![requirement.to_owned()],
+            "{rule}"
+        );
+    }
+    // And the location is where the fault was written.
+    let eval = first("python.lang.security.audit.eval-detected.eval-detected");
+    assert_eq!(eval.location.file, "app/app.py");
+    assert_eq!(eval.location.line, 16, "the eval line");
+}
