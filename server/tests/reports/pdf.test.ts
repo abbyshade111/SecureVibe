@@ -142,11 +142,28 @@ describe('htmlToPdf: pages', () => {
   });
 
   it('keeps a heading with the block after it rather than leaving it alone at the foot of a page', () => {
-    const filler = Array.from({ length: 62 }, (_, i) => `<p>filler line ${i}</p>`).join('');
-    const pdf = readPdf(htmlToPdf(wrapHtml(`${filler}<h3>LONELY-HEADING</h3><p>${'body words '.repeat(60)}</p>`)));
-    const heading = pdf.ops.find((o) => o.text === 'LONELY-HEADING')!;
-    const after = pdf.ops.find((o) => o.text.startsWith('body words'))!;
-    expect(heading.page).toBe(after.page);
+    // Slide the heading through every position near the foot of the first page: at some of them, without the rule,
+    // the heading would be the last thing on the page and its paragraph the first on the next.
+    let stranded = 0;
+    for (let n = 28; n <= 42; n++) {
+      const filler = Array.from({ length: n }, (_, i) => `<p>filler line ${i}</p>`).join('');
+      const pdf = readPdf(htmlToPdf(wrapHtml(`${filler}<h3>LONELY-HEADING</h3><p>${'body words '.repeat(60)}</p>`)));
+      const heading = pdf.ops.find((o) => o.text === 'LONELY-HEADING')!;
+      const after = pdf.ops.find((o) => o.text.startsWith('body words'))!;
+      if (heading.page !== after.page) stranded++;
+      if (heading.page === 1) expect(after.page, `${n} fillers`).toBe(1);
+    }
+    expect(stranded, 'the heading moves to the next page with its paragraph, at every position').toBe(0);
+  });
+
+  it('sets a table with many columns in smaller type rather than breaking the words in its cells', () => {
+    const word = 'abcdefghijklm';
+    const cells = (tag: string) => Array.from({ length: 9 }, () => `<${tag}>${word}</${tag}>`).join('');
+    const pdf = readPdf(htmlToPdf(wrapHtml(`<table><thead><tr>${cells('th')}</tr></thead><tbody><tr>${cells('td')}</tr></tbody></table>`)));
+    const printed = pdf.ops.filter((o) => o.text === word);
+    expect(printed.length).toBe(18);
+    expect(new Set(printed.map((o) => o.size)).size).toBe(1);
+    expect(printed[0]!.size).toBeLessThan(8.5);
   });
 
   it('puts "Page n of N" and the title at the foot of every page', () => {
