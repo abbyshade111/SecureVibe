@@ -1796,3 +1796,45 @@ twice over:
   question tied with V13.2.1 on vocabulary, which is what surfaced it. Nothing else in the suite
   would have: a wrong question is answerable, and the owner would have answered it and had the answer
   credited against a requirement about something else.
+
+## Policy numbers, and the one requirement they make checkable
+
+V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the
+application's security documentation*. Nothing can check behavior against prose. A number is
+different: `failed-sign-ins` under `[policy]` in securevibe.toml is the owner stating the policy,
+and a running app can be held to it.
+
+The probe makes one more wrong attempt than the stated number and watches what changes. Pushing back
+is read broadly — a different status on the last attempt than the first, a refusal (429, 423, or no
+answer at all), or an attempt that takes markedly longer. Narrowing it would report apps that defend
+themselves in a way this did not anticipate, and a check that cries wolf is one people learn to skip.
+
+### Held to the stated number, not to having any limiter at all
+
+An app that only gives way after twenty attempts, where the owner said three, has not implemented the
+policy. Accepting any limiter would stop the check from checking the claim, which is the only thing
+it is for; `an_app_that_pushes_back_too_late_is_still_a_finding` holds that.
+
+The window (`within-minutes`) is recorded and **not** tested: every attempt this makes lands within a
+few seconds, which is inside any window worth stating. The count is the testable half, and the
+evidence says so in the words the report prints.
+
+### Three ways it refuses to run
+
+- **No number stated** — *not assessed*, naming the setting that would settle it. An app nobody has
+  stated a policy for is not thereby failing, and certainly not passing.
+- **Zero** — refused rather than read as one. Nobody means "refuse the first attempt anybody makes",
+  and guessing they meant one holds the app to a policy the owner did not state.
+- **Twenty-five or more** — refused, because one check must not turn into thousands of requests
+  against somebody's app.
+
+### It runs last, and never guesses at the test users
+
+This is the only check that deliberately provokes the app into refusing requests. A limiter that
+counts by address rather than by account would then be refusing every other check's requests too, and
+the run would start reporting faults of this check's own making. So it runs after everything else,
+and it guesses at an account it made through `signup` — or, where there is no sign-up, at a name no
+account has, which exercises an address-based limiter only. The report says which was used, because
+the two are not the same evidence.
+
+A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
