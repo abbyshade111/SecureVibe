@@ -67,6 +67,14 @@ another session is not a claim.
   All 52 flagged pairs were read by hand on 26 September 2026 and none is wrong; this is about what
   happens to the hundred and second.
 
+  **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking. **Done the same
+  day, without a new file:** every citation already carries a `because`, and all 115 of them (101
+  distinct requirements) share vocabulary with both the requirement and the threat under the
+  guard's own comparison. The guard now reads them, and holds each against its threat as well. It
+  also found that an empty or wordless phrase passed every guard, here and in the crosswalk, which a
+  third test now refuses. See DESIGN, "The threat model's citations, and the bridge phrases already
+  written".
+
 - **Investigate MITRE ATLAS for the threat model.** Asked for by the owner on 26 September 2026:
   how feasible it would be, whether it adds anything of value, and whether it is worth it. ATLAS
   (Adversarial Threat Landscape for Artificial-Intelligence Systems) is MITRE's catalog of how AI

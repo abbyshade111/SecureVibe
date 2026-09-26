@@ -987,6 +987,29 @@ because Brakeman cannot be installed in this sandbox. An id that is simply wrong
 shows as a finding carrying no requirement rather than as a wrong one — the safe direction, but not a
 verified one.
 
+### The threat model's citations, and the bridge phrases already written
+
+The threat model (`data/knowledge/threats.json`, shared with v1) cites requirements too: 115 pairs across 42
+threats, 101 distinct requirements. It was the fifth citation surface and the only one outside the guard.
+Comparing each threat's description with the requirements it cites flags 52 of the 115 — and every flagged
+pair that was read is right. A threat is written for somebody who is not a programmer and ASVS for somebody
+who is, so "someone denies having signed in" and "all authentication operations are logged" share no word.
+
+The fix looked like it needed a bridge phrase per pair, as the Secure by Design crosswalk has. It was already
+there: every citation in the file carries a `because` — "guessing a short password" for T-01 against
+V6.2.1 — and measured with the guard's own comparison, all 115 share vocabulary with both the requirement and
+the threat. The guard had only ever been pointed at the descriptions. So `citations.rs` now reads the threat
+citations through their `because`, like every other citation, and a second test holds each `because` against
+its threat, so a phrase cannot join any threat to any requirement. Nothing in `threats.json` changed.
+
+Breaking it found one more hole, in the crosswalk as well: `shares_no_words` treats a text with no substantive
+word as agreeing with everything, which is right for a test name and wrong for a bridge. A `because` removed,
+or reduced to "the app", passed both guards. A third test now requires every bridge phrase, in both files, to
+carry a word the comparison can use. Five breaks, each caught by a general guard and not only by the fixture
+test: a wrong subject, an id that does not exist, a phrase matching the requirement alone, and a `because`
+removed or emptied — the last two on T-02 and on a crosswalk pair, so the fixture's own pair could not
+catch them by accident.
+
 ### A report from a run
 
 `sv report --run` starts the app behind the same fence `sv run` uses and folds what it answered into the

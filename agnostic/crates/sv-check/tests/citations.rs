@@ -106,6 +106,16 @@ fn every_citation() -> Vec<(String, String, String)> {
         }
     }
 
+    // The threat model: each threat against the requirements that would stop it. A threat is
+    // written in plain language for somebody who is not a programmer and ASVS in formal terms, so
+    // the threat's own description shares no words with 52 of its 115 citations while every one of
+    // them is right. Each citation already carries a `because` naming what the two have in common,
+    // which is the crosswalk's bridge phrase under another name: it is read here against the
+    // requirement, and against the threat in the test below.
+    for (threat, requirement, because) in threat_citations() {
+        out.push((format!("threats.json {threat}"), requirement, because));
+    }
+
     for requirement in sv_check::secrets::ASSIGNMENT_REQUIREMENTS {
         out.push((
             "secrets.rs secrets.credential-assignment".to_owned(),
@@ -115,6 +125,58 @@ fn every_citation() -> Vec<(String, String, String)> {
     }
 
     out
+}
+
+/// The threat model shared with v1: every (threat, cited requirement, `because`) in it.
+fn threat_citations() -> Vec<(String, String, String)> {
+    threats()
+        .into_iter()
+        .flat_map(|t| {
+            let id = t.id;
+            t.citations
+                .into_iter()
+                .map(move |(requirement, because)| (id.clone(), requirement, because))
+        })
+        .collect()
+}
+
+/// One threat from the threat model, as far as its citations are concerned.
+struct Threat {
+    id: String,
+    description: String,
+    /// Each cited requirement, with the `because` that joins the two.
+    citations: Vec<(String, String)>,
+}
+
+fn threats() -> Vec<Threat> {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data/knowledge/threats.json");
+    let file: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("the threats read"))
+            .expect("the threats parse");
+    let text = |v: &serde_json::Value| v.as_str().expect("text").to_owned();
+    file["threats"]
+        .as_array()
+        .expect("a list of threats")
+        .iter()
+        .map(|t| Threat {
+            id: text(&t["id"]),
+            description: text(&t["description"]),
+            citations: t["requirements"]
+                .as_array()
+                .expect("its citations")
+                .iter()
+                // A citation with no `because` is read as an empty phrase; the guard below refuses
+                // it, since an empty phrase gives the comparison nothing to hold against either side.
+                .map(|r| {
+                    (
+                        text(&r["id"]),
+                        r["because"].as_str().unwrap_or("").to_owned(),
+                    )
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 #[test]
@@ -373,4 +435,83 @@ fn every_crosswalk_bridge_shares_vocabulary_with_the_control_too() {
         "only {pairs} pairs read, so this is not reading the file"
     );
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn every_threat_bridge_shares_vocabulary_with_the_threat_too() {
+    // The other side of each threat's `because`. A phrase that matched only the requirement could
+    // join any threat to any requirement, so it has to match the threat's own description as well.
+    let mut wrong = Vec::new();
+    let mut pairs = 0;
+    for Threat {
+        id: threat,
+        description,
+        citations,
+    } in threats()
+    {
+        for (id, because) in citations {
+            pairs += 1;
+            if shares_no_words(&because, &description) {
+                wrong.push(format!(
+                    "{threat} ~ {id}: `{because}` shares nothing with `{description}`"
+                ));
+            }
+        }
+    }
+    assert!(
+        pairs >= 100,
+        "only {pairs} citations read, so this is not reading the file"
+    );
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn a_threat_cited_against_the_wrong_subject_is_caught() {
+    // Breaking the guard proves it fails; this proves it fails on the kind of mistake the other
+    // four citation surfaces really made — a citation pointing at a different subject. T-01's
+    // phrase for a short password, against V1.2.1 (output encoding), has to read as wrong; against
+    // V6.2.1, where it belongs, as right.
+    let known = requirements();
+    let because = threat_citations()
+        .into_iter()
+        .find(|(threat, id, _)| threat == "T-01" && id == "V6.2.1")
+        .map(|(_, _, because)| because)
+        .expect("T-01 cites V6.2.1");
+    assert!(
+        shares_no_words(&because, &known["V1.2.1"]),
+        "`{because}` has to read as wrong against output encoding, or this guard proves nothing"
+    );
+    assert!(!shares_no_words(&because, &known["V6.2.1"]));
+}
+
+#[test]
+fn every_bridge_phrase_has_a_word_the_comparison_can_use() {
+    // `shares_no_words` treats a text with no substantive word as agreeing with everything, which
+    // is right for a test name and wrong for a bridge phrase: a missing `because`, or one of only
+    // short words, would pass both guards above whatever it joined. Found by removing one. The
+    // phrase is compared with an empty text, which it can only fail to match if it has a word.
+    let has_a_word = |phrase: &str| shares_no_words(phrase, "");
+    let crosswalk: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(data("sbd-asvs-crosswalk.json")).expect("the crosswalk reads"),
+    )
+    .expect("the crosswalk parses");
+    let mut empty = Vec::new();
+    for (control, counterparts) in crosswalk["controls"].as_object().expect("controls") {
+        for (asvs, because) in counterparts.as_object().expect("a map") {
+            if !has_a_word(because.as_str().unwrap_or("")) {
+                empty.push(format!("sbd-asvs-crosswalk.json {control} ~ {asvs}"));
+            }
+        }
+    }
+    for (threat, id, because) in threat_citations() {
+        if !has_a_word(&because) {
+            empty.push(format!("threats.json {threat} ~ {id}: `{because}`"));
+        }
+    }
+    assert!(
+        empty.is_empty(),
+        "these say nothing the guard can hold against either side:\n{}",
+        empty.join("\n")
+    );
+    assert!(has_a_word("guessing a short password") && !has_a_word("the app"));
 }
