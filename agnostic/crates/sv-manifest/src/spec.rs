@@ -144,18 +144,21 @@ multimodal = false        # does it take images, video or audio, rather than typ
 # four letters, and the app should refuse it.
 # context-words = ["myapp", "myorganization"]
 
-# How the app is built. These are the questions no tool can settle, so only you can answer them.
-# Each one is "yes", "no", or "not-sure", and `where` names the file that does it.
-#   yes       — your word that the control is there. The report calls it "attested by the owner",
-#               which is the weakest thing it says, and still lists the requirement as one to
-#               write a test for, because your word is not the same as evidence.
+# How the app is built. These are the questions no tool can settle, so a person has to answer them.
+# Each one is "yes", "no", or "not-sure", `where` names the file that does it, and `by` says who
+# answered: "owner" for you, "ai-tool" for the AI coding tool that wrote the app.
+#   yes       — the word of whoever answered that the control is there. Yours is reported as
+#               "attested by the owner"; the AI tool's as "stated by the AI coding tool", which is
+#               weaker still, because it is the author grading its own work. Neither is evidence,
+#               and each requirement stays on the list of tests to write.
 #   no        — the control is not there. The report says so, as something to fix.
 #   not-sure  — adds nothing, and is the right answer when you do not know. Leaving a question
 #               out entirely comes to the same thing.
-# Run `sv report` to see the questions that apply to this app; there are at most sixteen.
+# An answer without `by` counts as the AI tool's: write by = "owner" only for an answer the
+# owner gave. Run `sv report` to see the questions that apply to this app; there are at most sixteen.
 [design]
-# "V8.3.1" = { answer = "yes", where = "server/auth.py" }
-# "V2.2.2" = { answer = "not-sure" }
+# "V8.3.1" = { answer = "yes", where = "server/auth.py", by = "owner" }
+# "V2.2.2" = { answer = "not-sure", by = "ai-tool" }
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.

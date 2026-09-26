@@ -23,6 +23,13 @@ another session is not a claim.
     unsure capability should be `true` and a line nobody answered should be left out. A tool that
     leaves a line as it found it has answered "no".
 
+  **The label is done the same day:** `by = "owner"` or `by = "ai-tool"` on a design answer, and the
+  tier *stated by the AI coding tool* below *attested by the owner*; an answer without `by` counts as
+  the tool's. See DESIGN, "The AI coding tool's answers, a tier lower still". **Next, and the owner's
+  refinement the same day:** the tool interviews the owner through the three lists, one question at a
+  time, offering what it knows of the code as a tip, and records the answers for the report. Still to
+  settle: where an answer to a go-and-look check is recorded, since today nothing records one.
+
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
   admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails

@@ -61,6 +61,7 @@ fn inputs<'a>(
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
         human: None,
         threats: None,
     }
@@ -624,6 +625,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
         human: None,
         threats: None,
     })
@@ -1097,6 +1099,76 @@ mod attested {
             "a reader must not take this for a check: {status}"
         );
         assert!(sv_report::html::page(&report).contains("attested by the owner"));
+    }
+
+    fn tool_said_yes(id: &str) -> Verified {
+        Verified::new(
+            "design.stated-by-ai",
+            &[id],
+            "securevibe.toml: your AI coding tool answered yes. This is the word of the tool that \
+             wrote the code, not a check of it."
+                .to_owned(),
+        )
+    }
+
+    fn report_with_stated(stated: &[Verified], attested: &[Verified]) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, vec![], &[]);
+        inputs.attested = attested;
+        inputs.stated = stated;
+        build(inputs)
+    }
+
+    #[test]
+    fn the_ai_tools_yes_is_its_own_tier_below_the_owners() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::Stated);
+        assert_eq!(report.counts.stated, 1);
+        assert_eq!(
+            report.counts.attested, 0,
+            "the tool's word is not the owner's"
+        );
+        assert!(Status::Stated < Status::Attested && Status::NotVerified < Status::Stated);
+        // Both answering: the owner's word is the stronger one and is what the row shows.
+        let both = report_with_stated(&[tool_said_yes("V8.3.1")], &[said_yes("V8.3.1")]);
+        assert_eq!(status_of(&both, "V8.3.1"), Status::Attested);
+    }
+
+    #[test]
+    fn a_requirement_the_ai_tool_answered_is_still_a_test_to_write() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        assert!(
+            report.tests_to_write.iter().any(|t| t.id == "V8.3.1"),
+            "{:?}",
+            report.tests_to_write
+        );
+    }
+
+    #[test]
+    fn the_row_says_it_is_the_ai_tools_word_rather_than_a_check() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| V8.3.1"))
+            .unwrap_or_else(|| panic!("no row for V8.3.1 in:\n{markdown}"));
+        let status = row.split('|').nth(2).unwrap_or_default();
+        assert!(status.contains("stated by the AI coding tool"), "got {row}");
+        assert!(
+            status.contains("your AI coding tool's word")
+                && !status.contains("attested by the owner"),
+            "{status}"
+        );
+        let html = sv_report::html::page(&report);
+        assert!(html.contains("stated by the AI coding tool"));
+        assert!(
+            !html.contains("attested by the owner"),
+            "nothing here is the owner's word"
+        );
     }
 }
 

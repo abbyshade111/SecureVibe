@@ -2577,6 +2577,32 @@ twice over:
   would have: a wrong question is answerable, and the owner would have answered it and had the answer
   credited against a requirement about something else.
 
+### The AI coding tool's answers, a tier lower still
+
+The owner is not a programmer, and the tool that wrote the app knows its code better than they do.
+So the questions go to the tool as well, and the plan (asked for by the owner on 26 September 2026)
+is that the tool interviews the owner, one question at a time, with what it knows about the code as
+a tip. That leaves two kinds of answer, and they are not worth the same:
+
+- **The owner's answer**, given in that conversation, recorded with `by = "owner"`: *attested by the
+  owner*, as before.
+- **The tool's answer**, when the owner does not know and the tool answers from the code, recorded
+  with `by = "ai-tool"`: *stated by the AI coding tool*, its own tier below the owner's, at the
+  owner's decision the same day. It is the author grading its own work.
+
+Everything that keeps *attested* honest holds for *stated*: it stays on the list of tests to write,
+settles no threat, and a `no` is still a finding, now saying who said it. Where both answered, the
+owner's word is the one shown.
+
+**An answer that does not say who gave it counts as the tool's.** The file is usually written by the
+tool, so crediting the owner on nobody's say-so is the direction that overstates; the owner writing
+by hand adds `by = "owner"`. A `by` that is neither word is named as unreadable, like a fourth
+answer, rather than guessed at.
+
+Each guard was broken in turn and caught: silence read as the owner's, an unknown `by` read as the
+owner's, *stated* dropped from the tests to write, *stated* shown as *attested*, and the two tiers'
+order swapped.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

@@ -48,6 +48,13 @@ pub enum Status {
     /// "yes, authorization is on the server" is not authorization being on the server. It stays on
     /// the list of tests to write for exactly that reason.
     Attested,
+    /// The AI coding tool that wrote the app answered a design question about this requirement, or
+    /// somebody did without saying who.
+    ///
+    /// Below *attested*, at the owner's decision (26 September 2026): the tool knows the code, and its
+    /// `yes` is still the author grading its own work. Everything that keeps *attested* honest holds
+    /// here too: it stays a test to write and settles no threat.
+    Stated,
     /// The owner answered this requirement's question in the security notes.
     ///
     /// Its own tier, below *checked* and above *not verified*, because it is a different kind of
@@ -66,6 +73,7 @@ impl Status {
             Status::Checked => "checked",
             Status::Documented => "documented by the owner",
             Status::Attested => "attested by the owner",
+            Status::Stated => "stated by the AI coding tool",
             Status::NotVerified => "not verified",
         }
     }
@@ -187,6 +195,8 @@ pub struct Counts {
     pub documented: usize,
     /// Requirements the owner answered a design question about. Never folded into either.
     pub attested: usize,
+    /// Requirements the AI coding tool answered a design question about. Below `attested`.
+    pub stated: usize,
     pub not_verified: usize,
     pub not_applicable: usize,
     pub not_assessed: usize,
@@ -297,6 +307,9 @@ pub struct Inputs<'a> {
     /// Design questions the owner answered `yes`. The weakest evidence here, and still not evidence
     /// about the app: see `sv_check::design`.
     pub attested: &'a [sv_check::Verified],
+    /// Design questions the AI coding tool answered `yes`, or that nobody said the owner answered.
+    /// A tier below `attested`: see `sv_check::design`.
+    pub stated: &'a [sv_check::Verified],
     /// The three catalogs of what a person can do about a requirement no check settles. Absent
     /// leaves the checklist out of the report.
     pub human: Option<(
@@ -368,6 +381,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         let attested_by: Vec<CheckedBy> = inputs
             .attested
             .iter()
+            .chain(inputs.stated.iter())
             .filter(|v| v.requirement_ids.iter().any(|r| r == id))
             .map(|v| CheckedBy {
                 check_id: v.check_id.clone(),
@@ -393,8 +407,10 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             Status::Checked
         } else if !documented_by.is_empty() {
             Status::Documented
-        } else if !attested_by.is_empty() {
+        } else if attested_by.iter().any(|c| c.check_id == "design.attested") {
             Status::Attested
+        } else if !attested_by.is_empty() {
+            Status::Stated
         } else {
             Status::NotVerified
         };
@@ -429,7 +445,10 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         // An attestation is the owner's word that a control exists; a test naming the requirement is
         // how it would be shown. Letting the word retire the test is how "attested" would quietly
         // become "checked" without anyone deciding to make it so.
-        if line.status != Status::NotVerified && line.status != Status::Attested {
+        if !matches!(
+            line.status,
+            Status::NotVerified | Status::Attested | Status::Stated
+        ) {
             continue;
         }
         if inputs.manual_only.contains(&line.id) || inputs.not_for_tests.contains(&line.id) {
@@ -499,6 +518,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         checked: count(&requirements, Status::Checked),
         documented: count(&requirements, Status::Documented),
         attested: count(&requirements, Status::Attested),
+        stated: count(&requirements, Status::Stated),
         not_verified: count(&requirements, Status::NotVerified),
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
@@ -687,9 +707,10 @@ impl Ord for Status {
             match s {
                 Status::NeedsAttention => 0,
                 Status::NotVerified => 1,
-                Status::Attested => 2,
-                Status::Documented => 3,
-                Status::Checked => 4,
+                Status::Stated => 2,
+                Status::Attested => 3,
+                Status::Documented => 4,
+                Status::Checked => 5,
             }
         }
         rank(*self).cmp(&rank(*other))

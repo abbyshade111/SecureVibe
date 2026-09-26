@@ -1926,6 +1926,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 sv_check::design::Answer {
                     answer: a.answer.clone(),
                     location: a.r#where.clone(),
+                    by: a.by.clone(),
                 },
             )
         })
@@ -1949,7 +1950,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 }
             ),
             why: format!(
-                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, so \
+                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, or \
+                 says it was answered `by` somebody other than \"owner\" or \"ai-tool\", so \
                  nothing could be made of it: {}.",
                 if design.unreadable.len() == 1 {
                     "this"
@@ -2001,6 +2003,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         not_for_tests,
         documented: &documented,
         attested: &design.attested,
+        stated: &design.stated,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((&threat_rules, &ctx)),
     }))
@@ -2080,6 +2083,14 @@ fn cmd_report(args: &[String]) -> Result<()> {
              your word about how the app is built, which is the weakest thing this report says: \
              each one is still listed as a test to write.",
             c.attested
+        );
+    }
+    if c.stated > 0 {
+        println!(
+            "A further {} your AI coding tool answered yes to in the [design] section of \
+             securevibe.toml, or that do not say who answered. That is the word of the tool that \
+             wrote the code, weaker still than yours: each one is still listed as a test to write.",
+            c.stated
         );
     }
     if c.documented > 0 {
