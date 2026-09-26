@@ -563,7 +563,9 @@ another session is not a claim.
     **C11.2.2, C9.6.1, C10.4.1, and C10.4.2 claimed on 26 September 2026 by session securevibe-e9**,
     at the owner's asking, to be built in that order, one pull request each. C9.3.4 and C9.3.7 are
     not claimed: whether an app acted on a tool call it should have refused is seldom visible from
-    outside it, and a check that cannot see the effect could only guess.
+    outside it, and a check that cannot see the effect could only guess. **C11.2.2 done the same day:** one more
+    message than `[policy] ai-requests-per-minute` states, after a minute's wait; credited only when
+    the app's own page still answers afterwards. See DESIGN, "How often it can be asked".
 
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked

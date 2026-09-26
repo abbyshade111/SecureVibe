@@ -74,6 +74,7 @@ RUST_CHECKS = {
     "probe.ai-injection-unscreened": ("running", ["C2.1.3"]),
     "probe.ai-call-log-incomplete": ("running", ["C12.1.3"]),
     "probe.ai-injection-logged": ("running", ["C12.2.1"]),
+    "probe.ai-rate-unlimited": ("running", ["C11.2.2"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),

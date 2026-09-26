@@ -3190,6 +3190,32 @@ witness and five with one, and each now has two or more. It also found a guard t
 witnessed at all — taking the probe's own tag out of each line before looking for "injection", when
 the tag's `INJECT-` never matches that word — and it was removed rather than kept as decoration.
 
+### How often it can be asked
+
+C11.2.2 asks for rate limits on the model sized to how much an attacker could learn by asking, and
+not only a throttle over the whole app. The size is the owner's to say, as `ai-requests-per-minute`
+under `[policy]`, the same kind of stated number as `failed-sign-ins`. The check runs last among the
+AI questions, because it sets out to make the app refuse, and waits a minute first, so the messages
+before it no longer count against a limit per minute. Then it sends one more message than the stated
+number, and asks the test model which arrived:
+
+- **The first of them has to arrive**, or a refusal later shows nothing; and the burst has to fit in
+  the minute a limit counts over.
+- **All of them arriving** is a finding.
+- **The last refused before the model** is credited — but only when the app's own page (the health
+  path) still answers afterwards. An app whose limit shuts everything once reached has a throttle over
+  the whole app, which C11.2.2 says is not enough on its own, and it is *not assessed* with that said.
+  So is one that refuses some messages and passes the last, which is no limit that stays shut. The
+  credit says whether the limit is per person as well as overall was not shown: one test user cannot
+  tell.
+
+The sidecar's time limit grows by two minutes for the wait. Verified end to end with the scratch apps:
+five messages a minute on the chat route alone was credited, no limit was a finding, and a limit that
+shut every page was not assessed, as it should be. The break round found one guard with no witness —
+a refusal that did not stay shut — and five with one; each now has two or more, and one of the new
+witnesses shows why the minute's wait is there: a limit of three is only credited because the four
+messages before the burst had aged out.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
