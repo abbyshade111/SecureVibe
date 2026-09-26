@@ -27,8 +27,16 @@ another session is not a claim.
   tier *stated by the AI coding tool* below *attested by the owner*; an answer without `by` counts as
   the tool's. See DESIGN, "The AI coding tool's answers, a tier lower still". **Next, and the owner's
   refinement the same day:** the tool interviews the owner through the three lists, one question at a
-  time, offering what it knows of the code as a tip, and records the answers for the report. Still to
-  settle: where an answer to a go-and-look check is recorded, since today nothing records one.
+  time, offering what it knows of the code as a tip, and records the answers for the report. **Done
+  the same day:** `securevibe_questions` and `sv questions`, `securevibe_notes_file`, the check pointing
+  at them, and a contradiction saying what the code showed. See DESIGN, "The interview: the tool asks,
+  the owner answers". Left over:
+  - Where an answer to a check by hand is recorded. Today nothing records one, so the tool walks the
+    owner through them and the report cannot tell.
+  - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
+    contract, and worth its own decision.
+  - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
+    at any point; ordering them by level, or by what is most at stake, would help.
 
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session

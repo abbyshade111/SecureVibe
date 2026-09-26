@@ -707,7 +707,7 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     let frameworks = load_frameworks(&data)?;
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan(&app_dir, &signatures)?;
+    let scan_report = scan(app_dir, &signatures)?;
     let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
     let catalog = sv_check::notes::Catalog::load(&notes_path())?;

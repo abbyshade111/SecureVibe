@@ -934,7 +934,7 @@ mod tests {
                     .and_then(|r| r.split_whitespace().next())
             })
             .map(str::to_owned);
-        if let Some(id) = &id {
+        if id.is_some() {
             let edited = made.replacen(sv_check::notes::PLACEHOLDER, answer, 1);
             std::fs::write(&notes, edited).unwrap();
         }

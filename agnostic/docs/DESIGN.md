@@ -2635,6 +2635,38 @@ Each guard was broken in turn and caught: silence read as the owner's, an unknow
 owner's, *stated* dropped from the tests to write, *stated* shown as *attested*, and the two tiers'
 order swapped.
 
+### The interview: the tool asks, the owner answers
+
+The three lists (design questions, security notes, checks by hand) reached the owner only as a
+section of the report, and the walk-through of `sv mcp` on 26 September 2026 showed they did not
+reach the AI coding tool at all: the check named the design questions by id alone and told the tool
+to run `sv notes`, which it has no way to do. The owner's idea the same day was the fix: give the
+questions to the tool, and have it interview the owner.
+
+- **`securevibe_questions`** (and `sv questions`, to paste into a tool without MCP) lists what is
+  still open for this app: design questions nobody has answered or only the tool has, security notes
+  not yet written, and the checks by hand. Each has the question in plain words and where to look.
+  The instructions ahead of them say how to ask: one at a time, with what the code shows as a tip,
+  "not sure" as a good answer, and `by = "owner"` only for an answer the person gave. It is wider
+  than the report's checklist, which leaves out what a test could also settle; a question the owner
+  can answer is worth asking even when a test could settle it later.
+- **A design question only the tool has answered is asked again**, to be confirmed or corrected,
+  since the owner's word outranks the tool's. One the owner has answered is not asked again.
+- **The security notes have no lower tier**, so the tool is told to write a decision only once the
+  owner agrees with it. A written decision nobody made is not one.
+- **`securevibe_notes_file`** makes or refreshes `security-notes.md`, keeping what is written, and
+  refuses to write through a link out of the app, like `securevibe_write_report`'s folder.
+- **The checks by hand record nothing yet.** The tool walks the owner through them.
+
+Asking credits nothing: a test holds that every requirement on the list is still not verified. Two
+smaller things from the walk-through went in beside it: the check now points the tool at the
+questions, and a contradicted claim says what in the code contradicted it ("What the code shows:
+`stripe` is declared in requirements.txt"), which `sv scope` always said and the report did not.
+
+Six guards were broken in turn, each caught: an owner-answered question asked again, a tool-answered
+one not asked, the "confirm this" line dropped, the `by = "owner"` rule dropped from the
+instructions, the link check off, and the contradiction's evidence dropped.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the
