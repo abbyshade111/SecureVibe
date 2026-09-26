@@ -288,6 +288,10 @@ pub struct UsersSection {
     /// in the same session that asked for it. Only used when the run has a mail sink.
     #[serde(default)]
     pub email_code: Option<ResetSection>,
+    /// How an account made through `signup` is activated with the code the app emails at sign-up:
+    /// `use` with `{code}`. Only used with `signup` and a mail sink.
+    #[serde(default)]
+    pub activation: Option<ActivationSection>,
     /// A flow of more than one step, so the probes can try skipping one.
     #[serde(default)]
     pub flow: Option<FlowSection>,
@@ -317,6 +321,18 @@ pub struct BrowserSection {
     /// The page that shows what was typed. Absent means the page the form leads to.
     #[serde(default)]
     pub shows: Option<String>,
+}
+
+/// Activating a new account with the code emailed at sign-up.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct ActivationSection {
+    /// Uses the code: `{code}` for it, in the path or a field; `{user}` if the app wants the address.
+    #[serde(rename = "use")]
+    pub use_code: RequestTemplate,
+    /// Where the code is in the email, as for `reset`.
+    #[serde(default)]
+    pub code_pattern: Option<String>,
 }
 
 /// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code
@@ -447,6 +463,20 @@ impl UsersSection {
                 ));
             }
         }
+        if let Some(activation) = &self.activation {
+            let t = &activation.use_code;
+            if !(t.path.contains("{code}")
+                || t.form
+                    .values()
+                    .chain(t.json.values())
+                    .any(|v| v.contains("{code}")))
+            {
+                out.push(format!(
+                    "`activation.use` ({}) has no `{{code}}`, so what the email carried is never sent",
+                    t.path
+                ));
+            }
+        }
         if let Some(t) = &self.change_password
             && !t
                 .form
@@ -475,7 +505,9 @@ impl UsersSection {
             self.email_code
                 .iter()
                 .flat_map(|r| [&r.request, &r.use_code]),
-        ) {
+        )
+        .chain(self.activation.iter().map(|a| &a.use_code))
+        {
             if !t.form.is_empty() && !t.json.is_empty() {
                 out.push(format!("{} sets both `form` and `json`; pick one", t.path));
             }
