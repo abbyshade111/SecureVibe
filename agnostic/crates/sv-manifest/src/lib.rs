@@ -263,24 +263,30 @@ pub struct UsersSection {
     /// used when the run has a mail sink for the app to send to.
     #[serde(default)]
     pub reset: Option<ResetSection>,
+    /// How to sign in with a code or link the app emails, beside the password: `use` with `{code}`,
+    /// in the same session that asked for it. Only used when the run has a mail sink.
+    #[serde(default)]
+    pub email_code: Option<ResetSection>,
 }
 
-/// A password reset: asking for one, and using what the email carried.
+/// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code
+/// used.
 ///
 /// The run gives the app a mail server that keeps what it is sent (`SMTP_HOST`, `SMTP_PORT`), so
-/// the probes can read the email as the account's owner would and use the code or link in it.
+/// the probes can read the email as the account's owner would and use the code or link in it. The
+/// type keeps the name of its first use.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct ResetSection {
     /// Asks for a reset email, with `{user}` for the account's address.
     pub request: RequestTemplate,
-    /// Sets the new password with what the email carried: `{code}` for the code or the token from
-    /// the link, `{new_password}` for the password, in the path or a field.
+    /// Uses what the email carried: `{code}` for the code or the token from the link, and for a
+    /// reset `{new_password}` for the password, in the path or a field.
     #[serde(rename = "use")]
     pub use_code: RequestTemplate,
     /// Where the code is in the email: a regular expression whose first group is the code. Absent
     /// means a link's `token`, `code`, or `key` parameter, or the last part of a link's path under
-    /// `reset`.
+    /// `reset` (for a reset) or a sign-in word (for `email-code`), or a code after the word `code`.
     #[serde(default)]
     pub code_pattern: Option<String>,
 }
@@ -361,6 +367,20 @@ impl UsersSection {
                 ));
             }
         }
+        if let Some(code) = &self.email_code {
+            let t = &code.use_code;
+            if !(t.path.contains("{code}")
+                || t.form
+                    .values()
+                    .chain(t.json.values())
+                    .any(|v| v.contains("{code}")))
+            {
+                out.push(format!(
+                    "`email-code.use` ({}) has no `{{code}}`, so what the email carried is never sent",
+                    t.path
+                ));
+            }
+        }
         if let Some(t) = &self.change_password
             && !t
                 .form
@@ -385,7 +405,11 @@ impl UsersSection {
         .flatten()
         .chain(self.owned.as_ref().map(|o| &o.create))
         .chain(self.reset.iter().flat_map(|r| [&r.request, &r.use_code]))
-        {
+        .chain(
+            self.email_code
+                .iter()
+                .flat_map(|r| [&r.request, &r.use_code]),
+        ) {
             if !t.form.is_empty() && !t.json.is_empty() {
                 out.push(format!("{} sets both `form` and `json`; pick one", t.path));
             }
@@ -447,6 +471,10 @@ pub struct PolicySection {
     /// makes its attempts in a few seconds, which is inside any window worth stating.
     #[serde(default)]
     pub within_minutes: Option<u32>,
+    /// Wrong emailed sign-in codes in a row before the app should push back, for V6.6.3: the same
+    /// kind of stated number as `failed-sign-ins`, for the codes `email-code` sends.
+    #[serde(default)]
+    pub failed_codes: Option<u32>,
     /// How many days a known vulnerability may stay unfixed, by how serious it is: V15.1.1's time
     /// frames, as numbers `sv audit` can hold the app's packages to for V15.2.1.
     #[serde(default)]
@@ -1063,5 +1091,21 @@ mod reset_tests {
         let problems = u.problems().join("\n");
         assert!(problems.contains("no `{code}`"), "{problems}");
         assert!(problems.contains("no `{new_password}`"), "{problems}");
+    }
+
+    #[test]
+    fn an_email_code_entry_must_send_the_code() {
+        let u = users(
+            "email-code = { request = { path = \"/login/code\", form = { email = \"{user}\" } }, \
+             use = { path = \"/login/verify\" } }",
+        );
+        assert!(u.email_code.is_some());
+        let problems = u.problems().join("\n");
+        assert!(problems.contains("`email-code.use`"), "{problems}");
+        let u = users(
+            "email-code = { request = { path = \"/login/code\" }, use = { path = \
+             \"/login/verify/{code}\" } }",
+        );
+        assert!(u.problems().is_empty(), "{:?}", u.problems());
     }
 }

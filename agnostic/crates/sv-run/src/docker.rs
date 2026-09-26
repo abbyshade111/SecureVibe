@@ -116,7 +116,10 @@ impl Backend for DockerBackend {
         //     it is there to be sent to, on the same fenced network, and nowhere else: mail sent to it
         //     goes no further. If it cannot be started the run goes on without it, and the checks
         //     that needed it say so.
-        let wants_mail = plan.users.as_ref().is_some_and(|u| u.reset.is_some());
+        let wants_mail = plan
+            .users
+            .as_ref()
+            .is_some_and(|u| u.reset.is_some() || u.email_code.is_some());
         let mail =
             (wants_mail && self.start_mail(&network, &mail_name)).then_some(mail_name.as_str());
 
