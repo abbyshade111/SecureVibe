@@ -186,6 +186,57 @@ pub struct RunSection {
     /// can point it at a test provider of `sv`'s own and see what it accepts.
     #[serde(default)]
     pub oidc: Option<OidcSection>,
+    /// How to talk to the app's AI feature, so the run can give it a test model of `sv`'s own and
+    /// see what the app does when that model misbehaves.
+    #[serde(default)]
+    pub ai: Option<AiSection>,
+}
+
+/// `[stack.run.ai]`: the app has a feature that sends what a person types to a language model.
+///
+/// For the run, the app is pointed at a test model instead of the real service, through
+/// `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` (with placeholder keys in `OPENAI_API_KEY` and
+/// `ANTHROPIC_API_KEY`), and through any other variables `base-url-env` names. It answers the way
+/// those services do, costs nothing, and does on purpose what a model can be talked into doing.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct AiSection {
+    /// The request that sends a message to the AI feature, with `{prompt}` where the text goes.
+    pub chat: RequestTemplate,
+    /// Whether it needs a signed-in user. The second test user is used, from `[stack.run.users]`.
+    #[serde(default)]
+    pub signed_in: bool,
+    /// Other environment variables the app reads the model's address from, each given the test
+    /// model's OpenAI-style address (ending `/v1`).
+    #[serde(default)]
+    pub base_url_env: Vec<String>,
+}
+
+impl AiSection {
+    /// What would stop the checks from being asked, in words for the report.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let t = &self.chat;
+        if !(t.path.contains("{prompt}")
+            || t.form
+                .values()
+                .chain(t.json.values())
+                .any(|v| v.contains("{prompt}")))
+        {
+            out.push(format!(
+                "`ai.chat` ({}) has no `{{prompt}}`, so nothing would be sent to the AI feature",
+                t.path
+            ));
+        }
+        for name in &self.base_url_env {
+            if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                out.push(format!(
+                    "`ai.base-url-env` names `{name}`, which is not an environment variable name"
+                ));
+            }
+        }
+        out
+    }
 }
 
 /// `[stack.run.oidc]`: the app signs in through OpenID Connect.

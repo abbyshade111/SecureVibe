@@ -804,7 +804,10 @@ fn running_app_evidence(
     findings.extend(api_findings);
     verified.extend(api_verified);
     not_assessed.extend(api_not_assessed);
-    for asked in [&outcome.signed_in, &outcome.oidc].into_iter().flatten() {
+    for asked in [&outcome.signed_in, &outcome.oidc, &outcome.ai]
+        .into_iter()
+        .flatten()
+    {
         findings.extend(asked.findings.iter().cloned());
         verified.extend(asked.verified.iter().cloned());
         not_assessed.extend(asked.not_assessed.iter().cloned());
@@ -878,6 +881,14 @@ fn cmd_run(args: &[String]) -> Result<()> {
                 println!(
                     "\nThen, through a test provider standing in for the one it signs in with: {}.",
                     oidc.steps.join("; ")
+                );
+            }
+            if let Some(ai) = &outcome.ai
+                && !ai.steps.is_empty()
+            {
+                println!(
+                    "\nThen, its AI feature, with a test model standing in for the real one: {}.",
+                    ai.steps.join("; ")
                 );
             }
 
@@ -1643,8 +1654,14 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     .as_ref()
                     .map(|s| s.steps.clone())
                     .unwrap_or_default();
+                let ai_steps: Vec<String> = outcome
+                    .ai
+                    .as_ref()
+                    .map(|s| s.steps.clone())
+                    .unwrap_or_default();
                 run_steps = signed_in_steps.clone();
                 run_steps.extend(oidc_steps.iter().cloned());
+                run_steps.extend(ai_steps.iter().cloned());
                 let signed_in_note = if signed_in_steps.is_empty() {
                     String::new()
                 } else {
@@ -1660,9 +1677,15 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     " Its sign-in through another service was asked about with a test provider of \
                      `sv`'s own, pointed at it for the run."
                 };
+                let ai_note = if ai_steps.is_empty() {
+                    ""
+                } else {
+                    " Its AI feature was asked with a test model of `sv`'s own in place of the \
+                     real one, so nothing was sent to an AI service and nothing was spent."
+                };
                 run_note = Some(format!(
                     "This app was started with {} and asked {} question{} while it ran, as \
-                     somebody who had not signed in. It answered on {}.{signed_in_note}{oidc_note} {}",
+                     somebody who had not signed in. It answered on {}.{signed_in_note}{oidc_note}{ai_note} {}",
                     plan.image,
                     outcome.probe_responses.len(),
                     if outcome.probe_responses.len() == 1 {
@@ -1674,10 +1697,15 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     outcome.fence.explain()
                 ));
                 for (requirements, why) in signed_in_not_assessed {
+                    // AISVS ids are the AI feature's, asked through the test model, which may not
+                    // have involved signing in at all.
+                    let how = if requirements.starts_with('C') {
+                        "by asking the running app's AI feature through a test model"
+                    } else {
+                        "by asking the running app as a signed-in user"
+                    };
                     gaps.push(sv_report::Gap {
-                        what: format!(
-                            "{requirements}, by asking the running app as a signed-in user"
-                        ),
+                        what: format!("{requirements}, {how}"),
                         why,
                     });
                 }

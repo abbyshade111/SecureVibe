@@ -104,6 +104,9 @@ pub struct RunPlan {
     /// How the app signs in through another service, when securevibe.toml says. The run then
     /// starts a test provider of `sv`'s own and points the app at it.
     pub oidc: Option<sv_manifest::OidcSection>,
+    /// How to talk to the app's AI feature, when securevibe.toml says. The run then starts a test
+    /// model of `sv`'s own and points the app at it.
+    pub ai: Option<sv_manifest::AiSection>,
     /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
     pub graphql: Option<String>,
     pub websocket: Option<String>,
@@ -170,6 +173,7 @@ impl RunPlan {
             users: run.users.clone(),
             policy: manifest.policy.clone(),
             oidc: run.oidc.clone(),
+            ai: run.ai.clone(),
             graphql: run.graphql.clone(),
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
@@ -204,6 +208,9 @@ pub struct RunOutcome {
     /// service. Kept apart from `signed_in`: an app whose only sign-in is "Sign in with …" was not
     /// asked any of the signed-in questions, and folding the two together would say it was.
     pub oidc: Option<sv_check::signed_in::Outcome>,
+    /// What asking the app's AI feature through the test model showed, when securevibe.toml says
+    /// how to reach it.
+    pub ai: Option<sv_check::signed_in::Outcome>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
