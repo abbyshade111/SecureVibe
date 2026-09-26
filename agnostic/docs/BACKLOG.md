@@ -133,9 +133,15 @@ another session is not a claim.
   Level 1 and two at Level 2, which is a smaller prize than the entry promised.
 
 - **More questions for the running app, and an `upload` entry.** Asked with what `[stack.run.users]`
-  already says: `Cache-Control: no-store` on private pages (V14.3.2), directory listings (V13.4.3), a
-  visible sign-out link on private pages (V7.4.4), and whether the app's own output (the container's
-  log) recorded the failed sign-ins the probes made (V16.3.1, V16.3.2). Password reset needs an entry of
+  already says. Three are done on 25 September 2026 by session securevibe-e9: `Cache-Control:
+  no-store` on private pages (V14.3.2), a visible sign-out link on private pages (V7.4.4), and
+  directory listings (V13.4.3). The first two are signed-in checks on the pages `private` names; the
+  third is an anonymous probe beside V13.4.1, because it needs no account, and it is only ever a
+  finding — six guessed paths and three server signatures cannot show that nothing lists. Level 2
+  goes from 30 to 33 of 183. See DESIGN, "Three more questions for the running app".
+
+  Still to do: whether the app's own output (the container's log) recorded the failed sign-ins the
+  probes made (V16.3.1, V16.3.2). Password reset needs an entry of
   its own. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
   its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
 

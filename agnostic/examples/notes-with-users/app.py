@@ -79,6 +79,24 @@ class Handler(BaseHTTPRequestHandler):
         fields = parse_qs(self.rfile.read(length).decode())
         return {k: v[0] for k, v in fields.items()}
 
+    @staticmethod
+    def private(extra=()):
+        """Headers for a page showing somebody's own data: V14.3.2.
+
+        `no-store` is the only value that means "keep no copy". `no-cache` allows the copy and asks
+        for it to be revalidated, which still leaves it on a shared machine after signing out.
+        """
+        return [("Cache-Control", "no-store"), *extra]
+
+    @staticmethod
+    def sign_out(csrf):
+        """A visible way to sign out, for every page that needs signing in: V7.4.4."""
+        return (
+            "<form method=post action='/logout'>"
+            f"<input type=hidden name=csrf_token value='{csrf}'>"
+            "<button>Sign out</button></form>"
+        )
+
     def forged(self, form, csrf):
         origin = self.headers.get("Origin")
         if origin and origin not in OWN_ORIGINS:
@@ -103,12 +121,23 @@ class Handler(BaseHTTPRequestHandler):
         if not email:
             return self.send(302, headers=[("Location", "/login")])
         if self.path == "/account":
-            return self.send(200, page("Account", f"Signed in as {html.escape(email)}"))
+            return self.send(
+                200,
+                page(
+                    "Account",
+                    f"Signed in as {html.escape(email)}{self.sign_out(csrf)}",
+                ),
+                self.private(),
+            )
         if self.path == "/admin":
             admin = db().execute("select admin from users where email = ?", (email,)).fetchone()
             if not admin or not admin[0]:
                 return self.send(403, page("No", "Not for you."))
-            return self.send(200, page("Admin", "Everyone's notes."))
+            return self.send(
+                200,
+                page("Admin", f"Everyone's notes.{self.sign_out(csrf)}"),
+                self.private(),
+            )
         if self.path == "/notes":
             form = f"<form method=post><input type=hidden name=csrf_token value='{csrf}'></form>"
             return self.send(200, page("New note", form))
