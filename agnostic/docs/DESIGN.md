@@ -419,6 +419,22 @@ So every corroborator declares `absenceIsEvidence`, and only two set it: `ci-cd`
 the repository, and a file that is not there is not there. Everywhere else, finding something proves it is
 used and finding nothing proves nothing — recorded as the claim being *unverified*, not contradicted.
 
+### Finding nothing does not answer for the owner
+
+That paragraph was right about the file and wrong about the pipeline. A CI file that is not in the copy
+`sv` read is not in the copy `sv` read: an uploaded app often leaves `.github` out, and a pipeline can be
+configured on a server or a hosting console. Until 26 September 2026, `resolve` let that absence answer
+`ci-cd` and `iac` for an owner who had said nothing, and on a manifest holding only a name it marked twelve
+requirements not applicable — AC.12.1–AC.12.8, AC.7.3, AC.7.4, AC.9.1, and SBD-AC-07 — while the claim's
+own note said finding nothing "is not the same as finding it absent".
+
+Now a question the manifest asks stays unanswered while the owner is silent, whatever the scan found, and
+the twelve are *not assessed*, with the claim shown as *unanswered* and what the scan saw beside it. A scan
+that found nothing still confirms an owner's *no* and still marks an owner's *yes* unsupported; it only
+never speaks for them. The conditions no one is asked — the derived ones — keep their answers from the
+code. Putting the old line back fails two tests, a unit test on `resolve` and one that runs `sv report` on
+the bare manifest; before, it failed none.
+
 ### Three things this turned up
 
 **A silent field-name mismatch that defaulted to the dangerous value.** `Signature` had no `rename_all`, so
@@ -970,6 +986,29 @@ One thing it cannot check, and which is now written down rather than assumed: Br
 because Brakeman cannot be installed in this sandbox. An id that is simply wrong maps nothing, so it
 shows as a finding carrying no requirement rather than as a wrong one — the safe direction, but not a
 verified one.
+
+### The threat model's citations, and the bridge phrases already written
+
+The threat model (`data/knowledge/threats.json`, shared with v1) cites requirements too: 115 pairs across 42
+threats, 101 distinct requirements. It was the fifth citation surface and the only one outside the guard.
+Comparing each threat's description with the requirements it cites flags 52 of the 115 — and every flagged
+pair that was read is right. A threat is written for somebody who is not a programmer and ASVS for somebody
+who is, so "someone denies having signed in" and "all authentication operations are logged" share no word.
+
+The fix looked like it needed a bridge phrase per pair, as the Secure by Design crosswalk has. It was already
+there: every citation in the file carries a `because` — "guessing a short password" for T-01 against
+V6.2.1 — and measured with the guard's own comparison, all 115 share vocabulary with both the requirement and
+the threat. The guard had only ever been pointed at the descriptions. So `citations.rs` now reads the threat
+citations through their `because`, like every other citation, and a second test holds each `because` against
+its threat, so a phrase cannot join any threat to any requirement. Nothing in `threats.json` changed.
+
+Breaking it found one more hole, in the crosswalk as well: `shares_no_words` treats a text with no substantive
+word as agreeing with everything, which is right for a test name and wrong for a bridge. A `because` removed,
+or reduced to "the app", passed both guards. A third test now requires every bridge phrase, in both files, to
+carry a word the comparison can use. Five breaks, each caught by a general guard and not only by the fixture
+test: a wrong subject, an id that does not exist, a phrase matching the requirement alone, and a `because`
+removed or emptied — the last two on T-02 and on a crosswalk pair, so the fixture's own pair could not
+catch them by accident.
 
 ### A report from a run
 

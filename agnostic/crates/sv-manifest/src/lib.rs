@@ -679,8 +679,8 @@ pub enum ClaimState {
     Unsupported,
     /// No corroborator exists for this claim. Reports say "asserted, not verified".
     Unverifiable,
-    /// The manifest is silent and nothing in the code answered it. Not a "no" — the requirement
-    /// is reported as not assessed.
+    /// The manifest is silent. Not a "no", even when the code was searched and nothing was found:
+    /// the requirement is reported as not assessed.
     Unanswered,
 }
 
@@ -715,18 +715,22 @@ pub fn resolve(
         let effective = match (claimed, found_in_code) {
             // Either saying yes is a yes. Corroboration only ever adds requirements.
             (Some(true), _) | (_, Some(true)) => Some(true),
-            // Nobody has said anything. Silence is not a no.
-            (None, None) => None,
-            // An explicit no from the owner, or from the code, with nothing contradicting it.
-            _ => Some(false),
+            // Nobody has said anything. Silence is not a no — and a scan that found nothing does
+            // not break the silence. These are the questions the manifest asks the owner, and
+            // not finding a CI file in an uploaded app is not finding the pipeline absent: the
+            // file is often left out, and a pipeline can be configured on a server. It excluded
+            // twelve requirements on a manifest that answered nothing, until 26 September 2026.
+            // The derived conditions, which no one is asked, are answered below and keep a "no".
+            (None, _) => None,
+            // The owner's own no, with nothing in the code contradicting it.
+            (Some(false), _) => Some(false),
         };
         let state = match (claimed, found_in_code) {
-            (None, None) => ClaimState::Unanswered,
+            (None, None) | (None, Some(false)) => ClaimState::Unanswered,
             (Some(false), Some(true)) => ClaimState::Contradicted,
             (None, Some(true)) => ClaimState::Contradicted,
             (Some(true), Some(false)) => ClaimState::Unsupported,
             (Some(_), None) => ClaimState::Unverifiable,
-            (None, Some(false)) => ClaimState::Unverifiable,
             (Some(true), Some(true)) | (Some(false), Some(false)) => ClaimState::Confirmed,
         };
         if let Some(value) = effective {
@@ -1146,5 +1150,84 @@ mod reset_tests {
              \"/login/verify/{code}\" } }",
         );
         assert!(u.problems().is_empty(), "{:?}", u.problems());
+    }
+}
+
+#[cfg(test)]
+mod silence_tests {
+    use super::*;
+
+    /// A manifest that says nothing about the repository, resolved against a scan that looked for
+    /// CI and infrastructure files and found none.
+    fn resolved_with(found: Option<bool>) -> (ConditionContext, Vec<ResolvedClaim>) {
+        let m: Manifest =
+            toml::from_str("manifest-version = 1\n[app]\nname = \"x\"\n").expect("manifest parses");
+        resolve(&m, &|c| {
+            matches!(c, Condition::CiCd | Condition::Iac)
+                .then_some(found)
+                .flatten()
+        })
+    }
+
+    #[test]
+    fn an_unanswered_question_stays_unanswered_when_the_scan_found_nothing() {
+        // Found reviewing the manifest questions: `ci-cd` and `iac` unanswered, and a scan that
+        // found no CI file, excluded twelve requirements as not applicable. An uploaded app often
+        // leaves `.github` out, and a pipeline can be configured on a server; not finding the file
+        // is not finding the pipeline absent, and the owner was never asked to say either way.
+        let (ctx, resolved) = resolved_with(Some(false));
+        for condition in [Condition::CiCd, Condition::Iac] {
+            assert_eq!(
+                ctx.get(condition),
+                None,
+                "{condition:?} was answered for the owner"
+            );
+            let claim = resolved
+                .iter()
+                .find(|r| r.condition == condition)
+                .expect("the question is among the claims");
+            assert_eq!(claim.state, ClaimState::Unanswered, "{condition:?}");
+            assert_eq!(
+                claim.found_in_code,
+                Some(false),
+                "what the scan saw is still shown"
+            );
+        }
+    }
+
+    #[test]
+    fn what_the_scan_found_still_counts_beside_an_answer() {
+        // Silence is the only case that changes. A `no` the scan agrees with is confirmed, and a
+        // `yes` it cannot see is unsupported and still applies.
+        let with = |text: &str| {
+            let m: Manifest = toml::from_str(&format!(
+                "manifest-version = 1\n[app]\nname = \"x\"\n[repository]\nci-cd = {text}\n"
+            ))
+            .expect("manifest parses");
+            resolve(&m, &|c| (c == Condition::CiCd).then_some(false))
+        };
+        let (ctx, resolved) = with("false");
+        assert_eq!(ctx.get(Condition::CiCd), Some(false));
+        assert_eq!(
+            resolved
+                .iter()
+                .find(|r| r.condition == Condition::CiCd)
+                .unwrap()
+                .state,
+            ClaimState::Confirmed
+        );
+        let (ctx, resolved) = with("true");
+        assert_eq!(ctx.get(Condition::CiCd), Some(true));
+        assert_eq!(
+            resolved
+                .iter()
+                .find(|r| r.condition == Condition::CiCd)
+                .unwrap()
+                .state,
+            ClaimState::Unsupported
+        );
+        // And a scan that did find it still answers yes, for the owner or not.
+        let (ctx, _) = resolved_with(Some(true));
+        assert_eq!(ctx.get(Condition::CiCd), Some(true));
     }
 }

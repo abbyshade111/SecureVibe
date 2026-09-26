@@ -5,6 +5,43 @@ another session is not a claim.
 
 ## Next
 
+- **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
+  26 September 2026 reviewing the TOTP probes (#129); not claimed. `totp_checks` in
+  `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
+  Three sign-in attempts later, that code is given again to see whether the app takes it twice. If the
+  30-second step has ended in between — the run starts at a uniformly random point inside its step, so
+  this is ordinary, not rare — the app is refusing a code that is *stale*, not a code that is *used*,
+  and the probe reads the refusal as the app doing the right thing.
+
+  Reproduced rather than argued. A fake app with `totp_reusable` switched on, a clock that moves on
+  with every request, and a run starting four seconds before a step boundary:
+
+  | seconds per request | V6.5.1 |
+  |---|---|
+  | 0, 1 | finding, correctly |
+  | 2 | not assessed: *"The current code ... did not sign the two-factor account in ... Check `totp` in securevibe.toml, and that `seed` enrolled the account"* |
+  | 3 | **credited as verified**, and the steps line reads *"the same code again: refused"* |
+
+  An app that reuses codes is reported as one that does not. The two paths differ in which side of the
+  boundary the *control* lands on; the 2-seconds row is only noise, but it blames the owner's manifest
+  for something that is not wrong with it.
+
+  It needs an app that accepts the current step alone, with no drift tolerance either side — which is
+  what V6.5.5's own sentence asks for, a 30-second lifetime. So the apps that are strictest about
+  V6.5.5 are exactly the ones whose V6.5.1 failure is hidden. The existing tests cannot show it: the
+  fake app's clock stands still except during `wait`, so no test run ever crosses a boundary.
+
+  The fix is small — read the step again after the reuse attempt, and when it is not the step
+  `current` was computed for, report V6.5.1 not assessed (or recompute and try once more) rather than
+  crediting it. The same reasoning as the ordering fix the same pull request already made: a refusal is
+  only evidence when it can have no other cause.
+
+  **Also worth saying, smaller:** V6.5.5 says a TOTP has "a maximum lifetime of 30 seconds", and the
+  probe shows a code from five steps back being refused. That demonstrates *a defined lifetime*, which
+  is the requirement's first clause, and not the 30-second bound. The suite's correct app accepts one
+  step either side, so an app accepting 60-second-old codes is credited with V6.5.5 today. Tolerating
+  drift is the right engineering call; the evidence line should say which of the two clauses was shown.
+
 - **The threat model's 101 citations are outside the citation guard, and it cannot be pointed at them.**
   Found on 26 September 2026 reviewing the threat model; not claimed. `data/knowledge/threats.json`
   cites 101 distinct requirements across 42 threats. Every one resolves — the `AC-NN` class is clean —
@@ -29,6 +66,41 @@ another session is not a claim.
 
   All 52 flagged pairs were read by hand on 26 September 2026 and none is wrong; this is about what
   happens to the hundred and second.
+
+  **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking. **Done the same
+  day, without a new file:** every citation already carries a `because`, and all 115 of them (101
+  distinct requirements) share vocabulary with both the requirement and the threat under the
+  guard's own comparison. The guard now reads them, and holds each against its threat as well. It
+  also found that an empty or wordless phrase passed every guard, here and in the crosswalk, which a
+  third test now refuses. See DESIGN, "The threat model's citations, and the bridge phrases already
+  written".
+
+- **Investigate MITRE ATLAS for the threat model.** Asked for by the owner on 26 September 2026:
+  how feasible it would be, whether it adds anything of value, and whether it is worth it. ATLAS
+  (Adversarial Threat Landscape for Artificial-Intelligence Systems) is MITRE's catalog of how AI
+  systems are attacked — tactics and techniques such as prompt injection, poisoning the data a model
+  learns from, and extracting a model — with case studies of attacks that really happened. The
+  investigation should answer, with evidence rather than impressions:
+
+  - **Overlap.** How much of what ATLAS covers is already reached through AISVS and its Appendix C,
+    which `sv` loads, and through the AI threats already in `data/knowledge/threats.json`. What is
+    left once both are subtracted is the value in question.
+  - **Fit with the threat model.** Whether a threat could carry the ATLAS technique it corresponds
+    to as a reference, the way threats already cite requirements, and whether that helps the owner
+    — who is not a programmer — or only a security reviewer reading the report after them. ATLAS
+    names describe attacks; the threat model describes what could go wrong for this app in plain
+    language, and the two may not line up one to one.
+  - **What it could check.** ATLAS describes attacks, not controls, so it may add nothing checkable
+    on its own; say whether any technique gives a question the running-app probes or the code rules
+    could ask that AISVS does not already prompt.
+  - **Upkeep and terms.** How ATLAS is published (machine-readable data, and how often it changes),
+    its license and what attribution it asks for, and what keeping a copy current would cost — the
+    same questions the Pwned Passwords item had to answer.
+  - **Applies only to apps that use AI.** Most apps `sv` sees do not, so whatever is added must be
+    gated on the `ai` condition like the rest of AISVS.
+
+  The deliverable is a short written recommendation — adopt, adopt in part, or not worth it — with
+  the numbers behind it, before anything is built. Not claimed.
 
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
@@ -57,6 +129,12 @@ another session is not a claim.
 
   This is the direction `sv init` calls the one that matters: "A capability present but denied is the
   one mistake that matters — it is how a real requirement gets marked not applicable."
+
+  **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking, before the
+  threat-model citations, the mock identity provider, and the real browser. **Done the same day.**
+  An unanswered claim now stays unanswered whatever the scan found; the twelve are AC.12.1–AC.12.8,
+  AC.7.3, AC.7.4, AC.9.1, and SBD-AC-07 (eight of them AC.12, not eleven), and all twelve are now
+  not assessed. See DESIGN, "Finding nothing does not answer for the owner".
 
 - **A checklist for what only a person can check.** Asked for by the owner on 26 September 2026,
   after the report readability work: *"perhaps a checklist for the checks that have to be verified by
