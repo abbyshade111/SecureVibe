@@ -154,7 +154,16 @@ another session is not a claim.
 
   The deliverable is a short written recommendation — adopt, adopt in part, or not worth it — with
   the numbers behind it, before anything is built. **Claimed on 26 September 2026 by session
-  securevibe-e8.**
+  securevibe-e8. Done the same day: adopt in part.** Cite ATLAS techniques by ID on the six AI
+  threats, for a reviewer; no copy of ATLAS in `sv`, no checks from it (35 of its 40 mitigations
+  already have an AISVS chapter, and AISVS cites ATLAS itself), and nothing in the owner's
+  plain-language view. See DESIGN, "MITRE ATLAS: adopt in part".
+
+- **Cite MITRE ATLAS techniques on the six AI threats.** Proposed on 26 September 2026 by the ATLAS
+  investigation above; **waiting for the owner's yes**, and for agreement on the v1 side, since
+  `data/knowledge/threats.json` is shared. An `atlas` list on T-07 to T-12, each with a `because`; a
+  small file of the cited IDs and names read from a pinned release; a test that every cited ID is in
+  it; and a script that re-reads a newer release and names any ID renamed or withdrawn. Not claimed.
 
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
