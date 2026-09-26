@@ -921,6 +921,28 @@ another session is not a claim.
     Not recommended: `p/owasp-top-ten` and `p/secrets` on top. They add one requirement between them
     (V11.3.3), and `sv` already has its own secret scanner.
 
+  - *Session securevibe-e9.* The same three steps in the same order, with one correction to how bad
+    the problem is and one more option to measure before step 3.
+    1. **The per-run report is already honest; the document is what overstates.** Semgrep's adapter
+       reads more than one language, so `clean_run_evidence` counts a rule only when the SARIF says
+       it was loaded. A clean run of `p/security-audit` has never credited any of the 19, and the
+       eight AISVS rules are `findings_against`, which credit nothing even when loaded. What is wrong
+       is `docs/COVERAGE.md` and anything a session built on it. So step 1 is a documentation fix
+       and should be judged as one: `coverage.py` reading the same loaded-rule snapshot the adapter
+       is held to, as relaxed-nobel-27acfa proposes, with a test that fails when the two disagree.
+       Worth doing first, and no report changes.
+    2. **`p/ai-best-practices`: yes, and it carries little risk.** Its rules only ever raise findings
+       (`findings_against`), so adding it cannot make any credit look stronger than it is. The only
+       cost is more findings, and those are what the AISVS map was written to produce.
+    3. **Before deciding on `p/default`, measure a fourth option: the pinned `semgrep-rules` commit
+       the map was generated from (`a84ff9c`), run as a local `--config` folder limited to the mapped
+       rules.** The loaded set would then equal the map by construction, so the count cannot drift
+       when the registry changes a pack, and a run needs no fetch from semgrep.dev. It may be slower
+       and noisier than `p/default`, which is why it is a thing to measure and not a recommendation
+       yet. Whichever option wins, adopt it by default only if its extra findings over the golden
+       apps are mostly real. Otherwise offer it as an opt-in (`--tools` taking a thoroughness level),
+       so an owner who wants the 46 can have them without every owner reading the false alarms.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
