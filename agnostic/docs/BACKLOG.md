@@ -1045,6 +1045,61 @@ another session is not a claim.
   before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
   **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
   session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
+  **Measured the same day.** Four options, each over ten targets with semgrep 1.176.0: the fixture
+  app (one of each kind of fault, on purpose), the example apps, v1's app template, and the code of the
+  owner's six built apps in `workspace/projects` (copied without `.env`, data, or keys). The runs are
+  outside the repository; only these numbers are kept.
+
+  | Option | Rules | Requirements (of 50) | Owner's apps, per app | Fixture findings | Owner's apps and template, findings |
+  |---|---|---|---|---|---|
+  | A. `p/security-audit` and `p/ai-best-practices` (today) | 252 | 37 | 2.7 s | 13 | 0 |
+  | B. A and `p/default` | 1,114 | 46 | 4.8 s | 28 | 10 |
+  | C. The pinned rules: `semgrep-rules` a84ff9c, only the 1,022 mapped | 1,022 | 50 | 40.5 s | 30 | 148 |
+  | D. A and the 26 registry rules (`r/<id>`) that reach B's nine extra requirements | 278 | 46 | 11.0 s | 13 | 9 |
+
+  What the numbers say:
+
+  - **B finds real faults that A misses.** On the fixture, `p/default` added 15 findings (14
+    distinct): SQL injection, SSRF, path traversal, command injection, and two TLS settings, all among
+    the fixture's own planted faults. A missed every one, because `p/security-audit` holds the pattern rules and `p/default` holds the rules
+    that follow data from a request to where it is used. The "requirements reached" count hides this,
+    since SQL injection's requirement was already reached by other rules.
+  - **On the owner's apps, B's extra findings were all false alarms.** Nine were
+    `detect-non-literal-regexp` on patterns built from the app's own settings and route names, not
+    from anything a visitor types. All nine fall on three lines of v1's template
+    (`scripts/setup.ts:37` in every app, `src/features/ai/screening.ts:49`, and
+    `src/features/apikeys/index.ts:44`), so it is three fixes in the template, not nine. The tenth was
+    `missing-integrity` on an icon written inline as a `data:` address.
+  - **D adds the requirements and none of the catches.** It aims only at requirements not yet
+    reached, so it leaves out exactly the injection rules that made B worth having. It is also slower
+    than B, because each rule is fetched separately.
+  - **C matches the map by construction, and it costs a lot.** Semgrep loaded exactly the 1,022 mapped
+    ids, when each rule file sits in a folder of its own lowercased name and each top-level folder is
+    passed relative to the rules folder. But it took about 40 seconds an app, against 5 for B, and
+    gave 148 findings on the owner's apps and template. The ones read were false alarms:
+    `generic-api-key` on the file hashes in `securevibe.provenance.json`, `var-in-href` on `<%= appName %>`
+    in a link's text, and `html-in-template-string` on an error message containing `<id>`. One was
+    real and is `sv`'s own secret scanner's business: `FIRST-LOGIN.txt`, the one-time password v1
+    writes into the app folder. Not traced: `innerHTML` in one app's `static/app.js`, which fills
+    dashboard tiles and may or may not include text a person typed.
+  - **C also runs into the rules' license.** The Semgrep Rules License v1.0
+    (https://semgrep.dev/legal/rules-license) allows use "only for your own internal business
+    purposes" and does not allow distributing the rules. So a pinned copy cannot be kept in this
+    repository or shipped with `sv`; each owner's machine would have to fetch the commit itself. It
+    would be a fetch from GitHub instead of semgrep.dev, which is no less network. Whether an owner
+    fetching them for their own app counts as their internal use is a question for the owner, not a
+    measurement. A related one: two test fixtures
+    (`crates/sv-check/tests/fixtures/semgrep/*.sarif`) keep rule descriptions exactly as semgrep wrote them,
+    and "any portion of those rules" is in the license's definition of the rules.
+
+  **Recommendation from session relaxed-nobel-27acfa: B.** About 2 seconds an app buys the rules that
+  find injection through a request, which A is blind to. Its false alarms on these apps were one line
+  of v1's template and one inline icon. Fix those template lines at the source, and measure `p/default`
+  into `data/semgrep-packs.json` in the same change. D is not worth it. C is not worth it as the
+  default: ten times slower, far noisier, and the license stands in the way of pinning it here. Its one
+  real benefit, a count that cannot drift, is already covered by the dated pack snapshot and its test.
+  The evaluation harness was not run; these numbers come from six apps v1 actually built, which is
+  what it would build, and it can still be run before adopting. The decision is the owner's.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
