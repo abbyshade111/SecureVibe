@@ -140,7 +140,7 @@ impl Backend for DockerBackend {
         let wants_mail = plan
             .users
             .as_ref()
-            .is_some_and(|u| u.reset.is_some() || u.email_code.is_some());
+            .is_some_and(|u| u.reset.is_some() || u.email_code.is_some() || u.activation.is_some());
         let mail =
             (wants_mail && self.start_mail(&network, &mail_name)).then_some(mail_name.as_str());
 

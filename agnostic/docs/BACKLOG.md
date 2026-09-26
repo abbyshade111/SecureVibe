@@ -515,7 +515,10 @@ another session is not a claim.
      `[policy] failed-codes` as the stated number for guessing. See DESIGN, "Signing in with an
      emailed code".
      **V6.4.1 (an activation code emailed at sign-up) and V6.5.5 for emailed codes (their lifetime,
-     with `sv run --slow`) claimed on 26 September 2026 by session securevibe-e9.**
+     with `sv run --slow`) claimed on 26 September 2026 by session securevibe-e9.** V6.4.1 is **done the
+     same day**, finding only: an `activation` entry, codes that count up or are short, and a link
+     that signs in twice. Level 1 goes from 52 to 53 of 70. See DESIGN, "An activation code emailed
+     at sign-up".
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e8.** A third account, made by

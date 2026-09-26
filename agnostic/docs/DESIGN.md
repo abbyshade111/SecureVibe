@@ -1638,6 +1638,38 @@ session, no limit) raised all four findings.
 
 V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
 
+### An activation code emailed at sign-up
+
+V6.4.1 asks that an initial secret sent to a new user, an activation code among them, be random,
+used once, and short-lived. An app that emails one at sign-up says so with an `activation` entry
+under `[stack.run.users]`: `use` sends `{code}`, and `code-pattern` finds the code when the usual
+link places (`activate`, `verify`, `confirm`, `welcome`) do not. It needs `signup` and the mail
+server, and says so when either is missing.
+
+Everything the suite makes through sign-up would otherwise be locked out, so `sign_up` reads each new
+account's email and uses its code quietly before going on; A, B, and every account the password
+checks make are activated that way. The check itself uses plain sign-up, twice, so it sees the
+accounts before activation:
+
+- **The setup first.** Whether the first account could sign in before its code was used is asked
+  and said. If it could not, and still cannot after the code, activation does nothing the probe can
+  see and nothing is judged, however else it is broken. If it could, that is said: activation then
+  guards nothing a password does not.
+- **Guessable.** Finding only, from the two codes: under 20 bits, as for other codes, or two
+  numbers fewer than a thousand apart, since whoever has one can work out the next.
+- **Used again.** Only when using the code signed its account in, in a session of its own: then
+  the same code from a second new session. Signing in is a finding. When the link signs nobody in,
+  a second use cannot be told from the first, and V6.4.1 says that is not assessed.
+
+Nothing is credited: whether a code expires would mean waiting, and whether a system-made initial
+password can become the lasting one is not tried, and each run says both.
+
+Verified end to end with a scratch Python app sending through `smtplib`: the correct one (a
+24-byte random code, used once) raised nothing, and its steps show the account refused before
+activation, signed in after, and the second use refused. The careless one (a counter, never marked
+used) raised both findings. The break round found five guards with one witness each and one — that
+reuse is tried only when the link signs in — with none; each now has two.
+
 ### Session timeouts, waited out
 
 V7.3.1 and V7.3.2 ask for an idle timeout and an absolute session lifetime "according to documented
