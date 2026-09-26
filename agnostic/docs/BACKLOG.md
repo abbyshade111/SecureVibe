@@ -241,6 +241,59 @@ another session is not a claim.
   technologies almost no small app runs. Level 3 stays a person's job, and saying so is better than
   a sweep that keeps rediscovering it.
 
+- **What a new tool, service, or process would reach.** The follow-on question to the sweep above,
+  asked by the owner on 26 September 2026 and answered by session securevibe-e9. After the Level 1
+  and Level 2 work from that sweep, 251 ASVS requirements have no check. About 45 of them come
+  within reach with one of the additions below; the other ~200 are documentation (the
+  security-notes file), design, cryptographic internals, WebRTC, or an authorization server's own
+  workings, and stay a person's job. Ordered by what each buys for what it costs. Nothing is
+  claimed.
+
+  1. **More of the same machinery, no new tool (~11).** Tampering with the token `token_field`
+     already captures: `alg: none`, a changed claim under the old signature, the wrong `aud` and
+     `typ` (V9.2.2, V9.2.3, V6.8.2). Whether the log line the log check already finds is in a
+     common format — JSON, logfmt, or the common log format (V16.2.4). The same field sent twice,
+     and a string sent as an array or a JSON `true`, through templates that exist (V15.3.7,
+     V15.3.5). And small manifest entries naming a GraphQL path and a WebSocket path, for an
+     introspection query, a too-deep query, and a handshake from a foreign `Origin` (V4.3.1,
+     V4.3.2, V4.4.2–V4.4.4).
+  2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
+     OIDC provider made for tests — that the app is pointed at for the run, so the probes can
+     drive a real sign-in and then replay the code, drop the `state`, reuse the `nonce`, change
+     `aud`, and serve metadata for a second provider (V10.1.2, V10.2.1, V10.2.2, V10.5.1–V10.5.4,
+     V6.8.1, V6.8.2, V6.8.4). The largest single gain, and it lands exactly on the OAuth *client*
+     requirements the authorization-server fix left applying to every "Sign in with Google" app.
+  3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
+     probes read it. Password reset stops needing a person: the reset link can be used twice,
+     used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
+     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this.
+  4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
+     and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
+     one late (V6.5.1, V6.5.5).
+  5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
+     whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers.
+  6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
+     container inside the fence. It can see what only a browser decides: whether a request needs a
+     CORS preflight (V3.5.2), whether markup submitted through a form executes when the page renders
+     (V1.3.1 and the rest of V1.3), and whether authorization lives only in hidden buttons (V8.3.1).
+     It also turns two partial checks into real ones — storage actually emptied after sign-out
+     (V14.3.1, today only the header) and a sign-out link actually visible (V7.4.4, today only
+     present in the HTML).
+  7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
+     — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
+     writes matches a call; none follows a value from where it came in to where it is used, which
+     is what blocked V1.2.2, V1.3.1, V2.2.1, V9.1.3, V15.3.2, and the AISVS entry's "user input
+     placed in the system instructions". The small in-`sv` half: a rule kind that matches string
+     literals, for the literal `javascript:` URL V1.2.2 was withdrawn over.
+  8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
+     sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
+     (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
+     carefully and only on request, request smuggling (V4.2.1). The only item here that reaches
+     outside the machine, so it follows whatever `sv probe` decides about the fence.
+
+  Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
+  reaches outside; only item 8 does, and only to the owner's own address.
+
 - **A production check.** `sv probe https://…`: read-only requests to the owner's own live address, for
   what the repository cannot say. HSTS (V3.4.1), TLS with a publicly trusted certificate and no fallback
   to plain HTTP (V12.2.1, V12.2.2), redirects to HTTPS only where a browser is the client (V4.1.2), and
