@@ -929,6 +929,13 @@ another session is not a claim.
   can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
   handling per route and anything that sends data need either a manifest describing the app's routes or a
   session — both of which are their own items below.
+  **Six more done on 26 September 2026**, all asked of any app by somebody not signed in: unused methods
+  on the health path (V4.1.4), JSONP (V3.5.6), documentation and monitoring pages (V13.4.5), version
+  numbers in headers and error pages (V13.4.6), `Cross-Origin-Opener-Policy` (V3.4.8), and a
+  Content-Security-Policy that reports nowhere (V3.4.7). Level 2 goes from 63 to 64 of 183, Level 3 from
+  6 to 11 of 92. Redirects and HSTS stay open: inside the fence the app is reached over plain HTTP, so
+  whether it redirects to HTTPS, or sends HSTS there, is `sv probe`'s to ask of the live site. See
+  DESIGN, "Six more questions for anybody".
 
 - ~~**Seeded users.**~~ Done on 25 September 2026. `[stack.run.users]` in securevibe.toml says how
   accounts are made (`seed`, run in the app's container with the accounts in its environment, or the

@@ -113,6 +113,30 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         headers: Vec::new(),
         body: None,
     }))
+    .chain(UNUSED_METHODS.iter().map(|method| ProbeRequest {
+        id: method_id(method),
+        method: (*method).to_owned(),
+        path: health_path.to_owned(),
+        headers: Vec::new(),
+        body: None,
+    }))
+    .chain(std::iter::once(ProbeRequest {
+        id: "jsonp".into(),
+        method: "GET".into(),
+        path: format!(
+            "{health_path}{}callback={JSONP_CALLBACK}",
+            if health_path.contains('?') { '&' } else { '?' }
+        ),
+        headers: Vec::new(),
+        body: None,
+    }))
+    .chain(EXPOSED_PATHS.iter().map(|path| ProbeRequest {
+        id: exposed_id(path),
+        method: "GET".into(),
+        path: (*path).to_owned(),
+        headers: Vec::new(),
+        body: None,
+    }))
     .collect()
 }
 
@@ -222,6 +246,14 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     out.extend(content_type(&with_bodies(responses)));
     out.extend(source_control_exposed(responses));
     out.extend(directory_listing(responses));
+    out.extend(unused_methods(responses));
+    out.extend(jsonp(responses));
+    out.extend(exposed_endpoints(responses));
+    out.extend(version_disclosed(responses));
+    out.extend(opener_policy(responses));
+    if let Some(home) = find("home") {
+        out.extend(csp_reporting(home));
+    }
     out.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -316,6 +348,30 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
             CONTENT_TYPE.rule_id,
             CONTENT_TYPE.requirement_ids,
             "the app's page and its answer for a page that is not there".to_owned(),
+        ));
+    }
+    // Only over pages that start a document, and only when there was one.
+    let documents = html_documents(responses);
+    if !documents.is_empty() && opener_policy(responses).is_none() {
+        out.push(crate::Verified::new(
+            OPENER_POLICY.rule_id,
+            OPENER_POLICY.requirement_ids,
+            format!(
+                "{} page{} the app answered with, as somebody not signed in",
+                documents.len(),
+                if documents.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    }
+    // Only when there was a policy to read. No policy is the security-headers finding, not this.
+    if let Some(home) = find("home")
+        && home.header("content-security-policy").is_some()
+        && csp_reporting(home).is_none()
+    {
+        out.push(crate::Verified::new(
+            CSP_REPORTING.rule_id,
+            CSP_REPORTING.requirement_ids,
+            "the Content-Security-Policy on the app's answer on its health path".to_owned(),
         ));
     }
     // Both asked and both answered, or nothing is shown about the folder.
@@ -928,6 +984,363 @@ fn trace_enabled(response: &ProbeResponse) -> Option<Finding> {
     ))
 }
 
+// ------------------------------------------------------------------------------------------------
+// Methods, JSONP, documentation and monitoring pages, version numbers, and two browser headers.
+
+/// Methods a page that is only ever read has no use for. `DELETE` is an ordinary method an app can
+/// route by accident (`app.all`, a catch-all handler); `PROPFIND` is WebDAV's, which a web server
+/// can have switched on without the app knowing.
+const UNUSED_METHODS: &[&str] = &["DELETE", "PROPFIND"];
+
+fn method_id(method: &str) -> String {
+    format!("method-{}", method.to_lowercase())
+}
+
+const UNUSED_METHOD: Rule = Rule {
+    rule_id: "probe.unused-method-accepted",
+    confidence: Confidence::Medium,
+    // V4.1.4 is only the methods the app supports, and the rest blocked.
+    requirement_ids: &["V4.1.4"],
+    cwe: &["CWE-650"],
+    impact: "A route that answers every method does whatever its code does for methods nobody \
+             thought about, and rules written for GET and POST — checks against forged requests, \
+             caching, logging — may not cover them.",
+    fix: "Route each path for the methods it uses, and answer the rest with 405 Method Not \
+          Allowed; switch off WebDAV in the web server if nothing needs it.",
+};
+
+/// The page the health path serves, asked for with methods it has no use for, answered as success.
+///
+/// Only a finding: two methods on one path are not the app's methods, so an app that refuses both
+/// has shown nothing about the rest of its routes.
+fn unused_methods(responses: &[ProbeResponse]) -> Option<Finding> {
+    let accepted: Vec<&str> = UNUSED_METHODS
+        .iter()
+        .filter(|m| {
+            responses
+                .iter()
+                .find(|r| r.id == method_id(m))
+                .is_some_and(|r| (200..300).contains(&r.status))
+        })
+        .copied()
+        .collect();
+    if accepted.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &UNUSED_METHOD,
+        "The app answers methods its page has no use for",
+        Severity::Low,
+        format!(
+            "Its health path, a page that is only read, answered {} as a success.",
+            accepted.join(" and ")
+        ),
+    ))
+}
+
+/// A function name nothing but this probe would ask for.
+const JSONP_CALLBACK: &str = "svProbeJsonp";
+
+const JSONP: Rule = Rule {
+    rule_id: "probe.jsonp-enabled",
+    confidence: Confidence::High,
+    requirement_ids: &["V3.5.6"],
+    cwe: &["CWE-346"],
+    impact: "JSONP wraps data in a call to a function the asker names, which any other site can load \
+             with a script tag — and with the visitor's cookies, so it reads what they can read.",
+    fix: "Drop JSONP (`res.jsonp`, a `callback` parameter) and serve plain JSON, with CORS for the \
+          origins that need it.",
+};
+
+/// The health path, asked with `callback=`, answering with a call to that function.
+///
+/// Only a finding: one path asked is not every path.
+fn jsonp(responses: &[ProbeResponse]) -> Option<Finding> {
+    let r = responses.iter().find(|r| r.id == "jsonp")?;
+    let html = r
+        .header("content-type")
+        .is_some_and(|t| t.to_lowercase().contains("html"));
+    if !(200..300).contains(&r.status) || html || !r.body.contains(&format!("{JSONP_CALLBACK}(")) {
+        return None;
+    }
+    Some(finding(
+        &JSONP,
+        "The app answers with JSONP",
+        Severity::Medium,
+        format!(
+            "Asked for its health path with `callback={JSONP_CALLBACK}`, the app answered with a \
+             call to `{JSONP_CALLBACK}(…)`."
+        ),
+    ))
+}
+
+/// Where documentation and monitoring pages are most often left. Each is judged by what comes back,
+/// not by answering at all: many apps answer every path with their own front page.
+const EXPOSED_PATHS: &[&str] = &[
+    "/openapi.json",
+    "/swagger.json",
+    "/v3/api-docs",
+    "/api-docs",
+    "/swagger-ui.html",
+    "/docs",
+    "/redoc",
+    "/actuator",
+    "/metrics",
+    "/debug/vars",
+    "/debug/pprof/",
+    "/server-status",
+    "/nginx_status",
+    "/phpinfo.php",
+];
+
+fn exposed_id(path: &str) -> String {
+    format!(
+        "exposed-{}",
+        path.trim_matches('/').replace(['/', '.'], "-")
+    )
+}
+
+const EXPOSED: Rule = Rule {
+    rule_id: "probe.docs-or-monitoring-exposed",
+    confidence: Confidence::High,
+    requirement_ids: &["V13.4.5"],
+    cwe: &["CWE-200"],
+    impact: "Documentation lists every route and what it takes, internal ones included; a \
+             monitoring page shows how the app is built and what it is doing, sometimes with its \
+             settings. Either saves an attacker the work of finding out.",
+    fix: "Serve documentation and monitoring only where they are meant to be read — behind a \
+          sign-in, on an internal port, or not in production at all. If one is meant to be public, \
+          say so in security-notes.md.",
+};
+
+/// What a documentation or monitoring page says about itself, and whether it is monitoring.
+fn exposed_kind(body: &str) -> Option<(&'static str, bool)> {
+    let trimmed = body.trim_start();
+    if trimmed.starts_with('{')
+        && (body.contains("\"openapi\"") || body.contains("\"swagger\""))
+        && body.contains("\"paths\"")
+    {
+        return Some(("an OpenAPI description of its routes", false));
+    }
+    if body.contains("swagger-ui") || body.contains("<redoc") || body.contains("redoc.standalone") {
+        return Some(("a page documenting its API", false));
+    }
+    if body.contains("\"_links\"") && body.contains("actuator") {
+        return Some(("Spring Boot's actuator", true));
+    }
+    if body.lines().any(|l| l.starts_with("# HELP "))
+        && body.lines().any(|l| l.starts_with("# TYPE "))
+    {
+        return Some(("metrics in Prometheus's format", true));
+    }
+    if body.contains("\"memstats\"") && body.contains("\"cmdline\"") {
+        return Some((
+            "Go's expvar, with the command line it was started with",
+            true,
+        ));
+    }
+    if body.contains("Types of profiles available") {
+        return Some(("Go's profiler", true));
+    }
+    if body.contains("Apache Server Status") {
+        return Some(("Apache's server status", true));
+    }
+    if body.contains("Active connections:") && body.contains("server accepts handled requests") {
+        return Some(("nginx's status", true));
+    }
+    if body.contains("phpinfo()") || (body.contains("PHP Version") && body.contains("PHP License"))
+    {
+        return Some(("PHP's configuration page", true));
+    }
+    None
+}
+
+/// Documentation and monitoring pages answered to somebody not signed in.
+///
+/// Only a finding: fourteen guesses are fourteen guesses, and V13.4.5 allows what is "explicitly
+/// intended", which only the owner can say.
+fn exposed_endpoints(responses: &[ProbeResponse]) -> Option<Finding> {
+    let found: Vec<(&str, &str, bool)> = EXPOSED_PATHS
+        .iter()
+        .filter_map(|path| {
+            let r = responses.iter().find(|r| r.id == exposed_id(path))?;
+            if !(200..300).contains(&r.status) {
+                return None;
+            }
+            exposed_kind(&r.body).map(|(what, monitoring)| (*path, what, monitoring))
+        })
+        .collect();
+    if found.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &EXPOSED,
+        "Documentation or monitoring pages are open to anybody",
+        if found.iter().any(|(_, _, monitoring)| *monitoring) {
+            Severity::Medium
+        } else {
+            Severity::Low
+        },
+        format!(
+            "Asked as somebody not signed in, the app served {}.",
+            found
+                .iter()
+                .map(|(path, what, _)| format!("{what} at {path}"))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+    ))
+}
+
+const VERSION: Rule = Rule {
+    rule_id: "probe.version-disclosed",
+    confidence: Confidence::High,
+    requirement_ids: &["V13.4.6"],
+    cwe: &["CWE-200"],
+    impact: "A version number tells an attacker which published weaknesses to try first, without \
+             having to guess.",
+    fix: "Leave the version out: `server_tokens off` in nginx, `ServerTokens Prod` in Apache, \
+          `app.disable('x-powered-by')` in Express, and the equivalent for the framework's own \
+          headers and error pages.",
+};
+
+/// The headers that name what a response came from.
+const PRODUCT_HEADERS: &[&str] = &[
+    "server",
+    "x-powered-by",
+    "x-aspnet-version",
+    "x-aspnetmvc-version",
+    "x-generator",
+];
+
+/// A product and its version, as servers write them on error pages: `nginx/1.25.3`,
+/// `Apache/2.4.58`, `Werkzeug/3.0.1`, `PHP/8.3.0`.
+fn product_version(text: &str) -> Option<String> {
+    static PATTERN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?i)\b(apache|nginx|openresty|werkzeug|gunicorn|uvicorn|jetty|tomcat|express|php|iis|microsoft-iis|caddy|lighttpd|kestrel|jboss|wildfly|puma|django|rails|node(?:\.js)?)[/ ]v?\d+\.\d+(?:\.\d+)?",
+        )
+        .expect("a fixed pattern")
+    });
+    PATTERN.find(text).map(|m| m.as_str().to_owned())
+}
+
+/// Version numbers in the headers of every answer, or on the pages the app shows for errors.
+///
+/// Only a finding: the headers and error pages seen are not every place a version can be shown.
+fn version_disclosed(responses: &[ProbeResponse]) -> Option<Finding> {
+    let mut seen: Vec<String> = Vec::new();
+    for r in responses {
+        for name in PRODUCT_HEADERS {
+            if let Some(value) = r.header(name)
+                && value.chars().any(|c| c.is_ascii_digit())
+                && value.contains('.')
+            {
+                let said = format!("{name}: {value}");
+                if !seen.contains(&said) {
+                    seen.push(said);
+                }
+            }
+        }
+        if !(200..300).contains(&r.status)
+            && let Some(version) = product_version(&r.body)
+        {
+            let said = format!("`{version}` on the page for `{}`", r.id);
+            if !seen.iter().any(|s| s.contains(&version)) {
+                seen.push(said);
+            }
+        }
+    }
+    if seen.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &VERSION,
+        "The app says which versions it runs",
+        Severity::Low,
+        format!("The app's answers carried {}.", seen.join("; ")),
+    ))
+}
+
+const OPENER_POLICY: Rule = Rule {
+    rule_id: "probe.opener-policy-missing",
+    confidence: Confidence::High,
+    requirement_ids: &["V3.4.8"],
+    cwe: &["CWE-1021"],
+    impact: "Without it, a page the app's page opens — or one that opened it — keeps a handle to its \
+             window, which cross-window attacks use to steer it or to learn about it.",
+    fix: "Send `Cross-Origin-Opener-Policy: same-origin` on every HTML page (or \
+          `same-origin-allow-popups` where the app opens sign-in pop-ups).",
+};
+
+/// The answers that are HTML pages a browser would open as a document.
+fn html_documents(responses: &[ProbeResponse]) -> Vec<&ProbeResponse> {
+    responses
+        .iter()
+        .filter(|r| r.id == "home" || r.id == "missing")
+        .filter(|r| {
+            r.header("content-type")
+                .is_some_and(|t| t.to_lowercase().starts_with("text/html"))
+        })
+        .collect()
+}
+
+/// Every HTML page seen carries `Cross-Origin-Opener-Policy: same-origin` or
+/// `same-origin-allow-popups`.
+fn opener_policy(responses: &[ProbeResponse]) -> Option<Finding> {
+    let without: Vec<&str> = html_documents(responses)
+        .into_iter()
+        .filter(|r| {
+            !r.header("cross-origin-opener-policy")
+                .is_some_and(|v| v.trim().to_lowercase().starts_with("same-origin"))
+        })
+        .map(|r| r.id.as_str())
+        .collect();
+    if without.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &OPENER_POLICY,
+        "A page does not isolate its window from others",
+        Severity::Low,
+        format!(
+            "The HTML answer for {} came back without Cross-Origin-Opener-Policy set to \
+             same-origin or same-origin-allow-popups.",
+            without
+                .iter()
+                .map(|id| format!("`{id}`"))
+                .collect::<Vec<_>>()
+                .join(" and ")
+        ),
+    ))
+}
+
+const CSP_REPORTING: Rule = Rule {
+    rule_id: "probe.csp-no-report",
+    confidence: Confidence::High,
+    requirement_ids: &["V3.4.7"],
+    cwe: &["CWE-778"],
+    impact: "A Content-Security-Policy with nowhere to report blocks an attack silently: nobody \
+             learns it was tried, or that the policy is breaking a real page.",
+    fix: "Add `report-to` (with a `Reporting-Endpoints` header) or `report-uri` to the policy, \
+          pointing at somewhere the reports are read.",
+};
+
+/// A Content-Security-Policy that names where to report what it blocks. Nothing is said when there
+/// is no policy at all: that is the security-headers finding.
+fn csp_reporting(home: &ProbeResponse) -> Option<Finding> {
+    let policy = home.header("content-security-policy")?.to_lowercase();
+    if policy.contains("report-to") || policy.contains("report-uri") {
+        return None;
+    }
+    Some(finding(
+        &CSP_REPORTING,
+        "The Content-Security-Policy reports nowhere",
+        Severity::Low,
+        "The app's Content-Security-Policy has neither `report-to` nor `report-uri`.".to_owned(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -942,7 +1355,16 @@ mod tests {
         if !headers.iter().any(|(k, _)| k == "content-type") {
             headers.push(("content-type".into(), "text/html; charset=utf-8".into()));
         }
-        headers.retain(|(k, v)| !(k == "content-type" && v.is_empty()));
+        // And isolated from other windows, as a careful app's pages are, unless the test says not.
+        if !headers
+            .iter()
+            .any(|(k, _)| k == "cross-origin-opener-policy")
+        {
+            headers.push(("cross-origin-opener-policy".into(), "same-origin".into()));
+        }
+        headers.retain(|(k, v)| {
+            !((k == "content-type" || k == "cross-origin-opener-policy") && v.is_empty())
+        });
         ProbeResponse {
             id: id.into(),
             status,
@@ -963,7 +1385,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'",
+                    "default-src 'self'; frame-ancestors 'none'; report-uri /csp-reports",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "strict-origin-when-cross-origin"),
@@ -1006,7 +1428,10 @@ mod tests {
             "home",
             200,
             &[
-                ("Content-Security-Policy", "frame-ancestors 'none'"),
+                (
+                    "Content-Security-Policy",
+                    "frame-ancestors 'none'; report-to csp",
+                ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "no-referrer"),
             ],
@@ -1026,7 +1451,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'",
+                    "default-src 'self'; frame-ancestors 'none'; report-to csp",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
             ],
@@ -1320,7 +1745,30 @@ mod tests {
     #[test]
     fn the_suite_asks_what_it_says_it_asks() {
         let requests = requests("/healthz");
-        assert_eq!(requests.len(), 6 + LISTING_PATHS.len());
+        assert_eq!(
+            requests.len(),
+            6 + LISTING_PATHS.len() + UNUSED_METHODS.len() + 1 + EXPOSED_PATHS.len()
+        );
+        for path in EXPOSED_PATHS {
+            let request = requests
+                .iter()
+                .find(|r| r.path == **path)
+                .unwrap_or_else(|| panic!("{path} is never asked for"));
+            assert_eq!(request.id, exposed_id(path), "{path}");
+        }
+        for method in UNUSED_METHODS {
+            assert!(
+                requests
+                    .iter()
+                    .any(|r| r.method == *method && r.id == method_id(method)),
+                "{method}"
+            );
+        }
+        assert!(
+            requests
+                .iter()
+                .any(|r| r.id == "jsonp" && r.path == "/healthz?callback=svProbeJsonp")
+        );
         assert!(requests.iter().any(|r| r.path == "/.git/HEAD"));
         // Every listing path is asked for, and each response can be found again by its id: the
         // check reads `id`, not `path`, so a request whose id it cannot rebuild is a dead probe.
@@ -1907,5 +2355,422 @@ mod tests {
                 "{id} is read but never asked"
             );
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Methods, JSONP, documentation and monitoring pages, version numbers, and two browser headers
+
+    fn verified_ids(responses: &[ProbeResponse]) -> Vec<String> {
+        verified(responses)
+            .into_iter()
+            .map(|v| v.check_id)
+            .collect()
+    }
+
+    #[test]
+    fn a_page_that_answers_an_unused_method_is_found_for_each_method() {
+        for method in UNUSED_METHODS {
+            let findings = evaluate(&[
+                good_home(),
+                response(&method_id(method), 200, &[], "<html>hello</html>"),
+            ]);
+            assert_eq!(
+                ids(&findings),
+                vec!["probe.unused-method-accepted"],
+                "{method}"
+            );
+            assert!(findings[0].description.contains(method));
+        }
+        // WebDAV's own success answer counts too.
+        let findings = evaluate(&[good_home(), response("method-propfind", 207, &[], "<d/>")]);
+        assert_eq!(ids(&findings), vec!["probe.unused-method-accepted"]);
+    }
+
+    #[test]
+    fn refused_methods_are_not_found_and_not_credited() {
+        let answers = [
+            good_home(),
+            response("method-delete", 405, &[], "method not allowed"),
+            response("method-propfind", 404, &[], "not found"),
+        ];
+        assert!(evaluate(&answers).is_empty(), "{:?}", evaluate(&answers));
+        assert!(!verified_ids(&answers).contains(&UNUSED_METHOD.rule_id.to_owned()));
+    }
+
+    #[test]
+    fn jsonp_is_found_however_the_framework_wraps_it() {
+        for (content_type, body) in [
+            (
+                "text/javascript; charset=utf-8",
+                "/**/ typeof svProbeJsonp === 'function' && svProbeJsonp({\"ok\":true});",
+            ),
+            (
+                "application/javascript; charset=utf-8",
+                "svProbeJsonp({\"ok\":true})",
+            ),
+        ] {
+            let findings = evaluate(&[
+                good_home(),
+                response("jsonp", 200, &[("Content-Type", content_type)], body),
+            ]);
+            assert_eq!(ids(&findings), vec!["probe.jsonp-enabled"], "{body}");
+        }
+    }
+
+    #[test]
+    fn a_callback_ignored_or_only_echoed_in_a_page_is_not_jsonp() {
+        for (content_type, body) in [
+            ("application/json; charset=utf-8", "{\"ok\":true}"),
+            // An HTML page that writes the address it was asked for back into itself.
+            (
+                "text/html; charset=utf-8",
+                "<a href=\"/?callback=svProbeJsonp(\">again</a>",
+            ),
+        ] {
+            let findings = evaluate(&[
+                good_home(),
+                response("jsonp", 200, &[("Content-Type", content_type)], body),
+            ]);
+            assert!(findings.is_empty(), "{body}: {findings:?}");
+        }
+    }
+
+    #[test]
+    fn documentation_and_monitoring_pages_are_found_by_what_they_say() {
+        let docs = evaluate(&[
+            good_home(),
+            response(
+                &exposed_id("/openapi.json"),
+                200,
+                &[("Content-Type", "application/json")],
+                "{\"openapi\":\"3.1.0\",\"info\":{},\"paths\":{\"/api/notes\":{}}}",
+            ),
+        ]);
+        assert_eq!(ids(&docs), vec!["probe.docs-or-monitoring-exposed"]);
+        assert_eq!(docs[0].severity, Severity::Low);
+        assert!(docs[0].description.contains("/openapi.json"));
+
+        let metrics = evaluate(&[
+            good_home(),
+            response(
+                &exposed_id("/metrics"),
+                200,
+                &[("Content-Type", "text/plain; charset=utf-8")],
+                "# HELP process_cpu_seconds_total Total CPU.\n# TYPE process_cpu_seconds_total counter\nprocess_cpu_seconds_total 1.5\n",
+            ),
+            response(
+                &exposed_id("/swagger-ui.html"),
+                200,
+                &[],
+                "<div id=\"swagger-ui\"></div>",
+            ),
+        ]);
+        assert_eq!(ids(&metrics), vec!["probe.docs-or-monitoring-exposed"]);
+        assert_eq!(metrics[0].severity, Severity::Medium);
+        assert!(metrics[0].description.contains("Prometheus"));
+        assert!(metrics[0].description.contains("/swagger-ui.html"));
+    }
+
+    #[test]
+    fn a_front_page_served_for_every_path_is_not_documentation() {
+        let answers: Vec<ProbeResponse> = std::iter::once(good_home())
+            .chain(EXPOSED_PATHS.iter().map(|path| {
+                response(
+                    &exposed_id(path),
+                    200,
+                    &[],
+                    "<html><div id=root></div><script src=/app.js></script></html>",
+                )
+            }))
+            .collect();
+        assert!(evaluate(&answers).is_empty(), "{:?}", evaluate(&answers));
+        // And a page that is really there, refused, is not open.
+        let refused = [
+            good_home(),
+            response(
+                &exposed_id("/actuator"),
+                401,
+                &[("Content-Type", "application/json")],
+                "{\"_links\":{\"self\":{\"href\":\"/actuator\"}}}",
+            ),
+        ];
+        assert!(evaluate(&refused).is_empty());
+    }
+
+    #[test]
+    fn version_numbers_are_found_in_headers_and_on_error_pages() {
+        for extra in [
+            response("missing", 404, &[("Server", "nginx/1.25.3")], "not found"),
+            response(
+                "missing",
+                404,
+                &[("X-Powered-By", "PHP/8.3.0")],
+                "not found",
+            ),
+            response(
+                "missing",
+                404,
+                &[],
+                "<address>Apache/2.4.58 (Debian) Server at app Port 8080</address>",
+            ),
+        ] {
+            let findings = evaluate(&[good_home(), extra.clone()]);
+            assert_eq!(ids(&findings), vec!["probe.version-disclosed"], "{extra:?}");
+        }
+    }
+
+    #[test]
+    fn a_product_named_without_its_version_is_not_found() {
+        for extra in [
+            response("missing", 404, &[("Server", "nginx")], "not found"),
+            response("missing", 404, &[("X-Powered-By", "Express")], "not found"),
+            // A version on a page that worked is the app's own content, not an error page.
+            response("method-delete", 405, &[], "Method not allowed"),
+        ] {
+            let findings = evaluate(&[good_home(), extra.clone()]);
+            assert!(findings.is_empty(), "{extra:?}: {findings:?}");
+        }
+        let page = response(
+            "home",
+            200,
+            &[],
+            "<p>Built with Django 5.0 and nginx/1.25</p>",
+        );
+        let mut home = good_home();
+        home.body = page.body;
+        assert!(evaluate(&[home]).is_empty());
+    }
+
+    #[test]
+    fn a_page_without_an_opener_policy_is_found_and_one_with_it_credited() {
+        for value in ["", "unsafe-none"] {
+            let mut home = good_home();
+            home.headers
+                .retain(|(k, _)| k != "cross-origin-opener-policy");
+            if !value.is_empty() {
+                home.headers
+                    .push(("cross-origin-opener-policy".into(), value.into()));
+            }
+            let findings = evaluate(&[home.clone()]);
+            assert_eq!(
+                ids(&findings),
+                vec!["probe.opener-policy-missing"],
+                "{value:?}"
+            );
+            assert!(!verified_ids(&[home]).contains(&OPENER_POLICY.rule_id.to_owned()));
+        }
+        // The error page is a document too.
+        let missing = response(
+            "missing",
+            404,
+            &[("Cross-Origin-Opener-Policy", "")],
+            "<html>not here</html>",
+        );
+        assert_eq!(
+            ids(&evaluate(&[good_home(), missing])),
+            vec!["probe.opener-policy-missing"]
+        );
+        let mut popups = good_home();
+        popups
+            .headers
+            .retain(|(k, _)| k != "cross-origin-opener-policy");
+        popups.headers.push((
+            "cross-origin-opener-policy".into(),
+            "same-origin-allow-popups".into(),
+        ));
+        assert!(evaluate(&[popups.clone()]).is_empty());
+        assert!(verified_ids(&[popups]).contains(&OPENER_POLICY.rule_id.to_owned()));
+    }
+
+    #[test]
+    fn an_answer_that_is_not_a_page_needs_no_opener_policy_and_earns_no_credit() {
+        let json = response(
+            "home",
+            200,
+            &[
+                ("Content-Type", "application/json"),
+                ("Cross-Origin-Opener-Policy", ""),
+            ],
+            "{\"ok\":true}",
+        );
+        assert!(
+            !ids(&evaluate(std::slice::from_ref(&json))).contains(&"probe.opener-policy-missing")
+        );
+        assert!(!verified_ids(&[json]).contains(&OPENER_POLICY.rule_id.to_owned()));
+    }
+
+    #[test]
+    fn a_policy_that_reports_nowhere_is_found_and_one_that_reports_credited() {
+        for policy in [
+            "default-src 'self'; frame-ancestors 'none'",
+            "frame-ancestors 'none'",
+        ] {
+            let mut home = good_home();
+            home.headers.retain(|(k, _)| k != "content-security-policy");
+            home.headers
+                .push(("content-security-policy".into(), policy.into()));
+            assert_eq!(
+                ids(&evaluate(&[home.clone()])),
+                vec!["probe.csp-no-report"],
+                "{policy}"
+            );
+            assert!(!verified_ids(&[home]).contains(&CSP_REPORTING.rule_id.to_owned()));
+        }
+        assert!(verified_ids(&[good_home()]).contains(&CSP_REPORTING.rule_id.to_owned()));
+    }
+
+    #[test]
+    fn with_no_policy_at_all_reporting_is_neither_found_nor_credited() {
+        let mut home = good_home();
+        home.headers.retain(|(k, _)| k != "content-security-policy");
+        let found = ids(&evaluate(&[home.clone()]))
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        assert!(found.contains(&"probe.security-headers".to_owned()));
+        assert!(!found.contains(&"probe.csp-no-report".to_owned()));
+        assert!(!verified_ids(&[home]).contains(&CSP_REPORTING.rule_id.to_owned()));
+    }
+
+    // Second witnesses, each of a different shape from the first, so that no guard above is known
+    // to work from one test alone.
+
+    #[test]
+    fn a_search_page_that_repeats_the_callback_is_not_jsonp() {
+        let page = response("jsonp", 200, &[], "<p>No results for svProbeJsonp(</p>");
+        assert!(evaluate(&[good_home(), page]).is_empty());
+    }
+
+    #[test]
+    fn a_script_that_never_calls_the_callback_is_not_jsonp() {
+        let script = response(
+            "jsonp",
+            200,
+            &[("Content-Type", "text/javascript; charset=utf-8")],
+            "window.ready = true;",
+        );
+        assert!(evaluate(&[good_home(), script]).is_empty());
+    }
+
+    #[test]
+    fn documentation_behind_a_sign_in_is_not_open() {
+        let answers = [
+            good_home(),
+            response(
+                &exposed_id("/v3/api-docs"),
+                403,
+                &[("Content-Type", "application/json")],
+                "{\"openapi\":\"3.0.1\",\"paths\":{}}",
+            ),
+        ];
+        assert!(evaluate(&answers).is_empty());
+    }
+
+    #[test]
+    fn a_health_answer_on_a_monitoring_path_is_not_monitoring() {
+        let answers = [
+            good_home(),
+            response(
+                &exposed_id("/metrics"),
+                200,
+                &[("Content-Type", "text/plain; charset=utf-8")],
+                "ok",
+            ),
+        ];
+        assert!(evaluate(&answers).is_empty());
+    }
+
+    #[test]
+    fn a_product_header_with_a_dot_and_no_number_is_not_a_version() {
+        for (name, value) in [
+            ("X-Powered-By", "Next.js"),
+            ("X-Generator", "Drupal (https://www.drupal.org)"),
+        ] {
+            let findings = evaluate(&[
+                good_home(),
+                response("missing", 404, &[(name, value)], "not found"),
+            ]);
+            assert!(findings.is_empty(), "{value}: {findings:?}");
+        }
+    }
+
+    #[test]
+    fn a_version_in_what_the_app_shows_is_not_a_version_leak() {
+        let mut home = good_home();
+        home.body = "<footer>Powered by nginx/1.25 and PHP/8.3</footer>".into();
+        assert!(evaluate(&[home]).is_empty());
+    }
+
+    #[test]
+    fn a_plain_text_error_needs_no_opener_policy() {
+        let missing = response(
+            "missing",
+            404,
+            &[
+                ("Content-Type", "text/plain; charset=utf-8"),
+                ("Cross-Origin-Opener-Policy", ""),
+            ],
+            "not found",
+        );
+        assert!(evaluate(&[good_home(), missing]).is_empty());
+    }
+
+    #[test]
+    fn an_opener_policy_that_isolates_nothing_is_found_on_the_error_page() {
+        let missing = response(
+            "missing",
+            404,
+            &[("Cross-Origin-Opener-Policy", "unsafe-none")],
+            "<html>not here</html>",
+        );
+        assert_eq!(
+            ids(&evaluate(&[good_home(), missing])),
+            vec!["probe.opener-policy-missing"]
+        );
+    }
+
+    #[test]
+    fn a_policy_with_frame_ancestors_and_no_report_is_still_found() {
+        let home = response(
+            "home",
+            200,
+            &[
+                (
+                    "Content-Security-Policy",
+                    "script-src 'self'; frame-ancestors 'self'",
+                ),
+                ("X-Content-Type-Options", "nosniff"),
+                ("Referrer-Policy", "no-referrer"),
+            ],
+            "<html>hi</html>",
+        );
+        assert_eq!(ids(&evaluate(&[home])), vec!["probe.csp-no-report"]);
+    }
+
+    #[test]
+    fn a_bare_page_earns_neither_header_credit() {
+        let bare = [response("home", 200, &[], "hi")];
+        let credited = verified_ids(&bare);
+        assert!(
+            !credited.contains(&CSP_REPORTING.rule_id.to_owned()),
+            "{credited:?}"
+        );
+        // With no page that is a document at all, there is nothing to credit the opener policy on.
+        let json_only = [
+            response("home", 200, &[("Content-Type", "application/json")], "{}"),
+            response(
+                "missing",
+                404,
+                &[("Content-Type", "application/json")],
+                "{}",
+            ),
+        ];
+        assert!(!verified_ids(&json_only).contains(&OPENER_POLICY.rule_id.to_owned()));
+    }
+
+    #[test]
+    fn iis_naming_its_framework_is_not_a_version() {
+        let missing = response("missing", 404, &[("X-Powered-By", "ASP.NET")], "not found");
+        assert!(evaluate(&[good_home(), missing]).is_empty());
     }
 }
