@@ -2563,12 +2563,24 @@ things limit what it can say, and both are said:
 
 * **The list's source is not recorded in this repository**, so the password's being breached is not
   taken from it. It is Have I Been Pwned's count: the Pwned Passwords range for the first five
-  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The request was
-  refused from here by the network policy, so the owner fetched the range in a browser on
-  26 September 2026 and pasted it in; the matching line, the hash, and the date are in
-  `data/breached-password-evidence.json`, and the finding quotes the count. A test holds the
-  password and the quoted count to that file, and changing either without new evidence fails it.
-  Re-checking it with a script, and sampling the whole list, is its own backlog item.
+  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The owner first
+  fetched the range in a browser on 26 September 2026, because the network policy refused it from
+  the session; `tools/pwned_passwords.py` now re-fetches it and rewrites
+  `data/breached-password-evidence.json` with the matching line, the hash, the count, and the date.
+  That file is compiled into `sv`, which fetches nothing, and the finding's wording is built from it:
+  "seen in breaches 133,732 times when last checked, on 26 September 2026". A test holds the password
+  to the file and the hash to the password, so the password cannot change without new evidence, and
+  the script refuses to write if the password ever drops out of the data. Only the first five
+  characters of the hash are sent, with `Add-Padding: true`.
+* **The list is breach data, as far as a sample can say.** The same script's `--sample` looked up
+  300 entries of `common-passwords.txt` on 26 September 2026, 50 evenly spaced in each of six bands
+  of rank (1–1,000, to 3,000, 10,000, 30,000, 60,000, and the end at 96,517). **All 300 are in Pwned
+  Passwords.** The counts fall with rank, as a list ordered by frequency should: a median of 391,080
+  sightings in the top thousand, 43,108 in ranks 3,001–10,000, and 8,932 in the last band, with the
+  fewest, 11, in ranks 30,001–60,000. The entries and counts are in
+  `data/common-passwords-breach-sample.json`. This says the list is breach data, not where it came
+  from, which stays unrecorded; and it is a sample, not the whole list. The list is v1's too, so it
+  was only read.
 * **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
   refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
   one refused password shows that a list longer than 3000 is checked, not that it is a set of
@@ -2872,5 +2884,34 @@ line was there as typed, but not whether its script ran, was credited. The third
 code as well as in the tests: it was being explained as "changed on the way". Each now has a test,
 and a page that does not answer all four questions is not judged.
 
-Left for later: V14.3.1 needs the browser signed out, and so a session of its own that no later
-check is using.
+V14.3.1, which needs the browser signed out, came next; see below.
+
+### Signing out in the browser (V14.3.1)
+
+V14.3.1 asks that a signed-in person's data kept in the browser is gone once they sign out.
+The older check reads the sign-out response for `Clear-Site-Data`, credits its presence, and says
+plainly when it is absent that nothing saw the storage being emptied. The browser now watches it
+happen.
+
+It runs late, after the plain checks have signed the first user out, and with a sign-in made for it:
+clicking sign-out ends that session for good, so no later check can be using it. The job:
+
+1. Open the sign-in page with no cookies, and note what the app keeps in `localStorage`,
+   `sessionStorage`, and IndexedDB for anybody. A remembered color scheme is not a person's data.
+2. Set the new session's cookies, open the first private page, and note what is kept now. What is
+   new since step 1 is what the app kept for the signed-in person.
+3. Click the first sign-out control a person could see, as they would, and look again.
+4. Open the private page once more. It has to be shut, or the browser was never signed out.
+
+Anything the app kept for the person that is still there is a finding, Medium, naming the keys.
+All of it gone is credited, for that page. Nothing kept for the person is not credited: one page
+keeping nothing says nothing about the others, and the header check still stands for what it is.
+The browser never signed in, no sign-out control to click, a private page still open afterwards,
+storage that could not be read, or a driver that did not finish: each is said, and nothing judged.
+
+The example's account page now loads a small script that remembers when the notes were last opened,
+and its sign-out's `Clear-Site-Data: "storage"` empties it, so it is credited. A copy without the
+header is found, naming the key. A copy that stores the same thing for everybody, the sign-in page
+included, is set aside as nobody's in particular and not credited. Removing each guard in turn, every
+one was caught; the one that first looked uncaught was a mutation that changed nothing (the job has
+exactly as many answers as the length it was relaxed to).

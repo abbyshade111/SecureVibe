@@ -5,6 +5,19 @@ another session is not a claim.
 
 ## Next
 
+- **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
+  on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
+  admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails
+  (`Some(0)`), with `nc` renamed to a program that does not exist it fails (the control reports 127;
+  the old test passed that case), and with a dead address it fails (the control reports 1).
+  `the_fence_really_blocks_outbound_traffic` in
+  `crates/sv-run/tests/fence.rs` counts *any* failure of `docker exec … nc` as "blocked": `nc` missing
+  from the image, a flag it does not understand, or the container gone would all pass. And its only
+  control is the host reaching `1.1.1.1:53`, but on Docker Desktop containers run in a separate Linux
+  VM, so the host getting out does not show a container could. Fix: a control container on an
+  ordinary network created the same way minus `--internal`, running the identical command, which
+  must connect; and the fenced run must show that `nc` really ran and failed to connect.
+
 - **A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in
   both directions.** Found on 26 September 2026 reviewing #130/#131. **Claimed on 26 September 2026
   by session securevibe-e9, and done the same day** with the fix below: two claimed attempts from two
@@ -520,9 +533,10 @@ another session is not a claim.
      not only found in the HTML). See DESIGN, "A real browser inside the fence". The count above was
      wrong about which requirement the typed markup reaches: it is V3.2.2, content meant as text; V1.3.1
      asks for a sanitizer for rich text, which an app that shows text as text does not need and a
-     browser cannot see being used. Left: V14.3.1 (storage emptied after sign-out, which means
-     signing the browser out, so it needs a session of its own that no later check is using);
-     V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
+     browser cannot see being used. **V14.3.1 is done the same day as well:** a sign-in of the
+     browser's own is signed out with the app's control, and what the app kept in the browser's
+     storage for the signed-in person has to be gone. See DESIGN, "Signing out in the browser".
+     **With that, the item is done.** Not part of it: V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
      the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
      in every real browser, which a check could say directly.
@@ -639,7 +653,7 @@ another session is not a claim.
   report, and without a database the report says it compared nothing rather than staying silent. See
   DESIGN, "In the report too". The MCP server still takes no database, deliberately.
 
-- **Keep the breached-password evidence current through the Pwned Passwords API.** Asked for by the
+- ~~**Keep the breached-password evidence current through the Pwned Passwords API.**~~ Asked for by the
   owner on 26 September 2026. V6.2.12's sign-up probe tries `1qaz2wsx3edc4rfv`, and the only record
   that it is a breached password is one range file the owner fetched in a browser and pasted into
   the session that day, because this environment's network policy refused
@@ -653,7 +667,14 @@ another session is not a claim.
   hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
   this is maintenance of the repository's own data, done by whoever runs the script.
   **Claimed on 26 September 2026 by session relaxed-nobel-27acfa**, which runs on a machine that
-  can reach the API.
+  can reach the API. **Done the same day.** `python3 tools/pwned_passwords.py` re-checks the password
+  (still 133,732) and rewrites the evidence file, and the V6.2.12 wording is now built from that file,
+  so it says "when last checked, on <date>" without an edit to the code. `--sample` looked up 300
+  entries spread across the list's ranks: all 300 are in Pwned Passwords, with counts falling from a
+  median of 391,080 in the top thousand to 8,932 in the last band. Results in
+  `data/common-passwords-breach-sample.json`; see DESIGN, "V6.2.12, breached passwords". One thing
+  learned: inside the Claude Code sandbox the network proxy cuts Python's reads of these answers
+  short, where curl gets them whole; run outside it, every answer arrived complete.
 
 - **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
   26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording

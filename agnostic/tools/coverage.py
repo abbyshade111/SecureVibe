@@ -90,6 +90,7 @@ RUST_CHECKS = {
     "probe.oidc-signature-not-checked": ("signed-in", ["V6.8.2"]),
     "probe.sign-out-control-hidden": ("signed-in", ["V7.4.4"]),
     "probe.text-rendered-as-markup": ("signed-in", ["V3.2.2"]),
+    "probe.storage-kept-after-sign-out": ("signed-in", ["V14.3.1"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
     "probe.password-altered": ("signed-in", ["V6.2.8"]),
     "probe.long-password-refused": ("signed-in", ["V6.2.9"]),

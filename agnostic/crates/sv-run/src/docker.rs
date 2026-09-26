@@ -1251,7 +1251,7 @@ http.createServer((q, s) => {
   s.setHeader('content-type', 'text/html');
   const signed = (q.headers.cookie || '').includes('sid=abc');
   if (q.url === '/private' && !signed) { s.writeHead(302, { location: '/login' }); return s.end(); }
-  if (q.url === '/private') return s.end('<title>x</title><p>mine</p><script>document.title = "ran"</script>');
+  if (q.url === '/private') return s.end('<title>x</title><p>mine</p><a id=bye href=/bye>bye</a><script>document.title = "ran"</script>');
   if (q.url === '/form') return s.end('<form method=post action=/echo><textarea name=t></textarea><button>Go</button></form>');
   if (q.url === '/echo') {
     let b = ''; q.on('data', (c) => (b += c));
@@ -1299,6 +1299,10 @@ http.createServer((q, s) => {
                         text: "hi <b>".into(),
                     },
                     Action::Eval("document.body.innerText".into()),
+                    Action::SetCookies(vec![("later".to_owned(), "1".to_owned())]),
+                    Action::Goto("/private".into()),
+                    Action::Eval("document.cookie".into()),
+                    Action::Act("document.getElementById('bye').click(); true".into()),
                 ],
             })
         });
@@ -1309,13 +1313,23 @@ http.createServer((q, s) => {
             "the app, the browser, or the forwarder did not start: {started:?}"
         );
         let answers = answers.flatten().expect("the driver gave no answer");
-        assert_eq!(answers.len(), 4, "{answers:?}");
+        assert_eq!(answers.len(), 8, "{answers:?}");
         assert_eq!(answers[0]["status"], 200, "{answers:?}");
         assert_eq!(answers[0]["path"], "/private", "{answers:?}");
         assert_eq!(answers[1]["value"], "ran", "{answers:?}");
         assert_eq!(answers[2]["found"], true, "{answers:?}");
         assert_eq!(answers[2]["after"]["path"], "/echo", "{answers:?}");
         assert_eq!(answers[3]["value"], "hi <b>", "{answers:?}");
+        // A cookie set partway through is sent from then on, and a click is followed to where it
+        // leads.
+        assert!(
+            answers[6]["value"]
+                .as_str()
+                .is_some_and(|c| c.contains("later=1")),
+            "{answers:?}"
+        );
+        assert_eq!(answers[7]["found"], true, "{answers:?}");
+        assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
     }
 
     #[test]

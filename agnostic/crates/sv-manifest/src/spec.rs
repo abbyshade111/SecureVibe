@@ -75,10 +75,11 @@ health = "/"              # a path that returns 200 once the app is up
 #   work out its codes themselves and try one twice, and one from a few minutes ago.
 # browser = { text-form = "/notes/new", shows = "/notes" }
 #   Checks made in a real browser (a headless Chromium on the same fenced network), signed in as the
-#   first user: that the sign-out control on each private page can really be seen, and, with
-#   `text-form`, that text typed into that page's form is shown as text and not run as code on the
-#   page that shows it (`shows`, or wherever the form leads when that is left out). `browser = {}`
-#   asks only about the sign-out control.
+#   first user: that the sign-out control on each private page can really be seen; that clicking it,
+#   with a sign-in made for the purpose, empties what the app kept in the browser's storage; and,
+#   with `text-form`, that text typed into that page's form is shown as text and not run as code on
+#   the page that shows it (`shows`, or wherever the form leads when that is left out).
+#   `browser = {}` asks the first two.
 
 [data]
 # What kinds of information the app holds about people.

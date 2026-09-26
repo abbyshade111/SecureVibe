@@ -964,12 +964,70 @@ const COMMON: &str = "123qweasdzxc";
 /// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
 /// 16 characters, so a length rule of up to 16 does not refuse it first. That it is breached is
 /// not taken from the list, whose source is recorded nowhere: it is Have I Been Pwned's count, in
-/// `data/breached-password-evidence.json`, and `BREACHED_SEEN` below says it in the finding. A test
-/// holds the two to that file, so neither can change without new evidence.
+/// `data/breached-password-evidence.json`, and `breached_seen` below says it in the finding. A test
+/// holds the password to that file, so it cannot change without new evidence.
 const BREACHED: &str = "1qaz2wsx3edc4rfv";
 
-/// How often Pwned Passwords has seen `BREACHED`, and when that was checked.
-const BREACHED_SEEN: &str = "133,732 times, as of 26 September 2026";
+/// `data/breached-password-evidence.json`, compiled in: `sv` reads it and fetches nothing.
+/// `tools/pwned_passwords.py` rewrites it, and the wording below follows without an edit here.
+const BREACHED_EVIDENCE: &str = include_str!("../../../data/breached-password-evidence.json");
+
+/// How often Pwned Passwords has seen `BREACHED`, and when that was last checked, from the
+/// evidence file: "133,732 times when last checked, on 26 September 2026".
+fn breached_seen() -> String {
+    let evidence: serde_json::Value =
+        serde_json::from_str(BREACHED_EVIDENCE).expect("the breached-password evidence parses");
+    let seen = evidence["seen"].as_u64().expect("the evidence has a count");
+    let checked = evidence["checked"]
+        .as_str()
+        .and_then(long_date)
+        .expect("the evidence has a date written YYYY-MM-DD");
+    format!(
+        "{} times when last checked, on {checked}",
+        with_commas(seen)
+    )
+}
+
+/// 133732 as "133,732".
+fn with_commas(n: u64) -> String {
+    n.to_string()
+        .as_bytes()
+        .rchunks(3)
+        .rev()
+        .map(|c| std::str::from_utf8(c).expect("digits"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// "2026-09-26" as "26 September 2026"; `None` for anything else.
+fn long_date(iso: &str) -> Option<String> {
+    const MONTHS: [&str; 12] = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+    let mut parts = iso.split('-');
+    let (year, month, day) = (parts.next()?, parts.next()?, parts.next()?);
+    let ok = parts.next().is_none()
+        && year.len() == 4
+        && month.len() == 2
+        && day.len() == 2
+        && [year, month, day]
+            .iter()
+            .all(|p| p.bytes().all(|b| b.is_ascii_digit()));
+    let month = MONTHS.get(month.parse::<usize>().ok()?.checked_sub(1)?)?;
+    let day: u8 = day.parse().ok()?;
+    (ok && (1..=31).contains(&day)).then(|| format!("{day} {month} {year}"))
+}
 
 /// A password with the same shape as `template` — each lowercase letter, capital, and digit
 /// replaced by a random one of the same kind, everything else kept — made from `spare`, the random
@@ -1029,15 +1087,15 @@ const DEFAULT_ACCOUNTS: &[(&str, &str)] = &[
 // The suite
 
 /// A user signed in, with what the sign-in showed.
-struct SignedIn {
-    session: Session,
+pub(crate) struct SignedIn {
+    pub(crate) session: Session,
     /// Cookies set by the sign-in response itself: the session cookies.
     set_at_login: Vec<Cookie>,
     /// Cookies the app had given before sign-in.
     before_login: Vec<(String, String)>,
 }
 
-fn sign_in(
+pub(crate) fn sign_in(
     http: &mut dyn Http,
     users: &UsersSection,
     who: &str,
@@ -1300,6 +1358,15 @@ pub fn run_with(
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
     sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
+    // And signing out in a real browser, with a sign-in of its own: clicking the app's sign-out
+    // ends that session, so it goes here, after the checks that needed A's.
+    if users.browser.is_some() {
+        let fresh = confirm
+            .as_ref()
+            .and_then(|_| sign_in(http, users, "a-browser", &accounts.a, &mut out.steps))
+            .map(|s| s.session);
+        crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out);
+    }
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -2198,6 +2265,7 @@ fn password_checks(
 
     // V6.2.12, in the same shape as V6.2.4: refused beside a random password of the same shape
     // that was accepted is evidence; refused beside a refused control is evidence of nothing.
+    let seen = breached_seen();
     match (works["breached"], works["like-breached"]) {
         (true, _) => out.findings.push(finding(
             &BREACHED_PASSWORD,
@@ -2205,7 +2273,7 @@ fn password_checks(
             Severity::Low,
             format!(
                 "The app let an account sign up with `{BREACHED}`, and sign in with it. Have I Been \
-                 Pwned has seen that password in breaches {BREACHED_SEEN}, though it is not among \
+                 Pwned has seen that password in breaches {seen}, though it is not among \
                  the 3000 most common, so a check against a large set of breached passwords would \
                  have refused it."
             ),
@@ -2214,7 +2282,7 @@ fn password_checks(
             BREACHED_PASSWORD.rule_id,
             BREACHED_PASSWORD.requirement_ids,
             format!(
-                "`{BREACHED}`, seen in breaches {BREACHED_SEEN} and not among the 3000 most \
+                "`{BREACHED}`, seen in breaches {seen} and not among the 3000 most \
                  common, refused at sign-up where a random password of the same shape was accepted"
             ),
         )),
@@ -9177,34 +9245,63 @@ mod tests {
     #[test]
     fn the_breached_password_and_its_count_are_the_ones_the_evidence_records() {
         // The finding calls this password breached on the strength of one recorded check. Changing
-        // the password, or the count the finding quotes, without new evidence must fail here.
-        let evidence: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../data/breached-password-evidence.json"
-        ))
-        .expect("the evidence file parses");
+        // the password without new evidence must fail here, and the wording must quote the file.
+        let evidence: serde_json::Value =
+            serde_json::from_str(BREACHED_EVIDENCE).expect("the evidence file parses");
         assert_eq!(
             evidence["password"], BREACHED,
             "a different password than the one checked"
         );
         let seen = evidence["seen"].as_u64().expect("a count");
         let sha1 = evidence["sha1"].as_str().expect("a hash");
+        let own: String = {
+            use sha1::Digest;
+            sha1::Sha1::digest(BREACHED.as_bytes())
+                .iter()
+                .map(|b| format!("{b:02X}"))
+                .collect()
+        };
+        assert_eq!(sha1, own, "the recorded hash is not this password's");
+        assert_eq!(
+            evidence["range"].as_str(),
+            Some(format!("https://api.pwnedpasswords.com/range/{}", &sha1[..5]).as_str()),
+            "the recorded range is not the one for this hash"
+        );
         assert_eq!(
             evidence["line"].as_str(),
             Some(format!("{}:{seen}", &sha1[5..]).as_str()),
             "the recorded line is not the one for this hash"
         );
-        let with_commas = seen
-            .to_string()
-            .as_bytes()
-            .rchunks(3)
-            .rev()
-            .map(|c| std::str::from_utf8(c).unwrap())
-            .collect::<Vec<_>>()
-            .join(",");
-        assert!(
-            BREACHED_SEEN.starts_with(&format!("{with_commas} times")),
-            "the finding says {BREACHED_SEEN:?}; the evidence says {seen}"
+        let checked = long_date(evidence["checked"].as_str().expect("a date")).expect("a date");
+        assert_eq!(
+            breached_seen(),
+            format!(
+                "{} times when last checked, on {checked}",
+                with_commas(seen)
+            )
         );
+    }
+
+    #[test]
+    fn dates_and_counts_are_written_out_for_a_person() {
+        assert_eq!(
+            long_date("2026-09-26").as_deref(),
+            Some("26 September 2026")
+        );
+        assert_eq!(long_date("2027-01-05").as_deref(), Some("5 January 2027"));
+        for bad in [
+            "2026-13-01",
+            "2026-00-10",
+            "2026-09-32",
+            "26-09-2026",
+            "2026-9-26",
+            "",
+        ] {
+            assert_eq!(long_date(bad), None, "{bad:?}");
+        }
+        assert_eq!(with_commas(133_732), "133,732");
+        assert_eq!(with_commas(1_000), "1,000");
+        assert_eq!(with_commas(999), "999");
     }
 
     #[test]
