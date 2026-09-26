@@ -4,6 +4,7 @@
 //! the only part that can be absent. Both are ways of arriving at a report that looks like a clean
 //! scan and is not one.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use sv_check::adapters::{self, Adapters, Outcome};
 
@@ -819,4 +820,103 @@ fn every_pack_the_semgrep_adapter_runs_has_been_measured() {
             "the adapter runs {pack}, which data/semgrep-packs.json has not measured"
         );
     }
+}
+
+// ---- Arguments that depend on the app
+
+fn semgrep_of(adapters: &Adapters) -> &sv_check::adapters::Adapter {
+    adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed")
+}
+
+#[test]
+fn semgrep_runs_the_ai_pack_unless_the_app_is_known_not_to_call_a_model() {
+    // Asked for by the owner on 26 September 2026: `p/ai-best-practices` holds the rules about code
+    // that calls a model, and runs only for an app that may. Unsettled is not "no": the pack's rules
+    // only ever find something, so leaving it out where nobody has said would hide, not protect.
+    let adapters = adapters();
+    let semgrep = semgrep_of(&adapters);
+    let packs = |args: &[String]| -> Vec<String> {
+        args.windows(2)
+            .filter(|w| w[0] == "--config")
+            .map(|w| w[1].clone())
+            .collect()
+    };
+    let unsettled = semgrep.run_args(&BTreeSet::new());
+    assert_eq!(
+        packs(&unsettled),
+        ["p/security-audit", "p/ai-best-practices"]
+    );
+    let not_ai = semgrep.run_args(&BTreeSet::from(["ai".to_owned()]));
+    assert_eq!(packs(&not_ai), ["p/security-audit"]);
+    // Before the `--`, so a file called `--config` in the app is still a file.
+    for args in [&unsettled, &not_ai] {
+        let dashes = args.iter().position(|a| a == "--").expect("a --");
+        assert_eq!(args[dashes + 1], "{files}", "{args:?}");
+        assert!(args[..dashes].iter().any(|a| a == "--sarif"), "{args:?}");
+    }
+    // A condition nothing depends on changes nothing.
+    assert_eq!(
+        semgrep.run_args(&BTreeSet::from(["payments".to_owned()])),
+        unsettled
+    );
+}
+
+#[test]
+fn conditional_arguments_are_refused_when_they_cannot_be_placed_or_named() {
+    let dir = scratch("conditional");
+    let file = std::fs::read_to_string(data()).unwrap();
+    for (what, from, to) in [
+        (
+            "an unknown condition",
+            "\"condition\": \"ai\"",
+            "\"condition\": \"uses-ai\"",
+        ),
+        (
+            "a placeholder",
+            "\"p/ai-best-practices\"",
+            "\"{dir}/rules.yaml\"",
+        ),
+    ] {
+        let doctored = file.replace(from, to);
+        assert_ne!(doctored, file, "{what}: the doctoring matched nothing");
+        let path = dir.join("adapters.json");
+        std::fs::write(&path, doctored).unwrap();
+        assert!(Adapters::load(&path).is_err(), "{what} was accepted");
+    }
+    // Without a `--` there is nowhere to put them that keeps an app's file names from being read
+    // as options.
+    let semgrep_run = "\"--quiet\",\n          \"--\",\n          \"{files}\"";
+    assert!(
+        file.contains(semgrep_run),
+        "semgrep's run has changed shape"
+    );
+    let doctored = file.replace(semgrep_run, "\"--quiet\",\n          \"{files}\"");
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let refused = Adapters::load(&path);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        refused.is_err_and(|e| e.to_string().contains("no `--`")),
+        "a run with no `--` was accepted"
+    );
+}
+
+#[test]
+fn only_a_known_no_leaves_the_ai_pack_out() {
+    // Unsettled is the common case: most manifests never say whether the app calls a model. Treating
+    // that as "no" would skip the only rules that look for these mistakes in exactly the apps where
+    // nobody checked.
+    let adapters = adapters();
+    let ai = sv_frameworks::Condition::from_name("ai").unwrap();
+    let answer = |value: Option<bool>| move |c| if c == ai { value } else { None };
+    assert!(adapters.not_holding(answer(None)).is_empty());
+    assert!(adapters.not_holding(answer(Some(true))).is_empty());
+    assert_eq!(
+        adapters.not_holding(answer(Some(false))),
+        BTreeSet::from(["ai".to_owned()])
+    );
 }

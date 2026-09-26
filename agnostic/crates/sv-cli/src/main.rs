@@ -1534,10 +1534,12 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     if options.run_tools {
         let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
         let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
+        let not_holding = adapters.not_holding(|condition| ctx.get(condition));
         let outcome = sv_check::adapters::run_all(
             &adapters,
             app_dir,
             &languages,
+            &not_holding,
             &sv_check::adapters::scratch_dir(),
         );
         findings.extend(outcome.findings);
