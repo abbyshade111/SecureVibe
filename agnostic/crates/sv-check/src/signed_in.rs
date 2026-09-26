@@ -1029,15 +1029,15 @@ const DEFAULT_ACCOUNTS: &[(&str, &str)] = &[
 // The suite
 
 /// A user signed in, with what the sign-in showed.
-struct SignedIn {
-    session: Session,
+pub(crate) struct SignedIn {
+    pub(crate) session: Session,
     /// Cookies set by the sign-in response itself: the session cookies.
     set_at_login: Vec<Cookie>,
     /// Cookies the app had given before sign-in.
     before_login: Vec<(String, String)>,
 }
 
-fn sign_in(
+pub(crate) fn sign_in(
     http: &mut dyn Http,
     users: &UsersSection,
     who: &str,
@@ -1300,6 +1300,15 @@ pub fn run_with(
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
     sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
+    // And signing out in a real browser, with a sign-in of its own: clicking the app's sign-out
+    // ends that session, so it goes here, after the checks that needed A's.
+    if users.browser.is_some() {
+        let fresh = confirm
+            .as_ref()
+            .and_then(|_| sign_in(http, users, "a-browser", &accounts.a, &mut out.steps))
+            .map(|s| s.session);
+        crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out);
+    }
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.

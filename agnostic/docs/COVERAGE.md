@@ -154,7 +154,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
-| V14.3.1 | L1 | Signed in: `probe.clear-site-data` |
+| V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |

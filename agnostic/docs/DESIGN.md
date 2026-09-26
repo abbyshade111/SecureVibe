@@ -2847,5 +2847,34 @@ line was there as typed, but not whether its script ran, was credited. The third
 code as well as in the tests: it was being explained as "changed on the way". Each now has a test,
 and a page that does not answer all four questions is not judged.
 
-Left for later: V14.3.1 needs the browser signed out, and so a session of its own that no later
-check is using.
+V14.3.1, which needs the browser signed out, came next; see below.
+
+### Signing out in the browser (V14.3.1)
+
+V14.3.1 asks that a signed-in person's data kept in the browser is gone once they sign out.
+The older check reads the sign-out response for `Clear-Site-Data`, credits its presence, and says
+plainly when it is absent that nothing saw the storage being emptied. The browser now watches it
+happen.
+
+It runs late, after the plain checks have signed the first user out, and with a sign-in made for it:
+clicking sign-out ends that session for good, so no later check can be using it. The job:
+
+1. Open the sign-in page with no cookies, and note what the app keeps in `localStorage`,
+   `sessionStorage`, and IndexedDB for anybody. A remembered color scheme is not a person's data.
+2. Set the new session's cookies, open the first private page, and note what is kept now. What is
+   new since step 1 is what the app kept for the signed-in person.
+3. Click the first sign-out control a person could see, as they would, and look again.
+4. Open the private page once more. It has to be shut, or the browser was never signed out.
+
+Anything the app kept for the person that is still there is a finding, Medium, naming the keys.
+All of it gone is credited, for that page. Nothing kept for the person is not credited: one page
+keeping nothing says nothing about the others, and the header check still stands for what it is.
+The browser never signed in, no sign-out control to click, a private page still open afterwards,
+storage that could not be read, or a driver that did not finish: each is said, and nothing judged.
+
+The example's account page now loads a small script that remembers when the notes were last opened,
+and its sign-out's `Clear-Site-Data: "storage"` empties it, so it is credited. A copy without the
+header is found, naming the key. A copy that stores the same thing for everybody, the sign-in page
+included, is set aside as nobody's in particular and not credited. Removing each guard in turn, every
+one was caught; the one that first looked uncaught was a mutation that changed nothing (the job has
+exactly as many answers as the length it was relaxed to).

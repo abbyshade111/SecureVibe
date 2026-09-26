@@ -66,7 +66,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def send(self, status, body=b"", headers=()):
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        if not any(name == "Content-Type" for name, _ in headers):
+            self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Security-Policy", "default-src 'self'")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -170,6 +171,11 @@ class Handler(BaseHTTPRequestHandler):
         sid, email, csrf = self.session()
         if self.path == "/":
             return self.send(200, page("Notes", "<a href='/login'>Sign in</a>"))
+        if self.path == "/notes.js":
+            # Remembers in the browser when this person last opened their account. Signing out
+            # sends Clear-Site-Data, which empties it again: V14.3.1.
+            script = b"localStorage.setItem('notes-last-opened', new Date().toISOString());"
+            return self.send(200, script, [("Content-Type", "text/javascript")])
         if self.path in ("/login", "/signup"):
             # A session before sign-in, for the form's token. Sign-in replaces it.
             sid, csrf = self.new_session(None)
@@ -192,7 +198,8 @@ class Handler(BaseHTTPRequestHandler):
                 200,
                 page(
                     "Account",
-                    f"Signed in as {html.escape(email)}{self.sign_out(csrf)}",
+                    f"Signed in as {html.escape(email)}{self.sign_out(csrf)}"
+                    "<script src='/notes.js'></script>",
                 ),
                 self.private(),
             )

@@ -32,6 +32,12 @@ pub enum Action {
     Eval(String),
     /// Waits, up to five seconds: answers `{}`.
     Wait(u64),
+    /// Runs an expression that does something in the page, such as clicking, and returns whether it
+    /// found what to do; when it did, waits for where that leads: answers
+    /// `{"found", "after": {"status", "path"}}`.
+    Act(String),
+    /// Sets cookies for the app partway through, as the job's own are set at its start: `{}`.
+    SetCookies(Vec<(String, String)>),
 }
 
 impl Action {
@@ -42,6 +48,8 @@ impl Action {
             Action::Fill { page, text } => json!({ "fill": page, "text": text }),
             Action::Eval(expression) => json!({ "eval": expression }),
             Action::Wait(ms) => json!({ "wait": ms }),
+            Action::Act(expression) => json!({ "act": expression }),
+            Action::SetCookies(cookies) => json!({ "cookies": cookies }),
         }
     }
 }
@@ -76,6 +84,55 @@ pub(crate) fn token(spare: &str) -> String {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     ("sv-browser", spare).hash(&mut h);
     format!("{:016x}", h.finish())
+}
+
+pub(crate) const KEPT_AFTER_SIGN_OUT: Rule = Rule {
+    rule_id: "probe.storage-kept-after-sign-out",
+    requirement_ids: &["V14.3.1"],
+    cwe: &["CWE-922"],
+    impact: "What the app kept in the browser for a signed-in person is still there after they sign \
+             out, where the next person to use that browser can read it: a shared computer, a \
+             borrowed phone, a library.",
+    fix: "Clear what the app stored for the signed-in person when they sign out: remove its keys \
+          from `localStorage` and `sessionStorage` and delete its IndexedDB databases in the page's \
+          sign-out code, and send `Clear-Site-Data: \"storage\"` with the sign-out response as \
+          well, so it is cleared even when the page's own code does not run.",
+};
+
+/// What the browser is holding for the app: the keys in each kind of storage, and the names of its
+/// IndexedDB databases. A kind that cannot be read comes back as `null`.
+const STORAGE_QUESTION: &str = r#"(async () => {
+  const keys = (s) => { try { return Object.keys(s); } catch { return null; } };
+  let databases = null;
+  try { databases = (await indexedDB.databases()).map((d) => d.name); } catch {}
+  return { local: keys(localStorage), session: keys(sessionStorage), indexeddb: databases };
+})()"#;
+
+/// Clicks the first sign-out control a person could see and click: a link leading to `logout`, or
+/// the button of a form that posts there.
+fn sign_out_click(logout: &str) -> String {
+    format!(
+        r#"(() => {{
+  const target = {target};
+  const leads = (el, attr) => {{
+    try {{ return new URL(el.getAttribute(attr), location.href).pathname === target; }}
+    catch {{ return false; }}
+  }};
+  const seen = (el) => {{
+    if (el.checkVisibility && !el.checkVisibility({{ opacityProperty: true, visibilityProperty: true }})) return false;
+    const r = el.getBoundingClientRect();
+    return r.width >= 2 && r.height >= 2;
+  }};
+  const links = [...document.querySelectorAll('a[href]')].filter((a) => leads(a, 'href'));
+  const forms = [...document.querySelectorAll('form[action]')].filter((f) => leads(f, 'action'));
+  const buttons = forms.flatMap((f) => [...f.querySelectorAll('button, input[type=submit], input[type=image]')]);
+  const control = [...links, ...buttons].find(seen);
+  if (!control) return false;
+  control.click();
+  return true;
+}})()"#,
+        target = json!(logout)
+    )
 }
 
 /// What the page is asked about the sign-out control, given its path: how many links and forms
@@ -440,6 +497,182 @@ fn text_shown_as_text(
     }
 }
 
+/// What is kept in each kind of browser storage, as `kind: key` pairs, or `None` when the page
+/// could not be asked.
+fn stored(answer: &Value) -> Option<Vec<String>> {
+    let value = field(answer, "value");
+    let mut out = Vec::new();
+    for kind in ["local", "session", "indexeddb"] {
+        let list = field(value, kind).as_array()?;
+        for key in list {
+            out.push(format!("{kind}: {}", key.as_str()?));
+        }
+    }
+    Some(out)
+}
+
+/// Whether signing out empties what the app kept in the browser (V14.3.1), with a sign-in made for
+/// it, `session`, since signing the browser out ends that session for good.
+///
+/// The browser first opens the sign-in page with no cookies, and what the app keeps there is set
+/// aside: a remembered color scheme is not a signed-in person's data. Then it is signed in, opens the
+/// first private page, and signs out with the app's own control, as a person would. What the app
+/// kept only once somebody was signed in has to be gone afterwards.
+pub(crate) fn sign_out_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    session: Option<&Session>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V14.3.1";
+    if users.browser.is_none() {
+        return;
+    }
+    let not_assessed = |out: &mut Outcome, why: &str| {
+        out.not_assessed
+            .push((IDS.to_owned(), format!("In a real browser: {why}")));
+    };
+    let (Some(logout), Some(login), Some(private)) = (
+        users.logout.as_ref(),
+        users.login.as_ref(),
+        users.private.first(),
+    ) else {
+        not_assessed(
+            out,
+            "whether signing out empties the browser's storage needs `login`, `logout`, and a \
+             private page in [stack.run.users].",
+        );
+        return;
+    };
+    let Some(session) = session.filter(|s| !s.cookies().is_empty()) else {
+        not_assessed(
+            out,
+            "whether signing out empties the browser's storage was not asked: a sign-in for it \
+             gave no cookie to hand to the browser.",
+        );
+        return;
+    };
+    let job = Job {
+        cookies: Vec::new(),
+        actions: vec![
+            Action::Goto(login.path.clone()),
+            Action::Eval(STORAGE_QUESTION.to_owned()),
+            Action::SetCookies(session.cookies().to_vec()),
+            Action::Goto(private.clone()),
+            Action::Eval(STORAGE_QUESTION.to_owned()),
+            Action::Act(sign_out_click(&logout.path)),
+            Action::Eval(STORAGE_QUESTION.to_owned()),
+            Action::Goto(private.clone()),
+        ],
+    };
+    let Some(a) = http.browser(&job).filter(|a| a.len() == job.actions.len()) else {
+        not_assessed(
+            out,
+            "whether signing out empties the browser's storage was not asked. The browser could \
+             not be started, or did not finish what it was given.",
+        );
+        return;
+    };
+    if !opened(&a[3], private) {
+        not_assessed(
+            out,
+            &format!(
+                "{private} did not open in the browser after signing in, so it was never signed \
+                 in and there was nothing to sign out of."
+            ),
+        );
+        return;
+    }
+    let (Some(anonymous), Some(signed_in), Some(after)) =
+        (stored(&a[1]), stored(&a[4]), stored(&a[6]))
+    else {
+        not_assessed(
+            out,
+            "the browser's storage could not be read before and after signing out.",
+        );
+        return;
+    };
+    if field(&a[5], "found").as_bool() != Some(true) {
+        not_assessed(
+            out,
+            &format!(
+                "{private} showed no sign-out control a person could click, so the browser was \
+                 not signed out."
+            ),
+        );
+        return;
+    }
+    if opened(&a[7], private) {
+        not_assessed(
+            out,
+            &format!(
+                "after the sign-out control was clicked, {private} still opened in the browser, so \
+                 it was not signed out; whether signing out ends a session is asked separately \
+                 (V7.4.1)."
+            ),
+        );
+        return;
+    }
+    // What the app kept for the signed-in person, and which of it is still there.
+    let theirs: Vec<&String> = signed_in
+        .iter()
+        .filter(|k| !anonymous.contains(k))
+        .collect();
+    let kept: Vec<&str> = theirs
+        .iter()
+        .filter(|k| after.contains(k))
+        .map(|k| k.as_str())
+        .collect();
+    out.steps.push(format!(
+        "in the browser, signed in and opened {private}: the app kept {} in its storage; signed out \
+         with its own control: {} left",
+        if theirs.is_empty() {
+            "nothing".to_owned()
+        } else {
+            format!("{} item{}", theirs.len(), if theirs.len() == 1 { "" } else { "s" })
+        },
+        kept.len()
+    ));
+    if !kept.is_empty() {
+        out.findings.push(finding(
+            &KEPT_AFTER_SIGN_OUT,
+            "Signing out leaves the signed-in person's data in the browser",
+            Severity::Medium,
+            format!(
+                "In a real browser, the app kept {} while signed in on {private}, and after \
+                 signing out with its own control {} still there: {}.",
+                theirs.len(),
+                if kept.len() == 1 {
+                    "this one is"
+                } else {
+                    "these are"
+                },
+                kept.join(", ")
+            ),
+        ));
+    } else if theirs.is_empty() {
+        not_assessed(
+            out,
+            &format!(
+                "the app kept nothing in the browser's storage while signed in on {private}, so \
+                 there was nothing for signing out to empty. That is not shown to be true of its \
+                 other pages, so it is not credited here."
+            ),
+        );
+    } else {
+        out.verified.push(crate::Verified::new(
+            KEPT_AFTER_SIGN_OUT.rule_id,
+            KEPT_AFTER_SIGN_OUT.requirement_ids,
+            format!(
+                "{} item{} the app kept in the browser's storage while signed in on {private}, \
+                 every one gone after signing out with its own control",
+                theirs.len(),
+                if theirs.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -461,6 +694,11 @@ mod tests {
         absent: bool,
         /// The browser stops after this many answers.
         gives_up_after: Option<usize>,
+        /// What happens to the browser's storage on signing out: "cleared", "kept" (the
+        /// signed-in person's token stays), "nothing" (only a color scheme, kept by everyone,
+        /// is ever stored), "no-control" (no sign-out control to click), "still-in" (the private
+        /// page still opens afterwards), or "unreadable".
+        storage: &'static str,
     }
 
     impl Default for App {
@@ -471,6 +709,7 @@ mod tests {
                 text: "escaped",
                 absent: false,
                 gives_up_after: None,
+                storage: "cleared",
             }
         }
     }
@@ -491,6 +730,13 @@ mod tests {
                 return None;
             }
             let a = self.app;
+            if job.actions.iter().any(|x| matches!(x, Action::Act(_))) {
+                let mut out = sign_out_job(a, job);
+                if let Some(n) = a.gives_up_after {
+                    out.truncate(n);
+                }
+                return Some(out);
+            }
             let mut out: Vec<Value> = job
                 .actions
                 .iter()
@@ -536,7 +782,7 @@ mod tests {
                         json!({ "value": { "ran": ran, "element": element,
                                            "as_text": as_text, "present": present } })
                     }
-                    Action::Wait(_) => json!({}),
+                    Action::Wait(_) | Action::Act(_) | Action::SetCookies(_) => json!({}),
                 })
                 .collect();
             if let Some(n) = a.gives_up_after {
@@ -546,8 +792,169 @@ mod tests {
         }
     }
 
+    /// The fake browser, for the sign-out job: what its storage holds at each of the three looks.
+    fn sign_out_job(a: App, job: &Job) -> Vec<Value> {
+        let mut looks = 0;
+        let mut clicked = false;
+        let mut signed = false;
+        job.actions
+            .iter()
+            .map(|action| match action {
+                Action::SetCookies(c) => {
+                    signed = !c.is_empty() && !a.signed_out;
+                    json!({})
+                }
+                Action::Goto(path) => {
+                    let open = signed && !(clicked && a.storage != "still-in");
+                    let at = if path == "/login" || open {
+                        path.as_str()
+                    } else {
+                        "/login"
+                    };
+                    json!({ "status": 200, "path": at })
+                }
+                Action::Act(_) => {
+                    let found = a.storage != "no-control";
+                    clicked = found;
+                    json!({ "found": found, "after": { "status": 200, "path": "/" } })
+                }
+                Action::Eval(_) => {
+                    looks += 1;
+                    if a.storage == "unreadable" {
+                        return json!({ "value": null });
+                    }
+                    let mut local = vec!["theme"];
+                    let theirs = a.storage != "nothing";
+                    let after_kept = a.storage == "kept" || a.storage == "still-in";
+                    if theirs && (looks == 2 || (looks == 3 && after_kept)) {
+                        local.push("token");
+                    }
+                    json!({ "value": { "local": local, "session": [], "indexeddb": [] } })
+                }
+                _ => json!({}),
+            })
+            .collect()
+    }
+
+    fn run_sign_out(app: App) -> (Outcome, Vec<Job>) {
+        let mut fake = Fake {
+            app,
+            jobs: Vec::new(),
+        };
+        let mut out = Outcome::default();
+        sign_out_check(&mut fake, &users(None, None), Some(&signed_in()), &mut out);
+        (out, fake.jobs)
+    }
+
+    #[test]
+    fn signing_out_that_empties_what_was_kept_for_the_person_is_credited() {
+        let (o, jobs) = run_sign_out(App::default());
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert_eq!(credited(&o), vec![KEPT_AFTER_SIGN_OUT.rule_id]);
+        // The anonymous look comes before any cookie, and the job starts with none.
+        assert!(jobs[0].cookies.is_empty());
+        assert_eq!(jobs[0].actions[0], Action::Goto("/login".into()));
+        assert!(matches!(jobs[0].actions[2], Action::SetCookies(_)));
+    }
+
+    #[test]
+    fn what_the_signed_in_person_leaves_behind_is_a_finding_and_a_color_scheme_is_not() {
+        let (o, _) = run_sign_out(App {
+            storage: "kept",
+            ..Default::default()
+        });
+        assert_eq!(
+            found(&o),
+            vec![(KEPT_AFTER_SIGN_OUT.rule_id, Severity::Medium)]
+        );
+        let text = &o.findings[0].description;
+        assert!(text.contains("local: token"), "{text}");
+        assert!(!text.contains("theme"), "{text}");
+    }
+
+    #[test]
+    fn an_app_that_keeps_nothing_for_the_person_is_not_credited_from_one_page() {
+        let (o, _) = run_sign_out(App {
+            storage: "nothing",
+            ..Default::default()
+        });
+        assert!(o.findings.is_empty() && o.verified.is_empty());
+        assert!(unassessed(&o, "V14.3.1").unwrap().contains("kept nothing"));
+    }
+
+    #[test]
+    fn nothing_is_said_about_storage_unless_the_browser_really_signed_in_and_out() {
+        for (app, says) in [
+            (
+                App {
+                    signed_out: true,
+                    storage: "kept",
+                    ..Default::default()
+                },
+                "never signed in",
+            ),
+            (
+                App {
+                    storage: "no-control",
+                    ..Default::default()
+                },
+                "no sign-out control",
+            ),
+            (
+                App {
+                    storage: "still-in",
+                    ..Default::default()
+                },
+                "still opened",
+            ),
+            (
+                App {
+                    storage: "unreadable",
+                    ..Default::default()
+                },
+                "could not be read",
+            ),
+            (
+                App {
+                    storage: "kept",
+                    gives_up_after: Some(7),
+                    ..Default::default()
+                },
+                "did not finish",
+            ),
+            (
+                App {
+                    absent: true,
+                    ..Default::default()
+                },
+                "did not finish",
+            ),
+        ] {
+            let (o, _) = run_sign_out(app);
+            assert!(o.findings.is_empty(), "{says}: {:?}", o.findings);
+            assert!(o.verified.is_empty(), "{says}");
+            let why = unassessed(&o, "V14.3.1").unwrap_or_default();
+            assert!(why.contains(says), "{says}: {why}");
+        }
+        // And without a sign-in of its own to hand over, the browser is not even started.
+        let mut fake = Fake {
+            app: App::default(),
+            jobs: Vec::new(),
+        };
+        let mut o = Outcome::default();
+        sign_out_check(&mut fake, &users(None, None), None, &mut o);
+        assert!(fake.jobs.is_empty());
+        assert!(unassessed(&o, "V14.3.1").unwrap().contains("no cookie"));
+    }
+
     fn users(text_form: Option<&str>, shows: Option<&str>) -> UsersSection {
         UsersSection {
+            login: Some(RequestTemplate {
+                method: "POST".into(),
+                path: "/login".into(),
+                form: Default::default(),
+                json: Default::default(),
+            }),
             logout: Some(RequestTemplate {
                 method: "POST".into(),
                 path: "/logout".into(),
