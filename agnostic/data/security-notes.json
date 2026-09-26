@@ -145,7 +145,7 @@
       "facts": [
         "ecosystems"
       ],
-      "howToFindOut": "Decide the number of days you would accept between a vulnerability being published and it being fixed, for each level of severity. Start from how bad it would be for this app rather than from what other people write down."
+      "howToFindOut": "Decide the number of days you would accept between a vulnerability being published and it being fixed, for each level of severity. Start from how bad it would be for this app rather than from what other people write down. Then put the same numbers in securevibe.toml as `[policy] fix-within-days`, so `sv audit` can hold the app's packages to them."
     },
     {
       "id": "V15.1.3",

@@ -5213,6 +5213,7 @@ mod tests {
         sv_manifest::PolicySection {
             failed_sign_ins: failed,
             within_minutes: Some(15),
+            fix_within_days: None,
         }
     }
 

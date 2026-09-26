@@ -1855,6 +1855,58 @@ next reader finds the answer rather than the puzzle. The specification's version
 specification says, and temporal scoring — if this ever grows it — produces intermediate values the
 equivalence does not cover.
 
+### Late, not merely known: the owner's time frames
+
+V15.2.1 asks that the app contains no component that has *breached the documented remediation time
+frame*. Until 26 September 2026 every known vulnerability was counted as that breach, so an advisory
+published yesterday and one left alone for two years read the same, and the requirement's own question
+— is anything late? — was never asked.
+
+The time frames are V15.1.1's document, and the owner writes them twice: in words in
+security-notes.md, and as numbers in securevibe.toml, which `sv audit` can hold the packages to.
+
+```toml
+[policy]
+fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
+```
+
+Each finding is then one of three things, printed in this order:
+
+* **Past the time frame.** A breach of V15.2.1, which the finding cites, with the day it was due and how
+  far past it is.
+* **Not judged.** No time frames at all, none for this severity, no publication date that can be read, or
+  a clock that reads before 1970. Each is counted against V15.2.1 exactly as before, because *not shown
+  to be late* is not *shown to be on time*, and the finding says which piece was missing.
+* **Inside the time frame.** Still a known vulnerability and still a finding, with the day it is due. It
+  no longer cites V15.2.1, because it has not breached anything yet.
+
+Four choices, each made so that a mistake can only make something look later than it is:
+
+* **The age is counted from the advisory's publication date.** A vulnerability can be known before its
+  advisory is published, never after, so this is the shortest the age can be. It is also the one
+  direction that could hide a breach, so the finding says so in as many words.
+* **An advisory with no rating is held to the shortest time frame stated.** Its real severity is
+  unknown, and any longer time frame could call something on time that its rating would make late.
+* **A severity the owner left out is not judged**, rather than borrowing a neighbor's number.
+* **The last day is inside.** Published on 1 January with 30 days is due by 31 January, and late on
+  1 February.
+
+**The one thing this could get wrong.** With the inside-the-time-frame findings no longer citing
+V15.2.1, "no finding about V15.2.1" and "nothing found" became different sentences, and only the second
+is a clean comparison. A package with a known vulnerability is not clean because it is not late yet.
+The clean claim still asks for no findings at all, and
+`a_vulnerability_inside_its_time_frame_still_stops_the_clean_claim` holds it: rewriting the condition to
+"nothing cites V15.2.1" fails that test and nothing else, which is why it has a test of its own rather
+than being left to others to notice.
+
+Every guard was broken once to see what caught it. Seven in the check each failed the test written for
+it; the four in `sv audit`'s printing — late and inside swapped, the not-judged group dropped, the reason
+not printed, the time frames never read — each failed `crates/sv-cli/tests/audit_deadlines.rs`, which runs
+the binary. A guard on the check is not a guard on what reaches the reader.
+
+**Not done:** `sv report` does not run the advisory comparison at all, so V15.2.1 has no evidence in the
+report whatever `sv audit` says. That was so before this change and is its own piece of work.
+
 ## Rules that read the code
 
 Everything else in `sv-check` works on text. That is right for credentials, where the thing being looked
