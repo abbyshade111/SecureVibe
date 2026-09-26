@@ -1101,6 +1101,11 @@ another session is not a claim.
   The evaluation harness was not run; these numbers come from six apps v1 actually built, which is
   what it would build, and it can still be run before adopting. The decision is the owner's.
 
+  **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
+  at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
+  own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
+  word. Not decided yet; B is not claimed.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
