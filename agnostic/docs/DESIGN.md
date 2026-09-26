@@ -1350,6 +1350,41 @@ comes back, and nothing reads it, with nothing failing anywhere. Both sides call
 function, and a test builds its responses from the real request list rather than from ids typed into
 the test, so drift between them is caught rather than silently tolerated.
 
+### Six more questions for anybody
+
+Asked of every app, signed in or not, beside the questions above: a Level 2 requirement and five
+Level 3 ones, each answered from what the app says back.
+
+| question | what a wrong answer means | credits |
+|---|---|---|
+| the health path with `DELETE` and with `PROPFIND` | either answered as a success: a page that is only read takes methods it has no use for (V4.1.4) | never |
+| the health path with `callback=svProbeJsonp` | an answer, not HTML, calling that function: JSONP (V3.5.6) | never |
+| fourteen documentation and monitoring paths | OpenAPI, Swagger UI, Redoc, Spring's actuator, Prometheus metrics, Go's expvar and profiler, Apache's and nginx's status, or `phpinfo()`, served to anybody (V13.4.5) | never |
+| every answer's `Server`, `X-Powered-By`, and like headers, and every error page | a product with its version number (V13.4.6) | never |
+| the page and the error page, when they are HTML | no `Cross-Origin-Opener-Policy` of `same-origin` or `same-origin-allow-popups` (V3.4.8) | the pages seen |
+| the page's `Content-Security-Policy` | neither `report-to` nor `report-uri` (V3.4.7) | the policy seen |
+
+Four of these are only ever findings. Two methods on one path, one path asked for JSONP, fourteen
+guesses, and the headers and error pages seen are not the whole app, and finding nothing would be a
+statement about what was asked. V13.4.5 also allows what is "explicitly intended", which only the
+owner can say, so the finding tells them to say it. The two header checks credit, as the other
+header checks do, and name what they read. Neither credits on nothing: no HTML page means no
+opener-policy credit, and no policy means no reporting credit — a missing policy is already the
+security-headers finding.
+
+Each is judged by what comes back, not by an answer arriving. A single-page app answers every path
+with its front page, so a documentation path is open only when the page says what it is; a search
+page that repeats `svProbeJsonp(` is not JSONP, because it is HTML; and a version on a page that
+worked is the app's own content, not a leak. A product named without a version (`nginx`, `Express`,
+`ASP.NET`, `Next.js`) is not one either. Each of those negatives is a test, and the break round
+found no guard with fewer than two once the second witnesses were added; before that, the digit
+check on version headers had none, because every negative fixture also lacked a dot.
+
+Verified end to end with a scratch Python app: the careful one (`Cross-Origin-Opener-Policy`,
+`report-uri`, 405 for unused methods, no version) had no findings and was credited for both headers;
+the careless one raised all six. The fourteen new paths are asked like the others, from the sidecar,
+and every answer with a body is also held to the Content-Type check.
+
 ### The `upload` entry
 
 Four Level 1 requirements turn on what an app does with a file somebody sends it, and all four are

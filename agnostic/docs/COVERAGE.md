@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 123 (36%) | 5 | 217 |
+| OWASP ASVS 5.0 | 345 | 129 (37%) | 5 | 211 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,8 +43,8 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 54 | 7 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 63 | 4 | 0 | 13 | 27 | 25 | 1 |
-| L3 | 92 | 6 | 1 | 0 | 0 | 1 | 2 | 2 |
+| L2 | 183 | 64 | 4 | 0 | 14 | 27 | 25 | 1 |
+| L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -54,8 +54,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
-| V3 Web Frontend Security | 31 | 18 | 0 | 13 |
-| V4 API and Web Service | 16 | 5 | 0 | 11 |
+| V3 Web Frontend Security | 31 | 21 | 0 | 10 |
+| V4 API and Web Service | 16 | 6 | 0 | 10 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
@@ -64,7 +64,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V10 OAuth and OIDC | 36 | 4 | 0 | 32 |
 | V11 Cryptography | 24 | 8 | 1 | 15 |
 | V12 Secure Communication | 12 | 6 | 1 | 5 |
-| V13 Configuration | 21 | 5 | 1 | 15 |
+| V13 Configuration | 21 | 7 | 1 | 13 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
 | V15 Secure Coding and Architecture | 21 | 8 | 0 | 13 |
 | V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (73)
+### Settled by asking the running app (79)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -103,10 +103,14 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V3.4.4 | L2 | The running app: `probe.security-headers` |
 | V3.4.5 | L2 | The running app: `probe.security-headers` |
 | V3.4.6 | L2 | The running app: `probe.security-headers` |
+| V3.4.7 | L3 | The running app: `probe.csp-no-report` |
+| V3.4.8 | L3 | The running app: `probe.opener-policy-missing` |
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.5.2 | L1 | Signed in: `probe.preflight-skipped` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
+| V3.5.6 | L3 | The running app: `probe.jsonp-enabled` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
+| V4.1.4 | L3 | The running app: `probe.unused-method-accepted` |
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
 | V4.3.2 | L2 | The running app: `probe.graphql-introspection` |
 | V4.4.2 | L2 | The running app: `probe.websocket-origin-unchecked` |
@@ -155,6 +159,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V13.4.2 | L2 | The running app: `probe.error-detail-leak`; Outside tools: `bandit`, `semgrep`, `codeql-python` |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
+| V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` |
+| V13.4.6 | L3 | The running app: `probe.version-disclosed` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
