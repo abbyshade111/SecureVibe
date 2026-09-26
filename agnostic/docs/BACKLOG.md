@@ -136,9 +136,9 @@ another session is not a claim.
 
   Left for whoever claims it: the recipe committed with a `.dockerignore`, CI that builds and
   publishes the image, a test in the shape above, and the walk-through's MCP section written for it.
-  **Claimed on 26 September 2026 by session securevibe-e9**, all but publishing: CI will build the
-  image and run the test on every change, and publishing it to a registry — a public package made from
-  the repository — is left for the owner to decide.
+  **Built on 26 September 2026 by session securevibe-e8** (#205). Session securevibe-e9 claimed it
+  the same day (#206) without seeing that #205 was about to merge, built a second version, and did not
+  merge it once it saw the first; nothing of it is in `main`.
 
   **Done the same day, except publishing.** `agnostic/Dockerfile` (the recipe above), `.dockerignore` at
   the repository root, `tools/image_smoke.py` (the test in the shape above: it asserts the committed
