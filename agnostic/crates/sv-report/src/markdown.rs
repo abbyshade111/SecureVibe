@@ -259,6 +259,31 @@ pub fn compliance(report: &Report) -> String {
             ));
         }
         out.push('\n');
+        if let Some(release) = &report.threat_atlas_release {
+            let mapped: Vec<_> = report
+                .threats
+                .iter()
+                .filter(|l| !l.atlas.is_empty())
+                .collect();
+            if !mapped.is_empty() {
+                out.push_str("### For a security reviewer: these threats in MITRE ATLAS\n\n");
+                out.push_str(&format!("{}\n\n", crate::threats::atlas_intro(release)));
+                out.push_str(
+                    "| threat | MITRE ATLAS technique | what the two share |\n|---|---|---|\n",
+                );
+                for line in mapped {
+                    for r in &line.atlas {
+                        out.push_str(&format!(
+                            "| {} | {} | {} |\n",
+                            cell(&line.id),
+                            cell(&format!("{} {}", r.id, r.name)),
+                            cell(&r.because)
+                        ));
+                    }
+                }
+                out.push('\n');
+            }
+        }
     }
 
     // High up, and above "Tests worth writing first": these are the ones nothing will ever settle

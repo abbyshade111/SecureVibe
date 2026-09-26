@@ -116,6 +116,7 @@ mod tests {
             not_for_tests: 0,
             threats: Vec::new(),
             threat_parts: Vec::new(),
+            threat_atlas_release: None,
             satisfied_elsewhere: vec![],
             gaps,
         }

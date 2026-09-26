@@ -1427,7 +1427,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
     // Shared with v1, beside the applicability rules, so a threat is corrected in one place.
     let threat_rules =
-        sv_report::threats::ThreatRules::load(&data.join("knowledge").join("threats.json"))?;
+        sv_report::threats::ThreatRules::load(&data.join("knowledge").join("threats.json"))?
+            .with_atlas()?;
 
     let secret_rules = SecretRules::load(&secret_rules_path())?;
     let secrets = scan_dir(&secret_rules, app_dir);

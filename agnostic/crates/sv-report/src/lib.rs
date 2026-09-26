@@ -252,6 +252,8 @@ pub struct Report {
     pub threats: Vec<threats::ThreatLine>,
     /// The parts of the app the threats concern, and whether each is there.
     pub threat_parts: Vec<threats::PartLine>,
+    /// The MITRE ATLAS release the threats' references were read from, when they carry any.
+    pub threat_atlas_release: Option<String>,
     pub gaps: Vec<Gap>,
 }
 
@@ -584,6 +586,10 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         })
         .collect();
 
+    let threat_atlas_release = inputs
+        .threats
+        .and_then(|(rules, _)| rules.atlas.as_ref())
+        .map(|a| a.release.clone());
     let (threats, threat_parts) = match inputs.threats {
         Some((rules, ctx)) => (
             threats::evaluate(rules, ctx, &requirements),
@@ -631,6 +637,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         not_for_tests,
         threats,
         threat_parts,
+        threat_atlas_release,
         gaps: inputs.gaps,
     }
 }
