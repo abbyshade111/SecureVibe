@@ -523,6 +523,10 @@ another session is not a claim.
      address". Against an app whose limit counts by address and trips during the suite before the
      brute-force check, it is not asked; the report says why for V6.3.1, the brute-force check's own
      requirement, and does not name V15.3.4 there.
+     **V12.1.4, V12.1.5, and V3.7.4 claimed on 26 September 2026 by session securevibe-e9**, as more
+     of `sv probe`: a stapled OCSP response, an ECH configuration in the site's DNS, and the HSTS
+     preload list from a local copy. Request smuggling (V4.2.1) is left out: it means sending a live
+     site deliberately malformed requests, which is not what `sv probe`'s read-only rule allows.
 
   9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
      addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),
