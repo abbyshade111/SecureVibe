@@ -1056,11 +1056,11 @@ another session is not a claim.
   - **Predictable randomness (V11.5.1) was not written.** `Math.random()` and `random.choice` are fine
     for shuffling a list and wrong for a reset code, and what decides it is where the value goes,
     which a single query cannot see. A rule without that would mostly report shuffles.
-  - Express's two-argument `res.redirect(301, url)` is missed: the first argument is the status,
-    and it is a literal. `send_file`/`redirect_to` in Ruby, `Paths.get` in Java and PHP's
-    `include $x` are not covered. Kotlin and C have no path or redirect query, Rust none of the four.
-    **Claimed on 26 September 2026 by session securevibe-e8** (the redirect status, `send_file`,
-    `Paths.get`/`Path.of`, and `include $x`).
+  - ~~Express's two-argument `res.redirect(301, url)`, Ruby's `send_file`, Java's `Paths.get`, and
+    PHP's `include $x` are missed.~~ **Claimed on 26 September 2026 by session securevibe-e8. Done the
+    same day**; see DESIGN, "Four ways of writing a path or a redirect that the rules missed". Ruby's
+    `redirect_to` was already covered, and both rules now have queries in all fourteen languages,
+    Kotlin, C, and Rust included, so the rest of this bullet was out of date.
   - The file-path rule is low confidence on purpose: it cannot tell a request value from an internal
     one held in a lowercase variable.
 
