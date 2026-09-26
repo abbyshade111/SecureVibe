@@ -2593,7 +2593,9 @@ mod tests {
             ],
             "{\"ok\":true}",
         );
-        assert!(!ids(&evaluate(&[json.clone()])).contains(&"probe.opener-policy-missing"));
+        assert!(
+            !ids(&evaluate(std::slice::from_ref(&json))).contains(&"probe.opener-policy-missing")
+        );
         assert!(!verified_ids(&[json]).contains(&OPENER_POLICY.rule_id.to_owned()));
     }
 
