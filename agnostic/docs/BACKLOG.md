@@ -33,6 +33,11 @@ another session is not a claim.
   the owner answers". Left over:
   - Where an answer to a check by hand is recorded. Today nothing records one, so the tool walks the
     owner through them and the report cannot tell.
+    **Claimed on 26 September 2026 by session securevibe-e8**, with the owner's agreement to the design
+    the same day: a `[checked-by-hand]` section in securevibe.toml (`result` done, problem, or
+    not-yet; `on`, a date; `by`; and `how`, required), current for 90 days, reported as *checked by
+    hand by the owner* just above *attested by the owner*, a tool's `done` as *stated by the AI coding
+    tool*, and `problem` as needs attention.
   - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
     contract, and worth its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
