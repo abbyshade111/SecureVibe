@@ -373,7 +373,10 @@ another session is not a claim.
      that check has seen the app refuse, one more wrong attempt claims a new address in
      `X-Forwarded-For`, then one more claims nothing; the first answered like the very first attempt
      while the second is still refused is a limiter believing an address the client made up. Only
-     ever a finding.
+     ever a finding. **Done on 26 September 2026.** See DESIGN, "A limit that believes a made-up
+     address". Against an app whose limit counts by address and trips during the suite before the
+     brute-force check, it is not asked; the report says why for V6.3.1, the brute-force check's own
+     requirement, and does not name V15.3.4 there.
 
   9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
      addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),

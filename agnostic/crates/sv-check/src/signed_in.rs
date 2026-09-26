@@ -685,6 +685,17 @@ const TOTP_OLD_CODE: Rule = Rule {
           clock that has drifted.",
 };
 
+const FORWARDED_TRUSTED: Rule = Rule {
+    rule_id: "probe.forwarded-for-trusted",
+    requirement_ids: &["V15.3.4"],
+    cwe: &["CWE-348"],
+    impact: "Anybody can step around the limit on guessing passwords by claiming a different \
+             address in each request, which costs them nothing.",
+    fix: "Take the client's address from X-Forwarded-For only when the request came through a \
+          proxy you run, and only the entry that proxy added: set the framework's trusted-proxy \
+          setting to your proxy rather than reading the header yourself.",
+};
+
 const COMPOSITION_RULES: Rule = Rule {
     rule_id: "probe.password-composition-rules",
     requirement_ids: &["V6.2.5"],
@@ -1230,6 +1241,95 @@ pub fn run(
     out
 }
 
+/// One wrong sign-in attempt, carrying `extra` headers, in a fresh session; the status it got, 0 for
+/// no answer.
+fn guess_once(
+    http: &mut dyn Http,
+    login: &RequestTemplate,
+    wrong: &Account,
+    id: &str,
+    extra: &[(&str, &str)],
+) -> u16 {
+    let mut session = Session::default();
+    let mut csrf = None;
+    if let Some(page) = http.send(&get(&format!("{id}-page"), &login.path, &session)) {
+        session.absorb(&page);
+        csrf = csrf_token(&page, &session);
+    }
+    let values = Values {
+        user: &wrong.user,
+        password: &wrong.password,
+        csrf,
+        ..Default::default()
+    };
+    let mut req = request(id, login, &values, &session);
+    for (k, v) in extra {
+        req.headers.push(((*k).to_owned(), (*v).to_owned()));
+    }
+    http.send(&req).map_or(0, |r| r.status)
+}
+
+/// Whether the limit on guessing believes an address the client made up (V15.3.4).
+///
+/// Called once the brute-force check has seen the app refuse. One more wrong attempt claims a new
+/// address, from the range set aside for documentation, in every header an app might take one
+/// from; then one more claims nothing. The first answered as the very first attempt was, while the
+/// second is still refused, is a limiter that let a header the client wrote lift it. The second is
+/// the control: a limit that lifted by itself lifts for both, and says nothing about headers.
+///
+/// Only ever a finding. An app whose limit counts by account is not moved by the header at all,
+/// and that shows nothing about how it treats addresses.
+fn forwarded_check(
+    http: &mut dyn Http,
+    login: &RequestTemplate,
+    wrong: &Account,
+    first_status: u16,
+    out: &mut Outcome,
+) {
+    const ADDRESS: &str = "203.0.113.77";
+    let spoofed = guess_once(
+        http,
+        login,
+        wrong,
+        "guess-forwarded",
+        &[
+            ("X-Forwarded-For", ADDRESS),
+            ("X-Real-IP", ADDRESS),
+            ("Forwarded", "for=203.0.113.77"),
+        ],
+    );
+    let plain = guess_once(http, login, wrong, "guess-after-forwarded", &[]);
+    let lifted = spoofed == first_status;
+    let still_refused = plain != first_status;
+    out.steps.push(format!(
+        "one more wrong attempt claiming to come from {ADDRESS}: {}; one more claiming nothing: {}",
+        if lifted {
+            format!("answered {spoofed}, as the first attempt was")
+        } else {
+            format!("still refused ({spoofed})")
+        },
+        if still_refused {
+            format!("still refused ({plain})")
+        } else {
+            format!("answered {plain}, as the first attempt was")
+        }
+    ));
+    if lifted && still_refused {
+        out.findings.push(finding(
+            &FORWARDED_TRUSTED,
+            "The limit on guessing passwords can be lifted by claiming another address",
+            Severity::Medium,
+            format!(
+                "After the app started refusing wrong passwords, one more attempt carrying \
+                 `X-Forwarded-For: {ADDRESS}` was answered {spoofed}, as the very first attempt \
+                 was, while the attempt after it, claiming nothing, was still refused ({plain}). \
+                 Nothing sits in front of the app here, so the address came from the request \
+                 itself."
+            ),
+        ));
+    }
+}
+
 /// Whether the app pushes back after the number of wrong passwords the owner said it would (V6.3.1).
 ///
 /// V6.3.1 asks that brute-force controls are implemented *according to the application's security
@@ -1405,6 +1505,12 @@ fn brute_force_check(
             "did not push back"
         }
     ));
+
+    // V15.3.4, only where the app pushed back with a different answer: a delay is too noisy to
+    // tell apart from a delay the next attempt happens to get.
+    if refused || status_changed {
+        forwarded_check(http, login, &wrong, first_status, out);
+    }
 
     if pushed_back {
         out.verified.push(crate::Verified::new(
@@ -5666,6 +5772,12 @@ mod tests {
         /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
         /// default, and what a naive app does — counts nothing and accepts guesses forever.
         locks_out_after: Option<u32>,
+        /// `locks_out_after` counts wrong passwords by the client's address, not by account.
+        limits_by_address: bool,
+        /// The client's address is read from `X-Forwarded-For` when a request carries one.
+        trusts_forwarded_for: bool,
+        /// A lockout lasts for one refused attempt and then lifts by itself.
+        lockout_forgets: bool,
         /// Answers a wrong password with this status from the very first attempt, as an app whose
         /// address-based limiter an earlier check has already tripped would. Correct sign-ins
         /// still work, because the suite has to reach the brute-force check for this to be the
@@ -6004,9 +6116,25 @@ mod tests {
                     let f = form(r);
                     let given = f.get("password")?;
                     let email = f.get("email")?;
+                    let address = r
+                        .headers
+                        .iter()
+                        .find(|(k, _)| {
+                            self.flaws.trusts_forwarded_for
+                                && k.eq_ignore_ascii_case("x-forwarded-for")
+                        })
+                        .map_or("127.0.0.1".to_owned(), |(_, v)| v.clone());
+                    let key = if self.flaws.limits_by_address {
+                        address
+                    } else {
+                        email.clone()
+                    };
                     if let Some(limit) = self.flaws.locks_out_after
-                        && self.failures.get(email).copied().unwrap_or(0) >= limit
+                        && self.failures.get(&key).copied().unwrap_or(0) >= limit
                     {
+                        if self.flaws.lockout_forgets {
+                            self.failures.remove(&key);
+                        }
                         return Some(Self::respond(429, vec![], "too many attempts"));
                     }
                     let good = !self.flaws.broken_login
@@ -6021,11 +6149,11 @@ mod tests {
                             return Some(Self::respond(status, vec![], "too many attempts"));
                         }
                         if self.flaws.locks_out_after.is_some() {
-                            *self.failures.entry(email.clone()).or_insert(0) += 1;
+                            *self.failures.entry(key).or_insert(0) += 1;
                         }
                         return Some(Self::respond(403, vec![], "no"));
                     }
-                    self.failures.remove(email);
+                    self.failures.remove(&key);
                     let who = f.get("email")?.clone();
                     if self.totp.contains_key(&who) && !self.flaws.totp_not_required {
                         let id = self.new_id();
@@ -8741,6 +8869,101 @@ mod tests {
                 .map(|v| v.check_id.as_str())
                 .collect::<Vec<_>>()
         );
+    }
+
+    // The limits below are six, not three: a limit counting by address trips during the suite
+    // itself, whose default-account check alone makes four wrong sign-ins in a row, and then the
+    // brute-force check rightly finds the app already refusing and asks nothing, this included.
+    fn forwarded_steps(out: &Outcome) -> Vec<&String> {
+        out.steps
+            .iter()
+            .filter(|s| s.contains("claiming to come from"))
+            .collect()
+    }
+
+    #[test]
+    fn a_limit_that_believes_a_made_up_address_is_found() {
+        let out = run_with(
+            Flaws {
+                locks_out_after: Some(6),
+                limits_by_address: true,
+                trusts_forwarded_for: true,
+                ..Flaws::default()
+            },
+            &policy(Some(6)),
+        );
+        assert!(
+            finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}\n{:?}",
+            finding_ids(&out),
+            out.steps
+        );
+        assert!(
+            finding_ids(&out).len() == 1,
+            "found only by its own rule: {:?}",
+            finding_ids(&out)
+        );
+    }
+
+    #[test]
+    fn a_limit_that_ignores_the_header_is_not_found() {
+        // By address and not trusting the header, and by account, which the header cannot touch.
+        for flaws in [
+            Flaws {
+                locks_out_after: Some(6),
+                limits_by_address: true,
+                ..Flaws::default()
+            },
+            Flaws {
+                locks_out_after: Some(6),
+                trusts_forwarded_for: true,
+                ..Flaws::default()
+            },
+        ] {
+            let out = run_with(flaws, &policy(Some(6)));
+            assert!(
+                !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+                "{:?}",
+                out.steps
+            );
+            let steps = forwarded_steps(&out);
+            assert_eq!(steps.len(), 1, "the attempt was made: {:?}", out.steps);
+            assert!(steps[0].contains("still refused"), "{}", steps[0]);
+        }
+    }
+
+    #[test]
+    fn a_limit_that_lifts_by_itself_is_not_blamed_on_the_header() {
+        // The control. The attempt claiming another address is answered normally, but so is the
+        // one after it, claiming nothing: the limit lifted on its own. Counted by account, so the
+        // suite's earlier wrong sign-ins cannot make it lift partway through the guessing.
+        let out = run_with(
+            Flaws {
+                locks_out_after: Some(6),
+                lockout_forgets: true,
+                ..Flaws::default()
+            },
+            &policy(Some(6)),
+        );
+        assert!(
+            !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}",
+            out.steps
+        );
+        let steps = forwarded_steps(&out);
+        assert_eq!(steps.len(), 1, "{:?}", out.steps);
+        assert!(
+            steps[0].contains("claiming nothing: answered"),
+            "the control must have run and lifted: {}",
+            steps[0]
+        );
+    }
+
+    #[test]
+    fn with_no_limit_to_lift_no_address_is_claimed() {
+        let out = run_with(Flaws::default(), &policy(Some(6)));
+        assert!(forwarded_steps(&out).is_empty(), "{:?}", out.steps);
+        assert!(!finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id));
     }
 
     #[test]
