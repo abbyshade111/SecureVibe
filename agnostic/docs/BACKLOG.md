@@ -5,6 +5,24 @@ another session is not a claim.
 
 ## Next
 
+- **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
+  the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
+  only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
+  decision, the same day: a design answer from the AI tool is labeled *stated by the AI coding tool*,
+  its own tier below *attested by the owner*. **Claimed on 26 September 2026 by session
+  securevibe-e8.** Found by walking through `sv mcp` as an AI tool would, on a copy of
+  `examples/flask-booking` with no manifest:
+  - The check names the sixteen design questions by id only, with no question and no advice on where
+    to look, so the tool would need sixteen `securevibe_explain` calls, and those give the ASVS text,
+    not the question.
+  - It tells the tool to "run `sv notes`", which the MCP server has no way to do.
+  - The checklist of what only a person can check does not reach the tool at all.
+  - A contradiction says only "the code says otherwise"; `sv scope` says why (`pyjwt` in
+    `requirements.txt`), and the tool is not told.
+  - The starter manifest has every capability set to `false`, while its own instructions say an
+    unsure capability should be `true` and a line nobody answered should be left out. A tool that
+    leaves a line as it found it has answered "no".
+
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
   admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails
