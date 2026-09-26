@@ -1037,6 +1037,34 @@ another session is not a claim.
   before deciding. **The local-folder measurement claimed on 26 September 2026 by session
   securevibe-e8**, which has `semgrep` 1.176.0 and can fetch the rules repository; `p/default` still
   needs semgrep.dev and is not claimed.
+  **Measured the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
+  names copied into one file with its registry id, so nothing is fetched from semgrep.dev:
+
+  | Rule set | Rules | Requirements reached (of 50) | Findings on the examples and v1's template (174 files) | Time |
+  |---|---|---|---|---|
+  | `p/security-audit`, rebuilt from the commit | 225 | 31 | 3 | 5 s |
+  | the map's own rules | 1,022 | 50 | 20 | 20 s |
+
+  - **The local copy is the registry's.** The 225 `p/security-audit` rules rebuilt from the commit gave
+    exactly the registry run's 13 results on the fixture app, rule, file, and line.
+  - **What loads is the map, by construction.** The SARIF listed 1,022 loaded rules, the same ids as
+    the map; none was missing from the commit. So the coverage count could not drift from what runs.
+  - **The 17 extra findings are all on v1's template, and on reading, none is a real fault.** Six
+    `var-in-href` on links the server builds itself (navigation, the checkout link, the authenticator
+    link), six `html-in-template-string` on error messages that contain no HTML, four
+    `detect-non-literal-regexp` on patterns from the app's own settings and routes, and one
+    `unsafe-dynamic-method` on `router[method]` from a fixed list. The example apps got none. For
+    comparison, `p/default` added 3 false alarms on a similar set (relaxed-nobel-27acfa, above): the map
+    holds audit rules that `p/default` leaves out, and they are noisier.
+  - **One thing to settle before `sv` could do this: the rules' license.** The repository is under the
+    Semgrep Rules License v1.0, whose text is on semgrep.dev, which this session cannot reach. Shipping
+    the file inside `sv`, or having `sv` fetch the commit on the owner's machine, may be treated
+    differently by it, and it should be read before either is built.
+  - **A detail for whoever builds it:** semgrep puts the rule file's folder in front of each id, as a
+    path relative to where it was started, so it must be started in the folder holding the file.
+
+  Not decided here: whether 19 more requirements are worth 17 false alarms on a template of this size,
+  15 seconds more per run, and the license question. That is the owner's.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
