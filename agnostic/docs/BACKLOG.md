@@ -5,6 +5,31 @@ another session is not a claim.
 
 ## Next
 
+- **The threat model's 101 citations are outside the citation guard, and it cannot be pointed at them.**
+  Found on 26 September 2026 reviewing the threat model; not claimed. `data/knowledge/threats.json`
+  cites 101 distinct requirements across 42 threats. Every one resolves — the `AC-NN` class is clean —
+  but nothing compares a threat with the requirement it cites, and this is the fifth citation surface
+  in a codebase where four of them were wrong when first read.
+
+  Extending `crates/sv-check/tests/citations.rs` to cover it does not work, and that is the useful
+  part. Running its own comparison over the file flags **52 of the 101 pairs**, and every one that was
+  read is correct — T-02 "a signed-in person opens administrator pages" against V8.2.1 "function-level
+  access is restricted to consumers with explicit permissions"; T-03 "someone denies having signed in"
+  against V16.3.1 "all authentication operations are logged". The guard assumes a right citation shares
+  vocabulary with its requirement, and that assumption breaks here by design: a threat is written in
+  plain language for somebody who is not a programmer, and ASVS is written in formal terms for
+  somebody who is. Turning the guard on would mean 52 false alarms, which is how a guard gets switched
+  off.
+
+  The crosswalk already solved this exact shape. `data/sbd-asvs-crosswalk.json` pairs a terse control
+  with an ASVS requirement it could not share words with, so each pair carries a few words naming what
+  the two ask in common, and the guard holds that phrase against *both* texts — a stricter test than
+  either side alone. The same per-pair phrase would work here, and would make the 101 citations
+  checkable without asking plain English and ASVS to use the same words.
+
+  All 52 flagged pairs were read by hand on 26 September 2026 and none is wrong; this is about what
+  happens to the hundred and second.
+
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
   conditions — `securevibe.toml` asks about them — and when the manifest does not answer, a
@@ -350,7 +375,14 @@ another session is not a claim.
      writes matches a call; none follows a value from where it came in to where it is used, which
      is what blocked V1.2.2, V1.3.1, V2.2.1, V9.1.3, V15.3.2, and the AISVS entry's "user input
      placed in the system instructions". The small in-`sv` half: a rule kind that matches string
-     literals, for the literal `javascript:` URL V1.2.2 was withdrawn over.
+     literals, for the literal `javascript:` URL V1.2.2 was withdrawn over. The CodeQL adapter is
+     **claimed on 26 September 2026 by session securevibe-e9, and done the same day** for JavaScript,
+     TypeScript, and Python: V1.2.9, V15.3.5, V15.3.6, V16.4.1, and V1.2.2 (as a finding only) with
+     `--tools`, Level 1 to 52 of 70 and Level 2 to 53 of 183. See DESIGN, "CodeQL: following a
+     value". Left over: V1.3.1, V2.2.1, V9.1.3, and V15.3.2 have no CodeQL query that fits them; Go,
+     Ruby, and Java entries are the same data change with their own maps; and reading a SARIF file
+     from the owner's own CI, rather than running CodeQL here, needs the report's commit compared
+     with the code's before a clean result could be credited.
   8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
      sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
      (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
@@ -364,6 +396,22 @@ another session is not a claim.
      (V2.3.1, L1, on `manualOnly` today, so taking it off is a decision). The guard not to get wrong
      is the one the brute-force check got wrong first: an app that refuses *every* password has shown
      nothing, so an ordinary one must be accepted first, or the answer is *not assessed*.
+     **V6.2.12 and V6.2.11 claimed on 26 September 2026 by session securevibe-e8**, through the
+     `signup` entry that already exists, so no new addresses are needed for them: a password from far
+     down `data/knowledge/common-passwords.txt`, and one built from a word in a new
+     `[policy] context-words` list — the documented list V6.2.11 names — each beside a random
+     password of the same shape. **V2.3.1 claimed on 26 September 2026 by session securevibe-e8:**
+     a `flow` entry naming the steps and what the last one shows when it really finished; A goes
+     through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
+     stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
+     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
+     from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
+     the shared `manualOnly` list and one refused password is not the whole breached set. The
+     password list's source is not recorded anywhere in the repository, and checking the chosen
+     password against Have I Been Pwned was refused by this environment's network policy, so the
+     finding says "one of the 100,000 most common" rather than "breached". See DESIGN, "Two more
+     passwords at sign-up".
 
   Additions from session securevibe-e8, which answered the same question separately on the same
   day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to
@@ -416,6 +464,25 @@ another session is not a claim.
   --advisories DIR` puts the findings, the clean result, and what could not be compared into the
   report, and without a database the report says it compared nothing rather than staying silent. See
   DESIGN, "In the report too". The MCP server still takes no database, deliberately.
+
+- **Keep the breached-password evidence current through the Pwned Passwords API.** Asked for by the
+  owner on 26 September 2026. V6.2.12's sign-up probe tries `1qaz2wsx3edc4rfv`, and the only record
+  that it is a breached password is one range file the owner fetched in a browser and pasted into
+  the session that day, because this environment's network policy refused
+  `api.pwnedpasswords.com`. The owner has since added that host to the allowed domains, which takes
+  effect for sessions started after the change. Three things to do once a session can reach it:
+  a small script under `tools/` that re-fetches the range for `BREACHED` and rewrites
+  `data/breached-password-evidence.json` with the new count and date; a sampled check of
+  `data/knowledge/common-passwords.txt` (a few hundred entries across its ranks), so the list's
+  source — recorded nowhere in the repository — is at least shown to be breach data; and a line
+  in the report's V6.2.12 wording that carries the date of the last check. Only the five-character
+  hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
+  this is maintenance of the repository's own data, done by whoever runs the script. Not claimed.
+
+- **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
+  26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording
+  changed to say so. **Claimed on 26 September 2026 by session securevibe-e8. Done the same day**,
+  with a test holding the password and the quoted count to that file.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and

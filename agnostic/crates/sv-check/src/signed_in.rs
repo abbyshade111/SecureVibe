@@ -610,6 +610,37 @@ const COMMON_PASSWORD: Rule = Rule {
           meet the app's length rule) and refuse a match.",
 };
 
+const BREACHED_PASSWORD: Rule = Rule {
+    rule_id: "probe.breached-password-accepted",
+    requirement_ids: &["V6.2.12"],
+    cwe: &["CWE-521"],
+    impact: "A password other people have already used, and lost, is on the lists anybody trying to \
+             get in works through first — long after the top few thousand.",
+    fix: "Check new passwords against a large set of breached passwords, not only the most common \
+          few thousand: a downloaded copy of the Pwned Passwords list, or its range API, which is \
+          sent only the first five characters of the password's SHA-1 hash.",
+};
+
+const CONTEXT_WORD_PASSWORD: Rule = Rule {
+    rule_id: "probe.context-word-password-accepted",
+    requirement_ids: &["V6.2.11"],
+    cwe: &["CWE-521"],
+    impact: "A password built from the app's own name, or the organization's, is one of the first \
+             things somebody who knows where they are will try.",
+    fix: "Refuse a new password that contains any word from your list of context-specific words, \
+          compared without regard to case.",
+};
+
+const STEP_SKIPPED: Rule = Rule {
+    rule_id: "probe.flow-step-skipped",
+    requirement_ids: &["V2.3.1"],
+    cwe: &["CWE-841"],
+    impact: "A step that can be skipped is a check that can be skipped: the payment before the order, \
+             the confirmation before the change, the approval before the release.",
+    fix: "Keep where each person is in the flow on the server, and have every step refuse unless the \
+          step before it was completed by the same person in the same flow.",
+};
+
 const COMPOSITION_RULES: Rule = Rule {
     rule_id: "probe.password-composition-rules",
     requirement_ids: &["V6.2.5"],
@@ -834,6 +865,62 @@ const SIGN_OUT_ON_GET: Rule = Rule {
 /// `data/knowledge/common-passwords.txt`.
 const COMMON: &str = "123qweasdzxc";
 
+/// A password far down the common list, at line 12,393 of `data/knowledge/common-passwords.txt`:
+/// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
+/// 16 characters, so a length rule of up to 16 does not refuse it first. That it is breached is
+/// not taken from the list, whose source is recorded nowhere: it is Have I Been Pwned's count, in
+/// `data/breached-password-evidence.json`, and `BREACHED_SEEN` below says it in the finding. A test
+/// holds the two to that file, so neither can change without new evidence.
+const BREACHED: &str = "1qaz2wsx3edc4rfv";
+
+/// How often Pwned Passwords has seen `BREACHED`, and when that was checked.
+const BREACHED_SEEN: &str = "133,732 times, as of 26 September 2026";
+
+/// A password with the same shape as `template` — each lowercase letter, capital, and digit
+/// replaced by a random one of the same kind, everything else kept — made from `spare`, the random
+/// material every run has. The control that says a refusal was about *these* characters and not
+/// about their length or kinds.
+fn random_like(template: &str, spare: &str) -> String {
+    let nibbles: Vec<u8> = spare
+        .chars()
+        .filter_map(|c| c.to_digit(16))
+        .map(|d| d as u8)
+        .collect();
+    template
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            let n = nibbles[i % nibbles.len()];
+            match c {
+                'a'..='z' => (b'a' + n) as char,
+                'A'..='Z' => (b'A' + n) as char,
+                '0'..='9' => (b'0' + n % 10) as char,
+                other => other,
+            }
+        })
+        .collect()
+}
+
+/// The password tried for V6.2.11: the first word of at least four letters or digits in the
+/// owner's list, lowercased and repeated to at least 16 characters, so no length rule refuses it
+/// first. `None` when no word on the list is long enough to mean anything.
+fn context_password(words: &[String]) -> Option<(String, String)> {
+    let word = words.iter().find_map(|w| {
+        let kept: String = w
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        (4..=32).contains(&kept.len()).then_some((w.clone(), kept))
+    })?;
+    let (named, kept) = word;
+    let mut password = kept.clone();
+    while password.len() < 16 {
+        password.push_str(&kept);
+    }
+    Some((named, password))
+}
+
 /// Accounts somebody might leave in place, tried with their name as the password and with
 /// `password`.
 const DEFAULT_ACCOUNTS: &[(&str, &str)] = &[
@@ -1055,10 +1142,14 @@ pub fn run(
     //     one: it posts files and fetches them back.
     upload_checks(http, users, &a, &mut out);
 
+    // 6c. A flow of several steps, gone through in order with A's session and then skipped as B,
+    //     signed in afresh. Neither disturbs A's session.
+    flow_checks(http, users, accounts, &a, &mut out);
+
     // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
-    password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 
@@ -1444,9 +1535,10 @@ fn password_checks(
     users: &UsersSection,
     accounts: &Accounts,
     confirm: Option<&str>,
+    policy: &sv_manifest::PolicySection,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5, V6.2.8, V6.2.9";
+    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5, V6.2.8, V6.2.9, V6.2.11, V6.2.12";
     let Some(signup) = &users.signup else {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -1500,7 +1592,24 @@ fn password_checks(
             "like-common",
             account("like-common", spare[2..14].to_owned()),
         ),
+        ("breached", account("breached", BREACHED.to_owned())),
+        (
+            "like-breached",
+            account("like-breached", random_like(BREACHED, &spare[14..32])),
+        ),
     ];
+    let context = context_password(&policy.context_words);
+    let context_tries: Vec<(&str, Account)> = match &context {
+        Some((_, password)) => vec![
+            ("context", account("context", password.clone())),
+            (
+                "like-context",
+                account("like-context", random_like(password, &spare[4..28])),
+            ),
+        ],
+        None => Vec::new(),
+    };
+    let tries: Vec<(&str, Account)> = tries.into_iter().chain(context_tries).collect();
     let mut works = std::collections::BTreeMap::new();
     for (label, try_account) in &tries {
         sign_up(http, signup, label, try_account);
@@ -1573,6 +1682,82 @@ fn password_checks(
                  kinds of character, so the refusal cannot be told apart from another rule."
             ),
         )),
+    }
+
+    // V6.2.12, in the same shape as V6.2.4: refused beside a random password of the same shape
+    // that was accepted is evidence; refused beside a refused control is evidence of nothing.
+    match (works["breached"], works["like-breached"]) {
+        (true, _) => out.findings.push(finding(
+            &BREACHED_PASSWORD,
+            "A password known from data breaches is accepted",
+            Severity::Low,
+            format!(
+                "The app let an account sign up with `{BREACHED}`, and sign in with it. Have I Been \
+                 Pwned has seen that password in breaches {BREACHED_SEEN}, though it is not among \
+                 the 3000 most common, so a check against a large set of breached passwords would \
+                 have refused it."
+            ),
+        )),
+        (false, true) => out.verified.push(crate::Verified::new(
+            BREACHED_PASSWORD.rule_id,
+            BREACHED_PASSWORD.requirement_ids,
+            format!(
+                "`{BREACHED}`, seen in breaches {BREACHED_SEEN} and not among the 3000 most \
+                 common, refused at sign-up where a random password of the same shape was accepted"
+            ),
+        )),
+        (false, false) => out.not_assessed.push((
+            "V6.2.12".to_owned(),
+            format!(
+                "The app refused `{BREACHED}`, and also a random password of the same length and \
+                 kinds of character, so the refusal cannot be told apart from another rule."
+            ),
+        )),
+    }
+
+    // V6.2.11 asks that the *documented* list is used, so without the owner's list there is
+    // nothing to hold the app to, and guessing at words would be testing a list nobody wrote.
+    match &context {
+        None => out.not_assessed.push((
+            "V6.2.11".to_owned(),
+            if policy.context_words.is_empty() {
+                "securevibe.toml lists no context-specific words. Add your app's and your \
+                 organization's names under [policy] as `context-words`, and sign-up is asked to \
+                 refuse a password made from one."
+                    .to_owned()
+            } else {
+                "No word under `context-words` in securevibe.toml has between 4 and 32 letters or \
+                 digits, so none could be made into a password worth trying."
+                    .to_owned()
+            },
+        )),
+        Some((word, password)) => match (works["context"], works["like-context"]) {
+            (true, _) => out.findings.push(finding(
+                &CONTEXT_WORD_PASSWORD,
+                "A password made from one of your context-specific words is accepted",
+                Severity::Low,
+                format!(
+                    "The app let an account sign up with `{password}`, which is \"{word}\" from \
+                     `context-words` in securevibe.toml, repeated, and sign in with it."
+                ),
+            )),
+            (false, true) => out.verified.push(crate::Verified::new(
+                CONTEXT_WORD_PASSWORD.rule_id,
+                CONTEXT_WORD_PASSWORD.requirement_ids,
+                format!(
+                    "a password made from \"{word}\", the first usable word in `context-words`, \
+                     refused at sign-up where a random password of the same shape was accepted"
+                ),
+            )),
+            (false, false) => out.not_assessed.push((
+                "V6.2.11".to_owned(),
+                format!(
+                    "The app refused a password made from \"{word}\", and also a random password \
+                     of the same length and kinds of character, so the refusal cannot be told \
+                     apart from another rule."
+                ),
+            )),
+        },
     }
 
     exact_password_checks(http, users, signup, &control, spare, confirm, out);
@@ -3220,6 +3405,188 @@ fn send_upload(
 /// file of the same shape was accepted, so an ordinary GIF goes first and each later answer is read
 /// against it: if the app refuses everything, or the upload path is not what securevibe.toml says,
 /// the questions are reported *not assessed* rather than passed.
+/// Whether an answer says the flow finished: `completed` in its page, or in the address it sends
+/// the browser on to. Only an answer the app accepted counts, so an error page that happens to
+/// mention the words does not.
+fn finished(response: &Option<ProbeResponse>, completed: &str) -> bool {
+    response.as_ref().is_some_and(|r| {
+        (200..400).contains(&r.status)
+            && (r.body.contains(completed)
+                || r.headers
+                    .iter()
+                    .any(|(k, v)| k.eq_ignore_ascii_case("location") && v.contains(completed)))
+    })
+}
+
+/// Sends the steps given, in the order given, in one session; the last answer.
+fn take_steps(
+    http: &mut dyn Http,
+    who: &str,
+    steps: &[&RequestTemplate],
+    values: &Values,
+    session: &mut Session,
+    pages: &[String],
+) -> Option<ProbeResponse> {
+    let mut last = None;
+    for (i, step) in steps.iter().enumerate() {
+        last = send_template(
+            http,
+            &format!("flow-{who}-{i}"),
+            step,
+            values,
+            session,
+            pages,
+        )
+        .0;
+    }
+    last
+}
+
+/// Whether a flow of several steps can be skipped through (V2.3.1).
+///
+/// A goes through every step in order first. That has to end in the owner's `completed`, or
+/// nothing can be told: a skip refused by an app whose flow does not work as described is not a
+/// skip refused. Then B, signed in afresh so nothing of A's carries over, goes straight to the last
+/// step, and — when there is a middle to leave out — signs in afresh again and does the first step
+/// and then the last. Either ending in `completed` is a finding. Both refused is support for V2.3.1
+/// and no more: it is on the manual-only list, because two skips refused is not every order refused.
+///
+/// Doing a step twice, and doing steps out of order other than by leaving some out, are not tried.
+fn flow_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    a: &SignedIn,
+    out: &mut Outcome,
+) {
+    const ID: &str = "V2.3.1";
+    let Some(flow) = &users.flow else {
+        return;
+    };
+    if flow.steps.len() < 2 {
+        out.not_assessed.push((
+            ID.to_owned(),
+            "The `flow` in securevibe.toml has fewer than two steps, so there is no step to skip."
+                .to_owned(),
+        ));
+        return;
+    }
+    if flow.completed.trim().is_empty() {
+        out.not_assessed.push((
+            ID.to_owned(),
+            "The `flow` in securevibe.toml does not say what the last step shows when the flow \
+             finished (`completed`), so a skip that worked cannot be told from one that was refused."
+                .to_owned(),
+        ));
+        return;
+    }
+    let steps: Vec<&RequestTemplate> = flow.steps.iter().collect();
+    let last = steps[steps.len() - 1];
+    let marker = format!("sv-flow-{}", accounts.spare.get(..8).unwrap_or("0"));
+    fn values<'v>(account: &'v Account, marker: &'v str) -> Values<'v> {
+        Values {
+            user: &account.user,
+            password: &account.password,
+            marker,
+            ..Default::default()
+        }
+    }
+
+    // The control: every step, in order, as A.
+    let mut session = a.session.clone();
+    let done = take_steps(
+        http,
+        "a",
+        &steps,
+        &values(&accounts.a, &marker),
+        &mut session,
+        &users.private,
+    );
+    if !finished(&done, &flow.completed) {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "Going through the {} steps in order as A ended in {}, without \"{}\", so the flow \
+                 does not finish as securevibe.toml describes and nothing can be told from skipping \
+                 a step.",
+                steps.len(),
+                status(&done),
+                flow.completed
+            ),
+        ));
+        return;
+    }
+    out.steps.push(format!(
+        "went through the {} steps of the flow in order as A: finished",
+        steps.len()
+    ));
+
+    let mut tries: Vec<(&str, Vec<&RequestTemplate>)> = vec![(
+        "straight to the last step, with none of the steps before it",
+        vec![last],
+    )];
+    if steps.len() >= 3 {
+        tries.push((
+            "the first step and then the last, leaving out the ones between",
+            vec![steps[0], last],
+        ));
+    }
+    let mut skipped = Vec::new();
+    for (i, (how, these)) in tries.iter().enumerate() {
+        let who = format!("flow-b{i}");
+        let Some(b) = sign_in(http, users, &who, &accounts.b, &mut out.steps) else {
+            out.not_assessed.push((
+                ID.to_owned(),
+                "B could not sign in again to try skipping a step in a fresh session.".to_owned(),
+            ));
+            return;
+        };
+        let mut session = b.session.clone();
+        let answer = take_steps(
+            http,
+            &who,
+            these,
+            &values(&accounts.b, &marker),
+            &mut session,
+            &users.private,
+        );
+        let worked = finished(&answer, &flow.completed);
+        out.steps.push(format!(
+            "as B, {how}: {}",
+            if worked { "finished" } else { "refused" }
+        ));
+        if worked {
+            skipped.push(*how);
+        }
+    }
+
+    if skipped.is_empty() {
+        out.verified.push(crate::Verified::new(
+            STEP_SKIPPED.rule_id,
+            STEP_SKIPPED.requirement_ids,
+            format!(
+                "a {}-step flow skipped {} way{}, refused each time, where the steps in order \
+                 finished",
+                steps.len(),
+                tries.len(),
+                if tries.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &STEP_SKIPPED,
+            "A step of the flow can be skipped",
+            Severity::High,
+            format!(
+                "The flow ended in \"{}\" for B, going {}. Only going through every step in order \
+                 should get there.",
+                flow.completed,
+                skipped.join(", and also ")
+            ),
+        ));
+    }
+}
+
 fn upload_checks(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -4901,6 +5268,8 @@ mod tests {
     #[derive(Default)]
     struct FakeApp {
         flaws: Flaws,
+        /// How far each user has got through the checkout.
+        checkout: BTreeMap<String, u32>,
         users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
         sessions: BTreeMap<String, String>,      // session id -> user ("" = not signed in)
         notes: Vec<(String, String)>,            // (owner, text)
@@ -4934,6 +5303,9 @@ mod tests {
         code_failures: BTreeMap<String, u32>,
     }
 
+    /// The fake app's own context-specific word, as an owner would list it in `context-words`.
+    const CONTEXT_WORD: &str = "acmenotes";
+
     #[derive(Default, Clone, Copy)]
     struct Flaws {
         private_open: bool,
@@ -4951,6 +5323,20 @@ mod tests {
         short_password_ok: bool,
         /// Sign-up takes a password from the common list.
         common_password_ok: bool,
+        /// Sign-up takes a password from far down the common list.
+        breached_password_ok: bool,
+        /// Any step of the checkout can be taken first.
+        flow_unguarded: bool,
+        /// The last step of the checkout needs the first, and not the one between.
+        flow_checks_first_only: bool,
+        /// A refused checkout step says "Order placed" in its refusal.
+        flow_refusal_says_placed: bool,
+        /// The checkout's last step never finishes, even in order.
+        flow_broken: bool,
+        /// A refused checkout step sends the browser back to the first step, as many apps do.
+        flow_refusal_redirects: bool,
+        /// Sign-up takes a password containing the app's context word.
+        context_word_ok: bool,
         /// Sign-up wants a capital and a digit in every password.
         composition_rules: bool,
         /// `admin` / `admin` is an account.
@@ -5190,6 +5576,12 @@ mod tests {
                 return false;
             }
             if password == COMMON && !self.flaws.common_password_ok {
+                return false;
+            }
+            if password == BREACHED && !self.flaws.breached_password_ok {
+                return false;
+            }
+            if password.to_ascii_lowercase().contains(CONTEXT_WORD) && !self.flaws.context_word_ok {
                 return false;
             }
             if self.flaws.composition_rules
@@ -5852,6 +6244,43 @@ mod tests {
                         Self::respond(404, vec![], "none")
                     }
                 }
+                ("POST", step) if step.starts_with("/checkout/") => {
+                    let Some(who) = user.clone() else {
+                        return Some(Self::respond(401, vec![], "sign in"));
+                    };
+                    let n: u32 = step["/checkout/".len()..].parse().ok()?;
+                    let reached = self.checkout.get(&who).copied().unwrap_or(0);
+                    let allowed = self.flaws.flow_unguarded
+                        || reached + 1 == n
+                        || (self.flaws.flow_checks_first_only && n == 3 && reached >= 1);
+                    if (!allowed || !token_ok) && self.flaws.flow_refusal_redirects {
+                        return Some(Self::respond(
+                            303,
+                            vec![("Location", "/checkout/1".into())],
+                            "",
+                        ));
+                    }
+                    if !allowed || !token_ok {
+                        return Some(Self::respond(
+                            409,
+                            vec![],
+                            if self.flaws.flow_refusal_says_placed {
+                                "An order is placed only after the steps before it"
+                            } else {
+                                "finish the steps before this one"
+                            },
+                        ));
+                    }
+                    if n < 3 {
+                        self.checkout.insert(who, n);
+                        return Some(Self::respond(200, vec![], "next step"));
+                    }
+                    self.checkout.remove(&who);
+                    if self.flaws.flow_broken {
+                        return Some(Self::respond(200, vec![], "something went wrong"));
+                    }
+                    Self::respond(303, vec![("Location", "/orders/7".into())], "Order placed")
+                }
                 _ => Self::respond(404, vec![], "none"),
             })
         }
@@ -5930,6 +6359,12 @@ mod tests {
                     &[("code", "{code}"), ("csrf_token", "{csrf}")],
                 ),
                 code_pattern: None,
+            }),
+            flow: Some(sv_manifest::FlowSection {
+                steps: (1..=3)
+                    .map(|n| t(&format!("/checkout/{n}"), &[("csrf_token", "{csrf}")]))
+                    .collect(),
+                completed: "/orders/".into(),
             }),
         }
     }
@@ -6846,10 +7281,22 @@ mod tests {
     }
 
     fn run_signing_up(flaws: Flaws) -> Outcome {
+        run_signing_up_with(flaws, &with_words(&["Acme Notes"]))
+    }
+
+    fn run_signing_up_with(flaws: Flaws, policy: &sv_manifest::PolicySection) -> Outcome {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
-        run(&mut app, &with_signup(), &acc, false, &Default::default())
+        run(&mut app, &with_signup(), &acc, false, policy)
+    }
+
+    /// A policy listing these context-specific words, as an owner would write them.
+    fn with_words(words: &[&str]) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            context_words: words.iter().map(|w| (*w).to_owned()).collect(),
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -6863,6 +7310,8 @@ mod tests {
             ALTERED_PASSWORD.rule_id,
             LONG_PASSWORD.rule_id,
             UNMASKED_PASSWORD.rule_id,
+            BREACHED_PASSWORD.rule_id,
+            CONTEXT_WORD_PASSWORD.rule_id,
         ] {
             assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
         }
@@ -6906,6 +7355,20 @@ mod tests {
                     ..Default::default()
                 },
                 COMPOSITION_RULES.rule_id,
+            ),
+            (
+                Flaws {
+                    breached_password_ok: true,
+                    ..Default::default()
+                },
+                BREACHED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    context_word_ok: true,
+                    ..Default::default()
+                },
+                CONTEXT_WORD_PASSWORD.rule_id,
             ),
             (
                 Flaws {
@@ -7359,6 +7822,311 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    fn run_flow(flaws: Flaws, users: &UsersSection) -> Outcome {
+        run_against(flaws, users)
+    }
+
+    fn flow_not_assessed(o: &Outcome) -> Option<&str> {
+        o.not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V2.3.1")
+            .map(|(_, why)| why.as_str())
+    }
+
+    #[test]
+    fn a_flow_that_refuses_both_skips_is_supported_and_found_nothing() {
+        let o = run_flow(Flaws::default(), &users());
+        assert!(
+            !rule_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}\n{:?}",
+            o.steps,
+            o.not_assessed
+        );
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("in order as A: finished")),
+            "the control is not in the steps: {:?}",
+            o.steps
+        );
+        assert_eq!(
+            o.steps
+                .iter()
+                .filter(|s| s.starts_with("as B,") && s.ends_with("refused"))
+                .count(),
+            2,
+            "both skips, straight to the end and past the middle: {:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_step_that_can_be_skipped_is_found_whichever_way_it_is_skipped() {
+        for (flaws, how) in [
+            (
+                Flaws {
+                    flow_unguarded: true,
+                    ..Default::default()
+                },
+                "straight to the last step",
+            ),
+            (
+                Flaws {
+                    flow_checks_first_only: true,
+                    ..Default::default()
+                },
+                "the first step and then the last",
+            ),
+        ] {
+            let o = run_flow(flaws, &users());
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == STEP_SKIPPED.rule_id)
+                .unwrap_or_else(|| panic!("{how}: not found: {:?}", o.steps));
+            assert!(f.description.contains(how), "{how}: {}", f.description);
+            assert!(
+                !verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+                "{how}: credited as well"
+            );
+        }
+    }
+
+    #[test]
+    fn a_refusal_that_mentions_the_finishing_words_is_still_a_refusal() {
+        // The owner's words can turn up on an error page ("an order is placed only after…"). An
+        // answer counts as finished only when the app accepted it.
+        let mut u = users();
+        u.flow.as_mut().unwrap().completed = "placed".into();
+        let o = run_flow(
+            Flaws {
+                flow_refusal_says_placed: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        assert!(
+            !rule_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_refusal_that_sends_the_browser_back_to_the_start_is_a_refusal() {
+        // 303 is an accepted status. Only the owner's words tell a redirect to the finished order
+        // from a redirect back to step one.
+        let o = run_flow(
+            Flaws {
+                flow_refusal_redirects: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            !rule_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_flow_that_does_not_finish_in_order_says_so_and_credits_nothing() {
+        // Every skip is refused by an app whose flow never finishes. That is not a guarded flow.
+        let o = run_flow(
+            Flaws {
+                flow_broken: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            !verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+            "credited a broken flow"
+        );
+        assert!(!rule_ids(&o).contains(&STEP_SKIPPED.rule_id));
+        let why = flow_not_assessed(&o).expect("V2.3.1 is named as not assessed");
+        assert!(why.contains("in order as A"), "{why}");
+    }
+
+    #[test]
+    fn a_two_step_flow_is_skipped_the_one_way_it_can_be() {
+        let mut u = users();
+        let flow = u.flow.as_mut().unwrap();
+        flow.steps.remove(1);
+        flow.steps[1].path = "/checkout/2".into();
+        flow.completed = "next step".into();
+        let o = run_flow(Flaws::default(), &u);
+        let v = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == STEP_SKIPPED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}\n{:?}", o.steps, o.not_assessed));
+        assert!(v.scope.contains("1 way,"), "{}", v.scope);
+    }
+
+    #[test]
+    fn a_flow_described_too_thinly_to_try_is_not_assessed() {
+        let mut one = users();
+        one.flow.as_mut().unwrap().steps.truncate(1);
+        let mut silent = users();
+        silent.flow.as_mut().unwrap().completed = "  ".into();
+        for (u, says) in [(one, "fewer than two"), (silent, "completed")] {
+            let o = run_flow(Flaws::default(), &u);
+            let why = flow_not_assessed(&o).unwrap_or_else(|| panic!("{says}: not named"));
+            assert!(why.contains(says), "{why}");
+            assert!(!verified_ids(&o).contains(&STEP_SKIPPED.rule_id));
+        }
+    }
+
+    #[test]
+    fn with_no_flow_nothing_is_said_about_v2_3_1() {
+        let mut u = users();
+        u.flow = None;
+        let o = run_flow(Flaws::default(), &u);
+        assert!(flow_not_assessed(&o).is_none());
+        assert!(!verified_ids(&o).contains(&STEP_SKIPPED.rule_id));
+        assert!(!rule_ids(&o).contains(&STEP_SKIPPED.rule_id));
+    }
+
+    #[test]
+    fn with_no_context_words_listed_v6_2_11_is_not_assessed_and_says_how_to_list_them() {
+        // V6.2.11 asks that the *documented* list is used. Guessing at words would be testing a
+        // list nobody wrote, so no list means nothing to hold the app to.
+        let o = run_signing_up_with(
+            Flaws {
+                context_word_ok: true,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        assert!(
+            !rule_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id),
+            "found a fault against a list nobody wrote"
+        );
+        assert!(!verified_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.11")
+            .expect("V6.2.11 is named as not assessed");
+        assert!(why.contains("context-words"), "{why}");
+    }
+
+    #[test]
+    fn a_list_of_words_too_short_to_try_is_not_assessed_rather_than_padded() {
+        let o = run_signing_up_with(Flaws::default(), &with_words(&["ab", "x!y"]));
+        assert!(!verified_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V6.2.11" && why.contains("between 4 and 32")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_refusal_that_also_refuses_the_control_credits_neither_new_rule() {
+        // Composition rules refuse both the listed password and its random twin, since neither
+        // has a capital. A refusal the control shares is about the shape, not the password.
+        let o = run_signing_up(Flaws {
+            composition_rules: true,
+            ..Default::default()
+        });
+        for (id, rule) in [
+            ("V6.2.12", BREACHED_PASSWORD.rule_id),
+            ("V6.2.11", CONTEXT_WORD_PASSWORD.rule_id),
+        ] {
+            assert!(!verified_ids(&o).contains(&rule), "{rule} credited");
+            assert!(!rule_ids(&o).contains(&rule), "{rule} found");
+            assert!(
+                o.not_assessed.iter().any(|(ids, _)| ids == id),
+                "{id} not named: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn the_breached_password_and_its_count_are_the_ones_the_evidence_records() {
+        // The finding calls this password breached on the strength of one recorded check. Changing
+        // the password, or the count the finding quotes, without new evidence must fail here.
+        let evidence: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/breached-password-evidence.json"
+        ))
+        .expect("the evidence file parses");
+        assert_eq!(
+            evidence["password"], BREACHED,
+            "a different password than the one checked"
+        );
+        let seen = evidence["seen"].as_u64().expect("a count");
+        let sha1 = evidence["sha1"].as_str().expect("a hash");
+        assert_eq!(
+            evidence["line"].as_str(),
+            Some(format!("{}:{seen}", &sha1[5..]).as_str()),
+            "the recorded line is not the one for this hash"
+        );
+        let with_commas = seen
+            .to_string()
+            .as_bytes()
+            .rchunks(3)
+            .rev()
+            .map(|c| std::str::from_utf8(c).unwrap())
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(
+            BREACHED_SEEN.starts_with(&format!("{with_commas} times")),
+            "the finding says {BREACHED_SEEN:?}; the evidence says {seen}"
+        );
+    }
+
+    #[test]
+    fn the_control_has_the_same_shape_and_none_of_the_characters() {
+        let spare = "0123456789abcdef0123456789abcdef";
+        let twin = random_like(BREACHED, spare);
+        assert_eq!(twin.len(), BREACHED.len());
+        for (a, b) in BREACHED.chars().zip(twin.chars()) {
+            assert_eq!(
+                a.is_ascii_digit(),
+                b.is_ascii_digit(),
+                "{BREACHED} / {twin}"
+            );
+            assert_eq!(
+                a.is_ascii_lowercase(),
+                b.is_ascii_lowercase(),
+                "{BREACHED} / {twin}"
+            );
+        }
+        assert_ne!(twin, BREACHED);
+        assert!(!twin.contains(CONTEXT_WORD));
+    }
+
+    #[test]
+    fn the_context_password_is_the_word_repeated_past_any_length_rule() {
+        let (word, password) = context_password(&["Hi".into(), "Acme Notes".into()]).unwrap();
+        assert_eq!(word, "Acme Notes", "the first word long enough, as written");
+        assert_eq!(password, "acmenotesacmenotes");
+        assert!(password.len() >= 16);
+        assert_eq!(context_password(&["ab".into()]), None);
+        assert_eq!(context_password(&[]), None);
     }
 
     #[test]

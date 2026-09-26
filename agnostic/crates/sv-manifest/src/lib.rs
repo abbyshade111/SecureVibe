@@ -267,6 +267,9 @@ pub struct UsersSection {
     /// in the same session that asked for it. Only used when the run has a mail sink.
     #[serde(default)]
     pub email_code: Option<ResetSection>,
+    /// A flow of more than one step, so the probes can try skipping one.
+    #[serde(default)]
+    pub flow: Option<FlowSection>,
 }
 
 /// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code
@@ -289,6 +292,22 @@ pub struct ResetSection {
     /// `reset` (for a reset) or a sign-in word (for `email-code`), or a code after the word `code`.
     #[serde(default)]
     pub code_pattern: Option<String>,
+}
+
+/// A flow of more than one step, such as a checkout, and how to tell that it really finished.
+///
+/// V2.3.1 asks that steps are taken in order and none is skipped. The probes go through the steps
+/// in order as the first user, which has to end in `completed` or nothing can be told, and then, as
+/// the second user in a fresh session, go straight to the last step, and do the first and then the
+/// last. Either of those ending in `completed` is a step the app let somebody skip.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct FlowSection {
+    /// The steps, in the order a person takes them, each with `{csrf}` and `{marker}` as elsewhere.
+    pub steps: Vec<RequestTemplate>,
+    /// Text the last step answers with only when the whole flow really finished: in the page, or in
+    /// the address it sends the browser on to. "Order placed", say, or `/orders/`.
+    pub completed: String,
 }
 
 /// How to upload a file, and what the owner says the app accepts.
@@ -479,6 +498,11 @@ pub struct PolicySection {
     /// frames, as numbers `sv audit` can hold the app's packages to for V15.2.1.
     #[serde(default)]
     pub fix_within_days: Option<FixWithinDays>,
+    /// Words a password must not be built from: the app's name, the organization's, a product or
+    /// project name. V6.2.11's documented list of context-specific words, as a list the sign-up
+    /// probe can try one of.
+    #[serde(default)]
+    pub context_words: Vec<String>,
 }
 
 /// The remediation time frames, one per severity. A severity left out has no time frame, and a

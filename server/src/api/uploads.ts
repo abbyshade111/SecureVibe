@@ -189,7 +189,12 @@ export function uploadsRouter(deps: ApiDeps): Router {
       }
       // Checked on the header: an empty file has no body, and the body-type helpers ignore requests without one.
       if (!/^application\/octet-stream\b/i.test(req.headers['content-type'] ?? '')) throw validationError('Send the file as raw bytes (application/octet-stream).');
-      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      // Copied once, as the archive route below does and for the same reason: CodeQL follows the request
+      // body itself into every read of it and reports "parameter tampering" on whichever line touches it
+      // next. Three of those have been dismissed as false positives on this route already (alerts 43, 44
+      // and 45, at lines 193, 200 and 203 as the file then stood), and the alert walks down the file as it
+      // is edited. A Buffer of ours ends that, and costs one copy bounded by maxFileBytes.
+      const body = Buffer.isBuffer(req.body) ? Buffer.from(req.body) : Buffer.alloc(0);
       const reason = skipReason(rel, body.length);
       if (reason) {
         session.skipped++;

@@ -56,6 +56,10 @@ health = "/"              # a path that returns 200 once the app is up
 # email-code = { request = { path = "/login/code", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/login/verify", form = { code = "{code}", csrf_token = "{csrf}" } } }
 #   Signing in with a code or link the app emails, beside the password. The code is used in the
 #   same browser session that asked for it; `code-pattern` works as for `reset`.
+# flow = { steps = [{ path = "/checkout/address", form = { street = "1 Main St", csrf_token = "{csrf}" } }, { path = "/checkout/pay", form = { card = "4242", csrf_token = "{csrf}" } }, { path = "/checkout/confirm", form = { csrf_token = "{csrf}" } }], completed = "Order placed" }
+#   Anything done in more than one step, in order. `completed` is text the last step answers with
+#   only when the whole thing really finished — in the page, or in the address it sends you on to.
+#   The probes go through it once in order, then try skipping steps as another user.
 
 [data]
 # What kinds of information the app holds about people.
@@ -110,6 +114,10 @@ multimodal = false        # does it take images, video or audio, rather than typ
 # The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares
 # each one's age with these; a severity left out is counted as overdue whatever its age.
 # fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
+# Words nobody should be able to build a password from: the app's name, your organization's, a
+# product or project name. The sign-up probe tries a password made of the first one of at least
+# four letters, and the app should refuse it.
+# context-words = ["myapp", "myorganization"]
 
 # How the app is built. These are the questions no tool can settle, so only you can answer them.
 # Each one is "yes", "no", or "not-sure", and `where` names the file that does it.

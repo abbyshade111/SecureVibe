@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 104 (30%) | 3 | 238 |
+| OWASP ASVS 5.0 | 345 | 110 (32%) | 5 | 230 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -42,22 +42,22 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 51 | 7 | 1 | 3 | 28 | 20 | 2 |
-| L2 | 183 | 49 | 4 | 0 | 13 | 17 | 21 | 1 |
+| L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
+| L2 | 183 | 54 | 4 | 0 | 13 | 18 | 25 | 1 |
 | L3 | 92 | 4 | 1 | 0 | 0 | 1 | 2 | 0 |
 
-With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
+With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ## ASVS 5.0 by chapter
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
-| V2 Validation and Business Logic | 13 | 1 | 0 | 12 |
+| V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
+| V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
-| V6 Authentication | 47 | 18 | 0 | 29 |
+| V6 Authentication | 47 | 19 | 1 | 27 |
 | V7 Session Management | 19 | 6 | 0 | 13 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
@@ -66,8 +66,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V12 Secure Communication | 12 | 5 | 1 | 6 |
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
-| V15 Secure Coding and Architecture | 21 | 5 | 0 | 16 |
-| V16 Security Logging and Error Handling | 17 | 7 | 0 | 10 |
+| V15 Secure Coding and Architecture | 21 | 7 | 0 | 14 |
+| V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -76,33 +76,33 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
-| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
-| V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep` |
-| V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep` |
-| V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep` |
-| V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep` |
+| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
-| V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (60)
+### Settled by asking the running app (61)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
-| V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
-| V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
-| V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep` |
+| V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
+| V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
+| V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` |
 | V3.4.3 | L2 | The running app: `probe.security-headers` |
 | V3.4.4 | L2 | The running app: `probe.security-headers` |
 | V3.4.5 | L2 | The running app: `probe.security-headers` |
 | V3.4.6 | L2 | The running app: `probe.security-headers` |
-| V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep` |
+| V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
@@ -122,6 +122,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V6.2.7 | L1 | Signed in: `probe.password-paste-blocked` |
 | V6.2.8 | L1 | Signed in: `probe.password-altered` |
 | V6.2.9 | L2 | Signed in: `probe.long-password-refused` |
+| V6.2.11 | L2 | Signed in: `probe.context-word-password-accepted` |
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
 | V6.3.2 | L1 | Signed in: `probe.default-account` |
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` |
@@ -140,7 +141,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
-| V13.4.2 | L2 | The running app: `probe.error-detail-leak`; Outside tools: `bandit`, `semgrep` |
+| V13.4.2 | L2 | The running app: `probe.error-detail-leak`; Outside tools: `bandit`, `semgrep`, `codeql-python` |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
@@ -160,52 +161,59 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (28)
+### Settled only by an outside tool (33)
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.1 | L1 | Outside tools: `brakeman`, `semgrep` |
+| V1.2.1 | L1 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.2.2 | L1 | Outside tools: `codeql-javascript` (codeql-javascript only ever as a finding: `js/incomplete-url-scheme-check`) |
 | V1.2.3 | L1 | Outside tools: `brakeman` |
-| V1.2.6 | L2 | Outside tools: `semgrep` |
-| V1.2.7 | L2 | Outside tools: `semgrep` |
-| V1.3.6 | L2 | Outside tools: `gosec`, `semgrep` |
-| V1.3.7 | L2 | Outside tools: `brakeman`, `semgrep` |
-| V1.3.10 | L2 | Outside tools: `semgrep` |
-| V1.3.12 | L3 | Outside tools: `brakeman`, `semgrep` |
-| V1.5.1 | L1 | Outside tools: `semgrep` |
+| V1.2.6 | L2 | Outside tools: `semgrep`, `codeql-python` |
+| V1.2.7 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.2.9 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
+| V1.3.6 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.3.7 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.3.10 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
+| V1.3.12 | L3 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.5.1 | L1 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.2.2 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `insecure-document-method`, `insecure-innerhtml`, `react-dangerouslysetinnerhtml`) |
-| V3.3.1 | L1 | Outside tools: `brakeman`, `semgrep` |
-| V3.5.5 | L2 | Outside tools: `semgrep` |
+| V3.3.1 | L1 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V3.5.5 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V4.4.1 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`) |
-| V5.3.3 | L3 | Outside tools: `semgrep` |
-| V9.1.1 | L1 | Outside tools: `semgrep` |
+| V5.3.3 | L3 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
+| V9.1.1 | L1 | Outside tools: `semgrep`, `codeql-javascript` |
 | V9.1.2 | L1 | Outside tools: `semgrep` |
 | V9.2.1 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `jwt-tokenvalidationparameters-no-expiry-validation`) |
-| V11.2.3 | L2 | Outside tools: `brakeman`, `semgrep` |
+| V11.2.3 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V11.3.3 | L2 | Outside tools: `semgrep` |
-| V11.4.2 | L2 | Outside tools: `semgrep` |
+| V11.4.2 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V11.4.3 | L2 | Outside tools: `semgrep` |
-| V11.5.1 | L2 | Outside tools: `gosec`, `semgrep` |
-| V12.1.1 | L1 | Outside tools: `semgrep` |
+| V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
+| V12.1.1 | L1 | Outside tools: `semgrep`, `codeql-python` |
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
-| V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
 | V15.3.3 | L2 | Outside tools: `brakeman`, `semgrep` |
-| V16.2.5 | L2 | Outside tools: `semgrep` |
+| V15.3.5 | L2 | Outside tools: `codeql-javascript` |
+| V15.3.6 | L2 | Outside tools: `codeql-javascript` |
+| V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
+| V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (3)
+### Supporting only (5)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
+| V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (18)
+### Level 1 with no check at all (16)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.3.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V1.3.1, V2.1.1, V2.2.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
@@ -228,18 +236,18 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
 
-7 of these 8 can only ever be marked *needs attention*: semgrep's rules
-about applications that call a model can show the control missing, and finding nothing does not
+7 of these 8 can only ever be marked *needs attention*: the rules
+about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
-- C2.1.6: found failing by semgrep's `anthropic-user-input-in-system-prompt`, `cohere-user-input-in-system-prompt`, `gemini-user-input-in-system-prompt`, `mistral-user-input-in-system-prompt`, `openai-user-input-in-system-prompt`.
-- C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
-- C7.1.2: found failing by semgrep's `anthropic-missing-max-tokens`, `openai-missing-max-tokens`.
-- C7.3.1: found failing by semgrep's `cohere-safety-mode-off`.
-- C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
-- C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
-- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
-- C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
+- C2.1.6: settled by `codeql-javascript` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `('codeql-javascript', 'js/system-prompt-injection')`, `('semgrep', 'anthropic-user-input-in-system-prompt')`, `('semgrep', 'cohere-user-input-in-system-prompt')`, `('semgrep', 'gemini-user-input-in-system-prompt')`, `('semgrep', 'mistral-user-input-in-system-prompt')`, `('semgrep', 'openai-user-input-in-system-prompt')`.
+- C2.2.1: found failing by semgrep's `('semgrep', 'mistral-missing-moderation')`, `('semgrep', 'openai-missing-moderation')`, `('semgrep', 'openai-missing-moderation-check')`.
+- C7.1.2: found failing by semgrep's `('semgrep', 'anthropic-missing-max-tokens')`, `('semgrep', 'openai-missing-max-tokens')`.
+- C7.3.1: found failing by semgrep's `('semgrep', 'cohere-safety-mode-off')`.
+- C9.1.2: found failing by semgrep's `('semgrep', 'agent-unbounded-loop')`.
+- C9.3.1: found failing by semgrep's `('semgrep', 'langchain-dangerous-exec')`.
+- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `('semgrep', 'mcp-credential-in-response')`.
+- C10.4.2: found failing by semgrep's `('semgrep', 'mcp-tool-poisoning')`, `('semgrep', 'mcp-unsanitized-return')`.
 
 ## Secure by Design checklist 0.5.0 by domain
 

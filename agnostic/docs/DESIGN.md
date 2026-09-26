@@ -644,7 +644,7 @@ report then names it.
 Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already
 has a tool that knows its own traps, and the useful thing `sv` can do is run it and read the result
 rather than re-implement a hundred rules badly in Rust. `data/adapters.json` describes bandit, gosec,
-brakeman and semgrep; adding a fifth is a data change. `sv report --tools` runs the ones that suit the
+brakeman, semgrep, and CodeQL; adding another is a data change. `sv report --tools` runs the ones that suit the
 app, opt-in for the same reason as `--run` and one more: one of them fetches its rules over the network
 the first time it runs, and that is stated in the file rather than discovered from a firewall log.
 
@@ -840,6 +840,44 @@ What `sv`'s own code rules could add was looked at and not written. Every one of
 one place to another (a request value into a system prompt, a response into a tool's return value),
 and the code rules match a call and its arguments. A rule that fired on any string reaching
 `messages` would mostly report the user message, which is where user input belongs.
+
+### CodeQL: following a value, which no rule here could
+
+Every rule `sv` writes, and nearly every semgrep rule, matches a call: `eval(...)`, a query built with
+`+`. None of them follows a value from where it enters the app to where it is used, and that is what
+several requirements are really about: a regular expression built from what somebody typed (V1.2.9),
+a parameter that arrives as an array where the code assumed a string (V15.3.5), a property name from
+the request that reaches an object's prototype (V15.3.6), input written to a log unencoded (V16.4.1).
+CodeQL does follow it (taint tracking), and it already runs in this repository's own CI.
+
+Two entries, `codeql-javascript` (which also reads TypeScript, so its `language` names both) and
+`codeql-python`, each running the bundle's `security-extended` suite offline. CodeQL works in two steps,
+so an adapter can now have a `prepare` step before `run`, with a `{database}` folder that passes between
+them, made fresh for each run and removed afterwards. A database that cannot be built means the tool did
+not run, in the words CodeQL used; a database left by an earlier run is removed first, because analyzing
+it would report on somebody else's code.
+
+Three things about reading its reports, each found by running it rather than from its documentation:
+
+- **Severity and weakness are on the rule, not the result.** CodeQL's results carry neither a level nor
+  tags. The rule has a `security-severity` score, read on the CVSS bands (9.8 is critical), and tags
+  written `external/cwe/cwe-079`, read as `CWE-79`. Every adapter now falls back to the rule's own.
+- **A clean run is credited only with the rules its report says ran** (`credit_loaded_only`). The suite
+  is chosen, not everything CodeQL has, so the map can know rules that did not run.
+- **A run that read no code is not clean.** CodeQL reports the lines of the app's own code it extracted;
+  zero means it read nothing, and a report with no findings is then recorded as not a clean result.
+
+The map follows the same vocabulary as the other tools, so the citation guard reads it the same way:
+49 JavaScript and 32 Python queries. A query that fits no requirement cleanly (`js/missing-rate-limiting`,
+say) is left unmapped, and its finding is still shown with no requirement attached. Two are only ever
+findings: `js/incomplete-url-scheme-check` shows half of V1.2.2 missing and a clean run says nothing about
+URL encoding, and `js/system-prompt-injection` is evidence against AISVS C2.1.6 exactly as semgrep's
+rule is. Level 1 goes from 51 to 52 of 70 and Level 2 from 49 to 53 of 183, each with `--tools` and
+CodeQL installed.
+
+Tested with a stand-in that plays both steps and replays reports from a real CodeQL 2.27.1 run, and once
+against the real tool when it is on the PATH, which here it was: it built the database, analyzed it,
+and found the cross-site scripting it was given, in 29 seconds.
 
 ### Three more wrong citations, in the place the guard could not see
 
@@ -2353,6 +2391,68 @@ account has, which exercises an address-based limiter only. The report says whic
 the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
+
+### Skipping a step (V2.3.1)
+
+`flow` under `[stack.run.users]` names a flow of several steps — a checkout, a sign-up with a
+confirmation — and `completed`, words the last step answers with only when the whole thing finished,
+in the page or in the address it sends the browser on to. A goes through every step in order first,
+and that has to end in `completed`: an app whose flow does not work as described refuses every skip,
+and that is not a guarded flow. Then B, signed in afresh each time so nothing carries over, goes
+straight to the last step, and — when there is a middle to leave out — does the first step and then
+the last. Either ending in `completed` is a finding; both refused supports V2.3.1, which stays on
+`manualOnly` at the owner's word, since two skips refused is not every order refused. Doing a step
+twice, and the wrong order other than by leaving steps out, are not tried, and the hand check says
+they are still the owner's.
+
+Only an answer the app accepted counts as finished, and only because of the owner's words. Both
+halves have a case of their own: an error page saying "an order is placed only after the steps before
+it" is a refusal, and so is a `303` back to the first step, which is an accepted status and the way
+many apps answer a skipped step. That second case was added after the first run of breaks: judging a
+skip by its status alone was caught by nothing until it existed.
+
+Seven breaks, each caught: any status counting as finished, no control, the middle never skipped, a
+skip judged by status alone, the redirect address ignored, a working skip credited, and a one-step
+flow tried anyway. The flow is also in the default test fixture, so every signed-in test runs it and
+the checks after it are shown not to be disturbed by it.
+
+### Two more passwords at sign-up: one far down the list, one made from your own words
+
+The password checks already sign up with a control — an ordinary strong password that has to work
+before anything else means anything — and then with passwords that each differ from it in one thing.
+Two more join them, each with a twin of its own: a random password of exactly the same shape, every
+letter a random letter and every digit a random digit. A refusal counts only when the twin was
+accepted, because a refusal the twin shares is about the shape (a composition rule, a length rule),
+not about the password.
+
+**V6.2.12, breached passwords.** `1qaz2wsx3edc4rfv`, at line 12,393 of
+`data/knowledge/common-passwords.txt`: well past the top 3000 that V6.2.4 asks about, so an app that
+checks only those accepts it, and 16 characters, so no length rule up to 16 refuses it first. Two
+things limit what it can say, and both are said:
+
+* **The list's source is not recorded in this repository**, so the password's being breached is not
+  taken from it. It is Have I Been Pwned's count: the Pwned Passwords range for the first five
+  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The request was
+  refused from here by the network policy, so the owner fetched the range in a browser on
+  26 September 2026 and pasted it in; the matching line, the hash, and the date are in
+  `data/breached-password-evidence.json`, and the finding quotes the count. A test holds the
+  password and the quoted count to that file, and changing either without new evidence fails it.
+  Re-checking it with a script, and sampling the whole list, is its own backlog item.
+* **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
+  refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
+  one refused password shows that a list longer than 3000 is checked, not that it is a set of
+  breached passwords, and the list is v1's too. An acceptance is still a finding.
+
+**V6.2.11, context-specific words.** The requirement asks that *the documented list* is used, so the
+list is the owner's, as a policy: `[policy] context-words = ["acme", "notes"]`. The first word with
+between 4 and 32 letters or digits is lowercased and repeated past 16 characters. With no list, or no
+usable word on it, V6.2.11 is *not assessed* and says how to list them: guessing at words — the app's
+name, say — would be testing a list nobody wrote. The v1 template refuses a password containing the
+app's name, compared without case, which is the same rule seen from the other side.
+
+Seven breaks, each caught: an accepted password credited (for each rule), a refusal credited without
+its twin (for each rule), a list guessed when none was given, one-letter words tried, and a twin
+that was really the password itself.
 
 ## What only you can check
 
