@@ -32,6 +32,15 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .collect::<Vec<_>>()
                 .join("; ")
         ),
+        Status::ByHand => format!(
+            "{} \u{2014} your word, from a check you made by hand: {}",
+            line.status.label(),
+            line.by_hand
+                .iter()
+                .map(|c| c.scope.clone())
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
         Status::Attested | Status::Stated => format!(
             "{} \u{2014} {}, not a check: {}",
             line.status.label(),

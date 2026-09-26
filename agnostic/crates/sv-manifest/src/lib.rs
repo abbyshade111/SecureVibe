@@ -692,6 +692,28 @@ pub struct DesignAnswer {
     pub by: Option<String>,
 }
 
+/// One check made by hand, and what was seen. See `sv-check::hand`.
+///
+/// A person looked at the running app or its setup — the certificate on the live site, whether a
+/// booking can be made twice — and says what happened. `how` is required because it is the whole of
+/// the evidence: one sentence anyone can read and judge. `on` is required because a check goes out
+/// of date; what held in March says little about the app in October.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct HandCheck {
+    /// `done`, `problem`, or `not-yet`. Anything else is reported as unreadable.
+    pub result: String,
+    /// The day it was checked, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub on: Option<String>,
+    /// `owner` or `ai-tool`, as for a design answer; left out, it counts as the AI tool's.
+    #[serde(default)]
+    pub by: Option<String>,
+    /// What was done and what was seen, in a sentence.
+    #[serde(default)]
+    pub how: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Manifest {
@@ -710,6 +732,9 @@ pub struct Manifest {
     /// The design questions, keyed by requirement id. See `sv-check::design`.
     #[serde(default)]
     pub design: std::collections::BTreeMap<String, DesignAnswer>,
+    /// The checks made by hand, keyed by requirement id. See `sv-check::hand`.
+    #[serde(default)]
+    pub checked_by_hand: std::collections::BTreeMap<String, HandCheck>,
     /// The policy numbers a probe can hold the running app to.
     #[serde(default)]
     pub policy: PolicySection,

@@ -113,6 +113,12 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
             c.attested,
         ));
     }
+    if c.by_hand > 0 {
+        rows.push((
+            "you checked by hand and wrote down what you saw".to_owned(),
+            c.by_hand,
+        ));
+    }
     if c.stated > 0 {
         rows.push((
             "your AI coding tool answered yes about how the app is built".to_owned(),
@@ -483,6 +489,7 @@ mod tests {
             supported_by: Vec::new(),
             documented_by: Vec::new(),
             attested_by: Vec::new(),
+            by_hand: Vec::new(),
         }
     }
 
