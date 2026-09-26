@@ -484,6 +484,77 @@
       }
     },
     {
+      "id": "ast.unauthenticated-encryption",
+      "title": "Data is encrypted in a way that does not show whether it was changed",
+      "severity": "medium",
+      "confidence": "low",
+      "requirementIds": [
+        "V11.3.3"
+      ],
+      "cwe": [
+        "CWE-353"
+      ],
+      "description": "Data is encrypted with a block mode that keeps it secret but cannot tell when it has been altered: CBC, CTR, CFB, or OFB. Someone who can change the encrypted data can often change what it decrypts to, without knowing the key.",
+      "impact": "Encrypted data that is stored or sent somewhere a person can reach, such as a cookie, a token, or a file, can be tampered with, and the app will decrypt and trust the altered result. With CBC, error messages about padding can also let somebody decrypt it bit by bit.",
+      "fix": "Use an authenticated mode: AES-GCM or ChaCha20-Poly1305, or a library that does it for you (Fernet, libsodium's secretbox, Tink). If this code already signs the encrypted data with a separate HMAC and checks it before decrypting, it is correct as it is: this rule sees one call at a time and cannot see the HMAC, which is why it is only ever a finding and never a clean result.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(attribute object: (identifier) @mod attribute: (identifier) @fn) @hit",
+        "javascript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)) @hit",
+        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument) . (argument (_) @arg))) @hit",
+        "ruby": "(call receiver: (scope_resolution name: (constant) @mod) method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
+        "java": "(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
+        "csharp": "(member_access_expression expression: (identifier) @mod name: (identifier) @fn) @hit",
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
+        "dart": "[(member_expression object: (identifier) @mod property: (identifier) @fn)\n (call_expression function: (identifier) @fn @mod)] @hit",
+        "swift": "(simple_identifier) @fn @hit",
+        "c": "(call_expression function: (identifier) @fn) @hit",
+        "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
+        "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(CBC|CTR|CFB|CFB8|OFB|MODE_CBC|MODE_CTR|MODE_CFB|MODE_OFB|MODE_OPENPGP)$",
+        "javascript": "^(createCipheriv|createDecipheriv)$",
+        "typescript": "^(createCipheriv|createDecipheriv)$",
+        "go": "^(NewCBCEncrypter|NewCBCDecrypter|NewCTR|NewCFBEncrypter|NewCFBDecrypter|NewOFB)$",
+        "php": "^(openssl_encrypt|openssl_decrypt)$",
+        "ruby": "^new$",
+        "java": "^getInstance$",
+        "csharp": "^(CBC|CFB|OFB|CTS)$",
+        "kotlin": "^getInstance$",
+        "dart": "^(cbc|ctr|cfb64|ofb64|sic|CBCBlockCipher|CTRStreamCipher|CFBBlockCipher|OFBBlockCipher|SICStreamCipher)$",
+        "swift": "^(kCCModeCBC|kCCModeCTR|kCCModeCFB|kCCModeCFB8|kCCModeOFB|CBC|CTR|CFB|OFB)$",
+        "c": "^(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$",
+        "rust": "^(new|new_from_slices?|aes_\\d+_(cbc|ctr|cfb\\d*|ofb)|chacha20)$",
+        "shell": "^openssl$"
+      },
+      "modulePatterns": {
+        "python": "^(modes|AES)$",
+        "go": "^cipher$",
+        "ruby": "^Cipher$",
+        "java": "^Cipher$",
+        "csharp": "^CipherMode$",
+        "kotlin": "^Cipher$",
+        "dart": "^(AESMode|CBCBlockCipher|CTRStreamCipher|CFBBlockCipher|OFBBlockCipher|SICStreamCipher)$",
+        "rust": "(^|::)Cipher$|(^|::)(cbc::(Encryptor|Decryptor)|ctr::Ctr(32|64|128)(BE|LE)|cfb_mode::(Encryptor|Decryptor)|ofb::Ofb)(::)?(<.*>)?$"
+      },
+      "argumentPatterns": {
+        "javascript": "(?i)^['\"`](aes|aria|camellia|sm4)-?\\d*-(cbc|ctr|cfb\\d*|ofb)['\"`]$",
+        "typescript": "(?i)^['\"`](aes|aria|camellia|sm4)-?\\d*-(cbc|ctr|cfb\\d*|ofb)['\"`]$",
+        "php": "(?i)^['\"](aes|aria|camellia|sm4)-?\\d*-(cbc|ctr|cfb\\d*|ofb)['\"]$",
+        "ruby": "(?i)^['\"](aes|aria|camellia|sm4)-?\\d*-(cbc|ctr|cfb\\d*|ofb)['\"]$",
+        "java": "(?i)^\"[^\"]*/(cbc|ctr|cfb\\d*|ofb\\d*|cts|pcbc)(/[^\"]*)?\"$",
+        "kotlin": "(?i)^\"[^\"]*/(cbc|ctr|cfb\\d*|ofb\\d*|cts|pcbc)(/[^\"]*)?\"$",
+        "shell": "^-(aes-\\d+-(cbc|ctr|cfb\\d*|ofb)|(aria|camellia)-\\d+-(cbc|ctr|cfb\\d*|ofb)|chacha20)$"
+      },
+      "looksFor": "encryption in CBC, CTR, CFB, or OFB mode, which keeps data secret but does not show whether it was changed; only ever a finding, because a separate HMAC elsewhere can make it correct",
+      "looksForIn": {
+        "shell": "openssl asked to encrypt with one of those modes"
+      }
+    },
+    {
       "id": "ast.open-redirect",
       "title": "The app redirects to a destination built from a value",
       "severity": "medium",
