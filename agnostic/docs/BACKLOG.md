@@ -163,10 +163,11 @@ another session is not a claim.
   plain-language view. See DESIGN, "MITRE ATLAS: adopt in part".
 
 - **Cite MITRE ATLAS techniques on the six AI threats.** Proposed on 26 September 2026 by the ATLAS
-  investigation above; **waiting for the owner's yes**, and for agreement on the v1 side, since
-  `data/knowledge/threats.json` is shared. An `atlas` list on T-07 to T-12, each with a `because`; a
+  investigation above. **The owner said yes on 26 September 2026. Claimed the same day by session
+  securevibe-e8.** Kept out of `data/knowledge/threats.json`, which v1 shares, in a file of `sv`'s
+  own, so the v1 side has nothing to agree to. An `atlas` list on T-07 to T-12, each with a `because`; a
   small file of the cited IDs and names read from a pinned release; a test that every cited ID is in
-  it; and a script that re-reads a newer release and names any ID renamed or withdrawn. Not claimed.
+  it; and a script that re-reads a newer release and names any ID renamed or withdrawn.
 
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
