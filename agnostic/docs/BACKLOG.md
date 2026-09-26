@@ -501,7 +501,11 @@ another session is not a claim.
      DESIGN, "GraphQL, WebSocket, and a log line's format". V4.4.3 and V4.4.4 (a WebSocket's own
      session) are not done: they need to know whether the connection is meant to be private, which
      no entry says yet. **V4.4.3 and V4.4.4 claimed on 26 September 2026 by session securevibe-e9**,
-     with a `private-websocket` entry under `[stack.run.users]` saying which socket needs a sign-in.
+     with a `private-websocket` entry under `[stack.run.users]` saying which socket needs a sign-in. **Done the same day:** V4.4.4 is credited when handshakes with no
+     session and with a made-up one are refused where the signed-in one upgrades, and V4.4.3 is a
+     finding when a signed-out session still opens the socket. Level 2 goes from 63 to 65 of 183. Left
+     over: V4.4.2 for a private socket, which the anonymous check cannot ask. See DESIGN, "V4.4.3 and
+     V4.4.4, a private WebSocket's session".
      Whether the log line the log check already finds is in a common format —
      JSON, logfmt, or the common log format (V16.2.4). And small
      manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a
@@ -1066,11 +1070,66 @@ another session is not a claim.
   before deciding.
   **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
   session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
+  **Measured the same day.** Four options, each over ten targets with semgrep 1.176.0: the fixture
+  app (one of each kind of fault, on purpose), the example apps, v1's app template, and the code of the
+  owner's six built apps in `workspace/projects` (copied without `.env`, data, or keys). The runs are
+  outside the repository; only these numbers are kept.
+
+  | Option | Rules | Requirements (of 50) | Owner's apps, per app | Fixture findings | Owner's apps and template, findings |
+  |---|---|---|---|---|---|
+  | A. `p/security-audit` and `p/ai-best-practices` (today) | 252 | 37 | 2.7 s | 13 | 0 |
+  | B. A and `p/default` | 1,114 | 46 | 4.8 s | 28 | 10 |
+  | C. The pinned rules: `semgrep-rules` a84ff9c, only the 1,022 mapped | 1,022 | 50 | 40.5 s | 30 | 148 |
+  | D. A and the 26 registry rules (`r/<id>`) that reach B's nine extra requirements | 278 | 46 | 11.0 s | 13 | 9 |
+
+  What the numbers say:
+
+  - **B finds real faults that A misses.** On the fixture, `p/default` added 15 findings (14
+    distinct): SQL injection, SSRF, path traversal, command injection, and two TLS settings, all among
+    the fixture's own planted faults. A missed every one, because `p/security-audit` holds the pattern rules and `p/default` holds the rules
+    that follow data from a request to where it is used. The "requirements reached" count hides this,
+    since SQL injection's requirement was already reached by other rules.
+  - **On the owner's apps, B's extra findings were all false alarms.** Nine were
+    `detect-non-literal-regexp` on patterns built from the app's own settings and route names, not
+    from anything a visitor types. All nine fall on three lines of v1's template
+    (`scripts/setup.ts:37` in every app, `src/features/ai/screening.ts:49`, and
+    `src/features/apikeys/index.ts:44`), so it is three fixes in the template, not nine. The tenth was
+    `missing-integrity` on an icon written inline as a `data:` address.
+  - **D adds the requirements and none of the catches.** It aims only at requirements not yet
+    reached, so it leaves out exactly the injection rules that made B worth having. It is also slower
+    than B, because each rule is fetched separately.
+  - **C matches the map by construction, and it costs a lot.** Semgrep loaded exactly the 1,022 mapped
+    ids, when each rule file sits in a folder of its own lowercased name and each top-level folder is
+    passed relative to the rules folder. But it took about 40 seconds an app, against 5 for B, and
+    gave 148 findings on the owner's apps and template. The ones read were false alarms:
+    `generic-api-key` on the file hashes in `securevibe.provenance.json`, `var-in-href` on `<%= appName %>`
+    in a link's text, and `html-in-template-string` on an error message containing `<id>`. One was
+    real and is `sv`'s own secret scanner's business: `FIRST-LOGIN.txt`, the one-time password v1
+    writes into the app folder. Not traced: `innerHTML` in one app's `static/app.js`, which fills
+    dashboard tiles and may or may not include text a person typed.
+  - **C also runs into the rules' license.** The Semgrep Rules License v1.0
+    (https://semgrep.dev/legal/rules-license) allows use "only for your own internal business
+    purposes" and does not allow distributing the rules. So a pinned copy cannot be kept in this
+    repository or shipped with `sv`; each owner's machine would have to fetch the commit itself. It
+    would be a fetch from GitHub instead of semgrep.dev, which is no less network. Whether an owner
+    fetching them for their own app counts as their internal use is a question for the owner, not a
+    measurement. A related one: two test fixtures
+    (`crates/sv-check/tests/fixtures/semgrep/*.sarif`) keep rule descriptions exactly as semgrep wrote them,
+    and "any portion of those rules" is in the license's definition of the rules.
+
+  **Recommendation from session relaxed-nobel-27acfa: B.** About 2 seconds an app buys the rules that
+  find injection through a request, which A is blind to. Its false alarms on these apps were one line
+  of v1's template and one inline icon. Fix those template lines at the source, and measure `p/default`
+  into `data/semgrep-packs.json` in the same change. D is not worth it. C is not worth it as the
+  default: ten times slower, far noisier, and the license stands in the way of pinning it here. Its one
+  real benefit, a count that cannot drift, is already covered by the dated pack snapshot and its test.
+  The evaluation harness was not run; these numbers come from six apps v1 actually built, which is
+  what it would build, and it can still be run before adopting. The decision is the owner's.
+
   **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
   branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
-  by then, below, so relaxed-nobel-27acfa's run can take `p/default`, and treat these numbers as
-  something to confirm rather than redo.
-  **Measured the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
+  by then, and is kept below relaxed-nobel's fuller run as a second, smaller measurement of option C.
+  **securevibe-e8's measurement, the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
   names copied into one file with its registry id, so nothing is fetched from semgrep.dev:
 
   | Rule set | Rules | Requirements reached (of 50) | Findings on the examples and v1's template (174 files) | Time |
@@ -1089,32 +1148,36 @@ another session is not a claim.
     `unsafe-dynamic-method` on `router[method]` from a fixed list. The example apps got none. For
     comparison, `p/default` added 3 false alarms on a similar set (relaxed-nobel-27acfa, above): the map
     holds audit rules that `p/default` leaves out, and they are noisier.
-  - **One thing to settle before `sv` could do this: the rules' license.** The repository is under the
-    Semgrep Rules License v1.0, whose text is on semgrep.dev, which this session cannot reach. Shipping
-    the file inside `sv`, or having `sv` fetch the commit on the owner's machine, may be treated
-    differently by it, and it should be read before either is built.
+  - **The rules' license** could not be read from this session; relaxed-nobel-27acfa's could, and
+    what it says is above.
   - **A detail for whoever builds it:** semgrep puts the rule file's folder in front of each id, as a
     path relative to where it was started, so it must be started in the folder holding the file.
 
-  Not decided here: whether 19 more requirements are worth 17 false alarms on a template of this size,
-  15 seconds more per run, and the license question. That is the owner's.
+  Smaller than relaxed-nobel's run and consistent with it: on the owner's six built apps option C was
+  twice as slow again, and far noisier, than on the examples and template alone.
 
-  **The owner's decision, 26 September 2026:** 19 more requirements are worth it for the time they
-  add. The false alarms are the next item.
+  **The owner's decision, 26 September 2026:** "19 more requirements definitely seems worth it for
+  not too much added time", made on securevibe-e8's numbers (20 seconds, 17 false alarms), before
+  relaxed-nobel-27acfa's run above reached the owner: 40 seconds an app, 148 findings on the owner's
+  apps, and a license that rules out keeping the rules here. **To confirm with the owner** whether
+  that still holds, or whether B (46 of 50, about 5 seconds, few false alarms, and the injection
+  catches) is the choice.
 
-- **Keep the false alarms down when the adapter runs the map's own rules.** Asked for by the owner on
-  26 September 2026, after the measurement above: run the rules the map names, and work out how to
-  keep their false alarms to a minimum. Not claimed. Where to start, from the 17 on v1's template:
-  - Which rules make them. Four did (`var-in-href`, `html-in-template-string`,
-    `detect-non-literal-regexp`, `unsafe-dynamic-method`); per rule, measure findings against real
-    faults over the golden apps and the examples, and decide per rule: keep, keep as low confidence,
-    or leave out and say which requirement loses it.
+- **Keep the false alarms down, whichever set of rules is adopted.** Asked for by the owner on
+  26 September 2026: work out how to keep the added rules' false alarms to a minimum. Not claimed.
+  Where to start, from both measurements above:
+  - Which rules make them. On the template, four did (`var-in-href`, `html-in-template-string`,
+    `detect-non-literal-regexp`, `unsafe-dynamic-method`); on the owner's apps, `generic-api-key` on
+    the hashes in `securevibe.provenance.json` too. Per rule, count findings against real faults over
+    the golden apps and the examples, and decide per rule: keep, keep as low confidence, or leave out
+    and say which requirement loses it.
+  - Fix what is the template's own fault at the source: three lines of v1's template make all nine of
+    `p/default`'s regular-expression findings on the owner's apps.
   - What `sv` already knows that semgrep does not: a value from the app's own settings or routes, a
-    test file, a template that escapes by default. Semgrep's own `paths` and `pattern-not` can say
-    some of this in the rule file itself.
+    test file, a template that escapes by default, a file `sv` itself writes. Semgrep's `paths` and
+    `pattern-not` can say some of this in the rule file, where the license allows it.
   - Findings that come only from the added rules could be shown apart ("worth a look") rather than as
     needs attention, if a rule turns out to be right sometimes and wrong often.
-  - The rules' license (above) has to be read before the adapter is changed.
   - The evaluation harness is the measure, so the change should come with baseline updates.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and

@@ -83,6 +83,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   with `text-form`, that text typed into that page's form is shown as text and not run as code on
 #   the page that shows it (`shows`, or wherever the form leads when that is left out).
 #   `browser = {}` asks the first two.
+# private-websocket = "/ws"
+#   A WebSocket that only a signed-in user should be able to open. The handshake is sent with the
+#   first user's session, then with no session, with one the probes made up, and after signing out.
 
 [data]
 # What kinds of information the app holds about people.

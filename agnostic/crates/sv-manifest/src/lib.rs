@@ -304,6 +304,10 @@ pub struct UsersSection {
     /// a headless Chromium on the fenced network for the run.
     #[serde(default)]
     pub browser: Option<BrowserSection>,
+    /// A WebSocket path that only a signed-in user should be able to open. The handshake is sent
+    /// with the first user's session, with none, and with one the probes made up.
+    #[serde(default)]
+    pub private_websocket: Option<String>,
 }
 
 /// `[stack.run.users.browser]`: what a real browser is asked to do as the first user.
@@ -476,6 +480,13 @@ impl UsersSection {
                     t.path
                 ));
             }
+        }
+        if let Some(path) = &self.private_websocket
+            && !path.starts_with('/')
+        {
+            out.push(format!(
+                "`private-websocket` ({path}) is not a path on the app; it has to begin with `/`"
+            ));
         }
         if let Some(t) = &self.change_password
             && !t

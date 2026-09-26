@@ -586,6 +586,27 @@ const SESSION_TOKEN_UNVERIFIED: Rule = Rule {
           verifying the token's signature \u{2014} and refuse it when it is not found.",
 };
 
+const WS_WITHOUT_SESSION: Rule = Rule {
+    rule_id: "probe.websocket-without-session",
+    requirement_ids: &["V4.4.4"],
+    cwe: &["CWE-306"],
+    impact: "A WebSocket meant for signed-in users that opens without a real session hands whatever \
+             it carries to anybody who connects — no sign-in, no password.",
+    fix: "Check the session during the handshake, the same way a private page does, and refuse the \
+          upgrade when there is none; or hand out a short-lived token from a signed-in request and \
+          require it.",
+};
+
+const WS_AFTER_SIGN_OUT: Rule = Rule {
+    rule_id: "probe.websocket-after-sign-out",
+    requirement_ids: &["V4.4.3"],
+    cwe: &["CWE-613"],
+    impact: "Somebody who signed out still has a live channel: anybody holding the old cookie, on a \
+             shared computer or from a copied request, can keep opening it.",
+    fix: "End whatever the WebSocket checks when the session ends, and refuse a handshake carrying \
+          a session that has been signed out.",
+};
+
 const RECORD_LEAKS_FIELDS: Rule = Rule {
     rule_id: "probe.record-returns-secret-fields",
     requirement_ids: &["V15.3.1"],
@@ -1410,6 +1431,10 @@ pub fn run_with(
             .map(|s| s.session);
         crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out);
     }
+
+    // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
+    //     everything that needed A's first session.
+    websocket_session_checks(http, users, &accounts.a, &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -5559,6 +5584,196 @@ fn invented_session_check(
     }
 }
 
+/// A WebSocket handshake, carrying whatever session it is given.
+fn ws_handshake(id: &str, path: &str, session: &Session) -> ProbeRequest {
+    let mut request = get(id, path, session);
+    request.headers.extend(
+        [
+            ("Upgrade", "websocket"),
+            ("Connection", "Upgrade"),
+            ("Sec-WebSocket-Key", "c3YtcHJvYmUtd3Mta2V5LTE2Yg=="),
+            ("Sec-WebSocket-Version", "13"),
+        ]
+        .map(|(k, v)| (k.to_owned(), v.to_owned())),
+    );
+    request
+}
+
+/// Whether a WebSocket meant for signed-in users needs a real session (V4.4.4), and whether signing
+/// out ends it (V4.4.3).
+///
+/// A sign-in of its own, so the socket is asked with a session nothing else is using. That session's
+/// handshake has to be accepted first: an app that refuses every handshake, or a path that is not a
+/// WebSocket, would refuse the others too and show nothing. Then the same handshake with no session
+/// and with a session value this check made up, each of which must be refused. Refusing both is
+/// credited for V4.4.4: the channel opens only through the signed-in session. Then the session is
+/// signed out and its old cookie sent again, which is only ever a finding: V4.4.3 asks that a
+/// socket's own tokens meet every session requirement, and ending with sign-out is one of them.
+fn websocket_session_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    a: &Account,
+    out: &mut Outcome,
+) {
+    let Some(path) = &users.private_websocket else {
+        return;
+    };
+    let say =
+        |id: &str, why: String, out: &mut Outcome| out.not_assessed.push((id.to_owned(), why));
+    let Some(signed_in) = sign_in(http, users, "a-websocket", a, &mut out.steps) else {
+        say(
+            "V4.4.3, V4.4.4",
+            "Whether the private WebSocket needs a session: signing in as the first test user got \
+             no answer."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let session = signed_in.session;
+    let upgraded = |http: &mut dyn Http, label: &str, session: &Session| {
+        http.send(&ws_handshake(&format!("websocket-{label}"), path, session))
+            .is_some_and(|r| r.status == 101)
+    };
+    if !upgraded(http, "signed-in", &session) {
+        out.steps
+            .push(format!("opened the WebSocket at {path} signed in: refused"));
+        say(
+            "V4.4.3, V4.4.4",
+            format!(
+                "A WebSocket handshake to {path} with the first test user's session was not \
+                 accepted, so either `private-websocket` is not where the socket is or it refuses \
+                 everybody; either way a refusal without a session would show nothing."
+            ),
+            out,
+        );
+        return;
+    }
+    let anonymous = upgraded(http, "no-session", &Session::default());
+    let invented = session.cookies.first().map(|(name, real)| {
+        let value: String = "sv0probe0invented0session0value0"
+            .chars()
+            .cycle()
+            .take(real.chars().count().max(16))
+            .collect();
+        let mut made_up = Session::default();
+        made_up.cookies.push((name.clone(), value));
+        upgraded(http, "invented-session", &made_up)
+    });
+    out.steps.push(format!(
+        "opened the WebSocket at {path} signed in: accepted; with no session: {}{}",
+        if anonymous { "accepted" } else { "refused" },
+        match invented {
+            Some(true) => "; with a session value this check made up: accepted",
+            Some(false) => "; with a session value this check made up: refused",
+            None => "",
+        }
+    ));
+    if anonymous || invented == Some(true) {
+        out.findings.push(finding(
+            &WS_WITHOUT_SESSION,
+            "A private WebSocket opens without a real session",
+            Severity::High,
+            format!(
+                "securevibe.toml names {path} as a WebSocket for signed-in users. A handshake {} \
+                 was accepted (101).",
+                match (anonymous, invented == Some(true)) {
+                    (true, true) => "with no session, and one with a made-up session value,",
+                    (true, false) => "with no session at all",
+                    _ => "with a session value this check made up",
+                }
+            ),
+        ));
+    } else if invented == Some(false) {
+        out.verified.push(crate::Verified::new(
+            WS_WITHOUT_SESSION.rule_id,
+            WS_WITHOUT_SESSION.requirement_ids,
+            format!(
+                "WebSocket handshakes to {path} with no session and with a made-up one, refused \
+                 where the signed-in session's was accepted"
+            ),
+        ));
+    } else {
+        // A session carried some other way than a cookie cannot be made up here, and a refusal
+        // with none at all is half the answer.
+        say(
+            "V4.4.4",
+            format!(
+                "A handshake to {path} with no session was refused, but the session was not a \
+                 cookie, so one with a made-up value could not be tried."
+            ),
+            out,
+        );
+    }
+
+    // Signed out, then the old session again. Only when a real session was shown to be needed: a
+    // socket that opens without one opens after sign-out too, and that shows nothing more.
+    if anonymous || invented != Some(false) {
+        say(
+            "V4.4.3",
+            "Whether signing out closes the private WebSocket: it was not shown to need a real \
+             session in the first place, so opening after sign-out would show nothing more."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let Some(logout) = &users.logout else {
+        say(
+            "V4.4.3",
+            "Whether signing out closes the private WebSocket: securevibe.toml lists no `logout`."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let before = session.clone();
+    let mut ending = session;
+    let (response, _) = send_template(
+        http,
+        "logout-websocket",
+        logout,
+        &Values::default(),
+        &mut ending,
+        &users.private,
+    );
+    if !accepted(&response) {
+        say(
+            "V4.4.3",
+            format!(
+                "Whether signing out closes the private WebSocket: the sign-out itself was refused \
+                 ({}).",
+                status(&response)
+            ),
+            out,
+        );
+        return;
+    }
+    let after = upgraded(http, "after-sign-out", &before);
+    out.steps.push(format!(
+        "signed that session out, then opened the WebSocket with its old cookie: {}",
+        if after { "accepted" } else { "refused" }
+    ));
+    if after {
+        out.findings.push(finding(
+            &WS_AFTER_SIGN_OUT,
+            "A private WebSocket still opens after signing out",
+            Severity::Medium,
+            format!(
+                "After the session was signed out, a handshake to {path} carrying its old cookie \
+                 was accepted (101)."
+            ),
+        ));
+    }
+    say(
+        "V4.4.3",
+        "Only one part of a WebSocket's own session management was tried: that signing out ends \
+         it. Whether its tokens meet the rest of the session requirements was not."
+            .to_owned(),
+        out,
+    );
+}
+
 /// Field names that should never leave the server, whatever the app calls its columns.
 const SECRET_FIELD_NAMES: &[&str] = &[
     "password",
@@ -6769,6 +6984,8 @@ mod tests {
         outbox: Vec<(String, String)>,
         /// Reset codes handed out: code -> (account, used).
         reset_codes: BTreeMap<String, (String, bool)>,
+        /// Sessions signed out, remembered for the WebSocket that forgets to check.
+        signed_out: std::collections::BTreeSet<String>,
         /// Sign-in codes handed out: code -> (account, the session that asked, used).
         sign_in_codes: BTreeMap<String, (String, String, bool)>,
         /// Wrong sign-in codes per session.
@@ -6997,6 +7214,17 @@ mod tests {
         /// Every wrong code is answered 429 from the first, as an app whose limiter an earlier
         /// check has tripped would.
         code_already_refusing: bool,
+        /// The WebSocket at /ws opens for anybody.
+        ws_open: bool,
+        /// The WebSocket at /ws opens for any `sid` cookie at all.
+        ws_any_cookie: bool,
+        /// The WebSocket at /ws still opens for a session that was signed out.
+        ws_survives_sign_out: bool,
+        /// The WebSocket at /ws refuses every handshake.
+        ws_refuses_all: bool,
+        /// The WebSocket at /ws checks a session only when a cookie is sent, and lets in a
+        /// handshake with none as a guest.
+        ws_guest: bool,
         /// Sign-in codes never expire; otherwise they last ten minutes.
         code_long_lived: bool,
     }
@@ -7282,6 +7510,24 @@ mod tests {
                 && self.users.get(email).is_some_and(|(p, _)| p == password)
             {
                 return Some(self.signed_in(email.clone()));
+            }
+            let upgrade = r
+                .headers
+                .iter()
+                .any(|(k, v)| k == "Upgrade" && v == "websocket");
+            if upgrade && path == "/ws" {
+                let signed_out = sid.as_ref().is_some_and(|s| self.signed_out.contains(s));
+                let opens = !self.flaws.ws_refuses_all
+                    && (user.is_some()
+                        || self.flaws.ws_open
+                        || (self.flaws.ws_any_cookie && sid.is_some())
+                        || (self.flaws.ws_guest && sid.is_none())
+                        || (self.flaws.ws_survives_sign_out && signed_out));
+                return Some(if opens {
+                    Self::respond(101, vec![("Upgrade", "websocket".into())], "")
+                } else {
+                    Self::respond(401, vec![], "sign in first")
+                });
             }
             Some(match (r.method.as_str(), path.as_str()) {
                 ("GET", "/login") => {
@@ -7722,6 +7968,7 @@ mod tests {
                         && let Some(s) = sid
                     {
                         self.sessions.remove(&s);
+                        self.signed_out.insert(s);
                     }
                     let mut headers = vec![("Set-Cookie", "sid=; Max-Age=0".to_string())];
                     if self.flaws.clears_site_data {
@@ -8156,6 +8403,7 @@ mod tests {
                 completed: "/orders/".into(),
             }),
             browser: None,
+            private_websocket: None,
         }
     }
 
@@ -13497,5 +13745,313 @@ mod tests {
         let o = run(&mut app, &u, &acc, true, &Default::default());
         assert!(activation_findings(&o).is_empty());
         assert!(activation_why(&o).iter().any(|w| w.contains("no `signup`")));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // A private WebSocket's own session
+
+    const WS_RULES: [&str; 2] = [WS_WITHOUT_SESSION.rule_id, WS_AFTER_SIGN_OUT.rule_id];
+
+    fn ws_run(flaws: Flaws) -> Outcome {
+        let mut u = users();
+        u.private_websocket = Some("/ws".into());
+        run_against(flaws, &u)
+    }
+
+    fn ws_findings(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| WS_RULES.contains(id))
+            .collect()
+    }
+
+    fn ws_why<'o>(o: &'o Outcome, id: &str) -> Vec<&'o str> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.split(", ").any(|i| i == id))
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_socket_that_needs_a_real_session_is_credited_and_sign_out_said_as_partial() {
+        let o = ws_run(Flaws::default());
+        assert!(ws_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&WS_AFTER_SIGN_OUT.rule_id));
+        let steps = o.steps.join("\n");
+        for step in [
+            "opened the WebSocket at /ws signed in: accepted; with no session: refused; with a session value this check made up: refused",
+            "signed that session out, then opened the WebSocket with its old cookie: refused",
+        ] {
+            assert!(steps.contains(step), "{step}:\n{steps}");
+        }
+        assert!(
+            ws_why(&o, "V4.4.3")
+                .iter()
+                .any(|w| w.contains("Only one part")),
+            "{:?}",
+            ws_why(&o, "V4.4.3")
+        );
+    }
+
+    #[test]
+    fn each_way_a_private_socket_opens_is_found() {
+        for (flaws, found) in [
+            (
+                Flaws {
+                    ws_open: true,
+                    ..Default::default()
+                },
+                vec![WS_WITHOUT_SESSION.rule_id],
+            ),
+            (
+                Flaws {
+                    ws_any_cookie: true,
+                    ..Default::default()
+                },
+                vec![WS_WITHOUT_SESSION.rule_id],
+            ),
+            (
+                Flaws {
+                    ws_guest: true,
+                    ..Default::default()
+                },
+                vec![WS_WITHOUT_SESSION.rule_id],
+            ),
+            (
+                Flaws {
+                    ws_survives_sign_out: true,
+                    ..Default::default()
+                },
+                vec![WS_AFTER_SIGN_OUT.rule_id],
+            ),
+        ] {
+            let o = ws_run(flaws);
+            assert_eq!(ws_findings(&o), found, "{found:?}: {:?}", o.steps);
+            if found == vec![WS_WITHOUT_SESSION.rule_id] {
+                assert!(
+                    ws_why(&o, "V4.4.3")
+                        .iter()
+                        .any(|w| w.contains("not shown to need a real session")),
+                    "{:?}",
+                    o.not_assessed
+                );
+            }
+            for rule in &found {
+                assert!(
+                    !verified_ids(&o).contains(rule),
+                    "{rule} found and credited"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_made_up_cookie_alone_is_enough_for_the_finding() {
+        // The anonymous handshake is refused here; only the invented value gets in.
+        let o = ws_run(Flaws {
+            ws_any_cookie: true,
+            ..Default::default()
+        });
+        assert!(
+            o.steps.iter().any(|s| s.contains(
+                "with no session: refused; with a session value this check made up: accepted"
+            )),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id));
+        assert_eq!(ws_findings(&o), vec![WS_WITHOUT_SESSION.rule_id]);
+    }
+
+    #[test]
+    fn a_socket_that_refuses_everybody_shows_nothing() {
+        let o = ws_run(Flaws {
+            ws_refuses_all: true,
+            ..Default::default()
+        });
+        assert!(ws_findings(&o).is_empty());
+        assert!(!verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id));
+        assert!(
+            ws_why(&o, "V4.4.4")
+                .iter()
+                .any(|w| w.contains("was not accepted")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            !o.steps.iter().any(|s| s.contains("with no session")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_sign_out_that_ends_nothing_leaves_the_socket_unjudged_after_it() {
+        // The session outlives sign-out everywhere, so the socket opening afterwards says nothing
+        // the logout check has not already said; it is still a finding, the socket's own.
+        let o = ws_run(Flaws {
+            logout_keeps_session: true,
+            ..Default::default()
+        });
+        assert!(
+            ws_findings(&o).contains(&WS_AFTER_SIGN_OUT.rule_id),
+            "{:?}",
+            o.steps
+        );
+        // And a sign-out the app refuses is said, not judged.
+        let mut u = users();
+        u.private_websocket = Some("/ws".into());
+        if let Some(logout) = u.logout.as_mut() {
+            logout.form.remove("csrf_token");
+        }
+        let o = run_against(Flaws::default(), &u);
+        assert!(!ws_findings(&o).contains(&WS_AFTER_SIGN_OUT.rule_id));
+        assert!(
+            ws_why(&o, "V4.4.3")
+                .iter()
+                .any(|w| w.contains("sign-out itself was refused")),
+            "{:?}",
+            ws_why(&o, "V4.4.3")
+        );
+    }
+
+    #[test]
+    fn with_no_private_websocket_nothing_is_asked_or_said() {
+        let o = run_against(Flaws::default(), &users());
+        assert!(!o.steps.iter().any(|s| s.contains("WebSocket")));
+        assert!(ws_why(&o, "V4.4.4").is_empty());
+        assert!(ws_why(&o, "V4.4.3").is_empty());
+    }
+
+    #[test]
+    fn a_private_websocket_that_is_not_a_path_is_a_manifest_problem() {
+        let mut u = users();
+        u.private_websocket = Some("ws".into());
+        assert!(u.problems().iter().any(|p| p.contains("private-websocket")));
+    }
+
+    #[test]
+    fn a_socket_that_lets_in_a_handshake_with_no_cookie_is_found() {
+        let o = ws_run(Flaws {
+            ws_guest: true,
+            ..Default::default()
+        });
+        assert_eq!(
+            ws_findings(&o),
+            vec![WS_WITHOUT_SESSION.rule_id],
+            "{:?}",
+            o.steps
+        );
+        let finding = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == WS_WITHOUT_SESSION.rule_id)
+            .unwrap();
+        assert!(finding.description.contains("with no session at all"));
+        // And sign-out is not asked of a socket that never needed a session.
+        assert!(
+            ws_why(&o, "V4.4.3")
+                .iter()
+                .any(|w| w.contains("not shown to need a real session")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    fn bearer_ws_users() -> UsersSection {
+        let mut u = users();
+        u.login = Some(RequestTemplate {
+            method: "POST".into(),
+            path: "/api/login".into(),
+            form: BTreeMap::new(),
+            json: [("email", "{user}"), ("password", "{password}")]
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+        });
+        u.token_field = Some("token".into());
+        u.logout = None;
+        u.owned = None;
+        u.private_websocket = Some("/ws".into());
+        u
+    }
+
+    #[test]
+    fn a_session_that_is_not_a_cookie_cannot_be_made_up_so_nothing_is_credited() {
+        let o = run_against(Flaws::default(), &bearer_ws_users());
+        assert!(ws_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(!verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id));
+        assert!(
+            ws_why(&o, "V4.4.4")
+                .iter()
+                .any(|w| w.contains("was not a cookie")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_bearer_socket_refusing_a_bare_handshake_still_earns_no_credit() {
+        let o = run_against(
+            Flaws {
+                ws_survives_sign_out: true,
+                ..Default::default()
+            },
+            &bearer_ws_users(),
+        );
+        assert!(!verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id));
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("signed in: accepted; with no session: refused")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_path_that_is_not_the_socket_is_said_and_nothing_judged() {
+        let mut u = users();
+        u.private_websocket = Some("/account".into());
+        let o = run_against(Flaws::default(), &u);
+        assert!(ws_findings(&o).is_empty());
+        assert!(!verified_ids(&o).contains(&WS_WITHOUT_SESSION.rule_id));
+        assert!(
+            ws_why(&o, "V4.4.3")
+                .iter()
+                .any(|w| w.contains("`private-websocket` is not where")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_sign_out_sent_nowhere_is_said_and_not_judged() {
+        let mut u = users();
+        u.private_websocket = Some("/ws".into());
+        if let Some(logout) = u.logout.as_mut() {
+            logout.path = "/nowhere".into();
+        }
+        let o = run_against(
+            Flaws {
+                ws_survives_sign_out: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        assert!(!ws_findings(&o).contains(&WS_AFTER_SIGN_OUT.rule_id));
+        assert!(
+            ws_why(&o, "V4.4.3")
+                .iter()
+                .any(|w| w.contains("sign-out itself was refused")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 }
