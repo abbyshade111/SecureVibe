@@ -634,7 +634,9 @@ another session is not a claim.
   source — recorded nowhere in the repository — is at least shown to be breach data; and a line
   in the report's V6.2.12 wording that carries the date of the last check. Only the five-character
   hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
-  this is maintenance of the repository's own data, done by whoever runs the script. Not claimed.
+  this is maintenance of the repository's own data, done by whoever runs the script.
+  **Claimed on 26 September 2026 by session relaxed-nobel-27acfa**, which runs on a machine that
+  can reach the API.
 
 - **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
   26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording
