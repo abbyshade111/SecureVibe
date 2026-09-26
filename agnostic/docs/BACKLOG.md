@@ -48,10 +48,104 @@ another session is not a claim.
   7. Smaller: the README says `sv mcp` offers four tools; it offers six (`securevibe_questions` and
      `securevibe_notes_file` were added the same day).
 
-  So the order is: a downloadable `sv` that carries its own data (1, 2), then the walk-through, with
+  So the order is: `sv` in a container, which settles 1 and 2 with no change to the code (decided the
+  same day; see "Packaging `sv`", below), then the walk-through, with
   one checked page per AI tool (3, 4), the starter prompt (5), and an honest line about Docker (6). A
   tool without MCP can still follow it by pasting `sv init` and `sv questions` into its chat, and the
   walk-through should say so, since that is the path that works in every tool.
+
+- **Packaging `sv` for somebody who is not technical: a container now, a download later.** **The
+  owner's decision, 26 September 2026: build the container now, and keep the downloadable program
+  here for later.** Other sessions are welcome to add ideas on packaging `sv` in the long run under
+  "Thoughts", below, each under its own name, as its own commit. **The committed image is not
+  claimed**; a working version was built and tested locally the same day, and what it taught is here.
+
+  **Why a container first.** It settles the two obstacles in the walk-through entry above that a
+  page of instructions cannot — `sv` must be built from source, and a built `sv` cannot be moved —
+  with **no change to the code**. `sv` finds a dozen of its data files through the folder it was
+  compiled in (`env!("CARGO_MANIFEST_DIR")`); inside an image that folder is the same path for
+  everyone. The AI tool starts it with one entry in `.mcp.json`:
+
+  ```json
+  "command": "/opt/homebrew/bin/docker",
+  "args": ["run", "-i", "--rm", "--network", "none",
+           "-v", "/Users/you/code:/Users/you/code",
+           "securevibe/sv", "mcp", "--root", "/Users/you/code"]
+  ```
+
+  and `--network none` turns the README's promise that `sv` opens no network connection into
+  something the container enforces.
+
+  **What it must not do: `sv report --run`.** That starts the app in containers of its own, which from
+  inside a container means handing `sv` the Docker socket — control of Docker on the owner's machine,
+  which is control of the machine. `sv run` also mounts the app by its host path (`-v` in
+  `crates/sv-run/src/docker.rs`), which the host's Docker resolves on the host. So the container is for
+  the MCP tools, `check`, `scope`, `notes`, `questions` and `report` without `--run`; `--run` stays a
+  step at the terminal with the native `sv`.
+
+  **The tested recipe**, built and run on the owner's Mac under Colima (image 334 MB):
+
+  ```dockerfile
+  FROM rust:1-slim-trixie AS build
+  WORKDIR /src
+  COPY agnostic ./agnostic
+  COPY data ./data
+  RUN cd agnostic && cargo build --release -p sv-cli
+
+  FROM debian:trixie-slim
+  RUN apt-get update \
+   && apt-get install -y --no-install-recommends git ca-certificates \
+   && rm -rf /var/lib/apt/lists/* \
+   && git config --system --add safe.directory '*'
+  COPY --from=build /src/agnostic/crates /src/agnostic/crates
+  COPY --from=build /src/agnostic/data /src/agnostic/data
+  COPY --from=build /src/agnostic/examples /src/agnostic/examples
+  COPY --from=build /src/data /src/data
+  COPY --from=build /src/agnostic/target/release/sv /usr/local/bin/sv
+  ENTRYPOINT ["sv"]
+  ```
+
+  It was tested over MCP as an AI tool would use it: six tools offered, `securevibe_spec` answered,
+  `securevibe_check` on a git repository with a committed `.env` ran the history check and found it,
+  the native `sv` gave the same answer on the same app (a control that counted only because both
+  actually ran), and `securevibe_notes_file` wrote into the app's folder as a file the owner owns.
+  What building it found:
+  - **Keep `crates/` in the runtime image**, not only `data/`. The data paths are
+    `crates/<crate>/../../data/…`, and `..` only resolves through a directory that exists.
+  - **`git` is needed at run time** (`crates/sv-check/src/config.rs`) for whether a secrets file was
+    ever committed, and git refuses a repository owned by another user. When git cannot answer, `sv`
+    reports the check *not assessed* rather than failing, so without `safe.directory` it would
+    quietly stop happening. **On the owner's Mac it had no witness**: with it switched off the check
+    still ran, because Colima hands the files over as the owner's. It is kept for Linux, where the
+    ownership differs; that part is reasoned, not shown.
+  - **Colima's Docker has no BuildKit**, so it falls back to the legacy builder, which ignores a
+    `<Dockerfile>.dockerignore` beside the recipe and sends the whole repository, `target/` included.
+    The committed version needs its `.dockerignore` at the root of the build context.
+  - **Give the absolute path to `docker`.** An app started from the Dock often cannot see
+    `/opt/homebrew/bin`.
+  - **Mount the apps folder at the same path inside**, so the paths in findings and reports are the
+    owner's own.
+  - **Colima has to be running when the AI tool starts**, or the securevibe tools are simply absent
+    and nothing says why. After a restart a beginner will meet this. The walk-through has to say
+    "start Colima first", or Colima has to start at login.
+  - The first test run passed its control vacuously: the check had not run in either version (the
+    test app had no `securevibe.toml`, which `securevibe_check` requires), and "no answer" matched "no
+    answer". The committed test for the image should assert that the check ran before comparing
+    anything.
+
+  Left for whoever claims it: the recipe committed with a `.dockerignore`, CI that builds and
+  publishes the image, a test in the shape above, and the walk-through's MCP section written for it.
+
+  **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
+  everything except `--run`. It needs the data either compiled in (`include_str!`, as
+  `atlas-references.json` and `breached-password-evidence.json` already are) or found beside the
+  binary, and a build per platform in CI. One obstacle is easy to miss: **on a Mac, a program
+  downloaded from the web and not notarized by Apple is blocked** with a warning that the developer
+  cannot be verified, which somebody who is not technical will not get past. Notarizing needs an Apple
+  developer account. Homebrew is the usual way command-line tools are installed without that warning
+  — believed rather than checked, and it asks the owner to use Homebrew.
+
+  **Thoughts.** None yet.
 
 - **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
   the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
