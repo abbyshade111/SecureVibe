@@ -3165,7 +3165,7 @@ above.
 C12.1.3 asks that each model call be logged in a structured schema naming the model, the input and
 output token counts, the provider, and the operation; C12.2.1, that injection attempts be detected and
 alerted on. Both are read from the app's output after the questions, the way the log check reads its
-own markers (see "Reading the app's own log"), and on the same terms: a line that was found can be
+own markers (see "What the app wrote down"), and on the same terms: a line that was found can be
 credited or faulted, and no line is *not assessed*, because an app that logs to a file or a service
 writes nothing to its output and is not logging any less for it.
 
