@@ -5,6 +5,54 @@ another session is not a claim.
 
 ## Next
 
+- **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
+  Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
+  making it easy for people who aren't technical or security experts to vibe code safely." **Not
+  claimed.** The walk-through itself is short — describe the app, have the tool write
+  `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
+  `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
+  prompt in the conversation that produced this entry. **What is not short is getting to step one**,
+  and a page of instructions cannot fix that on its own. Found by trying it the same day, as the owner,
+  from an empty folder in Claude Code; each of these stopped the attempt:
+
+  1. **`sv` has to be built from source, so step one is "install Rust".** README: "Rust 1.95 or newer",
+     then `cargo build`. Nobody the product is for has a Rust toolchain, a git checkout, or a reason to
+     get either. This is the real obstacle, and the walk-through should not be written until it is
+     gone: a download for each platform, built by CI.
+  2. **A built `sv` cannot be moved.** It reads a dozen of its own data files at run time —
+     `ast-rules.json`, `applicability-v2.json`, `sbd-asvs-crosswalk.json`, `tech-signatures.json` and
+     others — from the folder it was built in, found through `env!("CARGO_MANIFEST_DIR")`, which is
+     fixed when it is compiled. `SV_DATA_DIR` moves only the shared OWASP folder, not these. So a copy
+     in `~/.local/bin` works until the build folder goes away and then fails with "cannot find the OWASP
+     data folder" or worse. The test run needed a permanent git worktree just to have somewhere `sv`
+     could live. A downloadable `sv` needs its data either compiled in (`include_str!`, as
+     `atlas-references.json` and `breached-password-evidence.json` already are) or found beside the
+     binary.
+  3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
+     `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
+     claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
+     keep their MCP settings in other files, and not all under the same key, so the walk-through needs
+     one short, checked section per tool — each one tried, not written from memory.
+  4. **`--root` has to exist, and the app has to be inside it.** Nothing says so until the tool is
+     refused. The walk-through should create the folder in its first step.
+  5. **The starter manifest answers "no" to everything** — every capability in `sv init` reads
+     `false`, so a tool that leaves a line as it found it has told `sv` the app has no sign-in, no
+     uploads, no email. See "Hand the three question lists to the AI coding tool", above, where it is
+     recorded and left for its own decision. For this audience it is the most dangerous line in the
+     product: a beginner's tool will leave most of them alone. Until it changes, the starter prompt has
+     to say "delete a capability you are not sure of rather than leaving it `false`."
+  6. **The deepest checks need Docker.** `sv report --run` starts the app behind the fence, and that
+     needs Docker or Colima — a second install for somebody who is not technical, and on a Mac, a
+     virtual machine. Without it the running-app and signed-in checks are *not assessed*, which is
+     honest; the walk-through has to say plainly what is missed without it, not bury it.
+  7. Smaller: the README says `sv mcp` offers four tools; it offers six (`securevibe_questions` and
+     `securevibe_notes_file` were added the same day).
+
+  So the order is: a downloadable `sv` that carries its own data (1, 2), then the walk-through, with
+  one checked page per AI tool (3, 4), the starter prompt (5), and an honest line about Docker (6). A
+  tool without MCP can still follow it by pasting `sv init` and `sv questions` into its chat, and the
+  walk-through should say so, since that is the path that works in every tool.
+
 - **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
   the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
   only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
