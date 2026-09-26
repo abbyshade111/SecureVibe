@@ -5,6 +5,16 @@ another session is not a claim.
 
 ## Next
 
+- **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
+  on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
+  admiring-murdock-875699.** `the_fence_really_blocks_outbound_traffic` in
+  `crates/sv-run/tests/fence.rs` counts *any* failure of `docker exec … nc` as "blocked": `nc` missing
+  from the image, a flag it does not understand, or the container gone would all pass. And its only
+  control is the host reaching `1.1.1.1:53`, but on Docker Desktop containers run in a separate Linux
+  VM, so the host getting out does not show a container could. Fix: a control container on an
+  ordinary network created the same way minus `--internal`, running the identical command, which
+  must connect; and the fenced run must show that `nc` really ran and failed to connect.
+
 - **A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in
   both directions.** Found on 26 September 2026 reviewing #130/#131. **Claimed on 26 September 2026
   by session securevibe-e9, and done the same day** with the fix below: two claimed attempts from two
