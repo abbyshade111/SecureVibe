@@ -2392,11 +2392,14 @@ not about the password.
 checks only those accepts it, and 16 characters, so no length rule up to 16 refuses it first. Two
 things limit what it can say, and both are said:
 
-* **The list's source is not recorded in this repository.** It arrived inside an unrelated commit.
-  Checking the password against Have I Been Pwned was tried, through its range lookup that is sent
-  only five characters of a hash, and the network policy here refused the connection. So the finding
-  says what was observed — one of the 100,000 most common passwords, accepted — and not that it was
-  seen in a particular breach.
+* **The list's source is not recorded in this repository**, so the password's being breached is not
+  taken from it. It is Have I Been Pwned's count: the Pwned Passwords range for the first five
+  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The request was
+  refused from here by the network policy, so the owner fetched the range in a browser on
+  26 September 2026 and pasted it in; the matching line, the hash, and the date are in
+  `data/breached-password-evidence.json`, and the finding quotes the count. A test holds the
+  password and the quoted count to that file, and changing either without new evidence fails it.
+  Re-checking it with a script, and sampling the whole list, is its own backlog item.
 * **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
   refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
   one refused password shows that a list longer than 3000 is checked, not that it is a set of

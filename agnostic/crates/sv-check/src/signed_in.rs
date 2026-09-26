@@ -867,10 +867,14 @@ const COMMON: &str = "123qweasdzxc";
 
 /// A password far down the common list, at line 12,393 of `data/knowledge/common-passwords.txt`:
 /// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
-/// 16 characters, so a length rule of up to 16 does not refuse it first. The list's source is not
-/// recorded in this repository, so the finding says what was observed — one of the 100,000 most
-/// common passwords, accepted — and not that it was found in a particular breach.
+/// 16 characters, so a length rule of up to 16 does not refuse it first. That it is breached is
+/// not taken from the list, whose source is recorded nowhere: it is Have I Been Pwned's count, in
+/// `data/breached-password-evidence.json`, and `BREACHED_SEEN` below says it in the finding. A test
+/// holds the two to that file, so neither can change without new evidence.
 const BREACHED: &str = "1qaz2wsx3edc4rfv";
+
+/// How often Pwned Passwords has seen `BREACHED`, and when that was checked.
+const BREACHED_SEEN: &str = "133,732 times, as of 26 September 2026";
 
 /// A password with the same shape as `template` — each lowercase letter, capital, and digit
 /// replaced by a random one of the same kind, everything else kept — made from `spare`, the random
@@ -1685,20 +1689,21 @@ fn password_checks(
     match (works["breached"], works["like-breached"]) {
         (true, _) => out.findings.push(finding(
             &BREACHED_PASSWORD,
-            "A password from a list of known passwords is accepted",
+            "A password known from data breaches is accepted",
             Severity::Low,
             format!(
-                "The app let an account sign up with `{BREACHED}`, which is among the 100,000 most \
-                 common passwords though not among the top 3000, and sign in with it. A check \
-                 against a large set of breached passwords would have refused it."
+                "The app let an account sign up with `{BREACHED}`, and sign in with it. Have I Been \
+                 Pwned has seen that password in breaches {BREACHED_SEEN}, though it is not among \
+                 the 3000 most common, so a check against a large set of breached passwords would \
+                 have refused it."
             ),
         )),
         (false, true) => out.verified.push(crate::Verified::new(
             BREACHED_PASSWORD.rule_id,
             BREACHED_PASSWORD.requirement_ids,
             format!(
-                "`{BREACHED}`, one of the 100,000 most common passwords and not among the top \
-                 3000, refused at sign-up where a random password of the same shape was accepted"
+                "`{BREACHED}`, seen in breaches {BREACHED_SEEN} and not among the 3000 most \
+                 common, refused at sign-up where a random password of the same shape was accepted"
             ),
         )),
         (false, false) => out.not_assessed.push((
@@ -8058,6 +8063,39 @@ mod tests {
                 o.not_assessed
             );
         }
+    }
+
+    #[test]
+    fn the_breached_password_and_its_count_are_the_ones_the_evidence_records() {
+        // The finding calls this password breached on the strength of one recorded check. Changing
+        // the password, or the count the finding quotes, without new evidence must fail here.
+        let evidence: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/breached-password-evidence.json"
+        ))
+        .expect("the evidence file parses");
+        assert_eq!(
+            evidence["password"], BREACHED,
+            "a different password than the one checked"
+        );
+        let seen = evidence["seen"].as_u64().expect("a count");
+        let sha1 = evidence["sha1"].as_str().expect("a hash");
+        assert_eq!(
+            evidence["line"].as_str(),
+            Some(format!("{}:{seen}", &sha1[5..]).as_str()),
+            "the recorded line is not the one for this hash"
+        );
+        let with_commas = seen
+            .to_string()
+            .as_bytes()
+            .rchunks(3)
+            .rev()
+            .map(|c| std::str::from_utf8(c).unwrap())
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(
+            BREACHED_SEEN.starts_with(&format!("{with_commas} times")),
+            "the finding says {BREACHED_SEEN:?}; the evidence says {seen}"
+        );
     }
 
     #[test]

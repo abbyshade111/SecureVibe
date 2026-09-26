@@ -405,6 +405,25 @@ another session is not a claim.
   report, and without a database the report says it compared nothing rather than staying silent. See
   DESIGN, "In the report too". The MCP server still takes no database, deliberately.
 
+- **Keep the breached-password evidence current through the Pwned Passwords API.** Asked for by the
+  owner on 26 September 2026. V6.2.12's sign-up probe tries `1qaz2wsx3edc4rfv`, and the only record
+  that it is a breached password is one range file the owner fetched in a browser and pasted into
+  the session that day, because this environment's network policy refused
+  `api.pwnedpasswords.com`. The owner has since added that host to the allowed domains, which takes
+  effect for sessions started after the change. Three things to do once a session can reach it:
+  a small script under `tools/` that re-fetches the range for `BREACHED` and rewrites
+  `data/breached-password-evidence.json` with the new count and date; a sampled check of
+  `data/knowledge/common-passwords.txt` (a few hundred entries across its ranks), so the list's
+  source — recorded nowhere in the repository — is at least shown to be breach data; and a line
+  in the report's V6.2.12 wording that carries the date of the last check. Only the five-character
+  hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
+  this is maintenance of the repository's own data, done by whoever runs the script. Not claimed.
+
+- **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
+  26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording
+  changed to say so. **Claimed on 26 September 2026 by session securevibe-e8. Done the same day**,
+  with a test holding the password and the quoted count to that file.
+
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
   V10.7, so an app with "Sign in with Google" keeps the client's requirements (V10.1, V10.2, V10.3,
