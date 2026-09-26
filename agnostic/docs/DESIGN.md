@@ -3160,6 +3160,62 @@ leak and for the image, left unjudged — and eleven with one; each now has two 
 same faults answered as a page of HTML rather than JSON. It is also what found the one-message limit
 above.
 
+### What the app wrote down about it
+
+C12.1.3 asks that each model call be logged in a structured schema naming the model, the input and
+output token counts, the provider, and the operation; C12.2.1, that injection attempts be detected and
+alerted on. Both are read from the app's output after the questions, the way the log check reads its
+own markers (see "What the app wrote down"), and on the same terms: a line that was found can be
+credited or faulted, and no line is *not assessed*, because an app that logs to a file or a service
+writes nothing to its output and is not logging any less for it.
+
+- **C12.1.3.** The test model reports token counts picked at random for each reply (4,000 to 8,999
+  in, 1,000 to 3,999 out), so a line carrying both, as numbers of their own, can only be the record of
+  that call. It is credited when it is JSON or logfmt and also names the model the app asked for, a
+  service (OpenAI, Anthropic, Azure, and the rest), and a kind of call (chat, completion, messages,
+  responses, and the like). Found and short of any of that is a finding naming what it leaves out. The
+  common log format counts as structured for V16.2.4 and not here: an access log line is not a record
+  of the call.
+- **C12.2.1.** A line naming the attack (injection, jailbreak), or one carrying the injection's own tag
+  with a word for stopping it (blocked, flagged, refused, and so on). An app that writes every message
+  down as it came has noticed nothing, and is not credited; nor is one that refuses something else.
+  The credit says whether anybody is alerted beyond the log was not seen. C12.2.3 is not asked: it is
+  about rules for *coordinated* attempts, which one message cannot show.
+
+Verified end to end with the scratch apps, now writing their calls down from what the OpenAI and
+Anthropic libraries report: the careful one, one JSON record per call and a warning for the blocked
+injection, was credited for both; the one using OpenAI's responses left out the service and got the
+finding; and the careless one's sentence got it too. The break round found four guards with no
+witness and five with one, and each now has two or more. It also found a guard that could not be
+witnessed at all — taking the probe's own tag out of each line before looking for "injection", when
+the tag's `INJECT-` never matches that word — and it was removed rather than kept as decoration.
+
+### How often it can be asked
+
+C11.2.2 asks for rate limits on the model sized to how much an attacker could learn by asking, and
+not only a throttle over the whole app. The size is the owner's to say, as `ai-requests-per-minute`
+under `[policy]`, the same kind of stated number as `failed-sign-ins`. The check runs last among the
+AI questions, because it sets out to make the app refuse, and waits a minute first, so the messages
+before it no longer count against a limit per minute. Then it sends one more message than the stated
+number, and asks the test model which arrived:
+
+- **The first of them has to arrive**, or a refusal later shows nothing; and the burst has to fit in
+  the minute a limit counts over.
+- **All of them arriving** is a finding.
+- **The last refused before the model** is credited — but only when the app's own page (the health
+  path) still answers afterwards. An app whose limit shuts everything once reached has a throttle over
+  the whole app, which C11.2.2 says is not enough on its own, and it is *not assessed* with that said.
+  So is one that refuses some messages and passes the last, which is no limit that stays shut. The
+  credit says whether the limit is per person as well as overall was not shown: one test user cannot
+  tell.
+
+The sidecar's time limit grows by two minutes for the wait. Verified end to end with the scratch apps:
+five messages a minute on the chat route alone was credited, no limit was a finding, and a limit that
+shut every page was not assessed, as it should be. The break round found one guard with no witness —
+a refusal that did not stay shut — and five with one; each now has two or more, and one of the new
+witnesses shows why the minute's wait is there: a limit of three is only credited because the four
+messages before the burst had aged out.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
@@ -3569,3 +3625,25 @@ Express pattern, the receiverless Ruby pattern, `send_file` as a module, the `Ra
 the Java module filter, checking every Java argument, the PHP include pattern, and the `__DIR__`
 exception. Every one was caught. No requirement's count changes: this makes two existing rules find
 more.
+
+## Encryption that cannot show it was changed (V11.3.3)
+
+V11.3.3 asks that encrypted data is protected against being changed: an authenticated mode such as
+GCM, or an approved cipher combined with a MAC. It had been reached only through semgrep rules no
+pack the adapter runs, and relaxed-nobel-27acfa's measurements showed `p/default` would not bring it
+back either. It is now `sv`'s own rule, `ast.unauthenticated-encryption`, in all fourteen languages.
+
+It looks at the calls `ast.weak-cipher` already looks at (`createCipheriv`, `openssl_encrypt`,
+`Cipher.getInstance`, `AES.new`, `cipher.NewCBCEncrypter`, `EVP_aes_256_cbc`, and the rest) and
+reports the modes that keep data secret without showing whether it was changed: CBC, CTR, CFB, and
+OFB. ECB and the retired ciphers stay `ast.weak-cipher`'s.
+
+**It is only ever a finding** (`findingsOnly`), at low confidence. CBC combined with a separate HMAC,
+checked before decrypting, satisfies the requirement, and the HMAC is a different call, often in a
+different function, which one query cannot see. So a clean run credits nothing, and a finding says in
+its fix that encrypt-then-MAC code is already correct. The backlog entry thought this would need new
+code; `findingsOnly` had come with the V4.4.1 WebSocket rule, so it was a data entry.
+
+Every language has a found and a not-found case (GCM, ChaCha20-Poly1305, `AesGcm`, a digest command
+for shell). Each language's pattern was broken in turn, and three were widened to take in a safe mode;
+every break was caught.

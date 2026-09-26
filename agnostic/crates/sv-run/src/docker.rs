@@ -330,7 +330,20 @@ impl Backend for DockerBackend {
                 .as_ref()
                 .zip(accounts.as_ref())
                 .map(|(users, accounts)| (users, &accounts.b));
-            sv_check::ai::run(&mut http, section, signed_in)
+            let context = sv_check::ai::Context {
+                signed_in,
+                policy: &plan.policy,
+                health: &plan.health_path,
+            };
+            let (mut outcome, markers) = sv_check::ai::run(&mut http, section, &context);
+            // Then what the app wrote down about it, read after the questions, as the signed-in
+            // suite reads its own markers.
+            let log = self
+                .docker(&["logs", "--tail", "2000", &app])
+                .map(|(_, out)| out)
+                .unwrap_or_default();
+            sv_check::ai::logged(&markers, &log, &mut outcome);
+            outcome
         });
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
@@ -992,8 +1005,14 @@ impl DockerBackend {
 /// How long the sidecar may live: the usual limit, and with `--slow` long enough to wait out the
 /// timeouts the owner states and the ten minutes an emailed sign-in code is kept.
 fn sidecar_seconds(plan: &RunPlan) -> u64 {
+    // The AI feature's rate check waits a minute before its burst, whether or not the run is slow.
+    let rate = if plan.ai.is_some() && plan.policy.ai_requests_per_minute.is_some() {
+        120
+    } else {
+        0
+    };
     if !plan.slow {
-        return SIDECAR_SECONDS;
+        return SIDECAR_SECONDS + rate;
     }
     let minutes = plan.policy.idle_timeout_minutes.unwrap_or(0)
         + plan.policy.session_lifetime_minutes.unwrap_or(0);
@@ -1003,7 +1022,7 @@ fn sidecar_seconds(plan: &RunPlan) -> u64 {
     } else {
         0
     };
-    SIDECAR_SECONDS + u64::from(minutes.min(180) + code_minutes) * 60 + 120
+    SIDECAR_SECONDS + u64::from(minutes.min(180) + code_minutes) * 60 + 120 + rate
 }
 
 /// Where requests to the app are sent from.
@@ -1061,6 +1080,10 @@ mod tests {
         assert!(sidecar_seconds(&plan) >= without + 10 * 60);
         plan.slow = false;
         assert_eq!(sidecar_seconds(&plan), SIDECAR_SECONDS);
+        // The AI feature's rate check waits a minute, slow or not.
+        plan.ai = Some(sv_manifest::AiSection::default());
+        plan.policy.ai_requests_per_minute = Some(10);
+        assert!(sidecar_seconds(&plan) >= SIDECAR_SECONDS + 60);
     }
 
     #[test]

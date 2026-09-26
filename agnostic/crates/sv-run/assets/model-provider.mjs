@@ -16,13 +16,16 @@
 //
 // `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, the instructions it came
 // with, whether the request limited the reply's length, and whether anything has since fetched the
-// address an IMAGE reply named.
+// address an IMAGE reply named. It also says the model name the request asked for and the token
+// counts the reply reported, which are picked at random for each reply so that a log line carrying
+// both can only be the log of that call.
 import http from 'node:http';
 
 const HOST = process.env.HOST || 'localhost';
 const PORT = Number(process.env.PORT || 9100);
 const MODEL = 'sv-test-model';
-const seen = new Map(); // tag -> { kind, system, bounded, fetched, api }
+const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
+const between = (low, high) => low + Math.floor(Math.random() * (high - low));
 
 const text = (content) => {
   if (typeof content === 'string') return content;
@@ -64,14 +67,18 @@ function read(api, body) {
   };
 }
 
-function reply(api, body) {
+function reply(api, body, usage) {
   const { system, user, bounded } = read(api, body);
   const instructions = system.filter(Boolean).join('\n');
   const found = /SV-PROBE-([A-Z]+)-([0-9a-f]+)/.exec(user);
   if (!found) return 'Hello from the test model.';
   const [, kind, tag] = found;
   const before = seen.get(tag);
-  seen.set(tag, { kind, system: instructions, bounded, fetched: before ? before.fetched : false, api });
+  seen.set(tag, {
+    kind, system: instructions, bounded, fetched: before ? before.fetched : false, api,
+    model: typeof body.model === 'string' ? body.model : '',
+    input_tokens: usage.input, output_tokens: usage.output,
+  });
   const marker = `SV-REPLY-${tag}`;
   switch (kind) {
     case 'LEAK':
@@ -86,8 +93,6 @@ function reply(api, body) {
       return `${marker} Hello from the test model.`;
   }
 }
-
-const tokens = (s) => Math.max(1, Math.ceil(s.length / 4));
 
 function json(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json' });
@@ -104,10 +109,12 @@ function sse(res, events) {
 }
 
 function answer(api, body, res) {
-  const said = reply(api, body);
+  // Counts no real call of this size would report, different every time: 4000 to 8999 in, 1000
+  // to 3999 out.
+  const input = between(4000, 9000);
+  const output = between(1000, 4000);
+  const said = reply(api, body, { input, output });
   const model = typeof body.model === 'string' ? body.model : MODEL;
-  const input = tokens(JSON.stringify(body.messages || body.input || ''));
-  const output = tokens(said);
   if (api === 'messages') {
     const message = {
       id: 'msg_sv', type: 'message', role: 'assistant', model,

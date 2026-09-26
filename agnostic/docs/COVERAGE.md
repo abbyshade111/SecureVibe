@@ -31,8 +31,8 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 131 (38%) | 5 | 209 |
-| OWASP AISVS 1.0 | 191 | 10 (5%) | 0 | 181 |
+| OWASP ASVS 5.0 | 345 | 132 (38%) | 5 | 208 |
+| OWASP AISVS 1.0 | 191 | 13 (7%) | 0 | 178 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
@@ -43,10 +43,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 54 | 8 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 66 | 4 | 0 | 14 | 30 | 24 | 1 |
+| L2 | 183 | 67 | 5 | 0 | 14 | 30 | 24 | 1 |
 | L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
 
-With nothing beyond plain `sv check`, 13 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -68,7 +68,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
-| V11 Cryptography | 24 | 7 | 1 | 16 |
+| V11 Cryptography | 24 | 8 | 1 | 15 |
 | V12 Secure Communication | 12 | 6 | 1 | 5 |
 | V13 Configuration | 21 | 7 | 1 | 13 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
@@ -78,7 +78,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (13)
+### Settled by reading the code (14)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -91,6 +91,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
+| V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
@@ -258,10 +259,10 @@ does not reach.
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
 | C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
 | C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
-| C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
-| C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
+| C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
+| C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-5 of these 10 can only ever be marked *needs attention*: the rules
+5 of these 13 can only ever be marked *needs attention*: the rules
 about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
@@ -275,6 +276,9 @@ show it present, so a clean run credits none of them. Each needs `--tools`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
 - C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
+- C11.2.2: settled by `probe.ai-rate-unlimited`.
+- C12.1.3: settled by `probe.ai-call-log-incomplete`.
+- C12.2.1: settled by `probe.ai-injection-logged`.
 
 ## Secure by Design checklist 0.5.0 by domain
 
