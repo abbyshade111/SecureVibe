@@ -5,6 +5,54 @@ another session is not a claim.
 
 ## Next
 
+- **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
+  Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
+  making it easy for people who aren't technical or security experts to vibe code safely." **Not
+  claimed.** The walk-through itself is short — describe the app, have the tool write
+  `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
+  `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
+  prompt in the conversation that produced this entry. **What is not short is getting to step one**,
+  and a page of instructions cannot fix that on its own. Found by trying it the same day, as the owner,
+  from an empty folder in Claude Code; each of these stopped the attempt:
+
+  1. **`sv` has to be built from source, so step one is "install Rust".** README: "Rust 1.95 or newer",
+     then `cargo build`. Nobody the product is for has a Rust toolchain, a git checkout, or a reason to
+     get either. This is the real obstacle, and the walk-through should not be written until it is
+     gone: a download for each platform, built by CI.
+  2. **A built `sv` cannot be moved.** It reads a dozen of its own data files at run time —
+     `ast-rules.json`, `applicability-v2.json`, `sbd-asvs-crosswalk.json`, `tech-signatures.json` and
+     others — from the folder it was built in, found through `env!("CARGO_MANIFEST_DIR")`, which is
+     fixed when it is compiled. `SV_DATA_DIR` moves only the shared OWASP folder, not these. So a copy
+     in `~/.local/bin` works until the build folder goes away and then fails with "cannot find the OWASP
+     data folder" or worse. The test run needed a permanent git worktree just to have somewhere `sv`
+     could live. A downloadable `sv` needs its data either compiled in (`include_str!`, as
+     `atlas-references.json` and `breached-password-evidence.json` already are) or found beside the
+     binary.
+  3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
+     `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
+     claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
+     keep their MCP settings in other files, and not all under the same key, so the walk-through needs
+     one short, checked section per tool — each one tried, not written from memory.
+  4. **`--root` has to exist, and the app has to be inside it.** Nothing says so until the tool is
+     refused. The walk-through should create the folder in its first step.
+  5. **The starter manifest answers "no" to everything** — every capability in `sv init` reads
+     `false`, so a tool that leaves a line as it found it has told `sv` the app has no sign-in, no
+     uploads, no email. See "Hand the three question lists to the AI coding tool", above, where it is
+     recorded and left for its own decision. For this audience it is the most dangerous line in the
+     product: a beginner's tool will leave most of them alone. Until it changes, the starter prompt has
+     to say "delete a capability you are not sure of rather than leaving it `false`."
+  6. **The deepest checks need Docker.** `sv report --run` starts the app behind the fence, and that
+     needs Docker or Colima — a second install for somebody who is not technical, and on a Mac, a
+     virtual machine. Without it the running-app and signed-in checks are *not assessed*, which is
+     honest; the walk-through has to say plainly what is missed without it, not bury it.
+  7. Smaller: the README says `sv mcp` offers four tools; it offers six (`securevibe_questions` and
+     `securevibe_notes_file` were added the same day).
+
+  So the order is: a downloadable `sv` that carries its own data (1, 2), then the walk-through, with
+  one checked page per AI tool (3, 4), the starter prompt (5), and an honest line about Docker (6). A
+  tool without MCP can still follow it by pasting `sv init` and `sv questions` into its chat, and the
+  walk-through should say so, since that is the path that works in every tool.
+
 - **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
   the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
   only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
@@ -492,6 +540,12 @@ another session is not a claim.
       does for its own markers (V16.2.1). Credit on presence.
     - **C12.2.1 and C12.2.3, injection attempts detected and alerted on.** After the C2.1.3 probe
       sends a textbook injection, the same log check looks for the app having flagged it.
+    **C12.1.3 and C12.2.1 claimed on 26 September 2026 by session securevibe-e9**, at the owner's
+    asking. C12.2.3 is not: it asks for rules that catch *coordinated* attempts, which one message
+    cannot show, and it stays unclaimed. **Both done the same day:** C12.1.3 from the line carrying the token
+    counts the test model reported, credited when structured and complete and a finding when found
+    and short; C12.2.1 from a line saying the injection was caught. AISVS goes from 10 to 12 of 191.
+    See DESIGN, "What the app wrote down about it".
     - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
       as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
       costs nothing when the model is the fake one.
@@ -1381,6 +1435,35 @@ another session is not a claim.
   `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
   fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
   The owner's condition above still holds: the license questions are looked at before B is built.
+
+  **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
+  this use acceptable. The license allows use for one's own purposes, personal or a company's own, and
+  not reselling, and nothing here is monetized or sold, which the owner says will not change. The
+  answer came to both questions above, running the rules and the fixtures' rule descriptions, so the
+  condition on B, that the license is looked at first, is met. If selling or licensing `sv`, or
+  bundling it into something sold, is ever raised, semgrep's rule map is the first thing to
+  re-examine: it is the largest single piece of borrowed work here, and this condition governs all of
+  it.
+
+  **The golden apps, at the owner's asking, the same day.** The evaluation harness built all five
+  golden apps without AI (all built, 0 regressed against their baselines), and the four options ran
+  over each app's code:
+
+  | Option | Per app | Findings across the five apps |
+  |---|---|---|
+  | A. Today's two packs | 3.0 s | 0 |
+  | B. A and `p/default` | 5.3 s | 8 |
+  | C. The pinned rules | 39.0 s | 148 |
+  | D. A and the 26 rules | 10.9 s | 8 |
+
+  B's eight are the same three template lines as before (`scripts/setup.ts:37` in all five,
+  `src/features/ai/screening.ts:49` in two, `src/features/apikeys/index.ts:44` in one), so there are no
+  new kinds of false alarm, and fixing those lines clears all of them. D found the same eight. C's are
+  the kinds already read: `var-in-href` 68, `generic-api-key` 57, `html-in-template-string` 10, the
+  same eight regular expressions, and `unsafe-dynamic-method` 5. None of the options found a real
+  fault in the golden apps. That fits apps built from a hardened template; it is also why B's value
+  shows on the fixture's planted faults rather than here. The recommendation stands: B, with those
+  three template lines fixed at the source.
 
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.

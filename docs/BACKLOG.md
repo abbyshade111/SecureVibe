@@ -52,7 +52,7 @@ building the query recipe: each read this file, each correctly saw the item uncl
   The durable fix is for the repository not to live under `~/Desktop` at all, which is already on this list for
   the iCloud reason and now has a second.
 
-- **The harness should hold a lock while it runs.** Unclaimed. **[harness in use: session relaxed-nobel-27acfa (agnostic semgrep step 3), all five apps without AI, from about 16:40 on 26 Sep 2026, expect it free around an hour later; removed when done]** (Was **[taken: recipe-library session, 20 Sep 2026]**; released 25 Sep 2026, because no such session is running.)
+- **The harness should hold a lock while it runs.** Unclaimed. (Was **[taken: recipe-library session, 20 Sep 2026]**; released 25 Sep 2026, because no such session is running.)
   Two sessions ran it at once for eight minutes on 20 September 2026, each having
   said in a message that they would say something first. Almost nothing is actually shared — each session has its
   own checkout of the baselines and the template, each run makes its own scratch workspace with its own tool

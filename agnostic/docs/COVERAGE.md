@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 130 (38%) | 5 | 210 |
-| OWASP AISVS 1.0 | 191 | 10 (5%) | 0 | 181 |
+| OWASP AISVS 1.0 | 191 | 12 (6%) | 0 | 179 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
@@ -258,9 +258,9 @@ does not reach.
 | C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
 | C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
 | C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
-| C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
+| C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-5 of these 10 can only ever be marked *needs attention*: the rules
+5 of these 12 can only ever be marked *needs attention*: the rules
 about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
@@ -274,6 +274,8 @@ show it present, so a clean run credits none of them. Each needs `--tools`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
 - C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
+- C12.1.3: settled by `probe.ai-call-log-incomplete`.
+- C12.2.1: settled by `probe.ai-injection-logged`.
 
 ## Secure by Design checklist 0.5.0 by domain
 
