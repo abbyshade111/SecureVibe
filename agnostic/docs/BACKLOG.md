@@ -367,6 +367,13 @@ another session is not a claim.
      (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
      carefully and only on request, request smuggling (V4.2.1). The only item here that reaches
      outside the machine, so it follows whatever `sv probe` decides about the fence.
+     **V15.3.4 claimed on 26 September 2026 by session securevibe-e8**, against the running app rather
+     than the live site: `sv probe` sends only read-only requests, so it cannot make wrong sign-in
+     attempts, and the brute-force check that finds the limiter already runs inside the fence. Once
+     that check has seen the app refuse, one more wrong attempt claims a new address in
+     `X-Forwarded-For`, then one more claims nothing; the first answered like the very first attempt
+     while the second is still refused is a limiter believing an address the client made up. Only
+     ever a finding.
 
   9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
      addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),
