@@ -14,6 +14,7 @@ pub mod design;
 pub mod finding;
 pub mod human;
 pub mod junit;
+pub mod live_tls;
 pub mod logs;
 pub mod notes;
 pub mod probes;
