@@ -467,7 +467,9 @@ another session is not a claim.
      securevibe-e9**: V16.2.4, V4.3.1, V4.3.2, and V4.4.2; level 2 goes from 40 to 44 of 183. See
      DESIGN, "GraphQL, WebSocket, and a log line's format". V4.4.3 and V4.4.4 (a WebSocket's own
      session) are not done: they need to know whether the connection is meant to be private, which
-     no entry says yet. Whether the log line the log check already finds is in a common format —
+     no entry says yet. **V4.4.3 and V4.4.4 claimed on 26 September 2026 by session securevibe-e9**,
+     with a `private-websocket` entry under `[stack.run.users]` saying which socket needs a sign-in.
+     Whether the log line the log check already finds is in a common format —
      JSON, logfmt, or the common log format (V16.2.4). And small
      manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a
      request of a thousand aliases (V4.3.2, V4.3.1), and a handshake from a foreign `Origin` and
@@ -977,6 +979,10 @@ another session is not a claim.
   what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
   refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
   count. See DESIGN, "Counting semgrep by what it runs".
+
+  **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
+  `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
+  before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
