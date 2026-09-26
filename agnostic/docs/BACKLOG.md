@@ -5,68 +5,6 @@ another session is not a claim.
 
 ## Next
 
-- **garak, and why it is not an adapter.** Looked at on 26 September 2026 at the owner's question;
-  **not claimed**, and nothing about it is written down anywhere else in the repo. AISVS is where
-  `sv` is thinnest — after #164 made the semgrep count follow the pack, 2 of 191 AISVS requirements
-  can be settled — and garak (NVIDIA, Apache 2.0) is the one tool that addresses that part of the
-  framework directly. It probes a model and reports whether it can be made to misbehave.
-
-  What lines up, reading garak's own probe list against AISVS. All of these are uncovered today:
-
-  | | Level | garak |
-  |---|---|---|
-  | C2.1.2 | L1 | encoding and representation smuggling is detected — `encoding`, `badchars` |
-  | C2.1.3 | L1 | steering inputs screened by an injection detector — `promptinject`, `dan`, `gcg`, `atkgen` |
-  | C7.3.1 | L1 | classifiers block harmful responses — `realtoxicityprompts`, `malwaregen`, `lmrc` |
-  | C11.1.3 | L1 | evaluated against known adversarial techniques for its modality |
-  | C2.1.8 | L3 | many-shot jailbreaking patterns are detected — `dan`, `atkgen` |
-
-  C11.1.3 is the interesting one. It asks that models "are evaluated against known adversarial attack
-  techniques relevant to their modality", so *having run garak* is the evidence the requirement wants,
-  rather than garak's verdict being the evidence. It is also on the list of ten requirements no
-  catalog explains, above.
-
-  `latentinjection` is a separate module and a real one — injections buried in resumes, financial
-  reports, translation tasks, WHOIS records — so it speaks to indirect injection through retrieved
-  content (C5.2.2, C8). Whether it reaches **C10.4.2**, which is specifically about MCP `tools/list`
-  and `tools/call` responses, depends on the app surfacing tool output to the model, and that has to
-  be measured rather than assumed.
-
-  **And a thing checked rather than assumed:** garak's `promptinject` module ships goal-hijacking
-  probes only — `HijackHateHumans`, `HijackKillHumans`, `HijackLongPrompt`. It has no system-prompt
-  leak probe, so **C7.3.2** ("output filters detect and block responses that disclose system prompt
-  content") is *not* covered by it, though it is the requirement one would first expect it to cover.
-
-  ### Four reasons it cannot be a row in `data/adapters.json`
-
-  1. **SARIF only, and that is a stated rule, not an oversight.** This file's own comment: "each tool
-     is asked for SARIF 2.1.0 and nothing else, because one output parser that is trusted is worth
-     more than five that are nearly right, and a tool that cannot emit SARIF is simply not listed
-     yet." garak writes a JSONL report. `parse_sarif_relative_to` is the only reader `adapters.rs`
-     has, and there is no `format` field on an adapter.
-  2. **Adapters are handed files; garak needs a running endpoint.** Every adapter is a static
-     analyzer pointed at source. garak drives a live model through a generator — the `rest` generator
-     would point at the app's own endpoint inside the fence. There is no tier for "an outside tool
-     pointed at the running app": `tools` means reads the code, `running` and `signed-in` mean `sv`
-     asks the app itself.
-  3. **It costs money per run, and it is the first check that would.** garak makes real model calls on
-     somebody's key. Every other check in `sv` is free.
-  4. **It is not deterministic.** A jailbreak that lands once may not land again. That collides with
-     the evaluation harness comparing golden apps against saved baselines, and with the rule that a
-     new check is known to work when the thing it guards is broken and a named test goes red. A flaky
-     check cannot have a reliable witness.
-
-  ### What it would need, if the owner wants it
-
-  A manifest field naming the app's AI endpoint (none exists); a JSONL reader, the shape of
-  `crates/sv-check/src/junit.rs`; probably a tier of its own; and a decision about spending, which is
-  the owner's. Every garak rule should credit nothing on a clean run — garak failing to jailbreak an
-  app in a hundred attempts is not evidence a screen exists — so the honest form is the adapters'
-  `findings_against`, which raises findings without moving the coverage count. The exception is
-  C11.1.3, where the run itself is the evidence.
-
-  **Terms:** garak is Apache 2.0, the same as the ATLAS data, so it carries none of the conditions the
-  Semgrep Rules License does.
 - **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
   the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
   only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
@@ -562,6 +500,25 @@ another session is not a claim.
   (every session ends when an account is deleted, through a `delete-account` entry), V6.4.2 (no password
   hints or secret questions on the sign-up and sign-in pages, only ever a finding), and V4.4.1
   (unencrypted `ws://` WebSocket addresses in the code, only ever a finding).
+
+  - *Session keen-meninsky-691a27.* Agreed on the fake model first: it answers the fence problem,
+    which garak cannot. Three things for whenever garak is taken up, each checked rather than assumed:
+    - **It cannot be "an optional adapter" as `data/adapters.json` stands.** That file is SARIF-only
+      by its own stated rule — "a tool that cannot emit SARIF is simply not listed yet" — and garak
+      writes a JSONL report. `parse_sarif_relative_to` is the only reader `adapters.rs` has, and an
+      adapter carries no `format` field. Every adapter is also handed the app's *files*, while garak
+      needs a live endpoint, and no tier covers an outside tool pointed at the running app. So garak
+      is a JSONL reader shaped like `crates/sv-check/src/junit.rs`, a manifest entry, and probably a
+      tier of its own: a project, not a data row.
+    - **`promptinject` is goal hijacking only** — `HijackHateHumans`, `HijackKillHumans`,
+      `HijackLongPrompt` — with no system-prompt leak probe, which fits the fake model rather than
+      garak taking C7.3.2. `latentinjection` is separate and real: instructions buried in resumes,
+      financial reports, translations and WHOIS records, so indirect injection through retrieved
+      content (C5.2.2, C8). Whether it reaches C10.4.2, which is specifically MCP `tools/list` and
+      `tools/call` responses, depends on the app passing tool output to the model, and would have to
+      be measured.
+    - **Terms:** garak is Apache 2.0, like the ATLAS data, so none of the conditions the Semgrep Rules
+      License carries apply to it.
 
 - **What the remaining Level 1 and 2 requirements need.** An analysis on 25 September 2026 (session
   securevibe-e8) of the 181 ASVS requirements at Level 1 and 2 that no check reached, 30 of them at
