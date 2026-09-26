@@ -137,6 +137,25 @@ another session is not a claim.
   Left for whoever claims it: the recipe committed with a `.dockerignore`, CI that builds and
   publishes the image, a test in the shape above, and the walk-through's MCP section written for it.
 
+  **Done the same day, except publishing.** `agnostic/Dockerfile` (the recipe above), `.dockerignore` at
+  the repository root, `tools/image_smoke.py` (the test in the shape above: it asserts the committed
+  `.env` was found in the image, and in a native `sv`, before comparing them, and runs once as root over
+  a folder root does not own, which is `safe.directory`'s witness on Linux), a CI job in
+  `.github/workflows/rust.yml` that builds the image from scratch and runs it, and the README's MCP
+  section for the container. What was tested where:
+  - **Here**, Docker Hub refused the build image (429) and Debian's package servers were out of reach,
+    so the build stage could not run. The runtime stage was built from a natively built `sv` without
+    `git`, and the smoke test passed in its `--no-git` form: six tools, the check answered, the
+    committed `.env` reported *not assessed* rather than passed, the notes file written, no network,
+    and the same findings as the native `sv`. Leaving out `crates/` failed it ("cannot find the OWASP
+    data folder"), and running the git-less image as if it had git failed both guards that the check
+    ran, and refused to compare.
+  - **In CI**, the whole recipe: the build stage, `git` and `safe.directory`, and the file-ownership
+    check as an ordinary user. This session runs as root, so those three are shown there, not here.
+  - **Not done: publishing the image.** Where it lives (GitHub's container registry, Docker Hub) and
+    under what name is the owner's to decide, and publishing from CI needs a write permission on the
+    workflow. Until then an owner builds it with one command, in the README.
+
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as
   `atlas-references.json` and `breached-password-evidence.json` already are) or found beside the
