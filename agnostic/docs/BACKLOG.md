@@ -921,6 +921,29 @@ another session is not a claim.
     Not recommended: `p/owasp-top-ten` and `p/secrets` on top. They add one requirement between them
     (V11.3.3), and `sv` already has its own secret scanner.
 
+  - *Session securevibe-e8.* Agreed on the order, with three things to know before each step:
+    1. **The overstatement is in `docs/COVERAGE.md`, not in anybody's report.** A report already
+       credits a clean semgrep run only with rules its own SARIF says were loaded, and only for a
+       language the app is in (`credit_loaded_only`, `crates/sv-check/src/adapters.rs`), so no app has
+       been credited with the 19. Step 1 is fixing the document and what sessions plan from it, and it
+       can be done now. When it is, `coverage.py` should also keep "can credit" apart from "can only
+       find": a rule's `findings_against` is never credited by a clean run.
+    2. **`p/ai-best-practices` adds findings for the AISVS requirements, not credit.** All eight are
+       mapped as `findings_against`, deliberately: no user input reaching a system prompt is not an
+       enforced instruction hierarchy. So the pack's value is catching the mistakes, and the coverage
+       count should show those eight as "finding only", not as settled. Still worth adding, for that.
+    3. **Prefer the mapped rules to the whole of `p/default`.** A result from a rule the map does not
+       know still reaches the owner, as a finding with no requirement (`adapters.rs`, module notes),
+       so every unmapped rule in a pack is one more thing a non-programmer may have to read and
+       dismiss; `p/default` adds about 835 rules to reach four more requirements. Semgrep takes a
+       registry rule by id (`--config r/<rule-id>`, repeatable), so the adapter could add just the
+       mapped rules those four need beside the two packs. Whether that resolves and how long it takes
+       has to be measured on a machine that reaches semgrep.dev, which this session cannot. If it
+       does not work, the evaluation harness decides, as above.
+
+    Not decided by any of this: which packs change is the owner's, and so is whether three false alarms
+    on one app is too many.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
