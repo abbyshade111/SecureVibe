@@ -2126,3 +2126,21 @@ requirement that reads *not verified* and carries no evidence of any kind.
 That is the second time in this work a guard could only see a difference when the fault was a change
 applied to everything, and it is worth remembering as a shape: a test that compares two outputs is
 blind to anything that moves both.
+
+### Where to look, beside what to answer
+
+Every row on the checklist also says where to go and find the answer, not only what the answer should
+be. The `human-checks.json` entries were instructions already; the rows that come from the security
+notes and the design questions were not. "Write down the session inactivity timeout and the absolute
+maximum session lifetime" is the right sentence for the notes file and no help at all to somebody who
+does not know where those numbers are configured — so each of those carries a `howToFindOut` line,
+and a guard refuses one without.
+
+The owner asked for the level 2 ones. Writing them left the level 1 entries as the only rows with
+nothing but a question, which is backwards, since level 1 is where somebody starts. So the rule is
+every catalog entry that could reach the checklist.
+
+And a third instance of the shape above: the guard that says the catalogs carry the line said nothing
+about whether it reaches the reader. Dropping it on the way into the row was caught by nothing, and
+so was never printing it. **A guard on the input is not a guard on the output**, and both ends now
+have one.

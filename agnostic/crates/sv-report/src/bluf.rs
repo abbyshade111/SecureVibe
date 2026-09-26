@@ -86,13 +86,16 @@ pub fn headline(report: &Report) -> String {
 /// What was done, as a list of activities rather than a score.
 ///
 /// Deliberately not a fraction. "32 of 218" is read as a grade, and there is no grade here.
+///
+/// Ordered strongest evidence first — a problem was found, then a check ran, then the owner's own
+/// word, then nothing at all — at the owner's request, and it reads as the severity order somebody
+/// expects. The earlier order put the unexamined majority first so it could not be buried, and that
+/// job now belongs entirely to the headline above, which names the number in a sentence rather than
+/// a row: `a_clean_run_is_never_reported_as_the_app_being_sound` is what holds it there.
 pub fn counted(report: &Report) -> Vec<(String, usize)> {
     let c = &report.counts;
     let mut rows = vec![
-        (
-            "nothing has looked at these at all".to_owned(),
-            c.not_verified,
-        ),
+        ("something found a problem".to_owned(), c.needs_attention),
         (
             "an automated check looked and found nothing wrong".to_owned(),
             c.checked,
@@ -110,7 +113,10 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
             c.attested,
         ));
     }
-    rows.push(("something found a problem".to_owned(), c.needs_attention));
+    rows.push((
+        "nothing has looked at these at all".to_owned(),
+        c.not_verified,
+    ));
     rows
 }
 
@@ -368,19 +374,59 @@ mod tests {
     }
 
     #[test]
-    fn the_counts_lead_with_what_nothing_has_looked_at() {
-        // On nearly every real app this is the largest number and the most important fact, and a
-        // summary that leads with what was checked buries it.
+    fn the_counts_run_from_strongest_evidence_to_none() {
+        // The owner's order: a problem found, then a check that ran, then their own word, then
+        // nothing. It reads as the severity order somebody expects.
         let r = report(Counts {
             applicable: 200,
             checked: 10,
-            not_verified: 190,
+            not_verified: 189,
             needs_attention: 1,
             ..Counts::default()
         });
         let rows = counted(&r);
-        assert!(rows[0].0.contains("nothing has looked"), "{rows:?}");
-        assert_eq!(rows[0].1, 190);
+        let labels: Vec<&str> = rows.iter().map(|(l, _)| l.as_str()).collect();
+        assert!(labels[0].contains("found a problem"), "{labels:?}");
+        assert!(labels[1].contains("automated check"), "{labels:?}");
+        assert!(
+            labels
+                .last()
+                .is_some_and(|l| l.contains("nothing has looked")),
+            "{labels:?}"
+        );
+    }
+
+    #[test]
+    fn the_unexamined_majority_is_still_impossible_to_miss() {
+        // It used to be the first row, so that a reader skimming the tally met it first. It is now
+        // the last one, which is the whole risk of the owner's order — so the headline has to carry
+        // it, and this is the test that says the headline is now the only thing that does.
+        let r = report(Counts {
+            applicable: 200,
+            checked: 10,
+            not_verified: 189,
+            needs_attention: 1,
+            ..Counts::default()
+        });
+        let rows = counted(&r);
+        assert!(
+            rows.last()
+                .is_some_and(|(l, _)| l.contains("nothing has looked")),
+            "the premise of this test has changed: {rows:?}"
+        );
+        // With a finding present the headline is about findings, so the clean-run headline is the
+        // one that must name the number. Both are checked, because either can be what a reader sees.
+        let clean = report(Counts {
+            applicable: 200,
+            checked: 10,
+            not_verified: 190,
+            ..Counts::default()
+        });
+        assert!(
+            headline(&clean).contains("190"),
+            "a clean run must name the unexamined count in the headline: {}",
+            headline(&clean)
+        );
     }
 
     #[test]
