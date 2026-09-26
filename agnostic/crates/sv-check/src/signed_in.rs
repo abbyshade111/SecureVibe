@@ -21,7 +21,8 @@
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::probes::{ProbeRequest, ProbeResponse};
-use sv_manifest::{RequestTemplate, UsersSection};
+use std::collections::BTreeMap;
+use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 
 /// Something that can put a request to the running app and bring back its answer.
 pub trait Http {
@@ -55,6 +56,12 @@ pub struct Outcome {
     /// What happened, in order, for the run note: "signed in as A", "B was refused A's record".
     pub steps: Vec<String>,
 }
+
+/// The most this check will ever send in one upload.
+///
+/// A limit stated far above this is not tested: the point is to find an app that takes anything,
+/// not to become a denial-of-service attempt against somebody's own app.
+const MOST_UPLOAD_BYTES: u64 = 8 * 1024 * 1024;
 
 /// An origin the app has certainly never heard of, for the forgery check.
 const STRANGER: &str = "https://sv-probe-stranger.invalid";
@@ -416,6 +423,47 @@ const OTHER_USERS_DATA: Rule = Rule {
              how most data leaks from web apps happen.",
     fix: "Look records up by their owner as well as their id — `where id = ? and owner = ?` — so a \
           record that is not yours is simply not found.",
+};
+
+const OVERSIZED_FILE: Rule = Rule {
+    rule_id: "probe.oversized-file-accepted",
+    requirement_ids: &["V5.2.1"],
+    cwe: &["CWE-400"],
+    impact: "A file larger than the app says it accepts was taken anyway, so anybody can fill the \
+             disk or tie the app up processing something enormous.",
+    fix: "Refuse a request whose body is larger than the limit before reading it \
+          \u{2014} in the web server or the framework, not after the file is already in memory.",
+};
+
+const CONTENT_MISMATCH: Rule = Rule {
+    rule_id: "probe.file-contents-unchecked",
+    requirement_ids: &["V5.2.2"],
+    cwe: &["CWE-434"],
+    impact: "A file is trusted on the strength of its name. Something that is not an image at all \
+             can be stored, and later served, as though it were one.",
+    fix: "Read the first bytes of the file and check they are what the extension promises, with a \
+          library for the type rather than by hand.",
+};
+
+const UPLOAD_EXECUTED: Rule = Rule {
+    rule_id: "probe.uploaded-file-executed",
+    requirement_ids: &["V5.3.1"],
+    cwe: &["CWE-434"],
+    impact: "Code somebody uploaded runs on the server when the file is fetched. This is the whole \
+             app, and usually the machine: it is the most serious thing an upload can do wrong.",
+    fix: "Keep uploads outside the folder the web server serves, hand them back through code that \
+          reads and sends the bytes, and never let the server execute anything in that folder.",
+};
+
+const UPLOAD_RENDERED: Rule = Rule {
+    rule_id: "probe.uploaded-file-rendered",
+    requirement_ids: &["V3.2.1"],
+    cwe: &["CWE-79"],
+    impact: "A page somebody uploaded is shown by the browser as part of this app, so a script in \
+             it runs with the app's cookies and can do whatever the signed-in person can.",
+    fix: "Serve uploads with `Content-Disposition: attachment`, or with a \
+          `Content-Security-Policy: sandbox` header, or from a different hostname \
+          \u{2014} any one stops the browser treating the file as a page of this app.",
 };
 
 const SESSION_COOKIE: Rule = Rule {
@@ -815,6 +863,11 @@ pub fn run(
 
     // 5. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
+
+    // 5b. Uploads, with A's session, before anything below signs another account in. Placed here
+    //     rather than at the end because it needs a working session and nothing it does disturbs
+    //     one: it posts files and fetches them back.
+    upload_checks(http, users, &a, &mut out);
 
     // 6. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
@@ -1813,6 +1866,375 @@ fn delete_account_check(
                 delete.path
             ),
         ));
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Uploads
+
+/// A GIF's magic bytes, which are ASCII and so survive a body that must be valid text.
+///
+/// The probe requests carry a `String` body, so a real PNG or JPEG header cannot be written into
+/// one: `\x89PNG` is not valid UTF-8. GIF87a is, which is why the correct file here is a GIF. That
+/// is a convenience of the harness rather than a claim about what apps accept, and it is why the
+/// mismatched file below claims `.gif` too: both halves of the comparison are the same extension,
+/// so a refusal can only be about the contents.
+const GIF_MAGIC: &str = "GIF87a";
+
+/// One file the probes send: its name, its contents, and what it is for.
+struct Upload<'a> {
+    id: &'a str,
+    name: &'a str,
+    contents: String,
+}
+
+/// Builds a multipart body by hand, because there is no HTTP client here to do it.
+fn multipart(boundary: &str, field: &str, file: &Upload, form: &BTreeMap<String, String>) -> String {
+    let mut body = String::new();
+    for (name, value) in form {
+        body.push_str(&format!("--{boundary}\r\n"));
+        body.push_str(&format!(
+            "Content-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+        ));
+    }
+    body.push_str(&format!("--{boundary}\r\n"));
+    body.push_str(&format!(
+        "Content-Disposition: form-data; name=\"{field}\"; filename=\"{}\"\r\n",
+        file.name
+    ));
+    body.push_str("Content-Type: application/octet-stream\r\n\r\n");
+    body.push_str(&file.contents);
+    body.push_str(&format!("\r\n--{boundary}--\r\n"));
+    body
+}
+
+/// Sends one file and returns what the app answered.
+fn send_upload(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    file: &Upload,
+    session: &Session,
+    csrf: Option<&str>,
+) -> Option<ProbeResponse> {
+    const BOUNDARY: &str = "----sv-probe-boundary-6f21a9";
+    let values = Values {
+        user: "",
+        password: "",
+        csrf: csrf.map(str::to_owned),
+        ..Default::default()
+    };
+    let form: BTreeMap<String, String> = upload
+        .form
+        .iter()
+        .map(|(k, v)| (k.clone(), fill(v, &values)))
+        .collect();
+    let body = multipart(BOUNDARY, &upload.field, file, &form);
+    let mut request = ProbeRequest {
+        id: file.id.to_owned(),
+        method: "POST".into(),
+        path: upload.path.clone(),
+        headers: vec![(
+            "Content-Type".into(),
+            format!("multipart/form-data; boundary={BOUNDARY}"),
+        )],
+        body: Some(body),
+    };
+    for (name, value) in session.headers() {
+        request.headers.push((name, value));
+    }
+    http.send(&request)
+}
+
+/// The three files an app ought to refuse, and what it serves back afterwards.
+///
+/// Every part of this establishes its own setup first. A refusal proves nothing unless an ordinary
+/// file of the same shape was accepted, so an ordinary GIF goes first and each later answer is read
+/// against it: if the app refuses everything, or the upload path is not what securevibe.toml says,
+/// the questions are reported *not assessed* rather than passed.
+fn upload_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signed_in: &SignedIn,
+    out: &mut Outcome,
+) {
+    let Some(upload) = &users.upload else {
+        return;
+    };
+    let session = &signed_in.session;
+    let csrf = |http: &mut dyn Http| {
+        users.private.first().and_then(|path| {
+            http.send(&get("upload-page", path, session))
+                .and_then(|page| csrf_token(&page, session))
+        })
+    };
+    let token = csrf(http);
+
+    // 1. An ordinary file, to show the upload works at all. Without this every refusal below is
+    //    a refusal of everything.
+    let ordinary = Upload {
+        id: "upload-ordinary",
+        name: "sv-probe.gif",
+        contents: format!("{GIF_MAGIC}sv-probe-ordinary-file"),
+    };
+    let accepted = send_upload(http, upload, &ordinary, session, token.as_deref());
+    if accepted.as_ref().is_none_or(|r| r.status >= 400) {
+        out.not_assessed.push((
+            "V5.2.1, V5.2.2, V5.3.1, V3.2.1".to_owned(),
+            format!(
+                "An ordinary file was not accepted at {} ({}), so nothing here can tell a file \
+                 refused for being wrong from one refused because the upload does not work as \
+                 securevibe.toml describes.",
+                upload.path,
+                status(&accepted)
+            ),
+        ));
+        return;
+    }
+    out.steps
+        .push(format!("uploaded an ordinary GIF to {}", upload.path));
+
+    // 2. V5.2.1: a file larger than the owner says the app accepts.
+    match upload.max_bytes {
+        None => out.not_assessed.push((
+            "V5.2.1".to_owned(),
+            "Whether the app refuses files that are too large: say the largest it should accept, \
+             as `max-bytes` under the `upload` entry in securevibe.toml, and this will send one \
+             larger than that."
+                .to_owned(),
+        )),
+        // A cap, so one check cannot become a denial-of-service against somebody's own app. Above
+        // it the check says what it did rather than pretending to have tested the policy.
+        Some(most) if most > MOST_UPLOAD_BYTES => out.not_assessed.push((
+            "V5.2.1".to_owned(),
+            format!(
+                "`max-bytes` is {most}. This check sends at most {MOST_UPLOAD_BYTES} bytes, so it \
+                 cannot exceed that number without becoming a denial-of-service attempt against \
+                 your own app."
+            ),
+        )),
+        Some(most) => {
+            let big = Upload {
+                id: "upload-oversized",
+                name: "sv-probe-big.gif",
+                contents: format!("{GIF_MAGIC}{}", "A".repeat((most + 1024) as usize)),
+            };
+            let answer = send_upload(http, upload, &big, session, token.as_deref());
+            let refused = answer.as_ref().is_none_or(|r| r.status >= 400);
+            out.steps.push(format!(
+                "sent a file of {} bytes where {most} is the stated limit: {}",
+                most + 1024 + GIF_MAGIC.len() as u64,
+                if refused { "refused" } else { "accepted" }
+            ));
+            if refused {
+                out.verified.push(crate::Verified::new(
+                    OVERSIZED_FILE.rule_id,
+                    OVERSIZED_FILE.requirement_ids,
+                    format!(
+                        "a file about {} bytes larger than the {most} you stated, refused where an \
+                         ordinary one was accepted",
+                        1024 + GIF_MAGIC.len() as u64
+                    ),
+                ));
+            } else {
+                out.findings.push(finding(
+                    &OVERSIZED_FILE,
+                    "A file larger than the stated limit was accepted",
+                    Severity::Medium,
+                    format!(
+                        "securevibe.toml says the app accepts at most {most} bytes. A file larger \
+                         than that was accepted at {} ({}).",
+                        upload.path,
+                        status(&answer)
+                    ),
+                ));
+            }
+        }
+    }
+
+    // 3. V5.2.2: contents that are not what the extension promises. Same extension as the ordinary
+    //    file above, so a refusal can only be about what is inside it.
+    let mismatched = Upload {
+        id: "upload-mismatched",
+        name: "sv-probe-not-really.gif",
+        contents: "<?php echo 'sv-probe'; ?>\nthis is not a GIF at all\n".to_owned(),
+    };
+    let answer = send_upload(http, upload, &mismatched, session, token.as_deref());
+    let refused = answer.as_ref().is_none_or(|r| r.status >= 400);
+    out.steps.push(format!(
+        "sent a .gif whose contents are not a GIF: {}",
+        if refused { "refused" } else { "accepted" }
+    ));
+    if refused {
+        out.verified.push(crate::Verified::new(
+            CONTENT_MISMATCH.rule_id,
+            CONTENT_MISMATCH.requirement_ids,
+            "a file named .gif whose contents are not a GIF, refused where a real GIF of the same \
+             name and shape was accepted"
+                .to_owned(),
+        ));
+    } else {
+        out.findings.push(finding(
+            &CONTENT_MISMATCH,
+            "A file is accepted on the strength of its name",
+            Severity::Medium,
+            format!(
+                "A file called `.gif` holding no GIF at all was accepted at {} ({}), where a real \
+                 GIF was accepted too: nothing looked at the contents.",
+                upload.path,
+                status(&answer)
+            ),
+        ));
+    }
+
+    // 4. V5.3.1 and V3.2.1: what the app does with an upload when it is fetched back.
+    let Some(serves_at) = &upload.serves_at else {
+        out.not_assessed.push((
+            "V5.3.1, V3.2.1".to_owned(),
+            "The `upload` entry has no `serves-at`, so nothing here could fetch an uploaded file \
+             back. An app that never serves uploads over the web has nothing to get wrong here, \
+             which is the safest arrangement and not a failure."
+                .to_owned(),
+        ));
+        return;
+    };
+    served_upload_checks(http, upload, serves_at, session, token.as_deref(), out);
+}
+
+/// The two questions that need the file fetched back again.
+fn served_upload_checks(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    serves_at: &str,
+    session: &Session,
+    token: Option<&str>,
+    out: &mut Outcome,
+) {
+    // Server-side code, and a page. One file answers both only if the app serves it, so each is
+    // uploaded and fetched on its own.
+    const MARKER: &str = "sv-probe-upload-marker-7c31";
+    let code = Upload {
+        id: "upload-code",
+        name: "sv-probe.php",
+        contents: format!("<?php echo \"{MARKER}\"; ?>"),
+    };
+    let page = Upload {
+        id: "upload-page-file",
+        name: "sv-probe.html",
+        contents: format!("<html><body>{MARKER}<script>1</script></body></html>"),
+    };
+
+    for (file, rule) in [(&code, &UPLOAD_EXECUTED), (&page, &UPLOAD_RENDERED)] {
+        let stored = send_upload(http, upload, file, session, token);
+        if stored.as_ref().is_none_or(|r| r.status >= 400) {
+            // Refusing the file outright is a perfectly good answer, and a better one than serving
+            // it safely — but it is not evidence about how uploads are served, so it is not a pass.
+            out.not_assessed.push((
+                rule.requirement_ids.join(", "),
+                format!(
+                    "The app refused `{}` ({}), which is a sound thing to do, but it means nothing \
+                     here saw how an uploaded file of that kind is served.",
+                    file.name,
+                    status(&stored)
+                ),
+            ));
+            continue;
+        }
+        let path = serves_at.replace("{name}", file.name);
+        let Some(fetched) = http.send(&get(&format!("{}-fetch", file.id), &path, session)) else {
+            out.not_assessed.push((
+                rule.requirement_ids.join(", "),
+                format!("Fetching the uploaded file back from {path} got no answer."),
+            ));
+            continue;
+        };
+        if fetched.status >= 400 {
+            out.not_assessed.push((
+                rule.requirement_ids.join(", "),
+                format!(
+                    "The file was accepted but {path} answered {}, so `serves-at` is not where \
+                     this app serves uploads and nothing here saw one served.",
+                    fetched.status
+                ),
+            ));
+            continue;
+        }
+
+        if std::ptr::eq(rule, &UPLOAD_EXECUTED) {
+            // The source came back: not executed. Its output alone, without the source, is.
+            let source_intact = fetched.body.contains("<?php");
+            let ran = !source_intact && fetched.body.contains(MARKER);
+            out.steps.push(format!(
+                "fetched an uploaded .php back from {path}: {}",
+                if ran { "it had been run" } else { "served as-is" }
+            ));
+            if ran {
+                out.findings.push(finding(
+                    &UPLOAD_EXECUTED,
+                    "An uploaded file is executed as server-side code",
+                    Severity::High,
+                    format!(
+                        "A `.php` file this check uploaded came back from {path} with its code \
+                         gone and only its output left, so the server ran it."
+                    ),
+                ));
+            } else {
+                out.verified.push(crate::Verified::new(
+                    UPLOAD_EXECUTED.rule_id,
+                    UPLOAD_EXECUTED.requirement_ids,
+                    format!(
+                        "a `.php` file uploaded and fetched back from {path}, which came back as \
+                         it was written rather than as its output"
+                    ),
+                ));
+            }
+        } else {
+            // A page is safe when the browser is told not to render it as part of this app.
+            let disposition = fetched
+                .header("content-disposition")
+                .unwrap_or_default()
+                .to_lowercase();
+            let content_type = fetched
+                .header("content-type")
+                .unwrap_or_default()
+                .to_lowercase();
+            let csp = fetched
+                .header("content-security-policy")
+                .unwrap_or_default()
+                .to_lowercase();
+            let attachment = disposition.contains("attachment");
+            let sandboxed = csp.contains("sandbox");
+            let not_html = !content_type.contains("text/html");
+            let safe = attachment || sandboxed || not_html;
+            let how = if attachment {
+                "as an attachment"
+            } else if sandboxed {
+                "with a sandbox policy"
+            } else {
+                "as something other than a page"
+            };
+            out.steps.push(format!(
+                "fetched an uploaded .html back from {path}: {}",
+                if safe { how } else { "served as a page" }
+            ));
+            if safe {
+                out.verified.push(crate::Verified::new(
+                    UPLOAD_RENDERED.rule_id,
+                    UPLOAD_RENDERED.requirement_ids,
+                    format!("an uploaded HTML file, served back from {path} {how}"),
+                ));
+            } else {
+                out.findings.push(finding(
+                    &UPLOAD_RENDERED,
+                    "An uploaded page is served for the browser to render",
+                    Severity::High,
+                    format!(
+                        "An HTML file this check uploaded came back from {path} as \
+                         `{content_type}` with no `Content-Disposition: attachment` and no sandbox \
+                         policy, so a browser renders it as part of this app."
+                    ),
+                ));
+            }
+        }
     }
 }
 
@@ -3100,6 +3522,7 @@ mod tests {
                 "/account/delete",
                 &[("password", "{password}"), ("csrf_token", "{csrf}")],
             )),
+            upload: None,
         }
     }
 
