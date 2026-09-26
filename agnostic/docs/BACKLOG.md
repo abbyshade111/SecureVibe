@@ -1167,6 +1167,13 @@ another session is not a claim.
   own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
   word. Not decided yet; B is not claimed.
 
+  **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
+  this use acceptable. The license allows use for one's own purposes, personal or a company's own, and
+  not reselling, and nothing here is monetized or sold, which the owner says will not change. The
+  answer came to both questions above, running the rules and the fixtures' rule descriptions. If selling or licensing `sv`, or bundling it into something sold, is ever
+  raised, semgrep's rule map is the first thing to re-examine: it is the largest single piece of
+  borrowed work here, and this condition governs all of it.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
