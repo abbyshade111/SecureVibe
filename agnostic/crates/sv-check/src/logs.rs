@@ -87,7 +87,7 @@ fn records_status(line: &str, status: u16) -> bool {
 pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
     let mut out = LogOutcome::default();
     if log.trim().is_empty() {
-        for ids in ["V16.3.1", "V16.3.2", "V16.2.1", "V16.2.2"] {
+        for ids in ["V16.3.1", "V16.3.2", "V16.2.1", "V16.2.2", "V16.2.4"] {
             out.not_assessed
                 .push((ids.to_owned(), NO_OUTPUT.to_owned()));
         }
@@ -152,8 +152,9 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
         && let Some(line) = log.lines().find(|l| l.contains(failed.as_str()))
     {
         metadata_checks(line, &mut out);
+        format_check(line, &mut out);
     } else {
-        for id in ["V16.2.1", "V16.2.2"] {
+        for id in ["V16.2.1", "V16.2.2", "V16.2.4"] {
             out.not_assessed.push((
                 id.to_owned(),
                 "These are read from the line recording the refused sign-in this run made, and no \
@@ -213,6 +214,76 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
         )),
     }
     out
+}
+
+/// Which common log format a line is written in, if any.
+///
+/// Three, because they are what log processors read without being taught: a JSON object, logfmt
+/// (`key=value` pairs, the way Heroku and most Go services write), and the Apache and nginx common
+/// log format.
+fn common_format(line: &str) -> Option<&'static str> {
+    let trimmed = line.trim();
+    if trimmed.starts_with('{')
+        && serde_json::from_str::<serde_json::Value>(trimmed).is_ok_and(|v| v.is_object())
+    {
+        return Some("JSON");
+    }
+    let clf = regex::Regex::new(
+        r#"^\S+ \S+ \S+ \[\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\] "[A-Z]+ \S+[^"]*" \d{3} "#,
+    )
+    .expect("valid pattern");
+    if clf.is_match(&format!("{trimmed} ")) {
+        return Some("the common log format");
+    }
+    // logfmt: most of the line is `key=value`, and there are enough of them to be deliberate
+    // rather than a sentence that happens to contain an equals sign.
+    let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+    let pairs = tokens
+        .iter()
+        .filter(|t| {
+            t.split_once('=').is_some_and(|(k, v)| {
+                !k.is_empty()
+                    && !v.is_empty()
+                    && k.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-')
+            })
+        })
+        .count();
+    (pairs >= 3 && pairs * 2 >= tokens.len()).then_some("logfmt")
+}
+
+/// V16.2.4, read from the same line: is it in a format a log processor reads without being taught?
+///
+/// Credit on presence only. Free text can still be read by a processor given a pattern for it, and
+/// a log shipper often turns lines into structured records on the way; neither is visible here, so
+/// a line that is none of the three is not assessed rather than faulted.
+fn format_check(line: &str, out: &mut LogOutcome) {
+    match common_format(line) {
+        Some(format) => {
+            out.steps
+                .push(format!("the refused sign-in's line is written as {format}"));
+            out.verified.push(crate::Verified::new(
+                "probe.log-common-format",
+                &["V16.2.4"],
+                format!(
+                    "the line recording a refused sign-in this run made is written as {format}, \
+                     which log processors read without being taught"
+                ),
+            ));
+        }
+        None => {
+            out.steps
+                .push("the refused sign-in's line is in no common format".to_owned());
+            out.not_assessed.push((
+                "V16.2.4".to_owned(),
+                "The line recording the refused sign-in is not JSON, logfmt, or the common log \
+                 format. That is not a finding: a processor can be given a pattern for any \
+                 consistent line, and a log shipper often structures lines on the way, neither of \
+                 which is visible here."
+                    .to_owned(),
+            ));
+        }
+    }
 }
 
 /// A timestamp on a log line, and whether it says what time zone it is in.
@@ -367,7 +438,7 @@ mod tests {
     #[test]
     fn an_app_that_logs_both_sign_ins_and_the_refusal_is_credited() {
         let log = "\
-2026-09-26T10:00:01Z auth: sign-in failed for sv-log-nobody-4a91@example.test from=10.0.0.7 (no such account)
+time=2026-09-26T10:00:01Z level=warn event=sign-in-failed account=sv-log-nobody-4a91@example.test from=10.0.0.7
 2026-09-26T10:00:02Z auth: sign-in ok for sv-log-ok-4a91@example.test
 2026-09-26T10:00:03Z GET /account?sv-log-refused-4a91=1 403 anonymous
 ";
@@ -379,6 +450,7 @@ mod tests {
         );
         assert!(ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
         assert!(ids(&o).contains(&"probe.log-timestamp-zoned"), "{o:?}");
+        assert!(ids(&o).contains(&"probe.log-common-format"), "{o:?}");
         assert!(o.not_assessed.is_empty(), "{:?}", o.not_assessed);
         assert!(o.findings.is_empty(), "{:?}", o.findings);
     }
@@ -598,13 +670,68 @@ sign-in failed for sv-log-nobody-4a91@example.test
     }
 
     #[test]
+    fn the_three_common_formats_are_recognized_and_prose_is_not() {
+        for (line, format) in [
+            (
+                r#"{"ts":"2026-09-26T10:00:03Z","event":"sign-in-failed","account":"x"}"#,
+                "JSON",
+            ),
+            (
+                "time=2026-09-26T10:00:03Z level=warn event=sign-in-failed account=x",
+                "logfmt",
+            ),
+            (
+                r#"10.0.0.7 - - [26/Sep/2026:10:00:03 +0000] "POST /login HTTP/1.1" 403 27"#,
+                "the common log format",
+            ),
+        ] {
+            assert_eq!(common_format(line), Some(format), "{line}");
+        }
+        for line in [
+            // Prose with one equals sign in it is a sentence, not logfmt.
+            "sign-in failed for x because retries=3 were used up",
+            "2026-09-26 10:00:03,123 WARNING sign-in failed for x",
+            // Braces that are not a JSON object.
+            "{not json at all}",
+            r#"["a", "list"]"#,
+        ] {
+            assert_eq!(common_format(line), None, "{line}");
+        }
+    }
+
+    #[test]
+    fn a_sentence_with_an_equals_sign_is_not_credited_as_logfmt() {
+        // The second witness for the logfmt threshold, through the whole evaluation rather than
+        // the recognizer alone: the line that records the event is prose with one `key=value` in
+        // it, and V16.2.4 must not be credited on the strength of that.
+        let log = "2026-09-26T10:00:03Z sign-in failed for sv-log-nobody-4a91@example.test after retries=3 from 10.0.0.7\n";
+        let o = evaluate(&markers(), log);
+        assert!(!ids(&o).contains(&"probe.log-common-format"), "{o:?}");
+    }
+
+    #[test]
+    fn a_line_in_no_common_format_is_not_assessed_never_faulted() {
+        let log = "2026-09-26T10:00:03Z sign-in failed for sv-log-nobody-4a91@example.test from 10.0.0.7\n";
+        let o = evaluate(&markers(), log);
+        assert!(!ids(&o).contains(&"probe.log-common-format"));
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V16.2.4" && why.contains("not a finding")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
     fn silence_is_never_a_finding() {
         // The property the whole module rests on. An app that logs to a file writes nothing here,
         // and must not be faulted for it.
         let o = evaluate(&markers(), "   \n  \n");
         assert!(o.verified.is_empty());
         assert!(o.findings.is_empty());
-        assert_eq!(o.not_assessed.len(), 4);
+        assert_eq!(o.not_assessed.len(), 5);
         for (_, why) in &o.not_assessed {
             assert!(why.contains("logs to a file"), "{why}");
         }
@@ -625,6 +752,6 @@ sign-in failed for sv-log-nobody-4a91@example.test
         let o = evaluate(&Markers::default(), "some output\n");
         assert!(o.verified.is_empty());
         assert!(o.findings.is_empty());
-        assert_eq!(o.not_assessed.len(), 4);
+        assert_eq!(o.not_assessed.len(), 5);
     }
 }

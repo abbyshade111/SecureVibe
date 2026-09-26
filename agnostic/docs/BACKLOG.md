@@ -261,14 +261,27 @@ another session is not a claim.
   workings, and stay a person's job. Ordered by what each buys for what it costs. Nothing is
   claimed.
 
-  1. **More of the same machinery, no new tool (~11).** Tampering with the token `token_field`
-     already captures: `alg: none`, a changed claim under the old signature, the wrong `aud` and
-     `typ` (V9.2.2, V9.2.3, V6.8.2). Whether the log line the log check already finds is in a
-     common format — JSON, logfmt, or the common log format (V16.2.4). The same field sent twice,
-     and a string sent as an array or a JSON `true`, through templates that exist (V15.3.7,
-     V15.3.5). And small manifest entries naming a GraphQL path and a WebSocket path, for an
-     introspection query, a too-deep query, and a handshake from a foreign `Origin` (V4.3.1,
-     V4.3.2, V4.4.2–V4.4.4).
+  1. **More of the same machinery, no new tool (~6).** **Four done on 26 September 2026 by session
+     securevibe-e9**: V16.2.4, V4.3.1, V4.3.2, and V4.4.2; level 2 goes from 40 to 44 of 183. See
+     DESIGN, "GraphQL, WebSocket, and a log line's format". V4.4.3 and V4.4.4 (a WebSocket's own
+     session) are not done: they need to know whether the connection is meant to be private, which
+     no entry says yet. Whether the log line the log check already finds is in a common format —
+     JSON, logfmt, or the common log format (V16.2.4). And small
+     manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a
+     request of a thousand aliases (V4.3.2, V4.3.1), and a handshake from a foreign `Origin` and
+     one with no session (V4.4.2–V4.4.4).
+
+     *Corrected from the first version of this entry*, which counted eleven. Tampering with a
+     signed token cannot reach V9.2.2 or V9.2.3: changing `aud` or `typ` changes what was signed,
+     so a correct app refuses it for the signature and says nothing about whether it checks the
+     audience. It only shows an app that verifies no signature at all, which is V9.1.1 and already
+     reached; V6.8.2 is about an identity provider's assertions and belongs to item 2. And
+     parameter pollution (V15.3.7) has no result that means anything without knowing the app.
+     V15.3.5 (type confusion) was in this list and is taken out of it: a probe for it sends
+     sign-in requests shaped to get in without the password, and that is not a thing this
+     session will build. It stays unclaimed. A
+     "too-deep" GraphQL query needs the schema, which introspection being off withholds; a
+     thousand aliases of `__typename` needs none.
   2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
      OIDC provider made for tests — that the app is pointed at for the run, so the probes can
      drive a real sign-in and then replay the code, drop the `state`, reuse the `nonce`, change

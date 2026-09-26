@@ -101,6 +101,13 @@ pub struct RunPlan {
     pub users: Option<sv_manifest::UsersSection>,
     /// The numbers the owner states as policy, for the probes that hold the app to them.
     pub policy: sv_manifest::PolicySection,
+    /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
+    pub graphql: Option<String>,
+    pub websocket: Option<String>,
+    /// Whether other programs are meant to use this app's API, as securevibe.toml claims it.
+    /// Introspection is allowed for an API meant for others and not otherwise (V4.3.2), so the
+    /// answer to that question depends on this one, and silence here leaves it unanswered.
+    pub public_api: Option<bool>,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -156,6 +163,9 @@ impl RunPlan {
             port: APP_PORT,
             users: run.users.clone(),
             policy: manifest.policy.clone(),
+            graphql: run.graphql.clone(),
+            websocket: run.websocket.clone(),
+            public_api: manifest.capabilities.public_api,
         })
     }
 }

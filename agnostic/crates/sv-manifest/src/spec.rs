@@ -26,6 +26,8 @@ start = ""                # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"
 test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
 test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
 health = "/"              # a path that returns 200 once the app is up
+# graphql = "/graphql"      # where it answers GraphQL, if it does
+# websocket = "/ws"         # where it accepts WebSocket connections, if it does
 
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
