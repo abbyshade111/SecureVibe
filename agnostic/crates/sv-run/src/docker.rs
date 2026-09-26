@@ -233,7 +233,9 @@ impl Backend for DockerBackend {
             args.extend(["-e", pair.as_str()]);
         }
         let model_env: Vec<String> = match (model, &plan.ai) {
-            (Some(host), Some(section)) => model_env(host, &section.base_url_env),
+            (Some(host), Some(section)) => {
+                model_env(host, &section.base_url_env, section.mcp_url_env.as_deref())
+            }
             _ => Vec::new(),
         };
         for pair in &model_env {
@@ -636,7 +638,7 @@ fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a
 /// What the app is told about the test model: the addresses the OpenAI and Anthropic libraries
 /// read, a key for each that works nowhere else, and the OpenAI-style address in any other
 /// variables securevibe.toml names.
-fn model_env(host: &str, others: &[String]) -> Vec<String> {
+fn model_env(host: &str, others: &[String], mcp: Option<&str>) -> Vec<String> {
     let openai = format!("http://{host}:{MODEL_PORT}/v1");
     let mut env = vec![
         format!("OPENAI_BASE_URL={openai}"),
@@ -645,6 +647,8 @@ fn model_env(host: &str, others: &[String]) -> Vec<String> {
         format!("ANTHROPIC_API_KEY={MODEL_KEY}"),
     ];
     env.extend(others.iter().map(|name| format!("{name}={openai}")));
+    // The test MCP server is the same container, at `/mcp`.
+    env.extend(mcp.map(|name| format!("{name}=http://{host}:{MODEL_PORT}/mcp")));
     env
 }
 
@@ -1490,11 +1494,16 @@ mod probe_tests {
 
     #[test]
     fn the_app_is_given_the_test_model_and_no_key_that_works_anywhere_else() {
-        let env = model_env("sv-1-model", &["LLM_BASE_URL".to_owned()]);
+        let env = model_env(
+            "sv-1-model",
+            &["LLM_BASE_URL".to_owned()],
+            Some("MCP_SERVER_URL"),
+        );
         for expected in [
             "OPENAI_BASE_URL=http://sv-1-model:9100/v1",
             "ANTHROPIC_BASE_URL=http://sv-1-model:9100",
             "LLM_BASE_URL=http://sv-1-model:9100/v1",
+            "MCP_SERVER_URL=http://sv-1-model:9100/mcp",
         ] {
             assert!(env.iter().any(|e| e == expected), "{expected}: {env:?}");
         }

@@ -214,6 +214,10 @@ pub struct AiSection {
     /// started with it in its environment, and must answer without calling the model.
     #[serde(default)]
     pub kill_switch: Option<String>,
+    /// The environment variable the app reads its MCP server's address from, when the feature
+    /// gives the model tools from one. The run gives it a test MCP server of `sv`'s own there.
+    #[serde(default)]
+    pub mcp_url_env: Option<String>,
 }
 
 impl AiSection {
@@ -243,7 +247,7 @@ impl AiSection {
                 ));
             }
         }
-        for name in &self.base_url_env {
+        for name in self.base_url_env.iter().chain(&self.mcp_url_env) {
             if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                 out.push(format!(
                     "`ai.base-url-env` names `{name}`, which is not an environment variable name"
