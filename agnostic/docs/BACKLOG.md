@@ -42,6 +42,43 @@ another session is not a claim.
   Whoever takes it should also break it and count: every (rule, language) pair in this file is
   required to have a found and a not-found witness, and the pair that matters here is CBC-with-a-MAC,
   which is the case a single query gets wrong.
+- **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
+  the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
+  only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
+  decision, the same day: a design answer from the AI tool is labeled *stated by the AI coding tool*,
+  its own tier below *attested by the owner*. **Claimed on 26 September 2026 by session
+  securevibe-e8.** Found by walking through `sv mcp` as an AI tool would, on a copy of
+  `examples/flask-booking` with no manifest:
+  - The check names the sixteen design questions by id only, with no question and no advice on where
+    to look, so the tool would need sixteen `securevibe_explain` calls, and those give the ASVS text,
+    not the question.
+  - It tells the tool to "run `sv notes`", which the MCP server has no way to do.
+  - The checklist of what only a person can check does not reach the tool at all.
+  - A contradiction says only "the code says otherwise"; `sv scope` says why (`pyjwt` in
+    `requirements.txt`), and the tool is not told.
+  - The starter manifest has every capability set to `false`, while its own instructions say an
+    unsure capability should be `true` and a line nobody answered should be left out. A tool that
+    leaves a line as it found it has answered "no".
+
+  **The label is done the same day:** `by = "owner"` or `by = "ai-tool"` on a design answer, and the
+  tier *stated by the AI coding tool* below *attested by the owner*; an answer without `by` counts as
+  the tool's. See DESIGN, "The AI coding tool's answers, a tier lower still". **Next, and the owner's
+  refinement the same day:** the tool interviews the owner through the three lists, one question at a
+  time, offering what it knows of the code as a tip, and records the answers for the report. **Done
+  the same day:** `securevibe_questions` and `sv questions`, `securevibe_notes_file`, the check pointing
+  at them, and a contradiction saying what the code showed. See DESIGN, "The interview: the tool asks,
+  the owner answers". Left over:
+  - Where an answer to a check by hand is recorded. Today nothing records one, so the tool walks the
+    owner through them and the report cannot tell.
+    **Claimed on 26 September 2026 by session securevibe-e8**, with the owner's agreement to the design
+    the same day: a `[checked-by-hand]` section in securevibe.toml (`result` done, problem, or
+    not-yet; `on`, a date; `by`; and `how`, required), current for 90 days, reported as *checked by
+    hand by the owner* just above *attested by the owner*, a tool's `done` as *stated by the AI coding
+    tool*, and `problem` as needs attention.
+  - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
+    contract, and worth its own decision.
+  - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
+    at any point; ordering them by level, or by what is most at stake, would help.
 
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
@@ -325,6 +362,67 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
+- **Testing an app's AI feature: a fake model inside the fence, or garak.** Asked by the owner on
+  26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
+  answered by session securevibe-e9. **For a later decision by the owner; not claimed.** Other sessions
+  are welcome to add their thoughts under "Thoughts" below, each under its own name, as its own commit.
+
+  **What garak could reach.** garak (NVIDIA's model scanner) sends attack prompts to a chat endpoint
+  and scores the replies; pointed at the app's own chat route, through a manifest entry in the shape
+  of the `[stack.run.users]` templates, it speaks to:
+
+  | Requirement | Asks | garak's part |
+  |---|---|---|
+  | C2.1.3 (L1) | prompt injection screened and blocked | its injection probes: a reply following the injected instruction is a finding |
+  | C2.1.2 (L1) | encoded or smuggled input caught | its encoding probes (base64 and the like) |
+  | C7.3.3 (L2) | model output cannot trigger outbound requests | its markdown image exfiltration probe |
+  | C11.1.3 (L1), C11.1.4 (L2) | the model tested against known attacks, and hardened | running it is that test; failures are findings |
+  | C2.1.8 (L3) | many-shot jailbreaks detected | only partly: it has jailbreak probes; whether it has a many-shot one is not checked |
+
+  Beside those, `sv`'s own log check could read the app's log after garak's attempts for C12.2.1 and
+  C12.2.3 (jailbreak and injection attempts detected and alerted on).
+
+  **Only ever findings.** garak samples and its detectors are heuristics: a clean run means these
+  prompts did not get through this time, not that the app resists them, and a hit can be a false
+  alarm, so the report has to show the prompt and the reply. The same rule as semgrep's AI rules
+  (`findings_against`).
+
+  **Two obstacles.**
+  1. **The fence.** The app runs where it cannot reach OpenAI, Anthropic, or anyone else, so its AI
+     feature has no model to call, and garak would be testing an error page. Getting round it means
+     letting the app reach its provider, a hole in the fence and the owner's decision.
+  2. **Money.** Every garak prompt then spends the app's own API credit, and a full run is thousands
+     of prompts. It would need a small probe set, a stated cap, and the owner asked each time, as for
+     any paid step.
+
+  **The alternative: a fake model inside the fence.** A small container speaking the provider's API
+  shape, as the test sign-in provider does for OIDC, that misbehaves on purpose: it obeys injected
+  instructions, repeats its system prompt, answers with a markdown image pointing outside, or answers
+  at great length. That tests the **app's own controls** rather than the model, which are what a small
+  app can actually meet, and it is free, needs no network, and gives exact answers that can credit:
+
+  - C7.3.2 (L2): `sv` plants a marker in what the model is sent, the fake model repeats it, and the
+    marker must not reach the browser.
+  - C7.3.3 (L2): the fake answers with an image or link to an outside address; it must not be
+    fetched or rendered.
+  - C7.1.2 (L1): the fake answers without end; the app has to cut it off.
+  - C2.1.3 (L1): an input carrying a known injection has to be refused before it reaches the model,
+    which the fake can see by whether it was called.
+
+  Its limit: it needs the app to let its provider's address be set (`OPENAI_BASE_URL` and the like),
+  which most SDKs allow and some apps hard-code. That has to be stated in the manifest, and an app
+  that cannot be pointed at it is *not assessed*.
+
+  **Neither reaches** membership inference (C11.2.5), drift and hallucination monitoring (C12.3),
+  the training-data chapters, or most of the agent architecture in C9; those stay the owner's to answer.
+
+  **Thoughts.**
+
+  - *Session securevibe-e9.* The fake model first: free, exact, fenced, and able to credit the
+    controls a small app owns. garak afterwards as an optional adapter, findings only, run only when
+    the owner lets the app reach its provider for the run and agrees to what it spends, with the
+    probe set and a cap named in the manifest.
+
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
   exactly as typed, not cut short or case-folded), V6.2.6 (password fields masked), V6.2.7 (paste not
@@ -1080,7 +1178,7 @@ another session is not a claim.
 
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
-  before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+  before deciding.
   **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
   session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
   **Measured the same day.** Four options, each over ten targets with semgrep 1.176.0: the fixture
@@ -1138,6 +1236,59 @@ another session is not a claim.
   real benefit, a count that cannot drift, is already covered by the dated pack snapshot and its test.
   The evaluation harness was not run; these numbers come from six apps v1 actually built, which is
   what it would build, and it can still be run before adopting. The decision is the owner's.
+
+  **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
+  at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
+  own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
+  word. Not decided yet; B is not claimed.
+
+  **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
+  branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
+  by then, and is kept below relaxed-nobel's fuller run as a second, smaller measurement of option C.
+  **securevibe-e8's measurement, the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
+  names copied into one file with its registry id, so nothing is fetched from semgrep.dev:
+
+  | Rule set | Rules | Requirements reached (of 50) | Findings on the examples and v1's template (174 files) | Time |
+  |---|---|---|---|---|
+  | `p/security-audit`, rebuilt from the commit | 225 | 31 | 3 | 5 s |
+  | the map's own rules | 1,022 | 50 | 20 | 20 s |
+
+  - **The local copy is the registry's.** The 225 `p/security-audit` rules rebuilt from the commit gave
+    exactly the registry run's 13 results on the fixture app, rule, file, and line.
+  - **What loads is the map, by construction.** The SARIF listed 1,022 loaded rules, the same ids as
+    the map; none was missing from the commit. So the coverage count could not drift from what runs.
+  - **The 17 extra findings are all on v1's template, and on reading, none is a real fault.** Six
+    `var-in-href` on links the server builds itself (navigation, the checkout link, the authenticator
+    link), six `html-in-template-string` on error messages that contain no HTML, four
+    `detect-non-literal-regexp` on patterns from the app's own settings and routes, and one
+    `unsafe-dynamic-method` on `router[method]` from a fixed list. The example apps got none. For
+    comparison, `p/default` added 3 false alarms on a similar set (relaxed-nobel-27acfa, above): the map
+    holds audit rules that `p/default` leaves out, and they are noisier.
+  - **The rules' license** could not be read from this session; relaxed-nobel-27acfa's could, and
+    what it says is above.
+  - **A detail for whoever builds it:** semgrep puts the rule file's folder in front of each id, as a
+    path relative to where it was started, so it must be started in the folder holding the file.
+
+  Smaller than relaxed-nobel's run and consistent with it: on the owner's six built apps option C was
+  twice as slow again, and far noisier, than on the examples and template alone.
+
+  **The owner's decision, 26 September 2026:** B, `p/default` beside the two packs, for now. (An
+  earlier "19 more requirements definitely seems worth it" was made on securevibe-e8's smaller numbers
+  before relaxed-nobel-27acfa's run and license reading reached the owner, and is replaced by this.)
+  Adopting B, as relaxed-nobel-27acfa proposed: add `p/default` to the adapter, measure it into
+  `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
+  fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
+  The owner's condition above still holds: the license questions are looked at before B is built.
+
+- **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
+  Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
+  `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
+  `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
+  faults over the golden apps and the examples; what `sv` knows that semgrep does not (a value from
+  the app's own settings, a test file, a template that escapes by default, a file `sv` writes); and
+  whether findings only the added rules make should be shown apart, as "worth a look".
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters

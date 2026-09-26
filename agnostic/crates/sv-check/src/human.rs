@@ -68,6 +68,8 @@ pub struct Item {
     pub where_to_look: Option<String>,
     /// Where the instruction came from, so the reader knows what kind of answer is wanted.
     pub route: Route,
+    /// For a design question, what its `where` should name. Absent for the other two routes.
+    pub where_means: Option<String>,
 }
 
 /// What kind of thing would settle this requirement.
@@ -113,6 +115,7 @@ pub fn checklist(
                 how: section.asks.clone(),
                 where_to_look: section.how_to_find_out.clone(),
                 route: Route::WriteItDown,
+                where_means: None,
             });
         }
     }
@@ -124,6 +127,7 @@ pub fn checklist(
                 how: question.asks.clone(),
                 where_to_look: question.how_to_find_out.clone(),
                 route: Route::AnswerInTheManifest,
+                where_means: Some(question.where_means.clone()),
             });
         }
     }
@@ -135,6 +139,7 @@ pub fn checklist(
                 how: check.how.clone(),
                 where_to_look: None,
                 route: Route::GoAndLook,
+                where_means: None,
             });
         }
     }
