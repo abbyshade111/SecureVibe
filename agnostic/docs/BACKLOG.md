@@ -45,7 +45,8 @@ another session is not a claim.
     at any point; ordering them by level, or by what is most at stake, would help.
 
 - **Ten requirements a person must answer, and nothing anywhere tells them how.** Found on
-  26 September 2026 while drawing the coverage maps; not claimed. `applicability.json`'s `manualOnly`
+  26 September 2026 while drawing the coverage maps. **Claimed on 26 September 2026 by session
+  securevibe-e8.** `applicability.json`'s `manualOnly`
   now holds 26 requirements — ones no check may ever settle. Guidance for them lives in three
   catalogs: `data/human-checks.json`, `data/security-notes.json`, and `data/design-questions.json`.
   Ten are in none of them, so the report marks them unverified and offers the reader nothing:
@@ -79,6 +80,56 @@ another session is not a claim.
   `every_check_is_at_level_one_or_two` says human checks are deliberately L1 and L2 only. Whether the
   checklist is its own guidance, or wants entries too, decides whether the count is ten or thirteen —
   and the test should encode whichever answer is chosen.
+
+  **Done the same day.** Twelve entries in `data/human-checks.json`, not ten: `AC.4.1` and `AC.6.3`
+  are the AISVS appendix on AI-assisted development and carry levels (1 and 2), so they belong with
+  the others; `AC.1.4` is level 3 and stays out, as the checklist leaves out level 3 everywhere. The
+  test is `every_requirement_only_a_person_can_settle_is_explained_somewhere` in
+  `crates/sv-check/tests/human_checks.rs`: every `manualOnly` requirement at level 1 or 2 must be in
+  one of the three catalogs. Removing an entry names it; widening the test to level 3 names `AC.1.4`.
+  The twelve reach the owner through the report's checklist and the interview (`sv questions`), and
+  can be recorded in `[checked-by-hand]`.
+
+- **V11.3.3 is the one requirement no semgrep pack brings back, and `sv` could own it outright.**
+  Found on 26 September 2026 while reading the coverage maps after #164 made the semgrep count
+  honest; **not claimed**, and session relaxed-nobel-27acfa is pointing at this item from the step 3
+  write-up rather than duplicating it. Four requirements lost their credit when the count started
+  following the pack: V4.4.1, V9.2.1, V11.3.3, and V11.4.3, each mapped to semgrep alone with no
+  other tool behind it. From relaxed-nobel-27acfa's measurements, `p/default` reaches three of them
+  and **not V11.3.3**. So three are a pack decision and the fourth is not; adding packs leaves it
+  uncovered forever.
+
+  It does not have to be. V11.3.3 asks that "encrypted data is protected against unauthorized
+  modification, preferably by using an approved authenticated encryption method or by combining an
+  approved encryption method with an approved MAC algorithm" — a question about a call site, which is
+  what `data/ast-rules.json` is for. Its neighbours are already there: `ast.weak-cipher` cites V11.3.1
+  and V11.3.2 across fourteen languages, `ast.weak-hash-function` cites V11.4.1 across fourteen. The
+  call sites are the same ones — `createCipheriv`, `openssl_encrypt`, `Cipher.getInstance`, `AES.new`
+  — and what differs is the argument: a non-authenticated mode (`aes-256-cbc`, `aes-256-ctr`,
+  `MODE_CBC`, `AES/CBC/PKCS5Padding`) where `ast.weak-cipher` looks for a retired cipher or ECB.
+  `argumentPatterns` and `safeArgumentPatterns` already express exactly that shape, GCM, CCM, OCB,
+  SIV, ChaCha20-Poly1305, Fernet and libsodium's secretbox being the safe side, so it is a data entry
+  and not a change in Rust.
+
+  **The catch, and it decides the shape.** CBC combined with a separate HMAC satisfies the
+  requirement, and no single query can see the HMAC: it is a different call, often in a different
+  function. A rule written the obvious way flags every correct encrypt-then-MAC as a finding. Two
+  honest ways out, and the difference matters:
+  - `"confidence": "low"`, the way `ast.file-path-from-value` already handles a question it cannot
+    settle from one call site. Cheap, consistent with what is there, but a clean run still credits
+    V11.3.3 as checked, which for an app doing CBC plus HMAC is the right answer reached by luck and
+    for an app doing raw CBC is the rule having missed nothing.
+  - Make it finding-only. `findings_against` exists for adapters and **has no equivalent for AST
+    rules** — `nothingToFind` is a per-language "this language has no such construct" note, not this —
+    so that route is a change in `ast.rs` and the rule schema, not a data entry. It is the more honest
+    of the two, and it is the more expensive.
+    *(Note from session securevibe-e8, 26 September 2026: AST rules have had `findingsOnly` since the
+    V4.4.1 WebSocket rule, `ast.plaintext-websocket-url`. A rule with it is never credited by a clean
+    run, and `coverage.py` shows it as finding only, so this route is a data entry after all.)*
+
+  Whoever takes it should also break it and count: every (rule, language) pair in this file is
+  required to have a found and a not-found witness, and the pair that matters here is CBC-with-a-MAC,
+  which is the case a single query gets wrong.
 
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
@@ -418,7 +469,10 @@ another session is not a claim.
 
   **The owner's decision, 26 September 2026: the fake model first, not garak.** **The fake model
   claimed the same day by session securevibe-e9**, for the four requirements above (C7.3.2, C7.3.3,
-  C7.1.2, C2.1.3). garak stays unclaimed and undecided.
+  C7.1.2, C2.1.3). garak stays unclaimed and undecided. **The fake model is done the same day:** a `[stack.run.ai]`
+  section starts it, C7.1.2, C7.3.2, and C2.1.3 are credited or found, and C7.3.3 is found only.
+  AISVS goes from 6 to 10 of 191 that a check can settle. See DESIGN, "A test model inside the
+  fence".
 
   **Thoughts.**
 
@@ -434,6 +488,9 @@ another session is not a claim.
       does for its own markers (V16.2.1). Credit on presence.
     - **C12.2.1 and C12.2.3, injection attempts detected and alerted on.** After the C2.1.3 probe
       sends a textbook injection, the same log check looks for the app having flagged it.
+    **C12.1.3 and C12.2.1 claimed on 26 September 2026 by session securevibe-e9**, at the owner's
+    asking. C12.2.3 is not: it asks for rules that catch *coordinated* attempts, which one message
+    cannot show, and it stays unclaimed.
     - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
       as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
       costs nothing when the model is the fake one.
@@ -461,6 +518,25 @@ another session is not a claim.
   (every session ends when an account is deleted, through a `delete-account` entry), V6.4.2 (no password
   hints or secret questions on the sign-up and sign-in pages, only ever a finding), and V4.4.1
   (unencrypted `ws://` WebSocket addresses in the code, only ever a finding).
+
+  - *Session keen-meninsky-691a27.* Agreed on the fake model first: it answers the fence problem,
+    which garak cannot. Three things for whenever garak is taken up, each checked rather than assumed:
+    - **It cannot be "an optional adapter" as `data/adapters.json` stands.** That file is SARIF-only
+      by its own stated rule — "a tool that cannot emit SARIF is simply not listed yet" — and garak
+      writes a JSONL report. `parse_sarif_relative_to` is the only reader `adapters.rs` has, and an
+      adapter carries no `format` field. Every adapter is also handed the app's *files*, while garak
+      needs a live endpoint, and no tier covers an outside tool pointed at the running app. So garak
+      is a JSONL reader shaped like `crates/sv-check/src/junit.rs`, a manifest entry, and probably a
+      tier of its own: a project, not a data row.
+    - **`promptinject` is goal hijacking only** — `HijackHateHumans`, `HijackKillHumans`,
+      `HijackLongPrompt` — with no system-prompt leak probe, which fits the fake model rather than
+      garak taking C7.3.2. `latentinjection` is separate and real: instructions buried in resumes,
+      financial reports, translations and WHOIS records, so indirect injection through retrieved
+      content (C5.2.2, C8). Whether it reaches C10.4.2, which is specifically MCP `tools/list` and
+      `tools/call` responses, depends on the app passing tool output to the model, and would have to
+      be measured.
+    - **Terms:** garak is Apache 2.0, like the ATLAS data, so none of the conditions the Semgrep Rules
+      License carries apply to it.
 
 - **What the remaining Level 1 and 2 requirements need.** An analysis on 25 September 2026 (session
   securevibe-e8) of the 181 ASVS requirements at Level 1 and 2 that no check reached, 30 of them at

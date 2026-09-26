@@ -36,6 +36,16 @@ health = "/"              # a path that returns 200 once the app is up
 # start = "/login/google"   # the path that sends the browser to the provider to sign in
 # private = "/account"      # a page only a signed-in person sees
 
+# [stack.run.ai]
+# Only if the app has a feature that sends what people type to an AI model. For the run, the app is
+# given a test model of `sv`'s own instead of the real service, and must use it: read
+# OPENAI_BASE_URL and ANTHROPIC_BASE_URL (and the placeholder keys in OPENAI_API_KEY and
+# ANTHROPIC_API_KEY) from the environment when they are set; the OpenAI and Anthropic libraries do
+# this by themselves. Nothing is sent to an AI service and nothing is spent.
+# chat = { path = "/api/chat", json = { message = "{prompt}" } }   # sends one message; {prompt} is the text
+# signed-in = true          # the feature needs a signed-in user (uses [stack.run.users])
+# base-url-env = ["LLM_BASE_URL"]   # other variables the app reads the model's address from
+
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
 # data, admin pages, whether logging out really ends the session. Leave it out and all of that is

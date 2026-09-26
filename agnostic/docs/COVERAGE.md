@@ -22,7 +22,7 @@ What each kind of check needs before it can run:
 |---|---|
 | Reads the code | nothing: plain `sv check` |
 | Known vulnerabilities | a local copy of the OSV database (`--advisories DIR`) |
-| The running app | a container backend and a `run` section (`--run`) |
+| The running app | a container backend and a `run` section (`--run`); for the AI checks, an `ai` section too |
 | Signed in | the above, and a `users` section with test accounts, or an `oidc` section for a sign-in through another service |
 | Outside tools | the tool installed (`--tools`) |
 | Your own live site | the address your app is served from, typed at the terminal (`sv probe https://…`) |
@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 129 (37%) | 5 | 211 |
-| OWASP AISVS 1.0 | 191 | 6 (3%) | 0 | 185 |
+| OWASP AISVS 1.0 | 191 | 10 (5%) | 0 | 181 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
@@ -247,24 +247,28 @@ does not reach.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 2 | 0 | 10 |
+| C2 Input Validation | 12 | 3 | 0 | 9 |
 | C3 Model Lifecycle Management & Change Control | 15 | 0 | 0 | 15 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 0 | 0 | 14 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
 | C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
-| C7 Model Behavior, Output Control & Safety Assurance | 13 | 0 | 0 | 13 |
+| C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
 | C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
 | C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
 | C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
 
-5 of these 6 can only ever be marked *needs attention*: the rules
+5 of these 10 can only ever be marked *needs attention*: the rules
 about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
+- C2.1.3: settled by `probe.ai-injection-unscreened`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C7.1.2: settled by `probe.ai-output-unbounded`.
+- C7.3.2: settled by `probe.ai-instructions-leaked`.
+- C7.3.3: settled by `probe.ai-output-fetched`.
 - C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.

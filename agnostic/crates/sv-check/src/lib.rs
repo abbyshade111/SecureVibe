@@ -7,6 +7,7 @@
 
 pub mod adapters;
 pub mod advisories;
+pub mod ai;
 pub mod ast;
 pub mod browser;
 pub mod config;
