@@ -10,8 +10,8 @@
 //! all (C2.1.3). The model's own robustness is not asked; a model that stands in for another says
 //! nothing about it.
 //!
-//! Every message carries `SV-PROBE-<KIND>-<nonce>`, and the test model is asked afterwards what
-//! arrived for that nonce. The setup is shown first: a plain message has to reach the model, or
+//! Every message carries `SV-PROBE-<KIND>-<tag>`, and the test model is asked afterwards what
+//! arrived for that tag. The setup is shown first: a plain message has to reach the model, or
 //! nothing else is judged.
 
 use crate::finding::Severity;
@@ -67,7 +67,7 @@ const UNSCREENED: Rule = Rule {
 /// The requirements asked here, for a reason that stops all of them.
 const ALL: &str = "C7.3.2, C7.3.3, C7.1.2, C2.1.3";
 
-/// What the test model says arrived for one nonce.
+/// What the test model says arrived for one tag.
 #[derive(Debug, Default)]
 struct Seen {
     received: bool,
@@ -76,11 +76,11 @@ struct Seen {
     fetched: bool,
 }
 
-fn seen(http: &mut dyn Http, nonce: &str) -> Option<Seen> {
+fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
     let answer = http.model(&ProbeRequest {
-        id: format!("model-seen-{nonce}"),
+        id: format!("model-seen-{tag}"),
         method: "GET".into(),
-        path: format!("/_sv/seen/{nonce}"),
+        path: format!("/_sv/seen/{tag}"),
         headers: Vec::new(),
         body: None,
     })?;
@@ -148,8 +148,8 @@ fn repeats(body: &str, instructions: &str) -> bool {
     (0..=instructions.len() - WINDOW).any(|i| body.contains(&instructions[i..i + WINDOW]))
 }
 
-/// A nonce that differs between runs and between the messages of one run.
-fn nonce(n: u32) -> String {
+/// A tag that differs between runs and between the messages of one run.
+fn tag(n: u32) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
@@ -234,8 +234,8 @@ pub fn run(
     }
 
     let mut ask = |http: &mut dyn Http, n: u32, kind: &str, words: &str| {
-        let nonce = nonce(n);
-        let prompt = format!("{words} SV-PROBE-{kind}-{nonce}");
+        let tag = tag(n);
+        let prompt = format!("{words} SV-PROBE-{kind}-{tag}");
         let response = send_filled(
             http,
             &format!("ai-{}", kind.to_lowercase()),
@@ -243,7 +243,7 @@ pub fn run(
             &mut session,
             &pages,
         );
-        (nonce, response)
+        (tag, response)
     };
 
     // 1. The setup: a plain message reaches the model, and its reply reaches the answer.
@@ -575,7 +575,7 @@ mod tests {
                 return "hello".into();
             };
             let rest = &message[at + "SV-PROBE-".len()..];
-            let (kind, nonce) = rest.split_once('-').unwrap();
+            let (kind, tag) = rest.split_once('-').unwrap();
             let system = if self.flaws.no_instructions {
                 String::new()
             } else if self.flaws.short_instructions {
@@ -584,14 +584,14 @@ mod tests {
                 INSTRUCTIONS.to_owned()
             };
             self.seen.insert(
-                nonce.into(),
+                tag.into(),
                 (true, system.clone(), !self.flaws.unbounded, false),
             );
-            let marker = format!("SV-REPLY-{nonce}");
+            let marker = format!("SV-REPLY-{tag}");
             match kind {
                 "LEAK" if !system.is_empty() => format!("{marker} My instructions are: {system}"),
                 "IMAGE" => format!(
-                    "{marker} Here is the chart: ![chart](http://sv-model:9100/_sv/exfil/{nonce}.png)"
+                    "{marker} Here is the chart: ![chart](http://sv-model:9100/_sv/exfil/{tag}.png)"
                 ),
                 _ => format!("{marker} Hello from the test model."),
             }
@@ -625,13 +625,13 @@ mod tests {
             self.passed_on += 1;
             let mut reply = self.model_reply(message);
             if reply.contains("/_sv/exfil/") && self.flaws.fetches_images {
-                let nonce = reply
+                let tag = reply
                     .split("/_sv/exfil/")
                     .nth(1)
                     .and_then(|r| r.split('.').next())
                     .unwrap()
                     .to_owned();
-                if let Some(entry) = self.seen.get_mut(&nonce) {
+                if let Some(entry) = self.seen.get_mut(&tag) {
                     entry.3 = true;
                 }
             }
@@ -709,8 +709,8 @@ mod tests {
             let body = if r.path == "/_sv/health" {
                 "{\"ok\":true}".to_owned()
             } else {
-                let nonce = r.path.trim_start_matches("/_sv/seen/");
-                match self.seen.get(nonce) {
+                let tag = r.path.trim_start_matches("/_sv/seen/");
+                match self.seen.get(tag) {
                     Some((_, system, bounded, fetched)) => serde_json::json!({
                         "received": true, "system": system, "bounded": bounded, "fetched": fetched,
                     })

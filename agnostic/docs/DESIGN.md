@@ -3105,7 +3105,7 @@ The test model is a short script in the same stock Node image as the test sign-i
 messages, each plain or streamed, and does on purpose what a model can be talked into doing. What is
 judged is what the app does around it, which is the part a small app owns; the model's own robustness
 is not asked, since a stand-in says nothing about the real one. Each message carries
-`SV-PROBE-<KIND>-<nonce>`, and the test model is asked afterwards what arrived for that nonce:
+`SV-PROBE-<KIND>-<tag>`, and the test model is asked afterwards what arrived for that tag:
 
 - **The setup first.** A plain message has to reach the test model, or nothing is judged, and the
   report says to check that the app reads the address. Whether its reply reached the app's answer is

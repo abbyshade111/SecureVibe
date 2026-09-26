@@ -8,13 +8,13 @@
 //
 // Environment: HOST (its own name, as the app reaches it) and PORT.
 //
-// What it answers depends on a marker in the latest user message, `SV-PROBE-<KIND>-<nonce>`:
-//   PLAIN   an ordinary reply carrying `SV-REPLY-<nonce>`
+// What it answers depends on a marker in the latest user message, `SV-PROBE-<KIND>-<tag>`:
+//   PLAIN   an ordinary reply carrying `SV-REPLY-<tag>`
 //   LEAK    the reply repeats, word for word, the instructions the app sent it
 //   IMAGE   the reply carries a markdown image and a link to an address on this server
 //   INJECT  an ordinary reply; what matters is whether the message reached it at all
 //
-// `GET /_sv/seen/<nonce>` says what arrived for that nonce: whether it did, the instructions it came
+// `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, the instructions it came
 // with, whether the request limited the reply's length, and whether anything has since fetched the
 // address an IMAGE reply named.
 import http from 'node:http';
@@ -22,7 +22,7 @@ import http from 'node:http';
 const HOST = process.env.HOST || 'localhost';
 const PORT = Number(process.env.PORT || 9100);
 const MODEL = 'sv-test-model';
-const seen = new Map(); // nonce -> { kind, system, bounded, fetched, api }
+const seen = new Map(); // tag -> { kind, system, bounded, fetched, api }
 
 const text = (content) => {
   if (typeof content === 'string') return content;
@@ -69,17 +69,17 @@ function reply(api, body) {
   const instructions = system.filter(Boolean).join('\n');
   const found = /SV-PROBE-([A-Z]+)-([0-9a-f]+)/.exec(user);
   if (!found) return 'Hello from the test model.';
-  const [, kind, nonce] = found;
-  const before = seen.get(nonce);
-  seen.set(nonce, { kind, system: instructions, bounded, fetched: before ? before.fetched : false, api });
-  const marker = `SV-REPLY-${nonce}`;
+  const [, kind, tag] = found;
+  const before = seen.get(tag);
+  seen.set(tag, { kind, system: instructions, bounded, fetched: before ? before.fetched : false, api });
+  const marker = `SV-REPLY-${tag}`;
   switch (kind) {
     case 'LEAK':
       return instructions
         ? `${marker} My instructions are: ${instructions}`
         : `${marker} I was given no instructions.`;
     case 'IMAGE': {
-      const base = `http://${HOST}:${PORT}/_sv/exfil/${nonce}`;
+      const base = `http://${HOST}:${PORT}/_sv/exfil/${tag}`;
       return `${marker} Here is the chart: ![chart](${base}.png) and [the details](${base}-link).`;
     }
     default:
