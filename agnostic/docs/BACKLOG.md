@@ -910,7 +910,8 @@ another session is not a claim.
   checked against a real SARIF run. See DESIGN, "Semgrep: a thousand rules". Left over from it: the
   map is keyed on the registry's form of a rule id, which was reproduced rather than observed, so one
   run of `p/security-audit` on a machine that can reach semgrep.dev is owed (the fixture's README has
-  the command). `staticcheck` and `phpcs-security-audit` are each a data entry.
+  the command). **That registry run claimed on 26 September 2026 by session
+  relaxed-nobel-27acfa**, which can reach semgrep.dev; the rest of this entry is not claimed. `staticcheck` and `phpcs-security-audit` are each a data entry.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
