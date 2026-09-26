@@ -419,6 +419,22 @@ So every corroborator declares `absenceIsEvidence`, and only two set it: `ci-cd`
 the repository, and a file that is not there is not there. Everywhere else, finding something proves it is
 used and finding nothing proves nothing — recorded as the claim being *unverified*, not contradicted.
 
+### Finding nothing does not answer for the owner
+
+That paragraph was right about the file and wrong about the pipeline. A CI file that is not in the copy
+`sv` read is not in the copy `sv` read: an uploaded app often leaves `.github` out, and a pipeline can be
+configured on a server or a hosting console. Until 26 September 2026, `resolve` let that absence answer
+`ci-cd` and `iac` for an owner who had said nothing, and on a manifest holding only a name it marked twelve
+requirements not applicable — AC.12.1–AC.12.8, AC.7.3, AC.7.4, AC.9.1, and SBD-AC-07 — while the claim's
+own note said finding nothing "is not the same as finding it absent".
+
+Now a question the manifest asks stays unanswered while the owner is silent, whatever the scan found, and
+the twelve are *not assessed*, with the claim shown as *unanswered* and what the scan saw beside it. A scan
+that found nothing still confirms an owner's *no* and still marks an owner's *yes* unsupported; it only
+never speaks for them. The conditions no one is asked — the derived ones — keep their answers from the
+code. Putting the old line back fails two tests, a unit test on `resolve` and one that runs `sv report` on
+the bare manifest; before, it failed none.
+
 ### Three things this turned up
 
 **A silent field-name mismatch that defaulted to the dangerous value.** `Signature` had no `rename_all`, so

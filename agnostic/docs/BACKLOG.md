@@ -59,7 +59,10 @@ another session is not a claim.
   one mistake that matters — it is how a real requirement gets marked not applicable."
 
   **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking, before the
-  threat-model citations, the mock identity provider, and the real browser.
+  threat-model citations, the mock identity provider, and the real browser. **Done the same day.**
+  An unanswered claim now stays unanswered whatever the scan found; the twelve are AC.12.1–AC.12.8,
+  AC.7.3, AC.7.4, AC.9.1, and SBD-AC-07 (eight of them AC.12, not eleven), and all twelve are now
+  not assessed. See DESIGN, "Finding nothing does not answer for the owner".
 
 - **A checklist for what only a person can check.** Asked for by the owner on 26 September 2026,
   after the report readability work: *"perhaps a checklist for the checks that have to be verified by

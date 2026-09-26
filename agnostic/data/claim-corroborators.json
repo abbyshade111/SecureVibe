@@ -4,7 +4,7 @@
     {
       "condition": "ci-cd",
       "absenceIsEvidence": true,
-      "note": "CI configuration is a file in the repository. If it is not there, there is no pipeline, and that is a complete answer rather than a failure to find one.",
+      "note": "CI configuration is usually a file in the repository, so finding one is a yes, and finding none agrees with an owner who said no. It does not answer for an owner who said nothing: an uploaded copy often leaves the file out, and a pipeline can be configured on a server, so silence stays not assessed.",
       "files": [
         ".github/workflows",
         ".gitlab-ci.yml",
@@ -21,7 +21,7 @@
     {
       "condition": "iac",
       "absenceIsEvidence": true,
-      "note": "Infrastructure configuration is likewise a file. Its absence is an answer.",
+      "note": "Infrastructure configuration is likewise usually a file: finding one is a yes, and finding none agrees with an owner who said no. It does not answer for an owner who said nothing, since that configuration can live in another repository or a hosting console.",
       "files": [
         "*.tf",
         "*.tfvars",
