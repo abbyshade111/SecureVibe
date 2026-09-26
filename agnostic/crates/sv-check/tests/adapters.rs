@@ -859,10 +859,10 @@ fn semgrep_runs_the_ai_pack_unless_the_app_is_known_not_to_call_a_model() {
     let unsettled = semgrep.run_args(&BTreeSet::new());
     assert_eq!(
         packs(&unsettled),
-        ["p/security-audit", "p/ai-best-practices"]
+        ["p/security-audit", "p/default", "p/ai-best-practices"]
     );
     let not_ai = semgrep.run_args(&BTreeSet::from(["ai".to_owned()]));
-    assert_eq!(packs(&not_ai), ["p/security-audit"]);
+    assert_eq!(packs(&not_ai), ["p/security-audit", "p/default"]);
     // Before the `--`, so a file called `--config` in the app is still a file.
     for args in [&unsettled, &not_ai] {
         let dashes = args.iter().position(|a| a == "--").expect("a --");

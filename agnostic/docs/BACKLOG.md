@@ -1428,6 +1428,12 @@ another session is not a claim.
   `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
   fix the three lines of v1's template that make its regular-expression false alarms. **Claimed on
   26 September 2026 by session relaxed-nobel-27acfa**, at the owner's asking, template fix included.
+  **Done the same day:** `p/default` runs beside `p/security-audit` and is measured into
+  `data/semgrep-packs.json`; the coverage count reaches 46 of the 50. Two of the three template lines
+  are fixed at the source (`scripts/setup.ts`, and the API-key route matching, now
+  `src/lib/route-path.ts`). The third, the prompt-injection ruleset in `src/features/ai/screening.ts`,
+  stays, because its patterns come from the operator's own data file and not from a visitor; apps with
+  the AI feature show that one false alarm. See DESIGN, "`p/default` beside `p/security-audit`".
   The owner's condition above still holds: the license questions are looked at before B is built.
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
