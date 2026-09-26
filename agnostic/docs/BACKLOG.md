@@ -514,6 +514,8 @@ another session is not a claim.
      V6.5.1, V6.5.4, V6.6.2, and V6.6.3 at Level 2, which goes from 45 to 49 of 183, with
      `[policy] failed-codes` as the stated number for guessing. See DESIGN, "Signing in with an
      emailed code".
+     **V6.4.1 (an activation code emailed at sign-up) and V6.5.5 for emailed codes (their lifetime,
+     with `sv run --slow`) claimed on 26 September 2026 by session securevibe-e9.**
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e8.** A third account, made by
@@ -901,7 +903,7 @@ another session is not a claim.
   bring. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
   can be shown to be about its requirement.
 
-- **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
+- **More probes.** **Claimed on 26 September 2026 by session securevibe-e9.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
   can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
   handling per route and anything that sends data need either a manifest describing the app's routes or a
   session — both of which are their own items below.
