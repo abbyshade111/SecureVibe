@@ -1394,6 +1394,14 @@ mod only_you {
         }
         let md = sv_report::markdown::compliance(&with);
         assert!(md.contains("## What only you can check"), "{md}");
-        assert!(sv_report::html::page(&with).contains("What only you can check"));
+        let html = sv_report::html::page(&with);
+        assert!(html.contains("What only you can check"));
+        // And the where-to-look line is printed, not merely carried. V6.1.1 comes from the security
+        // notes, whose question says what to write down; the line that says where to find it out is
+        // the half a reader who does not already know needs.
+        assert!(
+            md.contains("Where to look:") && html.contains("Where to look:"),
+            "the where-to-look lines never reach the page"
+        );
     }
 }

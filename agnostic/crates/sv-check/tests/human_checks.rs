@@ -160,3 +160,91 @@ fn every_check_is_written_for_somebody_who_is_not_a_programmer() {
     }
     assert!(unreadable.is_empty(), "{unreadable:#?}");
 }
+
+/// Every checklist row says where to go and look, not only what the answer should be.
+///
+/// The `human-checks.json` entries are instructions already. The others come from the security
+/// notes and the design questions, which say what to write down or decide — the right thing for
+/// those files, and no help at all to somebody who does not know where their session timeouts are
+/// configured. So each of those carries a `howToFindOut` line too.
+///
+/// The owner asked for the level 2 ones. Writing them left the level 1 entries as the only rows on
+/// the checklist with nothing but a question, which is backwards: level 1 is where somebody starts.
+/// So the rule is every catalog entry that could reach the checklist, and this refuses one without.
+#[test]
+fn every_question_on_the_checklist_says_where_to_look() {
+    let f = frameworks();
+    let notes = notes();
+    let design = design();
+    let human: BTreeSet<String> = human().checks.iter().map(|c| c.id.clone()).collect();
+
+    let mut silent = Vec::new();
+    for (id, has) in notes
+        .sections
+        .iter()
+        .map(|s| (s.id.clone(), s.how_to_find_out.is_some()))
+        .chain(
+            design
+                .questions
+                .iter()
+                .map(|q| (q.id.clone(), q.how_to_find_out.is_some())),
+        )
+    {
+        if human.contains(&id) || has {
+            continue;
+        }
+        // Only the ones that can reach the checklist: level 1 and 2, and an ASVS requirement.
+        if let Some(r) = f.requirements.get(&id)
+            && r.level <= 2
+            && id.starts_with('V')
+        {
+            silent.push(id);
+        }
+    }
+    assert!(
+        silent.is_empty(),
+        "these appear on the checklist with no `howToFindOut`, so they say what the answer should \
+         be and not where to find it: {silent:?}"
+    );
+}
+
+#[test]
+fn a_where_to_look_line_says_where_rather_than_repeating_the_question() {
+    // A line that restates the question is worse than none: it takes up a row and teaches the
+    // reader that the second sentence is never worth reading.
+    let places = [
+        "look",
+        "find",
+        "open",
+        "list",
+        "start from",
+        "go ",
+        "search",
+        "check",
+        ".env",
+        "configuration",
+        "code",
+        "dependency",
+        "time ",
+        "take ",
+        "sign in",
+    ];
+    let mut lazy = Vec::new();
+    for (id, how) in notes()
+        .sections
+        .iter()
+        .filter_map(|s| s.how_to_find_out.clone().map(|h| (s.id.clone(), h)))
+        .chain(
+            design()
+                .questions
+                .iter()
+                .filter_map(|q| q.how_to_find_out.clone().map(|h| (q.id.clone(), h))),
+        )
+    {
+        let lower = how.to_lowercase();
+        if !places.iter().any(|p| lower.contains(p)) {
+            lazy.push(format!("{id}: {how}"));
+        }
+    }
+    assert!(lazy.is_empty(), "these do not say where to look: {lazy:#?}");
+}

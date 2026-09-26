@@ -51,6 +51,12 @@ pub struct Section {
     /// Which of the facts `sv` gathered belong under this question.
     #[serde(default)]
     pub facts: Vec<String>,
+    /// Where to go and look to answer it, for the checklist of what only a person can check.
+    ///
+    /// The question says *what* to write down; this says where the answer is found. Absent where
+    /// the question already implies it.
+    #[serde(rename = "howToFindOut", default)]
+    pub how_to_find_out: Option<String>,
 }
 
 /// A requirement whose words mention documentation and that has no section, with why.
@@ -413,12 +419,14 @@ mod tests {
                     title: "How sign-in is protected against guessing".into(),
                     asks: "How the app defends against someone trying many passwords.".into(),
                     facts: vec!["sign-in".into()],
+                    how_to_find_out: None,
                 },
                 Section {
                     id: "V8.1.1".into(),
                     title: "Who may do what".into(),
                     asks: "Which kinds of users may use which functions.".into(),
                     facts: vec!["data".into()],
+                    how_to_find_out: None,
                 },
             ],
             elsewhere: Vec::new(),

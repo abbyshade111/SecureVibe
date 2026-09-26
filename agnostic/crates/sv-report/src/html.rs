@@ -380,7 +380,14 @@ pub fn page(report: &Report) -> String {
                 escape(&item.id),
                 escape(&item.title),
                 escape(item.route.what_to_do()),
-                escape(&item.how)
+                match &item.where_to_look {
+                    Some(w) => format!(
+                        "{}<br><span class=\"note\"><strong>Where to look:</strong> {}</span>",
+                        escape(&item.how),
+                        escape(w)
+                    ),
+                    None => escape(&item.how),
+                }
             ));
         }
         b.push_str("</table>\n");

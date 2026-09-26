@@ -5,97 +5,113 @@
       "id": "V2.2.2",
       "title": "Input validation is enforced at a trusted service layer",
       "asks": "Does the application enforce input validation on the server — a trusted service layer — and not only in the browser? Client-side validation improves usability and should be kept, but anyone can skip it by sending a request straight to the server, so it settles nothing on its own.",
-      "whereMeans": "the file where input validation happens on the server"
+      "whereMeans": "the file where input validation happens on the server",
+      "howToFindOut": "Find where the app receives a form or an API request, and look at what happens to the values before they are used. If the only checks you find are in the browser — HTML attributes, JavaScript — that is the answer."
     },
     {
       "id": "V7.2.1",
       "title": "Session tokens are verified by a trusted backend service",
       "asks": "Does the application perform all session token verification using a trusted backend service, rather than believing something the browser sends about who is signed in?",
-      "whereMeans": "the file where the session is verified"
+      "whereMeans": "the file where the session is verified",
+      "howToFindOut": "Find the code that runs on every request and decides who is signed in. Check whether it verifies something the server issued, or simply believes a value from a cookie or header."
     },
     {
       "id": "V8.3.1",
       "title": "Authorization rules are enforced at a trusted service layer",
       "asks": "Does the application enforce its authorization rules at a trusted service layer — the server — rather than relying on controls an untrusted consumer could manipulate, such as a hidden button or a disabled field in the browser? Hiding a link is not a rule: anyone can request the address directly.",
-      "whereMeans": "the file where authorization is enforced"
+      "whereMeans": "the file where authorization is enforced",
+      "howToFindOut": "Take a page or an action only some people should reach, and find the code that stops everybody else. If the only thing you find is the button being hidden in the template, that is the answer."
     },
     {
       "id": "V15.3.1",
       "title": "Only the fields that are needed are sent back",
       "asks": "When the application returns a record, does it return only the required fields, rather than the whole object with fields the person should not see?",
-      "whereMeans": "the file that decides which fields are returned"
+      "whereMeans": "the file that decides which fields are returned",
+      "howToFindOut": "Look at what an API returns for one record, or what a page sends to the browser, and compare it with what is shown. Anything extra in the response is being sent and simply not displayed."
     },
     {
       "id": "V1.1.1",
       "title": "Input is decoded once, before it is checked",
       "asks": "Is input decoded or unescaped into its final form exactly once, and before it is validated, rather than after? Decoding after the check lets something dangerous slip past a check that saw it encoded.",
-      "whereMeans": "the file that decodes input"
+      "whereMeans": "the file that decodes input",
+      "howToFindOut": "Find where the app decodes what it receives — URL decoding, base64, unescaping HTML — and check whether that happens before or after the values are checked. Twice is also worth looking for."
     },
     {
       "id": "V4.1.3",
       "title": "Headers added by a load balancer cannot be faked",
       "asks": "If a load balancer, proxy, or gateway sits in front of the application and adds header fields it relies on, can the application tell those apart from the same fields sent by a browser?",
-      "whereMeans": "the file or configuration that handles those header fields"
+      "whereMeans": "the file or configuration that handles those header fields",
+      "howToFindOut": "Find out what sits in front of the app and which header fields it adds. Then search the code for those names, and check whether the app can tell one the proxy set from one a browser sent."
     },
     {
       "id": "V4.2.1",
       "title": "Everything in front of the app agrees where a request ends",
       "asks": "Do all the components a request passes through — load balancers, firewalls, and the application server — agree on where one HTTP message ends and the next begins? When they disagree, somebody can hide a second request inside the first.",
-      "whereMeans": "the configuration for the server or proxy in front of the app"
+      "whereMeans": "the configuration for the server or proxy in front of the app",
+      "howToFindOut": "Find what sits in front of the app — a load balancer, a reverse proxy, your host's edge. Check whether each one and the app agree on request size limits, chunked encoding, and duplicate headers. If you run nothing in front of the app, say so: that is the answer."
     },
     {
       "id": "V8.2.3",
       "title": "Access to individual fields is restricted",
       "asks": "Where some fields of a record are more restricted than the record itself, does the application check permissions for those specific fields, both when read and when written?",
-      "whereMeans": "the file that enforces field-level permissions"
+      "whereMeans": "the file that enforces field-level permissions",
+      "howToFindOut": "Take a record with a field not everybody should change, and find the code that saves it. Check whether it filters the fields it accepts, or takes whatever the request sends."
     },
     {
       "id": "V10.1.1",
       "title": "Tokens go only where they are needed",
       "asks": "Are access tokens sent only to the components that strictly need them, rather than handed to the browser when the server could hold them instead?",
-      "whereMeans": "the file that handles tokens"
+      "whereMeans": "the file that handles tokens",
+      "howToFindOut": "Only where tokens are used. Find where the access token ends up: in the browser's storage, in a cookie, or kept on the server. Then list what actually needs it."
     },
     {
       "id": "V11.2.2",
       "title": "Encryption choices can be changed later",
       "asks": "Is the application designed so the algorithms, key lengths, and random number sources it uses for encryption and hashing can be replaced without rewriting it? Every algorithm in use now will eventually need replacing.",
-      "whereMeans": "the file where the algorithms are chosen"
+      "whereMeans": "the file where the algorithms are chosen",
+      "howToFindOut": "Find where the app names an algorithm or a key length — hashing passwords, encrypting a field, signing a token. Check whether changing one would mean editing one place or many."
     },
     {
       "id": "V13.2.1",
       "title": "Calls between the app's own backend components are authenticated",
       "asks": "Where communications between backend application components — APIs, middleware, and data layers — do not carry the standard user session, is each call authenticated, so a caller has to prove who it is rather than merely being able to reach the address?",
-      "whereMeans": "the file where calls between services are authenticated"
+      "whereMeans": "the file where calls between services are authenticated",
+      "howToFindOut": "List the things the app talks to over a network that are not the person's browser: the database, a cache, another of your services. For each, find what proves who is calling."
     },
     {
       "id": "V13.2.2",
       "title": "Accounts used between the app's own parts have the least privilege needed",
       "asks": "Are communications between backend application components — local or operating system services, APIs, middleware, and data layers — performed with accounts assigned the least privileges necessary for each one, rather than one powerful account used everywhere because it is simpler?",
-      "whereMeans": "the configuration that sets up those accounts"
+      "whereMeans": "the configuration that sets up those accounts",
+      "howToFindOut": "Look at the account the app uses for each of those connections and find out what it is allowed to do. A database account that can drop tables when the app only reads and writes rows is the answer."
     },
     {
       "id": "V14.2.2",
       "title": "Sensitive data is not left in a cache",
       "asks": "Does the application prevent sensitive data from being kept in caches it does not own — a load balancer, a content delivery network, or an application cache — or make sure anything kept there is protected?",
-      "whereMeans": "the file or configuration that sets caching"
+      "whereMeans": "the file or configuration that sets caching",
+      "howToFindOut": "List every cache a response passes through: your host's edge or CDN, a reverse proxy, the browser. Then look at what a private page sends back in Cache-Control. Anything sensitive without no-store is the answer to this one."
     },
     {
       "id": "V15.3.4",
       "title": "The visitor's real address is passed along truthfully",
       "asks": "If proxies or middleware sit in front of the application, do they pass the visitor's original IP address in a field the visitor cannot set themselves? Rate limits and logs are worth nothing if the address can be chosen by whoever is being limited.",
-      "whereMeans": "the proxy configuration, or the file that reads the address"
+      "whereMeans": "the proxy configuration, or the file that reads the address",
+      "howToFindOut": "Find out whether anything sits between the visitor and the app. If so, check which header field carries the real address and whether the app would believe the same field sent by a visitor directly."
     },
     {
       "id": "V16.2.2",
       "title": "Clocks agree, and times say which zone they are in",
       "asks": "Do all the parts of the application that write logs keep their clocks synchronized, and do the timestamps use UTC or say which time zone they are in? Two logs with drifting clocks cannot be put in order after an incident.",
-      "whereMeans": "the logging configuration"
+      "whereMeans": "the logging configuration",
+      "howToFindOut": "Look at a few recent log lines from each part of the app and compare their timestamps. Check whether they say which time zone they are in, and whether two parts logging the same moment agree."
     },
     {
       "id": "V16.4.3",
       "title": "Logs are sent somewhere separate",
       "asks": "Are logs sent to a separate system, so that somebody who takes over the application cannot quietly delete the record of what they did?",
-      "whereMeans": "the configuration that ships the logs"
+      "whereMeans": "the configuration that ships the logs",
+      "howToFindOut": "Find where the logs end up. If the answer is a file on the same machine the app runs on, then somebody who takes over the app can edit them, and this is not done."
     }
   ]
 }

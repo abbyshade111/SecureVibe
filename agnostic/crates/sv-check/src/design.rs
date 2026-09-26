@@ -59,6 +59,9 @@ pub struct Question {
     /// What `where` should name for this question, said in the file `sv` writes.
     #[serde(rename = "whereMeans")]
     pub where_means: String,
+    /// Where to go and look to answer it, for the checklist of what only a person can check.
+    #[serde(rename = "howToFindOut", default)]
+    pub how_to_find_out: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -228,6 +231,7 @@ mod tests {
                     title: "Who may do what is enforced on the server".into(),
                     asks: "Are the authorization rules enforced on the server?".into(),
                     where_means: "the file where authorization is enforced".into(),
+                    how_to_find_out: None,
                 },
                 Question {
                     id: "V2.2.2".into(),
@@ -235,6 +239,7 @@ mod tests {
                     asks: "Does the app validate input on the server as well as in the browser?"
                         .into(),
                     where_means: "the file where input validation happens".into(),
+                    how_to_find_out: None,
                 },
             ],
         }

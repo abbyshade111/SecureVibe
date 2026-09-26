@@ -6,137 +6,244 @@
       "id": "V2.1.1",
       "title": "What counts as valid input",
       "asks": "For each kind of information people type into the app (names, email addresses, dates, amounts, free text), write down the validation rules: what a valid value looks like, how long it may be, and what the app does with one that is not valid.",
-      "facts": ["data"]
+      "facts": [
+        "data"
+      ],
+      "howToFindOut": "Go through every form and every field an API accepts, and for each one write what a good value looks like. The quickest way to find them all is to open each page that has a form and list its inputs."
     },
     {
       "id": "V2.1.2",
       "title": "Data items that must make sense combined",
       "asks": "Where two or more data items have to agree with each other once combined (a start date before an end date, a city that matches the ZIP code), write down which combinations matter and how the app checks that logical consistency.",
-      "facts": []
+      "facts": [],
+      "howToFindOut": "Open each form that takes more than one value and list the pairs that have to agree — two dates, a country and a postal code, a quantity and a maximum. For each, try the combination that should be impossible and see whether the app takes it."
     },
     {
       "id": "V2.1.3",
       "title": "Business limits",
       "asks": "Write down the business logic limits: how many of something one person may create or do, and in how long (per user), and any limits across the whole app (globally), such as a daily total.",
-      "facts": []
+      "facts": [],
+      "howToFindOut": "Go through the app as a user and note everything somebody could do repeatedly: create a record, send an invitation, start an export. For each, decide the number that would be too many in a day, and write that down."
     },
     {
       "id": "V5.1.1",
       "title": "What files people may upload",
       "asks": "For each place people can upload a file: the permitted file types and extensions, the maximum size (including once unpacked, for a zip), and how the app makes a file safe to download again, including what happens when a file looks malicious.",
-      "facts": ["uploads"]
+      "facts": [
+        "uploads"
+      ],
+      "howToFindOut": "Open each place the app takes a file and look at what the code accepts today: the extensions it allows, the size limit if there is one, and where the file ends up. Write down what it should be, which may not be what it is."
     },
     {
       "id": "V6.1.1",
       "title": "How sign-in is protected against guessing",
       "asks": "How the app defends against someone trying many passwords (password brute force) or leaked email and password pairs (credential stuffing): rate limiting, delays, or lockout, and the numbers, such as five failed attempts in fifteen minutes. Say how these controls are configured, and how the app stops an attacker locking a real person out on purpose (malicious account lockout).",
-      "facts": ["sign-in"]
+      "facts": [
+        "sign-in"
+      ],
+      "howToFindOut": "Look in your sign-in code for anything that counts failures — a rate limiter, a lockout, a delay. If you find nothing, that is the answer, and the number to write down is the one you want rather than the one you have."
     },
     {
       "id": "V6.1.2",
       "title": "Words not allowed in passwords",
       "asks": "A list of context-specific words people may not use in their passwords: the app's name, the organization's name, product names, and other words someone would guess first.",
-      "facts": ["app-name"]
+      "facts": [
+        "app-name"
+      ],
+      "howToFindOut": "Start from the names somebody could guess without knowing you: the app, your organization, your product, the town you are in. Add the obvious variations with numbers on the end."
     },
     {
       "id": "V6.1.3",
       "title": "Every way to sign in",
       "asks": "If there is more than one way to sign in (a password, a Google or Microsoft account, a code by email, an API key), list all these authentication pathways, and say which security controls apply to each, so they are enforced consistently and one is not weaker than the others.",
-      "facts": ["sign-in"]
+      "facts": [
+        "sign-in"
+      ],
+      "howToFindOut": "Open the sign-in page and list every button on it, then search the code for anywhere else a session is created — an API key check, a magic link, a mobile app, an admin back door. Each one is a pathway, and they should all be as strong as each other."
     },
     {
       "id": "V7.1.1",
       "title": "How long someone stays signed in",
       "asks": "The session inactivity timeout (how long someone can be away before signing in again) and the absolute maximum session lifetime (how long any session lasts at most), and why those times are right for this app. If they are longer than NIST SP 800-63B suggests, say why.",
-      "facts": ["sign-in"]
+      "facts": [
+        "sign-in"
+      ],
+      "howToFindOut": "Find the two numbers in your app's configuration: how long an idle session lasts, and how long any session lasts at most. If you cannot find them, the answer is whatever your framework does by default, and that is the number to write down and then reconsider."
     },
     {
       "id": "V7.1.2",
       "title": "Signed in on several devices at once",
       "asks": "How many concurrent sessions one account may have at once (a phone and a laptop, say), and what the app does when someone reaches the maximum: sign out the oldest, refuse the new one, or tell the person.",
-      "facts": ["sign-in"]
+      "facts": [
+        "sign-in"
+      ],
+      "howToFindOut": "Sign in to the same account from two browsers and see whether both keep working. That tells you what the app does today; write down what it should do."
     },
     {
       "id": "V7.1.3",
       "title": "Sign-in shared with other systems",
       "asks": "If people sign in through a shared system (single sign-on, SSO, a federated identity provider), list every system that creates or manages their sessions, and how session lifetimes and signing out are coordinated between them, including when to ask for re-authentication.",
-      "facts": ["sign-in"]
+      "facts": [
+        "sign-in"
+      ],
+      "howToFindOut": "Only if people sign in through a shared system. List every system that can create a session for your app, and find out what happens in each when somebody signs out of one: often nothing, which is the thing to write down."
     },
     {
       "id": "V8.1.1",
       "title": "Who may do what",
       "asks": "The authorization rules: which kinds of users may use which functions (function-level: only administrators may open the admin page), and which records each may see or change (data-specific: a person may only open their own notes).",
-      "facts": ["data"]
+      "facts": [
+        "data"
+      ],
+      "howToFindOut": "List the kinds of user the app has, then walk through the app as each one and note what they can reach. The pages that only some people should see, and the records that belong to one person, are what these rules are about."
     },
     {
       "id": "V8.1.2",
       "title": "Who may see or change each field",
       "asks": "Where some fields of a record are more restricted than the record itself, the field-level access rules: who may read and who may write each field, and whether that depends on the record's state or status (a published order's total can no longer be changed).",
-      "facts": ["data"]
+      "facts": [
+        "data"
+      ],
+      "howToFindOut": "Take a record with a field not everybody should see — a price, a note, an internal status. Write down who may read it and who may change it, and whether that depends on the record's state."
     },
     {
       "id": "V11.1.1",
       "title": "How keys are looked after",
       "asks": "The policy for cryptographic keys: where each key is kept, who can reach it, how often it is replaced, and what happens when one may have leaked, following a key management standard such as NIST SP 800-57 through each key's lifecycle.",
-      "facts": []
+      "facts": [],
+      "howToFindOut": "List every key the app uses: session signing, encryption at rest, the TLS certificate, anything a provider gave you. For each, write where it lives, who can read it, and what you would do tomorrow if it leaked."
     },
     {
       "id": "V11.1.2",
       "title": "Every key, algorithm, and certificate",
       "asks": "A cryptographic inventory: every key, algorithm, and certificate the app uses, where each key may and may not be used, and what data each may and may not protect. Keep it updated when one is added or replaced.",
-      "facts": []
+      "facts": [],
+      "howToFindOut": "Look in your .env and your host's secret store, at the certificate on the live site, and at whatever the code calls to hash or encrypt. That is the inventory; write down which data each protects and where it may not be used."
     },
     {
       "id": "V13.1.1",
       "title": "Everything the app talks to",
       "asks": "All the communication needs of the app: every external service it connects to (payment providers, email, AI services, other APIs) and why, and any place where someone using the app can give it an address that the app will then connect to itself.",
-      "facts": ["outside-services"]
+      "facts": [
+        "outside-services"
+      ],
+      "howToFindOut": "Look at your dependency list for anything that calls out — payment, email, AI, maps, analytics — and at the report's own list of outside services. Then add the places where somebody using the app can give it an address it will fetch."
     },
     {
       "id": "V14.1.2",
       "title": "How each kind of sensitive data is protected",
       "asks": "For each kind of sensitive data the app holds, its protection requirements: whether it is encrypted, how long it is kept (retention), whether and how it may appear in logs, who can see it, and anything the privacy law you follow requires.",
-      "facts": ["data"]
+      "facts": [
+        "data"
+      ],
+      "howToFindOut": "Take each kind of data from the list you made for V14.1.1 and decide four things for it: encrypted or not, kept for how long, allowed in logs or not, and who may see it."
     },
     {
       "id": "V15.1.1",
       "title": "How quickly outdated libraries are updated",
       "asks": "Time frames for remediation: how soon a third-party library with a known vulnerability is updated, by how serious the vulnerability is (for example, critical within a week), and how often libraries are updated in general.",
-      "facts": ["ecosystems"]
+      "facts": [
+        "ecosystems"
+      ],
+      "howToFindOut": "Decide the number of days you would accept between a vulnerability being published and it being fixed, for each level of severity. Start from how bad it would be for this app rather than from what other people write down."
     },
     {
       "id": "V15.1.3",
       "title": "Slow or heavy features",
       "asks": "Which functionality is time-consuming or resource-demanding (large exports, report generation, AI requests, image processing), and how the app prevents a loss of availability from overusing it: queues, limits per user, timeouts.",
-      "facts": ["outside-services"]
+      "facts": [
+        "outside-services"
+      ],
+      "howToFindOut": "Time the slow things: an export, a report, a search over everything, an AI request, anything that resizes an image. Anything a person notices waiting for is what this asks about."
     },
     {
       "id": "V16.1.1",
       "title": "What the app logs",
       "asks": "An inventory of the logging: which events are logged, in what format, where the logs are stored, who can read them (access), what they are used for, and how long they are kept.",
-      "facts": []
+      "facts": [],
+      "howToFindOut": "Find where the app's output actually goes — the console, a file, your host's logging, an outside service — and what it writes at each level. Then say who can read it and how long it is kept."
     }
   ],
   "elsewhere": [
-    { "id": "V1.2.1", "why": "about output encoding for an HTML document; it asks for no documentation" },
-    { "id": "V1.2.3", "why": "about escaping JavaScript content; it asks for no documentation" },
-    { "id": "V2.3.2", "why": "asks for the business limits to be implemented as documented: behavior, which the document in V2.1.3 does not show" },
-    { "id": "V3.5.4", "why": "about how documents from one site can reach another; it asks for no documentation" },
-    { "id": "V5.4.2", "why": "about file names keeping a document's structure; it asks for no documentation" },
-    { "id": "V6.2.11", "why": "asks for the documented list of words to be used when a password is chosen: behavior" },
-    { "id": "V6.3.1", "why": "asks for the brute-force controls to be implemented as documented: behavior, the running-app half of V6.1.1" },
-    { "id": "V6.3.3", "why": "asks for multi-factor authentication; documentation is needed only for an exception" },
-    { "id": "V6.3.4", "why": "asks that no sign-in pathway is undocumented, which is a fact about the app, not the document" },
-    { "id": "V6.8.4", "why": "asks the app to check an identity provider's claims; documentation is needed only for a fallback" },
-    { "id": "V7.3.1", "why": "asks for the inactivity timeout to be enforced: behavior, the running-app half of V7.1.1" },
-    { "id": "V7.3.2", "why": "asks for the absolute session lifetime to be enforced: behavior, the running-app half of V7.1.1" },
-    { "id": "V7.6.1", "why": "asks for sessions shared with an identity provider to behave as documented: behavior" },
-    { "id": "V13.4.5", "why": "asks that API documentation is not exposed: a fact about the running app" },
-    { "id": "V14.2.4", "why": "asks for sensitive data to be protected as documented: behavior, the half of V14.1.2 a document does not show" },
-    { "id": "V15.2.1", "why": "asks that no component is past its documented update time: checked against the app's packages, not the document" },
-    { "id": "V15.2.2", "why": "asks for defenses against overuse to be implemented: behavior, the half of V15.1.3 a document does not show" },
-    { "id": "V16.2.3", "why": "asks that logs go only where the log inventory says: behavior, the half of V16.1.1 a document does not show" },
-    { "id": "V16.3.3", "why": "asks for the documented security events to be logged: behavior" },
-    { "id": "V17.2.1", "why": "asks for a DTLS key to be managed as documented: behavior, and only for WebRTC" }
+    {
+      "id": "V1.2.1",
+      "why": "about output encoding for an HTML document; it asks for no documentation"
+    },
+    {
+      "id": "V1.2.3",
+      "why": "about escaping JavaScript content; it asks for no documentation"
+    },
+    {
+      "id": "V2.3.2",
+      "why": "asks for the business limits to be implemented as documented: behavior, which the document in V2.1.3 does not show"
+    },
+    {
+      "id": "V3.5.4",
+      "why": "about how documents from one site can reach another; it asks for no documentation"
+    },
+    {
+      "id": "V5.4.2",
+      "why": "about file names keeping a document's structure; it asks for no documentation"
+    },
+    {
+      "id": "V6.2.11",
+      "why": "asks for the documented list of words to be used when a password is chosen: behavior"
+    },
+    {
+      "id": "V6.3.1",
+      "why": "asks for the brute-force controls to be implemented as documented: behavior, the running-app half of V6.1.1"
+    },
+    {
+      "id": "V6.3.3",
+      "why": "asks for multi-factor authentication; documentation is needed only for an exception"
+    },
+    {
+      "id": "V6.3.4",
+      "why": "asks that no sign-in pathway is undocumented, which is a fact about the app, not the document"
+    },
+    {
+      "id": "V6.8.4",
+      "why": "asks the app to check an identity provider's claims; documentation is needed only for a fallback"
+    },
+    {
+      "id": "V7.3.1",
+      "why": "asks for the inactivity timeout to be enforced: behavior, the running-app half of V7.1.1"
+    },
+    {
+      "id": "V7.3.2",
+      "why": "asks for the absolute session lifetime to be enforced: behavior, the running-app half of V7.1.1"
+    },
+    {
+      "id": "V7.6.1",
+      "why": "asks for sessions shared with an identity provider to behave as documented: behavior"
+    },
+    {
+      "id": "V13.4.5",
+      "why": "asks that API documentation is not exposed: a fact about the running app"
+    },
+    {
+      "id": "V14.2.4",
+      "why": "asks for sensitive data to be protected as documented: behavior, the half of V14.1.2 a document does not show"
+    },
+    {
+      "id": "V15.2.1",
+      "why": "asks that no component is past its documented update time: checked against the app's packages, not the document"
+    },
+    {
+      "id": "V15.2.2",
+      "why": "asks for defenses against overuse to be implemented: behavior, the half of V15.1.3 a document does not show"
+    },
+    {
+      "id": "V16.2.3",
+      "why": "asks that logs go only where the log inventory says: behavior, the half of V16.1.1 a document does not show"
+    },
+    {
+      "id": "V16.3.3",
+      "why": "asks for the documented security events to be logged: behavior"
+    },
+    {
+      "id": "V17.2.1",
+      "why": "asks for a DTLS key to be managed as documented: behavior, and only for WebRTC"
+    }
   ]
 }
