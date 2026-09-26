@@ -801,18 +801,29 @@ fn every_pack_the_semgrep_adapter_runs_has_been_measured() {
         .iter()
         .find(|a| a["id"] == "semgrep")
         .unwrap();
-    let args: Vec<&str> = semgrep["run"]["args"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|a| a.as_str().unwrap())
-        .collect();
-    let run: Vec<&str> = args
-        .windows(2)
-        .filter(|w| w[0] == "--config")
-        .map(|w| w[1])
-        .collect();
+    // The packs it runs for every app, and those it adds for an app a condition may hold for.
+    let lists = std::iter::once(&semgrep["run"]["args"]).chain(
+        semgrep["conditional_args"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|c| &c["args"]),
+    );
+    let mut run: Vec<&str> = Vec::new();
+    for list in lists {
+        let args: Vec<&str> = list
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a.as_str().unwrap())
+            .collect();
+        run.extend(args.windows(2).filter(|w| w[0] == "--config").map(|w| w[1]));
+    }
     assert!(!run.is_empty(), "the adapter names no pack");
+    assert!(
+        run.contains(&"p/ai-best-practices"),
+        "the conditional pack was not read: {run:?}"
+    );
     let packs = semgrep_packs();
     for pack in run {
         assert!(
