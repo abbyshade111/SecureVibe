@@ -1017,6 +1017,8 @@ another session is not a claim.
   registry run's own list of the rules `p/security-audit` loaded
   (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
   Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
+  **Step 2, `p/ai-best-practices` for apps that use AI, claimed on 26 September 2026 by session
+  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed.
   **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
   what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
   refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
