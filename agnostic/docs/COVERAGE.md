@@ -30,7 +30,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 77 (22%) | 2 | 266 |
+| OWASP ASVS 5.0 | 345 | 81 (23%) | 2 | 262 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
@@ -41,7 +41,7 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools |
 |---|---|---|---|---|---|---|---|
-| L1 | 70 | 41 | 7 | 1 | 3 | 20 | 20 |
+| L1 | 70 | 45 | 7 | 1 | 3 | 24 | 20 |
 | L2 | 183 | 33 | 4 | 0 | 10 | 5 | 21 |
 | L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 |
 
@@ -53,9 +53,9 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
 | V2 Validation and Business Logic | 13 | 0 | 0 | 13 |
-| V3 Web Frontend Security | 31 | 13 | 0 | 18 |
+| V3 Web Frontend Security | 31 | 14 | 0 | 17 |
 | V4 API and Web Service | 16 | 2 | 0 | 14 |
-| V5 File Handling | 13 | 2 | 0 | 11 |
+| V5 File Handling | 13 | 5 | 0 | 8 |
 | V6 Authentication | 47 | 12 | 0 | 35 |
 | V7 Session Management | 19 | 5 | 0 | 14 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
@@ -88,10 +88,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (36)
+### Settled by asking the running app (40)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
 | V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
 | V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep` |
@@ -102,6 +103,9 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
+| V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
+| V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
+| V5.3.1 | L1 | Signed in: `probe.uploaded-file-executed` |
 | V6.2.1 | L1 | Signed in: `probe.short-password-accepted` |
 | V6.2.2 | L1 | Signed in: `probe.password-change` |
 | V6.2.3 | L1 | Signed in: `probe.password-change-without-current` |
@@ -175,11 +179,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (29)
+### Level 1 with no check at all (25)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.2.2, V2.3.1, V3.2.1, V3.4.1, V3.5.2, V5.2.1, V5.2.2, V5.3.1, V6.1.1, V6.4.1, V7.2.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V12.2.1, V12.2.2, V14.3.1, V15.1.1, V15.3.1
+V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.2.2, V2.3.1, V3.4.1, V3.5.2, V6.1.1, V6.4.1, V7.2.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V12.2.1, V12.2.2, V14.3.1, V15.1.1, V15.3.1
 
 ## AISVS 1.0 by chapter
 

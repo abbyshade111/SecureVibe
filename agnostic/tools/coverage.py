@@ -82,6 +82,10 @@ RUST_CHECKS = {
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
     "probe.no-sign-out-link": ("signed-in", ["V7.4.4"]),
+    "probe.oversized-file-accepted": ("signed-in", ["V5.2.1"]),
+    "probe.file-contents-unchecked": ("signed-in", ["V5.2.2"]),
+    "probe.uploaded-file-executed": ("signed-in", ["V5.3.1"]),
+    "probe.uploaded-file-rendered": ("signed-in", ["V3.2.1"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are

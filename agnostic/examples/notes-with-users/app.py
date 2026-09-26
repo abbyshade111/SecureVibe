@@ -97,6 +97,52 @@ class Handler(BaseHTTPRequestHandler):
             "<button>Sign out</button></form>"
         )
 
+    # The largest file this app accepts, matching `max-bytes` in securevibe.toml: V5.2.1.
+    MAX_UPLOAD = 64 * 1024
+    UPLOADS = {}
+
+    def upload(self, sid, email, csrf):
+        """Takes a file, the way V5.2.1, V5.2.2 and V5.3.1 ask for."""
+        if not email:
+            return self.send(302, headers=[("Location", "/login")])
+        length = int(self.headers.get("Content-Length", 0))
+        if length > self.MAX_UPLOAD * 4:
+            return self.send(413, page("No", "That file is too large."))
+        raw = self.rfile.read(length).decode("utf-8", "replace")
+        token = ""
+        name = ""
+        contents = ""
+        for part in raw.split("\r\n--"):
+            if 'name="csrf_token"' in part:
+                token = part.split("\r\n\r\n", 1)[-1].strip()
+            elif "filename=" in part:
+                name = part.split('filename="', 1)[-1].split('"', 1)[0]
+                contents = part.split("\r\n\r\n", 1)[-1]
+        if self.forged({"csrf_token": token}, csrf):
+            return self.send(403, page("No", "Refused."))
+        # V5.2.1: larger than this app says it takes.
+        if len(contents) > self.MAX_UPLOAD:
+            return self.send(413, page("No", "That file is too large."))
+        # V5.2.2: the contents have to be what the extension promises.
+        if name.lower().endswith(".gif") and not contents.startswith(("GIF87a", "GIF89a")):
+            return self.send(415, page("No", "That is not a GIF."))
+        # V5.3.2: the name is not used to build a path; only its last part is kept, as a key.
+        self.UPLOADS[os.path.basename(name)] = contents
+        return self.send(201, page("Stored", "Saved."))
+
+    def serve_upload(self, name):
+        """Hands a file back without letting it be run or rendered: V5.3.1 and V3.2.1."""
+        contents = self.UPLOADS.get(os.path.basename(name))
+        if contents is None:
+            return self.send(404, page("No", "No such file."))
+        # Served by this code rather than by the web server, so nothing in it is ever executed, and
+        # as an attachment so a browser never renders it as a page of this app.
+        return self.send(
+            200,
+            contents.encode(),
+            [("Content-Disposition", "attachment"), ("X-Content-Type-Options", "nosniff")],
+        )
+
     def forged(self, form, csrf):
         origin = self.headers.get("Origin")
         if origin and origin not in OWN_ORIGINS:
@@ -120,6 +166,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, page(title, form), [self.cookie(sid)])
         if not email:
             return self.send(302, headers=[("Location", "/login")])
+        if self.path.startswith("/files/"):
+            return self.serve_upload(self.path[len("/files/") :])
         if self.path == "/account":
             return self.send(
                 200,
@@ -161,6 +209,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         sid, email, csrf = self.session()
+        # A file upload is multipart, which `form()` cannot read; it is handled before the rest.
+        if self.path == "/upload":
+            return self.upload(*self.session())
         form = self.form()
         if self.path == "/login":
             if self.forged(form, csrf):
