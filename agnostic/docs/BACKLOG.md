@@ -478,7 +478,7 @@ another session is not a claim.
      no entry says yet. **V4.4.3 and V4.4.4 claimed on 26 September 2026 by session securevibe-e9**,
      with a `private-websocket` entry under `[stack.run.users]` saying which socket needs a sign-in. **Done the same day:** V4.4.4 is credited when handshakes with no
      session and with a made-up one are refused where the signed-in one upgrades, and V4.4.3 is a
-     finding when a signed-out session still opens the socket. Level 2 goes from 62 to 64 of 183. Left
+     finding when a signed-out session still opens the socket. Level 2 goes from 63 to 65 of 183. Left
      over: V4.4.2 for a private socket, which the anonymous check cannot ask. See DESIGN, "V4.4.3 and
      V4.4.4, a private WebSocket's session".
      Whether the log line the log check already finds is in a common format —
