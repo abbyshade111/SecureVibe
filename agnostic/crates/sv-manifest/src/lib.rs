@@ -174,6 +174,14 @@ pub struct RunSection {
     /// not assessed, which is what they always were.
     #[serde(default)]
     pub users: Option<UsersSection>,
+    /// Where the app answers GraphQL, if it does. The probes ask it for its schema and send one
+    /// request of a thousand aliases, which needs no knowledge of the schema at all.
+    #[serde(default)]
+    pub graphql: Option<String>,
+    /// Where the app accepts WebSocket connections, if it does. The probes open a handshake with
+    /// no `Origin` and one from a site the app has never heard of.
+    #[serde(default)]
+    pub websocket: Option<String>,
 }
 
 /// One request the probes make on the app's behalf: how to sign up, sign in, or create something.

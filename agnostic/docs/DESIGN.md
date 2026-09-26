@@ -1446,6 +1446,40 @@ the cookie, and what is left is everything the page kept.
 their own. The plan that said "a rule in the same shape as `ast.download-piped-to-shell`" had not
 checked that, and it was wrong.
 
+### GraphQL, WebSocket, and a log line's format
+
+Four more Level 2 requirements, from the first item of the new-tools list. Two new optional entries
+under `[stack.run]` say where the app answers GraphQL and WebSocket connections; everything else was
+already in hand.
+
+**V4.3.2, introspection.** An introspection query for the schema. Whether an answer is a fault
+depends on whether other programs are meant to use the API, which is the `public-api` claim, so the
+claim travels into the run: introspection answered is a finding when the manifest says the API is
+private, credited when it says it is public, and *not assessed* when the manifest is silent.
+
+**V4.3.1, amount.** One request of a thousand aliases of `__typename`, which needs no knowledge of
+the schema and costs a server nothing. The obvious alternative, a too-deep query, needs the schema
+— which introspection being off withholds, so it would fail precisely for the apps doing the right
+thing. And the answer is read from its start, not its end: probe bodies are kept to their first four
+thousand characters, far short of `a999`, but servers apply amount and cost limits before running
+anything, so `a0` coming back with no errors means the whole request was allowed. A test builds the
+answer and cuts it the way real bodies are cut, to prove the check never needs the end.
+
+**V4.4.2, WebSocket origin.** A handshake with no `Origin`, which is how non-browser clients connect
+and how nearly every server accepts one, then one from a site the app has never heard of. The first
+has to upgrade or the second proves nothing. A `101` needs no special handling: the raw socket the
+probes speak over reads until five idle seconds pass, so an upgraded connection just ends there.
+
+**V16.2.4, a common format.** The line the log check already finds is read for JSON, logfmt, or the
+common log format. Credit on presence only: a processor can be taught any consistent line, and a
+log shipper often structures lines on the way, so free text is *not assessed*. Logfmt needs at least
+three `key=value` pairs making up half the line, so a sentence with one equals sign is a sentence.
+
+Two things left out, and why. V4.4.3 and V4.4.4 ask about a WebSocket's own session, which is only a
+fault if the connection is meant to be private, and nothing in the manifest says that yet. And
+V15.3.5, type confusion, was on the list and is not built here: a probe for it sends sign-in requests
+shaped to get in without the password.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

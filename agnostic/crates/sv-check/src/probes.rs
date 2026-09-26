@@ -473,6 +473,242 @@ fn directory_listing(responses: &[ProbeResponse]) -> Option<Finding> {
     ))
 }
 
+// ------------------------------------------------------------------------------------------------
+// GraphQL and WebSocket, when securevibe.toml names where they are.
+
+/// How many aliases the amount probe asks for. Large enough that no app means to allow it for one
+/// request, small enough that answering it costs a server nothing worth worrying about: each one is
+/// `__typename`, which every GraphQL server answers without touching any data.
+const ALIASES: usize = 1000;
+
+/// A key for the WebSocket handshake. Any 16 bytes, base64; the server only echoes a hash of it.
+const WS_KEY: &str = "c3YtcHJvYmUtd3Mta2V5LTE2Yg==";
+
+fn graphql_request(id: &str, path: &str, query: &str) -> ProbeRequest {
+    ProbeRequest {
+        id: id.to_owned(),
+        method: "POST".into(),
+        path: path.to_owned(),
+        headers: vec![("Content-Type".into(), "application/json".into())],
+        body: Some(serde_json::json!({ "query": query }).to_string()),
+    }
+}
+
+fn ws_request(id: &str, path: &str, origin: Option<&str>) -> ProbeRequest {
+    let mut headers = vec![
+        ("Upgrade".into(), "websocket".into()),
+        ("Connection".into(), "Upgrade".into()),
+        ("Sec-WebSocket-Key".into(), WS_KEY.into()),
+        ("Sec-WebSocket-Version".into(), "13".into()),
+    ];
+    if let Some(origin) = origin {
+        headers.push(("Origin".into(), origin.to_owned()));
+    }
+    ProbeRequest {
+        id: id.to_owned(),
+        method: "GET".into(),
+        path: path.to_owned(),
+        headers,
+        body: None,
+    }
+}
+
+/// The requests for the GraphQL and WebSocket questions, for whichever of the two the app has.
+pub fn api_requests(graphql: Option<&str>, websocket: Option<&str>) -> Vec<ProbeRequest> {
+    let mut out = Vec::new();
+    if let Some(path) = graphql {
+        out.push(graphql_request("graphql-plain", path, "{__typename}"));
+        out.push(graphql_request(
+            "graphql-introspection",
+            path,
+            "{__schema{queryType{name}}}",
+        ));
+        let aliases: Vec<String> = (0..ALIASES).map(|i| format!("a{i}:__typename")).collect();
+        out.push(graphql_request(
+            "graphql-aliases",
+            path,
+            &format!("{{{}}}", aliases.join(" ")),
+        ));
+    }
+    if let Some(path) = websocket {
+        out.push(ws_request("ws-no-origin", path, None));
+        out.push(ws_request("ws-foreign-origin", path, Some(STRANGER)));
+    }
+    out
+}
+
+/// A GraphQL answer that carries data and no errors: the query was accepted and run.
+fn graphql_ran(r: &ProbeResponse, key: &str) -> bool {
+    (200..300).contains(&r.status)
+        && r.body.contains("\"data\"")
+        && r.body.contains(&format!("\"{key}\""))
+        && !r.body.contains("\"errors\"")
+}
+
+/// What the GraphQL and WebSocket answers show.
+///
+/// Everything here establishes its setup first. A GraphQL question is only asked of an endpoint
+/// that answered `{__typename}`, the one query every server accepts; a WebSocket one only of an
+/// endpoint that upgraded a handshake with no `Origin`, which is how a non-browser client connects
+/// and how nearly every server accepts one. Without that, a refusal says only that the path is not
+/// what securevibe.toml says.
+pub fn evaluate_api(
+    responses: &[ProbeResponse],
+    public_api: Option<bool>,
+) -> (Vec<Finding>, Vec<crate::Verified>, Vec<(String, String)>) {
+    let mut findings = Vec::new();
+    let mut verified = Vec::new();
+    let mut not_assessed = Vec::new();
+    let find = |id: &str| responses.iter().find(|r| r.id == id);
+
+    // ---- GraphQL
+    if let Some(plain) = find("graphql-plain") {
+        if !graphql_ran(plain, "__typename") {
+            not_assessed.push((
+                "V4.3.1, V4.3.2".to_owned(),
+                format!(
+                    "The GraphQL path answered `{{__typename}}` with {} and no data, so it is not \
+                     answering GraphQL as securevibe.toml says, and nothing else could be asked.",
+                    plain.status
+                ),
+            ));
+        } else {
+            // V4.3.2: introspection, allowed only for an API meant for other programs.
+            if let Some(intro) = find("graphql-introspection") {
+                let open = graphql_ran(intro, "__schema");
+                match (open, public_api) {
+                    (false, _) => verified.push(crate::Verified::new(
+                        GRAPHQL_INTROSPECTION.rule_id,
+                        GRAPHQL_INTROSPECTION.requirement_ids,
+                        "an introspection query for the schema, refused where a plain GraphQL query \
+                         was answered"
+                            .to_owned(),
+                    )),
+                    (true, Some(false)) => findings.push(finding(
+                        &GRAPHQL_INTROSPECTION,
+                        "The GraphQL schema is handed to anybody who asks",
+                        Severity::Medium,
+                        "An introspection query was answered with the schema, and securevibe.toml \
+                         says no other programs are meant to use this API."
+                            .to_owned(),
+                    )),
+                    (true, Some(true)) => verified.push(crate::Verified::new(
+                        GRAPHQL_INTROSPECTION.rule_id,
+                        GRAPHQL_INTROSPECTION.requirement_ids,
+                        "introspection answered, which V4.3.2 allows for an API meant for other \
+                         programs, as securevibe.toml says this one is"
+                            .to_owned(),
+                    )),
+                    (true, None) => not_assessed.push((
+                        "V4.3.2".to_owned(),
+                        "Introspection is on. That is right for an API other programs are meant to \
+                         use and wrong otherwise, and securevibe.toml does not say which this is \
+                         (`public-api` under [capabilities])."
+                            .to_owned(),
+                    )),
+                }
+            }
+            // V4.3.1: a thousand aliases in one request. Read from the start of the answer, not
+            // the end: bodies are kept to their first few thousand characters, and a server
+            // applies amount and cost limits before it runs anything, so `a0` coming back with no
+            // errors means the whole request was allowed.
+            if let Some(many) = find("graphql-aliases") {
+                if graphql_ran(many, "a0") {
+                    findings.push(finding(
+                        &GRAPHQL_AMOUNT,
+                        "One GraphQL request can ask for a thousand things at once",
+                        Severity::Medium,
+                        format!(
+                            "A single request of {ALIASES} aliases was accepted and run. Nothing \
+                             limits how much one request may ask for."
+                        ),
+                    ));
+                } else {
+                    verified.push(crate::Verified::new(
+                        GRAPHQL_AMOUNT.rule_id,
+                        GRAPHQL_AMOUNT.requirement_ids,
+                        format!(
+                            "a request of {ALIASES} aliases {} where a plain query was answered",
+                            if (200..300).contains(&many.status) {
+                                "answered with an error instead of being run".to_owned()
+                            } else {
+                                format!("refused ({})", many.status)
+                            }
+                        ),
+                    ));
+                }
+            }
+        }
+    }
+
+    // ---- WebSocket
+    if let (Some(plain), Some(foreign)) = (find("ws-no-origin"), find("ws-foreign-origin")) {
+        if plain.status != 101 {
+            not_assessed.push((
+                "V4.4.2".to_owned(),
+                format!(
+                    "The WebSocket path answered a plain handshake with {} rather than switching \
+                     protocols, so either it is not where securevibe.toml says or it refuses every \
+                     handshake; either way a refusal of a foreign one would prove nothing.",
+                    plain.status
+                ),
+            ));
+        } else if foreign.status == 101 {
+            findings.push(finding(
+                &WS_ORIGIN,
+                "A WebSocket connection is accepted from any website",
+                Severity::Medium,
+                format!(
+                    "A handshake carrying `Origin: {STRANGER}` was accepted (101). A page on any \
+                     site can open this connection with the visitor's cookies."
+                ),
+            ));
+        } else {
+            verified.push(crate::Verified::new(
+                WS_ORIGIN.rule_id,
+                WS_ORIGIN.requirement_ids,
+                format!(
+                    "a WebSocket handshake from a site the app has never heard of, refused ({}) \
+                     where one with no Origin was accepted",
+                    foreign.status
+                ),
+            ));
+        }
+    }
+    (findings, verified, not_assessed)
+}
+
+const GRAPHQL_INTROSPECTION: Rule = Rule {
+    rule_id: "probe.graphql-introspection",
+    confidence: Confidence::High,
+    requirement_ids: &["V4.3.2"],
+    cwe: &["CWE-200"],
+    impact: "The schema is a map of every query and field the API has, including the ones no page \
+             uses, handed to whoever asks.",
+    fix: "Turn introspection off in production; every GraphQL server has a setting for it.",
+};
+
+const GRAPHQL_AMOUNT: Rule = Rule {
+    rule_id: "probe.graphql-no-amount-limit",
+    confidence: Confidence::High,
+    requirement_ids: &["V4.3.1"],
+    cwe: &["CWE-770"],
+    impact: "One request can make the server do a thousand times the work of an ordinary one, which \
+             is the cheapest way there is to slow an API down for everybody.",
+    fix: "Limit aliases, depth, or query cost per request, or accept only queries from an allowlist.",
+};
+
+const WS_ORIGIN: Rule = Rule {
+    rule_id: "probe.websocket-origin-unchecked",
+    confidence: Confidence::High,
+    requirement_ids: &["V4.4.2"],
+    cwe: &["CWE-1385"],
+    impact: "Browsers do not stop cross-site WebSocket connections the way they stop other \
+             cross-site requests, so another site can open one as the visitor and read what comes \
+             back.",
+    fix: "Compare the handshake's `Origin` with the app's own origins and refuse the rest.",
+};
+
 /// Headers a browser needs in order to protect the people using the app.
 fn security_headers(response: &ProbeResponse) -> Option<Finding> {
     let mut missing = Vec::new();
@@ -1384,5 +1620,292 @@ mod tests {
                 .any(|v| v.requirement_ids.iter().any(|r| r == "V13.4.3")),
             "a clean sweep of six guesses credited V13.4.3: {credited:?}"
         );
+    }
+
+    // ---- GraphQL and WebSocket
+
+    fn gql(id: &str, status: u16, body: &str) -> ProbeResponse {
+        response(id, status, &[("Content-Type", "application/json")], body)
+    }
+
+    const PLAIN_OK: &str = r#"{"data":{"__typename":"Query"}}"#;
+
+    #[test]
+    fn graphql_questions_are_asked_only_of_a_path_that_answers_graphql() {
+        let (f, v, na) = evaluate_api(
+            &[
+                gql("graphql-plain", 404, "not found"),
+                gql("graphql-introspection", 404, "not found"),
+                gql("graphql-aliases", 404, "not found"),
+            ],
+            Some(false),
+        );
+        assert!(f.is_empty() && v.is_empty(), "{f:?} {v:?}");
+        assert!(
+            na.iter()
+                .any(|(id, _)| id.contains("V4.3.1") && id.contains("V4.3.2"))
+        );
+    }
+
+    #[test]
+    fn introspection_is_judged_against_whether_the_api_is_meant_for_others() {
+        let open = [
+            gql("graphql-plain", 200, PLAIN_OK),
+            gql(
+                "graphql-introspection",
+                200,
+                r#"{"data":{"__schema":{"queryType":{"name":"Query"}}}}"#,
+            ),
+        ];
+        let (f, _, _) = evaluate_api(&open, Some(false));
+        assert!(
+            f.iter().any(|x| x.rule_id == "probe.graphql-introspection"),
+            "{f:?}"
+        );
+        let (f, v, _) = evaluate_api(&open, Some(true));
+        assert!(
+            f.is_empty(),
+            "an API meant for others may be introspected: {f:?}"
+        );
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.graphql-introspection")
+        );
+        let (f, v, na) = evaluate_api(&open, None);
+        assert!(
+            f.is_empty()
+                && !v
+                    .iter()
+                    .any(|x| x.check_id == "probe.graphql-introspection")
+        );
+        assert!(
+            na.iter()
+                .any(|(id, why)| id == "V4.3.2" && why.contains("public-api")),
+            "{na:?}"
+        );
+
+        // Refused introspection is credited whatever the API is for.
+        let closed = [
+            gql("graphql-plain", 200, PLAIN_OK),
+            gql(
+                "graphql-introspection",
+                200,
+                r#"{"errors":[{"message":"introspection is disabled"}]}"#,
+            ),
+        ];
+        let (f, v, _) = evaluate_api(&closed, Some(false));
+        assert!(f.is_empty());
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.graphql-introspection")
+        );
+    }
+
+    #[test]
+    fn a_thousand_aliases_run_is_a_finding_and_read_from_the_start_of_the_answer() {
+        // Bodies are kept to their first few thousand characters, so the answer to a thousand
+        // aliases is cut off long before `a999`. The check must not need the end of it.
+        let mut body = String::from(r#"{"data":{"#);
+        for i in 0..1000 {
+            body.push_str(&format!(r#""a{i}":"Query","#));
+        }
+        let cut: String = body.chars().take(4000).collect();
+        assert!(
+            !cut.contains("a999"),
+            "the fixture is not cut the way real bodies are"
+        );
+        let (f, v, _) = evaluate_api(
+            &[
+                gql("graphql-plain", 200, PLAIN_OK),
+                gql("graphql-aliases", 200, &cut),
+            ],
+            Some(false),
+        );
+        assert!(
+            f.iter()
+                .any(|x| x.rule_id == "probe.graphql-no-amount-limit"),
+            "{f:?}"
+        );
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.graphql-no-amount-limit")
+        );
+    }
+
+    #[test]
+    fn a_refused_alias_flood_is_credited_only_beside_a_working_plain_query() {
+        let refused = gql(
+            "graphql-aliases",
+            400,
+            r#"{"errors":[{"message":"query has too many aliases"}]}"#,
+        );
+        let (f, v, _) = evaluate_api(
+            &[gql("graphql-plain", 200, PLAIN_OK), refused.clone()],
+            Some(false),
+        );
+        assert!(f.is_empty());
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.graphql-no-amount-limit")
+        );
+        // Without the plain query working, the refusal proves nothing.
+        let (_, v, _) = evaluate_api(&[gql("graphql-plain", 500, "boom"), refused], Some(false));
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.graphql-no-amount-limit")
+        );
+    }
+
+    #[test]
+    fn a_websocket_is_judged_only_when_a_plain_handshake_upgrades() {
+        let upgraded = |id: &str| response(id, 101, &[("Upgrade", "websocket")], "");
+        let (f, _, _) = evaluate_api(
+            &[upgraded("ws-no-origin"), upgraded("ws-foreign-origin")],
+            None,
+        );
+        assert!(
+            f.iter()
+                .any(|x| x.rule_id == "probe.websocket-origin-unchecked"),
+            "{f:?}"
+        );
+
+        let (f, v, _) = evaluate_api(
+            &[
+                upgraded("ws-no-origin"),
+                response("ws-foreign-origin", 403, &[], ""),
+            ],
+            None,
+        );
+        assert!(f.is_empty());
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.websocket-origin-unchecked")
+        );
+
+        // An endpoint that upgrades nothing: a refused foreign handshake means nothing.
+        let (f, v, na) = evaluate_api(
+            &[
+                response("ws-no-origin", 404, &[], ""),
+                response("ws-foreign-origin", 404, &[], ""),
+            ],
+            None,
+        );
+        assert!(f.is_empty() && v.is_empty());
+        assert!(na.iter().any(|(id, _)| id == "V4.4.2"), "{na:?}");
+    }
+
+    #[test]
+    fn a_partial_answer_with_errors_is_a_limit_not_a_run() {
+        // A cost limiter that stops partway answers with some data *and* an error. That is the
+        // limit working, and the second witness for reading `errors` at all.
+        let partial = gql(
+            "graphql-aliases",
+            200,
+            r#"{"data":{"a0":"Query","a1":"Query"},"errors":[{"message":"query cost limit reached"}]}"#,
+        );
+        let (f, v, _) = evaluate_api(&[gql("graphql-plain", 200, PLAIN_OK), partial], Some(false));
+        assert!(
+            !f.iter()
+                .any(|x| x.rule_id == "probe.graphql-no-amount-limit"),
+            "{f:?}"
+        );
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.graphql-no-amount-limit")
+        );
+    }
+
+    #[test]
+    fn an_empty_schema_beside_an_error_is_introspection_refused() {
+        // The same shape for introspection, and the second witness for reading `errors`: a
+        // `__schema` key that came back empty, beside the error saying why, is a refusal.
+        let refused = gql(
+            "graphql-introspection",
+            200,
+            r#"{"data":{"__schema":null},"errors":[{"message":"introspection is disabled"}]}"#,
+        );
+        let (f, _, _) = evaluate_api(&[gql("graphql-plain", 200, PLAIN_OK), refused], Some(false));
+        assert!(
+            !f.iter().any(|x| x.rule_id == "probe.graphql-introspection"),
+            "{f:?}"
+        );
+    }
+
+    #[test]
+    fn an_api_meant_for_others_may_be_introspected() {
+        // The second witness for the `public-api` claim, on its own: an open schema is not a fault
+        // for an API other programs are meant to use, and must never be reported as one.
+        let (f, _, _) = evaluate_api(
+            &[
+                gql("graphql-plain", 200, PLAIN_OK),
+                gql(
+                    "graphql-introspection",
+                    200,
+                    r#"{"data":{"__schema":{"queryType":{"name":"Query"}}}}"#,
+                ),
+            ],
+            Some(true),
+        );
+        assert!(f.is_empty(), "{f:?}");
+    }
+
+    #[test]
+    fn a_websocket_that_refuses_every_handshake_is_not_credited() {
+        // The second witness for the WebSocket setup proof: an endpoint refusing the plain
+        // handshake and the foreign one alike is not checking origins, it is not working, and the
+        // foreign refusal must not be read as the control.
+        let (f, v, na) = evaluate_api(
+            &[
+                response("ws-no-origin", 403, &[], ""),
+                response("ws-foreign-origin", 403, &[], ""),
+            ],
+            None,
+        );
+        assert!(f.is_empty());
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.websocket-origin-unchecked"),
+            "{v:?}"
+        );
+        assert!(na.iter().any(|(id, _)| id == "V4.4.2"));
+    }
+
+    #[test]
+    fn a_websocket_accepting_any_origin_is_found() {
+        let up = |id: &str| response(id, 101, &[("Upgrade", "websocket")], "");
+        let (f, v, _) = evaluate_api(&[up("ws-no-origin"), up("ws-foreign-origin")], Some(true));
+        assert!(
+            f.iter()
+                .any(|x| x.rule_id == "probe.websocket-origin-unchecked"),
+            "{f:?}"
+        );
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.websocket-origin-unchecked")
+        );
+    }
+
+    #[test]
+    fn the_api_requests_are_only_made_for_what_the_app_has() {
+        assert!(api_requests(None, None).is_empty());
+        let only_ws = api_requests(None, Some("/ws"));
+        assert!(only_ws.iter().all(|r| r.id.starts_with("ws-")));
+        let gql_reqs = api_requests(Some("/graphql"), None);
+        let aliases = gql_reqs.iter().find(|r| r.id == "graphql-aliases").unwrap();
+        assert!(aliases.body.as_deref().unwrap().contains("a999:__typename"));
+        // And every id the evaluation reads is one a request really carries.
+        let all = api_requests(Some("/graphql"), Some("/ws"));
+        for id in [
+            "graphql-plain",
+            "graphql-introspection",
+            "graphql-aliases",
+            "ws-no-origin",
+            "ws-foreign-origin",
+        ] {
+            assert!(
+                all.iter().any(|r| r.id == id),
+                "{id} is read but never asked"
+            );
+        }
     }
 }

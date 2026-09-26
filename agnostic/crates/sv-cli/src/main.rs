@@ -666,9 +666,21 @@ fn probe_the_running_app(
 ) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), String> {
     let plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
     let backend = sv_run::detect().map_err(|e| e.explain())?;
-    let requests = probes::requests(&plan.health_path);
+    let requests = anonymous_requests(&plan);
     let outcome = backend.run(&plan, &requests).map_err(|e| e.explain())?;
     Ok((outcome, plan))
+}
+
+/// Every request the anonymous probes make: the fixed suite, and the GraphQL and WebSocket
+/// questions when securevibe.toml says where those are. One function, because `sv run` also counts
+/// how many of these went unanswered, and a count taken from a different list is a wrong count.
+fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
+    let mut requests = probes::requests(&plan.health_path);
+    requests.extend(probes::api_requests(
+        plan.graphql.as_deref(),
+        plan.websocket.as_deref(),
+    ));
+    requests
 }
 
 /// What the running app showed: the anonymous probes, and the signed-in ones when they ran.
@@ -676,6 +688,7 @@ fn probe_the_running_app(
 /// One function for `sv run` and `sv report`, so the two cannot disagree about what was found.
 fn running_app_evidence(
     outcome: &sv_run::RunOutcome,
+    plan: &RunPlan,
 ) -> (
     Vec<sv_check::Finding>,
     Vec<sv_check::Verified>,
@@ -684,6 +697,11 @@ fn running_app_evidence(
     let mut findings = probes::evaluate(&outcome.probe_responses);
     let mut verified = probes::verified(&outcome.probe_responses);
     let mut not_assessed = Vec::new();
+    let (api_findings, api_verified, api_not_assessed) =
+        probes::evaluate_api(&outcome.probe_responses, plan.public_api);
+    findings.extend(api_findings);
+    verified.extend(api_verified);
+    not_assessed.extend(api_not_assessed);
     if let Some(signed_in) = &outcome.signed_in {
         findings.extend(signed_in.findings.iter().cloned());
         verified.extend(signed_in.verified.iter().cloned());
@@ -704,11 +722,9 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
     let manifest = Manifest::load(&manifest_path)?;
 
     println!("Starting {} behind the network fence…", manifest.app.name);
-    let requests = probes::requests(
-        &RunPlan::from_manifest(&manifest, &app_dir)
-            .map(|p| p.health_path)
-            .unwrap_or_default(),
-    );
+    let requests = RunPlan::from_manifest(&manifest, &app_dir)
+        .map(|plan| anonymous_requests(&plan))
+        .unwrap_or_default();
     match probe_the_running_app(&manifest, &app_dir) {
         Err(reason) => {
             println!("\nNot assessed.\n\n{reason}");
@@ -716,7 +732,8 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
         Ok((outcome, plan)) => {
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
-            let (findings, verified, signed_in_not_assessed) = running_app_evidence(&outcome);
+            let (findings, verified, signed_in_not_assessed) =
+                running_app_evidence(&outcome, &plan);
             println!(
                 "\nAsked it {} question{}, as somebody who has not signed in.",
                 outcome.probe_responses.len(),
@@ -1480,7 +1497,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         match probe_the_running_app(&manifest, app_dir) {
             Ok((outcome, plan)) => {
                 let (running_findings, running_verified, signed_in_not_assessed) =
-                    running_app_evidence(&outcome);
+                    running_app_evidence(&outcome, &plan);
                 findings.extend(running_findings);
                 probe_verified = running_verified;
                 // The summary, and the steps kept apart from it. Joining them made one
