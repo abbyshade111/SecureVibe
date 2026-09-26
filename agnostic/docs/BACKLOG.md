@@ -398,6 +398,11 @@ another session is not a claim.
   way to scan literals on their own — the one requirement reached that way, V4.4.1, is semgrep's,
   not `sv`'s. Writing it would mean a new kind of rule, which is its own piece of work and belongs
   with the other "needs a new mechanism" items rather than being smuggled in here.
+  **V4.4.1 as `sv`'s own rule claimed on 26 September 2026 by session securevibe-e8.** Semgrep's
+  `detect-insecure-websocket` is in no pack the adapter runs, so the honest count lost V4.4.1. A
+  string literal can be matched after all, by a query that captures the literal itself; the rule is
+  a `ws://` address to another computer, and it needs a way to be finding-only, since not seeing one
+  is not every socket being encrypted.
 
   **Level 1 — 25 uncovered, 5 look reachable.** The rest are documentation (V2.1.1, V6.1.1, V8.1.1,
   V15.1.1 → the security-notes file), deployment (V3.4.1, V12.2.1 → the production check), the
