@@ -511,6 +511,37 @@ const DOWNLOAD_NAME_INJECTED: Rule = Rule {
           exactly this.",
 };
 
+const CLIENT_SIDE_VALIDATION: Rule = Rule {
+    rule_id: "probe.validation-only-in-the-browser",
+    requirement_ids: &["V2.2.2"],
+    cwe: &["CWE-602"],
+    impact: "The rule the form shows a person is not applied on the server, so anybody sending the \
+             request directly \u{2014} which takes no special tools \u{2014} can put in whatever \
+             they like.",
+    fix: "Apply every rule the form states again on the server, and refuse the request when it \
+          does not hold. The form's own attributes are a good list of what to check.",
+};
+
+const SESSION_TOKEN_UNVERIFIED: Rule = Rule {
+    rule_id: "probe.session-token-unverified",
+    requirement_ids: &["V7.2.1"],
+    cwe: &["CWE-290"],
+    impact: "A session value this check invented opened a private page, so the app is believing \
+             the cookie rather than checking it. Anybody can make one up.",
+    fix: "Look the session up on the server on every request \u{2014} in the session store, or by \
+          verifying the token's signature \u{2014} and refuse it when it is not found.",
+};
+
+const RECORD_LEAKS_FIELDS: Rule = Rule {
+    rule_id: "probe.record-returns-secret-fields",
+    requirement_ids: &["V15.3.1"],
+    cwe: &["CWE-213"],
+    impact: "A record handed back to the browser carries fields nobody outside the server should \
+             ever see. Whatever is in them has already left.",
+    fix: "Return only the fields the page needs, named one by one, rather than handing back the \
+          whole row as it came out of the database.",
+};
+
 const SESSION_COOKIE: Rule = Rule {
     rule_id: "probe.session-cookie-attributes",
     requirement_ids: &["V3.3.2", "V3.3.4"],
@@ -917,6 +948,17 @@ pub fn run(
 
     // 6. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
+
+    // 6a. Three more, each reading something the run already has or sending one more request:
+    //     a session value this check invented, the rules the sign-up form states, and whether the
+    //     record read back above carried fields that should not leave the server.
+    invented_session_check(
+        http,
+        &a,
+        confirm_path.clone().filter(|_| signed_in_works).as_deref(),
+        &mut out,
+    );
+    client_side_validation_check(http, users, accounts, &mut out);
 
     // 6b. Uploads, with A's session, before anything below signs another account in. Placed here
     //     rather than at the end because it needs a working session and nothing it does disturbs
@@ -2602,6 +2644,306 @@ fn served_upload_checks(
     }
 }
 
+/// Whether the rules the form states are applied again on the server (V2.2.2).
+///
+/// The form's own HTML is the list of what the app says it wants: `maxlength`, `type=number`, and
+/// `pattern`. Each of those is a rule a browser applies and anybody sending the request directly
+/// does not have to. So the probe reads one off the sign-up page and sends a value that breaks it.
+///
+/// It establishes its setup first, as everything here does: a *correct* sign-up has to be accepted,
+/// or "refused" means only that sign-up does not work. And it only ever produces a finding — an app
+/// that refuses the broken value might be refusing it for some other reason, so refusing is not
+/// proof that this rule in particular is applied.
+fn client_side_validation_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    out: &mut Outcome,
+) {
+    let Some(signup) = &users.signup else {
+        out.not_assessed.push((
+            "V2.2.2".to_owned(),
+            "Whether the server applies the rules its own form states: this needs `signup` in \
+             [stack.run.users], so a value that breaks one of them can be sent."
+                .to_owned(),
+        ));
+        return;
+    };
+    // Which field the password goes in, so the constraint found is not the password's own.
+    let password_fields: Vec<&str> = signup
+        .form
+        .iter()
+        .filter(|(_, v)| v.contains("{password}"))
+        .map(|(k, _)| k.as_str())
+        .collect();
+
+    let Some(page) = http.send(&get("validation-form", &signup.path, &Session::default())) else {
+        return;
+    };
+    let session = {
+        let mut s = Session::default();
+        s.absorb(&page);
+        s
+    };
+
+    // The first constraint the form states that this can break by sending a longer or non-numeric
+    // value. `required` is not usable: leaving a field out is refused by almost everything.
+    let mut broken: Option<(String, String, String)> = None;
+    for tag in tags(&page.body, "input") {
+        let Some(name) = attribute(&tag, "name") else {
+            continue;
+        };
+        if password_fields.contains(&name.as_str()) || !signup.form.contains_key(&name) {
+            continue;
+        }
+        if let Some(max) = attribute(&tag, "maxlength").and_then(|m| m.trim().parse::<usize>().ok())
+            && (1..=512).contains(&max)
+        {
+            broken = Some((name, format!("maxlength={max}"), "a".repeat(max + 10)));
+            break;
+        }
+        if attribute(&tag, "type").is_some_and(|t| t.eq_ignore_ascii_case("number")) {
+            broken = Some((name, "type=number".to_owned(), "not-a-number".to_owned()));
+            break;
+        }
+    }
+    let Some((field, constraint, value)) = broken else {
+        out.not_assessed.push((
+            "V2.2.2".to_owned(),
+            format!(
+                "The sign-up page at {} states no rule in its own HTML that this could break \
+                 (`maxlength` or `type=number` on a field securevibe.toml fills in), so there was \
+                 nothing to send against.",
+                signup.path
+            ),
+        ));
+        return;
+    };
+
+    // Setup: an ordinary sign-up has to work, or a refusal below says nothing.
+    let control = Account {
+        user: format!("valid.{}", accounts.a.user),
+        password: format!("Sv-Valid-{}-aZ9!", accounts.b.password.len()),
+    };
+    if sign_up(http, signup, "validation-control", &control).is_none_or(|r| r.status >= 400) {
+        out.not_assessed.push((
+            "V2.2.2".to_owned(),
+            "An ordinary sign-up was not accepted, so a refusal of the broken value would say \
+             nothing about the rule being applied."
+                .to_owned(),
+        ));
+        return;
+    }
+
+    let broken_account = Account {
+        user: format!("broken.{}", accounts.a.user),
+        password: control.password.clone(),
+    };
+    let values = Values {
+        user: &broken_account.user,
+        password: &broken_account.password,
+        csrf: csrf_token(&page, &session),
+        ..Default::default()
+    };
+    let mut session = session.clone();
+    let mut template = signup.clone();
+    template.form.insert(field.clone(), value);
+    let (response, _) = send_template(
+        http,
+        "validation-broken",
+        &template,
+        &values,
+        &mut session,
+        &[],
+    );
+    let accepted = response.as_ref().is_some_and(|r| r.status < 400);
+    out.steps.push(format!(
+        "sent `{field}` breaking the form's own {constraint}: {}",
+        if accepted { "accepted" } else { "refused" }
+    ));
+    if accepted {
+        out.findings.push(finding(
+            &CLIENT_SIDE_VALIDATION,
+            "A rule the form states is not applied on the server",
+            Severity::Medium,
+            format!(
+                "The sign-up page says `{field}` must satisfy {constraint}. Sent directly, without \
+                 a browser, a value breaking that was accepted ({}).",
+                status(&response)
+            ),
+        ));
+    }
+}
+
+/// Whether a session value this check invented is refused (V7.2.1).
+///
+/// The app's own cookie says what a session looks like; this sends one of the same name and shape
+/// that no session store could ever have issued. A private page that opens for it is an app taking
+/// the cookie's word rather than checking it.
+///
+/// Different from V7.2.3, which asks whether a real session id could be *guessed*. This asks
+/// whether anything is checked at all, which is the more basic failure and the cheaper one to make.
+fn invented_session_check(
+    http: &mut dyn Http,
+    signed_in: &SignedIn,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let (Some(confirm), Some(real)) = (confirm, signed_in.session.cookies.first()) else {
+        return;
+    };
+    // The same name and the same length, so nothing is refused merely for being the wrong shape.
+    let (name, real_value) = real;
+    let invented: String = "sv0probe0invented0session0value0"
+        .chars()
+        .cycle()
+        .take(real_value.chars().count().max(16))
+        .collect();
+    if invented == *real_value {
+        return;
+    }
+    let mut session = Session::default();
+    session.cookies.push((name.clone(), invented));
+    let response = http.send(&get("invented-session", confirm, &session));
+    let opened = ok(&response);
+    out.steps.push(format!(
+        "asked for {confirm} with a session value this check invented: {}",
+        if opened { "opened" } else { "refused" }
+    ));
+    if opened {
+        out.findings.push(finding(
+            &SESSION_TOKEN_UNVERIFIED,
+            "A made-up session value opens a private page",
+            Severity::High,
+            format!(
+                "A cookie named `{}`, of the same length as a real one but with a value this check \
+                 made up, opened {confirm}.",
+                name
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            SESSION_TOKEN_UNVERIFIED.rule_id,
+            SESSION_TOKEN_UNVERIFIED.requirement_ids,
+            format!(
+                "a cookie of the app's own session name and length, with an invented value, \
+                 refused {confirm} where the real session opened it"
+            ),
+        ));
+    }
+}
+
+/// Field names that should never leave the server, whatever the app calls its columns.
+const SECRET_FIELD_NAMES: &[&str] = &[
+    "password",
+    "passwd",
+    "password_hash",
+    "pwhash",
+    "hashed_password",
+    "salt",
+    "secret",
+    "api_key",
+    "apikey",
+    "private_key",
+    "session_token",
+    "csrf_secret",
+];
+
+/// Whether a record handed back carries fields nobody outside the server should see (V15.3.1).
+///
+/// Only ever a finding. Not seeing these names proves nothing: this app may have no such column,
+/// may call it something else, or may return the record somewhere this never looked.
+fn record_fields_check(body: &str, path: &str, out: &mut Outcome) {
+    let lower = body.to_lowercase();
+    // A name has to appear as a field, not as a word in a sentence: `"password":` in JSON, or
+    // `password=` / `password":` in whatever the app writes. Otherwise a page saying "change your
+    // password" is a finding.
+    let found: Vec<&str> = SECRET_FIELD_NAMES
+        .iter()
+        .filter(|name| {
+            [
+                format!("\"{name}\""),
+                format!("'{name}'"),
+                format!("{name}="),
+            ]
+            .iter()
+            .any(|shape| lower.contains(shape.as_str()))
+        })
+        .copied()
+        .collect();
+    if found.is_empty() {
+        return;
+    }
+    out.findings.push(finding(
+        &RECORD_LEAKS_FIELDS,
+        "A record is handed back with fields that should stay on the server",
+        Severity::Medium,
+        format!(
+            "Reading back the record at {path} produced {}, named as {} field{}.",
+            found.join(", "),
+            if found.len() == 1 { "a" } else { "" },
+            if found.len() == 1 { "" } else { "s" }
+        ),
+    ));
+}
+
+/// Whether signing out tells the browser to throw away what it kept (V14.3.1).
+///
+/// Credit on presence only, and this is the reason: `Clear-Site-Data` is one way to meet V14.3.1
+/// and the requirement names it as something that "may be able to help". An app whose own script
+/// clears storage when the session ends has met it without the header, so not finding one is not a
+/// failure — it is simply not something this saw.
+fn clear_site_data_check(response: Option<&ProbeResponse>, path: &str, out: &mut Outcome) {
+    let Some(response) = response else {
+        return;
+    };
+    let header = response
+        .header("clear-site-data")
+        .unwrap_or_default()
+        .to_lowercase();
+    // `"*"` covers everything; otherwise storage is the part that holds signed-in data. Cookies
+    // alone are not it: the session ending already does that.
+    let clears = header.contains('*') || header.contains("storage");
+    out.steps.push(format!(
+        "signing out sent Clear-Site-Data: {}",
+        if clears {
+            "yes"
+        } else if header.is_empty() {
+            "no"
+        } else {
+            "not covering storage"
+        }
+    ));
+    if clears {
+        out.verified.push(crate::Verified::new(
+            "probe.clear-site-data",
+            &["V14.3.1"],
+            format!(
+                "signing out at {path} answered with `Clear-Site-Data: {}`, telling the browser to \
+                 throw away what it had kept",
+                header.trim()
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V14.3.1".to_owned(),
+            format!(
+                "Whether data is cleared from the browser when the session ends: signing out sent \
+                 {}. That is not a failure — an app whose own script clears storage has met this \
+                 without the header — but nothing here saw it happen.",
+                if header.is_empty() {
+                    "no `Clear-Site-Data` header".to_owned()
+                } else {
+                    format!(
+                        "`Clear-Site-Data: {}`, which does not cover storage",
+                        header.trim()
+                    )
+                }
+            ),
+        ));
+    }
+}
+
 /// Whether signing out also happens on a plain page visit (V3.5.3).
 ///
 /// A fresh sign-in, shown to open the private page; a GET to the sign-out address; then the private
@@ -3249,6 +3591,11 @@ fn owned_checks(
     out.steps.push(format!(
         "A created a record at {read_path} and read it back"
     ));
+    // The record the owner is entitled to read is exactly the place to look for fields nobody
+    // should be handed at all (V15.3.1). Read from the response already in hand.
+    if let Some(body) = as_a.as_ref().map(|r| r.body.as_str()) {
+        record_fields_check(body, &read_path, out);
+    }
 
     let b = sign_in(http, users, "b", &accounts.b, &mut out.steps);
     let as_b = b
@@ -3439,6 +3786,7 @@ fn logout_check(
     );
     out.steps
         .push(format!("A signed out ({})", status(&response)));
+    clear_site_data_check(response.as_ref(), &logout.path, out);
     // A sign-out the app refused has ended nothing, and the session still working afterwards would
     // then be blamed on the app. The same setup rule as everywhere else: show the thing happened.
     if !accepted(&response) {
@@ -3489,6 +3837,9 @@ mod tests {
         next: u32,
         /// Old passwords a change left working, under `change_keeps_old`.
         kept: BTreeMap<String, String>,
+        /// What `Clear-Site-Data` the sign-out sends, when `clears_site_data` is set. `None` is
+        /// the correct value covering storage.
+        clear_site_data_value: Option<String>,
         /// Files the app has taken, by name.
         uploads: BTreeMap<String, String>,
         /// The largest file body the app was sent, accepted or not. This is how the size cap's
@@ -3582,6 +3933,14 @@ mod tests {
         /// string is part of the name, and this is here so a check that split on it would be
         /// caught accusing a correct app.
         download_name_quoted_uncleaned: bool,
+        /// Accepts a session cookie it never issued.
+        session_not_verified: bool,
+        /// The sign-up form states maxlength, and the server does not apply it.
+        validation_only_in_browser: bool,
+        /// A record is handed back with the owner's password hash in it.
+        record_leaks_fields: bool,
+        /// Signing out sends Clear-Site-Data.
+        clears_site_data: bool,
         /// Refuses every upload, whatever it is. An app whose upload path does not work as
         /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
         upload_broken: bool,
@@ -3800,7 +4159,14 @@ mod tests {
                 .as_ref()
                 .and_then(|s| self.sessions.get(s))
                 .filter(|u| !u.is_empty())
-                .cloned();
+                .cloned()
+                // A session id is normally looked up; under this flaw any non-empty one is
+                // believed, which is what an app that never checks the cookie does.
+                .or_else(|| {
+                    (self.flaws.session_not_verified
+                        && sid.as_deref().is_some_and(|s| !s.is_empty()))
+                    .then(|| "believed@example.test".to_owned())
+                });
             let foreign = r
                 .headers
                 .iter()
@@ -3876,7 +4242,7 @@ mod tests {
                     200,
                     vec![],
                     &format!(
-                        "<input type=hidden name=csrf_token value={CSRF}>{}{}",
+                        "<input type=hidden name=csrf_token value={CSRF}><input name=email maxlength=40>{}{}",
                         self.password_input(),
                         if self.flaws.secret_question {
                             "<label>Favorite teacher <input name=security_answer></label>"
@@ -3957,6 +4323,10 @@ mod tests {
                     }
                     let f = form(r);
                     let (email, password) = (f.get("email")?.clone(), f.get("password")?.clone());
+                    // The form says maxlength=40. A correct app applies that again here.
+                    if email.chars().count() > 40 && !self.flaws.validation_only_in_browser {
+                        return Some(Self::respond(422, vec![], "too long"));
+                    }
                     if self.flaws.signup_closed || !self.password_allowed(&password) {
                         return Some(Self::respond(422, vec![], "password refused"));
                     }
@@ -3989,7 +4359,15 @@ mod tests {
                     {
                         self.sessions.remove(&s);
                     }
-                    Self::respond(303, vec![("Set-Cookie", "sid=; Max-Age=0".into())], "")
+                    let mut headers = vec![("Set-Cookie", "sid=; Max-Age=0".to_string())];
+                    if self.flaws.clears_site_data {
+                        let value = self
+                            .clear_site_data_value
+                            .clone()
+                            .unwrap_or_else(|| "\"storage\", \"cookies\"".to_string());
+                        headers.push(("Clear-Site-Data", value));
+                    }
+                    Self::respond(303, headers, "")
                 }
                 ("GET", "/account") => {
                     if user.is_some() || self.flaws.private_open {
@@ -4153,7 +4531,23 @@ mod tests {
                         || (self.flaws.idor && user.is_some())
                         || self.flaws.records_public
                     {
-                        Self::respond(200, vec![], &format!("<p>{text}</p>"))
+                        let extra = if self.flaws.record_leaks_fields {
+                            "<script>const row={\"id\":1,\"password_hash\":\"$2b$12$abc\"}</script>"
+                        } else {
+                            ""
+                        };
+                        // The prose is deliberate: a real record page often says something like
+                        // this, and a check matching the bare word `password` would make a
+                        // finding out of every app that has one. Keeping it here means the
+                        // correct-app tests catch that mistake.
+                        Self::respond(
+                            200,
+                            vec![],
+                            &format!(
+                                "<p>{text}</p><footer>Change your password in Account</footer>\
+                                 {extra}"
+                            ),
+                        )
                     } else {
                         Self::respond(404, vec![], "none")
                     }
@@ -4248,6 +4642,14 @@ mod tests {
         run(&mut app, users, &acc, true, &Default::default())
     }
 
+    /// A run with no seeded admin, for the fixtures that sign up rather than being seeded.
+    fn run_with_users(flaws: Flaws, users: &UsersSection) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let mut acc = accounts();
+        acc.admin = None;
+        run(&mut app, users, &acc, false, &Default::default())
+    }
+
     fn rule_ids(o: &Outcome) -> Vec<&str> {
         o.findings.iter().map(|f| f.rule_id.as_str()).collect()
     }
@@ -4270,6 +4672,7 @@ mod tests {
             LOGOUT.rule_id,
             PRIVATE_PAGE_CACHING.rule_id,
             SIGN_OUT_LINK.rule_id,
+            SESSION_TOKEN_UNVERIFIED.rule_id,
         ] {
             assert!(
                 verified_ids(&o).contains(&id),
@@ -4278,6 +4681,224 @@ mod tests {
                 o.not_assessed
             );
         }
+    }
+
+    #[test]
+    fn a_rule_the_form_states_and_the_server_does_not_apply_is_found() {
+        // Needs `signup`, so it is its own test rather than a row in the table below, which runs
+        // against a fixture that has none.
+        let flawed = run_with_users(
+            Flaws {
+                validation_only_in_browser: true,
+                ..Default::default()
+            },
+            &with_signup(),
+        );
+        assert!(
+            rule_ids(&flawed).contains(&CLIENT_SIDE_VALIDATION.rule_id),
+            "{:?} / {:?}",
+            rule_ids(&flawed),
+            flawed.not_assessed
+        );
+        let correct = run_with_users(Flaws::default(), &with_signup());
+        assert!(
+            !rule_ids(&correct).contains(&CLIENT_SIDE_VALIDATION.rule_id),
+            "an app that applies its own rule was accused: {:?}",
+            rule_ids(&correct)
+        );
+        // Never credited: refusing the broken value might be a refusal for some other reason.
+        assert!(!verified_ids(&correct).contains(&CLIENT_SIDE_VALIDATION.rule_id));
+    }
+
+    #[test]
+    fn without_a_sign_up_the_form_rule_question_is_not_asked() {
+        let o = run_against(Flaws::default(), &users());
+        assert!(!rule_ids(&o).contains(&CLIENT_SIDE_VALIDATION.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V2.2.2" && why.contains("signup")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn the_run_note_names_a_clear_site_data_that_falls_short() {
+        // The second witness for the storage rule, on the run note rather than on the verdict.
+        // "sent a header" and "sent a header that does the job" are different things, and the
+        // note is where the owner can see which one happened.
+        let mut app = FakeApp::new(Flaws {
+            clears_site_data: true,
+            ..Default::default()
+        });
+        app.clear_site_data_value = Some("\"cookies\"".to_string());
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let o = run(&mut app, &users(), &acc, true, &Default::default());
+        let note = o.steps.join(" | ");
+        assert!(
+            note.contains("Clear-Site-Data: not covering storage"),
+            "a cookies-only header was noted as if it did the job: {note}"
+        );
+    }
+
+    #[test]
+    fn a_secret_name_has_to_be_a_field_not_a_word() {
+        // The failure this check would otherwise have: almost every app has a page saying "change
+        // your password" or "forgot your password". Matching the bare word makes a finding out of
+        // every one of them, and a check that cries wolf is one people learn to skip.
+        for prose in [
+            "<p>Change your password</p>",
+            "Forgot your password? We never store your password in plain text.",
+            "<label>Current password</label>",
+            "<p>Your secret is safe with us</p>",
+        ] {
+            let mut out = Outcome::default();
+            record_fields_check(prose, "/notes/1", &mut out);
+            assert!(
+                out.findings.is_empty(),
+                "prose was read as a leaked field: {prose}"
+            );
+        }
+        // And the shapes that really are fields, so this cannot pass by never finding anything.
+        for record in [
+            r#"{"id":1,"password_hash":"$2b$12$abc"}"#,
+            "{'salt': 'xyz', 'id': 2}",
+            "id=1&api_key=sk-live-abc",
+        ] {
+            let mut out = Outcome::default();
+            record_fields_check(record, "/notes/1", &mut out);
+            assert_eq!(
+                out.findings.len(),
+                1,
+                "a field was not recognized: {record}"
+            );
+            assert!(
+                out.findings[0]
+                    .requirement_ids
+                    .iter()
+                    .any(|r| r == "V15.3.1")
+            );
+        }
+    }
+
+    #[test]
+    fn the_run_note_says_what_each_of_these_asked_and_what_came_back() {
+        // A second reading of three checks at once, on the surface the owner sees. A check that
+        // quietly stopped asking would leave the findings list empty, which looks exactly like an
+        // app with nothing wrong; the note is where the two are told apart.
+        let correct = run_with_users(Flaws::default(), &with_signup());
+        let note = correct.steps.join(" | ");
+        assert!(note.contains("session value this check invented"), "{note}");
+        assert!(note.contains("breaking the form's own"), "{note}");
+        assert!(note.contains("Clear-Site-Data"), "{note}");
+
+        let flawed = run_with_users(
+            Flaws {
+                session_not_verified: true,
+                validation_only_in_browser: true,
+                clears_site_data: true,
+                ..Default::default()
+            },
+            &with_signup(),
+        );
+        let note = flawed.steps.join(" | ");
+        assert!(note.contains("invented: opened"), "{note}");
+        assert!(note.contains("maxlength=40: accepted"), "{note}");
+        assert!(note.contains("Clear-Site-Data: yes"), "{note}");
+    }
+
+    #[test]
+    fn clear_site_data_credits_on_presence_and_never_faults() {
+        // The shape of this check, in one test. Sending the header is credited; not sending it is
+        // *not assessed*, because an app whose own script clears storage has met V14.3.1 without
+        // it. A finding here would be accusing apps of something this cannot see.
+        let with = run_against(
+            Flaws {
+                clears_site_data: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            verified_ids(&with).contains(&"probe.clear-site-data"),
+            "{:?}",
+            with.not_assessed
+        );
+
+        let without = run_against(Flaws::default(), &users());
+        assert!(!verified_ids(&without).contains(&"probe.clear-site-data"));
+        assert!(
+            !rule_ids(&without).contains(&"probe.clear-site-data"),
+            "not sending the header must never be a finding"
+        );
+        assert!(
+            without
+                .not_assessed
+                .iter()
+                .any(|(id, why)| id == "V14.3.1" && why.contains("not a failure")),
+            "{:?}",
+            without.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_header_that_does_not_cover_storage_is_not_enough() {
+        // `Clear-Site-Data: "cookies"` clears the cookie the session already ended with, and
+        // leaves everything the page kept. Crediting it would be crediting the wrong thing.
+        let mut app = FakeApp::new(Flaws {
+            clears_site_data: true,
+            ..Default::default()
+        });
+        app.clear_site_data_value = Some("\"cookies\"".to_string());
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let o = run(&mut app, &users(), &acc, true, &Default::default());
+        assert!(!verified_ids(&o).contains(&"probe.clear-site-data"));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V14.3.1" && why.contains("does not cover storage")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_app_that_believes_any_session_cookie_is_found() {
+        // Deliberately not in the table below, and the reason is worth writing down: an app that
+        // takes any session id at its word does not fail *one* check. Default accounts sign in,
+        // sign-out does not end anything, a password change needs no current password — because
+        // every one of those is asked with a cookie the app now believes. Putting it in a table
+        // that asserts "this flaw and no other" would be asserting something untrue about it.
+        let o = run_against(
+            Flaws {
+                session_not_verified: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            rule_ids(&o).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+            "{:?}",
+            rule_ids(&o)
+        );
+        assert!(!verified_ids(&o).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
+        // And a correct app is not accused of it, which is the half that could quietly rot.
+        let correct = run_against(Flaws::default(), &users());
+        assert!(!rule_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
+        assert!(verified_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
     }
 
     #[test]
@@ -4394,6 +5015,13 @@ mod tests {
                     ..Default::default()
                 },
                 PRIVATE_PAGE_CACHING.rule_id,
+            ),
+            (
+                Flaws {
+                    record_leaks_fields: true,
+                    ..Default::default()
+                },
+                RECORD_LEAKS_FIELDS.rule_id,
             ),
             (
                 Flaws {

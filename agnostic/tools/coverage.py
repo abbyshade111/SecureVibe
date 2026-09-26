@@ -101,6 +101,10 @@ RUST_CHECKS = {
     "probe.log-timestamp-zoned": ("signed-in", ["V16.2.2"]),
     "probe.download-unnamed": ("signed-in", ["V5.4.1"]),
     "probe.download-name-injected": ("signed-in", ["V5.4.2"]),
+    "probe.validation-only-in-the-browser": ("signed-in", ["V2.2.2"]),
+    "probe.session-token-unverified": ("signed-in", ["V7.2.1"]),
+    "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1"]),
+    "probe.clear-site-data": ("signed-in", ["V14.3.1"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
