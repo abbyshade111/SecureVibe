@@ -20,6 +20,15 @@ use std::process::Command;
 const READY_TIMEOUT_SECONDS: u64 = 60;
 /// The image the probes run from. Tiny, and already needed for the health check.
 const PROBE_IMAGE: &str = "busybox:1.36";
+/// The mail server the app is given when the probes need to read its email: Mailpit, which keeps
+/// every message it is sent and answers questions about them over HTTP. Pinned to a minor release,
+/// as the probe image is, so a run does not change under the owner because a new one came out.
+const MAIL_IMAGE: &str = "axllent/mailpit:v1.31";
+/// Where the app sends its mail on the mail server, and where the probes read it.
+const SMTP_PORT: u16 = 1025;
+const MAIL_API_PORT: u16 = 8025;
+/// How long to wait for an email the app may send after it has already answered.
+const MAIL_WAIT_SECONDS: u64 = 10;
 /// How long the sidecar may live if nothing removes it. It is removed as soon as the probes are
 /// done, and by the teardown whatever happens; this is the bound for a run that dies without either,
 /// so a crash cannot leave a container behind on the owner's machine for longer than this.
@@ -77,10 +86,11 @@ impl Backend for DockerBackend {
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
         let sidecar = format!("{run_id}-probe");
+        let mail_name = format!("{run_id}-mail");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
-            containers: vec![app.clone(), sidecar.clone()],
+            containers: vec![app.clone(), sidecar.clone(), mail_name.clone()],
         };
 
         // 1. The fence.
@@ -102,44 +112,62 @@ impl Backend for DockerBackend {
         // untrusted code starts, rather than running it unfenced and reporting a clean result.
         self.verify_fenced(&network)?;
 
+        // 1c. A mail server, when a check needs to read what the app emails. Started before the app so
+        //     it is there to be sent to, on the same fenced network, and nowhere else: mail sent to it
+        //     goes no further. If it cannot be started the run goes on without it, and the checks
+        //     that needed it say so.
+        let wants_mail = plan.users.as_ref().is_some_and(|u| u.reset.is_some());
+        let mail =
+            (wants_mail && self.start_mail(&network, &mail_name)).then_some(mail_name.as_str());
+
         // 2. The app. Its folder is mounted read-only: `sv` reads code, it does not let the code
         //    it is checking rewrite itself mid-check. No port is published — nothing on this
         //    computer could reach it anyway, and saying so in the arguments keeps that honest.
         let mount = format!("{}:/app:ro", plan.app_dir.display());
         let port_env = format!("PORT={}", plan.port);
+        let mail_env: Vec<String> = mail
+            .map(|host| {
+                vec![
+                    format!("SMTP_HOST={host}"),
+                    format!("SMTP_PORT={SMTP_PORT}"),
+                    format!("SMTP_URL=smtp://{host}:{SMTP_PORT}"),
+                ]
+            })
+            .unwrap_or_default();
         let command = match &plan.build {
             Some(build) => format!("cd /app && {build} && {}", plan.start),
             None => format!("cd /app && {}", plan.start),
         };
+        let mut args: Vec<&str> = vec![
+            "run",
+            "-d",
+            "--name",
+            &app,
+            "--network",
+            &network,
+            "-v",
+            &mount,
+            // The one writable place, and it is in memory rather than on the owner's disk.
+            // `/app` is read-only on purpose, so a test runner has nowhere to put its report
+            // unless something is provided — which is how the first version of `test-report`
+            // failed: the runner could not write the file and the report read as "no report",
+            // correctly but uselessly. Findings are still only ever read out with `exec`.
+            "--tmpfs",
+            REPORT_DIR,
+            "-w",
+            "/app",
+            "-e",
+            &port_env,
+            // Nothing of the owner's reaches the app: no API keys, no home directory.
+            "--env-file",
+            "/dev/null",
+        ];
+        for pair in &mail_env {
+            args.extend(["-e", pair.as_str()]);
+        }
+        args.extend([plan.image.as_str(), "sh", "-c", command.as_str()]);
         let (code, out) = self
-            .docker(&[
-                "run",
-                "-d",
-                "--name",
-                &app,
-                "--network",
-                &network,
-                "-v",
-                &mount,
-                // The one writable place, and it is in memory rather than on the owner's disk.
-                // `/app` is read-only on purpose, so a test runner has nowhere to put its report
-                // unless something is provided — which is how the first version of `test-report`
-                // failed: the runner could not write the file and the report read as "no report",
-                // correctly but uselessly. Findings are still only ever read out with `exec`.
-                "--tmpfs",
-                REPORT_DIR,
-                "-w",
-                "/app",
-                "-e",
-                &port_env,
-                // Nothing of the owner's reaches the app: no API keys, no home directory.
-                "--env-file",
-                "/dev/null",
-                &plan.image,
-                "sh",
-                "-c",
-                &command,
-            ])
+            .docker(&args)
             .map_err(|e| CannotRun::BackendFailed { detail: e })?;
         if code != 0 {
             return Err(CannotRun::BackendFailed {
@@ -181,11 +209,15 @@ impl Backend for DockerBackend {
         let signed_in = plan
             .users
             .as_ref()
-            .map(|users| self.signed_in(&via, &app, plan, users));
+            .map(|users| self.signed_in(&via, &app, mail, plan, users));
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
-        // the tests, which can take as long as they like.
+        // the tests, which can take as long as they like. The mail server with it: nothing reads it
+        // after the probes.
         let _ = self.docker(&["rm", "-f", &sidecar]);
+        if mail.is_some() {
+            let _ = self.docker(&["rm", "-f", &mail_name]);
+        }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
         let tests = plan.test.as_ref().and_then(|test_command| {
@@ -256,6 +288,8 @@ struct DockerHttp<'a> {
     via: &'a Via<'a>,
     app: &'a str,
     port: u16,
+    /// The mail server's name on the fenced network, when the run has one.
+    mail: Option<&'a str>,
 }
 
 impl sv_check::signed_in::Http for DockerHttp<'_> {
@@ -265,6 +299,90 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         self.backend.probe(self.via, self.app, self.port, request)
     }
+
+    fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
+        let host = self.mail?;
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(MAIL_WAIT_SECONDS);
+        let ids = loop {
+            // A mail server that does not answer is not an empty mailbox: the check is told there is
+            // nothing to read, not that nothing was sent.
+            let listing =
+                self.backend
+                    .fetch(self.via, host, MAIL_API_PORT, "/api/v1/messages?limit=500")?;
+            let ids = mail_ids_to(&listing, to)?;
+            if ids.len() >= at_least || std::time::Instant::now() >= deadline {
+                break ids;
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        };
+        Some(
+            ids.iter()
+                .filter_map(|id| {
+                    let path = format!("/api/v1/message/{id}");
+                    let message = self.backend.fetch(self.via, host, MAIL_API_PORT, &path)?;
+                    mail_text(&message)
+                })
+                .collect(),
+        )
+    }
+}
+
+/// How the mail server is started. Separate so its hardening can be checked without starting it.
+fn mail_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
+    vec![
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        MAIL_IMAGE,
+        "--smtp-auth-accept-any",
+        "--smtp-auth-allow-insecure",
+    ]
+}
+
+/// The messages sent to this address, oldest first, from Mailpit's list of messages.
+///
+/// Matched on every recipient field, since an app may put its user in `Bcc`, and without regard to
+/// case, since an address's domain has none. `None` when the answer is not a list at all.
+fn mail_ids_to(listing: &str, to: &str) -> Option<Vec<String>> {
+    let value: serde_json::Value = serde_json::from_str(listing).ok()?;
+    let messages = value.get("messages")?.as_array()?;
+    let mut ids: Vec<String> = messages
+        .iter()
+        .filter(|m| {
+            ["To", "Cc", "Bcc"].iter().any(|field| {
+                m.get(field).and_then(|v| v.as_array()).is_some_and(|list| {
+                    list.iter().any(|r| {
+                        r.get("Address")
+                            .and_then(|a| a.as_str())
+                            .is_some_and(|a| a.eq_ignore_ascii_case(to))
+                    })
+                })
+            })
+        })
+        .filter_map(|m| m.get("ID")?.as_str().map(str::to_owned))
+        .collect();
+    // Mailpit lists the newest first.
+    ids.reverse();
+    Some(ids)
+}
+
+/// One message's text: the plain part and the HTML part both, since a link may be in either.
+fn mail_text(message: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(message).ok()?;
+    let part = |name: &str| value.get(name).and_then(|v| v.as_str()).unwrap_or("");
+    Some(format!("{}\n{}", part("Text"), part("HTML")))
 }
 
 impl DockerBackend {
@@ -273,6 +391,7 @@ impl DockerBackend {
         &self,
         via: &Via,
         app: &str,
+        mail: Option<&str>,
         plan: &RunPlan,
         users: &sv_manifest::UsersSection,
     ) -> sv_check::signed_in::Outcome {
@@ -282,6 +401,7 @@ impl DockerBackend {
             via,
             app,
             port: plan.port,
+            mail,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
@@ -406,6 +526,16 @@ impl DockerBackend {
             ]),
             Ok((0, _))
         )
+    }
+
+    /// Starts the mail server on the app's fenced network.
+    ///
+    /// Hardened as the sidecar is, but for one place to write: Mailpit keeps its messages in a file,
+    /// and that file goes in memory rather than anywhere on this computer. It accepts any user name
+    /// and password over plain SMTP, so an app written to sign in to its mail server is not refused
+    /// by this one; there is nothing behind it to protect.
+    fn start_mail(&self, network: &str, name: &str) -> bool {
+        matches!(self.docker(&mail_args(network, name)), Ok((0, _)))
     }
 
     /// Runs a command where requests to the app are made from: in the sidecar, or in a throw-away
@@ -613,6 +743,33 @@ fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option
     Some(raw)
 }
 
+impl DockerBackend {
+    /// Fetches a whole body from a service inside the fence other than the app: the mail server.
+    ///
+    /// Not through `probe`, which keeps only the start of a body — enough to judge an error page, and
+    /// not enough to hold a list of messages or an HTML email.
+    fn fetch(&self, via: &Via, host: &str, port: u16, path: &str) -> Option<String> {
+        let request = sv_check::probes::ProbeRequest {
+            id: "mail".to_owned(),
+            method: "GET".to_owned(),
+            path: path.to_owned(),
+            headers: Vec::new(),
+            body: None,
+        };
+        let raw = request_bytes(&request, host)?;
+        let script = format!(
+            "echo {} | base64 -d | nc -w 5 {host} {port}",
+            base64(raw.as_bytes())
+        );
+        let (_, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
+        let (head, body) = out.split_once("\r\n\r\n")?;
+        head.split_whitespace()
+            .nth(1)
+            .is_some_and(|status| status == "200")
+            .then(|| body.to_owned())
+    }
+}
+
 /// Turns a raw HTTP response into the shape the probes read.
 fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse> {
     // A header block ends at the first blank line; tolerate a server that uses bare newlines.
@@ -694,6 +851,55 @@ mod probe_tests {
         );
         // Measured against a real sidecar on 25 September 2026, with the host reaching 1.1.1.1:53
         // as the control: outbound blocked, DNS blocked, every path read-only, CapEff all zeroes.
+    }
+
+    #[test]
+    fn the_mail_server_is_fenced_and_hardened_like_the_sidecar() {
+        let args = mail_args("sv-1-net", "sv-1-mail");
+        for flag in HARDENING {
+            assert!(args.contains(&flag), "{flag} missing: {args:?}");
+        }
+        let at = args.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(args[at + 1], "sv-1-net");
+        // Nothing published: the only way to it is from inside the fence.
+        assert!(
+            !args
+                .iter()
+                .any(|a| *a == "-p" || a.starts_with("--publish"))
+        );
+    }
+
+    #[test]
+    fn mail_is_matched_to_its_address_in_any_recipient_field_oldest_first() {
+        // As Mailpit answers: newest first, a message sent with the user only in Bcc, and one for
+        // somebody else.
+        let listing = r#"{"messages":[
+            {"ID":"3","To":[{"Name":"","Address":"A@Example.test"}],"Cc":null,"Bcc":[]},
+            {"ID":"2","To":[{"Address":"other@example.test"}],"Cc":[],"Bcc":[]},
+            {"ID":"1","To":[],"Cc":[],"Bcc":[{"Address":"a@example.test"}]}
+        ]}"#;
+        assert_eq!(
+            mail_ids_to(listing, "a@example.test"),
+            Some(vec!["1".to_owned(), "3".to_owned()])
+        );
+        assert_eq!(mail_ids_to(listing, "nobody@example.test"), Some(vec![]));
+        // Not a list at all is not an empty mailbox.
+        assert_eq!(mail_ids_to("<html>502</html>", "a@example.test"), None);
+    }
+
+    #[test]
+    fn a_messages_text_has_both_its_parts() {
+        let text =
+            mail_text(r#"{"Text":"plain http://x/reset?token=1","HTML":"<a href='y'>"}"#).unwrap();
+        assert!(
+            text.contains("token=1") && text.contains("<a href='y'>"),
+            "{text}"
+        );
+        assert!(
+            mail_text(r#"{"HTML":"<p>only html</p>"}"#)
+                .unwrap()
+                .contains("only html")
+        );
     }
 
     fn req(method: &str, path: &str, headers: &[(&str, &str)]) -> sv_check::probes::ProbeRequest {

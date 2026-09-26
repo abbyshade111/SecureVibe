@@ -27,6 +27,13 @@ use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 /// Something that can put a request to the running app and bring back its answer.
 pub trait Http {
     fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse>;
+
+    /// The emails the app has sent to this address during the run, oldest first, as text: `None`
+    /// when the run has no mail sink to read them from. Waits a little for there to be at least
+    /// `at_least` of them, since an app may send its mail after it has answered.
+    fn mail(&mut self, _to: &str, _at_least: usize) -> Option<Vec<String>> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,6 +234,7 @@ struct Values<'a> {
     marker: &'a str,
     id: &'a str,
     new_password: &'a str,
+    code: &'a str,
 }
 
 fn fill(text: &str, v: &Values) -> String {
@@ -236,6 +244,7 @@ fn fill(text: &str, v: &Values) -> String {
         .replace("{csrf}", v.csrf.as_deref().unwrap_or(""))
         .replace("{marker}", v.marker)
         .replace("{id}", v.id)
+        .replace("{code}", v.code)
 }
 
 fn uses_csrf(t: &RequestTemplate) -> bool {
@@ -701,6 +710,47 @@ const CHANGE_WITHOUT_CURRENT: Rule = Rule {
           hash, and refuse the change when it does not match.",
 };
 
+const RESET_REUSABLE: Rule = Rule {
+    rule_id: "probe.reset-reusable",
+    requirement_ids: &["V6.4.3"],
+    cwe: &["CWE-640"],
+    impact: "A reset link that works more than once works for whoever finds it next — in a mailbox, \
+             a browser history, or a forwarded email — long after the owner used it.",
+    fix: "Mark the reset code as used, or delete it, in the same step that sets the new password, \
+          and refuse a code that has been used.",
+};
+
+const RESET_KEEPS_OLD: Rule = Rule {
+    rule_id: "probe.reset-keeps-old-password",
+    requirement_ids: &["V6.4.3"],
+    cwe: &["CWE-640"],
+    impact: "Somebody who resets a password because it leaked is still locked in with whoever has the \
+             old one.",
+    fix: "Replace the stored password hash when the password is reset, so only the new password \
+          signs in afterwards.",
+};
+
+const RESET_CODE_GUESSABLE: Rule = Rule {
+    rule_id: "probe.reset-code-guessable",
+    requirement_ids: &["V6.4.3"],
+    cwe: &["CWE-640", "CWE-330"],
+    impact: "A reset code that can be guessed lets anybody who knows an email address take the \
+             account, without ever seeing the email.",
+    fix: "Make each reset code from a secure random generator, long enough that guessing is hopeless \
+          (16 random bytes is a common choice), and never reuse or count up from an earlier one.",
+};
+
+const RESET_REVEALS_ACCOUNT: Rule = Rule {
+    rule_id: "probe.reset-reveals-account",
+    requirement_ids: &["V6.3.8"],
+    cwe: &["CWE-204"],
+    impact: "Anybody can find out whether an email address has an account, which is where guessing \
+             passwords and targeted phishing begin.",
+    fix: "Answer a reset request the same way whether or not the address has an account — the same \
+          status and the same words, such as \"if that address has an account, we have sent it a \
+          link\" — and send the email, or not, afterwards.",
+};
+
 const SESSIONS_SURVIVE_DELETION: Rule = Rule {
     rule_id: "probe.sessions-survive-deletion",
     requirement_ids: &["V7.4.2"],
@@ -991,6 +1041,7 @@ pub fn run(
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
+    reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. After everything else, without exception. This one deliberately provokes the app into
     //     refusing requests, and a limiter that counts by address rather than by account would then
@@ -1911,6 +1962,451 @@ fn change_password_checks(
             change.path
         ),
     ));
+}
+
+/// A forgotten-password reset, followed through the email it sends (V6.4.3, V6.3.8).
+///
+/// The run gives the app a mail server that keeps what it is sent, and this reads it as the
+/// account's owner would. The setup is shown to work before anything is judged: the email has to
+/// arrive, a code has to be found in it, and using that code has to set a password that then signs
+/// in. Only then is the same code tried again, the old password tried, and the code's length read.
+///
+/// Only ever findings. V6.4.3 also asks that a reset does not get round two-factor sign-in, and a
+/// safe reset expires; neither is tried here, so a clean run credits nothing and says so.
+fn reset_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V6.4.3, V6.3.8";
+    let Some(reset) = &users.reset else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "How a forgotten password is reset: securevibe.toml sets no `reset` under \
+             [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let patterns = match reset_patterns(reset.code_pattern.as_deref()) {
+        Ok(p) => p,
+        Err(e) => {
+            out.not_assessed.push((
+                IDS.to_owned(),
+                format!("`reset.code-pattern` in securevibe.toml cannot be used: {e}."),
+            ));
+            return;
+        }
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "How a forgotten password is reset: telling whether a reset worked needs a private page \
+             a signed-in user alone can open, and none was shown."
+                .to_owned(),
+        ));
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    // Never A, whose password the checks before this rely on. B when there is no sign-up: nothing
+    // after this signs B in.
+    let account = match &users.signup {
+        Some(signup) => {
+            let account = Account {
+                user: format!("reset.{}", accounts.a.user),
+                password: format!("Re-{}-aZ9!", &spare[5..29]),
+            };
+            sign_up(http, signup, "reset", &account);
+            account
+        }
+        None => accounts.b.clone(),
+    };
+    let Some(before) = http.mail(&account.user, 0) else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "How a forgotten password is reset: the run had no mail server for the app to send to, \
+             so there was no email to follow."
+                .to_owned(),
+        ));
+        return;
+    };
+    if !account_works(http, users, "reset", &account, confirm, &mut out.steps) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "How a forgotten password is reset: the account used for it, {}, could not sign in \
+                 to begin with.",
+                account.user
+            ),
+        ));
+        return;
+    }
+
+    // Two requests for the account and one for an address nobody has: the pair shows what varies
+    // between two identical requests, so that only a difference beyond it is held against the app.
+    let ask = |http: &mut dyn Http, user: &str, label: &str| {
+        let values = Values {
+            user,
+            ..Default::default()
+        };
+        let mut session = Session::default();
+        send_template(
+            http,
+            &format!("reset-request-{label}"),
+            &reset.request,
+            &values,
+            &mut session,
+            &[],
+        )
+        .0
+    };
+    let first = ask(http, &account.user, "1");
+    let second = ask(http, &account.user, "2");
+    let nobody = format!("nobody-{}@example.test", &spare[..12]);
+    let stranger = ask(http, &nobody, "nobody");
+    out.steps.push(format!(
+        "asked for a password reset for {} twice ({}, {}) and for an address with no account ({})",
+        account.user,
+        status(&first),
+        status(&second),
+        status(&stranger)
+    ));
+    reveals_account_check(
+        [&first, &second, &stranger],
+        &account.user,
+        &nobody,
+        &reset.request.path,
+        out,
+    );
+
+    let mail = http
+        .mail(&account.user, before.len() + 2)
+        .unwrap_or_default();
+    let arrived: Vec<&String> = mail.iter().skip(before.len()).collect();
+    out.steps.push(format!(
+        "{} email{} arrived for {}",
+        arrived.len(),
+        if arrived.len() == 1 { "" } else { "s" },
+        account.user
+    ));
+    if arrived.is_empty() {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Asked for a password reset, the app sent no email to {} at the run's mail server. \
+                 The app is told where that is in SMTP_HOST and SMTP_PORT; check that it reads them, \
+                 and check `reset.request` in securevibe.toml.",
+                account.user
+            ),
+        ));
+        return;
+    }
+    let codes: Vec<String> = arrived
+        .iter()
+        .filter_map(|m| reset_code(m, &patterns))
+        .collect();
+    // The newest: an app that cancels an earlier code when a new one is asked for is right to.
+    let Some(code) = codes.last().cloned() else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "The reset email arrived and no code was found in it{}. Set `reset.code-pattern` in \
+                 securevibe.toml to a pattern whose first group is the code.",
+                if reset.code_pattern.is_some() {
+                    " with `reset.code-pattern`"
+                } else {
+                    " as a link's `token`, `code`, or `key`"
+                }
+            ),
+        ));
+        return;
+    };
+    reset_code_check(&codes, out);
+
+    let set = |http: &mut dyn Http, new: &str, label: &str| {
+        let values = Values {
+            user: &account.user,
+            code: &code,
+            new_password: new,
+            ..Default::default()
+        };
+        let mut session = Session::default();
+        send_template(
+            http,
+            &format!("reset-use-{label}"),
+            &reset.use_code,
+            &values,
+            &mut session,
+            &[],
+        )
+        .0
+    };
+    let with = |password: &str| Account {
+        user: account.user.clone(),
+        password: password.to_owned(),
+    };
+    let first_new = format!("R1-{}-aZ9!", &spare[7..31]);
+    let second_new = format!("R2-{}-aZ9!", &spare[1..25]);
+
+    let answer = set(http, &first_new, "1");
+    out.steps.push(format!(
+        "used the code from the email to set a new password ({})",
+        status(&answer)
+    ));
+    let reset_worked = account_works(
+        http,
+        users,
+        "reset-new",
+        &with(&first_new),
+        confirm,
+        &mut out.steps,
+    );
+    out.steps.push(format!(
+        "the password the reset set {}",
+        if reset_worked {
+            "signed in"
+        } else {
+            "did not sign in"
+        }
+    ));
+    if !reset_worked {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Using the code from the reset email through {} did not change the password: the \
+                 new password did not sign in. Check `reset.use` and `reset.code-pattern` in \
+                 securevibe.toml. With no reset that works, a refused one shows nothing.",
+                reset.use_code.path
+            ),
+        ));
+        return;
+    }
+    let old_works = account_works(http, users, "reset-old", &account, confirm, &mut out.steps);
+    out.steps.push(format!(
+        "the password from before the reset {}",
+        if old_works {
+            "still signed in"
+        } else {
+            "was refused"
+        }
+    ));
+    if old_works {
+        out.findings.push(finding(
+            &RESET_KEEPS_OLD,
+            "The old password still works after a reset",
+            Severity::High,
+            format!(
+                "After a reset through {}, both the new password and the old one signed in.",
+                reset.use_code.path
+            ),
+        ));
+    }
+    let again = set(http, &second_new, "2");
+    out.steps.push(format!(
+        "used the same code from the email a second time ({})",
+        status(&again)
+    ));
+    let reused = account_works(
+        http,
+        users,
+        "reset-again",
+        &with(&second_new),
+        confirm,
+        &mut out.steps,
+    );
+    out.steps.push(format!(
+        "the password the used code tried to set {}",
+        if reused { "signed in" } else { "was refused" }
+    ));
+    if reused {
+        out.findings.push(finding(
+            &RESET_REUSABLE,
+            "A password reset link works more than once",
+            Severity::High,
+            format!(
+                "The code from one reset email set the password twice through {}: after it had \
+                 been used, it set another new password, which then signed in.",
+                reset.use_code.path
+            ),
+        ));
+    }
+    out.not_assessed.push((
+        "V6.4.3".to_owned(),
+        "Two parts of a safe password reset were not tried: whether a reset code stops working \
+         after a while, which would mean waiting, and whether a reset gets round two-factor \
+         sign-in, which needs an account that has it."
+            .to_owned(),
+    ));
+}
+
+/// Where a reset code is looked for in an email: the owner's pattern, or a link's usual places.
+fn reset_patterns(custom: Option<&str>) -> Result<Vec<regex::Regex>, String> {
+    if let Some(custom) = custom {
+        let pattern = regex::Regex::new(custom).map_err(|e| e.to_string())?;
+        if pattern.captures_len() < 2 {
+            return Err("it has no group, `( … )`, to say which part is the code".to_owned());
+        }
+        return Ok(vec![pattern]);
+    }
+    // `;` as well as `&` before a parameter: in an HTML email a link's `&` is written `&amp;`.
+    [
+        r"(?i)[?&;](?:reset[_-]?)?(?:token|code|key)=([A-Za-z0-9._~%-]+)",
+        r#"(?i)https?://[^\s"'<>]*reset[^\s"'<>?]*/([A-Za-z0-9._~-]{8,})(?:[\s"'<>?#]|$)"#,
+    ]
+    .iter()
+    .map(|p| regex::Regex::new(p).map_err(|e| e.to_string()))
+    .collect()
+}
+
+fn reset_code(mail: &str, patterns: &[regex::Regex]) -> Option<String> {
+    let found = patterns
+        .iter()
+        .find_map(|p| p.captures(mail).and_then(|c| c.get(1)))?;
+    let code = percent_decode(found.as_str());
+    (!code.is_empty()).then_some(code)
+}
+
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && let Some(b) = bytes
+                .get(i + 1..i + 3)
+                .and_then(|h| std::str::from_utf8(h).ok())
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+        {
+            out.push(b);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Whether a reset code could be guessed: too short to hold 20 bits, or counting up.
+///
+/// The floor is the one ASVS sets for codes sent out of band (V6.5.4), which names six random
+/// digits as enough; a code is compared against it by `most_bits`, an upper bound, so a code this
+/// calls too short is too short however it was made. A long code is credited with nothing.
+fn reset_code_check(codes: &[String], out: &mut Outcome) {
+    let Some(shortest) = codes.iter().min_by_key(|c| c.chars().count()) else {
+        return;
+    };
+    let bits = most_bits(shortest);
+    if bits < 19.9 {
+        out.findings.push(finding(
+            &RESET_CODE_GUESSABLE,
+            "The password reset code is short enough to guess",
+            Severity::High,
+            format!(
+                "The code in the reset email is {} characters long and can hold at most {bits:.0} \
+                 bits, fewer than the 20 of six random digits, the least ASVS accepts for a code \
+                 sent by email.",
+                shortest.chars().count()
+            ),
+        ));
+        return;
+    }
+    let numbers: Vec<u128> = codes.iter().filter_map(|c| c.parse().ok()).collect();
+    if numbers.len() == codes.len()
+        && let [.., earlier, later] = numbers.as_slice()
+        && (1..=1000).contains(&later.abs_diff(*earlier))
+    {
+        out.findings.push(finding(
+            &RESET_CODE_GUESSABLE,
+            "Password reset codes count up",
+            Severity::High,
+            format!(
+                "Two reset emails asked for one after the other carried codes {} apart: whoever has \
+                 one code can work out the next.",
+                later.abs_diff(*earlier)
+            ),
+        ));
+    }
+}
+
+/// Whether the answer to a reset request tells an address with an account from one without.
+///
+/// Two requests for the same account show what changes between identical requests — a token in
+/// a hidden field, a time — and all of that is set aside first; the address itself is replaced
+/// in each answer, since echoing it back is no leak. Only a difference left over after that is a
+/// finding, and a pair that differs from itself leaves the wording unjudged, never faulted.
+fn reveals_account_check(
+    answers: [&Option<ProbeResponse>; 3],
+    user: &str,
+    nobody: &str,
+    path: &str,
+    out: &mut Outcome,
+) {
+    let [Some(first), Some(second), Some(stranger)] = answers else {
+        return;
+    };
+    if first.status == second.status && stranger.status != first.status {
+        out.findings.push(finding(
+            &RESET_REVEALS_ACCOUNT,
+            "Password reset tells anyone whether an address has an account",
+            Severity::Medium,
+            format!(
+                "A reset request to {path} was answered {} for an address with an account and {} \
+                 for one without.",
+                first.status, stranger.status
+            ),
+        ));
+        return;
+    }
+    let shape = |r: &ProbeResponse, address: &str| {
+        let location = r
+            .headers
+            .iter()
+            .find(|(k, _)| k == "location")
+            .map_or("", |(_, v)| v.as_str());
+        same_shape(&format!("{location}\n{}", r.body), address)
+    };
+    let (a, b, c) = (
+        shape(first, user),
+        shape(second, user),
+        shape(stranger, nobody),
+    );
+    if a == b && c != a && first.status == stranger.status {
+        out.findings.push(finding(
+            &RESET_REVEALS_ACCOUNT,
+            "Password reset tells anyone whether an address has an account",
+            Severity::Medium,
+            format!(
+                "A reset request to {path} was answered in different words, or sent somewhere \
+                 different, for an address with an account than for one without, where two \
+                 requests for the same account were answered alike."
+            ),
+        ));
+    }
+}
+
+/// An answer with what legitimately differs between requests taken out: the address it was about,
+/// however it was written, the values of fields, and long random-looking runs.
+fn same_shape(text: &str, address: &str) -> String {
+    let mut text = text.to_owned();
+    for written in [
+        address.to_owned(),
+        address.replace('@', "%40"),
+        address.replace('@', "&#64;"),
+        address.replace('@', "&#x40;"),
+    ] {
+        text = text.replace(&written, "{user}");
+    }
+    let values = regex::Regex::new(r#"(?i)value\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)"#)
+        .expect("a fixed pattern");
+    let long = regex::Regex::new(r"[A-Za-z0-9_-]{16,}").expect("a fixed pattern");
+    let text = values.replace_all(&text, "value");
+    long.replace_all(&text, "#").into_owned()
 }
 
 /// A password hint or a secret question on a page, in the page's words or a field's name.
@@ -3854,6 +4350,10 @@ mod tests {
         /// The exact `Cache-Control` a private page sends. `None` means the correct `no-store`,
         /// so a test can set a value that only looks right without a flaw flag for each one.
         cache_control: Option<String>,
+        /// Every email the app has sent, as (to, text), oldest first.
+        outbox: Vec<(String, String)>,
+        /// Reset codes handed out: code -> (account, used).
+        reset_codes: BTreeMap<String, (String, bool)>,
     }
 
     #[derive(Default, Clone, Copy)]
@@ -3960,6 +4460,30 @@ mod tests {
         /// in a script, which is what a page built by JavaScript looks like and what a check
         /// searching the whole page for the text would wrongly credit.
         no_sign_out_link: bool,
+        /// The run has no mail server, so there is no email to read.
+        no_mail_sink: bool,
+        /// A reset request answers but sends no email.
+        reset_sends_nothing: bool,
+        /// Using a reset code answers as if it worked and changes nothing.
+        reset_does_nothing: bool,
+        /// A reset code can be used again after it has been used.
+        reset_reusable: bool,
+        /// A reset adds the new password and leaves the old one working.
+        reset_keeps_old: bool,
+        /// Reset codes are four digits.
+        reset_short_code: bool,
+        /// Reset codes are six digits, one more than the last.
+        reset_counting_codes: bool,
+        /// A reset for an address with no account is answered 404.
+        reset_reveals_by_status: bool,
+        /// A reset for an address with no account is answered in different words.
+        reset_reveals_by_words: bool,
+        /// The reset email carries its code where the default patterns do not look.
+        reset_code_elsewhere: bool,
+        /// Every reset answer says how many have been asked for, so two identical requests are
+        /// answered differently. Not a fault: it is here so a comparison that forgot to check the
+        /// two alike answers first would accuse a correct app.
+        reset_answer_counts: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -4146,6 +4670,19 @@ mod tests {
     }
 
     impl Http for FakeApp {
+        fn mail(&mut self, to: &str, _at_least: usize) -> Option<Vec<String>> {
+            if self.flaws.no_mail_sink {
+                return None;
+            }
+            Some(
+                self.outbox
+                    .iter()
+                    .filter(|(who, _)| who == to)
+                    .map(|(_, text)| text.clone())
+                    .collect(),
+            )
+        }
+
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
             // A bearer token is a session id too, for the JSON sign-in below.
             let bearer = r
@@ -4289,6 +4826,83 @@ mod tests {
                         self.users.get_mut(&who)?.0 = new;
                     }
                     Self::respond(303, vec![("Location", "/account".into())], "")
+                }
+                ("GET", "/forgot" | "/reset") => Self::respond(
+                    200,
+                    vec![],
+                    &format!("<input type=hidden name=csrf_token value={CSRF}>"),
+                ),
+                ("POST", "/forgot") => {
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let email = form(r).get("email")?.clone();
+                    let known = self.users.contains_key(&email);
+                    if known && !self.flaws.reset_sends_nothing {
+                        self.next += 1;
+                        let code = if self.flaws.reset_short_code {
+                            format!("{:04}", (self.next * 7919) % 10_000)
+                        } else if self.flaws.reset_counting_codes {
+                            format!("{}", 100_000 + self.next)
+                        } else {
+                            self.new_id()
+                        };
+                        self.reset_codes
+                            .insert(code.clone(), (email.clone(), false));
+                        let text = if self.flaws.reset_code_elsewhere {
+                            format!("Your reset number is {code}. Type it on the reset page.")
+                        } else {
+                            format!(
+                                "Hello,\r\nReset your password: http://app:8080/reset?token={code}\r\n"
+                            )
+                        };
+                        self.outbox.push((email.clone(), text));
+                    }
+                    // A field that differs on every answer, as a real form's token does, so the
+                    // comparison is shown to set it aside.
+                    // Short, so it is the field's value being set aside that saves the comparison and
+                    // not the rule for long random-looking runs.
+                    self.next += 1;
+                    let nonce = format!("{:08x}", self.next.wrapping_mul(2_654_435_761));
+                    let hidden = format!("<input type=hidden name=nonce value={nonce}>");
+                    if !known && self.flaws.reset_reveals_by_status {
+                        return Some(Self::respond(404, vec![], "no such account"));
+                    }
+                    let words = if !known && self.flaws.reset_reveals_by_words {
+                        format!("There is no account for {email}.")
+                    } else if self.flaws.reset_reveals_by_words {
+                        format!("We have sent a link to {email}.")
+                    } else {
+                        format!("If {email} has an account, we have sent it a link.")
+                    };
+                    let count = if self.flaws.reset_answer_counts {
+                        format!("<p>Request {} today.</p>", self.next)
+                    } else {
+                        String::new()
+                    };
+                    Self::respond(200, vec![], &format!("{hidden}<p>{words}</p>{count}"))
+                }
+                ("POST", "/reset") => {
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let f = form(r);
+                    let (code, new) = (f.get("token")?.clone(), f.get("password")?.clone());
+                    let Some((who, used)) = self.reset_codes.get(&code).cloned() else {
+                        return Some(Self::respond(400, vec![], "unknown link"));
+                    };
+                    if used && !self.flaws.reset_reusable {
+                        return Some(Self::respond(400, vec![], "this link has been used"));
+                    }
+                    self.reset_codes.insert(code, (who.clone(), true));
+                    if !self.flaws.reset_does_nothing {
+                        let stored = self.users.get(&who)?.0.clone();
+                        if self.flaws.reset_keeps_old {
+                            self.kept.insert(who.clone(), stored);
+                        }
+                        self.users.get_mut(&who)?.0 = new;
+                    }
+                    Self::respond(303, vec![("Location", "/login".into())], "")
                 }
                 ("POST", "/account/delete") => {
                     let Some(who) = user else {
@@ -4608,6 +5222,18 @@ mod tests {
                 &[("password", "{password}"), ("csrf_token", "{csrf}")],
             )),
             upload: None,
+            reset: Some(sv_manifest::ResetSection {
+                request: t("/forgot", &[("email", "{user}"), ("csrf_token", "{csrf}")]),
+                use_code: t(
+                    "/reset",
+                    &[
+                        ("token", "{code}"),
+                        ("password", "{new_password}"),
+                        ("csrf_token", "{csrf}"),
+                    ],
+                ),
+                code_pattern: None,
+            }),
         }
     }
 
@@ -7014,5 +7640,420 @@ mod tests {
             assert!(!verified_ids(&o).contains(&rule));
             assert!(!rule_ids(&o).contains(&rule));
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Password reset, through the mail sink
+
+    const RESET_RULES: [&str; 4] = [
+        RESET_REUSABLE.rule_id,
+        RESET_KEEPS_OLD.rule_id,
+        RESET_CODE_GUESSABLE.rule_id,
+        RESET_REVEALS_ACCOUNT.rule_id,
+    ];
+
+    fn reset_findings(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| RESET_RULES.contains(id))
+            .collect()
+    }
+
+    fn reset_not_assessed(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.contains("V6.4.3"))
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_reset_that_works_once_is_followed_through_and_faults_nothing() {
+        let o = run_against(Flaws::default(), &users());
+        assert!(reset_findings(&o).is_empty(), "{:#?}", o.findings);
+        // The setup was really shown to work: the email arrived, and its code set a password
+        // that then signed in. Without these the quiet above would mean nothing.
+        let steps = o.steps.join("\n");
+        assert!(
+            steps.contains("2 emails arrived for b@example.test"),
+            "{steps}"
+        );
+        for step in [
+            "the password the reset set signed in",
+            "the password from before the reset was refused",
+            "the password the used code tried to set was refused",
+        ] {
+            assert!(steps.contains(step), "{step}:\n{steps}");
+        }
+        // And it credits nothing, saying what it did not try.
+        assert!(!verified_ids(&o).iter().any(|id| RESET_RULES.contains(id)));
+        let why = reset_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{why:?}");
+        assert!(why[0].contains("two-factor"), "{why:?}");
+    }
+
+    #[test]
+    fn each_fault_in_a_reset_is_found_by_its_own_rule() {
+        let cases: [(Flaws, &str); 6] = [
+            (
+                Flaws {
+                    reset_reusable: true,
+                    ..Default::default()
+                },
+                RESET_REUSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_keeps_old: true,
+                    ..Default::default()
+                },
+                RESET_KEEPS_OLD.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_short_code: true,
+                    ..Default::default()
+                },
+                RESET_CODE_GUESSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_counting_codes: true,
+                    ..Default::default()
+                },
+                RESET_CODE_GUESSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_reveals_by_status: true,
+                    ..Default::default()
+                },
+                RESET_REVEALS_ACCOUNT.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_reveals_by_words: true,
+                    ..Default::default()
+                },
+                RESET_REVEALS_ACCOUNT.rule_id,
+            ),
+        ];
+        for (flaws, rule) in cases {
+            let o = run_against(flaws, &users());
+            assert_eq!(
+                reset_findings(&o),
+                vec![rule],
+                "{rule}: {:#?}\n{:?}",
+                o.findings,
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_reset_that_changes_nothing_is_not_assessed_however_else_it_is_broken() {
+        // Reusable and keeping the old password, in an app whose reset does nothing at all: the
+        // old password "still works" and a second use "does nothing new" for a reason that has
+        // nothing to do with either, and neither may be reported off the back of it.
+        let o = run_against(
+            Flaws {
+                reset_does_nothing: true,
+                reset_reusable: true,
+                reset_keeps_old: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(reset_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            reset_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("did not change the password")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn with_no_email_to_read_a_reset_is_not_assessed_and_says_why() {
+        for (flaws, why) in [
+            (
+                Flaws {
+                    no_mail_sink: true,
+                    reset_reusable: true,
+                    ..Default::default()
+                },
+                "no mail server",
+            ),
+            (
+                Flaws {
+                    reset_sends_nothing: true,
+                    reset_reusable: true,
+                    ..Default::default()
+                },
+                "sent no email",
+            ),
+            (
+                Flaws {
+                    reset_code_elsewhere: true,
+                    reset_reusable: true,
+                    ..Default::default()
+                },
+                "no code was found",
+            ),
+        ] {
+            let o = run_against(flaws, &users());
+            assert!(
+                !reset_findings(&o).contains(&RESET_REUSABLE.rule_id),
+                "{why}: {:#?}",
+                o.findings
+            );
+            assert!(
+                reset_not_assessed(&o).iter().any(|w| w.contains(why)),
+                "{why}: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_code_pattern_finds_a_code_the_defaults_miss_and_a_broken_one_is_refused() {
+        let mut u = users();
+        u.reset.as_mut().unwrap().code_pattern = Some(r"reset number is ([0-9a-f]+)".into());
+        let flaws = Flaws {
+            reset_code_elsewhere: true,
+            reset_reusable: true,
+            ..Default::default()
+        };
+        let o = run_against(flaws, &u);
+        assert_eq!(
+            reset_findings(&o),
+            vec![RESET_REUSABLE.rule_id],
+            "{:?}",
+            o.steps
+        );
+
+        u.reset.as_mut().unwrap().code_pattern = Some(r"reset number is [0-9a-f]+".into());
+        let o = run_against(flaws, &u);
+        assert!(reset_findings(&o).is_empty());
+        assert!(
+            reset_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("code-pattern") && w.contains("no group")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn with_a_sign_up_the_reset_uses_an_account_of_its_own() {
+        let mut app = FakeApp::new(Flaws {
+            reset_reusable: true,
+            ..Default::default()
+        });
+        let mut acc = accounts();
+        acc.admin = None;
+        let o = run(&mut app, &with_signup(), &acc, false, &Default::default());
+        assert_eq!(reset_findings(&o), vec![RESET_REUSABLE.rule_id]);
+        assert!(
+            app.outbox
+                .iter()
+                .all(|(to, _)| to == "reset.a@example.test"),
+            "only the account made for it is ever sent a reset: {:?}",
+            app.outbox
+        );
+        // A and B keep the passwords they started with.
+        assert_eq!(app.users[&acc.a.user].0, acc.a.password);
+        assert_eq!(app.users[&acc.b.user].0, acc.b.password);
+    }
+
+    #[test]
+    fn a_code_is_found_in_a_link_however_the_email_writes_it() {
+        let p = reset_patterns(None).unwrap();
+        for (mail, code) in [
+            ("Go to http://app/reset?token=abc123XYZ now", "abc123XYZ"),
+            (
+                "<a href=\"http://app/reset?uid=4&amp;token=k9%2Dz_Q\">Reset</a>",
+                "k9-z_Q",
+            ),
+            (
+                "https://app.test/password/reset/9f8e7d6c5b4a3210\r\n",
+                "9f8e7d6c5b4a3210",
+            ),
+            ("http://app/forgot?reset_code=77aa99bb", "77aa99bb"),
+        ] {
+            assert_eq!(reset_code(mail, &p).as_deref(), Some(code), "{mail}");
+        }
+        assert_eq!(reset_code("Thanks for signing up. http://app/", &p), None);
+    }
+
+    #[test]
+    fn six_random_digits_pass_and_fewer_or_counting_do_not() {
+        let judged = |codes: &[&str]| {
+            let mut out = Outcome::default();
+            let codes: Vec<String> = codes.iter().map(|c| (*c).to_owned()).collect();
+            reset_code_check(&codes, &mut out);
+            out.findings.len()
+        };
+        assert_eq!(judged(&["482913", "117204"]), 0);
+        assert_eq!(judged(&["9f86d081884c7d659a2feaa0c55ad015"]), 0);
+        assert_eq!(judged(&["4829", "1172"]), 1);
+        assert_eq!(judged(&["482913", "482914"]), 1);
+        assert_eq!(judged(&["482913", "483913"]), 1);
+        assert_eq!(judged(&["482913", "483914"]), 0);
+    }
+
+    #[test]
+    fn two_answers_differing_only_in_what_every_answer_changes_are_the_same_shape() {
+        let a = same_shape(
+            "<input value=\"9f86d081884c7d659a2f\">If a@x.test has an account",
+            "a@x.test",
+        );
+        let b = same_shape(
+            "<input value='0c55ad0159f86d081884'>If nobody@x.test has an account",
+            "nobody@x.test",
+        );
+        assert_eq!(a, b);
+        let c = same_shape("There is no account for nobody%40x.test", "nobody@x.test");
+        let d = same_shape("There is no account for a@x.test", "a@x.test");
+        assert_eq!(c, d);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn the_same_faults_are_found_with_an_account_made_for_the_reset() {
+        // The same rules through the other way of getting an account, so no rule rests on the
+        // seeded fixture alone.
+        for (flaws, rule) in [
+            (
+                Flaws {
+                    reset_keeps_old: true,
+                    ..Default::default()
+                },
+                RESET_KEEPS_OLD.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_reveals_by_status: true,
+                    ..Default::default()
+                },
+                RESET_REVEALS_ACCOUNT.rule_id,
+            ),
+            (
+                Flaws {
+                    reset_reveals_by_words: true,
+                    ..Default::default()
+                },
+                RESET_REVEALS_ACCOUNT.rule_id,
+            ),
+        ] {
+            let o = run_signing_up(flaws);
+            assert_eq!(reset_findings(&o), vec![rule], "{rule}: {:?}", o.steps);
+        }
+        let o = run_signing_up(Flaws {
+            no_mail_sink: true,
+            reset_reusable: true,
+            ..Default::default()
+        });
+        assert!(reset_findings(&o).is_empty());
+        assert!(
+            reset_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("no mail server")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn answers_that_differ_between_identical_requests_are_not_held_against_the_app() {
+        for users in [users(), with_signup()] {
+            let mut app = FakeApp::new(Flaws {
+                reset_answer_counts: true,
+                ..Default::default()
+            });
+            let mut acc = accounts();
+            let seeded = users.seed.is_some();
+            if seeded {
+                for account in [&acc.a, &acc.b] {
+                    app.users
+                        .insert(account.user.clone(), (account.password.clone(), false));
+                }
+            }
+            if !seeded {
+                acc.admin = None;
+            } else {
+                let admin = acc.admin.clone().unwrap();
+                app.users.insert(admin.user, (admin.password, true));
+            }
+            let o = run(&mut app, &users, &acc, seeded, &Default::default());
+            assert!(reset_findings(&o).is_empty(), "{:#?}", o.findings);
+            // And the comparison really ran: all three requests were answered.
+            assert!(
+                o.steps
+                    .iter()
+                    .any(|s| s.contains("twice (200, 200)") && s.contains("no account (200)")),
+                "{:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_reset_that_changes_nothing_through_sign_up_is_not_assessed_either() {
+        let o = run_signing_up(Flaws {
+            reset_does_nothing: true,
+            reset_reusable: true,
+            reset_keeps_old: true,
+            ..Default::default()
+        });
+        assert!(reset_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            reset_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("did not change the password")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn wording_is_judged_only_when_two_requests_for_the_same_account_agree() {
+        let answer = |status: u16, body: &str| {
+            Some(ProbeResponse {
+                id: String::new(),
+                status,
+                headers: Vec::new(),
+                body: body.to_owned(),
+            })
+        };
+        let judged = |first: &Option<ProbeResponse>, second: &Option<ProbeResponse>| {
+            let stranger = answer(200, "Sent. Ticket 9.");
+            let mut out = Outcome::default();
+            reveals_account_check(
+                [first, second, &stranger],
+                "a@x.test",
+                "n@x.test",
+                "/forgot",
+                &mut out,
+            );
+            out.findings.len()
+        };
+        // The pair disagrees with itself, so a third answer that differs shows nothing.
+        assert_eq!(
+            judged(
+                &answer(200, "Sent. Ticket 7."),
+                &answer(200, "Sent. Ticket 8.")
+            ),
+            0
+        );
+        // The pair agrees, and the third answer does not.
+        assert_eq!(
+            judged(
+                &answer(200, "Sent. Ticket 7."),
+                &answer(200, "Sent. Ticket 7.")
+            ),
+            1
+        );
     }
 }

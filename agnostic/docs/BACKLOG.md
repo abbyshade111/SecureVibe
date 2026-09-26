@@ -165,7 +165,8 @@ another session is not a claim.
   *not* finding them is not assessed and never a finding, because an app that logs to a file or a
   service writes nothing there and is not logging any less for it. V16.3.1 needs both sign-ins
   found, since the requirement asks for both. Level 2 goes from 33 to 35 of 183. See DESIGN, "What
-  the app wrote down". Password reset needs an entry of its own, and is not claimed. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
+  the app wrote down". Password reset is done on 26 September 2026 by session securevibe-e9,
+  on the mail server from the new-tools list below. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
   its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
   **The `upload` entry is done on 26 September 2026 by session securevibe-e9.** `[stack.run.users]`
   takes an `upload` entry — the path, the file field, the other form fields, an optional
@@ -176,8 +177,6 @@ another session is not a claim.
   see whether a browser would render it as part of the app (V3.2.1). Level 1 goes from 41 to 45 of
   70. See DESIGN, "The upload entry". Left over from it: V5.3.2 (paths built from submitted names)
   and V5.4.1/V5.4.2 (what the app sends back) are reachable the same way and were not written.
-
-  Still open in this entry: the logging question (V16.3.1, V16.3.2) and password reset.
 
 - **Twelve more requirements the probes could reach, from a sweep of everything they cannot.**
   An analysis on 26 September 2026 (session securevibe-e9) of all 260 ASVS requirements no check
@@ -291,7 +290,17 @@ another session is not a claim.
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
-     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this.
+     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this. **Claimed on 26
+     September 2026 by session securevibe-e9**, with the password-reset item it carries. **The mail
+     server and password reset are done the same day:** a `reset` entry under `[stack.run.users]`
+     starts Mailpit on the fenced network, and the probes follow the reset email to find a link
+     that works twice, an old password that survives, a guessable code (V6.4.3), and an answer that
+     tells whether an address has an account (V6.3.8). Level 2 goes from 44 to 45 of 183, Level 3
+     from 3 to 4. See DESIGN, "A mail server inside the fence, and password reset". The count above
+     was wrong: V6.5.1, V6.5.4, V6.5.5, V6.6.2, and V6.6.3 are about codes sent to sign *in*, and a
+     reset code is not one. They need an `email-code` entry — a magic link or an emailed second
+     factor — on the same mail server; V6.5.5 needs the slow mode as well, and V6.4.1 needs a
+     sign-up that emails an activation code. Not claimed.
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5).
