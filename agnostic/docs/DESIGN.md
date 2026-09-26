@@ -1613,10 +1613,42 @@ common log format. Credit on presence only: a processor can be taught any consis
 log shipper often structures lines on the way, so free text is *not assessed*. Logfmt needs at least
 three `key=value` pairs making up half the line, so a sentence with one equals sign is a sentence.
 
-Two things left out, and why. V4.4.3 and V4.4.4 ask about a WebSocket's own session, which is only a
-fault if the connection is meant to be private, and nothing in the manifest says that yet. And
-V15.3.5, type confusion, was on the list and is not built here: a probe for it sends sign-in requests
-shaped to get in without the password.
+Left out here: V15.3.5, type confusion, was on the list and is not built: a probe for it sends
+sign-in requests shaped to get in without the password. V4.4.3 and V4.4.4 were left out at first
+because a WebSocket's own session is only a fault if the connection is meant to be private, and
+nothing said so; they are now asked, below.
+
+**V4.4.3 and V4.4.4, a private WebSocket's session.** The owner says which socket needs a sign-in
+with `private-websocket = "/ws"` under `[stack.run.users]`. The check signs A in afresh, so the
+socket is asked with a session nothing else is using, and runs after the checks that need A's first
+session. In order:
+
+- **The signed-in handshake first.** It has to upgrade (`101`), or the path is not the socket or the
+  socket refuses everybody, and the rest is *not assessed*.
+- **V4.4.4, no real session.** The same handshake with no session, and with a cookie of the session's
+  name and length and a made-up value. Either upgrading is a finding. Both refused is credited: the
+  channel opens only through the signed-in session. When the session is not a cookie (a bearer token),
+  a value cannot be made up that way, and a refusal with none is half the answer, so it is *not
+  assessed* and says so.
+- **V4.4.3, signed out.** The session is signed out with `logout`, and its old cookie sent in another
+  handshake. Upgrading is a finding. It is asked only when the step before showed a real session is
+  needed: a socket that lets anybody in lets in a signed-out cookie too, and the first version raised
+  that as a second finding for the same fault. The fake app's socket for anybody is what caught it. A
+  refusal is not credited: V4.4.3 asks that a socket's own tokens meet every session requirement, and
+  ending at sign-out is one of them, which the report says.
+
+Only the handshake is judged, and it is the handshake that carries the session; what the socket does
+once open is not asked. The anonymous V4.4.2 check still sends its foreign-origin handshake with no
+session, so for a private socket it now reports *not assessed*: the plain handshake is refused, so
+there is no accepted handshake to compare the foreign one with. Asking V4.4.2 with the session is left
+over.
+
+Verified end to end with a scratch Python app answering the handshake itself: the careful one was
+credited for V4.4.4 and said V4.4.3 was partial; one that lets a handshake with no cookie in raised
+V4.4.4 and did not ask about sign-out; one that remembers signed-out sessions raised V4.4.3. The break
+round found two guards with no witness — a handshake with no session let in while a made-up one was
+refused, and a credit given when no value could be made up — and four with one; each now has two or
+more.
 
 ### A mail server inside the fence, and password reset
 
@@ -2577,6 +2609,64 @@ twice over:
   would have: a wrong question is answerable, and the owner would have answered it and had the answer
   credited against a requirement about something else.
 
+### The AI coding tool's answers, a tier lower still
+
+The owner is not a programmer, and the tool that wrote the app knows its code better than they do.
+So the questions go to the tool as well, and the plan (asked for by the owner on 26 September 2026)
+is that the tool interviews the owner, one question at a time, with what it knows about the code as
+a tip. That leaves two kinds of answer, and they are not worth the same:
+
+- **The owner's answer**, given in that conversation, recorded with `by = "owner"`: *attested by the
+  owner*, as before.
+- **The tool's answer**, when the owner does not know and the tool answers from the code, recorded
+  with `by = "ai-tool"`: *stated by the AI coding tool*, its own tier below the owner's, at the
+  owner's decision the same day. It is the author grading its own work.
+
+Everything that keeps *attested* honest holds for *stated*: it stays on the list of tests to write,
+settles no threat, and a `no` is still a finding, now saying who said it. Where both answered, the
+owner's word is the one shown.
+
+**An answer that does not say who gave it counts as the tool's.** The file is usually written by the
+tool, so crediting the owner on nobody's say-so is the direction that overstates; the owner writing
+by hand adds `by = "owner"`. A `by` that is neither word is named as unreadable, like a fourth
+answer, rather than guessed at.
+
+Each guard was broken in turn and caught: silence read as the owner's, an unknown `by` read as the
+owner's, *stated* dropped from the tests to write, *stated* shown as *attested*, and the two tiers'
+order swapped.
+
+### The interview: the tool asks, the owner answers
+
+The three lists (design questions, security notes, checks by hand) reached the owner only as a
+section of the report, and the walk-through of `sv mcp` on 26 September 2026 showed they did not
+reach the AI coding tool at all: the check named the design questions by id alone and told the tool
+to run `sv notes`, which it has no way to do. The owner's idea the same day was the fix: give the
+questions to the tool, and have it interview the owner.
+
+- **`securevibe_questions`** (and `sv questions`, to paste into a tool without MCP) lists what is
+  still open for this app: design questions nobody has answered or only the tool has, security notes
+  not yet written, and the checks by hand. Each has the question in plain words and where to look.
+  The instructions ahead of them say how to ask: one at a time, with what the code shows as a tip,
+  "not sure" as a good answer, and `by = "owner"` only for an answer the person gave. It is wider
+  than the report's checklist, which leaves out what a test could also settle; a question the owner
+  can answer is worth asking even when a test could settle it later.
+- **A design question only the tool has answered is asked again**, to be confirmed or corrected,
+  since the owner's word outranks the tool's. One the owner has answered is not asked again.
+- **The security notes have no lower tier**, so the tool is told to write a decision only once the
+  owner agrees with it. A written decision nobody made is not one.
+- **`securevibe_notes_file`** makes or refreshes `security-notes.md`, keeping what is written, and
+  refuses to write through a link out of the app, like `securevibe_write_report`'s folder.
+- **The checks by hand record nothing yet.** The tool walks the owner through them.
+
+Asking credits nothing: a test holds that every requirement on the list is still not verified. Two
+smaller things from the walk-through went in beside it: the check now points the tool at the
+questions, and a contradicted claim says what in the code contradicted it ("What the code shows:
+`stripe` is declared in requirements.txt"), which `sv scope` always said and the report did not.
+
+Six guards were broken in turn, each caught: an owner-answered question asked again, a tool-answered
+one not asked, the "confirm this" line dropped, the `by = "owner"` rule dropped from the
+instructions, the link check off, and the contradiction's evidence dropped.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the
@@ -3230,3 +3320,122 @@ adapter without measuring; every one was caught, the last two by two tests each.
 Next, the owner's lean: `p/ai-best-practices` as its own entry, run only for apps that use AI, and a
 decision on `p/default` from measurements. Both need semgrep.dev, and both will be refused by
 `coverage.py` until the pack is measured, which is the point.
+
+### The AI pack, for apps that may call a model
+
+Done on 26 September 2026 (session relaxed-nobel-27acfa), at the owner's asking. `p/ai-best-practices`
+is where semgrep keeps most of its rules about code that calls a model, and none of them is in
+`p/security-audit`. Adding it to every run would be harmless, but the owner asked that it run only for
+apps that use AI, and one adapter entry is the right shape for it. The rules share semgrep's map,
+its SARIF, and its install line, and a second entry would duplicate all three.
+
+So an adapter can now carry `conditional_args`: arguments added to its run unless a condition is known
+not to hold, placed just before its `--`. Semgrep's entry adds `--config p/ai-best-practices` for `ai`.
+The load refuses an unknown condition, a placeholder in the added arguments, and an adapter with no
+`--` to put them before, because after it the pack's name would be read as a file to scan.
+
+**Only a known "no" leaves it out.** The `ai` answer comes from the manifest and the code together,
+and the code wins: an app whose manifest says no AI and whose code imports OpenAI still gets the pack.
+When nobody has settled it, the pack runs. Its rules only ever find something (the AISVS ones are
+`findings_against`), and on code that calls no model they find nothing, so leaving it out there would
+hide mistakes in exactly the apps nobody checked, and gain nothing. Seen through the real binary with
+a wrapper recording semgrep's arguments: an app calling OpenAI with nothing said got both packs and a
+finding against C2.2.1 (`openai-missing-moderation`). An app without AI code whose manifest says no got
+`p/security-audit` alone, and the same app with nothing said got both.
+
+The pack is measured in `data/semgrep-packs.json` (27 rules, semgrep 1.176.0). `tools/semgrep_packs.py`
+and `coverage.py` read conditional packs, and the coverage document says which packs run only for apps
+that may call a model. By the honest count, semgrep now reaches C2.2.1, C9.1.2, C9.3.1, C9.5.4, and
+C10.4.2, as findings only, and V1.3.6, which a clean run can credit, but only for an app the pack ran
+on. AISVS goes from 2 to 6 requirements with a check, 5 of them only ever *needs attention*. C2.1.6,
+C7.1.2, and C7.3.1 stay out of reach of any pack measured.
+
+Regenerating the document showed two faults in its AI section that had been there since it was
+written, and that no AI rule had ever exercised: it printed rules as Python tuples, and it called every
+rule semgrep's, including CodeQL's `js/system-prompt-injection`, which it also said "settled" C2.1.6 with
+an explanation that belongs to credential scans. Each rule is now named with its own tool, and a tool
+whose rules only ever find a requirement failing is no longer listed as settling it.
+
+Four breaks, each caught: leaving the pack out when nobody has settled `ai`; putting the pack after
+the `--`, which passed every test until the test was made to look for it; an unmeasured conditional
+pack, which the measured-packs test did not read until it was extended; and an unknown condition in
+the data.
+
+## Which provider a sign-in came from (V10.2.2)
+
+A mix-up attack works on an app that signs in through more than one provider: a sign-in started
+with one is answered by another, and an app that does not check which provider answered hands the
+code or the token to the wrong one. V10.2.2 asks for the defense: check the `iss` the provider's
+return names (RFC 9207) and the `iss` claim in the ID token. The backlog had it waiting on a second
+provider. It does not need one: the single test provider can name another in either place.
+
+Two more modes in the test provider: `wrong-iss` puts `http://sv-other-idp.invalid` in the return's
+`iss` parameter, and is used up at `/authorize`, since an app that refuses the return never asks for
+a token; `wrong-token-iss` puts it in the ID token. The provider's discovery document now also says
+`authorization_response_iss_parameter_supported: true`, which is what makes a standard client library
+check the parameter.
+
+**Credit only.** Refusing both, with an ordinary sign-in working afterwards, is credited. Taking
+either is *not* a finding: with one provider, only that provider can sign the app's tokens, so there
+is nothing to mix up, and securevibe.toml does not say how many providers the app uses. The report
+says which of the two the app took and why that is not called a failure. Level 2 goes from 62 to 63
+of 183.
+
+`examples/oidc-notes` now checks the return's `iss`, and its `flaws.json` can switch off either
+check (`iss`, `iss-param`). Run in Docker: the correct app is credited for V10.2.2 beside its four
+other sign-in checks; each copy with one check off is not assessed for V10.2.2, naming which, and
+loses nothing else. Each guard was removed in turn and every one was caught, the credit on a single
+refusal only after a test with the second trick made impossible.
+
+## A `ws://` address written into the code (V4.4.1)
+
+V4.4.1 asks that every WebSocket is encrypted (`wss://`). It had been reached through semgrep's
+`detect-insecure-websocket`, which is in no pack the adapter runs, so the honest count took it away.
+It is now a rule of `sv`'s own, `ast.plaintext-websocket-url`, and needs no outside tool.
+
+Two things were missing, and neither turned out to need Rust per rule:
+
+- **A rule over a string literal.** The backlog said every rule matches a call, so a literal
+  "would mean a new kind of rule". The engine already takes any query, and applies
+  `argumentPatterns` to whatever `@arg` captures; a query that captures the literal itself as both
+  `@hit` and `@arg` matches literals. One per language, over its grammar's string nodes (Python's
+  `string`, Go's two string literals, JavaScript's quoted and template strings, a shell word as well
+  as a quoted one, and so on), in all fourteen languages `sv` reads.
+- **A rule that is only ever a finding.** A code rule that finds nothing is credited, and here that
+  would be wrong: the address is usually built at run time from the page's own, and no rule can see
+  it. `findingsOnly` on an AST rule keeps it out of the clean results, and `coverage.py` shows it
+  "only ever as a finding", as it does for an outside tool's rule.
+
+The pattern is a `ws://` address with something after it that starts a host name. A bare `"ws://"`,
+as in `url.replace("ws://", "wss://")`, is not one; `localhost`, `127.0.0.1`, `[::1]`, and `0.0.0.0`
+are left out, since they never leave the computer. A template that builds the address from a value
+is left out too: it may be `wss://` when served over HTTPS. Level 1 goes from 52 to 53 of 70.
+
+Every language has a found case and a not-found case, with the localhost, bare-scheme, and template
+cases beside them. Each part was removed in turn: crediting a clean run, the localhost exception, the
+host in the pattern, the coverage annotation, and one language's query; every one was caught.
+
+## Four ways of writing a path or a redirect that the rules missed
+
+The path rule (V5.3.2) and the redirect rule (V3.7.2) were written from the most common way to write
+each call, and four others were listed as left over. They are data entries, not new code:
+
+- **Express's `res.redirect(301, url)`.** The status comes first and is a number, so the query
+  looked at the number and saw a literal. A second pattern takes the argument after a leading number.
+- **Ruby's `send_file params[:path]`.** It is called with no receiver, so the pattern that needs
+  `File.` or `IO.` never saw it. A second pattern captures the method name as both the function and
+  the "module", so the module filter still applies to every match. `Rails.root.join('public', 'a.pdf')`
+  with only quoted parts is a safe idiom. (`redirect_to` was already covered; the backlog was wrong.)
+- **Java's `Paths.get(name)` and `Path.of("uploads", name)`.** The Java query looked only at
+  `new File(…)` and similar. A second pattern takes method calls on `Paths` or `Path`, and checks
+  every argument, because the value is often the second part, not the first. `m.get(n)` on anything
+  else is not a finding.
+- **PHP's `include $page`.** `include`, `include_once`, `require`, and `require_once` are language
+  constructs, not calls, so no call pattern could see them. They have their own patterns now.
+  `__DIR__ . '/config.php'` and `dirname(__FILE__) . '/lib.php'` are safe idioms.
+
+Each fix has a found and a not-found case. Each of the eight parts was removed in turn: the second
+Express pattern, the receiverless Ruby pattern, `send_file` as a module, the `Rails.root` exception,
+the Java module filter, checking every Java argument, the PHP include pattern, and the `__DIR__`
+exception. Every one was caught. No requirement's count changes: this makes two existing rules find
+more.

@@ -75,6 +75,37 @@ pub struct Adapter {
     /// clean run is evidence about none of those.
     #[serde(default)]
     pub credit_loaded_only: bool,
+    /// Arguments added to `run` only for an app a condition may hold for, put just before its `--`.
+    /// Semgrep's AI pack is one: its rules are about code that calls a model, so it is left out of a
+    /// run only when the app is known not to use AI. When nobody has said, it runs, because its rules
+    /// can only ever find something and on code that calls no model they find nothing.
+    #[serde(default)]
+    pub conditional_args: Vec<ConditionalArgs>,
+}
+
+/// Arguments for `run` that apply unless `condition` is known not to hold for the app.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConditionalArgs {
+    /// A condition's name as the applicability data writes it: `ai`.
+    pub condition: String,
+    pub args: Vec<String>,
+}
+
+impl Adapter {
+    /// `run`'s arguments for an app, leaving out those whose condition is in `not_holding`.
+    pub fn run_args(&self, not_holding: &BTreeSet<String>) -> Vec<String> {
+        let extra: Vec<String> = self
+            .conditional_args
+            .iter()
+            .filter(|c| !not_holding.contains(&c.condition))
+            .flat_map(|c| c.args.iter().cloned())
+            .collect();
+        let mut args = self.run.args.clone();
+        let at = args.iter().position(|a| a == "--").unwrap_or(args.len());
+        args.splice(at..at, extra);
+        args
+    }
 }
 
 /// One of a tool's rules: what it detects, and which requirements that is evidence about.
@@ -187,6 +218,29 @@ impl Adapters {
                     );
                 }
             }
+            for c in &adapter.conditional_args {
+                if sv_frameworks::Condition::from_name(&c.condition).is_none() {
+                    anyhow::bail!(
+                        "adapter `{}` adds arguments for an unknown condition `{}`",
+                        adapter.id,
+                        c.condition
+                    );
+                }
+                if c.args.is_empty() || c.args.iter().any(|a| a.contains(['{', '}'])) {
+                    anyhow::bail!(
+                        "adapter `{}` adds no arguments, or a placeholder, for `{}`",
+                        adapter.id,
+                        c.condition
+                    );
+                }
+                if !adapter.run.args.iter().any(|a| a == "--") {
+                    anyhow::bail!(
+                        "adapter `{}` adds arguments for `{}` and has no `--` to put them before",
+                        adapter.id,
+                        c.condition
+                    );
+                }
+            }
             // The file names are relative to the app, so the tool has to be started inside it.
             if adapter.run.args.iter().any(|a| a == "{files}")
                 && adapter.working_directory.is_none()
@@ -204,6 +258,25 @@ impl Adapters {
 
     pub fn all(&self) -> &[Adapter] {
         &self.adapters
+    }
+
+    /// The conditions some adapter adds arguments for that are known not to hold for this app, given
+    /// how the app answers each (`Some(false)` known not to hold, `None` nobody has settled). Only a
+    /// known "no" leaves arguments out: semgrep's AI pack still runs for an app nobody has said
+    /// anything about, because its rules can only ever find something.
+    pub fn not_holding(
+        &self,
+        answer: impl Fn(sv_frameworks::Condition) -> Option<bool>,
+    ) -> BTreeSet<String> {
+        self.adapters
+            .iter()
+            .flat_map(|a| &a.conditional_args)
+            .filter(|c| {
+                sv_frameworks::Condition::from_name(&c.condition)
+                    .is_some_and(|condition| answer(condition) == Some(false))
+            })
+            .map(|c| c.condition.clone())
+            .collect()
     }
 
     /// The adapters worth trying for an app containing these languages.
@@ -307,7 +380,18 @@ pub fn is_installed(adapter: &Adapter) -> bool {
 /// command and start another — and the app folder's path is the one thing here that a stranger
 /// might have chosen.
 pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome {
+    run_one_for(adapter, app_dir, report_path, &BTreeSet::new())
+}
+
+/// `run_one`, leaving out the conditional arguments whose condition is known not to hold.
+pub fn run_one_for(
+    adapter: &Adapter,
+    app_dir: &Path,
+    report_path: &Path,
+    not_holding: &BTreeSet<String>,
+) -> Outcome {
     let subject = adapter.subject();
+    let run_args = adapter.run_args(not_holding);
     match presence(adapter) {
         Presence::Ready => {}
         Presence::Missing => {
@@ -332,8 +416,8 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
     }
 
     let scanned_path = report_path.with_extension("scanned.json");
-    let names_files = adapter.run.args.iter().any(|a| a == "{files}");
-    let lists_scanned = adapter.run.args.iter().any(|a| a.contains("{scanned}"));
+    let names_files = run_args.iter().any(|a| a == "{files}");
+    let lists_scanned = run_args.iter().any(|a| a.contains("{scanned}"));
     // A list left behind by an earlier run would vouch for files this one never read.
     std::fs::remove_file(&scanned_path).ok();
     let files = if names_files {
@@ -398,7 +482,7 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
         }
     }
     let mut command = Command::new(&adapter.run.command);
-    for arg in &adapter.run.args {
+    for arg in &run_args {
         if arg == "{files}" {
             // `./` as well as the `--` before it in the data: a file called `-x.py` is a file.
             command.args(files.iter().map(|f| format!("./{f}")));
@@ -456,17 +540,21 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
 }
 
 /// Runs every adapter that suits this app, and records the ones that could not run.
+///
+/// `not_holding` names the conditions known not to hold for this app (`ai` for an app known not to
+/// call a model), whose conditional arguments are left out.
 pub fn run_all(
     adapters: &Adapters,
     app_dir: &Path,
     languages: &[String],
+    not_holding: &BTreeSet<String>,
     scratch: &Path,
 ) -> AdapterRun {
     let mut run = AdapterRun::default();
     for adapter in adapters.for_languages(languages) {
         let report_path = scratch.join(format!("sv-{}.sarif", adapter.id));
         std::fs::remove_file(&report_path).ok();
-        match run_one(adapter, app_dir, &report_path) {
+        match run_one_for(adapter, app_dir, &report_path, not_holding) {
             Outcome::Ran {
                 findings,
                 loaded,

@@ -2,7 +2,8 @@
 // built-in modules so it runs inside the fence. It does what a careful app should: `state`, PKCE,
 // a `nonce`, and an RS256 signature verified against the provider's published keys, with `iss`,
 // `aud`, and `exp` checked. `flaws.json`, if present, lists checks to leave out, so the same app
-// can show what `sv` finds when one is missing: "state", "pkce", "nonce", "aud", "signature".
+// can show what `sv` finds when one is missing: "state", "pkce", "nonce", "aud", "signature",
+// "iss" (the ID token's issuer), "iss-param" (the issuer the provider's return names, RFC 9207).
 const http = require('node:http');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -45,7 +46,7 @@ function verify(idToken, s, jwks) {
     const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
     if (!crypto.verify('sha256', Buffer.from(`${h}.${p}`), key, Buffer.from(sig || '', 'base64url'))) return 'signature';
   }
-  if (claims.iss !== ISSUER) return 'issuer';
+  if (!flaws.has('iss') && claims.iss !== ISSUER) return 'issuer';
   if (!flaws.has('aud') && claims.aud !== CLIENT_ID) return 'audience';
   if (claims.exp < Date.now() / 1000) return 'expired';
   if (!flaws.has('nonce') && claims.nonce !== s.nonce) return 'nonce';
@@ -82,6 +83,12 @@ http
       }
       if (url.pathname === '/callback') {
         const { config, jwks } = await discover();
+        // Which provider the return came from, when it says: a defense against mix-up attacks.
+        const iss = url.searchParams.get('iss');
+        if (!flaws.has('iss-param') && iss !== null && iss !== ISSUER) {
+          res.writeHead(400);
+          return res.end('That sign-in came from another provider.');
+        }
         if (!flaws.has('state') && url.searchParams.get('state') !== s.state) {
           res.writeHead(400);
           return res.end('state');

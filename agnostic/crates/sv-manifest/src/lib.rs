@@ -304,6 +304,10 @@ pub struct UsersSection {
     /// a headless Chromium on the fenced network for the run.
     #[serde(default)]
     pub browser: Option<BrowserSection>,
+    /// A WebSocket path that only a signed-in user should be able to open. The handshake is sent
+    /// with the first user's session, with none, and with one the probes made up.
+    #[serde(default)]
+    pub private_websocket: Option<String>,
 }
 
 /// `[stack.run.users.browser]`: what a real browser is asked to do as the first user.
@@ -477,6 +481,13 @@ impl UsersSection {
                 ));
             }
         }
+        if let Some(path) = &self.private_websocket
+            && !path.starts_with('/')
+        {
+            out.push(format!(
+                "`private-websocket` ({path}) is not a path on the app; it has to begin with `/`"
+            ));
+        }
         if let Some(t) = &self.change_password
             && !t
                 .form
@@ -608,7 +619,7 @@ pub struct FixWithinDays {
     pub low: Option<u32>,
 }
 
-/// One answer to a design question: how the app is built, in the owner's own words.
+/// One answer to a design question: how the app is built, in the owner's words or the AI tool's.
 ///
 /// `yes` is the weakest positive answer `sv` has. It is the owner asserting a property, which is
 /// not the property, so it never becomes *checked* and never settles a threat. `no` is the owner
@@ -623,6 +634,11 @@ pub struct DesignAnswer {
     /// The file that does it, so somebody can go and look, and so a stale pointer can be caught.
     #[serde(default)]
     pub r#where: Option<String>,
+    /// Who answered: `owner`, or `ai-tool` for the AI coding tool that wrote the app. Left out, it
+    /// counts as the AI tool's, the weaker of the two, because this file is usually written by the
+    /// tool and an answer must not be credited to the owner on nobody's say-so.
+    #[serde(default)]
+    pub by: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

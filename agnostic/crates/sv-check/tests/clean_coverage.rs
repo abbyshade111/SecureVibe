@@ -61,6 +61,42 @@ fn clean_python_lets_the_rules_that_read_it_say_so() {
 }
 
 #[test]
+fn a_rule_that_can_only_find_is_never_credited_for_finding_nothing() {
+    // Not finding a `ws://` address written into the code is not every WebSocket being encrypted:
+    // the address is usually built at run time. The other rules that read the file still say so;
+    // this one says nothing, and when the address is there it is still found.
+    let dir = scratch("ast-findings-only");
+    std::fs::write(
+        dir.join("app.js"),
+        "const s = new WebSocket(`wss://${location.host}/live`);\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::write(
+        dir.join("app.js"),
+        "const s = new WebSocket('ws://chat.example.com/live');\n",
+    )
+    .unwrap();
+    let found = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    let ids = verified_ids(&scan.verified);
+    assert!(
+        !ids.is_empty(),
+        "the other rules that read JavaScript are credited"
+    );
+    assert!(!ids.contains(&"ast.plaintext-websocket-url"), "{ids:?}");
+    assert!(
+        found
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "ast.plaintext-websocket-url"),
+        "{:?}",
+        found.findings
+    );
+}
+
+#[test]
 fn an_eval_inside_jsx_in_a_tsx_file_is_found_and_not_called_checked() {
     // The case that found this. `.tsx` went through the TypeScript grammar, which has no JSX: the
     // parse broke at the first tag, the `eval` in the click handler was never seen, the file still
