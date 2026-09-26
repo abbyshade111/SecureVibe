@@ -402,7 +402,10 @@ another session is not a claim.
   `detect-insecure-websocket` is in no pack the adapter runs, so the honest count lost V4.4.1. A
   string literal can be matched after all, by a query that captures the literal itself; the rule is
   a `ws://` address to another computer, and it needs a way to be finding-only, since not seeing one
-  is not every socket being encrypted.
+  is not every socket being encrypted. **Done the same day:** `ast.plaintext-websocket-url` in all
+  fourteen languages, with `findingsOnly`, a new field for AST rules; Level 1 goes from 52 to 53 of
+  70. See DESIGN, "A `ws://` address written into the code". The same way would reach V1.2.2's
+  `javascript:` literal, but that was withdrawn for what it means, not for how to match it.
 
   **Level 1 — 25 uncovered, 5 look reachable.** The rest are documentation (V2.1.1, V6.1.1, V8.1.1,
   V15.1.1 → the security-notes file), deployment (V3.4.1, V12.2.1 → the production check), the
