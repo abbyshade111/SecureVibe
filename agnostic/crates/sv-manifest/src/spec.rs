@@ -29,6 +29,13 @@ health = "/"              # a path that returns 200 once the app is up
 # graphql = "/graphql"      # where it answers GraphQL, if it does
 # websocket = "/ws"         # where it accepts WebSocket connections, if it does
 
+# [stack.run.oidc]
+# Only if people sign in through another service ("Sign in with Google" and the like). For the run,
+# the app is given a test provider of `sv`'s own instead of the real one, and must use it: read
+# OIDC_ISSUER, OIDC_CLIENT_ID, and OIDC_CLIENT_SECRET from the environment when they are set.
+# start = "/login/google"   # the path that sends the browser to the provider to sign in
+# private = "/account"      # a page only a signed-in person sees
+
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
 # data, admin pages, whether logging out really ends the session. Leave it out and all of that is

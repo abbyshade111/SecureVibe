@@ -17,6 +17,7 @@ pub mod junit;
 pub mod live_tls;
 pub mod logs;
 pub mod notes;
+pub mod oidc;
 pub mod probes;
 pub mod production;
 pub mod sbom;

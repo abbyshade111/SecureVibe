@@ -748,10 +748,10 @@ fn running_app_evidence(
     findings.extend(api_findings);
     verified.extend(api_verified);
     not_assessed.extend(api_not_assessed);
-    if let Some(signed_in) = &outcome.signed_in {
-        findings.extend(signed_in.findings.iter().cloned());
-        verified.extend(signed_in.verified.iter().cloned());
-        not_assessed.extend(signed_in.not_assessed.iter().cloned());
+    for asked in [&outcome.signed_in, &outcome.oidc].into_iter().flatten() {
+        findings.extend(asked.findings.iter().cloned());
+        verified.extend(asked.verified.iter().cloned());
+        not_assessed.extend(asked.not_assessed.iter().cloned());
     }
     (findings, verified, not_assessed)
 }
@@ -815,6 +815,14 @@ fn cmd_run(args: &[String]) -> Result<()> {
                 && !signed_in.steps.is_empty()
             {
                 println!("\nThen, as two test users: {}.", signed_in.steps.join("; "));
+            }
+            if let Some(oidc) = &outcome.oidc
+                && !oidc.steps.is_empty()
+            {
+                println!(
+                    "\nThen, through a test provider standing in for the one it signs in with: {}.",
+                    oidc.steps.join("; ")
+                );
             }
 
             // What the probes cannot reach comes before what they found, for the usual reason.
@@ -1571,10 +1579,31 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     .as_ref()
                     .map(|s| s.steps.clone())
                     .unwrap_or_default();
+                let oidc_steps: Vec<String> = outcome
+                    .oidc
+                    .as_ref()
+                    .map(|s| s.steps.clone())
+                    .unwrap_or_default();
                 run_steps = signed_in_steps.clone();
+                run_steps.extend(oidc_steps.iter().cloned());
+                let signed_in_note = if signed_in_steps.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " It was then asked {} more question{} as two signed-in test users.",
+                        signed_in_steps.len(),
+                        if signed_in_steps.len() == 1 { "" } else { "s" }
+                    )
+                };
+                let oidc_note = if oidc_steps.is_empty() {
+                    ""
+                } else {
+                    " Its sign-in through another service was asked about with a test provider of \
+                     `sv`'s own, pointed at it for the run."
+                };
                 run_note = Some(format!(
                     "This app was started with {} and asked {} question{} while it ran, as \
-                     somebody who had not signed in. It answered on {}.{} {}",
+                     somebody who had not signed in. It answered on {}.{signed_in_note}{oidc_note} {}",
                     plan.image,
                     outcome.probe_responses.len(),
                     if outcome.probe_responses.len() == 1 {
@@ -1583,15 +1612,6 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         "s"
                     },
                     plan.health_path,
-                    if signed_in_steps.is_empty() {
-                        String::new()
-                    } else {
-                        format!(
-                            " It was then asked {} more question{} as two signed-in test users.",
-                            signed_in_steps.len(),
-                            if signed_in_steps.len() == 1 { "" } else { "s" }
-                        )
-                    },
                     outcome.fence.explain()
                 ));
                 for (requirements, why) in signed_in_not_assessed {

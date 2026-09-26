@@ -23,7 +23,7 @@ What each kind of check needs before it can run:
 | Reads the code | nothing: plain `sv check` |
 | Known vulnerabilities | a local copy of the OSV database (`--advisories DIR`) |
 | The running app | a container backend and a `run` section (`--run`) |
-| Signed in | the above, and a `users` section with test accounts |
+| Signed in | the above, and a `users` section with test accounts, or an `oidc` section for a sign-in through another service |
 | Outside tools | the tool installed (`--tools`) |
 | Your own live site | the address your app is served from, typed at the terminal (`sv probe https://…`) |
 
@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 116 (34%) | 5 | 224 |
+| OWASP ASVS 5.0 | 345 | 121 (35%) | 5 | 219 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
-| L2 | 183 | 58 | 4 | 0 | 13 | 22 | 25 | 1 |
+| L2 | 183 | 63 | 4 | 0 | 13 | 27 | 25 | 1 |
 | L3 | 92 | 6 | 1 | 0 | 0 | 1 | 2 | 2 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -57,11 +57,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V3 Web Frontend Security | 31 | 17 | 0 | 14 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
-| V6 Authentication | 47 | 20 | 1 | 26 |
+| V6 Authentication | 47 | 21 | 1 | 25 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
-| V10 OAuth and OIDC | 36 | 0 | 0 | 36 |
+| V10 OAuth and OIDC | 36 | 4 | 0 | 32 |
 | V11 Cryptography | 24 | 8 | 1 | 15 |
 | V12 Secure Communication | 12 | 6 | 1 | 5 |
 | V13 Configuration | 21 | 5 | 1 | 15 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (65)
+### Settled by asking the running app (70)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -133,6 +133,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V6.5.5 | L2 | Signed in: `probe.totp-old-code-accepted` |
 | V6.6.2 | L2 | Signed in: `probe.email-code-unbound` |
 | V6.6.3 | L2 | Signed in: `probe.email-code-guessing-unlimited` |
+| V6.8.2 | L2 | Signed in: `probe.oidc-signature-not-checked` |
 | V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |
 | V7.2.3 | L1 | Signed in: `probe.session-id-weak` |
 | V7.2.4 | L1 | Signed in: `probe.session-not-renewed` |
@@ -143,6 +144,10 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V7.4.4 | L2 | Signed in: `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
+| V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
+| V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
+| V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
+| V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
 | V13.4.2 | L2 | The running app: `probe.error-detail-leak`; Outside tools: `bandit`, `semgrep`, `codeql-python` |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |

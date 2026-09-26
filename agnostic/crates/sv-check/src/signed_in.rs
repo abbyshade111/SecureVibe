@@ -47,6 +47,12 @@ pub trait Http {
     fn wait(&mut self, seconds: u64) {
         std::thread::sleep(std::time::Duration::from_secs(seconds));
     }
+
+    /// Sends a request to the run's test OpenID Connect provider rather than to the app: `None`
+    /// when the run has no provider. The path is the provider's own, query included.
+    fn provider(&mut self, _request: &ProbeRequest) -> Option<ProbeResponse> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,13 +148,13 @@ fn set_cookies(response: &ProbeResponse) -> Vec<Cookie> {
 
 /// What a browser would send back: cookies by name, and a bearer token when sign-in gave one.
 #[derive(Debug, Clone, Default)]
-struct Session {
+pub(crate) struct Session {
     cookies: Vec<(String, String)>,
     bearer: Option<String>,
 }
 
 impl Session {
-    fn absorb(&mut self, response: &ProbeResponse) {
+    pub(crate) fn absorb(&mut self, response: &ProbeResponse) {
         for cookie in set_cookies(response) {
             self.cookies.retain(|(n, _)| *n != cookie.name);
             // An emptied cookie is how most frameworks delete one.
@@ -333,7 +339,7 @@ fn request(id: &str, t: &RequestTemplate, v: &Values, session: &Session) -> Prob
     }
 }
 
-fn get(id: &str, path: &str, session: &Session) -> ProbeRequest {
+pub(crate) fn get(id: &str, path: &str, session: &Session) -> ProbeRequest {
     ProbeRequest {
         id: id.to_owned(),
         method: "GET".to_owned(),
@@ -343,7 +349,7 @@ fn get(id: &str, path: &str, session: &Session) -> ProbeRequest {
     }
 }
 
-fn ok(response: &Option<ProbeResponse>) -> bool {
+pub(crate) fn ok(response: &Option<ProbeResponse>) -> bool {
     response
         .as_ref()
         .is_some_and(|r| (200..300).contains(&r.status))
@@ -356,7 +362,7 @@ fn accepted(response: &Option<ProbeResponse>) -> bool {
         .is_some_and(|r| (200..400).contains(&r.status))
 }
 
-fn status(response: &Option<ProbeResponse>) -> String {
+pub(crate) fn status(response: &Option<ProbeResponse>) -> String {
     response
         .as_ref()
         .map_or("no answer".to_owned(), |r| r.status.to_string())
@@ -400,15 +406,20 @@ fn send_template(
 // ------------------------------------------------------------------------------------------------
 // Findings
 
-struct Rule {
-    rule_id: &'static str,
-    requirement_ids: &'static [&'static str],
-    cwe: &'static [&'static str],
-    impact: &'static str,
-    fix: &'static str,
+pub(crate) struct Rule {
+    pub(crate) rule_id: &'static str,
+    pub(crate) requirement_ids: &'static [&'static str],
+    pub(crate) cwe: &'static [&'static str],
+    pub(crate) impact: &'static str,
+    pub(crate) fix: &'static str,
 }
 
-fn finding(rule: &Rule, title: &str, severity: Severity, description: String) -> Finding {
+pub(crate) fn finding(
+    rule: &Rule,
+    title: &str,
+    severity: Severity,
+    description: String,
+) -> Finding {
     Finding {
         rule_id: rule.rule_id.to_owned(),
         title: title.to_owned(),
