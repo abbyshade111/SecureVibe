@@ -243,6 +243,12 @@ another session is not a claim.
   the `__Host-` cookie prefix (V3.3.3), which only means anything over HTTPS. The rest of deployment
   becomes a "before going live" list in the report. The fence and what the probes may send need
   thinking through first: this reaches outside the machine, which nothing in `sv` does yet.
+  **Claimed on 26 September 2026 by session securevibe-e8.** The safety design is the substance: the
+  address comes from the command line and nowhere else, so a person typed it and no committed file
+  can aim it; GET and HEAD only, with no body, no cookies, and no Authorization header; a hard cap on
+  requests, so it is three or four and never a scan; and a redirect to a different host is refused
+  rather than followed, so nothing can drag the probe somewhere the owner did not name. TLS
+  verification enforced rather than skipped is itself the V12.2.2 check.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
