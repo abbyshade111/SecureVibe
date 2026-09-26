@@ -3200,3 +3200,33 @@ checking the `Origin` (credited even when it would parse anything), redirecting 
 and every one was caught; the last, crediting on fewer than three refusals, only after the
 redirect-only-multipart case was added. Not run against a real app in Docker: the transport already
 frames a body by its length, and the multipart header is an ordinary header value.
+
+## Counting semgrep by what it runs
+
+`docs/COVERAGE.md` credited semgrep with every requirement its map names, about a thousand rules'
+worth, but the adapter runs one registry pack, `p/security-audit`, which loaded 225 of them in the
+registry run of 26 September 2026 (session relaxed-nobel-27acfa). Nineteen requirements were counted
+through rules nothing runs. No report was ever wrong this way: a clean run is credited only with the
+rules its own SARIF lists as loaded, and only in the app's languages. The document, and whatever a
+session planned from it, was.
+
+`data/semgrep-packs.json` now records which rules each pack the adapter runs loads, with the date and
+semgrep's version, written by `tools/semgrep_packs.py` from a run (on a machine that reaches
+semgrep.dev) or from a SARIF already made; today's entry comes from the registry run's own file in
+the semgrep fixture. `tools/coverage.py` counts a semgrep rule only when it is in a pack the adapter
+runs, refuses to write the document when the adapter names a pack the file has not measured, and
+lists what the map names but nothing runs, under "Semgrep: rules in its map that are not run". The
+list it produces is the nineteen the registry run found, arrived at independently.
+
+The honest count: ASVS 129 to 125 settleable, Level 1 from 54 to 52 of 70, Level 2 from 64 to 62 of
+183, and AISVS from 8 to 2. The other ASVS requirements among the nineteen are still reached, by
+CodeQL or another tool. Nothing about what runs changed.
+
+Held by two tests beside the coverage document's own: the snapshot must equal the rules the registry
+run lists, and every pack in the adapter's `--config` must be in the snapshot. Each of the three was
+broken in turn: counting the whole map again, a snapshot missing one rule, and a pack added to the
+adapter without measuring; every one was caught, the last two by two tests each.
+
+Next, the owner's lean: `p/ai-best-practices` as its own entry, run only for apps that use AI, and a
+decision on `p/default` from measurements. Both need semgrep.dev, and both will be refused by
+`coverage.py` until the pack is measured, which is the point.
