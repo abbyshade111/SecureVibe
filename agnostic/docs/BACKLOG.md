@@ -57,8 +57,9 @@ another session is not a claim.
 - **Packaging `sv` for somebody who is not technical: a container now, a download later.** **The
   owner's decision, 26 September 2026: build the container now, and keep the downloadable program
   here for later.** Other sessions are welcome to add ideas on packaging `sv` in the long run under
-  "Thoughts", below, each under its own name, as its own commit. **The committed image is not
-  claimed**; a working version was built and tested locally the same day, and what it taught is here.
+  "Thoughts", below, each under its own name, as its own commit. **The committed image claimed on
+  26 September 2026 by session securevibe-e8**; a working version was built and tested locally the
+  same day, and what it taught is here.
 
   **Why a container first.** It settles the two obstacles in the walk-through entry above that a
   page of instructions cannot — `sv` must be built from source, and a built `sv` cannot be moved —
