@@ -2667,6 +2667,38 @@ Six guards were broken in turn, each caught: an owner-answered question asked ag
 one not asked, the "confirm this" line dropped, the `by = "owner"` rule dropped from the
 instructions, the link check off, and the contradiction's evidence dropped.
 
+### Checks made by hand, and what was seen
+
+The interview walks the owner through twenty checks no tool can make: the certificate on the live
+site, whether being away signs you out, whether two people can book the same slot. What they saw was
+then lost. It is now recorded in securevibe.toml, in a design the owner agreed to on 26 September
+2026:
+
+```toml
+[checked-by-hand]
+"V12.2.2" = { result = "done", on = "2026-09-26", by = "owner",
+              how = "Opened the live site; the padlock shows a trusted certificate." }
+```
+
+- **`done` by the owner is *checked by hand by the owner***, its own tier just above *attested*: the
+  owner watched the app behave, which is more than describing how it is built, and it is still their
+  word, which nothing here repeats. So it is never *checked*, stays a test to write where a test
+  could show it, and settles no threat. An automated check or a finding outranks it.
+- **`done` by the AI coding tool, or by nobody named, is *stated by the AI coding tool*.**
+- **`problem` is a finding from anyone**, and `not-yet` adds nothing.
+- **`how` is required**, because one sentence of what was done and seen is the whole of the evidence,
+  and the report prints it. A bare `done` is unreadable and named as such.
+- **`on` is required, and a check counts for 90 days.** Certificates expire and apps change, so an old
+  check is reported as needing to be made again and counts for nothing; one dated in the future is
+  unreadable. One number for all twenty, at the owner's choice.
+- **Only the twenty are read.** Any other id is named as unreadable rather than ignored or credited.
+
+A current check made by the owner is not asked again in the interview; an out-of-date one is.
+
+Nine guards were broken in turn, each caught: a blank `how` counted, no expiry, a future date
+accepted, silence read as the owner's, a problem not reported, the tier never shown, the tier dropped
+from the tests to write, its rank swapped with *documented*, and the CLI not passing the checks on.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

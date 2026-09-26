@@ -162,6 +162,21 @@ multimodal = false        # does it take images, video or audio, rather than typ
 [design]
 # "V8.3.1" = { answer = "yes", where = "server/auth.py", by = "owner" }
 # "V2.2.2" = { answer = "not-sure", by = "ai-tool" }
+
+# Checks made by hand: the ones no tool can make, such as the certificate on the live site or two
+# people booking the same slot. `sv questions` lists them, with how to make each one. Record what
+# happened, keyed by the requirement id:
+#   result = "done"     — checked, and it holds. Reported as "checked by hand by the owner" when
+#                         by = "owner", never as "checked", which means an automated check looked.
+#   result = "problem"  — checked, and it failed. The report lists it as something to fix.
+#   result = "not-yet"  — adds nothing.
+#   on  = the day it was checked, as "YYYY-MM-DD". A check older than 90 days counts for nothing
+#         until it is made again, because certificates expire and apps change.
+#   how = one sentence of what was done and what was seen. Required: it is the evidence, and the
+#         report prints it.
+#   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's.
+[checked-by-hand]
+# "V12.2.2" = { result = "done", on = "2026-09-26", by = "owner", how = "Opened the live site; the padlock shows a trusted certificate for the right name, valid to December." }
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.

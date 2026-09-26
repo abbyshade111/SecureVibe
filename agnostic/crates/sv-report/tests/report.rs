@@ -62,6 +62,7 @@ fn inputs<'a>(
         documented: &[],
         attested: &[],
         stated: &[],
+        by_hand: &[],
         human: None,
         threats: None,
     }
@@ -626,6 +627,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         documented: &[],
         attested: &[],
         stated: &[],
+        by_hand: &[],
         human: None,
         threats: None,
     })
@@ -1148,6 +1150,73 @@ mod attested {
         );
     }
 
+    fn checked_by_hand(id: &str) -> Verified {
+        Verified::new(
+            "hand.checked",
+            &[id],
+            "securevibe.toml: checked by hand by you on 2026-09-26: \"The padlock shows a trusted \
+             certificate.\" Nothing here repeated it."
+                .to_owned(),
+        )
+    }
+
+    fn report_by_hand(
+        by_hand: &[Verified],
+        attested: &[Verified],
+        documented: &[Verified],
+        verified: &[Verified],
+    ) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, vec![], verified);
+        inputs.by_hand = by_hand;
+        inputs.attested = attested;
+        inputs.documented = documented;
+        build(inputs)
+    }
+
+    #[test]
+    fn a_check_by_hand_ranks_just_above_the_owners_answer_and_below_a_document() {
+        let hand = [checked_by_hand("V8.3.1")];
+        let report = report_by_hand(&hand, &[said_yes("V8.3.1")], &[], &[]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::ByHand);
+        assert_eq!(report.counts.by_hand, 1);
+        assert_eq!(
+            report.counts.checked, 0,
+            "never checked: nothing automated looked"
+        );
+        assert!(Status::Attested < Status::ByHand && Status::ByHand < Status::Documented);
+        let documented = report_by_hand(&hand, &[], &[said_yes("V8.3.1")], &[]);
+        assert_eq!(status_of(&documented, "V8.3.1"), Status::Documented);
+        // An automated check, or a finding, always wins over what somebody saw.
+        let checked = report_by_hand(
+            &hand,
+            &[],
+            &[],
+            &[Verified::new("some.check", &["V8.3.1"], "8 files".into())],
+        );
+        assert_eq!(status_of(&checked, "V8.3.1"), Status::Checked);
+    }
+
+    #[test]
+    fn a_check_by_hand_is_still_a_test_to_write_and_shows_what_was_seen() {
+        let report = report_by_hand(&[checked_by_hand("V8.3.1")], &[], &[], &[]);
+        assert!(report.tests_to_write.iter().any(|t| t.id == "V8.3.1"));
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| V8.3.1"))
+            .unwrap_or_else(|| panic!("no row for V8.3.1 in:\n{markdown}"));
+        assert!(
+            row.contains("checked by hand by the owner") && row.contains("The padlock shows"),
+            "{row}"
+        );
+        assert!(sv_report::html::page(&report).contains("checked by hand by the owner"));
+    }
+
     #[test]
     fn the_row_says_it_is_the_ai_tools_word_rather_than_a_check() {
         let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
@@ -1374,6 +1443,23 @@ mod only_you {
         assert!(
             !asked.contains(&"V8.3.1"),
             "the owner has answered this; asking again is noise: {asked:?}"
+        );
+        // Nor a check the owner made by hand and recorded, while it is current.
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec!["V12.2.2".into()],
+            ..Default::default()
+        };
+        let (notes, design, human) = catalogs();
+        let hand = [Verified::new("hand.checked", &["V12.2.2"], "seen".into())];
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        i.by_hand = &hand;
+        let checked = build(i);
+        assert!(
+            !checked.questions_for_you.iter().any(|q| q.id == "V12.2.2"),
+            "{:?}",
+            checked.questions_for_you
         );
         let text = sv_report::interview::text(&report);
         assert!(
