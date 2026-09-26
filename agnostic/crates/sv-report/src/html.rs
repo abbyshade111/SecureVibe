@@ -354,6 +354,38 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    // High up, above the tests: nothing will ever settle these on its own.
+    if !report.only_you_can_check.is_empty() {
+        b.push_str("<h2>What only you can check</h2>\n");
+        b.push_str(&format!(
+            "<p>{}</p>\n",
+            escape(&format!(
+                "{} of the requirements that apply cannot be settled by any tool: they ask what your rules are, how the app is built, or what is true of it in production. Each one below says what doing something about it involves. None of them is counted as met — doing the thing is what would change that, not reading it here.",
+                report.only_you_can_check.len()
+            ))
+        ));
+        if report.no_instructions_yet > 0 {
+            b.push_str(&format!(
+                "<p class=\"note\">{}</p>\n",
+                escape(&format!(
+                    "A further {} are the Secure by Design and AISVS design-review controls, which are not listed one by one: those standards are checklists already, and repeating them here would be another wall of text.",
+                    report.no_instructions_yet
+                ))
+            ));
+        }
+        b.push_str("<table>\n<tr><th>requirement</th><th>what to do</th><th>how</th></tr>\n");
+        for item in &report.only_you_can_check {
+            b.push_str(&format!(
+                "<tr><td><code>{}</code> {}</td><td>{}</td><td>{}</td></tr>\n",
+                escape(&item.id),
+                escape(&item.title),
+                escape(item.route.what_to_do()),
+                escape(&item.how)
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
     // Level 1 only; see the note in the Markdown renderer. `sv mcp` gives the AI coding tool the
     // whole list, and report.json carries it.
     let level_one: Vec<&crate::TestToWrite> = report

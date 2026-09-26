@@ -261,6 +261,39 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
+    // High up, and above "Tests worth writing first": these are the ones nothing will ever settle
+    // on its own, so they are the part of the work that cannot be delegated to a tool.
+    if !report.only_you_can_check.is_empty() {
+        out.push_str("## What only you can check\n\n");
+        out.push_str(&format!(
+            "{} of the requirements that apply cannot be settled by any tool: they ask what your \
+             rules are, how the app is built, or what is true of it in production. Each one below \
+             says what doing something about it involves. None of them is counted as met — doing \
+             the thing is what would change that, not reading it here.\n\n",
+            report.only_you_can_check.len()
+        ));
+        if report.no_instructions_yet > 0 {
+            out.push_str(&format!(
+                "A further {} are the Secure by Design and AISVS design-review controls, which \
+                 are not listed one by one: those standards are checklists already, and repeating \
+                 them here would be another wall of text. They are in the table above, and in the \
+                 standards themselves.\n\n",
+                report.no_instructions_yet
+            ));
+        }
+        out.push_str("| requirement | what to do | how |\n|---|---|---|\n");
+        for item in &report.only_you_can_check {
+            out.push_str(&format!(
+                "| {} — {} | {} | {} |\n",
+                cell(&item.id),
+                cell(&item.title),
+                cell(item.route.what_to_do()),
+                cell(&item.how)
+            ));
+        }
+        out.push('\n');
+    }
+
     // Level 1 only. The whole list is 87 rows of requirement ids for an owner who is not a
     // programmer, and it reads as a to-do list aimed at somebody else — which it is: its real
     // audience is the AI coding tool, and `sv mcp` gives that one the complete list. What is left

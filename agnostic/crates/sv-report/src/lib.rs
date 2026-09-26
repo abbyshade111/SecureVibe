@@ -241,6 +241,12 @@ pub struct Report {
     /// How many unverified requirements were left out of `tests_to_write` because a test cannot
     /// show them: documentation, deployment, a development process, or design review.
     pub not_for_tests: usize,
+    /// The applicable requirements only a person can settle, each with what doing something about
+    /// it involves. Empty when the catalogs were not given.
+    pub only_you_can_check: Vec<sv_check::human::Item>,
+    /// How many of those no catalog has an instruction for: the design-review controls, which are
+    /// standards that are checklists already. Counted rather than listed.
+    pub no_instructions_yet: usize,
     /// What could go wrong with this app, and what the evidence says about each. Empty when the
     /// threat rules were not given.
     pub threats: Vec<threats::ThreatLine>,
@@ -289,6 +295,13 @@ pub struct Inputs<'a> {
     /// Design questions the owner answered `yes`. The weakest evidence here, and still not evidence
     /// about the app: see `sv_check::design`.
     pub attested: &'a [sv_check::Verified],
+    /// The three catalogs of what a person can do about a requirement no check settles. Absent
+    /// leaves the checklist out of the report.
+    pub human: Option<(
+        &'a sv_check::notes::Catalog,
+        &'a sv_check::design::Questions,
+        &'a sv_check::human::HumanChecks,
+    )>,
     /// The threat rules, and what is known about the app's conditions, for the threat model. Either
     /// absent leaves the section out of the report and says why.
     pub threats: Option<(
@@ -579,6 +592,23 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         None => (Vec::new(), Vec::new()),
     };
 
+    // The checklist: every applicable requirement nothing has settled and no test would, with what
+    // doing something about it involves. Membership is exactly the set the short version counts, so
+    // the number at the top and the list below it cannot disagree.
+    let a_test_could: BTreeSet<&str> = tests_to_write.iter().map(|t| t.id.as_str()).collect();
+    let only_a_person: BTreeSet<String> = requirements
+        .iter()
+        .filter(|r| r.status == Status::NotVerified && !a_test_could.contains(r.id.as_str()))
+        .map(|r| r.id.clone())
+        .collect();
+    let (only_you_can_check, no_instructions_yet) = match inputs.human {
+        Some((notes, design, human)) => (
+            sv_check::human::checklist(notes, design, human, &only_a_person),
+            sv_check::human::without_instructions(notes, design, human, &only_a_person).len(),
+        ),
+        None => (Vec::new(), 0),
+    };
+
     Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
@@ -595,6 +625,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         satisfied_elsewhere,
         checklist_above_level,
         tests_to_write,
+        only_you_can_check,
+        no_instructions_yet,
         named_not_credited,
         not_for_tests,
         threats,

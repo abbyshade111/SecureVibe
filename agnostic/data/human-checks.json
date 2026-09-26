@@ -1,0 +1,105 @@
+{
+  "_comment": "How to check, by hand, the applicable requirements no automated check can settle and no question in security-notes.json or design-questions.json already asks. One line each, written as an instruction to somebody who is not a programmer: what to go and look at, and what would count as the wrong answer. Nothing here credits anything — the report shows these as still unverified, with the instruction beside them, which is the whole point. A requirement that already has a question in one of the other two catalogs is deliberately absent, and crates/sv-check/tests/human_checks.rs refuses an entry that appears in both.",
+  "checks": [
+    {
+      "id": "V2.3.1",
+      "title": "Steps cannot be skipped or done out of order",
+      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice."
+    },
+    {
+      "id": "V12.2.2",
+      "title": "The certificate on the live site is one browsers trust",
+      "how": "Open the live site in a browser and click the padlock. It should show a certificate issued by a public authority, with a date that has not passed, and the name should match the address. A warning page, or a certificate the app generated for itself, means no visitor can tell your site from an impostor."
+    },
+    {
+      "id": "V15.2.1",
+      "title": "Nothing is past the update deadline you set",
+      "how": "Run `sv audit` against a local advisory database, or your host's own alerts, and list the packages with a known vulnerability. For each, compare how long it has been known against the time frame you wrote down for its severity. Anything over that time frame is the answer to this one."
+    },
+    {
+      "id": "V2.3.2",
+      "title": "The business limits you wrote down are the ones the app enforces",
+      "how": "Take each limit from your security notes — so many of something per person, so many per day — and try to go past it in the app. Try it slowly and then quickly, and from two accounts at once if the limit is meant to be global."
+    },
+    {
+      "id": "V2.3.4",
+      "title": "Two people cannot book the same thing",
+      "how": "Only where something is limited in number: a seat, a slot, the last item in stock. Open the app in two browsers, get both to the moment of booking the same one, and confirm both as close together as you can. Exactly one should succeed."
+    },
+    {
+      "id": "V6.2.11",
+      "title": "The banned word list is actually used",
+      "how": "Take a word from the list you wrote down — the app's name, your organization's name — and try to register an account using it as the password, or with it inside a longer password. It should be refused."
+    },
+    {
+      "id": "V6.2.12",
+      "title": "Passwords from known breaches are refused",
+      "how": "Try to register with a password known to have been breached. `Password123!` and `qwerty123456` will do; haveibeenpwned.com/Passwords lists more. The app should refuse it and say why, without telling the person anything about other accounts."
+    },
+    {
+      "id": "V6.3.3",
+      "title": "Getting in needs more than a password",
+      "how": "Sign in and note everything you were asked for. A password alone is a single factor. A code from an app or a security key is a second one. If there is only a password, that is the answer to this one; if you have decided a password alone is enough, ASVS asks for the reasoning to be written down."
+    },
+    {
+      "id": "V6.3.4",
+      "title": "There is no forgotten way in",
+      "how": "List every way somebody can become signed in: the password form, any \"sign in with\" button, magic links by email, API keys, an admin back door, an old mobile app. Compare that with the list in your security notes. Anything not on the list is what this asks about, and each way in should be as strong as the others."
+    },
+    {
+      "id": "V6.4.4",
+      "title": "Losing a second factor does not become the easy way in",
+      "how": "Only where people sign in with a second factor. Go through losing it as a person would: what does support ask for before restoring access? If the answer is less than what was asked when the account was set up, the recovery path is now the weakest way in."
+    },
+    {
+      "id": "V7.3.1",
+      "title": "Being away signs you out",
+      "how": "Sign in, then leave the app alone for longer than the idle timeout you wrote down, without clicking anything. Come back and reload a private page. You should be asked to sign in again."
+    },
+    {
+      "id": "V7.3.2",
+      "title": "A session does not last forever",
+      "how": "Sign in and keep using the app past the maximum lifetime you wrote down. Staying active must not keep it alive forever — at the limit you should be asked to sign in again even mid-use."
+    },
+    {
+      "id": "V13.3.1",
+      "title": "Secrets live in something built to hold them",
+      "how": "List where each password, key, and token the app needs actually comes from: a key vault or your host's secret store, an environment variable, or a file in the code. Say who can read each one, and how you would replace one if it leaked. A secret nobody can rotate is the answer to this one."
+    },
+    {
+      "id": "V13.4.5",
+      "title": "Nothing internal is reachable from outside",
+      "how": "From a browser that is not signed in, and ideally not on your network, try the addresses that exist for you rather than for visitors: /docs, /swagger, /metrics, /health, /debug, /admin, /.git. Each should either refuse or not exist."
+    },
+    {
+      "id": "V14.1.1",
+      "title": "You know which of your data is sensitive",
+      "how": "List every kind of information the app stores, including what it writes to logs and what it keeps in backups. Mark each with how much it would matter if it got out. Anything you cannot place is the thing to look at, and remember that encoded is not the same as protected."
+    },
+    {
+      "id": "V14.2.3",
+      "title": "Nothing sensitive is handed to an outside service",
+      "how": "Open the app in a browser with the network panel recording, sign in, and use it normally. Look at every request going somewhere that is not your own address — analytics, error reporting, fonts, chat widgets. Check what is in each, including the address of the page, which often carries names or record numbers."
+    },
+    {
+      "id": "V14.2.4",
+      "title": "Sensitive data is handled the way your notes say",
+      "how": "Take each protection you wrote down — encrypted, kept for so long, never in logs — and check the app against it. Search the logs for the data that should never appear there, and confirm that something really deletes records when their time is up."
+    },
+    {
+      "id": "V15.2.2",
+      "title": "Time-consuming features cannot cause a loss of availability",
+      "how": "Take each time-consuming or resource-demanding feature you documented — an export, a report, an AI request, image processing. Start several at once from one account and see whether the rest of the application stays usable. The defenses you wrote down should stop any one person causing a loss of availability for everybody else."
+    },
+    {
+      "id": "V16.2.3",
+      "title": "Logs go only where your inventory says",
+      "how": "Compare the log destinations in your inventory with where they really go: files on the server, your host's logging, any outside service, and anything printed to the console. A destination nobody wrote down is one nobody is watching or protecting."
+    },
+    {
+      "id": "V16.3.3",
+      "title": "The events you said would be logged really are",
+      "how": "Do each thing your notes say gets logged — a failed sign-in, a permission refused, a record deleted — then look in the logs and confirm each one is there with enough detail to tell who and when. Then try something that should be refused, such as posting a form with a field the app does not expect, and check that the refusal was logged too."
+    }
+  ]
+}

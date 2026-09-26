@@ -423,6 +423,7 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        human: None,
         threats: Some((&r, &ctx)),
     })
 }
@@ -509,6 +510,7 @@ fn without_threat_rules_the_report_has_no_threat_section() {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        human: None,
         threats: None,
     });
     assert!(report.threats.is_empty());
