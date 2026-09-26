@@ -300,7 +300,8 @@ another session is not a claim.
      was wrong: V6.5.1, V6.5.4, V6.5.5, V6.6.2, and V6.6.3 are about codes sent to sign *in*, and a
      reset code is not one. They need an `email-code` entry — a magic link or an emailed second
      factor — on the same mail server; V6.5.5 needs the slow mode as well, and V6.4.1 needs a
-     sign-up that emails an activation code. Not claimed.
+     sign-up that emails an activation code. The `email-code` entry (V6.5.1, V6.5.4, V6.6.2,
+     V6.6.3) is **claimed on 26 September 2026 by session securevibe-e9**.
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5).
