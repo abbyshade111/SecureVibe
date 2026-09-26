@@ -418,6 +418,14 @@ another session is not a claim.
      `aud`, and serve metadata for a second provider (V10.1.2, V10.2.1, V10.2.2, V10.5.1–V10.5.4,
      V6.8.1, V6.8.2, V6.8.4). The largest single gain, and it lands exactly on the OAuth *client*
      requirements the authorization-server fix left applying to every "Sign in with Google" app.
+     **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking, scoped to the
+     five a single test provider can show: V10.1.2 and V10.2.1 (a sign-in finished in a session
+     that did not start it), V10.5.1 (a wrong `nonce`), V10.5.4 (a wrong `aud`), and V6.8.2 (an
+     unsigned token, and one signed with the wrong key). The provider is `sv`'s own — a short
+     script in a stock Node image on the fenced network — because it has to misbehave on purpose,
+     which no ready-made test provider does. Left for later: V6.8.1 and V10.2.2 need two providers,
+     V10.5.3 needs metadata an app reads at start-up to change, and V10.5.2 and V6.8.4 depend on
+     what the app decides rather than on what the provider sends.
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
