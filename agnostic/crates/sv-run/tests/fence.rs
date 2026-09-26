@@ -73,79 +73,79 @@ fn an_app_that_never_starts_is_not_assessed_rather_than_failed() {
 #[test]
 fn the_fence_really_blocks_outbound_traffic() {
     // The security property the whole runner rests on, checked by breaking out rather than by
-    // trusting the flag. `--internal` was measured to block outbound and DNS; this asserts the
-    // runner actually uses it, so that a future edit swapping it for a bridge fails here.
+    // trusting the flag: `--internal` must block outbound traffic. That the runner uses it is
+    // `the_fence_the_runner_creates_is_the_fenced_kind`'s job; this one checks the flag holds.
     let backend = DockerBackend::new();
     if backend.available().is_err() {
         println!("no container backend here; the fence cannot be exercised");
         return;
     }
 
-    // First: confirm this machine can reach the outside at all. Without it, "blocked" below
-    // would prove nothing — which is exactly how an earlier attempt at this measurement went
-    // wrong, reporting a fence where there was only a dead address.
-    let host_reaches = Command::new("nc")
-        .args(["-z", "-w", "4", "1.1.1.1", "53"])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    assert!(
-        host_reaches,
-        "this machine cannot reach 1.1.1.1:53, so a blocked container proves nothing"
+    // The control: the same container and the same command on a network made the same way but
+    // without `--internal`, which must get out. Without it, "blocked" below would prove nothing —
+    // an earlier attempt at this reported a fence where there was only a dead address. The control
+    // runs in a container rather than on this machine because on Docker Desktop containers live in
+    // a separate Linux VM, so this machine reaching out says nothing about whether a container can.
+    let open = attempt_outbound("sv-fence-control-net", &[]);
+    assert_eq!(
+        open,
+        Some(0),
+        "a container on an ordinary network could not reach 1.1.1.1:53, so a blocked container \
+         would prove nothing"
     );
 
-    let network = "sv-fence-assert-net";
-    let container = "sv-fence-assert-app";
-    let _ = Command::new("docker")
-        .args(["rm", "-f", container])
-        .output();
+    // `None` means nc never reported back — the container did not start, or the shell never ran —
+    // and must not be mistaken for a block. 126 and 127 are the shell failing to run nc at all.
+    let fenced = attempt_outbound("sv-fence-assert-net", &["--internal"]);
+    assert!(
+        matches!(fenced, Some(code) if code != 0 && code != 126 && code != 127),
+        "nc on an --internal network should run and fail to connect, but reported {fenced:?}: \
+         Some(0) means the fence is not holding, anything else means nothing was measured"
+    );
+}
+
+/// Creates a network with `flags`, runs busybox's nc against 1.1.1.1:53 on it, removes the
+/// network, and returns nc's exit status as the container's shell saw it. `None` when that status
+/// never came back, so a container that failed to start cannot pass for a blocked connection.
+fn attempt_outbound(network: &str, flags: &[&str]) -> Option<i32> {
     let _ = Command::new("docker")
         .args(["network", "rm", network])
         .output();
-
     let created = Command::new("docker")
-        .args(["network", "create", "--internal", network])
+        .args(["network", "create"])
+        .args(flags)
+        .arg(network)
         .output()
         .expect("docker network create");
     assert!(
         created.status.success(),
-        "could not create the fenced network"
+        "could not create the network {network}: {}",
+        String::from_utf8_lossy(&created.stderr)
     );
 
-    let started = Command::new("docker")
+    let run = Command::new("docker")
         .args([
             "run",
-            "-d",
-            "--name",
-            container,
+            "--rm",
             "--network",
             network,
             "busybox:1.36",
             "sh",
             "-c",
-            "sleep 30",
+            "nc -z -w 4 1.1.1.1 53; echo \"sv-nc-exit=$?\"",
         ])
         .output()
         .expect("docker run");
-    assert!(started.status.success(), "could not start the container");
 
-    let escaped = Command::new("docker")
-        .args(["exec", container, "nc", "-z", "-w", "4", "1.1.1.1", "53"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    let _ = Command::new("docker")
-        .args(["rm", "-f", container])
-        .output();
     let _ = Command::new("docker")
         .args(["network", "rm", network])
         .output();
 
-    assert!(
-        !escaped,
-        "a container on an --internal network reached the internet: the fence is not holding"
-    );
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("sv-nc-exit="))
+        .and_then(|code| code.trim().parse().ok())
 }
 
 #[test]
