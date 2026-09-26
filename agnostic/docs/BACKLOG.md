@@ -488,6 +488,9 @@ another session is not a claim.
       does for its own markers (V16.2.1). Credit on presence.
     - **C12.2.1 and C12.2.3, injection attempts detected and alerted on.** After the C2.1.3 probe
       sends a textbook injection, the same log check looks for the app having flagged it.
+    **C12.1.3 and C12.2.1 claimed on 26 September 2026 by session securevibe-e9**, at the owner's
+    asking. C12.2.3 is not: it asks for rules that catch *coordinated* attempts, which one message
+    cannot show, and it stays unclaimed.
     - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
       as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
       costs nothing when the model is the fake one.
