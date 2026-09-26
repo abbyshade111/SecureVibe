@@ -391,6 +391,26 @@ pub struct PolicySection {
     /// makes its attempts in a few seconds, which is inside any window worth stating.
     #[serde(default)]
     pub within_minutes: Option<u32>,
+    /// How many days a known vulnerability may stay unfixed, by how serious it is: V15.1.1's time
+    /// frames, as numbers `sv audit` can hold the app's packages to for V15.2.1.
+    #[serde(default)]
+    pub fix_within_days: Option<FixWithinDays>,
+}
+
+/// The remediation time frames, one per severity. A severity left out has no time frame, and a
+/// vulnerability of that severity is counted against V15.2.1 whatever its age, exactly as when no
+/// time frames are stated at all.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct FixWithinDays {
+    #[serde(default)]
+    pub critical: Option<u32>,
+    #[serde(default)]
+    pub high: Option<u32>,
+    #[serde(default)]
+    pub medium: Option<u32>,
+    #[serde(default)]
+    pub low: Option<u32>,
 }
 
 /// One answer to a design question: how the app is built, in the owner's own words.
@@ -921,5 +941,34 @@ mod authorization_server_tests {
             .expect("authorization-server is among the resolved claims");
         assert_eq!(claim.effective, ctx.get(Condition::AuthorizationServer));
         assert_eq!(claim.effective, Some(false));
+    }
+}
+
+#[cfg(test)]
+mod time_frame_tests {
+    use super::*;
+
+    #[test]
+    fn the_time_frames_are_read_one_per_severity() {
+        let m: Manifest =
+            toml::from_str("[policy]\nfix-within-days = { critical = 7, high = 30 }\n")
+                .expect("manifest parses");
+        assert_eq!(
+            m.policy.fix_within_days,
+            Some(FixWithinDays {
+                critical: Some(7),
+                high: Some(30),
+                medium: None,
+                low: None,
+            })
+        );
+    }
+
+    #[test]
+    fn a_severity_that_does_not_exist_is_refused_rather_than_ignored() {
+        // "urgent = 1" silently ignored would leave the owner believing they had set a time frame,
+        // and every critical finding would be judged against none.
+        let bad = toml::from_str::<Manifest>("[policy]\nfix-within-days = { urgent = 1 }\n");
+        assert!(bad.is_err(), "{bad:?}");
     }
 }

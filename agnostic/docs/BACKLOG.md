@@ -264,6 +264,14 @@ another session is not a claim.
   long it has been known. Past the deadline stays a finding on V15.2.1; within it stays a finding with
   a due date, but no longer claims V15.2.1 is breached. A clean comparison credits it exactly as now,
   and nothing here credits more than that. **Claimed on 26 September 2026 by session securevibe-e8.**
+  **Done on 26 September 2026.** `[policy] fix-within-days` in securevibe.toml, the publication date
+  read from each OSV record, and `sv audit` printing past the time frame first, then not judged, then
+  inside it. Anything that cannot be judged — no time frame for that severity, no date, no clock — still
+  counts against V15.2.1, and an unrated advisory is held to the shortest time frame. See DESIGN, "Late,
+  not merely known". Left over, found while doing it: **`sv report` never runs the advisory comparison**,
+  so V15.2.1 has no evidence in the report whatever `sv audit` says, and the checklist sends the owner
+  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report` and is not
+  claimed.
 
 - **Five new tools or processes, and what each would make checkable.** From the owner's question on
   26 September 2026 — *"are there any level 1 or level 2 checks that could be testable with the

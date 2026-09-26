@@ -1084,7 +1084,20 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         return Ok(());
     }
 
-    let result = advisories::audit(&sbom, &database);
+    // The time frames are V15.1.1's document, as numbers. Without them every known vulnerability
+    // counts against V15.2.1 whatever its age, which is what this said before they existed.
+    let manifest_path = app_dir.join("securevibe.toml");
+    let time_frames = if manifest_path.is_file() {
+        Manifest::load(&manifest_path)?.policy.fix_within_days
+    } else {
+        None
+    };
+    let result = advisories::audit_against(
+        &sbom,
+        &database,
+        time_frames.as_ref(),
+        advisories::Day::today(),
+    );
     println!(
         "Compared {} package{} against {} advisory record{}.",
         result.components_checked,
@@ -1153,12 +1166,59 @@ fn cmd_audit(args: &[String]) -> Result<()> {
             "ies"
         }
     );
-    for f in &result.findings {
+
+    // Late first, because that is what V15.2.1 asks about. Then the ones nothing could judge, which
+    // count as late: not shown to be late is not shown to be on time. On time last — still known
+    // vulnerabilities, each with the day it is due, and still what stops a clean result.
+    use advisories::Due;
+    let due = |f: &&sv_check::finding::Finding| result.due.get(&f.rule_id);
+    let late: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Overdue { .. })))
+        .collect();
+    let unjudged: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Unjudged(_)) | None))
+        .collect();
+    let on_time: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Within { .. })))
+        .collect();
+    let print = |f: &sv_check::finding::Finding| {
         println!("\n  [{}] {}", f.severity.name(), f.title);
         if !f.description.is_empty() {
             println!("     {}", f.description);
         }
+        if let Some(Due::Unjudged(why)) = result.due.get(&f.rule_id) {
+            println!("     not judged against a time frame: {why}");
+        }
         println!("     what to do: {}", f.fix);
+    };
+    if !late.is_empty() {
+        println!("\nPast the time frame you set for fixing them (V15.2.1):");
+        late.iter().for_each(|f| print(f));
+    }
+    if !unjudged.is_empty() {
+        println!(
+            "\nNot judged against a time frame, so each counts against V15.2.1 as though it were late:"
+        );
+        unjudged.iter().for_each(|f| print(f));
+        if time_frames.is_none() {
+            println!(
+                "\n  To judge them, write your time frames in securevibe.toml:\n\n    \
+                 [policy]\n    fix-within-days = {{ critical = 7, high = 30, medium = 90, low = 180 }}\n\n  \
+                 with your own numbers — the ones in your security notes for V15.1.1."
+            );
+        }
+    }
+    if !on_time.is_empty() {
+        println!(
+            "\nInside the time frame you set — still to fix, and still why this is not a clean result:"
+        );
+        on_time.iter().for_each(|f| print(f));
     }
     Ok(())
 }
