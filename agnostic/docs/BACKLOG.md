@@ -147,6 +147,106 @@ another session is not a claim.
 
   **Thoughts.** None yet.
 
+- **What the owner's first build from scratch found in `sv`.** 26 September 2026: the owner built
+  an app from an empty folder in Claude Code with `sv` connected over MCP — a catalog site with a weekly
+  AI refresh that now needs the owner's approval to publish — and session keen-meninsky-691a27 read the
+  whole session (886 messages) afterwards. **Not claimed; each numbered item can be claimed on its
+  own.** Every item was checked against the code or reproduced before it was written down, not taken
+  from the building tool's account of it.
+
+  **Faults in `sv`:**
+
+  1. **`sv`'s own report stops its next run from checking the code.** `sv report` writes to
+     `<app>/securevibe-report` unless told otherwise (`crates/sv-cli/src/main.rs`, `out_dir`), and
+     `securevibe_write_report` writes there by design (`crates/sv-cli/src/mcp.rs`). Nothing skips that
+     folder: it is in neither `SKIP_DIRS` in `crates/sv-scan/src/ecosystems.rs` — shared by the code
+     rules, the outside tools' file list and the test finder — nor the separate copy in
+     `crates/sv-check/src/secrets.rs`. So the next run reads `report.html` as the app's own code, and
+     while a page it cannot fully read is present, no code rule claims anything. On the owner's app the
+     count of requirements checked fell **from 9 to 1**, twice, and the building tool found the cause
+     only by undoing its own changes one at a time. Fix: skip `securevibe-report`, and whatever folder
+     `--out` names, wherever the app is walked. Worth also making the two `SKIP_DIRS` one list, since
+     two copies of it can drift.
+  2. **Two false alarms, both rated high, that made the tool change correct code.** Reproduced on
+     three-line files:
+     - `re.exec(code)`, a regular expression, is reported as *A shell command is built from a value*
+       (V1.2.5). `ast.shell-command` matches any JavaScript call named `exec` (`^(exec|execSync)$`,
+       with no module named), and `RegExp.prototype.exec` is one of the language's commonest calls.
+     - `request(app).get('/').query({ q: term })` in a supertest test is reported as *A database query
+       is built by joining text together* (V1.2.4), in an app with no database. `ast.sql-built-by-hand`
+       matches any JavaScript call named `query`, `execute`, `raw` or `unsafe`.
+
+     The tool "fixed" both by rewriting working code until the warnings stopped. With an AI in the
+     loop a false alarm is not noise: it changes the code. Each rule needs the call's receiver or its
+     module taken into account, and each needs a not-found witness for exactly these two cases.
+  3. **A rate limiter counts as evidence of a public API.** `claim-corroborators.json` lists
+     `express-rate-limit`, `@fastify/rate-limit`, `flask-limiter`, `slowapi` and `rack-attack` under
+     `public-api`. Limiting requests is ordinary for any web app, and one of the usual ways to build the
+     brute-force controls V6.3.1 asks for, so an app that adds it is handed the API requirements, over
+     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling.
+  4. **Security notes the AI tool wrote are credited to the owner.** `security-notes.md` records no
+     author, so the report counted all 12 answers as *documented by the owner*; the tool had written 8
+     of them from the code. It marked them "Written by the AI coding tool" in the prose and warned the
+     owner itself, which `sv` cannot see. The interview already tells the tool to write a note only once
+     the owner agrees; this run shows an instruction is not enough. Design answers solved the same
+     problem with `by`, and notes need the same, with an answer that does not say who wrote it counting
+     as the tool's.
+  5. **When the app's own tests fail under `--run`, their output is lost.** Only the exit code is kept
+     (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
+     image and not under the owner's Node 26, which cost every test its credit, and the tool had to
+     rebuild `sv`'s environment by hand to find which. The last lines of the runner's output belong in
+     the report whenever the suite fails.
+
+  **Friction for somebody who is not technical** (see the walk-through entry above):
+
+  6. **The tool told the owner to run `sv`, and there was no `sv`.** The MCP results say to run
+     `sv report --run --tools` at a terminal; the owner got `command not found`, ran it by its full
+     path, and then added the build folder to their shell's PATH in `~/.zshrc` at the tool's
+     suggestion. The results should say how `sv` was started, or the walk-through should install it as
+     a command.
+  7. **The app was never put in git, so the check that matters most never ran.** Whether a secrets
+     file was ever committed is *not assessed* when the folder is not a repository, honestly, and
+     nothing suggested making it one. A beginner's app will usually start this way.
+  8. **The `rag` question** — "does it search a document store or vector database?" — led the tool to
+     count a web search as one, which brought in the C8 vector-database requirements for an app with
+     no database. The question should say what it means by search.
+  9. **The terminal summary does not say whether `--run` started the app.** The tool had to infer it
+     from the counts. One line — started, answered N requests, or could not start and why — would do.
+
+  **What worked, for the record:** the `.mcp.json` connection worked first time in the desktop app,
+  and the tool described all six tools accurately; the interview went one question at a time and kept
+  the tool's answers apart from the owner's; once the report was out of the app folder, `--run`
+  started the app, sent it 29 requests, and requirements checked rose from 9 to 23. And the list of
+  requirements with no evidence did its job: it pointed at human approval for AI-published content
+  (C9.2.1), which led to the approval step the owner chose.
+
+  **To keep in mind rather than fix:** 18 of the 40 requirements checked came from tests the same tool
+  wrote and labelled with the requirement each proves. It checked the wording before labelling, and
+  those tests run and pass, but it is the author vouching for its own work through the name.
+
+- **A zip of the whole result, for the owner to keep or hand on.** Asked for by the owner on
+  26 September 2026: the application, its scans and its report in one download, at the end of a build
+  or on request. **Not claimed; the owner decides when it is made.**
+
+  What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
+  `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,
+  `findings.sarif`, `report.json`), the bill of materials, each outside tool's own SARIF, and a small
+  file saying which `sv` made it (version and commit), when, with which command, and a SHA-256 for
+  every file, so what was checked can be matched to what is in the zip.
+
+  Three things decide the design:
+  - **It must never carry a secret.** "The application's files" includes `.env` for most beginners,
+    and this owner's app runs on an Anthropic API key. `sv` already finds credentials; the zip should
+    leave out every file its secret rules flag, and say in the zip's own listing that it did. The same
+    for data the app holds about people (`[data]` categories): leave it out unless asked.
+  - **It goes outside the app folder.** Finding 1 in the entry above is what happens when `sv`'s
+    output lands inside the app. The MCP server writes only below the app today, deliberately, so a
+    zip written from MCP needs its own place to go, or has to be skipped like the report.
+  - **When.** `sv` cannot tell when a build is finished; only the AI tool and the owner can. So
+    "at the end" means the tool offers it once the report is written, and "on request" means a
+    command (`sv bundle`, say) and an MCP tool. The two are the same feature; nothing should make one
+    on every run.
+
 - **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
   the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
   only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
