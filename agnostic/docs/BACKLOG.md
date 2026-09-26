@@ -58,6 +58,9 @@ another session is not a claim.
   This is the direction `sv init` calls the one that matters: "A capability present but denied is the
   one mistake that matters — it is how a real requirement gets marked not applicable."
 
+  **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking, before the
+  threat-model citations, the mock identity provider, and the real browser.
+
 - **A checklist for what only a person can check.** Asked for by the owner on 26 September 2026,
   after the report readability work: *"perhaps a checklist for the checks that have to be verified by
   a human, with a short description of how to verify them."* **Claimed on 26 September 2026 by
