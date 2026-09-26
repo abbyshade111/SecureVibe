@@ -46,7 +46,10 @@ another session is not a claim.
 
 - **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
   26 September 2026 reviewing the TOTP probes (#129). **Claimed on 26 September 2026 by session
-  securevibe-e9.** `totp_checks` in
+  securevibe-e9, and done the same day:** the check keeps clear of a step's last ten seconds, looks at
+  the clock again after the second use and tries the pair once more in the new step, says V6.5.1 is
+  not assessed if the step ends twice, and the V6.5.5 credit now says the 30-second bound was not
+  shown. `totp_checks` in
   `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
   Three sign-in attempts later, that code is given again to see whether the app takes it twice. If the
   30-second step has ended in between — the run starts at a uniformly random point inside its step, so

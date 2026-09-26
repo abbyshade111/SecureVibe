@@ -4011,6 +4011,13 @@ fn totp_checks(
         account: &totp.account,
         confirm,
     };
+    // Clear of the end of a step: with ten seconds or fewer left, the step can end between a code
+    // being worked out and being given, and a code refused for going stale reads as a code refused
+    // for being used. The rest of that risk is handled below, by looking at the clock again.
+    let into = http.now() % crate::totp::STEP;
+    if into + 10 >= crate::totp::STEP {
+        http.wait(crate::totp::STEP - into + 1);
+    }
     let step = http.now() / crate::totp::STEP;
     let current = crate::totp::code_at_step(secret, step);
     let old = crate::totp::code_at_step(secret, step.saturating_sub(5));
@@ -4028,22 +4035,52 @@ fn totp_checks(
         return;
     };
 
-    // 2. The control: the current code.
-    if !signing.attempt(http, &current, "2", false).unwrap_or(false) {
-        out.not_assessed.push((
-            IDS.to_owned(),
-            format!(
-                "The current code for the secret `seed` was given did not sign the two-factor \
-                 account in through {}, so a refused code shows nothing. Check `totp` in \
-                 securevibe.toml, and that `seed` enrolled the account with SV_TOTP_SECRET.",
-                entry.path
-            ),
-        ));
-        return;
+    // 2. The control: the current code, then 3. the same code again, in a new sign-in. A refusal of
+    //    the second is evidence only when the step it was worked out for has not ended: an app that
+    //    takes the current step alone refuses a code whose step is over, used or not. So when the
+    //    step has moved on and the code was refused, the pair is tried once more with the new
+    //    step's code; if the step ends again, nothing is said about reuse.
+    let mut current = current;
+    let mut step = step;
+    let mut reused = false;
+    let mut unsure = false;
+    for round in 0..2 {
+        if !signing
+            .attempt(http, &current, &format!("2-{round}"), false)
+            .unwrap_or(false)
+        {
+            let ended = http.now() / crate::totp::STEP != step;
+            out.not_assessed.push((
+                IDS.to_owned(),
+                if ended {
+                    format!(
+                        "The 30-second step ended while the current code was being given through \
+                         {}, so its refusal shows nothing about the code or the setup. Run it \
+                         again.",
+                        entry.path
+                    )
+                } else {
+                    format!(
+                        "The current code for the secret `seed` was given did not sign the \
+                         two-factor account in through {}, so a refused code shows nothing. Check \
+                         `totp` in securevibe.toml, and that `seed` enrolled the account with \
+                         SV_TOTP_SECRET.",
+                        entry.path
+                    )
+                },
+            ));
+            return;
+        }
+        reused = signing.attempt(http, &current, &format!("3-{round}"), false) == Some(true);
+        let now_step = http.now() / crate::totp::STEP;
+        if reused || now_step == step {
+            unsure = false;
+            break;
+        }
+        unsure = true;
+        step = now_step;
+        current = crate::totp::code_at_step(secret, step);
     }
-
-    // 3. The same code again, in a new sign-in.
-    let reused = signing.attempt(http, &current, "3", false) == Some(true);
     out.steps.push(format!(
         "the two-factor account's code from 2½ minutes ago: {}; the current code: opened; the \
          same code again: {}",
@@ -4087,11 +4124,29 @@ fn totp_checks(
                 severity,
                 format!("The app signed the two-factor account in with {what}."),
             ));
+        } else if id == "V6.5.1" && unsure {
+            out.not_assessed.push((
+                id.to_owned(),
+                "The 30-second step ended between the two uses of a code, twice, so its refusal \
+                 may be the code going stale rather than the app refusing a code used before."
+                    .to_owned(),
+            ));
         } else if works {
             out.verified.push(crate::Verified::new(
                 rule.rule_id,
                 rule.requirement_ids,
-                format!("{what}, refused, where a fresh code afterwards signed in"),
+                if id == "V6.5.5" {
+                    // What was shown is the first clause of V6.5.5, a defined lifetime; the second,
+                    // at most 30 seconds, would take refusing the code from one step back, which a
+                    // sensible allowance for clock drift accepts.
+                    format!(
+                        "{what}, refused, where a fresh code afterwards signed in: codes have a \
+                         defined lifetime, shorter than two and a half minutes; that it is at most \
+                         30 seconds was not shown"
+                    )
+                } else {
+                    format!("{what}, refused, where a fresh code afterwards signed in")
+                },
             ));
         } else {
             out.not_assessed.push((
@@ -5968,6 +6023,9 @@ mod tests {
     #[derive(Default)]
     struct FakeApp {
         flaws: Flaws,
+        /// Seconds the clock moves on with each request. Zero, the default, stands it still
+        /// except during `wait`.
+        seconds_per_request: u64,
         /// Seconds a signed-in session may go unused, when this app ends idle sessions at all.
         idle_limit: Option<u64>,
         /// Seconds a signed-in session may last, when this app limits that at all.
@@ -6059,6 +6117,9 @@ mod tests {
         flow_refusal_redirects: bool,
         /// A two-factor code can be used again.
         totp_reusable: bool,
+        /// Only the current 30-second step's code is taken, with no allowance for clock drift: the
+        /// 30-second lifetime V6.5.5 asks for.
+        totp_current_only: bool,
         /// A two-factor code from any of the last ten steps is accepted.
         totp_any_age: bool,
         /// The password alone signs a two-factor account all the way in.
@@ -6441,6 +6502,8 @@ mod tests {
         }
 
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            // Time passing as requests are answered, when a test asks for it.
+            self.clock += self.seconds_per_request;
             // A bearer token is a session id too, for the JSON sign-in below.
             let bearer = r
                 .headers
@@ -7082,10 +7145,17 @@ mod tests {
                     let now = self.clock / crate::totp::STEP;
                     let oldest = if self.flaws.totp_any_age {
                         now.saturating_sub(10)
+                    } else if self.flaws.totp_current_only {
+                        now
                     } else {
                         now.saturating_sub(1)
                     };
-                    let matched = (oldest..=now + 1)
+                    let newest = if self.flaws.totp_current_only {
+                        now
+                    } else {
+                        now + 1
+                    };
+                    let matched = (oldest..=newest)
                         .find(|step| crate::totp::code_at_step(&secret, *step) == given);
                     let fresh = |step: u64| {
                         self.flaws.totp_reusable
@@ -11676,5 +11746,191 @@ mod tests {
             !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
             "{steps:?}"
         );
+    }
+
+    /// The seeded suite, starting `before` seconds ahead of a 30-second boundary, with the clock
+    /// moving `per_request` seconds with every request, as it does against a real app.
+    fn totp_ticking(flaws: Flaws, before: u64, per_request: u64) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let step = crate::totp::STEP;
+        app.clock = (app.clock / step + 10) * step - before;
+        app.seconds_per_request = per_request;
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        if let Some(admin) = acc.admin.clone() {
+            app.users.insert(admin.user, (admin.password, true));
+        }
+        let totp = acc.totp.clone().unwrap();
+        app.users.insert(
+            totp.account.user.clone(),
+            (totp.account.password.clone(), false),
+        );
+        app.totp
+            .insert(totp.account.user.clone(), totp.secret.clone());
+        run(&mut app, &users(), &acc, true, &Default::default())
+    }
+
+    #[test]
+    fn a_code_that_works_twice_is_never_credited_whenever_the_step_ends() {
+        // From the review: an app that takes a code twice, and accepts only the current step, with
+        // the step ending partway through the check. Every combination must end in the finding or
+        // in not assessed — never in V6.5.1 credited.
+        for before in [2, 4, 6, 9, 15, 25] {
+            for per_request in [0, 1, 2, 3] {
+                let o = totp_ticking(
+                    Flaws {
+                        totp_reusable: true,
+                        totp_current_only: true,
+                        ..Default::default()
+                    },
+                    before,
+                    per_request,
+                );
+                assert!(
+                    !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+                    "credited, {before}s before a boundary, {per_request}s a request: {:?}",
+                    o.steps
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_correct_app_is_still_credited_with_the_clock_moving() {
+        // The fix must not just stop crediting: with a step ending in the middle, the pair is
+        // tried again in the new step and the refusal counts.
+        // One or two seconds a request: a sign-in and a second use fit in one step. Slower than
+        // that they cannot, and `a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so` holds.
+        for (before, per_request) in [(25, 1), (15, 1), (9, 2), (4, 0)] {
+            let o = totp_ticking(
+                Flaws {
+                    totp_current_only: true,
+                    ..Default::default()
+                },
+                before,
+                per_request,
+            );
+            assert!(
+                verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+                "{before}s before a boundary, {per_request}s a request: {:?}\n{:?}",
+                o.steps,
+                totp_named(&o, "V6.5.1")
+            );
+        }
+    }
+
+    #[test]
+    fn an_app_that_takes_a_code_twice_is_still_found_with_the_clock_moving() {
+        // One or two seconds a request: a sign-in and a second use fit in one step. Slower than
+        // that they cannot, and `a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so` holds.
+        for (before, per_request) in [(25, 1), (15, 1), (9, 2), (4, 0)] {
+            let o = totp_ticking(
+                Flaws {
+                    totp_reusable: true,
+                    totp_current_only: true,
+                    ..Default::default()
+                },
+                before,
+                per_request,
+            );
+            assert!(
+                rule_ids(&o).contains(&TOTP_REUSED.rule_id),
+                "{before}s before a boundary, {per_request}s a request: {:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so() {
+        // Eight seconds a request: every pair of sign-ins straddles a boundary.
+        let o = totp_ticking(
+            Flaws {
+                totp_current_only: true,
+                ..Default::default()
+            },
+            25,
+            8,
+        );
+        assert!(
+            !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&TOTP_REUSED.rule_id));
+        assert!(
+            totp_named(&o, "V6.5.1")
+                .iter()
+                .any(|w| w.contains("step ended")),
+            "{:?}",
+            totp_named(&o, "V6.5.1")
+        );
+    }
+
+    #[test]
+    fn the_lifetime_credit_says_the_thirty_second_bound_was_not_shown() {
+        let o = run_against(Flaws::default(), &users());
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == TOTP_OLD_CODE.rule_id)
+            .expect("credited");
+        assert!(
+            credit.scope.contains("at most 30 seconds was not shown"),
+            "{}",
+            credit.scope
+        );
+    }
+
+    #[test]
+    fn the_case_from_review_is_not_credited() {
+        // 15 seconds before a boundary, 3 seconds a request, an app that takes a code twice and
+        // only the current step's: credited as verified before the fix.
+        let o = totp_ticking(
+            Flaws {
+                totp_reusable: true,
+                totp_current_only: true,
+                ..Default::default()
+            },
+            15,
+            3,
+        );
+        assert!(
+            !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_control_code_refused_as_its_step_ended_does_not_blame_the_setup() {
+        let o = totp_ticking(
+            Flaws {
+                totp_current_only: true,
+                ..Default::default()
+            },
+            25,
+            5,
+        );
+        let why = totp_named(&o, "V6.5.1");
+        assert!(why.iter().any(|w| w.contains("step ended")), "{why:?}");
+        assert!(
+            !why.iter().any(|w| w.contains("Check `totp`")),
+            "a clock problem blamed on the manifest: {why:?}"
+        );
+    }
+
+    #[test]
+    fn the_lifetime_credit_is_worded_the_same_with_the_clock_moving() {
+        let o = totp_ticking(Flaws::default(), 25, 1);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == TOTP_OLD_CODE.rule_id)
+            .expect("credited");
+        assert!(credit.scope.contains("not shown"), "{}", credit.scope);
     }
 }
