@@ -256,6 +256,15 @@ another session is not a claim.
   browser is the client) needs a request shaped like an API client's and was not written, and the
   rest of deployment is still a "before going live" list nobody has written.
 
+- **Deadlines for known vulnerabilities (V15.2.1).** Asked for by the owner on 26 September 2026.
+  V15.2.1 asks that the app contains no component that has *breached the documented remediation time
+  frame*; the advisory check reads every known vulnerability as a breach, so an advisory published
+  yesterday and one ignored for two years look the same. The owner states the time frames as policy
+  numbers (`[policy] fix-within-days`, one per severity), and each advisory's published date says how
+  long it has been known. Past the deadline stays a finding on V15.2.1; within it stays a finding with
+  a due date, but no longer claims V15.2.1 is breached. A clean comparison credits it exactly as now,
+  and nothing here credits more than that. **Claimed on 26 September 2026 by session securevibe-e8.**
+
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
   V10.7, so an app with "Sign in with Google" keeps the client's requirements (V10.1, V10.2, V10.3,
