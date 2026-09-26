@@ -203,9 +203,46 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers four tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_check` (what
+It offers six tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_check` (what
 applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
-its framework's own words) and `securevibe_write_report` (the full reports, into the app's folder).
+its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
+`securevibe_questions` (the questions only you can answer, for the tool to ask you one at a time), and
+`securevibe_notes_file` (the `security-notes.md` your written decisions go in).
+
+A `.mcp.json` in the app's folder, with the JSON above, works in tools that have no `claude` command,
+such as the Claude desktop app.
+
+### Without installing Rust: the container
+
+`agnostic/Dockerfile` builds `sv` into an image, so the only thing to install is Docker (on a Mac,
+Docker Desktop or Colima). From the repository root:
+
+```bash
+docker build -f agnostic/Dockerfile -t securevibe/sv .
+```
+
+Then the tool starts it in its `.mcp.json`. Use your own folder in all three places, and the full path
+to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/bin`:
+
+```json
+{ "mcpServers": { "securevibe": {
+  "command": "/opt/homebrew/bin/docker",
+  "args": ["run", "-i", "--rm", "--network", "none",
+           "-v", "/Users/you/code:/Users/you/code",
+           "securevibe/sv", "mcp", "--root", "/Users/you/code"] } } }
+```
+
+- The folder is mounted at the same path inside, so the paths in findings are your own.
+- `--network none` means the container has no network at all, so the promise that `sv` opens no
+  connection is enforced rather than only kept.
+- On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
+  files it writes are yours rather than root's.
+- Docker (or Colima) has to be running when the tool starts, or the securevibe tools are simply absent.
+- The container never runs `sv report --run`: starting the app means starting containers, which from
+  inside a container would mean handing it control of Docker on your machine. Run that step with a
+  native `sv` at a terminal.
+
+`tools/image_smoke.py` drives the image as an AI tool would, and CI runs it on every change.
 
 Two limits are deliberate. It only reads apps under the folder given to `--root`; a path outside it is
 refused, `..` and symbolic links included. And it never starts your app or runs other people's security

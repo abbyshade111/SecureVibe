@@ -57,8 +57,9 @@ another session is not a claim.
 - **Packaging `sv` for somebody who is not technical: a container now, a download later.** **The
   owner's decision, 26 September 2026: build the container now, and keep the downloadable program
   here for later.** Other sessions are welcome to add ideas on packaging `sv` in the long run under
-  "Thoughts", below, each under its own name, as its own commit. **The committed image is not
-  claimed**; a working version was built and tested locally the same day, and what it taught is here.
+  "Thoughts", below, each under its own name, as its own commit. **The committed image claimed on
+  26 September 2026 by session securevibe-e8**; a working version was built and tested locally the
+  same day, and what it taught is here.
 
   **Why a container first.** It settles the two obstacles in the walk-through entry above that a
   page of instructions cannot — `sv` must be built from source, and a built `sv` cannot be moved —
@@ -138,6 +139,25 @@ another session is not a claim.
   **Claimed on 26 September 2026 by session securevibe-e9**, all but publishing: CI will build the
   image and run the test on every change, and publishing it to a registry — a public package made from
   the repository — is left for the owner to decide.
+
+  **Done the same day, except publishing.** `agnostic/Dockerfile` (the recipe above), `.dockerignore` at
+  the repository root, `tools/image_smoke.py` (the test in the shape above: it asserts the committed
+  `.env` was found in the image, and in a native `sv`, before comparing them, and runs once as root over
+  a folder root does not own, which is `safe.directory`'s witness on Linux), a CI job in
+  `.github/workflows/rust.yml` that builds the image from scratch and runs it, and the README's MCP
+  section for the container. What was tested where:
+  - **Here**, Docker Hub refused the build image (429) and Debian's package servers were out of reach,
+    so the build stage could not run. The runtime stage was built from a natively built `sv` without
+    `git`, and the smoke test passed in its `--no-git` form: six tools, the check answered, the
+    committed `.env` reported *not assessed* rather than passed, the notes file written, no network,
+    and the same findings as the native `sv`. Leaving out `crates/` failed it ("cannot find the OWASP
+    data folder"), and running the git-less image as if it had git failed both guards that the check
+    ran, and refused to compare.
+  - **In CI**, the whole recipe: the build stage, `git` and `safe.directory`, and the file-ownership
+    check as an ordinary user. This session runs as root, so those three are shown there, not here.
+  - **Not done: publishing the image.** Where it lives (GitHub's container registry, Docker Hub) and
+    under what name is the owner's to decide, and publishing from CI needs a write permission on the
+    workflow. Until then an owner builds it with one command, in the README.
 
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as

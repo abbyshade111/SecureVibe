@@ -1,0 +1,9 @@
+# For agnostic/Dockerfile, whose build context is the repository root: only `agnostic/` and the shared
+# `data/` go in. At the root because the classic builder (Colima's Docker has no BuildKit) reads only
+# this file, never one beside the Dockerfile.
+*
+!agnostic
+!data
+agnostic/target
+**/node_modules
+**/.env
