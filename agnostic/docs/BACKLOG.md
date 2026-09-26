@@ -1171,7 +1171,11 @@ another session is not a claim.
      `text/plain`, as a form, and as multipart, none of which a browser preflights; Level 1 goes from
      53 to 54 of 70; see DESIGN, "A request another site can send without asking"); V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
-     in every real browser, which a check could say directly.
+     in every real browser, which a check could say directly. **Claimed on 26 September 2026 by
+     session securevibe-e9**: the `owned` create request, sent again as the app's own page would
+     send it under that policy (with `Origin: null` and no `Referer`), when the app's pages ask for
+     `no-referrer`. A finding of its own with no requirement behind it, since nothing in ASVS asks
+     an app to accept its own forms.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which
