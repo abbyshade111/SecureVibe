@@ -45,6 +45,8 @@ health = "/"              # a path that returns 200 once the app is up
 # chat = { path = "/api/chat", json = { message = "{prompt}" } }   # sends one message; {prompt} is the text
 # signed-in = true          # the feature needs a signed-in user (uses [stack.run.users])
 # base-url-env = ["LLM_BASE_URL"]   # other variables the app reads the model's address from
+# kill-switch = "AI_DISABLED=1"   # the setting that turns the feature off; a second copy of the app
+#                                 # is started with it and must answer without calling the model
 
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'

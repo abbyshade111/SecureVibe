@@ -210,6 +210,10 @@ pub struct AiSection {
     /// model's OpenAI-style address (ending `/v1`).
     #[serde(default)]
     pub base_url_env: Vec<String>,
+    /// The setting that turns the AI feature off, as `NAME=value`: a second copy of the app is
+    /// started with it in its environment, and must answer without calling the model.
+    #[serde(default)]
+    pub kill_switch: Option<String>,
 }
 
 impl AiSection {
@@ -227,6 +231,17 @@ impl AiSection {
                 "`ai.chat` ({}) has no `{{prompt}}`, so nothing would be sent to the AI feature",
                 t.path
             ));
+        }
+        if let Some(switch) = &self.kill_switch {
+            let named = switch.split_once('=').is_some_and(|(name, _)| {
+                !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            });
+            if !named {
+                out.push(format!(
+                    "`ai.kill-switch` is `{switch}`, which is not `NAME=value` for an environment \
+                     variable"
+                ));
+            }
         }
         for name in &self.base_url_env {
             if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {

@@ -110,6 +110,7 @@ impl Backend for DockerBackend {
         let provider_name = format!("{run_id}-idp");
         let browser_name = format!("{run_id}-browser");
         let model_name = format!("{run_id}-model");
+        let switched_off = format!("{run_id}-app-off");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
@@ -120,6 +121,7 @@ impl Backend for DockerBackend {
                 provider_name.clone(),
                 browser_name.clone(),
                 model_name.clone(),
+                switched_off.clone(),
             ],
         };
 
@@ -238,6 +240,9 @@ impl Backend for DockerBackend {
             args.extend(["-e", pair.as_str()]);
         }
         args.extend([plan.image.as_str(), "sh", "-c", command.as_str()]);
+        // Kept for the copy of the app the kill-switch check starts, which differs only in its
+        // name and one more setting.
+        let app_args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
         let (code, out) = self
             .docker(&args)
             .map_err(|e| CannotRun::BackendFailed { detail: e })?;
@@ -334,6 +339,7 @@ impl Backend for DockerBackend {
                 signed_in,
                 policy: &plan.policy,
                 health: &plan.health_path,
+                seeded: plan.users.as_ref().is_some_and(|u| u.seed.is_some()),
             };
             let (mut outcome, markers) = sv_check::ai::run(&mut http, section, &context);
             // Then what the app wrote down about it, read after the questions, as the signed-in
@@ -343,6 +349,43 @@ impl Backend for DockerBackend {
                 .map(|(_, out)| out)
                 .unwrap_or_default();
             sv_check::ai::logged(&markers, &log, &mut outcome);
+
+            // C9.6.1: a second copy of the app with the kill switch on, beside the first, so the
+            // first and the declared tests are left as they were.
+            let started = match &section.kill_switch {
+                Some(switch) if markers.model_reached => {
+                    self.start_switched_off(&app_args, &app, &switched_off, &plan.image, switch)
+                        && self.wait_until_ready(&via, &switched_off, plan)
+                        && match (section.signed_in, plan.users.as_ref(), accounts.as_ref()) {
+                            (true, Some(users), Some(accounts)) => {
+                                users.seed.as_ref().is_none_or(|seed| {
+                                    self.seed(&switched_off, seed, accounts).is_ok()
+                                })
+                            }
+                            _ => true,
+                        }
+                }
+                _ => false,
+            };
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &switched_off,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model,
+            };
+            sv_check::ai::kill_switch(
+                &mut http,
+                section,
+                &context,
+                &markers,
+                started,
+                &mut outcome,
+            );
+            let _ = self.docker(&["rm", "-f", &switched_off]);
             outcome
         });
 
@@ -544,6 +587,23 @@ fn provider_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 4]) -> Vec<
     args
 }
 
+/// The first copy's `docker run` arguments, renamed, with one more setting before the image.
+fn switched_off_args(
+    app_args: &[String],
+    app: &str,
+    name: &str,
+    image: &str,
+    setting: &str,
+) -> Option<Vec<String>> {
+    let mut args: Vec<String> = app_args
+        .iter()
+        .map(|a| if a == app { name.to_owned() } else { a.clone() })
+        .collect();
+    let at = args.iter().rposition(|a| a == image)?;
+    args.splice(at..at, ["-e".to_owned(), setting.to_owned()]);
+    Some(args)
+}
+
 /// How the test model is started: fenced and hardened like the test provider.
 fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a str> {
     let mut args = vec![
@@ -717,60 +777,18 @@ impl DockerBackend {
             return sv_check::signed_in::run(&mut http, users, accounts, true, &plan.policy);
         }
         let seeded = match &users.seed {
-            Some(seed) => {
-                let mut args: Vec<String> = vec!["exec".into()];
-                let mut env = vec![
-                    ("SV_USER_A", accounts.a.user.clone()),
-                    ("SV_PASSWORD_A", accounts.a.password.clone()),
-                    ("SV_USER_B", accounts.b.user.clone()),
-                    ("SV_PASSWORD_B", accounts.b.password.clone()),
-                ];
-                if let Some(admin) = &accounts.admin {
-                    env.push(("SV_ADMIN", admin.user.clone()));
-                    env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
+            Some(seed) => match self.seed(app, seed, accounts) {
+                Ok(()) => true,
+                Err(why) => {
+                    return sv_check::signed_in::Outcome {
+                        not_assessed: vec![(
+                            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+                            why,
+                        )],
+                        ..Default::default()
+                    };
                 }
-                if let Some(totp) = &accounts.totp {
-                    env.push(("SV_USER_TOTP", totp.account.user.clone()));
-                    env.push(("SV_PASSWORD_TOTP", totp.account.password.clone()));
-                    env.push(("SV_TOTP_SECRET", sv_check::totp::base32(&totp.secret)));
-                }
-                for (k, v) in env {
-                    args.push("-e".into());
-                    args.push(format!("{k}={v}"));
-                }
-                args.extend([
-                    app.to_owned(),
-                    "sh".into(),
-                    "-c".into(),
-                    format!("cd /app && {seed}"),
-                ]);
-                let args: Vec<&str> = args.iter().map(String::as_str).collect();
-                match self.docker(&args) {
-                    Ok((0, _)) => true,
-                    Ok((code, out)) => {
-                        return sv_check::signed_in::Outcome {
-                            not_assessed: vec![(
-                                "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
-                                format!(
-                                    "The seed command in securevibe.toml failed (exit {code}): {}. \
-                                     With no accounts there is nobody to sign in as.",
-                                    first_line(&out)
-                                ),
-                            )],
-                            ..Default::default()
-                        };
-                    }
-                    Err(e) => {
-                        return sv_check::signed_in::Outcome {
-                            not_assessed: vec![(
-                                "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
-                                format!("The seed command could not be started: {e}."),
-                            )],
-                            ..Default::default()
-                        };
-                    }
-                }
-            }
+            },
             None => false,
         };
         let mut out = sv_check::signed_in::run_with(
@@ -798,6 +816,52 @@ impl DockerBackend {
 }
 
 impl DockerBackend {
+    /// Runs the owner's `seed` command inside the app's container, with the run's accounts in its
+    /// environment; or says, for the report, why it could not.
+    fn seed(
+        &self,
+        app: &str,
+        seed: &str,
+        accounts: &sv_check::signed_in::Accounts,
+    ) -> Result<(), String> {
+        let mut args: Vec<String> = vec!["exec".into()];
+        let mut env = vec![
+            ("SV_USER_A", accounts.a.user.clone()),
+            ("SV_PASSWORD_A", accounts.a.password.clone()),
+            ("SV_USER_B", accounts.b.user.clone()),
+            ("SV_PASSWORD_B", accounts.b.password.clone()),
+        ];
+        if let Some(admin) = &accounts.admin {
+            env.push(("SV_ADMIN", admin.user.clone()));
+            env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
+        }
+        if let Some(totp) = &accounts.totp {
+            env.push(("SV_USER_TOTP", totp.account.user.clone()));
+            env.push(("SV_PASSWORD_TOTP", totp.account.password.clone()));
+            env.push(("SV_TOTP_SECRET", sv_check::totp::base32(&totp.secret)));
+        }
+        for (k, v) in env {
+            args.push("-e".into());
+            args.push(format!("{k}={v}"));
+        }
+        args.extend([
+            app.to_owned(),
+            "sh".into(),
+            "-c".into(),
+            format!("cd /app && {seed}"),
+        ]);
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        match self.docker(&args) {
+            Ok((0, _)) => Ok(()),
+            Ok((code, out)) => Err(format!(
+                "The seed command in securevibe.toml failed (exit {code}): {}. With no accounts \
+                 there is nobody to sign in as.",
+                first_line(&out)
+            )),
+            Err(e) => Err(format!("The seed command could not be started: {e}.")),
+        }
+    }
+
     /// Confirms with the daemon that the network really is internal. Fail secure: anything other
     /// than a clear "true" stops the run.
     pub fn verify_fenced(&self, network: &str) -> Result<(), CannotRun> {
@@ -890,6 +954,24 @@ impl DockerBackend {
             )),
             Ok((0, _))
         )
+    }
+
+    /// Starts a copy of the app under another name with one more setting in its environment: the
+    /// same image, folder, network, and settings as the first, so the only difference between the
+    /// two answers is the setting.
+    fn start_switched_off(
+        &self,
+        app_args: &[String],
+        app: &str,
+        name: &str,
+        image: &str,
+        setting: &str,
+    ) -> bool {
+        let Some(args) = switched_off_args(app_args, app, name, image, setting) else {
+            return false;
+        };
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        matches!(self.docker(&args), Ok((0, _)))
     }
 
     fn start_model(&self, network: &str, name: &str) -> bool {
@@ -1337,6 +1419,56 @@ mod probe_tests {
             Some(&PROVIDER_SCRIPT),
             "the script is passed in, not read from the owner's disk"
         );
+    }
+
+    #[test]
+    fn the_switched_off_copy_differs_from_the_app_only_in_name_and_the_setting() {
+        let first: Vec<String> = [
+            "run",
+            "-d",
+            "--name",
+            "sv-1-app",
+            "--network",
+            "sv-1-net",
+            "-e",
+            "PORT=8080",
+            "python:3.12-slim",
+            "sh",
+            "-c",
+            "cd /app && python app.py",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let copy = switched_off_args(
+            &first,
+            "sv-1-app",
+            "sv-1-app-off",
+            "python:3.12-slim",
+            "AI_DISABLED=1",
+        )
+        .unwrap();
+        assert_eq!(
+            copy,
+            [
+                "run",
+                "-d",
+                "--name",
+                "sv-1-app-off",
+                "--network",
+                "sv-1-net",
+                "-e",
+                "PORT=8080",
+                "-e",
+                "AI_DISABLED=1",
+                "python:3.12-slim",
+                "sh",
+                "-c",
+                "cd /app && python app.py",
+            ]
+            .map(str::to_owned)
+            .to_vec()
+        );
+        assert!(switched_off_args(&first, "sv-1-app", "x", "other-image", "A=1").is_none());
     }
 
     #[test]
