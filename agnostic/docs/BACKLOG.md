@@ -5,6 +5,39 @@ another session is not a claim.
 
 ## Next
 
+- **Hand the three question lists to the AI coding tool, and label what it answers.** Asked for by
+  the owner on 26 September 2026: the security notes, the design questions, and the checklist of what
+  only a person can check, packaged so the AI tool that wrote the app can answer them. The owner's
+  decision, the same day: a design answer from the AI tool is labeled *stated by the AI coding tool*,
+  its own tier below *attested by the owner*. **Claimed on 26 September 2026 by session
+  securevibe-e8.** Found by walking through `sv mcp` as an AI tool would, on a copy of
+  `examples/flask-booking` with no manifest:
+  - The check names the sixteen design questions by id only, with no question and no advice on where
+    to look, so the tool would need sixteen `securevibe_explain` calls, and those give the ASVS text,
+    not the question.
+  - It tells the tool to "run `sv notes`", which the MCP server has no way to do.
+  - The checklist of what only a person can check does not reach the tool at all.
+  - A contradiction says only "the code says otherwise"; `sv scope` says why (`pyjwt` in
+    `requirements.txt`), and the tool is not told.
+  - The starter manifest has every capability set to `false`, while its own instructions say an
+    unsure capability should be `true` and a line nobody answered should be left out. A tool that
+    leaves a line as it found it has answered "no".
+
+  **The label is done the same day:** `by = "owner"` or `by = "ai-tool"` on a design answer, and the
+  tier *stated by the AI coding tool* below *attested by the owner*; an answer without `by` counts as
+  the tool's. See DESIGN, "The AI coding tool's answers, a tier lower still". **Next, and the owner's
+  refinement the same day:** the tool interviews the owner through the three lists, one question at a
+  time, offering what it knows of the code as a tip, and records the answers for the report. **Done
+  the same day:** `securevibe_questions` and `sv questions`, `securevibe_notes_file`, the check pointing
+  at them, and a contradiction saying what the code showed. See DESIGN, "The interview: the tool asks,
+  the owner answers". Left over:
+  - Where an answer to a check by hand is recorded. Today nothing records one, so the tool walks the
+    owner through them and the report cannot tell.
+  - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
+    contract, and worth its own decision.
+  - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
+    at any point; ordering them by level, or by what is most at stake, would help.
+
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
   admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails
@@ -1103,7 +1136,7 @@ another session is not a claim.
 
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
-  before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+  before deciding.
   **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
   session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
   **Measured the same day.** Four options, each over ten targets with semgrep 1.176.0: the fixture
@@ -1166,6 +1199,54 @@ another session is not a claim.
   at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
   own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
   word. Not decided yet; B is not claimed.
+
+  **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
+  branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
+  by then, and is kept below relaxed-nobel's fuller run as a second, smaller measurement of option C.
+  **securevibe-e8's measurement, the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
+  names copied into one file with its registry id, so nothing is fetched from semgrep.dev:
+
+  | Rule set | Rules | Requirements reached (of 50) | Findings on the examples and v1's template (174 files) | Time |
+  |---|---|---|---|---|
+  | `p/security-audit`, rebuilt from the commit | 225 | 31 | 3 | 5 s |
+  | the map's own rules | 1,022 | 50 | 20 | 20 s |
+
+  - **The local copy is the registry's.** The 225 `p/security-audit` rules rebuilt from the commit gave
+    exactly the registry run's 13 results on the fixture app, rule, file, and line.
+  - **What loads is the map, by construction.** The SARIF listed 1,022 loaded rules, the same ids as
+    the map; none was missing from the commit. So the coverage count could not drift from what runs.
+  - **The 17 extra findings are all on v1's template, and on reading, none is a real fault.** Six
+    `var-in-href` on links the server builds itself (navigation, the checkout link, the authenticator
+    link), six `html-in-template-string` on error messages that contain no HTML, four
+    `detect-non-literal-regexp` on patterns from the app's own settings and routes, and one
+    `unsafe-dynamic-method` on `router[method]` from a fixed list. The example apps got none. For
+    comparison, `p/default` added 3 false alarms on a similar set (relaxed-nobel-27acfa, above): the map
+    holds audit rules that `p/default` leaves out, and they are noisier.
+  - **The rules' license** could not be read from this session; relaxed-nobel-27acfa's could, and
+    what it says is above.
+  - **A detail for whoever builds it:** semgrep puts the rule file's folder in front of each id, as a
+    path relative to where it was started, so it must be started in the folder holding the file.
+
+  Smaller than relaxed-nobel's run and consistent with it: on the owner's six built apps option C was
+  twice as slow again, and far noisier, than on the examples and template alone.
+
+  **The owner's decision, 26 September 2026:** B, `p/default` beside the two packs, for now. (An
+  earlier "19 more requirements definitely seems worth it" was made on securevibe-e8's smaller numbers
+  before relaxed-nobel-27acfa's run and license reading reached the owner, and is replaced by this.)
+  Adopting B, as relaxed-nobel-27acfa proposed: add `p/default` to the adapter, measure it into
+  `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
+  fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
+  The owner's condition above still holds: the license questions are looked at before B is built.
+
+- **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
+  Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
+  `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
+  `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
+  faults over the golden apps and the examples; what `sv` knows that semgrep does not (a value from
+  the app's own settings, a test file, a template that escapes by default, a file `sv` writes); and
+  whether findings only the added rules make should be shown apart, as "worth a look".
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
