@@ -1480,6 +1480,46 @@ fault if the connection is meant to be private, and nothing in the manifest says
 V15.3.5, type confusion, was on the list and is not built here: a probe for it sends sign-in requests
 shaped to get in without the password.
 
+### A mail server inside the fence, and password reset
+
+A password reset is the one sign-in flow that cannot be followed without reading an email, so until
+now it was a person's job. The run now gives the app a mail server — Mailpit, pinned to a minor
+release like the probe image — on the same fenced network, whenever `[stack.run.users]` has a
+`reset` entry. The app is told where it is in `SMTP_HOST`, `SMTP_PORT`, and `SMTP_URL`; it takes any
+user name and password over plain SMTP, because there is nothing behind it to protect, and it is
+hardened as the sidecar is, with one in-memory place to write. Mail sent to it goes no further. The
+probes read it through Mailpit's HTTP interface, from the sidecar, matching every recipient field.
+
+`reset` has two requests: `request`, with `{user}`, and `use`, with `{code}` and `{new_password}`.
+The code is found in the email as a link's `token`, `code`, or `key`, or the last part of a link's
+path under `reset`; `code-pattern` names any other place.
+
+The setup is shown to work before anything is judged. The account (made for the purpose through
+`signup`, or B) signs in; the email arrives; a code is found in it; using the newest code sets a
+password that then signs in. Each failure is *not assessed* with its own reason, and the tests hold
+the case the rule exists for: an app whose reset does nothing, which would otherwise read as "the old
+password still works" and "a second use changed nothing".
+
+Then four findings, and no credit:
+
+- **V6.4.3, used twice.** The same code sets a second password, which signs in.
+- **V6.4.3, the old password.** It still signs in after the reset.
+- **V6.4.3, guessable.** Shorter than 20 bits by `most_bits` (six random digits is the least ASVS
+  names), or two codes asked for one after the other that count up.
+- **V6.3.8, whether an account exists.** Two requests for the account and one for an address nobody
+  has. A different status is a finding. Different words are one only when the two requests for the
+  same account were answered alike, after setting aside field values, long random-looking runs, and
+  the address itself; an answer that changes between identical requests leaves the wording unjudged.
+
+V6.4.3 also asks that a reset does not get round two-factor sign-in, and a safe reset code expires.
+Neither is tried, so a clean reset credits nothing and says so. The rest of the mail-sink list —
+V6.5.1, V6.5.4, V6.5.5, V6.6.2, V6.6.3 — is about codes sent to sign *in*, not to reset, and needs
+its own entry; a reset code is not an out-of-band authenticator and is not counted as one.
+
+Verified end to end with a scratch app sending through Python's `smtplib`: the correct one raised
+nothing and its steps show the email arriving, the code working once, and being refused the second
+time; the careless one (a four-digit code, reusable, 404 for an unknown address) raised all three.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

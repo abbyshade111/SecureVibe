@@ -259,6 +259,30 @@ pub struct UsersSection {
     /// How the app takes a file, so the probes can send it ones it ought to refuse.
     #[serde(default)]
     pub upload: Option<UploadSection>,
+    /// How a forgotten password is reset, so the probes can follow the link the app emails. Only
+    /// used when the run has a mail sink for the app to send to.
+    #[serde(default)]
+    pub reset: Option<ResetSection>,
+}
+
+/// A password reset: asking for one, and using what the email carried.
+///
+/// The run gives the app a mail server that keeps what it is sent (`SMTP_HOST`, `SMTP_PORT`), so
+/// the probes can read the email as the account's owner would and use the code or link in it.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct ResetSection {
+    /// Asks for a reset email, with `{user}` for the account's address.
+    pub request: RequestTemplate,
+    /// Sets the new password with what the email carried: `{code}` for the code or the token from
+    /// the link, `{new_password}` for the password, in the path or a field.
+    #[serde(rename = "use")]
+    pub use_code: RequestTemplate,
+    /// Where the code is in the email: a regular expression whose first group is the code. Absent
+    /// means a link's `token`, `code`, or `key` parameter, or the last part of a link's path under
+    /// `reset`.
+    #[serde(default)]
+    pub code_pattern: Option<String>,
 }
 
 /// How to upload a file, and what the owner says the app accepts.
@@ -314,6 +338,29 @@ impl UsersSection {
                     .to_owned(),
             );
         }
+        if let Some(reset) = &self.reset {
+            let t = &reset.use_code;
+            let says = |needle: &str| {
+                t.path.contains(needle)
+                    || t.form
+                        .values()
+                        .chain(t.json.values())
+                        .any(|v| v.contains(needle))
+            };
+            if !says("{code}") {
+                out.push(format!(
+                    "`reset.use` ({}) has no `{{code}}`, so what the email carried is never sent",
+                    t.path
+                ));
+            }
+            if !says("{new_password}") {
+                out.push(format!(
+                    "`reset.use` ({}) has no `{{new_password}}`, so there is nothing to reset the \
+                     password to",
+                    t.path
+                ));
+            }
+        }
         if let Some(t) = &self.change_password
             && !t
                 .form
@@ -337,6 +384,7 @@ impl UsersSection {
         .into_iter()
         .flatten()
         .chain(self.owned.as_ref().map(|o| &o.create))
+        .chain(self.reset.iter().flat_map(|r| [&r.request, &r.use_code]))
         {
             if !t.form.is_empty() && !t.json.is_empty() {
                 out.push(format!("{} sets both `form` and `json`; pick one", t.path));
@@ -978,5 +1026,42 @@ mod time_frame_tests {
         // and every critical finding would be judged against none.
         let bad = toml::from_str::<Manifest>("[policy]\nfix-within-days = { urgent = 1 }\n");
         assert!(bad.is_err(), "{bad:?}");
+    }
+}
+
+#[cfg(test)]
+mod reset_tests {
+    use super::*;
+
+    fn users(reset: &str) -> UsersSection {
+        let text = format!(
+            "[stack.run.users]\nseed = \"s\"\nlogin = {{ path = \"/login\" }}\nprivate = [\"/a\"]\n{reset}\n"
+        );
+        let m: Manifest = toml::from_str(&text).expect("manifest parses");
+        m.stack.run.users.expect("users section")
+    }
+
+    #[test]
+    fn a_reset_entry_is_read_with_its_use_request() {
+        let u = users(
+            "reset = { request = { path = \"/forgot\", form = { email = \"{user}\" } }, use = { \
+             path = \"/reset/{code}\", form = { password = \"{new_password}\" } }, code-pattern = \
+             \"n=(\\\\d+)\" }",
+        );
+        let reset = u.reset.as_ref().expect("reset read");
+        assert_eq!(reset.use_code.path, "/reset/{code}");
+        assert_eq!(reset.code_pattern.as_deref(), Some("n=(\\d+)"));
+        assert!(u.problems().is_empty(), "{:?}", u.problems());
+    }
+
+    #[test]
+    fn a_reset_that_never_sends_the_code_or_the_password_says_so() {
+        let u = users(
+            "reset = { request = { path = \"/forgot\" }, use = { path = \"/reset\", form = { \
+             token = \"{user}\" } } }",
+        );
+        let problems = u.problems().join("\n");
+        assert!(problems.contains("no `{code}`"), "{problems}");
+        assert!(problems.contains("no `{new_password}`"), "{problems}");
     }
 }

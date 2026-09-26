@@ -48,6 +48,11 @@ health = "/"              # a path that returns 200 once the app is up
 #   `field` is the form field the file goes in; `serves-at` is where an upload can be fetched back,
 #   with {name} standing for its file name — leave it out if uploads are never served over the web.
 #   `max-bytes` is the largest file you say the app accepts, which is what it is held to.
+# reset = { request = { path = "/forgot", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/reset", form = { token = "{code}", password = "{new_password}", csrf_token = "{csrf}" } } }
+#   A forgotten-password reset. The run gives the app a mail server that keeps what it is sent, at
+#   SMTP_HOST and SMTP_PORT (no encryption, any user name and password accepted); `{code}` is the
+#   code or the token from the link in the email. Add `code-pattern = "…"`, a regular expression
+#   whose first group is the code, when it is not a link's `token`, `code`, or `key`.
 
 [data]
 # What kinds of information the app holds about people.
