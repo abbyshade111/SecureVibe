@@ -100,6 +100,7 @@ mod tests {
             target_level: 1,
             generated: None,
             run_note: None,
+            run_steps: Vec::new(),
             counts: Counts::default(),
             requirements: vec![],
             excluded: vec![],
