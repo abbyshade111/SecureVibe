@@ -185,10 +185,17 @@ another session is not a claim.
   each needs already exists. Counts are from `docs/COVERAGE.md` at the time: 25 uncovered at Level 1,
   146 at Level 2, 89 at Level 3.
 
-  **The five Level 1 lines are claimed on 26 September 2026 by session securevibe-e9**, as one piece
-  of work: each is a few lines against machinery that already exists, and splitting them into five
-  pull requests would cost more in merges than it saves in review. The four Level 2 lines are
-  claimed by the same session, as a second piece.
+  **Four of the five Level 1 lines are done on 26 September 2026 by session securevibe-e9**:
+  V2.2.2, V7.2.1, V15.3.1 and V14.3.1. Level 1 goes from 45 to 49 of 70. See DESIGN, "Four more
+  Level 1 questions". The four Level 2 lines are claimed by the same session.
+
+  **V1.2.2 was attempted and withdrawn.** The entry said "a rule in the same shape as
+  `ast.download-piped-to-shell`", and that was wrong: every rule in `data/ast-rules.json` matches a
+  *call*, with patterns for the function and the module it came from. A `javascript:` or `data:`
+  URL is a string literal, which may be assigned rather than passed to anything, and `sv` has no
+  way to scan literals on their own — the one requirement reached that way, V4.4.1, is semgrep's,
+  not `sv`'s. Writing it would mean a new kind of rule, which is its own piece of work and belongs
+  with the other "needs a new mechanism" items rather than being smuggled in here.
 
   **Level 1 — 25 uncovered, 5 look reachable.** The rest are documentation (V2.1.1, V6.1.1, V8.1.1,
   V15.1.1 → the security-notes file), deployment (V3.4.1, V12.2.1 → the production check), the

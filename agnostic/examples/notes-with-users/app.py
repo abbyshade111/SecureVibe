@@ -160,7 +160,8 @@ class Handler(BaseHTTPRequestHandler):
             sid, csrf = self.new_session(None)
             form = (
                 f"<form method=post><input type=hidden name=csrf_token value='{csrf}'>"
-                "<label>Email <input type=email name=email autocomplete=username></label>"
+                "<label>Email <input type=email name=email autocomplete=username "
+                "maxlength=60></label>"
                 "<label>Password <input type=password name=password></label>"
                 "<button>Go</button></form>"
             )
@@ -237,6 +238,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.forged(form, csrf):
                 return self.send(403, page("No", "Refused."))
             new_email, password = form.get("email", ""), form.get("password", "")
+            # The sign-up form says maxlength=60. The server applies the same rule again, because
+            # anybody can send this request without a browser: V2.2.2.
+            if len(new_email) > 60:
+                return self.send(422, page("No", "That email address is too long."))
             if len(password) < 8 or password in COMMON:
                 return self.send(422, page("No", "Choose a longer or less common password."))
             salt = secrets.token_hex(16)
@@ -257,7 +262,16 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/logout":
             with db() as conn:
                 conn.execute("delete from sessions where id = ?", (sid,))
-            return self.send(303, headers=[("Location", "/"), ("Set-Cookie", "sid=; Max-Age=0")])
+            # Tell the browser to throw away what it kept for this site, so a private page is not
+            # still sitting in its store for the next person: V14.3.1.
+            return self.send(
+                303,
+                headers=[
+                    ("Location", "/"),
+                    ("Set-Cookie", "sid=; Max-Age=0"),
+                    ("Clear-Site-Data", '"storage", "cookies"'),
+                ],
+            )
         if self.path == "/account/delete":
             row = db().execute("select hash, salt from users where email = ?", (email,)).fetchone()
             if not row or not hmac.compare_digest(

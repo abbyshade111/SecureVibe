@@ -1358,6 +1358,52 @@ inside byte counts (`14039`), request ids (`req=a401b9`), durations (`took=403ms
 a 401. A status is now a whole token: what follows its last `=` or `:`, trimmed of punctuation, and
 equal to the code. The fixture that caught it is a table of lines real servers write.
 
+### Four more Level 1 questions
+
+From the sweep of everything no check reached. Each reads something the run already has, or sends
+one more request.
+
+**V2.2.2 — the rules the form states, applied again on the server.** A form's own HTML is a list of
+what the app says it wants: `maxlength`, `type=number`, `pattern`. Every one of those is something a
+browser applies and anybody sending the request directly does not have to. So the probe reads one
+off the sign-up page and sends a value that breaks it. A correct sign-up has to be accepted first,
+or "refused" means only that sign-up does not work, and it is **only ever a finding**: an app that
+refuses the broken value might be refusing it for some other reason.
+
+**V7.2.1 — a session value this check invented.** The app's own cookie says what a session looks
+like; this sends one of the same name and length that no session store could have issued. A private
+page that opens for it is an app taking the cookie's word. Different from V7.2.3, which asks whether
+a real session id could be *guessed*: this asks whether anything is checked at all.
+
+That flaw is deliberately **not** in the table that asserts "this flaw and no other". An app that
+believes any session id does not fail one check — default accounts sign in, sign-out ends nothing, a
+password change needs no current password — because every one of those is asked with a cookie the
+app now believes. Asserting isolation would be asserting something untrue, so it has a test of its
+own saying why.
+
+**V15.3.1 — fields that should not leave the server.** The record A reads back is exactly the place
+to look for `password_hash`, `salt`, `api_key`. Only ever a finding: not seeing them proves nothing
+about the columns this app happens to have.
+
+The whole check turns on one distinction, and it is the one that would have sunk it: **a secret name
+has to be a field, not a word.** Nearly every app has a page saying "change your password", and
+matching the bare word makes a finding out of all of them. So `"password"`, `'password'` and
+`password=` count, and prose does not. The fake app's *correct* record page now carries "Change your
+password in Account" for that reason, which is why matching the bare word turns **seventeen** tests
+red rather than one.
+
+**V14.3.1 — `Clear-Site-Data` when signing out.** Read off the sign-out response already in hand.
+Credit on presence only: the requirement names the header as something that "may be able to help",
+and an app whose own script clears storage has met it without one, so absence is *not assessed*
+rather than a failure. `"cookies"` alone does not count either — the session ending already cleared
+the cookie, and what is left is everything the page kept.
+
+**V1.2.2 was attempted and withdrawn**, and the reason is worth keeping: every rule in
+`data/ast-rules.json` matches a *call*, with patterns for the function and the module. A
+`javascript:` URL is a string literal that may simply be assigned, and nothing here scans literals on
+their own. The plan that said "a rule in the same shape as `ast.download-piped-to-shell`" had not
+checked that, and it was wrong.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

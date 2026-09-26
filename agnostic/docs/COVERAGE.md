@@ -30,7 +30,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 83 (24%) | 2 | 260 |
+| OWASP ASVS 5.0 | 345 | 87 (25%) | 2 | 256 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
@@ -41,7 +41,7 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools |
 |---|---|---|---|---|---|---|---|
-| L1 | 70 | 45 | 7 | 1 | 3 | 24 | 20 |
+| L1 | 70 | 49 | 7 | 1 | 3 | 28 | 20 |
 | L2 | 183 | 35 | 4 | 0 | 10 | 7 | 21 |
 | L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 |
 
@@ -52,20 +52,20 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
-| V2 Validation and Business Logic | 13 | 0 | 0 | 13 |
+| V2 Validation and Business Logic | 13 | 1 | 0 | 12 |
 | V3 Web Frontend Security | 31 | 14 | 0 | 17 |
 | V4 API and Web Service | 16 | 2 | 0 | 14 |
 | V5 File Handling | 13 | 5 | 0 | 8 |
 | V6 Authentication | 47 | 12 | 0 | 35 |
-| V7 Session Management | 19 | 5 | 0 | 14 |
+| V7 Session Management | 19 | 6 | 0 | 13 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 0 | 0 | 36 |
 | V11 Cryptography | 24 | 8 | 1 | 15 |
 | V12 Secure Communication | 12 | 4 | 0 | 8 |
 | V13 Configuration | 21 | 5 | 1 | 15 |
-| V14 Data Protection | 13 | 2 | 0 | 11 |
-| V15 Secure Coding and Architecture | 21 | 4 | 0 | 17 |
+| V14 Data Protection | 13 | 3 | 0 | 10 |
+| V15 Secure Coding and Architecture | 21 | 5 | 0 | 16 |
 | V16 Security Logging and Error Handling | 17 | 4 | 0 | 13 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
@@ -88,10 +88,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (42)
+### Settled by asking the running app (46)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
 | V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep` |
@@ -118,6 +119,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
 | V6.3.2 | L1 | Signed in: `probe.default-account` |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` |
+| V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |
 | V7.2.3 | L1 | Signed in: `probe.session-id-weak` |
 | V7.2.4 | L1 | Signed in: `probe.session-not-renewed` |
 | V7.4.1 | L1 | Signed in: `probe.logout-keeps-session` |
@@ -130,7 +132,9 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
+| V14.3.1 | L1 | Signed in: `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
+| V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
@@ -181,11 +185,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (25)
+### Level 1 with no check at all (21)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.2.2, V2.3.1, V3.4.1, V3.5.2, V6.1.1, V6.4.1, V7.2.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V12.2.1, V12.2.2, V14.3.1, V15.1.1, V15.3.1
+V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.3.1, V3.4.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V12.2.1, V12.2.2, V15.1.1
 
 ## AISVS 1.0 by chapter
 
