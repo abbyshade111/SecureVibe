@@ -7,8 +7,8 @@ another session is not a claim.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
-  making it easy for people who aren't technical or security experts to vibe code safely." **Not
-  claimed.** The walk-through itself is short — describe the app, have the tool write
+  making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
+  on 26 September 2026 by session securevibe-e8**, at the owner's asking, now the container is done. The walk-through itself is short — describe the app, have the tool write
   `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
   `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
   prompt in the conversation that produced this entry. **What is not short is getting to step one**,
