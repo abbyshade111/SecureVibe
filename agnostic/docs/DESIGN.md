@@ -3263,6 +3263,46 @@ Next, the owner's lean: `p/ai-best-practices` as its own entry, run only for app
 decision on `p/default` from measurements. Both need semgrep.dev, and both will be refused by
 `coverage.py` until the pack is measured, which is the point.
 
+### The AI pack, for apps that may call a model
+
+Done on 26 September 2026 (session relaxed-nobel-27acfa), at the owner's asking. `p/ai-best-practices`
+is where semgrep keeps most of its rules about code that calls a model, and none of them is in
+`p/security-audit`. Adding it to every run would be harmless, but the owner asked that it run only for
+apps that use AI, and one adapter entry is the right shape for it. The rules share semgrep's map,
+its SARIF, and its install line, and a second entry would duplicate all three.
+
+So an adapter can now carry `conditional_args`: arguments added to its run unless a condition is known
+not to hold, placed just before its `--`. Semgrep's entry adds `--config p/ai-best-practices` for `ai`.
+The load refuses an unknown condition, a placeholder in the added arguments, and an adapter with no
+`--` to put them before, because after it the pack's name would be read as a file to scan.
+
+**Only a known "no" leaves it out.** The `ai` answer comes from the manifest and the code together,
+and the code wins: an app whose manifest says no AI and whose code imports OpenAI still gets the pack.
+When nobody has settled it, the pack runs. Its rules only ever find something (the AISVS ones are
+`findings_against`), and on code that calls no model they find nothing, so leaving it out there would
+hide mistakes in exactly the apps nobody checked, and gain nothing. Seen through the real binary with
+a wrapper recording semgrep's arguments: an app calling OpenAI with nothing said got both packs and a
+finding against C2.2.1 (`openai-missing-moderation`). An app without AI code whose manifest says no got
+`p/security-audit` alone, and the same app with nothing said got both.
+
+The pack is measured in `data/semgrep-packs.json` (27 rules, semgrep 1.176.0). `tools/semgrep_packs.py`
+and `coverage.py` read conditional packs, and the coverage document says which packs run only for apps
+that may call a model. By the honest count, semgrep now reaches C2.2.1, C9.1.2, C9.3.1, C9.5.4, and
+C10.4.2, as findings only, and V1.3.6, which a clean run can credit, but only for an app the pack ran
+on. AISVS goes from 2 to 6 requirements with a check, 5 of them only ever *needs attention*. C2.1.6,
+C7.1.2, and C7.3.1 stay out of reach of any pack measured.
+
+Regenerating the document showed two faults in its AI section that had been there since it was
+written, and that no AI rule had ever exercised: it printed rules as Python tuples, and it called every
+rule semgrep's, including CodeQL's `js/system-prompt-injection`, which it also said "settled" C2.1.6 with
+an explanation that belongs to credential scans. Each rule is now named with its own tool, and a tool
+whose rules only ever find a requirement failing is no longer listed as settling it.
+
+Four breaks, each caught: leaving the pack out when nobody has settled `ai`; putting the pack after
+the `--`, which passed every test until the test was made to look for it; an unmeasured conditional
+pack, which the measured-packs test did not read until it was extended; and an unknown condition in
+the data.
+
 ## Which provider a sign-in came from (V10.2.2)
 
 A mix-up attack works on an app that signs in through more than one provider: a sign-in started
@@ -3316,3 +3356,28 @@ is left out too: it may be `wss://` when served over HTTPS. Level 1 goes from 52
 Every language has a found case and a not-found case, with the localhost, bare-scheme, and template
 cases beside them. Each part was removed in turn: crediting a clean run, the localhost exception, the
 host in the pattern, the coverage annotation, and one language's query; every one was caught.
+
+## Four ways of writing a path or a redirect that the rules missed
+
+The path rule (V5.3.2) and the redirect rule (V3.7.2) were written from the most common way to write
+each call, and four others were listed as left over. They are data entries, not new code:
+
+- **Express's `res.redirect(301, url)`.** The status comes first and is a number, so the query
+  looked at the number and saw a literal. A second pattern takes the argument after a leading number.
+- **Ruby's `send_file params[:path]`.** It is called with no receiver, so the pattern that needs
+  `File.` or `IO.` never saw it. A second pattern captures the method name as both the function and
+  the "module", so the module filter still applies to every match. `Rails.root.join('public', 'a.pdf')`
+  with only quoted parts is a safe idiom. (`redirect_to` was already covered; the backlog was wrong.)
+- **Java's `Paths.get(name)` and `Path.of("uploads", name)`.** The Java query looked only at
+  `new File(…)` and similar. A second pattern takes method calls on `Paths` or `Path`, and checks
+  every argument, because the value is often the second part, not the first. `m.get(n)` on anything
+  else is not a finding.
+- **PHP's `include $page`.** `include`, `include_once`, `require`, and `require_once` are language
+  constructs, not calls, so no call pattern could see them. They have their own patterns now.
+  `__DIR__ . '/config.php'` and `dirname(__FILE__) . '/lib.php'` are safe idioms.
+
+Each fix has a found and a not-found case. Each of the eight parts was removed in turn: the second
+Express pattern, the receiverless Ruby pattern, `send_file` as a module, the `Rails.root` exception,
+the Java module filter, checking every Java argument, the PHP include pattern, and the `__DIR__`
+exception. Every one was caught. No requirement's count changes: this makes two existing rules find
+more.

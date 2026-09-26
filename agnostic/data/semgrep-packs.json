@@ -232,6 +232,40 @@
         "typescript.react.security.react-insecure-request.react-insecure-request",
         "typescript.react.security.react-markdown-insecure-html.react-markdown-insecure-html"
       ]
+    },
+    "p/ai-best-practices": {
+      "measured": "2026-09-26",
+      "semgrep": "1.176.0",
+      "from": "a run over crates/sv-check/tests/fixtures/semgrep/app",
+      "rules": [
+        "ai.ai-best-practices.agent-unbounded-loop.agent-unbounded-loop.agent-unbounded-loop-python",
+        "ai.ai-best-practices.ai-config-hidden-unicode.ai-config-hidden-unicode.ai-config-hidden-unicode-generic",
+        "ai.ai-best-practices.claude-settings-auto-enable-mcp.claude-settings-auto-enable-mcp.claude-settings-auto-enable-mcp-generic",
+        "ai.ai-best-practices.claude-settings-bypass-permissions.claude-settings-bypass-permissions.claude-settings-bypass-permissions-generic",
+        "ai.ai-best-practices.claude-settings-env-url-override.claude-settings-env-url-override.claude-settings-env-url-override-generic",
+        "ai.ai-best-practices.cohere-no-error-handling.cohere-no-error-handling.cohere-no-error-handling",
+        "ai.ai-best-practices.gemini-no-error-handling.gemini-no-error-handling.gemini-no-error-handling",
+        "ai.ai-best-practices.hooks-dns-exfiltration.hooks-dns-exfiltration.hooks-dns-exfiltration-generic",
+        "ai.ai-best-practices.hooks-relative-script-path.hooks-relative-script-path.hooks-relative-script-path-bash",
+        "ai.ai-best-practices.hooks-stop-missing-active-check.hooks-stop-missing-active-check.hooks-stop-missing-active-check-generic",
+        "ai.ai-best-practices.hooks-unconditional-allow.hooks-unconditional-allow.hooks-unconditional-allow-generic",
+        "ai.ai-best-practices.hooks-unquoted-variable.hooks-unquoted-variable.hooks-unquoted-variable-bash-eval",
+        "ai.ai-best-practices.hooks-unquoted-variable.hooks-unquoted-variable.hooks-unquoted-variable-bash-taint",
+        "ai.ai-best-practices.hooks-wget-pipe-bash.hooks-wget-pipe-bash.hooks-wget-pipe-bash-generic",
+        "ai.ai-best-practices.huggingface-no-error-handling.huggingface-no-error-handling.huggingface-no-error-handling",
+        "ai.ai-best-practices.ide-settings-executable-path.ide-settings-executable-path.ide-settings-executable-path-generic",
+        "ai.ai-best-practices.langchain-dangerous-exec.langchain-dangerous-exec.langchain-dangerous-exec-python",
+        "ai.ai-best-practices.mcp-command-injection.mcp-command-injection.mcp-command-injection-python",
+        "ai.ai-best-practices.mcp-credential-in-response.mcp-credential-in-response.mcp-credential-in-response-python",
+        "ai.ai-best-practices.mcp-hardcoded-config-secret.mcp-hardcoded-config-secret.mcp-hardcoded-config-secret-generic",
+        "ai.ai-best-practices.mcp-ssrf.mcp-ssrf.mcp-ssrf-python",
+        "ai.ai-best-practices.mcp-tool-poisoning.mcp-tool-poisoning.mcp-tool-poisoning-generic",
+        "ai.ai-best-practices.mcp-unsanitized-return.mcp-unsanitized-return.mcp-unsanitized-return-python",
+        "ai.ai-best-practices.mistral-missing-moderation.mistral-missing-moderation.mistral-missing-moderation",
+        "ai.ai-best-practices.mistral-no-error-handling.mistral-no-error-handling.mistral-no-error-handling",
+        "ai.ai-best-practices.openai-missing-moderation-check.openai-missing-moderation-check.openai-missing-moderation-check",
+        "ai.ai-best-practices.openai-missing-moderation.openai-missing-moderation.openai-missing-moderation"
+      ]
     }
   }
 }

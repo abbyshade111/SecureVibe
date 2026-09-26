@@ -107,7 +107,13 @@ fn run(name: &str, env: &[(&str, &str)]) -> adapters::AdapterRun {
     let mut env = env.to_vec();
     env.push(("SV_FAKE_RULE", RULE));
     let adapters = stand_in(&dir, &env);
-    let outcome = adapters::run_all(&adapters, &app, &["python".to_owned()], &dir);
+    let outcome = adapters::run_all(
+        &adapters,
+        &app,
+        &["python".to_owned()],
+        &Default::default(),
+        &dir,
+    );
     std::fs::remove_dir_all(&dir).ok();
     outcome
 }
@@ -185,7 +191,13 @@ fn a_list_left_by_an_earlier_run_does_not_vouch_for_this_one() {
         r#"{"paths":{"scanned":["src/app.py","tests/test_app.py"]}}"#,
     )
     .unwrap();
-    let outcome = adapters::run_all(&adapters, &app, &["python".to_owned()], &dir);
+    let outcome = adapters::run_all(
+        &adapters,
+        &app,
+        &["python".to_owned()],
+        &Default::default(),
+        &dir,
+    );
     std::fs::remove_dir_all(&dir).ok();
     assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
     assert!(
@@ -256,7 +268,13 @@ fn run_over(name: &str, app: impl Fn(&Path) -> PathBuf) -> adapters::AdapterRun 
     let dir = scratch(name);
     let app = app(&dir);
     let adapters = stand_in(&dir, &[("SV_FAKE_RULE", RULE)]);
-    let outcome = adapters::run_all(&adapters, &app, &["python".to_owned()], &dir);
+    let outcome = adapters::run_all(
+        &adapters,
+        &app,
+        &["python".to_owned()],
+        &Default::default(),
+        &dir,
+    );
     std::fs::remove_dir_all(&dir).ok();
     outcome
 }

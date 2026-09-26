@@ -1030,7 +1030,11 @@ another session is not a claim.
   (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
   Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
   **Step 2, `p/ai-best-practices` for apps that use AI, claimed on 26 September 2026 by session
-  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed.
+  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed. **Step 2 done the same day:**
+  adapters can carry `conditional_args`, and semgrep adds the AI pack unless the app is known not to
+  call a model; when nobody has said, it runs, because its rules only ever find something. AISVS goes
+  from 2 to 6 by the honest count, 5 of them findings only, plus V1.3.6. See DESIGN, "The AI pack, for
+  apps that may call a model".
   **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
   what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
   refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
@@ -1039,6 +1043,8 @@ another session is not a claim.
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
   before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+  **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
+  session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
@@ -1060,9 +1066,11 @@ another session is not a claim.
   - **Predictable randomness (V11.5.1) was not written.** `Math.random()` and `random.choice` are fine
     for shuffling a list and wrong for a reset code, and what decides it is where the value goes,
     which a single query cannot see. A rule without that would mostly report shuffles.
-  - Express's two-argument `res.redirect(301, url)` is missed: the first argument is the status,
-    and it is a literal. `send_file`/`redirect_to` in Ruby, `Paths.get` in Java and PHP's
-    `include $x` are not covered. Kotlin and C have no path or redirect query, Rust none of the four.
+  - ~~Express's two-argument `res.redirect(301, url)`, Ruby's `send_file`, Java's `Paths.get`, and
+    PHP's `include $x` are missed.~~ **Claimed on 26 September 2026 by session securevibe-e8. Done the
+    same day**; see DESIGN, "Four ways of writing a path or a redirect that the rules missed". Ruby's
+    `redirect_to` was already covered, and both rules now have queries in all fourteen languages,
+    Kotlin, C, and Rust included, so the rest of this bullet was out of date.
   - The file-path rule is low confidence on purpose: it cannot tell a request value from an internal
     one held in a lowercase variable.
 

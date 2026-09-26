@@ -53,7 +53,13 @@ fn run(id: &str, language: &str, report: &Path, app: &Path) -> adapters::Adapter
     let name = report.file_stem().unwrap().to_string_lossy();
     let scratch = scratch(&format!("{id}-work-{name}"));
     let adapters = replaying(id, report, &scratch);
-    let outcome = adapters::run_all(&adapters, app, &[language.to_owned()], &scratch);
+    let outcome = adapters::run_all(
+        &adapters,
+        app,
+        &[language.to_owned()],
+        &Default::default(),
+        &scratch,
+    );
     std::fs::remove_dir_all(&scratch).ok();
     outcome
 }

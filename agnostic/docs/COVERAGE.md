@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 129 (37%) | 5 | 211 |
-| OWASP AISVS 1.0 | 191 | 2 (1%) | 0 | 189 |
+| OWASP AISVS 1.0 | 191 | 6 (3%) | 0 | 185 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
@@ -50,9 +50,9 @@ With nothing beyond plain `sv check`, 13 ASVS requirements can be settled. 28 ca
 
 ### Semgrep: rules in its map that are not run
 
-Semgrep is counted above only through rules in a pack the adapter runs (`p/security-audit`, 225 rules, measured 2026-09-26 with semgrep 1.176.0). Its map names more requirements through rules no pack it runs loads; nothing counts those, and a report never credited them either, since a clean run is credited only with the rules its own report lists. 19 requirements are named that way and by no semgrep rule that runs:
+Semgrep is counted above only through rules in a pack the adapter runs (`p/ai-best-practices`, 27 rules, run unless the app is known not to call a model, measured 2026-09-26 with semgrep 1.176.0, `p/security-audit`, 225 rules, measured 2026-09-26 with semgrep 1.176.0). Its map names more requirements through rules no pack it runs loads; nothing counts those, and a report never credited them either, since a clean run is credited only with the rules its own report lists. 13 requirements are named that way and by no semgrep rule that runs:
 
-C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12, V3.3.2, V3.5.5, V4.4.1, V9.1.1, V9.2.1, V11.3.3, V11.4.2, V11.4.3, V16.2.5.
+C2.1.6, C7.1.2, C7.3.1, V1.3.12, V3.3.2, V3.5.5, V4.4.1, V9.1.1, V9.2.1, V11.3.3, V11.4.2, V11.4.3, V16.2.5.
 
 ## ASVS 5.0 by chapter
 
@@ -199,7 +199,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V1.2.6 | L2 | Outside tools: `semgrep`, `codeql-python` |
 | V1.2.7 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.2.9 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
-| V1.3.6 | L2 | Outside tools: `gosec`, `codeql-javascript`, `codeql-python` |
+| V1.3.6 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.3.7 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.3.10 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V1.3.12 | L3 | Outside tools: `brakeman`, `codeql-javascript`, `codeql-python` |
@@ -247,24 +247,28 @@ does not reach.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 1 | 0 | 11 |
+| C2 Input Validation | 12 | 2 | 0 | 10 |
 | C3 Model Lifecycle Management & Change Control | 15 | 0 | 0 | 15 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 0 | 0 | 14 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
 | C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 0 | 0 | 13 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 1 | 0 | 33 |
-| C10 Model Context Protocol (MCP) Security | 23 | 0 | 0 | 23 |
+| C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
+| C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
 | C11 Adversarial Robustness | 17 | 0 | 0 | 17 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 0 | 0 | 21 |
 
-1 of these 2 can only ever be marked *needs attention*: the rules
+5 of these 6 can only ever be marked *needs attention*: the rules
 about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
-- C2.1.6: settled by `codeql-javascript` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `('codeql-javascript', 'js/system-prompt-injection')`.
-- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time).
+- C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
+- C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
+- C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
+- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
+- C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 
 ## Secure by Design checklist 0.5.0 by domain
 

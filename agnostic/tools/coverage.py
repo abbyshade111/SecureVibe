@@ -210,14 +210,29 @@ CREDITED_BY_TOOL = defaultdict(set)
 NOT_RUN = defaultdict(set)
 
 
+# How a condition reads in "run unless the app is known not to …".
+CONDITION_WORDS = {"ai": "call a model"}
+
+
+def semgrep_packs(adapter):
+    """Pack -> the condition it runs for, or None for every app. A pack in `conditional_args` is left
+    out of a run only for an app known not to meet its condition."""
+    out = {}
+    for args, condition in [(adapter["run"]["args"], None)] + [
+            (c["args"], c["condition"]) for c in adapter.get("conditional_args", [])]:
+        for i, a in enumerate(args[:-1]):
+            if a == "--config":
+                out[args[i + 1]] = condition
+    return out
+
+
 def semgrep_loaded(adapter):
     """The semgrep rules the adapter's packs load, as measured in data/semgrep-packs.json.
 
     The map knows about a thousand rules; the adapter runs registry packs, and a pack loads only some
     of them. A rule no pack loads is never run, so it is evidence of nothing, whatever the map says.
     """
-    args = adapter["run"]["args"]
-    packs = [args[i + 1] for i, a in enumerate(args[:-1]) if a == "--config"]
+    packs = list(semgrep_packs(adapter))
     measured = load(AGNOSTIC / "data/semgrep-packs.json")["packs"]
     unmeasured = [p for p in packs if p not in measured]
     if unmeasured:
@@ -370,12 +385,17 @@ def main():
 
     # ---- semgrep rules in the map that no pack it runs loads
     packs = load(AGNOSTIC / "data/semgrep-packs.json")["packs"]
+    when = semgrep_packs(next(a for a in load(AGNOSTIC / "data/adapters.json")["adapters"]
+                              if a["id"] == "semgrep"))
     named_elsewhere = {q for q in NOT_RUN if "semgrep" not in ev[q]["tools"]}
     order = lambda q: [int(x) for x in re.findall(r"\d+", q)]
     w("### Semgrep: rules in its map that are not run\n")
     w("Semgrep is counted above only through rules in a pack the adapter runs ("
-      + ", ".join(f"`{p}`, {len(v['rules'])} rules, measured {v['measured']} with semgrep {v['semgrep']}"
-                  for p, v in sorted(packs.items()))
+      + ", ".join(f"`{p}`, {len(v['rules'])} rules"
+                  + (f", run unless the app is known not to {CONDITION_WORDS.get(when[p], 'meet `' + when[p] + '`')}"
+                     if when.get(p) else "")
+                  + f", measured {v['measured']} with semgrep {v['semgrep']}"
+                  for p, v in sorted(packs.items()) if p in when)
       + "). Its map names more requirements through rules no pack it runs loads; nothing counts those,"
       " and a report never credited them either, since a clean run is credited only with the rules its"
       f" own report lists. {len(named_elsewhere)} requirements are named that way and by no semgrep rule"
@@ -464,17 +484,22 @@ def main():
     w("show it present, so a clean run credits none of them. Each needs `--tools`.\n")
     for q in settled_ai:
         rules = sorted(FINDINGS_ONLY.get(q, ()))
+        # A tool whose rules only ever find this failing does not settle it, whichever tool it is.
+        finding_only_tools = {tool for tool, _ in rules} - CREDITED_BY_TOOL[q]
         names = [c for tier, checks in ev[q].items() for c in checks
-                 if not (tier == "tools" and c == "semgrep" and rules)]
+                 if not (tier == "tools" and c in finding_only_tools)]
         parts = []
         if names:
             parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"
                          + (f" and {len(names) - 4} more" if len(names) > 4 else "")
-                         + " (its applicability rule classifies it `scanner-clean`, so a clean credential"
-                         " scan counts; the scan reads the repository, not what reaches the model's"
-                         " context at run time)")
-        if rules:
-            parts.append("found failing by semgrep's " + ", ".join(f"`{r}`" for r in rules))
+                         + (" (its applicability rule classifies it `scanner-clean`, so a clean credential"
+                            " scan counts; the scan reads the repository, not what reaches the model's"
+                            " context at run time)" if any(c.startswith("secrets.") for c in names) else ""))
+        by_tool = defaultdict(list)
+        for tool, r in rules:
+            by_tool[tool].append(f"`{r}`")
+        for tool, found in by_tool.items():
+            parts.append(f"found failing by {tool}'s " + ", ".join(found))
         w(f"- {q}: " + "; and ".join(parts) + ".")
     w("")
 

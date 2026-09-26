@@ -2,6 +2,7 @@
 """Records which rules each semgrep registry pack loads, so the coverage count is only what runs.
 
     python3 tools/semgrep_packs.py                       # run each pack the adapter uses, record it
+    python3 tools/semgrep_packs.py p/ai-best-practices   # only that one
     python3 tools/semgrep_packs.py --from-sarif FILE p/security-audit   # record a run already made
 
 `data/adapters.json` maps about a thousand semgrep rules to requirements, but the adapter runs
@@ -34,10 +35,11 @@ FIXTURE_APP = AGNOSTIC / "crates" / "sv-check" / "tests" / "fixtures" / "semgrep
 
 
 def adapter_packs() -> list:
-    """The registry packs the semgrep adapter runs, from its `--config` arguments."""
+    """The registry packs the semgrep adapter runs, from its `--config` arguments, including those it
+    adds only for an app a condition may hold for (`conditional_args`)."""
     semgrep = next(a for a in json.loads(ADAPTERS.read_text())["adapters"] if a["id"] == "semgrep")
-    args = semgrep["run"]["args"]
-    return [args[i + 1] for i, a in enumerate(args[:-1]) if a == "--config"]
+    lists = [semgrep["run"]["args"]] + [c["args"] for c in semgrep.get("conditional_args", [])]
+    return [args[i + 1] for args in lists for i, a in enumerate(args[:-1]) if a == "--config"]
 
 
 def loaded(sarif: dict) -> tuple:
@@ -65,6 +67,8 @@ def main() -> None:
     parser.add_argument("--from-sarif", nargs=2, metavar=("FILE", "PACK"),
                         help="record a run already made, of PACK, rather than running semgrep")
     parser.add_argument("--date", help="the date the run was made, YYYY-MM-DD (default: today)")
+    parser.add_argument("only", nargs="*", metavar="PACK",
+                        help="measure only these of the adapter's packs (default: all of them)")
     args = parser.parse_args()
     today = args.date or datetime.date.today().isoformat()
     packs = json.loads(PACKS.read_text()) if PACKS.exists() else {"packs": {}}
@@ -72,8 +76,11 @@ def main() -> None:
         path, pack = args.from_sarif
         runs = {pack: (json.loads(Path(path).read_text()), str(Path(path).resolve().relative_to(AGNOSTIC)))}
     else:
+        unknown = [p for p in args.only if p not in adapter_packs()]
+        if unknown:
+            sys.exit("the semgrep adapter does not run " + ", ".join(unknown))
         runs = {pack: (measure(pack), "a run over crates/sv-check/tests/fixtures/semgrep/app")
-                for pack in adapter_packs()}
+                for pack in adapter_packs() if not args.only or pack in args.only}
     for pack, (sarif, source) in runs.items():
         ids, version = loaded(sarif)
         packs["packs"][pack] = {"measured": today, "semgrep": version, "from": source, "rules": ids}
