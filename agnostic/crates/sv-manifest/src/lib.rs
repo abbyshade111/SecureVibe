@@ -304,7 +304,8 @@ pub struct UsersSection {
 
 /// `[stack.run.users.browser]`: what a real browser is asked to do as the first user.
 ///
-/// Every private page is opened in it to see whether the sign-out control can be seen, and, with
+/// Every private page is opened in it to see whether the sign-out control can be seen; a sign-in of
+/// its own is signed out with that control to see whether the browser's storage is emptied; and, with
 /// `text-form`, a line of text containing markup is typed into a form to see whether the page that
 /// shows it draws the markup or the text.
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]

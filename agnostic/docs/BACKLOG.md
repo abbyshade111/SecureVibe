@@ -530,9 +530,10 @@ another session is not a claim.
      not only found in the HTML). See DESIGN, "A real browser inside the fence". The count above was
      wrong about which requirement the typed markup reaches: it is V3.2.2, content meant as text; V1.3.1
      asks for a sanitizer for rich text, which an app that shows text as text does not need and a
-     browser cannot see being used. Left: V14.3.1 (storage emptied after sign-out, which means
-     signing the browser out, so it needs a session of its own that no later check is using);
-     V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
+     browser cannot see being used. **V14.3.1 is done the same day as well:** a sign-in of the
+     browser's own is signed out with the app's control, and what the app kept in the browser's
+     storage for the signed-in person has to be gone. See DESIGN, "Signing out in the browser".
+     **With that, the item is done.** Not part of it: V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
      the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
      in every real browser, which a check could say directly.

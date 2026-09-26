@@ -9,7 +9,11 @@
 //   {"goto": "/path"}                     -> {"status": 200, "path": "/where/it/ended"}
 //   {"fill": "/path", "text": "..."}      -> {"status", "found": bool, "after": {"status", "path"}}
 //   {"eval": "expression"}                -> {"value": ...}
+//   {"act": "expression"}                 -> {"found": bool, "after": {"status", "path"}}
+//       runs an expression that does something in the page, such as clicking, and answers
+//       whether it found what to do; when it did, waits for wherever that leads.
 //   {"wait": 500}                         -> {}
+//   {"cookies": [[name, value]]}          -> {} (sets them for the app, as the job's own do)
 
 const job = JSON.parse(Buffer.from(process.env.SV_JOB || '', 'base64').toString('utf8'));
 const DEVTOOLS = 'http://127.0.0.1:9223';
@@ -129,9 +133,21 @@ for (const action of job.actions || []) {
       const found = r.result?.result?.value === true;
       if (found) await settle();
       results.push({ ...opened, found, after: { status, path: await where() } });
+    } else if ('act' in action) {
+      loaded = false;
+      status = 0;
+      const r = await page('Runtime.evaluate', { expression: action.act, returnByValue: true });
+      const found = r.result?.result?.value === true;
+      if (found) await settle();
+      results.push({ found, after: { status, path: await where() } });
     } else if ('eval' in action) {
       const r = await page('Runtime.evaluate', { expression: action.eval, returnByValue: true, awaitPromise: true });
       results.push({ value: r.result?.result?.value ?? null });
+    } else if ('cookies' in action) {
+      for (const [name, value] of action.cookies) {
+        await page('Network.setCookie', { name, value, url: job.app, path: '/' });
+      }
+      results.push({});
     } else if ('wait' in action) {
       await sleep(Math.min(action.wait, 5000));
       results.push({});
