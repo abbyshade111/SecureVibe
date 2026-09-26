@@ -1613,10 +1613,42 @@ common log format. Credit on presence only: a processor can be taught any consis
 log shipper often structures lines on the way, so free text is *not assessed*. Logfmt needs at least
 three `key=value` pairs making up half the line, so a sentence with one equals sign is a sentence.
 
-Two things left out, and why. V4.4.3 and V4.4.4 ask about a WebSocket's own session, which is only a
-fault if the connection is meant to be private, and nothing in the manifest says that yet. And
-V15.3.5, type confusion, was on the list and is not built here: a probe for it sends sign-in requests
-shaped to get in without the password.
+Left out here: V15.3.5, type confusion, was on the list and is not built: a probe for it sends
+sign-in requests shaped to get in without the password. V4.4.3 and V4.4.4 were left out at first
+because a WebSocket's own session is only a fault if the connection is meant to be private, and
+nothing said so; they are now asked, below.
+
+**V4.4.3 and V4.4.4, a private WebSocket's session.** The owner says which socket needs a sign-in
+with `private-websocket = "/ws"` under `[stack.run.users]`. The check signs A in afresh, so the
+socket is asked with a session nothing else is using, and runs after the checks that need A's first
+session. In order:
+
+- **The signed-in handshake first.** It has to upgrade (`101`), or the path is not the socket or the
+  socket refuses everybody, and the rest is *not assessed*.
+- **V4.4.4, no real session.** The same handshake with no session, and with a cookie of the session's
+  name and length and a made-up value. Either upgrading is a finding. Both refused is credited: the
+  channel opens only through the signed-in session. When the session is not a cookie (a bearer token),
+  a value cannot be made up that way, and a refusal with none is half the answer, so it is *not
+  assessed* and says so.
+- **V4.4.3, signed out.** The session is signed out with `logout`, and its old cookie sent in another
+  handshake. Upgrading is a finding. It is asked only when the step before showed a real session is
+  needed: a socket that lets anybody in lets in a signed-out cookie too, and the first version raised
+  that as a second finding for the same fault. The fake app's socket for anybody is what caught it. A
+  refusal is not credited: V4.4.3 asks that a socket's own tokens meet every session requirement, and
+  ending at sign-out is one of them, which the report says.
+
+Only the handshake is judged, and it is the handshake that carries the session; what the socket does
+once open is not asked. The anonymous V4.4.2 check still sends its foreign-origin handshake with no
+session, so for a private socket it now reports *not assessed*: the plain handshake is refused, so
+there is no accepted handshake to compare the foreign one with. Asking V4.4.2 with the session is left
+over.
+
+Verified end to end with a scratch Python app answering the handshake itself: the careful one was
+credited for V4.4.4 and said V4.4.3 was partial; one that lets a handshake with no cookie in raised
+V4.4.4 and did not ask about sign-out; one that remembers signed-out sessions raised V4.4.3. The break
+round found two guards with no witness — a handshake with no session let in while a made-up one was
+refused, and a credit given when no value could be made up — and four with one; each now has two or
+more.
 
 ### A mail server inside the fence, and password reset
 
