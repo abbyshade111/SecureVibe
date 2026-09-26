@@ -30,10 +30,12 @@ admin = ["/admin"]
 owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } } }
 change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
+upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" }, serves-at = "/files/{name}", max-bytes = 65536 }
 
 [data]
 categories = ["contact"]
 
 [capabilities]
 auth = true
+uploads = true
 tls = "terminated-upstream"

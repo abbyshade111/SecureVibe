@@ -1230,6 +1230,95 @@ for, and a probe with no answer is already reported as unanswered. The finished 
 before it reaches the sidecar's shell, so nothing in a header value can end the command it travels in — a
 scanner that can be made to run a shell command by the app it is scanning would be a poor advertisement.
 
+### Three more questions for the running app
+
+Three Level 2 requirements that the questions already being asked were one response away from
+answering, with no new manifest entry between them.
+
+**`Cache-Control: no-store` on private pages (V14.3.2).** The signed-in session already opens every
+page `private` names; this reads the headers that came back with it. `no-store` is the only value
+that answers the requirement, and the check says so by matching the directive exactly rather than
+looking for the text: `no-cache` permits the browser to keep the copy and asks it to revalidate, and
+`private` only rules out a shared cache. Both are the half-right answer an app is most likely to
+have, and both leave the page on a shared machine after the person signs out. A looser reading turns
+two tests red.
+
+**A visible sign-out link on private pages (V7.4.4).** The same responses, read for a link or a form
+pointing at the `logout` address. It reads `href` and `action` attributes rather than searching the
+page for the address, because a page that names `/logout` in a script string or a comment offers the
+person nothing — and the fake app's flawed page now does exactly that, so the end-to-end flaw test
+catches the loose reading too. What it cannot tell is whether the control is *visible*: a link
+inside a collapsed menu counts here, which is why finding one is worth no more than it says.
+
+Both need `private` to have opened for the signed-in user first. When it did not, they report *not
+assessed* rather than a pass or a finding — and because a page that never opens ends the run before
+these checks are reached, the three earlier bail-outs now name V14.3.2 and V7.4.4 too. A requirement
+nothing asked about has to be said out loud wherever the asking stopped.
+
+**Directory listings (V13.4.3).** This one is an anonymous probe, beside the `.git` check for
+V13.4.1, rather than a signed-in one: a folder that lists its contents does so for anybody, and
+putting it behind `[stack.run.users]` would have meant asking it only of apps with sign-in. Six
+common folder paths are requested with a trailing slash, and a listing is recognized by what the
+three servers that produce one actually write — Apache and nginx both head the page "Index of /x",
+Python's `http.server` writes "Directory listing for /x".
+
+That precision is also the limit, and it is why this **only ever produces a finding**. Six guesses
+are six guesses, three signatures miss a listing a framework renders in its own words, and finding
+nothing would be a statement about what was guessed rather than about the app. Matching "a page with
+several links in it" instead — the obvious alternative — turns three tests red, because every real
+page is a page with several links in it.
+
+The request id and the check have to agree, or the probe is dead: the request goes out, the response
+comes back, and nothing reads it, with nothing failing anywhere. Both sides call one `listing_id`
+function, and a test builds its responses from the real request list rather than from ids typed into
+the test, so drift between them is caught rather than silently tolerated.
+
+### The `upload` entry
+
+Four Level 1 requirements turn on what an app does with a file somebody sends it, and all four are
+about behavior rather than code, so the probes can reach them once `securevibe.toml` says how to
+upload:
+
+```toml
+upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" },
+           serves-at = "/files/{name}", max-bytes = 1048576 }
+```
+
+`max-bytes` is the documented policy for V5.2.1, in the same shape as `[policy] failed-sign-ins`:
+prose cannot be checked, a number can. `serves-at` is optional, and its absence is an answer rather
+than a gap — an app that stores uploads where no URL reaches them is the safest arrangement there
+is, so V5.3.1 and V3.2.1 come back *not assessed* rather than failed.
+
+**An ordinary file goes first, and everything else is read against it.** Each of these checks is
+looking for a refusal, and an app whose upload path is not what the manifest says refuses
+everything. Without the ordinary file, the least working app imaginable would score four passes —
+the most flattering possible result for the app that deserves it least. So a real GIF is uploaded
+first, and if that fails all four are not assessed, naming why.
+
+**The files are GIFs because the body has to be text.** A probe request carries a `String`, so a
+real PNG header cannot be written into one: `\x89PNG` is not valid UTF-8. `GIF87a` is ASCII, which
+is why the good file is a GIF — a convenience of the harness, not a claim about what apps accept.
+The mismatched file claims `.gif` as well, so that both halves of the comparison share an extension
+and a refusal can only be about the contents.
+
+**What "executed" means is one distinction, and it is not the marker.** Both the safe and the unsafe
+answer contain the marker string the file was given: served as-is, it is inside the source; run, it
+is the output. The check reads whether `<?php` came back, not whether the marker did. A check keyed
+on the marker alone cannot tell the two apart at all, and two tests hold that.
+
+**Rendering is judged by any of three answers**, because ASVS names several: `Content-Disposition:
+attachment`, a `Content-Security-Policy` with `sandbox`, or a content type that is not HTML.
+Insisting on one would report apps that chose another; accepting none of them would credit every
+app. Both halves are tested.
+
+There is a cap on what is sent. A stated limit above 8 MB is not tested, and says so: the point is
+to find an app that takes anything, not to turn one check into a denial-of-service attempt against
+somebody's own app. The fake app records the largest body it was ever sent, because that promise is
+about what goes over the wire and no finding or note can show it.
+
+Left over, reachable the same way and not written: V5.3.2 (a path built from a submitted file name)
+and V5.4.1 with V5.4.2 (the file name and disposition the app sends back).
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

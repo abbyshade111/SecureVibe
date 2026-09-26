@@ -105,6 +105,35 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
             body: None,
         },
     ]
+    .into_iter()
+    .chain(LISTING_PATHS.iter().map(|path| ProbeRequest {
+        id: listing_id(path),
+        method: "GET".into(),
+        path: (*path).to_owned(),
+        headers: Vec::new(),
+        body: None,
+    }))
+    .collect()
+}
+
+/// Folders a web server is most often left serving, asked for with the trailing slash that makes a
+/// server offer a listing rather than a file.
+///
+/// Six guesses are six guesses. Finding none is not evidence that nothing lists, which is why the
+/// check below is a finding and never a pass.
+const LISTING_PATHS: &[&str] = &[
+    "/static/",
+    "/assets/",
+    "/uploads/",
+    "/public/",
+    "/images/",
+    "/files/",
+];
+
+/// The probe id for one of those paths. A response carries its id and not its path, so the request
+/// and the check have to agree on this, and they agree by both calling it.
+fn listing_id(path: &str) -> String {
+    format!("listing-{}", path.trim_matches('/'))
 }
 
 /// Requirements this suite cannot speak to, and why. Never folded into a pass.
@@ -192,6 +221,7 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     }
     out.extend(content_type(&with_bodies(responses)));
     out.extend(source_control_exposed(responses));
+    out.extend(directory_listing(responses));
     out.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -388,6 +418,57 @@ fn source_control_exposed(responses: &[ProbeResponse]) -> Option<Finding> {
         format!(
             "The app answered {} with git's own contents.",
             what.join(" and ")
+        ),
+    ))
+}
+
+const DIRECTORY_LISTING: Rule = Rule {
+    rule_id: "probe.directory-listing",
+    confidence: Confidence::High,
+    requirement_ids: &["V13.4.3"],
+    cwe: &["CWE-548"],
+    impact: "A folder that lists its contents shows everything in it, including files nobody \
+             linked to and nobody meant to publish — a backup, an export, a key.",
+    fix: "Turn the listing off in the web server (`autoindex off` in nginx, `Options -Indexes` in \
+          Apache) and serve a real page or a 404 instead.",
+};
+
+/// A folder that answers with its own contents.
+///
+/// Matched on what the three servers that do this actually write — Apache and nginx both head the
+/// page "Index of /x", Python's `http.server` writes "Directory listing for /x" — rather than on
+/// "a page with several links in it", which every real page is.
+///
+/// That precision is also the limit: a listing a framework renders itself, in its own words, is not
+/// found here. Between guessing six paths and reading only three signatures, finding nothing means
+/// nothing was found, not that nothing lists, so this is only ever a finding and never credits
+/// V13.4.3.
+fn directory_listing(responses: &[ProbeResponse]) -> Option<Finding> {
+    let listed: Vec<&str> = LISTING_PATHS
+        .iter()
+        .filter(|path| {
+            responses
+                .iter()
+                .find(|r| r.id == listing_id(path))
+                .is_some_and(|r| {
+                    (200..300).contains(&r.status)
+                        && (r.body.contains("Index of /")
+                            || r.body.contains("Directory listing for"))
+                })
+        })
+        .copied()
+        .collect();
+    if listed.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &DIRECTORY_LISTING,
+        "A folder on the app's address lists its contents",
+        Severity::Medium,
+        format!(
+            "The app answered {} with a listing of what is in {}.",
+            listed.join(", "),
+            if listed.len() == 1 { "it" } else { "them" }
         ),
     ))
 }
@@ -1003,8 +1084,17 @@ mod tests {
     #[test]
     fn the_suite_asks_what_it_says_it_asks() {
         let requests = requests("/healthz");
-        assert_eq!(requests.len(), 6);
+        assert_eq!(requests.len(), 6 + LISTING_PATHS.len());
         assert!(requests.iter().any(|r| r.path == "/.git/HEAD"));
+        // Every listing path is asked for, and each response can be found again by its id: the
+        // check reads `id`, not `path`, so a request whose id it cannot rebuild is a dead probe.
+        for path in LISTING_PATHS {
+            let request = requests
+                .iter()
+                .find(|r| r.path == **path)
+                .unwrap_or_else(|| panic!("{path} is never asked for"));
+            assert_eq!(request.id, listing_id(path), "{path}");
+        }
         assert!(requests.iter().any(|r| r.path == "/.git/config"));
         assert!(
             requests
@@ -1169,5 +1259,130 @@ mod tests {
         let login = |id: &str| response(id, 200, &[], "<form><input name=password></form>");
         let answers = [login("git-head"), login("git-config")];
         assert!(!ids(&evaluate(&answers)).contains(&"probe.source-control-exposed"));
+    }
+
+    // ---- Directory listings (V13.4.3)
+
+    #[test]
+    fn a_server_default_directory_listing_is_found() {
+        // The three servers that actually do this, in the words each writes. Apache and nginx both
+        // head the page "Index of /x"; Python's http.server writes "Directory listing for /x".
+        for (server, body) in [
+            (
+                "nginx",
+                "<html><head><title>Index of /static/</title></head><body><h1>Index of /static/</h1><hr><pre><a href=\"../\">../</a>\n<a href=\"backup.sql\">backup.sql</a>\n</pre></body></html>",
+            ),
+            (
+                "Apache",
+                "<html><head><title>Index of /uploads</title></head><body><h1>Index of /uploads</h1><table><tr><td><a href=\"invoice.pdf\">invoice.pdf</a></td></tr></table></body></html>",
+            ),
+            (
+                "python",
+                "<!DOCTYPE HTML><html><head><title>Directory listing for /files/</title></head><body><h1>Directory listing for /files/</h1><ul><li><a href=\"keys.txt\">keys.txt</a></li></ul></body></html>",
+            ),
+        ] {
+            let path = if body.contains("/static") {
+                "/static/"
+            } else if body.contains("/uploads") {
+                "/uploads/"
+            } else {
+                "/files/"
+            };
+            let finding = directory_listing(&[response(&listing_id(path), 200, &[], body)])
+                .unwrap_or_else(|| panic!("{server}'s listing of {path} was not found"));
+            assert_eq!(finding.rule_id, "probe.directory-listing");
+            assert!(
+                finding.description.contains(path),
+                "{}",
+                finding.description
+            );
+            assert!(finding.requirement_ids.iter().any(|r| r == "V13.4.3"));
+        }
+    }
+
+    #[test]
+    fn an_ordinary_page_full_of_links_is_not_a_directory_listing() {
+        // Why this matches the servers' own words rather than "a page with several links in it":
+        // every real page is a page with several links in it, and a finding on each one would make
+        // the check worthless. A 404 page and a redirect must not count either.
+        let pages = [
+            response(
+                &listing_id("/static/"),
+                200,
+                &[],
+                "<h1>Our files</h1><a href='/a'>A</a><a href='/b'>B</a><a href='/c'>C</a>",
+            ),
+            response(
+                &listing_id("/assets/"),
+                404,
+                &[],
+                "<h1>Index of /assets/</h1>",
+            ),
+            response(&listing_id("/uploads/"), 301, &[], ""),
+            response(&listing_id("/public/"), 403, &[], "Forbidden"),
+        ];
+        assert!(directory_listing(&pages).is_none());
+    }
+
+    #[test]
+    fn every_listing_path_is_actually_asked_for() {
+        // The dead-probe guard, in the other direction from the suite test: a body that lists is
+        // only found if a request for that path was made and its response can be found by id.
+        for path in LISTING_PATHS {
+            let body = format!("<h1>Index of {path}</h1>");
+            assert!(
+                directory_listing(&[response(&listing_id(path), 200, &[], &body)]).is_some(),
+                "{path} is in the list but its response is never matched"
+            );
+        }
+    }
+
+    #[test]
+    fn a_listing_is_found_through_the_real_request_list() {
+        // Closes the loop between what the suite asks for and what the check looks for. Both sides
+        // compute the probe id, and if they ever compute it differently the probe is dead: the
+        // request still goes out, the response still comes back, and nothing reads it. Nothing
+        // fails, which is the whole danger — so this builds its responses from `requests()` itself
+        // rather than from ids typed into the test.
+        let requests = requests("/healthz");
+        let responses: Vec<ProbeResponse> = requests
+            .iter()
+            .map(|r| {
+                let body = if r.path == "/uploads/" {
+                    "<h1>Index of /uploads/</h1><pre><a href='tax-return.pdf'>tax-return.pdf</a></pre>"
+                } else {
+                    "nothing here"
+                };
+                response(&r.id, if r.path == "/uploads/" { 200 } else { 404 }, &[], body)
+            })
+            .collect();
+        let findings = evaluate(&responses);
+        let listing = findings
+            .iter()
+            .find(|f| f.rule_id == "probe.directory-listing")
+            .expect("the listing the suite asked for was never read back");
+        assert!(
+            listing.description.contains("/uploads/"),
+            "{}",
+            listing.description
+        );
+    }
+
+    #[test]
+    fn finding_no_listing_credits_nothing() {
+        // Six guesses and three signatures. Finding nothing is not evidence that nothing lists, so
+        // V13.4.3 must never appear among the confirmed checks.
+        let clean: Vec<ProbeResponse> = LISTING_PATHS
+            .iter()
+            .map(|p| response(&listing_id(p), 404, &[], "not found"))
+            .collect();
+        assert!(directory_listing(&clean).is_none());
+        let credited = verified(&clean);
+        assert!(
+            !credited
+                .iter()
+                .any(|v| v.requirement_ids.iter().any(|r| r == "V13.4.3")),
+            "a clean sweep of six guesses credited V13.4.3: {credited:?}"
+        );
     }
 }

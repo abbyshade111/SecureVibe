@@ -425,6 +425,28 @@ const OTHER_USERS_DATA: Rule = Rule {
           record that is not yours is simply not found.",
 };
 
+const PRIVATE_PAGE_CACHING: Rule = Rule {
+    rule_id: "probe.private-page-cached",
+    requirement_ids: &["V14.3.2"],
+    cwe: &["CWE-525"],
+    impact: "A private page a browser is allowed to store stays on the machine after the person \
+             signs out, where the next person to press Back can read it — which is what shared and \
+             public computers make ordinary.",
+    fix: "Send `Cache-Control: no-store` on every response that shows somebody's own data. \
+          `no-cache` is not the same thing: it allows the copy to be kept and asks for it to be \
+          revalidated.",
+};
+
+const SIGN_OUT_LINK: Rule = Rule {
+    rule_id: "probe.no-sign-out-link",
+    requirement_ids: &["V7.4.4"],
+    cwe: &["CWE-613"],
+    impact: "Somebody who cannot find how to sign out stays signed in, and a session left open on \
+             a shared machine is the next person's session.",
+    fix: "Put a visible sign-out control on every page that needs signing in — a link to the \
+          sign-out address, or a small form that posts to it.",
+};
+
 const OVERSIZED_FILE: Rule = Rule {
     rule_id: "probe.oversized-file-accepted",
     requirement_ids: &["V5.2.1"],
@@ -758,7 +780,7 @@ pub fn run(
     let problems = users.problems();
     if !problems.is_empty() {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V14.3.2, V7.4.4".to_owned(),
             format!(
                 "[stack.run.users] in securevibe.toml cannot be used: {}.",
                 problems.join("; ")
@@ -811,7 +833,7 @@ pub fn run(
     //    refusals to refusals.
     let Some(a) = sign_in(http, users, "a", &accounts.a, &mut out.steps) else {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
             "Signing in as the first test user got no answer from the app.".to_owned(),
         ));
         return out;
@@ -831,7 +853,7 @@ pub fn run(
     };
     if confirm_path.is_some() && !signed_in_works && served_anonymously.is_empty() {
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
             format!(
                 "Signing in as the first test user did not open {} — the sign-in request, the \
                  accounts, or the page is not what securevibe.toml says — so nothing here can say \
@@ -861,22 +883,27 @@ pub fn run(
     // 4. The session cookie, and whether signing in made a new one.
     session_checks(&a, signed_in_works || owned_read.is_some(), &mut out);
 
-    // 5. Admin pages, as an ordinary user, confirmed against the admin.
+    // 5. The private pages themselves, read with A's session: what they let a browser keep, and
+    //    whether they show a way out. Before anything that signs another account in, so the
+    //    session that opened them is the one step 2 showed working.
+    private_page_checks(http, users, &a, &mut out);
+
+    // 6. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
 
-    // 5b. Uploads, with A's session, before anything below signs another account in. Placed here
+    // 6b. Uploads, with A's session, before anything below signs another account in. Placed here
     //     rather than at the end because it needs a working session and nothing it does disturbs
     //     one: it posts files and fetches them back.
     upload_checks(http, users, &a, &mut out);
 
-    // 6. What sign-up and sign-in let through: passwords and default accounts. These sign in as
+    // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 
-    // 7. Logging out, which ends A's session.
+    // 8. Logging out, which ends A's session.
     logout_check(
         http,
         users,
@@ -885,13 +912,13 @@ pub fn run(
         &mut out,
     );
 
-    // 8. Last, because each signs A in again, and an app that allows one session per user would
+    // 9. Last, because each signs A in again, and an app that allows one session per user would
     //    end the one the checks above were using.
     password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
     session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
     sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
 
-    // 9. Last of all, because it changes a password: with an account made for it when there is a
+    // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
@@ -1889,7 +1916,12 @@ struct Upload<'a> {
 }
 
 /// Builds a multipart body by hand, because there is no HTTP client here to do it.
-fn multipart(boundary: &str, field: &str, file: &Upload, form: &BTreeMap<String, String>) -> String {
+fn multipart(
+    boundary: &str,
+    field: &str,
+    file: &Upload,
+    form: &BTreeMap<String, String>,
+) -> String {
     let mut body = String::new();
     for (name, value) in form {
         body.push_str(&format!("--{boundary}\r\n"));
@@ -2165,7 +2197,11 @@ fn served_upload_checks(
             let ran = !source_intact && fetched.body.contains(MARKER);
             out.steps.push(format!(
                 "fetched an uploaded .php back from {path}: {}",
-                if ran { "it had been run" } else { "served as-is" }
+                if ran {
+                    "it had been run"
+                } else {
+                    "served as-is"
+                }
             ));
             if ran {
                 out.findings.push(finding(
@@ -2242,6 +2278,172 @@ fn served_upload_checks(
 ///
 /// A fresh sign-in, shown to open the private page; a GET to the sign-out address; then the private
 /// page again. Only ever a finding: one address refusing a GET says nothing about the others.
+/// Two questions about the private pages themselves, asked with the session that opened them.
+///
+/// Both are read off the same responses, because both need the same thing shown first: that the
+/// page really opened for a signed-in user. A page that answered 302 to the sign-in screen has no
+/// caching headers worth reading and no sign-out link worth looking for, and counting it either way
+/// would be judging the sign-in page instead.
+fn private_page_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signed_in: &SignedIn,
+    out: &mut Outcome,
+) {
+    if users.private.is_empty() {
+        out.not_assessed.push((
+            "V14.3.2, V7.4.4".to_owned(),
+            "[stack.run.users] lists no `private` pages, so there is no signed-in page to read \
+             caching headers from or to look for a sign-out link on."
+                .to_owned(),
+        ));
+        return;
+    }
+    let logout_path = users.logout.as_ref().map(|l| l.path.as_str());
+
+    let mut opened = Vec::new();
+    let mut not_stored = Vec::new();
+    let mut stored = Vec::new();
+    let mut with_link = Vec::new();
+    let mut without_link = Vec::new();
+
+    for path in &users.private {
+        let Some(response) = http.send(&get("private-page-headers", path, &signed_in.session))
+        else {
+            continue;
+        };
+        if !(200..300).contains(&response.status) {
+            continue;
+        }
+        opened.push(path.clone());
+
+        // `no-store` is the only value that means "do not keep a copy". `no-cache` permits the copy
+        // and asks for it to be revalidated, and `private` only says not to keep it in a shared
+        // cache, so neither answers this requirement.
+        let cache_control = response
+            .header("cache-control")
+            .unwrap_or_default()
+            .to_lowercase();
+        if cache_control
+            .split(',')
+            .any(|part| part.trim() == "no-store")
+        {
+            not_stored.push(path.clone());
+        } else {
+            stored.push(path.clone());
+        }
+
+        if logout_path.is_some_and(|logout| points_at(&response.body, logout)) {
+            with_link.push(path.clone());
+        } else {
+            without_link.push(path.clone());
+        }
+    }
+
+    if opened.is_empty() {
+        out.not_assessed.push((
+            "V14.3.2, V7.4.4".to_owned(),
+            "No private page opened for the signed-in test user, so nothing here could read what \
+             it sends or look for its sign-out link."
+                .to_owned(),
+        ));
+        return;
+    }
+
+    // ---- V14.3.2: Cache-Control: no-store
+    out.steps.push(format!(
+        "{} of {} private page{} sent Cache-Control: no-store",
+        not_stored.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" }
+    ));
+    if stored.is_empty() {
+        out.verified.push(crate::Verified::new(
+            PRIVATE_PAGE_CACHING.rule_id,
+            PRIVATE_PAGE_CACHING.requirement_ids,
+            format!(
+                "{} private page{}, each sending Cache-Control: no-store to a signed-in user",
+                opened.len(),
+                if opened.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &PRIVATE_PAGE_CACHING,
+            "A private page may be kept in the browser's cache",
+            Severity::Medium,
+            format!(
+                "Opened by a signed-in user, {} came back without `Cache-Control: no-store`.",
+                stored.join(", ")
+            ),
+        ));
+    }
+
+    // ---- V7.4.4: a visible way to sign out
+    //
+    // Only asked when securevibe.toml says where signing out happens. Without that there is no
+    // address to look for, and "no sign-out link" would be a statement about the manifest.
+    let Some(logout) = logout_path else {
+        out.not_assessed.push((
+            "V7.4.4".to_owned(),
+            "[stack.run.users] has no `logout`, so there is no sign-out address to look for on the \
+             private pages."
+                .to_owned(),
+        ));
+        return;
+    };
+    out.steps.push(format!(
+        "{} of {} private page{} showed a way to reach {logout}",
+        with_link.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" }
+    ));
+    if without_link.is_empty() {
+        out.verified.push(crate::Verified::new(
+            SIGN_OUT_LINK.rule_id,
+            SIGN_OUT_LINK.requirement_ids,
+            format!(
+                "{} private page{}, each carrying a link or form pointing at {logout}",
+                opened.len(),
+                if opened.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &SIGN_OUT_LINK,
+            "A private page offers no visible way to sign out",
+            Severity::Low,
+            format!(
+                "Opened by a signed-in user, {} carried no link or form pointing at {logout}.",
+                without_link.join(", ")
+            ),
+        ));
+    }
+}
+
+/// Whether a page offers a way to reach `target`: a link to it, or a form that posts to it.
+///
+/// Reads the `href` and `action` attributes rather than searching the whole page for the text, so a
+/// sign-out address mentioned in a comment or a script string is not mistaken for a control the
+/// person can see. What it cannot tell is whether the control is *visible* — a link inside a
+/// collapsed menu counts here — which is why finding one is worth no more than this.
+fn points_at(body: &str, target: &str) -> bool {
+    let matches = |value: &str| {
+        let value = value.trim();
+        value == target
+            || value.trim_end_matches('/') == target.trim_end_matches('/')
+            || value.split('?').next().is_some_and(|v| v == target)
+    };
+    tags(body, "a")
+        .iter()
+        .filter_map(|t| attribute(t, "href"))
+        .any(|href| matches(&href))
+        || tags(body, "form")
+            .iter()
+            .filter_map(|t| attribute(t, "action"))
+            .any(|action| matches(&action))
+}
+
 fn sign_out_on_get_check(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -2959,12 +3161,20 @@ mod tests {
         next: u32,
         /// Old passwords a change left working, under `change_keeps_old`.
         kept: BTreeMap<String, String>,
+        /// Files the app has taken, by name.
+        uploads: BTreeMap<String, String>,
+        /// The largest file body the app was sent, accepted or not. This is how the size cap's
+        /// promise is made observable: the promise is about what is sent, and no finding says it.
+        largest_upload: usize,
         /// Wrong passwords in a row per account, counted only when `locks_out_after` is set.
         failures: BTreeMap<String, u32>,
         /// Every account a wrong password was tried against, always recorded. This is how the
         /// brute-force check's promise not to guess at the test users is made observable: the
         /// promise is about which account it attacks, and no step or finding says which.
         guessed_at: Vec<String>,
+        /// The exact `Cache-Control` a private page sends. `None` means the correct `no-store`,
+        /// so a test can set a value that only looks right without a flaw flag for each one.
+        cache_control: Option<String>,
     }
 
     #[derive(Default, Clone, Copy)]
@@ -3028,12 +3238,31 @@ mod tests {
         delete_does_nothing: bool,
         /// Sign-up asks for the answer to a secret question.
         secret_question: bool,
+        /// Takes a file larger than the stated limit.
+        oversized_upload_ok: bool,
+        /// Takes a .gif whose contents are not a GIF.
+        unchecked_contents_ok: bool,
+        /// Runs an uploaded .php when it is fetched back, serving its output instead of its source.
+        runs_uploaded_code: bool,
+        /// Serves an uploaded .html as text/html with nothing telling the browser not to render it.
+        renders_uploaded_pages: bool,
+        /// Refuses every upload, whatever it is. An app whose upload path does not work as
+        /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
+        upload_broken: bool,
         /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
         /// default, and what a naive app does — counts nothing and accepts guesses forever.
         locks_out_after: Option<u32>,
+        /// Private pages come back without `Cache-Control: no-store`.
+        private_page_cacheable: bool,
+        /// Private pages carry no link or form pointing at the sign-out address — but do name it
+        /// in a script, which is what a page built by JavaScript looks like and what a check
+        /// searching the whole page for the text would wrongly credit.
+        no_sign_out_link: bool,
     }
 
     const CSRF: &str = "tok-123";
+    /// The largest file this fake app takes, matching the max-bytes the tests state.
+    const UPLOAD_LIMIT: usize = 4096;
 
     impl FakeApp {
         fn new(flaws: Flaws) -> Self {
@@ -3418,7 +3647,25 @@ mod tests {
                 }
                 ("GET", "/account") => {
                     if user.is_some() || self.flaws.private_open {
-                        Self::respond(200, vec![], "your account")
+                        // A correct private page: not to be kept by the browser, and carrying a
+                        // visible way out. Each half is switched off by its own flaw, so a test
+                        // that breaks one is not quietly relying on the other.
+                        let headers = match (&self.cache_control, self.flaws.private_page_cacheable)
+                        {
+                            (_, true) => vec![],
+                            (Some(value), _) => vec![("Cache-Control", value.clone())],
+                            (None, _) => vec![("Cache-Control", "no-store".to_string())],
+                        };
+                        let body = if self.flaws.no_sign_out_link {
+                            "your account<script>const OUT = '/logout';</script>".to_string()
+                        } else {
+                            format!(
+                                "your account<form method='post' action='/logout'>\
+                                 <input name='csrf_token' value='{CSRF}'>\
+                                 <button>Sign out</button></form>"
+                            )
+                        };
+                        Self::respond(200, headers, &body)
                     } else {
                         Self::respond(302, vec![("Location", "/login".into())], "")
                     }
@@ -3435,6 +3682,76 @@ mod tests {
                     vec![],
                     &format!("<input name='csrf_token' value='{CSRF}'>"),
                 ),
+                ("POST", "/upload") => {
+                    if user.is_none() || self.flaws.upload_broken {
+                        return Some(Self::respond(403, vec![], "no"));
+                    }
+                    let body = r.body.clone().unwrap_or_default();
+                    let name = body
+                        .split("filename=\"")
+                        .nth(1)
+                        .and_then(|rest: &str| rest.split('"').next())
+                        .unwrap_or("")
+                        .to_owned();
+                    // The file's own bytes: everything after the blank line that ends its part.
+                    let contents = body
+                        .split("application/octet-stream\r\n\r\n")
+                        .nth(1)
+                        .and_then(|rest: &str| rest.rsplit_once("\r\n--"))
+                        .map(|(file, _)| file.to_owned())
+                        .unwrap_or_default();
+                    self.largest_upload = self.largest_upload.max(contents.len());
+                    if contents.len() > UPLOAD_LIMIT && !self.flaws.oversized_upload_ok {
+                        return Some(Self::respond(413, vec![], "too large"));
+                    }
+                    let claims_gif = name.ends_with(".gif");
+                    let is_gif = contents.starts_with("GIF87a") || contents.starts_with("GIF89a");
+                    if claims_gif && !is_gif && !self.flaws.unchecked_contents_ok {
+                        return Some(Self::respond(415, vec![], "not a gif"));
+                    }
+                    self.uploads.insert(name, contents);
+                    Self::respond(201, vec![], "stored")
+                }
+                ("GET", path) if path.starts_with("/files/") => {
+                    let name = path.trim_start_matches("/files/");
+                    let Some(contents) = self.uploads.get(name) else {
+                        return Some(Self::respond(404, vec![], "no such file"));
+                    };
+                    if name.ends_with(".php") {
+                        if self.flaws.runs_uploaded_code {
+                            // Only the output: the source is gone, which is what "it ran" means.
+                            let shown = contents
+                                .split_once("echo \"")
+                                .and_then(|(_, rest)| rest.split_once('"'))
+                                .map(|(out, _)| out.to_owned())
+                                .unwrap_or_default();
+                            return Some(Self::respond(200, vec![], &shown));
+                        }
+                        return Some(Self::respond(
+                            200,
+                            vec![("Content-Type", "text/plain".into())],
+                            contents,
+                        ));
+                    }
+                    if name.ends_with(".html") {
+                        if self.flaws.renders_uploaded_pages {
+                            return Some(Self::respond(
+                                200,
+                                vec![("Content-Type", "text/html; charset=utf-8".into())],
+                                contents,
+                            ));
+                        }
+                        return Some(Self::respond(
+                            200,
+                            vec![
+                                ("Content-Type", "text/html; charset=utf-8".into()),
+                                ("Content-Disposition", "attachment".into()),
+                            ],
+                            contents,
+                        ));
+                    }
+                    Self::respond(200, vec![("Content-Type", "image/gif".into())], contents)
+                }
                 ("POST", "/notes") => {
                     let Some(owner) = user else {
                         return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
@@ -3577,6 +3894,8 @@ mod tests {
             OTHER_USERS_DATA.rule_id,
             FORGERY.rule_id,
             LOGOUT.rule_id,
+            PRIVATE_PAGE_CACHING.rule_id,
+            SIGN_OUT_LINK.rule_id,
         ] {
             assert!(
                 verified_ids(&o).contains(&id),
@@ -3694,6 +4013,20 @@ mod tests {
                     ..Default::default()
                 },
                 SIGN_OUT_ON_GET.rule_id,
+            ),
+            (
+                Flaws {
+                    private_page_cacheable: true,
+                    ..Default::default()
+                },
+                PRIVATE_PAGE_CACHING.rule_id,
+            ),
+            (
+                Flaws {
+                    no_sign_out_link: true,
+                    ..Default::default()
+                },
+                SIGN_OUT_LINK.rule_id,
             ),
         ] {
             let o = run_against(flaw, &users());
@@ -4927,6 +5260,538 @@ mod tests {
                  ({} accounts were guessed at)",
                 app.guessed_at.len()
             );
+        }
+    }
+
+    // ---- The private pages themselves: what they let a browser keep (V14.3.2), and whether they
+    // show a way out (V7.4.4).
+
+    #[test]
+    fn no_cache_is_not_no_store() {
+        // The distinction the whole check turns on, and the one an app is most likely to get
+        // half-right. `no-cache` permits the browser to keep the copy and asks it to revalidate;
+        // `private` only says not to keep it in a shared cache. Neither is what V14.3.2 asks for,
+        // and a substring search for "no-store" inside "no-cache, private" would find nothing
+        // anyway — what would pass wrongly is a looser reading of the header.
+        for value in [
+            "no-cache",
+            "private",
+            "max-age=0",
+            "no-cache, private, max-age=0",
+        ] {
+            let mut app = FakeApp::new(Flaws::default());
+            app.cache_control = Some(value.to_string());
+            let acc = accounts();
+            app.users
+                .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+            app.users
+                .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let o = run(&mut app, &users(), &acc, true, &Default::default());
+            assert!(
+                rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was accepted as no-store: {:?}",
+                rule_ids(&o)
+            );
+            assert!(
+                !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was credited as no-store"
+            );
+        }
+    }
+
+    #[test]
+    fn the_run_note_counts_the_pages_that_answered_each_question() {
+        // A second reading of the same two checks, on the surface the owner actually sees. The
+        // findings list says something is wrong; this line says how much of the app was looked at,
+        // and a check that silently examined nothing would still print a reassuring "0 of 0".
+        let correct = run_against(Flaws::default(), &users());
+        let steps = correct.steps.join(" | ");
+        assert!(
+            steps.contains("1 of 1 private page sent Cache-Control: no-store"),
+            "{steps}"
+        );
+        assert!(
+            steps.contains("1 of 1 private page showed a way to reach /logout"),
+            "{steps}"
+        );
+
+        let mut app = FakeApp::new(Flaws::default());
+        app.cache_control = Some("no-cache, private".to_string());
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let loose = run(&mut app, &users(), &acc, true, &Default::default());
+        assert!(
+            loose
+                .steps
+                .join(" | ")
+                .contains("0 of 1 private page sent Cache-Control: no-store"),
+            "`no-cache, private` was counted as no-store in the run note: {:?}",
+            loose.steps
+        );
+    }
+
+    #[test]
+    fn no_store_among_other_directives_is_still_no_store() {
+        // The other direction: a real app writes `no-store, max-age=0` or
+        // `private, no-store, must-revalidate`, and refusing those would be a finding for every
+        // app that gets this right.
+        for value in [
+            "no-store",
+            "no-store, max-age=0",
+            "private, no-store, must-revalidate",
+            "No-Store",
+        ] {
+            let mut app = FakeApp::new(Flaws::default());
+            app.cache_control = Some(value.to_string());
+            let acc = accounts();
+            app.users
+                .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+            app.users
+                .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let o = run(&mut app, &users(), &acc, true, &Default::default());
+            assert!(
+                !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was refused as no-store"
+            );
+            assert!(
+                verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+                "`{value}` was not credited"
+            );
+        }
+    }
+
+    #[test]
+    fn a_sign_out_address_only_mentioned_in_a_script_is_not_a_visible_way_out() {
+        // `points_at` reads href and action attributes rather than searching the page for the
+        // text. A page that names the sign-out address in a script string or a comment offers the
+        // person nothing, and a substring search would have credited it.
+        assert!(!points_at(
+            "<script>const LOGOUT = '/logout';</script><!-- /logout -->",
+            "/logout"
+        ));
+        assert!(!points_at("you can sign out at /logout one day", "/logout"));
+        assert!(points_at("<a href='/logout'>Sign out</a>", "/logout"));
+        assert!(points_at(
+            "<form method='post' action='/logout'><button>out</button></form>",
+            "/logout"
+        ));
+        // Spellings a real page uses, which must not cost an app the credit.
+        assert!(points_at("<a href=\"/logout/\">out</a>", "/logout"));
+        assert!(points_at("<a href=\"/logout?next=/\">out</a>", "/logout"));
+        assert!(!points_at("<a href='/logout-help'>help</a>", "/logout"));
+    }
+
+    #[test]
+    fn a_private_page_that_never_opened_answers_neither_question() {
+        // The setup-first rule. If the signed-in session cannot open the private page, there are no
+        // headers worth reading and no link worth looking for, and both requirements must come back
+        // not assessed rather than as a pass or a finding.
+        //
+        // A page that never opens also stops the run before these checks are reached at all, so
+        // what this really pins is that the bail-out names them: a requirement nothing asked about
+        // has to be said out loud wherever the asking stopped.
+        let mut broken = users();
+        broken.private = vec!["/nowhere".into()];
+        let o = run_against(Flaws::default(), &broken);
+        assert!(
+            !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "a page that never opened produced a finding: {:?}",
+            rule_ids(&o)
+        );
+        assert!(
+            !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "a page that never opened was credited"
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V14.3.2") && ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_app_with_no_private_pages_listed_answers_neither_question() {
+        // The other way to have nowhere to look. `private = []` reaches the checks rather than
+        // bailing out before them, so this is the branch inside `private_page_checks` itself.
+        let mut none = users();
+        none.private = Vec::new();
+        let o = run_against(Flaws::default(), &none);
+        assert!(
+            !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "{:?}",
+            rule_ids(&o)
+        );
+        assert!(
+            !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id)
+                && !verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id),
+            "nothing was read, so nothing may be credited"
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V14.3.2") && ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn without_a_sign_out_address_the_link_question_is_not_asked() {
+        // V7.4.4 needs somewhere to look for. With no `logout` in securevibe.toml, "no sign-out
+        // link" would be a statement about the manifest rather than about the app — but the caching
+        // question does not depend on it and must still be answered.
+        let mut no_logout = users();
+        no_logout.logout = None;
+        let o = run_against(Flaws::default(), &no_logout);
+        assert!(!rule_ids(&o).contains(&SIGN_OUT_LINK.rule_id));
+        assert!(!verified_ids(&o).contains(&SIGN_OUT_LINK.rule_id));
+        assert!(
+            o.not_assessed.iter().any(|(ids, _)| ids.contains("V7.4.4")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
+            "the caching question does not depend on the sign-out address"
+        );
+    }
+
+    // ---- Uploads (V5.2.1, V5.2.2, V5.3.1, V3.2.1)
+
+    fn with_upload(serves_at: Option<&str>, max_bytes: Option<u64>) -> UsersSection {
+        let mut u = users();
+        u.upload = Some(sv_manifest::UploadSection {
+            path: "/upload".into(),
+            field: "file".into(),
+            form: [("csrf_token".to_owned(), "{csrf}".to_owned())]
+                .into_iter()
+                .collect(),
+            serves_at: serves_at.map(str::to_owned),
+            max_bytes,
+        });
+        u
+    }
+
+    fn upload_run_keeping_app(flaws: Flaws, users: &UsersSection) -> (Outcome, FakeApp) {
+        let mut app = FakeApp::new(flaws);
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let out = run(&mut app, users, &acc, true, &Default::default());
+        (out, app)
+    }
+
+    #[test]
+    fn the_cap_is_about_what_is_sent_not_only_about_what_is_reported() {
+        // The second reading of the cap, on the thing it is actually for. Saying "not assessed" is
+        // the report half; the half that matters to somebody's app is that no enormous body ever
+        // left this process, and no finding or note can show that.
+        let (_, app) = upload_run_keeping_app(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(64 * 1024 * 1024)),
+        );
+        assert!(
+            (app.largest_upload as u64) <= MOST_UPLOAD_BYTES,
+            "sent {} bytes, past the {MOST_UPLOAD_BYTES}-byte cap",
+            app.largest_upload
+        );
+        // And it really did send something, so this cannot pass by never uploading at all.
+        assert!(app.largest_upload > 0, "nothing was sent");
+    }
+
+    #[test]
+    fn serving_the_source_and_serving_its_output_are_told_apart() {
+        // V5.3.1 turns on one distinction: the file came back as written, or only what running it
+        // produced. Both bodies contain the marker, so anything keyed on the marker alone cannot
+        // tell them apart — which is exactly the wrong check to write here.
+        let safe = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(
+            verified_ids(&safe).contains(&UPLOAD_EXECUTED.rule_id),
+            "serving the source as-is should be credited: {:?}",
+            safe.not_assessed
+        );
+        let unsafe_app = run_against(
+            Flaws {
+                runs_uploaded_code: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(
+            rule_ids(&unsafe_app).contains(&UPLOAD_EXECUTED.rule_id),
+            "serving only the output should be a finding: {:?}",
+            rule_ids(&unsafe_app)
+        );
+        assert!(!verified_ids(&unsafe_app).contains(&UPLOAD_EXECUTED.rule_id));
+    }
+
+    #[test]
+    fn any_one_of_the_three_ways_to_stop_a_browser_rendering_counts() {
+        // V3.2.1 asks that the browser not render the file as part of this app, and names several
+        // ways. Insisting on one of them would report apps that chose another; accepting none of
+        // them would credit every app. Both halves are asserted here.
+        let served_safely = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(verified_ids(&served_safely).contains(&UPLOAD_RENDERED.rule_id));
+        let rendered = run_against(
+            Flaws {
+                renders_uploaded_pages: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(
+            rule_ids(&rendered).contains(&UPLOAD_RENDERED.rule_id),
+            "an uploaded page served as text/html with nothing else is a finding: {:?}",
+            rule_ids(&rendered)
+        );
+        assert!(!verified_ids(&rendered).contains(&UPLOAD_RENDERED.rule_id));
+    }
+
+    #[test]
+    fn a_correct_app_confirms_all_four_upload_questions() {
+        let o = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        for rule in [
+            OVERSIZED_FILE.rule_id,
+            CONTENT_MISMATCH.rule_id,
+            UPLOAD_EXECUTED.rule_id,
+            UPLOAD_RENDERED.rule_id,
+        ] {
+            assert!(
+                verified_ids(&o).contains(&rule),
+                "{rule} was not confirmed: {:?} / {:?}",
+                verified_ids(&o),
+                o.not_assessed
+            );
+            assert!(
+                !rule_ids(&o).contains(&rule),
+                "{rule} also raised a finding"
+            );
+        }
+    }
+
+    #[test]
+    fn each_upload_flaw_is_found_by_its_own_rule_and_by_no_other() {
+        for (flaw, rule) in [
+            (
+                Flaws {
+                    oversized_upload_ok: true,
+                    ..Default::default()
+                },
+                OVERSIZED_FILE.rule_id,
+            ),
+            (
+                Flaws {
+                    unchecked_contents_ok: true,
+                    ..Default::default()
+                },
+                CONTENT_MISMATCH.rule_id,
+            ),
+            (
+                Flaws {
+                    runs_uploaded_code: true,
+                    ..Default::default()
+                },
+                UPLOAD_EXECUTED.rule_id,
+            ),
+            (
+                Flaws {
+                    renders_uploaded_pages: true,
+                    ..Default::default()
+                },
+                UPLOAD_RENDERED.rule_id,
+            ),
+        ] {
+            let o = run_against(
+                flaw,
+                &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+            );
+            let found = rule_ids(&o);
+            assert!(found.contains(&rule), "{rule} did not fire: {found:?}");
+            let others: Vec<&str> = found
+                .iter()
+                .copied()
+                .filter(|f| {
+                    *f != rule
+                        && [
+                            OVERSIZED_FILE.rule_id,
+                            CONTENT_MISMATCH.rule_id,
+                            UPLOAD_EXECUTED.rule_id,
+                            UPLOAD_RENDERED.rule_id,
+                        ]
+                        .contains(f)
+                })
+                .collect();
+            assert!(others.is_empty(), "{rule}'s flaw also raised {others:?}");
+        }
+    }
+
+    #[test]
+    fn an_upload_that_refuses_everything_answers_nothing() {
+        // The setup-first rule, and the one that matters most here: an app whose upload path is not
+        // what securevibe.toml says refuses every file, and "refused" is what each of these checks
+        // is looking for. Without the ordinary file first, a broken upload would read as four
+        // passes — the most flattering possible result for the least working app.
+        let o = run_against(
+            Flaws {
+                upload_broken: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        for rule in [
+            OVERSIZED_FILE.rule_id,
+            CONTENT_MISMATCH.rule_id,
+            UPLOAD_EXECUTED.rule_id,
+            UPLOAD_RENDERED.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&rule), "{rule} was credited");
+            assert!(!rule_ids(&o).contains(&rule), "{rule} raised a finding");
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V5.2.1")
+                    && ids.contains("V3.2.1")
+                    && why.contains("ordinary file")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn the_run_note_never_claims_an_upload_that_did_not_happen() {
+        // The second reading of the setup proof, on the surface the owner sees. The findings list
+        // can be empty for two very different reasons — nothing was wrong, or nothing was asked —
+        // and the run note is where those are told apart. An app that refused every file must not
+        // leave a line saying a file went in.
+        let broken = run_against(
+            Flaws {
+                upload_broken: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        let note = broken.steps.join(" | ");
+        assert!(
+            !note.contains("uploaded an ordinary"),
+            "the note says a file was uploaded to an app that refused every one: {note}"
+        );
+        assert!(
+            !note.contains("stated limit") && !note.contains("not a GIF"),
+            "the note describes files that were never really tried: {note}"
+        );
+
+        // And the opposite, so this cannot pass by the note always being empty.
+        let working = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        let note = working.steps.join(" | ");
+        assert!(note.contains("uploaded an ordinary"), "{note}");
+        assert!(note.contains("stated limit"), "{note}");
+    }
+
+    #[test]
+    fn without_a_stated_size_the_oversize_question_is_not_asked() {
+        // V5.2.1 is a documented-policy requirement like V6.3.1: prose cannot be checked, a number
+        // can. With no number there is nothing to hold the app to, and the other three still run.
+        let o = run_against(Flaws::default(), &with_upload(Some("/files/{name}"), None));
+        assert!(!verified_ids(&o).contains(&OVERSIZED_FILE.rule_id));
+        assert!(!rule_ids(&o).contains(&OVERSIZED_FILE.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V5.2.1") && why.contains("max-bytes")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            verified_ids(&o).contains(&CONTENT_MISMATCH.rule_id),
+            "the other questions do not depend on the stated size"
+        );
+    }
+
+    #[test]
+    fn a_size_beyond_the_cap_is_refused_rather_than_sent() {
+        // One check must not become a denial-of-service attempt against somebody's own app.
+        let o = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(64 * 1024 * 1024)),
+        );
+        assert!(!verified_ids(&o).contains(&OVERSIZED_FILE.rule_id));
+        assert!(!rule_ids(&o).contains(&OVERSIZED_FILE.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V5.2.1") && why.contains("denial-of-service")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn without_serves_at_nothing_is_claimed_about_what_is_served() {
+        // An app that stores uploads where no URL reaches them is the safest arrangement there is.
+        // Reporting it as a failure, or as a pass, would both be wrong.
+        let o = run_against(
+            Flaws::default(),
+            &with_upload(None, Some(UPLOAD_LIMIT as u64)),
+        );
+        for rule in [UPLOAD_EXECUTED.rule_id, UPLOAD_RENDERED.rule_id] {
+            assert!(!verified_ids(&o).contains(&rule), "{rule} was credited");
+            assert!(!rule_ids(&o).contains(&rule), "{rule} raised a finding");
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V5.3.1") && ids.contains("V3.2.1")),
+            "{:?}",
+            o.not_assessed
+        );
+        // The two that need no serving still ran.
+        assert!(verified_ids(&o).contains(&OVERSIZED_FILE.rule_id));
+        assert!(verified_ids(&o).contains(&CONTENT_MISMATCH.rule_id));
+    }
+
+    #[test]
+    fn no_upload_entry_means_the_questions_are_never_raised() {
+        // An app with no `upload` entry is not an app that failed these; it is one nobody asked.
+        let o = run_against(Flaws::default(), &users());
+        for rule in [
+            OVERSIZED_FILE.rule_id,
+            CONTENT_MISMATCH.rule_id,
+            UPLOAD_EXECUTED.rule_id,
+            UPLOAD_RENDERED.rule_id,
+        ] {
+            assert!(!verified_ids(&o).contains(&rule));
+            assert!(!rule_ids(&o).contains(&rule));
         }
     }
 }

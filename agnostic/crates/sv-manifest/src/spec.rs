@@ -42,6 +42,10 @@ health = "/"              # a path that returns 200 once the app is up
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
 # change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 # delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
+# upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" }, serves-at = "/files/{name}", max-bytes = 1048576 }
+#   `field` is the form field the file goes in; `serves-at` is where an upload can be fetched back,
+#   with {name} standing for its file name — leave it out if uploads are never served over the web.
+#   `max-bytes` is the largest file you say the app accepts, which is what it is held to.
 
 [data]
 # What kinds of information the app holds about people.

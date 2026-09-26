@@ -133,13 +133,28 @@ another session is not a claim.
   Level 1 and two at Level 2, which is a smaller prize than the entry promised.
 
 - **More questions for the running app, and an `upload` entry.** Asked with what `[stack.run.users]`
-  already says: `Cache-Control: no-store` on private pages (V14.3.2), directory listings (V13.4.3), a
-  visible sign-out link on private pages (V7.4.4), and whether the app's own output (the container's
-  log) recorded the failed sign-ins the probes made (V16.3.1, V16.3.2). Password reset needs an entry of
+  already says. Three are done on 25 September 2026 by session securevibe-e9: `Cache-Control:
+  no-store` on private pages (V14.3.2), a visible sign-out link on private pages (V7.4.4), and
+  directory listings (V13.4.3). The first two are signed-in checks on the pages `private` names; the
+  third is an anonymous probe beside V13.4.1, because it needs no account, and it is only ever a
+  finding — six guessed paths and three server signatures cannot show that nothing lists. Level 2
+  goes from 30 to 33 of 183. See DESIGN, "Three more questions for the running app".
+
+  Still to do: whether the app's own output (the container's log) recorded the failed sign-ins the
+  probes made (V16.3.1, V16.3.2). Password reset needs an entry of
   its own. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
   its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
-  **The `upload` entry is claimed on 26 September 2026 by session securevibe-e9**, on its own. The
-  three page questions are done in #105; the logging question and password reset are not claimed.
+  **The `upload` entry is done on 26 September 2026 by session securevibe-e9.** `[stack.run.users]`
+  takes an `upload` entry — the path, the file field, the other form fields, an optional
+  `serves-at` saying where an upload can be fetched back, and `max-bytes`, the size the owner
+  states and the app is held to. The probes send an ordinary GIF first to show the upload works at
+  all, then one larger than the stated size (V5.2.1), one named `.gif` that is not a GIF (V5.2.2),
+  a `.php` fetched back to see whether the server ran it (V5.3.1), and an `.html` fetched back to
+  see whether a browser would render it as part of the app (V3.2.1). Level 1 goes from 41 to 45 of
+  70. See DESIGN, "The upload entry". Left over from it: V5.3.2 (paths built from submitted names)
+  and V5.4.1/V5.4.2 (what the app sends back) are reachable the same way and were not written.
+
+  Still open in this entry: the logging question (V16.3.1, V16.3.2) and password reset.
 
 - **A production check.** `sv probe https://…`: read-only requests to the owner's own live address, for
   what the repository cannot say. HSTS (V3.4.1), TLS with a publicly trusted certificate and no fallback
