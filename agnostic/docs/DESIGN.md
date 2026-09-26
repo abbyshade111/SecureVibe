@@ -2609,6 +2609,96 @@ twice over:
   would have: a wrong question is answerable, and the owner would have answered it and had the answer
   credited against a requirement about something else.
 
+### The AI coding tool's answers, a tier lower still
+
+The owner is not a programmer, and the tool that wrote the app knows its code better than they do.
+So the questions go to the tool as well, and the plan (asked for by the owner on 26 September 2026)
+is that the tool interviews the owner, one question at a time, with what it knows about the code as
+a tip. That leaves two kinds of answer, and they are not worth the same:
+
+- **The owner's answer**, given in that conversation, recorded with `by = "owner"`: *attested by the
+  owner*, as before.
+- **The tool's answer**, when the owner does not know and the tool answers from the code, recorded
+  with `by = "ai-tool"`: *stated by the AI coding tool*, its own tier below the owner's, at the
+  owner's decision the same day. It is the author grading its own work.
+
+Everything that keeps *attested* honest holds for *stated*: it stays on the list of tests to write,
+settles no threat, and a `no` is still a finding, now saying who said it. Where both answered, the
+owner's word is the one shown.
+
+**An answer that does not say who gave it counts as the tool's.** The file is usually written by the
+tool, so crediting the owner on nobody's say-so is the direction that overstates; the owner writing
+by hand adds `by = "owner"`. A `by` that is neither word is named as unreadable, like a fourth
+answer, rather than guessed at.
+
+Each guard was broken in turn and caught: silence read as the owner's, an unknown `by` read as the
+owner's, *stated* dropped from the tests to write, *stated* shown as *attested*, and the two tiers'
+order swapped.
+
+### The interview: the tool asks, the owner answers
+
+The three lists (design questions, security notes, checks by hand) reached the owner only as a
+section of the report, and the walk-through of `sv mcp` on 26 September 2026 showed they did not
+reach the AI coding tool at all: the check named the design questions by id alone and told the tool
+to run `sv notes`, which it has no way to do. The owner's idea the same day was the fix: give the
+questions to the tool, and have it interview the owner.
+
+- **`securevibe_questions`** (and `sv questions`, to paste into a tool without MCP) lists what is
+  still open for this app: design questions nobody has answered or only the tool has, security notes
+  not yet written, and the checks by hand. Each has the question in plain words and where to look.
+  The instructions ahead of them say how to ask: one at a time, with what the code shows as a tip,
+  "not sure" as a good answer, and `by = "owner"` only for an answer the person gave. It is wider
+  than the report's checklist, which leaves out what a test could also settle; a question the owner
+  can answer is worth asking even when a test could settle it later.
+- **A design question only the tool has answered is asked again**, to be confirmed or corrected,
+  since the owner's word outranks the tool's. One the owner has answered is not asked again.
+- **The security notes have no lower tier**, so the tool is told to write a decision only once the
+  owner agrees with it. A written decision nobody made is not one.
+- **`securevibe_notes_file`** makes or refreshes `security-notes.md`, keeping what is written, and
+  refuses to write through a link out of the app, like `securevibe_write_report`'s folder.
+- **The checks by hand record nothing yet.** The tool walks the owner through them.
+
+Asking credits nothing: a test holds that every requirement on the list is still not verified. Two
+smaller things from the walk-through went in beside it: the check now points the tool at the
+questions, and a contradicted claim says what in the code contradicted it ("What the code shows:
+`stripe` is declared in requirements.txt"), which `sv scope` always said and the report did not.
+
+Six guards were broken in turn, each caught: an owner-answered question asked again, a tool-answered
+one not asked, the "confirm this" line dropped, the `by = "owner"` rule dropped from the
+instructions, the link check off, and the contradiction's evidence dropped.
+
+### Checks made by hand, and what was seen
+
+The interview walks the owner through twenty checks no tool can make: the certificate on the live
+site, whether being away signs you out, whether two people can book the same slot. What they saw was
+then lost. It is now recorded in securevibe.toml, in a design the owner agreed to on 26 September
+2026:
+
+```toml
+[checked-by-hand]
+"V12.2.2" = { result = "done", on = "2026-09-26", by = "owner",
+              how = "Opened the live site; the padlock shows a trusted certificate." }
+```
+
+- **`done` by the owner is *checked by hand by the owner***, its own tier just above *attested*: the
+  owner watched the app behave, which is more than describing how it is built, and it is still their
+  word, which nothing here repeats. So it is never *checked*, stays a test to write where a test
+  could show it, and settles no threat. An automated check or a finding outranks it.
+- **`done` by the AI coding tool, or by nobody named, is *stated by the AI coding tool*.**
+- **`problem` is a finding from anyone**, and `not-yet` adds nothing.
+- **`how` is required**, because one sentence of what was done and seen is the whole of the evidence,
+  and the report prints it. A bare `done` is unreadable and named as such.
+- **`on` is required, and a check counts for 90 days.** Certificates expire and apps change, so an old
+  check is reported as needing to be made again and counts for nothing; one dated in the future is
+  unreadable. One number for all twenty, at the owner's choice.
+- **Only the twenty are read.** Any other id is named as unreadable rather than ignored or credited.
+
+A current check made by the owner is not asked again in the interview; an out-of-date one is.
+
+Nine guards were broken in turn, each caught: a blank `how` counted, no expiry, a future date
+accepted, silence read as the owner's, a problem not reported, the tier never shown, the tier dropped
+from the tests to write, its rank swapped with *documented*, and the CLI not passing the checks on.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

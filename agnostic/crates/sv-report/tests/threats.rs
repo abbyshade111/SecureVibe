@@ -27,6 +27,7 @@ fn line(id: &str, status: Status) -> RequirementLine {
         supported_by: Vec::new(),
         documented_by: Vec::new(),
         attested_by: Vec::new(),
+        by_hand: Vec::new(),
     }
 }
 
@@ -423,6 +424,8 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
+        by_hand: &[],
         human: None,
         threats: Some((&r, &ctx)),
     })
@@ -510,6 +513,8 @@ fn without_threat_rules_the_report_has_no_threat_section() {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
+        by_hand: &[],
         human: None,
         threats: None,
     });
@@ -724,6 +729,8 @@ fn the_report_lists_atlas_references_for_a_reviewer_only_where_ai_threats_apply(
             not_for_tests: Default::default(),
             documented: &[],
             attested: &[],
+            stated: &[],
+            by_hand: &[],
             human: None,
             threats: Some((r, &ctx)),
         })

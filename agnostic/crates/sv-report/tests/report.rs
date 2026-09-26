@@ -61,6 +61,8 @@ fn inputs<'a>(
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
+        by_hand: &[],
         human: None,
         threats: None,
     }
@@ -624,6 +626,8 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        stated: &[],
+        by_hand: &[],
         human: None,
         threats: None,
     })
@@ -1098,6 +1102,143 @@ mod attested {
         );
         assert!(sv_report::html::page(&report).contains("attested by the owner"));
     }
+
+    fn tool_said_yes(id: &str) -> Verified {
+        Verified::new(
+            "design.stated-by-ai",
+            &[id],
+            "securevibe.toml: your AI coding tool answered yes. This is the word of the tool that \
+             wrote the code, not a check of it."
+                .to_owned(),
+        )
+    }
+
+    fn report_with_stated(stated: &[Verified], attested: &[Verified]) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, vec![], &[]);
+        inputs.attested = attested;
+        inputs.stated = stated;
+        build(inputs)
+    }
+
+    #[test]
+    fn the_ai_tools_yes_is_its_own_tier_below_the_owners() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::Stated);
+        assert_eq!(report.counts.stated, 1);
+        assert_eq!(
+            report.counts.attested, 0,
+            "the tool's word is not the owner's"
+        );
+        assert!(Status::Stated < Status::Attested && Status::NotVerified < Status::Stated);
+        // Both answering: the owner's word is the stronger one and is what the row shows.
+        let both = report_with_stated(&[tool_said_yes("V8.3.1")], &[said_yes("V8.3.1")]);
+        assert_eq!(status_of(&both, "V8.3.1"), Status::Attested);
+    }
+
+    #[test]
+    fn a_requirement_the_ai_tool_answered_is_still_a_test_to_write() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        assert!(
+            report.tests_to_write.iter().any(|t| t.id == "V8.3.1"),
+            "{:?}",
+            report.tests_to_write
+        );
+    }
+
+    fn checked_by_hand(id: &str) -> Verified {
+        Verified::new(
+            "hand.checked",
+            &[id],
+            "securevibe.toml: checked by hand by you on 2026-09-26: \"The padlock shows a trusted \
+             certificate.\" Nothing here repeated it."
+                .to_owned(),
+        )
+    }
+
+    fn report_by_hand(
+        by_hand: &[Verified],
+        attested: &[Verified],
+        documented: &[Verified],
+        verified: &[Verified],
+    ) -> Report {
+        let f = Frameworks::load(&data().join("frameworks")).unwrap();
+        let buckets = Buckets {
+            applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
+            ..Default::default()
+        };
+        let mut inputs = inputs(&f, &buckets, vec![], verified);
+        inputs.by_hand = by_hand;
+        inputs.attested = attested;
+        inputs.documented = documented;
+        build(inputs)
+    }
+
+    #[test]
+    fn a_check_by_hand_ranks_just_above_the_owners_answer_and_below_a_document() {
+        let hand = [checked_by_hand("V8.3.1")];
+        let report = report_by_hand(&hand, &[said_yes("V8.3.1")], &[], &[]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::ByHand);
+        assert_eq!(report.counts.by_hand, 1);
+        assert_eq!(
+            report.counts.checked, 0,
+            "never checked: nothing automated looked"
+        );
+        assert!(Status::Attested < Status::ByHand && Status::ByHand < Status::Documented);
+        let documented = report_by_hand(&hand, &[], &[said_yes("V8.3.1")], &[]);
+        assert_eq!(status_of(&documented, "V8.3.1"), Status::Documented);
+        // An automated check, or a finding, always wins over what somebody saw.
+        let checked = report_by_hand(
+            &hand,
+            &[],
+            &[],
+            &[Verified::new("some.check", &["V8.3.1"], "8 files".into())],
+        );
+        assert_eq!(status_of(&checked, "V8.3.1"), Status::Checked);
+    }
+
+    #[test]
+    fn a_check_by_hand_is_still_a_test_to_write_and_shows_what_was_seen() {
+        let report = report_by_hand(&[checked_by_hand("V8.3.1")], &[], &[], &[]);
+        assert!(report.tests_to_write.iter().any(|t| t.id == "V8.3.1"));
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| V8.3.1"))
+            .unwrap_or_else(|| panic!("no row for V8.3.1 in:\n{markdown}"));
+        assert!(
+            row.contains("checked by hand by the owner") && row.contains("The padlock shows"),
+            "{row}"
+        );
+        assert!(sv_report::html::page(&report).contains("checked by hand by the owner"));
+    }
+
+    #[test]
+    fn the_row_says_it_is_the_ai_tools_word_rather_than_a_check() {
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
+        let markdown = sv_report::markdown::compliance(&report);
+        let row = markdown
+            .lines()
+            .find(|l| l.starts_with("| V8.3.1"))
+            .unwrap_or_else(|| panic!("no row for V8.3.1 in:\n{markdown}"));
+        let status = row.split('|').nth(2).unwrap_or_default();
+        assert!(status.contains("stated by the AI coding tool"), "got {row}");
+        assert!(
+            status.contains("your AI coding tool's word")
+                && !status.contains("attested by the owner"),
+            "{status}"
+        );
+        let html = sv_report::html::page(&report);
+        assert!(html.contains("stated by the AI coding tool"));
+        assert!(
+            !html.contains("attested by the owner"),
+            "nothing here is the owner's word"
+        );
+    }
 }
 
 /// The two renderings of one report, held to the same shape.
@@ -1255,6 +1396,103 @@ mod same_story {
 /// The checklist of what only a person can check.
 mod only_you {
     use super::*;
+
+    /// The questions the AI coding tool is given to ask the owner.
+    fn interview_report(stated: &[Verified], attested: &[Verified]) -> sv_report::Report {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec![
+                "V6.1.1".into(),
+                "V12.2.2".into(),
+                "V8.3.1".into(),
+                "V2.2.2".into(),
+            ],
+            ..Default::default()
+        };
+        let (notes, design, human) = catalogs();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        i.stated = stated;
+        i.attested = attested;
+        build(i)
+    }
+
+    fn by(check: &str, id: &str) -> Verified {
+        Verified::new(check, &[id], "securevibe.toml".to_owned())
+    }
+
+    #[test]
+    fn every_open_question_is_given_to_the_tool_and_none_the_owner_answered() {
+        let report = interview_report(
+            &[by("design.stated-by-ai", "V2.2.2")],
+            &[by("design.attested", "V8.3.1")],
+        );
+        let asked: Vec<&str> = report
+            .questions_for_you
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
+        // All three routes, and a design question a test could also settle: the interview is wider
+        // than the checklist, which leaves those out.
+        assert!(asked.contains(&"V6.1.1"), "a written decision: {asked:?}");
+        assert!(asked.contains(&"V12.2.2"), "a check by hand: {asked:?}");
+        assert!(
+            asked.contains(&"V2.2.2"),
+            "only the tool has answered this, so the owner is asked to confirm: {asked:?}"
+        );
+        assert!(
+            !asked.contains(&"V8.3.1"),
+            "the owner has answered this; asking again is noise: {asked:?}"
+        );
+        // Nor a check the owner made by hand and recorded, while it is current.
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec!["V12.2.2".into()],
+            ..Default::default()
+        };
+        let (notes, design, human) = catalogs();
+        let hand = [Verified::new("hand.checked", &["V12.2.2"], "seen".into())];
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        i.by_hand = &hand;
+        let checked = build(i);
+        assert!(
+            !checked.questions_for_you.iter().any(|q| q.id == "V12.2.2"),
+            "{:?}",
+            checked.questions_for_you
+        );
+        let text = sv_report::interview::text(&report);
+        assert!(
+            text.contains("Only you, the AI coding tool, have answered this so far"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn asking_credits_nothing() {
+        // Writing the questions down is not an answer to any of them.
+        let with = interview_report(&[], &[]);
+        assert!(!with.questions_for_you.is_empty());
+        for item in &with.questions_for_you {
+            let line = with.requirements.iter().find(|r| r.id == item.id).unwrap();
+            assert_eq!(line.status, Status::NotVerified, "{} moved", item.id);
+        }
+    }
+
+    #[test]
+    fn with_nothing_left_to_ask_the_tool_is_told_so_and_not_that_the_app_is_fine() {
+        let f = frameworks();
+        let buckets = Buckets::default();
+        let (notes, design, human) = catalogs();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        let text = sv_report::interview::text(&build(i));
+        assert!(
+            text.contains("0 to ask") && text.contains("does not make the answers right"),
+            "{text}"
+        );
+        assert!(!text.contains("How to ask them"), "{text}");
+    }
 
     fn catalogs() -> (
         sv_check::notes::Catalog,

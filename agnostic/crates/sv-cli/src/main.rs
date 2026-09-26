@@ -27,6 +27,7 @@ fn main() -> Result<()> {
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
+        Some("questions") => cmd_questions(args.get(1).map(PathBuf::from)),
         Some("probe") => cmd_probe(&args[1..]),
         Some("run") => cmd_run(&args[1..]),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
@@ -52,6 +53,7 @@ fn print_help() {
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
+         sv questions [PATH]\n                     the questions only a person can answer, for your AI coding\n                     tool to ask you: paste them into its chat\n  \
          sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n  \
          sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
@@ -620,6 +622,79 @@ fn notes_facts(
 /// Writes `security-notes.md`: the questions no tool can answer, for the requirements that apply.
 fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let NotesWritten {
+        path: out_path,
+        asked,
+        already,
+    } = write_notes_file(&app_dir)?;
+    println!("Wrote {}.", out_path.display());
+    if asked == 0 {
+        println!(
+            "None of the requirements that ask for a written decision apply to this app, so there \
+             is nothing to answer yet."
+        );
+        return Ok(());
+    }
+    println!(
+        "\n{asked} question{} nobody but you can answer: what the rules are, who may do what, how \
+         long things are kept. {}",
+        if asked == 1 { "" } else { "s" },
+        if already == 0 {
+            "None is answered yet.".to_owned()
+        } else {
+            format!("{already} already answered.")
+        }
+    );
+    println!(
+        "\nAnswering one makes its requirement *documented* in the report. That is not the same as \
+         checked: nothing here reads whether your answer is right, or whether the app does what it \
+         says."
+    );
+    Ok(())
+}
+
+/// The questions only a person can answer, written for the AI coding tool to ask them. For a tool
+/// that cannot use `sv mcp`: the owner pastes this into its chat.
+fn cmd_questions(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    if !app_dir.join("securevibe.toml").exists() {
+        bail!(
+            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
+            app_dir.display()
+        );
+    }
+    let report = assemble_report(
+        &app_dir,
+        &ReportOptions {
+            run_the_app: false,
+            slow: false,
+            run_tools: false,
+            why_not_run: "",
+            why_no_tools: "",
+            advisories: None,
+            why_no_advisories: "",
+        },
+    )?;
+    println!(
+        "Paste everything below into your AI coding tool's chat. It will ask you these one at a \
+         time.\n"
+    );
+    print!("{}", sv_report::interview::text(&report));
+    Ok(())
+}
+
+/// What writing the notes file came to.
+pub(crate) struct NotesWritten {
+    pub path: PathBuf,
+    /// Sections for requirements that apply.
+    pub asked: usize,
+    /// Of those, how many were already answered.
+    pub already: usize,
+}
+
+/// Writes or refreshes security-notes.md, keeping every answer already in it. Shared by `sv notes`
+/// and the MCP server, and prints nothing, because the MCP server's stdout is the protocol.
+pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -632,7 +707,7 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
     let frameworks = load_frameworks(&data)?;
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan(&app_dir, &signatures)?;
+    let scan_report = scan(app_dir, &signatures)?;
     let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
     let catalog = sv_check::notes::Catalog::load(&notes_path())?;
@@ -672,30 +747,11 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
         .iter()
         .filter(|s| applicable.contains(&s.id))
         .count();
-    println!("Wrote {}.", out_path.display());
-    if asked == 0 {
-        println!(
-            "None of the requirements that ask for a written decision apply to this app, so there \
-             is nothing to answer yet."
-        );
-        return Ok(());
-    }
-    println!(
-        "\n{asked} question{} nobody but you can answer: what the rules are, who may do what, how \
-         long things are kept. {}",
-        if asked == 1 { "" } else { "s" },
-        if already == 0 {
-            "None is answered yet.".to_owned()
-        } else {
-            format!("{already} already answered.")
-        }
-    );
-    println!(
-        "\nAnswering one makes its requirement *documented* in the report. That is not the same as \
-         checked: nothing here reads whether your answer is right, or whether the app does what it \
-         says."
-    );
-    Ok(())
+    Ok(NotesWritten {
+        path: out_path,
+        asked,
+        already,
+    })
 }
 
 /// Starts the app behind the fence, so the checks that need it running have something to check.
@@ -1902,7 +1958,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     why: format!(
                         "No tool can answer these: they ask what your rules are, who may do what, \
                          and how long things are kept. Run `sv notes` to write {}, answer the \
-                         questions in it, and they become documented.",
+                         questions in it, and they become documented. Your AI coding tool can \
+                         ask you them: `sv questions` prints them for its chat.",
                         notes_catalog.file
                     ),
                 });
@@ -1926,6 +1983,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 sv_check::design::Answer {
                     answer: a.answer.clone(),
                     location: a.r#where.clone(),
+                    by: a.by.clone(),
                 },
             )
         })
@@ -1949,7 +2007,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                 }
             ),
             why: format!(
-                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, so \
+                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, or \
+                 says it was answered `by` somebody other than \"owner\" or \"ai-tool\", so \
                  nothing could be made of it: {}.",
                 if design.unreadable.len() == 1 {
                     "this"
@@ -1974,13 +2033,96 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             why: format!(
                 "No tool can settle these — whether input is validated on the server, whether the \
                  app's own services authenticate to each other. Answer them in the [design] \
-                 section of securevibe.toml: {}.",
+                 section of securevibe.toml: {}. Your AI coding tool can ask you them: `sv \
+                 questions` prints them for its chat.",
                 design.unanswered.join(", ")
             ),
         });
     }
 
-    Ok(sv_report::build(sv_report::Inputs {
+    // The checks made by hand, recorded in securevibe.toml. The owner's `done` is their word about
+    // what they saw; `problem` is a finding; an old one is out of date and counts for nothing.
+    let hand_answers: std::collections::BTreeMap<String, sv_check::hand::Answer> = manifest
+        .checked_by_hand
+        .iter()
+        .map(|(id, a)| {
+            (
+                id.clone(),
+                sv_check::hand::Answer {
+                    result: a.result.clone(),
+                    on: a.on.clone(),
+                    by: a.by.clone(),
+                    how: a.how.clone(),
+                },
+            )
+        })
+        .collect();
+    let hand = match sv_check::advisories::Day::today() {
+        Some(today) => sv_check::hand::evaluate(
+            &human_checks,
+            &hand_answers,
+            &|id| buckets.applicable.iter().any(|a| a == id),
+            today,
+        ),
+        // A clock before 1970 cannot say whether a check is current, so none is counted.
+        None => sv_check::hand::Outcome::default(),
+    };
+    findings.extend(hand.findings.iter().cloned());
+    if !hand.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} check{} made by hand",
+                hand.unreadable.len(),
+                if hand.unreadable.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "securevibe.toml records {} in [checked-by-hand] in a way nothing could be made \
+                 of, so it counts for nothing: {}.",
+                if hand.unreadable.len() == 1 {
+                    "this"
+                } else {
+                    "these"
+                },
+                hand.unreadable
+                    .iter()
+                    .map(|(id, why)| format!("{id} ({why})"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        });
+    }
+    if !hand.out_of_date.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} check{} made by hand more than {} days ago",
+                hand.out_of_date.len(),
+                if hand.out_of_date.len() == 1 { "" } else { "s" },
+                sv_check::hand::CURRENT_FOR_DAYS
+            ),
+            why: format!(
+                "Certificates expire and apps change, so an old check counts for nothing. Make \
+                 {} again and record the new date: {}.",
+                if hand.out_of_date.len() == 1 {
+                    "it"
+                } else {
+                    "them"
+                },
+                hand.out_of_date
+                    .iter()
+                    .map(|(id, on)| format!("{id}, checked on {on}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        });
+    }
+    let stated: Vec<sv_check::Verified> = design
+        .stated
+        .iter()
+        .chain(hand.stated.iter())
+        .cloned()
+        .collect();
+
+    let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
         } else {
@@ -2001,9 +2143,32 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         not_for_tests,
         documented: &documented,
         attested: &design.attested,
+        stated: &stated,
+        by_hand: &hand.by_owner,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((&threat_rules, &ctx)),
-    }))
+    });
+    // A contradiction says what in the code contradicted the manifest, so whoever wrote the
+    // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
+    // wrote it with nothing to go on; `sv scope` always said, and now the report does too.
+    for claim in report
+        .claims
+        .iter_mut()
+        .filter(|c| c.state == "contradicted")
+    {
+        if let Some(answer) = scan_report
+            .answers
+            .iter()
+            .find(|a| a.condition.name() == claim.name && a.value == Some(true))
+        {
+            claim.note = format!(
+                "{} What the code shows: {}.",
+                claim.note,
+                describe(&answer.evidence)
+            );
+        }
+    }
+    Ok(report)
 }
 
 fn cmd_report(args: &[String]) -> Result<()> {
@@ -2080,6 +2245,21 @@ fn cmd_report(args: &[String]) -> Result<()> {
              your word about how the app is built, which is the weakest thing this report says: \
              each one is still listed as a test to write.",
             c.attested
+        );
+    }
+    if c.by_hand > 0 {
+        println!(
+            "A further {} you checked by hand and recorded in securevibe.toml, with what you saw. \
+             That is your word, which nothing here repeated.",
+            c.by_hand
+        );
+    }
+    if c.stated > 0 {
+        println!(
+            "A further {} your AI coding tool answered yes to, or checked by hand, in \
+             securevibe.toml, or that do not say who answered. That is the word of the tool that \
+             wrote the code, weaker still than yours: each one is still listed as a test to write.",
+            c.stated
         );
     }
     if c.documented > 0 {

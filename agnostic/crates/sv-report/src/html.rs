@@ -34,7 +34,7 @@ td.n { text-align: right; width: 6rem; }
 .not-verified { color: var(--unknown); }
 .checked { color: var(--dim); }
 .documented { color: var(--dim); font-style: italic; }
-.attested { color: var(--unknown); font-style: italic; }
+.attested, .stated, .by-hand { color: var(--unknown); font-style: italic; }
 .note { color: var(--dim); }
 .bluf { border: 1px solid var(--edge); border-left: 4px solid var(--bad); border-radius: 6px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
 .bluf p.headline { font-size: 1.15rem; font-weight: 600; margin-top: 0; }
@@ -262,6 +262,8 @@ pub fn page(report: &Report) -> String {
                 Status::Checked => "checked",
                 Status::Documented => "documented",
                 Status::Attested => "attested",
+                Status::Stated => "stated",
+                Status::ByHand => "by-hand",
                 Status::NotVerified => "not-verified",
             };
             let detail = match line.status {
@@ -274,8 +276,21 @@ pub fn page(report: &Report) -> String {
                         .collect::<Vec<_>>()
                         .join("; ")
                 ),
-                Status::Attested => format!(
-                    " \u{2014} your word, not a check: {}",
+                Status::ByHand => format!(
+                    " \u{2014} your word, from a check you made by hand: {}",
+                    line.by_hand
+                        .iter()
+                        .map(|c| c.scope.clone())
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::Attested | Status::Stated => format!(
+                    " \u{2014} {}, not a check: {}",
+                    if line.status == Status::Attested {
+                        "your word"
+                    } else {
+                        "your AI coding tool's word"
+                    },
                     line.attested_by
                         .iter()
                         .map(|c| c.scope.clone())
