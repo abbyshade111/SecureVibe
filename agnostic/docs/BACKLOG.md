@@ -945,6 +945,28 @@ another session is not a claim.
     Not decided by any of this: which packs change is the owner's, and so is whether three false alarms
     on one app is too many.
 
+  - *Session securevibe-e9.* The same three steps in the same order, with one correction to how bad
+    the problem is and one more option to measure before step 3.
+    1. **The per-run report is already honest; the document is what overstates.** Semgrep's adapter
+       reads more than one language, so `clean_run_evidence` counts a rule only when the SARIF says
+       it was loaded. A clean run of `p/security-audit` has never credited any of the 19, and the
+       eight AISVS rules are `findings_against`, which credit nothing even when loaded. What is wrong
+       is `docs/COVERAGE.md` and anything a session built on it. So step 1 is a documentation fix
+       and should be judged as one: `coverage.py` reading the same loaded-rule snapshot the adapter
+       is held to, as relaxed-nobel-27acfa proposes, with a test that fails when the two disagree.
+       Worth doing first, and no report changes.
+    2. **`p/ai-best-practices`: yes, and it carries little risk.** Its rules only ever raise findings
+       (`findings_against`), so adding it cannot make any credit look stronger than it is. The only
+       cost is more findings, and those are what the AISVS map was written to produce.
+    3. **Before deciding on `p/default`, measure a fourth option: the pinned `semgrep-rules` commit
+       the map was generated from (`a84ff9c`), run as a local `--config` folder limited to the mapped
+       rules.** The loaded set would then equal the map by construction, so the count cannot drift
+       when the registry changes a pack, and a run needs no fetch from semgrep.dev. It may be slower
+       and noisier than `p/default`, which is why it is a thing to measure and not a recommendation
+       yet. Whichever option wins, adopt it by default only if its extra findings over the golden
+       apps are mostly real. Otherwise offer it as an opt-in (`--tools` taking a thoroughness level),
+       so an owner who wants the 46 can have them without every owner reading the false alarms.
+
   **The owner, on 26 September 2026:** leaning toward that order, and toward keeping the AI pack
   separate, so that `p/ai-best-practices` only runs against apps that use AI (the `ai` condition).
   **Step 1, the honest count, claimed on 26 September 2026 by session securevibe-e8**, from the
