@@ -4,7 +4,7 @@
     {
       "id": "V2.3.1",
       "title": "Steps cannot be skipped or done out of order",
-      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice."
+      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice. Describing the flow in securevibe.toml as `flow` under [stack.run.users] lets `sv report --run` try the first two skips for you; the wrong order and the repeated step are still yours."
     },
     {
       "id": "V12.2.2",
@@ -29,12 +29,12 @@
     {
       "id": "V6.2.11",
       "title": "The banned word list is actually used",
-      "how": "Take a word from the list you wrote down — the app's name, your organization's name — and try to register an account using it as the password, or with it inside a longer password. It should be refused."
+      "how": "Take a word from the list you wrote down — the app's name, your organization's name — and try to register an account using it as the password, or with it inside a longer password. It should be refused. Listing the words in securevibe.toml under [policy] as `context-words` lets `sv report --run` try the first one for you, through the app's own sign-up."
     },
     {
       "id": "V6.2.12",
       "title": "Passwords from known breaches are refused",
-      "how": "Try to register with a password known to have been breached. `Password123!` and `qwerty123456` will do; haveibeenpwned.com/Passwords lists more. The app should refuse it and say why, without telling the person anything about other accounts."
+      "how": "Try to register with a password known to have been breached. `Password123!` and `qwerty123456` will do; haveibeenpwned.com/Passwords lists more. The app should refuse it and say why, without telling the person anything about other accounts. `sv report --run` tries one such password through the app's own sign-up, but one refusal only supports this: it does not show the whole list is checked."
     },
     {
       "id": "V6.3.3",

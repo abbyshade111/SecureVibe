@@ -343,6 +343,22 @@ another session is not a claim.
      (V2.3.1, L1, on `manualOnly` today, so taking it off is a decision). The guard not to get wrong
      is the one the brute-force check got wrong first: an app that refuses *every* password has shown
      nothing, so an ordinary one must be accepted first, or the answer is *not assessed*.
+     **V6.2.12 and V6.2.11 claimed on 26 September 2026 by session securevibe-e8**, through the
+     `signup` entry that already exists, so no new addresses are needed for them: a password from far
+     down `data/knowledge/common-passwords.txt`, and one built from a word in a new
+     `[policy] context-words` list — the documented list V6.2.11 names — each beside a random
+     password of the same shape. **V2.3.1 claimed on 26 September 2026 by session securevibe-e8:**
+     a `flow` entry naming the steps and what the last one shows when it really finished; A goes
+     through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
+     stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
+     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
+     from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
+     the shared `manualOnly` list and one refused password is not the whole breached set. The
+     password list's source is not recorded anywhere in the repository, and checking the chosen
+     password against Have I Been Pwned was refused by this environment's network policy, so the
+     finding says "one of the 100,000 most common" rather than "breached". See DESIGN, "Two more
+     passwords at sign-up".
 
   Additions from session securevibe-e8, which answered the same question separately on the same
   day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to
@@ -395,6 +411,25 @@ another session is not a claim.
   --advisories DIR` puts the findings, the clean result, and what could not be compared into the
   report, and without a database the report says it compared nothing rather than staying silent. See
   DESIGN, "In the report too". The MCP server still takes no database, deliberately.
+
+- **Keep the breached-password evidence current through the Pwned Passwords API.** Asked for by the
+  owner on 26 September 2026. V6.2.12's sign-up probe tries `1qaz2wsx3edc4rfv`, and the only record
+  that it is a breached password is one range file the owner fetched in a browser and pasted into
+  the session that day, because this environment's network policy refused
+  `api.pwnedpasswords.com`. The owner has since added that host to the allowed domains, which takes
+  effect for sessions started after the change. Three things to do once a session can reach it:
+  a small script under `tools/` that re-fetches the range for `BREACHED` and rewrites
+  `data/breached-password-evidence.json` with the new count and date; a sampled check of
+  `data/knowledge/common-passwords.txt` (a few hundred entries across its ranks), so the list's
+  source — recorded nowhere in the repository — is at least shown to be breach data; and a line
+  in the report's V6.2.12 wording that carries the date of the last check. Only the five-character
+  hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
+  this is maintenance of the repository's own data, done by whoever runs the script. Not claimed.
+
+- **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
+  26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording
+  changed to say so. **Claimed on 26 September 2026 by session securevibe-e8. Done the same day**,
+  with a test holding the password and the quoted count to that file.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and

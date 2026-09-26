@@ -2392,6 +2392,68 @@ the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
 
+### Skipping a step (V2.3.1)
+
+`flow` under `[stack.run.users]` names a flow of several steps — a checkout, a sign-up with a
+confirmation — and `completed`, words the last step answers with only when the whole thing finished,
+in the page or in the address it sends the browser on to. A goes through every step in order first,
+and that has to end in `completed`: an app whose flow does not work as described refuses every skip,
+and that is not a guarded flow. Then B, signed in afresh each time so nothing carries over, goes
+straight to the last step, and — when there is a middle to leave out — does the first step and then
+the last. Either ending in `completed` is a finding; both refused supports V2.3.1, which stays on
+`manualOnly` at the owner's word, since two skips refused is not every order refused. Doing a step
+twice, and the wrong order other than by leaving steps out, are not tried, and the hand check says
+they are still the owner's.
+
+Only an answer the app accepted counts as finished, and only because of the owner's words. Both
+halves have a case of their own: an error page saying "an order is placed only after the steps before
+it" is a refusal, and so is a `303` back to the first step, which is an accepted status and the way
+many apps answer a skipped step. That second case was added after the first run of breaks: judging a
+skip by its status alone was caught by nothing until it existed.
+
+Seven breaks, each caught: any status counting as finished, no control, the middle never skipped, a
+skip judged by status alone, the redirect address ignored, a working skip credited, and a one-step
+flow tried anyway. The flow is also in the default test fixture, so every signed-in test runs it and
+the checks after it are shown not to be disturbed by it.
+
+### Two more passwords at sign-up: one far down the list, one made from your own words
+
+The password checks already sign up with a control — an ordinary strong password that has to work
+before anything else means anything — and then with passwords that each differ from it in one thing.
+Two more join them, each with a twin of its own: a random password of exactly the same shape, every
+letter a random letter and every digit a random digit. A refusal counts only when the twin was
+accepted, because a refusal the twin shares is about the shape (a composition rule, a length rule),
+not about the password.
+
+**V6.2.12, breached passwords.** `1qaz2wsx3edc4rfv`, at line 12,393 of
+`data/knowledge/common-passwords.txt`: well past the top 3000 that V6.2.4 asks about, so an app that
+checks only those accepts it, and 16 characters, so no length rule up to 16 refuses it first. Two
+things limit what it can say, and both are said:
+
+* **The list's source is not recorded in this repository**, so the password's being breached is not
+  taken from it. It is Have I Been Pwned's count: the Pwned Passwords range for the first five
+  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The request was
+  refused from here by the network policy, so the owner fetched the range in a browser on
+  26 September 2026 and pasted it in; the matching line, the hash, and the date are in
+  `data/breached-password-evidence.json`, and the finding quotes the count. A test holds the
+  password and the quoted count to that file, and changing either without new evidence fails it.
+  Re-checking it with a script, and sampling the whole list, is its own backlog item.
+* **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
+  refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
+  one refused password shows that a list longer than 3000 is checked, not that it is a set of
+  breached passwords, and the list is v1's too. An acceptance is still a finding.
+
+**V6.2.11, context-specific words.** The requirement asks that *the documented list* is used, so the
+list is the owner's, as a policy: `[policy] context-words = ["acme", "notes"]`. The first word with
+between 4 and 32 letters or digits is lowercased and repeated past 16 characters. With no list, or no
+usable word on it, V6.2.11 is *not assessed* and says how to list them: guessing at words — the app's
+name, say — would be testing a list nobody wrote. The v1 template refuses a password containing the
+app's name, compared without case, which is the same rule seen from the other side.
+
+Seven breaks, each caught: an accepted password credited (for each rule), a refusal credited without
+its twin (for each rule), a list guessed when none was given, one-letter words tried, and a twin
+that was really the password itself.
+
 ## What only you can check
 
 On a real app, 98 of the applicable requirements can be settled by nobody but the owner. They sat in
