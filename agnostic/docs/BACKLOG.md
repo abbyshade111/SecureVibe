@@ -1031,6 +1031,8 @@ another session is not a claim.
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
   before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+  **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
+  session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
