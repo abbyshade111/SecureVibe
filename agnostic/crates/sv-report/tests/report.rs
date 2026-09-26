@@ -375,8 +375,17 @@ fn the_rendered_pages_tell_the_same_story_as_the_model() {
         for id in ["V1.2.1", "V1.3.1", "V13.3.1"] {
             assert!(rendered.contains(id), "{id} is missing from the page");
         }
-        // The contested one is shown as needing attention, not as checked.
-        let at = rendered.find("V1.2.1").expect("it is there");
+        // The contested one is shown as needing attention, not as checked. Anchored on the table
+        // row rather than on the first mention anywhere: the id appears in prose above the table
+        // too, and a window measured from the first match reads whatever happens to follow it.
+        let marker = if rendered.starts_with("# ") {
+            "| V1.2.1 |"
+        } else {
+            "<code>V1.2.1</code>"
+        };
+        let at = rendered
+            .find(marker)
+            .unwrap_or_else(|| panic!("no table row for V1.2.1 in:\n{rendered}"));
         let row = &rendered[at..(at + 200).min(rendered.len())];
         assert!(
             row.contains("needs attention"),
@@ -827,11 +836,12 @@ fn the_tests_to_write_are_in_the_written_report() {
     i.named_in_tests = BTreeSet::from(["V2.1.1".to_owned()]);
     let report = build(i);
     let md = sv_report::markdown::compliance(&report);
-    assert!(md.contains("## Tests to write"), "{md}");
-    assert!(md.contains("| V1.2.2 | 1 |"), "{md}");
+    assert!(md.contains("## Tests worth writing first"), "{md}");
+    // V1.2.2 is level 1, so it is one of the ones a person is handed.
+    assert!(md.contains("| V1.2.2 |"), "{md}");
     assert!(md.contains("still without evidence") && md.contains("V2.1.1"));
     let html = sv_report::html::page(&report);
-    assert!(html.contains("<h2>Tests to write</h2>"));
+    assert!(html.contains("<h2>Tests worth writing first</h2>"));
 }
 
 #[test]
@@ -1085,5 +1095,157 @@ mod attested {
             "a reader must not take this for a check: {status}"
         );
         assert!(sv_report::html::page(&report).contains("attested by the owner"));
+    }
+}
+
+/// The two renderings of one report, held to the same shape.
+mod same_story {
+    use super::*;
+
+    /// Section headings in the order each renderer emits them, folded and unfolded alike.
+    ///
+    /// One pass over the document, taking whichever marker comes next. The first version collected
+    /// headings and `<summary>` labels into two separate lists and chained them, which loses the
+    /// order *between* an open section and a folded one — so swapping an open section with a
+    /// folded one changed nothing either list could see, and was caught by nothing.
+    fn order(text: &str, pairs: &[(&str, &str)]) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut at = 0usize;
+        loop {
+            let next = pairs
+                .iter()
+                .filter_map(|(open, close)| text[at..].find(open).map(|i| (at + i, *open, *close)))
+                .min_by_key(|(i, _, _)| *i);
+            let Some((i, open, close)) = next else { break };
+            let from = i + open.len();
+            let Some(j) = text[from..].find(close) else {
+                break;
+            };
+            out.push(
+                text[from..from + j]
+                    .replace("<strong>", "")
+                    .replace("</strong>", "")
+                    .split('\u{2014}')
+                    .next()
+                    .unwrap_or_default()
+                    .trim()
+                    .to_owned(),
+            );
+            at = from + j;
+        }
+        out
+    }
+
+    /// A report rich enough that every optional section is emitted.
+    ///
+    /// The first version of this used a minimal report, so most sections appeared in neither
+    /// renderer, the shared list was four headings long, and swapping two of the absent ones was
+    /// caught by nothing. A guard over sections that happen to exist is a guard over nothing.
+    fn full_report() -> sv_report::Report {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec![
+                "V1.2.2".into(),
+                "V2.1.1".into(),
+                "V13.3.1".into(),
+                "V6.2.1".into(),
+            ],
+            not_applicable: vec![sv_frameworks::applicability::NotApplicable {
+                id: "V17.1.1".into(),
+                reason: "no WebRTC".into(),
+                condition: sv_frameworks::Condition::Webrtc,
+                source: sv_frameworks::Source::Claim,
+            }],
+            not_assessed: vec![sv_frameworks::applicability::NotAssessed {
+                id: "V5.1.1".into(),
+                blocked_on: vec![sv_frameworks::Condition::Uploads],
+            }],
+            out_of_level: vec!["SBD-AC-01".into()],
+        };
+        // A finding naming a requirement outside the applicable set, so the out-of-scope section
+        // exists; and a claim, so the "what the app says about itself" section does.
+        let mut i = inputs(&f, &buckets, vec![finding("some.rule", &["V17.1.1"])], &[]);
+        // So "What was not examined" is emitted too: it is one of the sections whose order matters
+        // most, being the one the reports lead with.
+        i.gaps = vec![sv_report::Gap {
+            what: "the app while it was running".into(),
+            why: "it was not started".into(),
+        }];
+        i.claims = CLAIMS.get_or_init(|| {
+            vec![sv_manifest::ResolvedClaim {
+                condition: sv_frameworks::Condition::Uploads,
+                claimed: Some(false),
+                found_in_code: Some(true),
+                effective: Some(true),
+                state: sv_manifest::ClaimState::Contradicted,
+            }]
+        });
+        build(i)
+    }
+
+    static CLAIMS: std::sync::OnceLock<Vec<sv_manifest::ResolvedClaim>> =
+        std::sync::OnceLock::new();
+
+    fn both() -> (Vec<String>, Vec<String>) {
+        let report = full_report();
+        let md = sv_report::markdown::compliance(&report);
+        let html = sv_report::html::page(&report);
+        (
+            order(&md, &[("\n## ", "\n"), ("<summary>", "</summary>")]),
+            order(&html, &[("<h2>", "</h2>"), ("<summary>", "</summary>")]),
+        )
+    }
+
+    #[test]
+    fn the_two_reports_order_their_sections_the_same_way() {
+        // They did not. "Requirements that do not apply" came before "Requirements nobody has
+        // placed" in the Markdown and last in the HTML, and nothing noticed, because every test
+        // asked whether a section was present and none asked where. Two renderings of one report
+        // disagreeing about what matters most is the kind of thing a reader half-notices and
+        // stops trusting.
+        let (md, html) = both();
+        let shared: Vec<&String> = md.iter().filter(|h| html.contains(h)).collect();
+        let html_shared: Vec<&String> = html.iter().filter(|h| md.contains(h)).collect();
+        assert_eq!(
+            shared, html_shared,
+            "the Markdown and HTML reports list their shared sections in different orders"
+        );
+        // Enough of them to mean something. With four, swapping two sections the fixture never
+        // emitted was caught by nothing.
+        assert!(
+            shared.len() >= 8,
+            "too few shared sections for this to be a real check: {shared:?}"
+        );
+    }
+
+    #[test]
+    fn the_bulk_reference_sections_are_folded_away_in_both() {
+        // These are hundreds of rows of reference. Left open they are most of the document, and
+        // the reader scrolls past everything that mattered to get out of them.
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec!["V1.2.2".into()],
+            not_applicable: vec![sv_frameworks::applicability::NotApplicable {
+                id: "V17.1.1".into(),
+                reason: "no WebRTC".into(),
+                condition: sv_frameworks::Condition::Webrtc,
+                source: sv_frameworks::Source::Claim,
+            }],
+            ..Default::default()
+        };
+        let report = build(inputs(&f, &buckets, vec![], &[]));
+        for text in [
+            sv_report::markdown::compliance(&report),
+            sv_report::html::page(&report),
+        ] {
+            let at = text
+                .find("Requirements that do not apply")
+                .unwrap_or_else(|| panic!("the section is missing:\n{text}"));
+            let before = &text[at.saturating_sub(200)..at];
+            assert!(
+                before.contains("<summary>"),
+                "it must be foldable, not a plain heading: {before}"
+            );
+        }
     }
 }

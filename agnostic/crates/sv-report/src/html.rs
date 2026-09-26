@@ -48,6 +48,8 @@ td.n { text-align: right; width: 6rem; }
 .sev-medium { color: var(--unknown); }
 .sev-low, .sev-info { color: var(--dim); }
 details > summary { cursor: pointer; color: var(--dim); }
+details.bulk { margin-top: 2.4rem; border-top: 1px solid var(--edge); padding-top: .8rem; }
+details.bulk > summary strong { color: inherit; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
 
@@ -243,61 +245,71 @@ pub fn page(report: &Report) -> String {
         }
     }
 
+    // Split by level, level 1 first. See `crate::groups`.
     b.push_str("<h2>Requirements that apply</h2>\n");
-    b.push_str("<table>\n<tr><th>requirement</th><th>status</th><th>what it asks for</th></tr>\n");
-    for line in &report.requirements {
-        let class = match line.status {
-            Status::NeedsAttention => "needs-attention",
-            Status::Checked => "checked",
-            Status::Documented => "documented",
-            Status::Attested => "attested",
-            Status::NotVerified => "not-verified",
-        };
-        let detail = match line.status {
-            Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
-            Status::Checked => format!(
-                " ({})",
-                line.checked_by
-                    .iter()
-                    .map(|c| format!("{}: {}", c.check_id, c.scope))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::Attested => format!(
-                " \u{2014} your word, not a check: {}",
-                line.attested_by
-                    .iter()
-                    .map(|c| c.scope.clone())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::Documented => format!(
-                " \u{2014} you answered this in {}",
-                line.documented_by
-                    .iter()
-                    .map(|c| c.scope.clone())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::NotVerified if !line.supported_by.is_empty() => format!(
-                " \u{2014} a person has to answer it; supporting: {}",
-                line.supported_by
-                    .iter()
-                    .map(|c| format!("{}: {}", c.check_id, c.scope))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::NotVerified => String::new(),
-        };
+    for group in crate::groups::by_level(&report.requirements) {
         b.push_str(&format!(
-            "<tr><td><code>{}</code></td><td class=\"{class}\">{}{}</td><td>{}</td></tr>\n",
-            escape(&line.id),
-            escape(line.status.label()),
-            escape(&detail),
-            escape(&line.description)
+            "<h3>{} <span class=\"note\">— {} of them</span></h3>\n",
+            escape(&group.heading),
+            group.lines.len()
         ));
+        b.push_str(
+            "<table>\n<tr><th>requirement</th><th>status</th><th>what it asks for</th></tr>\n",
+        );
+        for line in group.lines {
+            let class = match line.status {
+                Status::NeedsAttention => "needs-attention",
+                Status::Checked => "checked",
+                Status::Documented => "documented",
+                Status::Attested => "attested",
+                Status::NotVerified => "not-verified",
+            };
+            let detail = match line.status {
+                Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
+                Status::Checked => format!(
+                    " ({})",
+                    line.checked_by
+                        .iter()
+                        .map(|c| format!("{}: {}", c.check_id, c.scope))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::Attested => format!(
+                    " \u{2014} your word, not a check: {}",
+                    line.attested_by
+                        .iter()
+                        .map(|c| c.scope.clone())
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::Documented => format!(
+                    " \u{2014} you answered this in {}",
+                    line.documented_by
+                        .iter()
+                        .map(|c| c.scope.clone())
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::NotVerified if !line.supported_by.is_empty() => format!(
+                    " \u{2014} a person has to answer it; supporting: {}",
+                    line.supported_by
+                        .iter()
+                        .map(|c| format!("{}: {}", c.check_id, c.scope))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::NotVerified => String::new(),
+            };
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td class=\"{class}\">{}{}</td><td>{}</td></tr>\n",
+                escape(&line.id),
+                escape(line.status.label()),
+                escape(&detail),
+                escape(&line.description)
+            ));
+        }
+        b.push_str("</table>\n");
     }
-    b.push_str("</table>\n");
 
     if !report.threats.is_empty() {
         b.push_str("<h2>Threats</h2>\n");
@@ -342,31 +354,44 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
-    if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
-        b.push_str("<h2>Tests to write</h2>\n");
-        b.push_str(&format!("<p>{}</p>\n", escape("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.")));
+    // Level 1 only; see the note in the Markdown renderer. `sv mcp` gives the AI coding tool the
+    // whole list, and report.json carries it.
+    let level_one: Vec<&crate::TestToWrite> = report
+        .tests_to_write
+        .iter()
+        .filter(|t| t.level == 1)
+        .collect();
+    let deeper = report.tests_to_write.len() - level_one.len();
+    if !level_one.is_empty() || !report.named_not_credited.is_empty() {
+        b.push_str("<h2>Tests worth writing first</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach. These are the level 1 ones. Name only what a test really checks: nothing here can tell whether it does.")));
+        if deeper > 0 {
+            b.push_str(&format!(
+                "<p class=\"note\">{}</p>\n",
+                escape(&format!("{deeper} more are at level 2 and above. They are not listed here, because a list that long is not something a person works through; `sv mcp` gives the whole list to your AI coding tool, and report.json carries it under tests_to_write."))
+            ));
+        }
         if report.not_for_tests > 0 {
             b.push_str(&format!(
                 "<p class=\"note\">{}</p>\n",
-                escape(&format!("{} more have no evidence and are not listed, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.", report.not_for_tests))
+                escape(&format!("{} more have no evidence and are not listed at all, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.", report.not_for_tests))
             ));
         }
         if !report.named_not_credited.is_empty() {
             b.push_str(&format!(
-                "<p class=\"note\">Named in a test and still without evidence, because the tests \
-                 were not run here or did not pass: {}.</p>\n",
-                escape(&report.named_not_credited.join(", "))
+                "<p class=\"note\">{}</p>\n",
+                escape(&format!(
+                    "Named in a test and still without evidence, because the tests were not run here or did not pass: {}.",
+                    report.named_not_credited.join(", ")
+                ))
             ));
         }
-        if !report.tests_to_write.is_empty() {
-            b.push_str(
-                "<table>\n<tr><th>requirement</th><th>level</th><th>what it asks for</th></tr>\n",
-            );
-            for t in &report.tests_to_write {
+        if !level_one.is_empty() {
+            b.push_str("<table>\n<tr><th>requirement</th><th>what it asks for</th></tr>\n");
+            for t in &level_one {
                 b.push_str(&format!(
-                    "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                    "<tr><td><code>{}</code></td><td>{}</td></tr>\n",
                     escape(&t.id),
-                    t.level,
                     escape(&t.description)
                 ));
             }
@@ -374,27 +399,8 @@ pub fn page(report: &Report) -> String {
         }
     }
 
-    if !report.checklist_above_level.is_empty() {
-        b.push_str("<h2>Secure by Design controls above this app's target level</h2>\n");
-        b.push_str(
-            "<p>The checklist has no levels of its own. Each control takes the level of the ASVS \
-             requirement that asks the same thing, or is shown at every level when none does; a few \
-             keep the level <code>sv</code> derived from the checklist's severity, which is lower.</p>\n\
-             <table>\n<tr><th>control</th><th>where its level came from</th><th>what it asks for</th></tr>\n",
-        );
-        for line in &report.checklist_above_level {
-            b.push_str(&format!(
-                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
-                escape(&line.id),
-                escape(&line.basis),
-                escape(&line.description)
-            ));
-        }
-        b.push_str("</table>\n");
-    }
-
     if !report.undecided.is_empty() {
-        b.push_str("<h2>Requirements nobody has placed</h2>\n");
+        b.push_str("<details class=\"bulk\">\n<summary><strong>Requirements nobody has placed</strong> — each names the question that would place it</summary>\n");
         b.push_str(
             "<p>These are not exclusions. Answering the question moves each one into \
              <em>applies</em> or <em>does not apply</em>.</p>\n",
@@ -432,6 +438,8 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    b.push_str("</details>\n");
+
     if !report.out_of_scope.is_empty() {
         b.push_str("<h2>Findings about requirements this app is not being assessed against</h2>\n");
         b.push_str(
@@ -451,8 +459,27 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    if !report.checklist_above_level.is_empty() {
+        b.push_str("<h2>Secure by Design controls above this app's target level</h2>\n");
+        b.push_str(
+            "<p>The checklist has no levels of its own. Each control takes the level of the ASVS \
+             requirement that asks the same thing, or is shown at every level when none does; a few \
+             keep the level <code>sv</code> derived from the checklist's severity, which is lower.</p>\n\
+             <table>\n<tr><th>control</th><th>where its level came from</th><th>what it asks for</th></tr>\n",
+        );
+        for line in &report.checklist_above_level {
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                escape(&line.id),
+                escape(&line.basis),
+                escape(&line.description)
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
     if !report.excluded.is_empty() {
-        b.push_str("<h2>Requirements that do not apply, and why</h2>\n");
+        b.push_str("<details class=\"bulk\">\n<summary><strong>Requirements that do not apply, and why</strong> — reference: why each was ruled out</summary>\n");
         b.push_str(
             "<p>An exclusion resting on the manifest's word is weaker than one resting on what the \
              code contains.</p>\n",
@@ -469,6 +496,8 @@ pub fn page(report: &Report) -> String {
         }
         b.push_str("</table>\n");
     }
+
+    b.push_str("</details>\n");
 
     b.push_str("</body>\n</html>\n");
     b

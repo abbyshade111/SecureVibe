@@ -16,6 +16,53 @@ pub fn cell(text: &str) -> String {
     escaped.replace(['\n', '\r'], " ")
 }
 
+/// One requirement's status, in the words the table prints. Shared so the grouped tables and
+/// anything else that lists a requirement cannot drift apart in how they describe the same state.
+fn status_cell(line: &crate::RequirementLine) -> String {
+    match line.status {
+        Status::NeedsAttention => {
+            format!("**{}** ({})", line.status.label(), line.findings.join(", "))
+        }
+        Status::Checked => format!(
+            "{} ({})",
+            line.status.label(),
+            line.checked_by
+                .iter()
+                .map(|c| format!("{}: {}", c.check_id, c.scope))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+        Status::Attested => format!(
+            "{} \u{2014} your word, not a check: {}",
+            line.status.label(),
+            line.attested_by
+                .iter()
+                .map(|c| c.scope.clone())
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+        Status::Documented => format!(
+            "{} \u{2014} you answered this in {}",
+            line.status.label(),
+            line.documented_by
+                .iter()
+                .map(|c| c.scope.clone())
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+        Status::NotVerified if !line.supported_by.is_empty() => format!(
+            "{} — a person has to answer it; supporting: {}",
+            line.status.label(),
+            line.supported_by
+                .iter()
+                .map(|c| format!("{}: {}", c.check_id, c.scope))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+        Status::NotVerified => line.status.label().to_owned(),
+    }
+}
+
 pub fn compliance(report: &Report) -> String {
     let mut out = String::new();
     let c = &report.counts;
@@ -150,59 +197,27 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
+    // Split by level, level 1 first. Two hundred rows in one table is a reference document; the
+    // level 1 ones are the short list somebody is actually expected to work through, and burying
+    // them among the level 2 ones is what made the whole table feel like nothing to act on.
     out.push_str("## Requirements that apply\n\n");
-    out.push_str("| requirement | status | what it asks for |\n|---|---|---|\n");
-    for line in &report.requirements {
-        let status = match line.status {
-            Status::NeedsAttention => {
-                format!("**{}** ({})", line.status.label(), line.findings.join(", "))
-            }
-            Status::Checked => format!(
-                "{} ({})",
-                line.status.label(),
-                line.checked_by
-                    .iter()
-                    .map(|c| format!("{}: {}", c.check_id, c.scope))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::Attested => format!(
-                "{} \u{2014} your word, not a check: {}",
-                line.status.label(),
-                line.attested_by
-                    .iter()
-                    .map(|c| c.scope.clone())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::Documented => format!(
-                "{} \u{2014} you answered this in {}",
-                line.status.label(),
-                line.documented_by
-                    .iter()
-                    .map(|c| c.scope.clone())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::NotVerified if !line.supported_by.is_empty() => format!(
-                "{} — a person has to answer it; supporting: {}",
-                line.status.label(),
-                line.supported_by
-                    .iter()
-                    .map(|c| format!("{}: {}", c.check_id, c.scope))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ),
-            Status::NotVerified => line.status.label().to_owned(),
-        };
+    for group in crate::groups::by_level(&report.requirements) {
         out.push_str(&format!(
-            "| {} | {} | {} |\n",
-            cell(&line.id),
-            cell(&status),
-            cell(&line.description)
+            "### {} — {} of them\n\n",
+            group.heading,
+            group.lines.len()
         ));
+        out.push_str("| requirement | status | what it asks for |\n|---|---|---|\n");
+        for line in group.lines {
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.id),
+                cell(&status_cell(line)),
+                cell(&line.description)
+            ));
+        }
+        out.push('\n');
     }
-    out.push('\n');
 
     if !report.threats.is_empty() {
         out.push_str("## Threats\n\n");
@@ -246,11 +261,33 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
-    if !report.tests_to_write.is_empty() || !report.named_not_credited.is_empty() {
-        out.push_str("## Tests to write\n\n");
-        out.push_str("Nothing produced evidence about these, and no test in the app names them. A test that names a requirement's id and passes is the one way to give evidence about any requirement, including the ones no check here can reach, so this is the list of tests worth writing, lowest level first. Name only what a test really checks: nothing here can tell whether it does. Design-review requirements are not listed; a person answers those.\n\n");
+    // Level 1 only. The whole list is 87 rows of requirement ids for an owner who is not a
+    // programmer, and it reads as a to-do list aimed at somebody else — which it is: its real
+    // audience is the AI coding tool, and `sv mcp` gives that one the complete list. What is left
+    // here is the short list a person could hand to whoever writes their tests.
+    let level_one: Vec<&crate::TestToWrite> = report
+        .tests_to_write
+        .iter()
+        .filter(|t| t.level == 1)
+        .collect();
+    let deeper = report.tests_to_write.len() - level_one.len();
+    if !level_one.is_empty() || !report.named_not_credited.is_empty() {
+        out.push_str("## Tests worth writing first\n\n");
+        out.push_str(
+            "Nothing produced evidence about these, and no test in the app names them. A test that \
+             names a requirement's id and passes is the one way to give evidence about any \
+             requirement, including the ones no check here can reach. These are the level 1 ones. \
+             Name only what a test really checks: nothing here can tell whether it does.\n\n",
+        );
+        if deeper > 0 {
+            out.push_str(&format!(
+                "{deeper} more are at level 2 and above. They are not listed here, because a list \
+                 that long is not something a person works through; `sv mcp` gives the whole list \
+                 to your AI coding tool, and report.json carries it under `tests_to_write`.\n\n"
+            ));
+        }
         if report.not_for_tests > 0 {
-            out.push_str(&format!("{} more have no evidence and are not listed, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.\n\n", report.not_for_tests));
+            out.push_str(&format!("{} more have no evidence and are not listed at all, because an application's own tests cannot show them: they ask for documentation, a deployment setting, a development process, or a design decision, and a person answers them.\n\n", report.not_for_tests));
         }
         if !report.named_not_credited.is_empty() {
             out.push_str(&format!(
@@ -259,61 +296,17 @@ pub fn compliance(report: &Report) -> String {
                 report.named_not_credited.join(", ")
             ));
         }
-        if !report.tests_to_write.is_empty() {
-            out.push_str("| requirement | level | what it asks for |\n|---|---|---|\n");
-            for t in &report.tests_to_write {
-                out.push_str(&format!(
-                    "| {} | {} | {} |\n",
-                    cell(&t.id),
-                    t.level,
-                    cell(&t.description)
-                ));
+        if !level_one.is_empty() {
+            out.push_str("| requirement | what it asks for |\n|---|---|\n");
+            for t in &level_one {
+                out.push_str(&format!("| {} | {} |\n", cell(&t.id), cell(&t.description)));
             }
             out.push('\n');
         }
     }
 
-    if !report.checklist_above_level.is_empty() {
-        out.push_str("## Secure by Design controls above this app's target level\n\n");
-        out.push_str(
-            "The checklist has no levels of its own. Each control takes the level of the ASVS \
-             requirement that asks the same thing, or is shown at every level when none does; a few \
-             keep the level `sv` derived from the checklist's severity, which is lower. These are \
-             the ones that came out above this app's target.\n\n\
-             | control | where its level came from | what it asks for |\n|---|---|---|\n",
-        );
-        for line in &report.checklist_above_level {
-            out.push_str(&format!(
-                "| {} | {} | {} |\n",
-                cell(&line.id),
-                cell(&line.basis),
-                cell(&line.description)
-            ));
-        }
-        out.push('\n');
-    }
-
-    if !report.excluded.is_empty() {
-        out.push_str("## Requirements that do not apply, and why\n\n");
-        out.push_str(
-            "An exclusion resting on the manifest's word is weaker than one resting on what the \
-             code actually contains. The last column says which this is.\n\n\
-             | requirement | why not | rests on |\n|---|---|---|\n",
-        );
-        for ex in &report.excluded {
-            out.push_str(&format!(
-                "| {} | {} | {} ({}) |\n",
-                cell(&ex.id),
-                cell(&ex.reason),
-                cell(ex.rests_on),
-                cell(&ex.condition)
-            ));
-        }
-        out.push('\n');
-    }
-
     if !report.undecided.is_empty() {
-        out.push_str("## Requirements nobody has placed\n\n");
+        out.push_str("<details>\n<summary><strong>Requirements nobody has placed</strong> — each names the question that would place it</summary>\n\n");
         out.push_str(
             "These are not exclusions. Answering the question in the second column moves each one \
              into *applies* or *does not apply*.\n\n\
@@ -328,6 +321,8 @@ pub fn compliance(report: &Report) -> String {
         }
         out.push('\n');
     }
+
+    out.push_str("\n</details>\n\n");
 
     if !report.out_of_scope.is_empty() {
         out.push_str("## Findings about requirements this app is not being assessed against\n\n");
@@ -367,6 +362,47 @@ pub fn compliance(report: &Report) -> String {
         }
         out.push('\n');
     }
+
+    if !report.checklist_above_level.is_empty() {
+        out.push_str("## Secure by Design controls above this app's target level\n\n");
+        out.push_str(
+            "The checklist has no levels of its own. Each control takes the level of the ASVS \
+             requirement that asks the same thing, or is shown at every level when none does; a few \
+             keep the level `sv` derived from the checklist's severity, which is lower. These are \
+             the ones that came out above this app's target.\n\n\
+             | control | where its level came from | what it asks for |\n|---|---|---|\n",
+        );
+        for line in &report.checklist_above_level {
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.id),
+                cell(&line.basis),
+                cell(&line.description)
+            ));
+        }
+        out.push('\n');
+    }
+
+    if !report.excluded.is_empty() {
+        out.push_str("<details>\n<summary><strong>Requirements that do not apply, and why</strong> — reference: why each was ruled out</summary>\n\n");
+        out.push_str(
+            "An exclusion resting on the manifest's word is weaker than one resting on what the \
+             code actually contains. The last column says which this is.\n\n\
+             | requirement | why not | rests on |\n|---|---|---|\n",
+        );
+        for ex in &report.excluded {
+            out.push_str(&format!(
+                "| {} | {} | {} ({}) |\n",
+                cell(&ex.id),
+                cell(&ex.reason),
+                cell(ex.rests_on),
+                cell(&ex.condition)
+            ));
+        }
+        out.push('\n');
+    }
+
+    out.push_str("\n</details>\n\n");
 
     if !report.claims.is_empty() {
         out.push_str("## What the app says about itself\n\n");

@@ -20,6 +20,7 @@
 //!    applicable, not failing, not verified: *not assessed*, with the question that would settle it.
 
 pub mod bluf;
+pub mod groups;
 pub mod html;
 pub mod markdown;
 pub mod sarif;
