@@ -345,8 +345,8 @@ another session is not a claim.
   counts against V15.2.1, and an unrated advisory is held to the shortest time frame. See DESIGN, "Late,
   not merely known". Left over, found while doing it: **`sv report` never runs the advisory comparison**,
   so V15.2.1 has no evidence in the report whatever `sv audit` says, and the checklist sends the owner
-  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report` and is not
-  claimed.
+  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report`.
+  **Claimed on 26 September 2026 by session securevibe-e8.**
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
