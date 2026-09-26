@@ -751,6 +751,46 @@ const RESET_REVEALS_ACCOUNT: Rule = Rule {
           link\" — and send the email, or not, afterwards.",
 };
 
+const EMAIL_CODE_REUSABLE: Rule = Rule {
+    rule_id: "probe.email-code-reusable",
+    requirement_ids: &["V6.5.1"],
+    cwe: &["CWE-294"],
+    impact: "A sign-in code or link that works more than once signs in whoever finds it next — in a \
+             mailbox, a browser history, or a forwarded email.",
+    fix: "Mark the code as used, or delete it, in the same step that signs the user in, and refuse a \
+          code that has been used.",
+};
+
+const EMAIL_CODE_UNBOUND: Rule = Rule {
+    rule_id: "probe.email-code-unbound",
+    requirement_ids: &["V6.6.2"],
+    cwe: &["CWE-294"],
+    impact: "A code that completes a sign-in other than the one it was sent for can be used by \
+             somebody who started their own sign-in and then got hold of the code — a phishing page \
+             that asks for it is enough.",
+    fix: "Tie each code to the sign-in request that asked for it, for instance by storing the \
+          session it was asked from, and refuse it anywhere else.",
+};
+
+const EMAIL_CODE_SHORT: Rule = Rule {
+    rule_id: "probe.email-code-short",
+    requirement_ids: &["V6.5.4"],
+    cwe: &["CWE-330"],
+    impact: "A sign-in code short enough to guess lets anybody who knows an email address sign in \
+             as its owner without ever seeing the email.",
+    fix: "Make each code from a secure random generator, with at least six random digits (20 bits), \
+          and more for a code in a link.",
+};
+
+const EMAIL_CODE_GUESSING: Rule = Rule {
+    rule_id: "probe.email-code-guessing-unlimited",
+    requirement_ids: &["V6.6.3"],
+    cwe: &["CWE-307"],
+    impact: "Codes can be tried until one works: at six digits, a million tries sign anybody in.",
+    fix: "Count wrong codes for each sign-in request and each account, and after a few, refuse more \
+          attempts or cancel the code and ask for a new one.",
+};
+
 const SESSIONS_SURVIVE_DELETION: Rule = Rule {
     rule_id: "probe.sessions-survive-deletion",
     requirement_ids: &["V7.4.2"],
@@ -1042,11 +1082,14 @@ pub fn run(
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    email_code_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. After everything else, without exception. This one deliberately provokes the app into
     //     refusing requests, and a limiter that counts by address rather than by account would then
     //     be refusing every check above too. Running it last means the worst it can cost is itself.
     brute_force_check(http, users, accounts, policy, &mut out);
+    // And codes after passwords: both set out to be refused, and this one is the newer.
+    email_code_guessing(http, users, accounts, confirm.as_deref(), policy, &mut out);
 
     out
 }
@@ -1990,7 +2033,7 @@ fn reset_checks(
         ));
         return;
     };
-    let patterns = match reset_patterns(reset.code_pattern.as_deref()) {
+    let patterns = match code_patterns(reset.code_pattern.as_deref(), "reset") {
         Ok(p) => p,
         Err(e) => {
             out.not_assessed.push((
@@ -2244,8 +2287,520 @@ fn reset_checks(
     ));
 }
 
-/// Where a reset code is looked for in an email: the owner's pattern, or a link's usual places.
-fn reset_patterns(custom: Option<&str>) -> Result<Vec<regex::Regex>, String> {
+/// Signing in with a code the app emails, followed through the mail server (V6.5.1, V6.5.4,
+/// V6.6.2). V6.6.3, guessing, is `email_code_guessing`, which runs last of all.
+///
+/// Every code is asked for and used in a session of its own, as a browser would, since a code tied
+/// to the session that asked for it is exactly what V6.6.2 wants. The setup is shown to work first:
+/// a code used where it was asked for signs in, which the private page confirms.
+fn email_code_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V6.5.1, V6.5.4, V6.6.2, V6.6.3";
+    let Some(flow) = EmailCode::start(http, users, accounts, confirm, IDS, out) else {
+        return;
+    };
+
+    // 1. A code, used where it was asked for: the setup proof.
+    let mut first = Session::default();
+    let code = match flow.ask(http, &mut first, "1", out) {
+        Ok(code) => code,
+        Err(why) => {
+            out.not_assessed.push((IDS.to_owned(), why));
+            return;
+        }
+    };
+    if !flow.signs_in(http, &code, &mut first, "1", out) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Using the emailed code through {} in the session that asked for it did not open \
+                 {}: check `email-code` in securevibe.toml. With no code that works, a refused one \
+                 shows nothing.",
+                flow.entry.use_code.path, flow.confirm
+            ),
+        ));
+        return;
+    }
+    let mut codes = vec![code.clone()];
+
+    // 2. Two sessions each ask for a code; the first session's code is used in the second
+    //    (V6.6.2). Then the second session's own code, so a refusal is known to be about the code.
+    //    Before the second use of a code, because what a refused second use means depends on it.
+    let mut asked_one = Session::default();
+    let mut asked_two = Session::default();
+    let (one, two) = match (
+        flow.ask(http, &mut asked_one, "2", out),
+        flow.ask(http, &mut asked_two, "3", out),
+    ) {
+        (Ok(one), Ok(two)) => (one, two),
+        (Err(why), _) | (_, Err(why)) => {
+            email_code_short_check(&codes, out);
+            out.not_assessed.push(("V6.6.2, V6.5.1".to_owned(), why));
+            return;
+        }
+    };
+    codes.extend([one.clone(), two.clone()]);
+    email_code_short_check(&codes, out);
+    let crossed = flow.signs_in(http, &one, &mut asked_two, "crossed", out);
+    let bound = if crossed {
+        out.findings.push(finding(
+            &EMAIL_CODE_UNBOUND,
+            "An emailed sign-in code works for a sign-in it was not sent for",
+            Severity::Medium,
+            format!(
+                "Two sign-ins were started in separate sessions. The code sent for the first, used \
+                 through {} in the second, signed the second one in.",
+                flow.entry.use_code.path
+            ),
+        ));
+        Some(false)
+    } else if flow.signs_in(http, &two, &mut asked_two, "own", out) {
+        out.verified.push(crate::Verified::new(
+            EMAIL_CODE_UNBOUND.rule_id,
+            EMAIL_CODE_UNBOUND.requirement_ids,
+            format!(
+                "a code sent for one sign-in, refused through {} in another session, where that \
+                 session's own code then signed in",
+                flow.entry.use_code.path
+            ),
+        ));
+        Some(true)
+    } else {
+        out.not_assessed.push((
+            "V6.6.2".to_owned(),
+            "A code used in a session that did not ask for it was refused, and so was that \
+             session's own code afterwards, so the refusal cannot be said to be about the code."
+                .to_owned(),
+        ));
+        None
+    };
+
+    // 3. The first code again, already used, from a new session (V6.5.1). Signing in is a finding
+    //    whatever else is true. A refusal is credited only where codes were shown to work outside
+    //    the session that asked: a code tied to its session would be refused in a new one used or
+    //    not, and the session it belonged to is the one its first use signed in.
+    let mut again = Session::default();
+    if flow.signs_in(http, &code, &mut again, "again", out) {
+        out.findings.push(finding(
+            &EMAIL_CODE_REUSABLE,
+            "An emailed sign-in code works more than once",
+            Severity::High,
+            format!(
+                "The code from one sign-in email signed in twice through {}: once where it was \
+                 asked for, and again in a new session after it had been used.",
+                flow.entry.use_code.path
+            ),
+        ));
+    } else if bound == Some(false) {
+        out.verified.push(crate::Verified::new(
+            EMAIL_CODE_REUSABLE.rule_id,
+            EMAIL_CODE_REUSABLE.requirement_ids,
+            format!(
+                "an emailed sign-in code through {}, which signed in once and was refused the \
+                 second time, where an unused code worked from any session",
+                flow.entry.use_code.path
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V6.5.1".to_owned(),
+            "Whether an emailed code works twice: a used code was refused in a new session, but \
+             codes here are tied to the session that asked for them, so it would have been \
+             refused there unused too, and the session it belonged to is already signed in."
+                .to_owned(),
+        ));
+    }
+}
+
+/// Wrong emailed codes, one more than the owner says the app allows, then the right one (V6.6.3).
+///
+/// Run after everything else, the password guessing included, for the same reason: it sets out to
+/// make the app refuse requests. The app is held to pushing back in any way — refusing the right
+/// code afterwards, or answering the wrong ones differently or slowly — as the password check does.
+fn email_code_guessing(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    policy: &sv_manifest::PolicySection,
+    out: &mut Outcome,
+) {
+    const MOST_ATTEMPTS: u32 = 25;
+    if users.email_code.is_none() {
+        return;
+    }
+    let Some(allowed) = policy
+        .failed_codes
+        .filter(|n| (1..MOST_ATTEMPTS).contains(n))
+    else {
+        out.not_assessed.push((
+            "V6.6.3".to_owned(),
+            match policy.failed_codes {
+                None => {
+                    "Whether emailed sign-in codes can be guessed: say how many wrong codes in \
+                         a row the app should allow, as `failed-codes` under [policy] in \
+                         securevibe.toml, and this will make one more attempt than that."
+                        .to_owned()
+                }
+                Some(n) => format!(
+                    "[policy] failed-codes is {n}; this check makes between 2 and {MOST_ATTEMPTS} \
+                     attempts, so it cannot hold the app to that number."
+                ),
+            },
+        ));
+        return;
+    };
+    // Quietly: the checks above already said why, if the flow cannot be started.
+    let mut quiet = Outcome::default();
+    let Some(flow) = EmailCode::start(http, users, accounts, confirm, "V6.6.3", &mut quiet) else {
+        out.not_assessed.push((
+            "V6.6.3".to_owned(),
+            "Whether emailed sign-in codes can be guessed: the sign-in by emailed code could not \
+             be started, as said above."
+                .to_owned(),
+        ));
+        return;
+    };
+    // First, that a code works at all here, in a session of its own. Otherwise the right code
+    // refused after the guesses — the strongest sign of pushing back — would be credited for an
+    // app whose codes never sign anybody in. Found by the seeded fixture's witness.
+    let mut proof = Session::default();
+    let works = match flow.ask(http, &mut proof, "guess-proof", out) {
+        Ok(code) => flow.signs_in(http, &code, &mut proof, "guess-proof", out),
+        Err(_) => false,
+    };
+    if !works {
+        out.not_assessed.push((
+            "V6.6.3".to_owned(),
+            "Whether emailed sign-in codes can be guessed: a code asked for and used in the same \
+             session did not sign in, so a right code refused after wrong ones would show nothing."
+                .to_owned(),
+        ));
+        return;
+    }
+    let mut session = Session::default();
+    let code = match flow.ask(http, &mut session, "guessed", out) {
+        Ok(code) => code,
+        Err(why) => {
+            out.not_assessed.push(("V6.6.3".to_owned(), why));
+            return;
+        }
+    };
+    let attempts = allowed + 1;
+    let mut answers: Vec<(u16, u128)> = Vec::new();
+    for n in 0..attempts {
+        let wrong = wrong_code(&code, n);
+        let started = std::time::Instant::now();
+        let response = flow.send_use(http, &wrong, &mut session, &format!("guess-{n}"));
+        let elapsed = started.elapsed().as_millis();
+        answers.push((response.map_or(0, |r| r.status), elapsed));
+    }
+    let Some(&(first_status, first_ms)) = answers.first() else {
+        return;
+    };
+    if matches!(first_status, 0 | 423 | 429) {
+        out.not_assessed.push((
+            "V6.6.3".to_owned(),
+            format!(
+                "The app was already refusing ({first_status}) before this check made its first \
+                 wrong code, most likely because of a limit an earlier check tripped, so nothing \
+                 here can say whether it pushes back at {allowed}."
+            ),
+        ));
+        return;
+    }
+    let last = answers.last().copied().unwrap_or((0, 0));
+    let right_still_works = flow.signs_in(http, &code, &mut session, "after-guesses", out);
+    let status_changed = last.0 != first_status;
+    let refused = matches!(last.0, 0 | 423 | 429);
+    let slowed = last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
+    let how = if !right_still_works {
+        "then refused the right code".to_owned()
+    } else if refused {
+        format!("refused the last wrong code outright ({})", last.0)
+    } else if status_changed {
+        format!(
+            "answered the last wrong code {} where the first got {first_status}",
+            last.0
+        )
+    } else if slowed {
+        format!(
+            "took {}ms over the last wrong code against {first_ms}ms",
+            last.1
+        )
+    } else {
+        String::new()
+    };
+    out.steps.push(format!(
+        "sent {attempts} wrong emailed codes in a row, then the right one; the app {}",
+        if how.is_empty() {
+            "did not push back"
+        } else {
+            &how
+        }
+    ));
+    if how.is_empty() {
+        out.findings.push(finding(
+            &EMAIL_CODE_GUESSING,
+            "Emailed sign-in codes can be guessed without limit",
+            Severity::High,
+            format!(
+                "securevibe.toml says the app should allow {allowed} wrong codes in a row. After \
+                 {attempts} wrong codes through {}, each answered {first_status}, the right code \
+                 still signed in.",
+                flow.entry.use_code.path
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            EMAIL_CODE_GUESSING.rule_id,
+            EMAIL_CODE_GUESSING.requirement_ids,
+            format!(
+                "{attempts} wrong emailed codes in a row, the number you stated plus one: the app \
+                 {how}"
+            ),
+        ));
+    }
+}
+
+/// A code that is certainly wrong and looks like the real one: the same length and kind of
+/// character, each position moved along by a different amount.
+fn wrong_code(code: &str, n: u32) -> String {
+    code.chars()
+        .enumerate()
+        .map(|(i, c)| {
+            let step = (n as usize + i) % 8 + 1;
+            if c.is_ascii_digit() {
+                char::from(b'0' + ((c as u8 - b'0') as usize + step) as u8 % 10)
+            } else if c.is_ascii_lowercase() {
+                char::from(b'a' + ((c as u8 - b'a') as usize + step) as u8 % 26)
+            } else if c.is_ascii_uppercase() {
+                char::from(b'A' + ((c as u8 - b'A') as usize + step) as u8 % 26)
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+/// Whether an emailed sign-in code could be guessed: too short to hold 20 bits (V6.5.4).
+///
+/// Only ever a finding, by `most_bits`, an upper bound: a code this calls too short is too short
+/// however it was made, and a long one may still be predictable.
+fn email_code_short_check(codes: &[String], out: &mut Outcome) {
+    let Some(shortest) = codes.iter().min_by_key(|c| c.chars().count()) else {
+        return;
+    };
+    let bits = most_bits(shortest);
+    if bits < 19.9 {
+        out.findings.push(finding(
+            &EMAIL_CODE_SHORT,
+            "The emailed sign-in code is short enough to guess",
+            Severity::High,
+            format!(
+                "The code in the sign-in email is {} characters long and can hold at most {bits:.0} \
+                 bits, fewer than the 20 of six random digits that ASVS asks for.",
+                shortest.chars().count()
+            ),
+        ));
+    }
+}
+
+/// The pieces every emailed-code check needs, found once.
+struct EmailCode<'a> {
+    entry: &'a sv_manifest::ResetSection,
+    patterns: Vec<regex::Regex>,
+    account: Account,
+    confirm: &'a str,
+}
+
+impl<'a> EmailCode<'a> {
+    /// Everything up to the first code, or `None` having said why not.
+    fn start(
+        http: &mut dyn Http,
+        users: &'a UsersSection,
+        accounts: &Accounts,
+        confirm: Option<&'a str>,
+        ids: &str,
+        out: &mut Outcome,
+    ) -> Option<Self> {
+        let Some(entry) = &users.email_code else {
+            out.not_assessed.push((
+                ids.to_owned(),
+                "Signing in with an emailed code: securevibe.toml sets no `email-code` under \
+                 [stack.run.users]."
+                    .to_owned(),
+            ));
+            return None;
+        };
+        let patterns = match code_patterns(
+            entry.code_pattern.as_deref(),
+            "login|log-in|signin|sign-in|magic|verify|auth",
+        ) {
+            Ok(p) => p,
+            Err(e) => {
+                out.not_assessed.push((
+                    ids.to_owned(),
+                    format!("`email-code.code-pattern` in securevibe.toml cannot be used: {e}."),
+                ));
+                return None;
+            }
+        };
+        let Some(confirm) = confirm else {
+            out.not_assessed.push((
+                ids.to_owned(),
+                "Signing in with an emailed code: telling whether it worked needs a private page a \
+                 signed-in user alone can open, and none was shown."
+                    .to_owned(),
+            ));
+            return None;
+        };
+        // A sign-in by code changes nothing about an account, so A will do when there is no
+        // sign-up; with one, an account of its own keeps its mail apart from everything else.
+        let account = match &users.signup {
+            Some(signup) => {
+                let spare = &accounts.spare;
+                let account = Account {
+                    user: format!("code.{}", accounts.a.user),
+                    password: format!(
+                        "Co-{}-aZ9!",
+                        spare.chars().skip(4).take(24).collect::<String>()
+                    ),
+                };
+                sign_up(http, signup, "code", &account);
+                account
+            }
+            None => accounts.a.clone(),
+        };
+        if http.mail(&account.user, 0).is_none() {
+            out.not_assessed.push((
+                ids.to_owned(),
+                "Signing in with an emailed code: the run had no mail server for the app to send \
+                 to, so there was no email to read."
+                    .to_owned(),
+            ));
+            return None;
+        }
+        Some(EmailCode {
+            entry,
+            patterns,
+            account,
+            confirm,
+        })
+    }
+
+    /// Asks for a code in this session and reads it from the newest email; or says why there is
+    /// none, for the caller to report against the requirements it was needed for.
+    fn ask(
+        &self,
+        http: &mut dyn Http,
+        session: &mut Session,
+        label: &str,
+        out: &mut Outcome,
+    ) -> Result<String, String> {
+        let no_sink = || "The run's mail server stopped answering.".to_owned();
+        let before = http.mail(&self.account.user, 0).ok_or_else(no_sink)?.len();
+        let values = Values {
+            user: &self.account.user,
+            ..Default::default()
+        };
+        let (response, _) = send_template(
+            http,
+            &format!("email-code-request-{label}"),
+            &self.entry.request,
+            &values,
+            session,
+            &[],
+        );
+        let mail = http
+            .mail(&self.account.user, before + 1)
+            .ok_or_else(no_sink)?;
+        let code = mail
+            .get(before..)
+            .and_then(|new| new.last())
+            .and_then(|m| reset_code(m, &self.patterns));
+        out.steps.push(format!(
+            "asked for a sign-in code for {} ({}): {}",
+            self.account.user,
+            status(&response),
+            match (&code, mail.len() > before) {
+                (Some(_), _) => "the email arrived with a code in it",
+                (None, true) => "the email arrived with no code found in it",
+                (None, false) => "no email arrived",
+            }
+        ));
+        match (code, mail.len() > before) {
+            (Some(code), _) => Ok(code),
+            (None, true) => Err(
+                "The sign-in email arrived and no code was found in it. Set \
+                                 `email-code.code-pattern` in securevibe.toml to a pattern whose \
+                                 first group is the code."
+                    .to_owned(),
+            ),
+            (None, false) => Err(format!(
+                "Asked for a sign-in code, the app sent no email to {} at the run's mail server. \
+                 The app is told where that is in SMTP_HOST and SMTP_PORT; check that it reads \
+                 them, and check `email-code.request` in securevibe.toml.",
+                self.account.user
+            )),
+        }
+    }
+
+    fn send_use(
+        &self,
+        http: &mut dyn Http,
+        code: &str,
+        session: &mut Session,
+        label: &str,
+    ) -> Option<ProbeResponse> {
+        let values = Values {
+            user: &self.account.user,
+            code,
+            ..Default::default()
+        };
+        send_template(
+            http,
+            &format!("email-code-use-{label}"),
+            &self.entry.use_code,
+            &values,
+            session,
+            &[],
+        )
+        .0
+    }
+
+    /// Uses a code in this session and says whether the session then opens the private page.
+    fn signs_in(
+        &self,
+        http: &mut dyn Http,
+        code: &str,
+        session: &mut Session,
+        label: &str,
+        out: &mut Outcome,
+    ) -> bool {
+        let answer = self.send_use(http, code, session, label);
+        let opened = ok(&http.send(&get(
+            &format!("email-code-private-{label}"),
+            self.confirm,
+            session,
+        )));
+        out.steps.push(format!(
+            "used an emailed code ({label}, {}): {}",
+            status(&answer),
+            if opened { "signed in" } else { "not signed in" }
+        ));
+        opened
+    }
+}
+
+/// Where a code is looked for in an email: the owner's pattern, or a link's usual places, with
+/// `under` naming the words a link's path goes through (`reset`, or the sign-in words).
+fn code_patterns(custom: Option<&str>, under: &str) -> Result<Vec<regex::Regex>, String> {
     if let Some(custom) = custom {
         let pattern = regex::Regex::new(custom).map_err(|e| e.to_string())?;
         if pattern.captures_len() < 2 {
@@ -2255,8 +2810,12 @@ fn reset_patterns(custom: Option<&str>) -> Result<Vec<regex::Regex>, String> {
     }
     // `;` as well as `&` before a parameter: in an HTML email a link's `&` is written `&amp;`.
     [
-        r"(?i)[?&;](?:reset[_-]?)?(?:token|code|key)=([A-Za-z0-9._~%-]+)",
-        r#"(?i)https?://[^\s"'<>]*reset[^\s"'<>?]*/([A-Za-z0-9._~-]{8,})(?:[\s"'<>?#]|$)"#,
+        r"(?i)[?&;](?:reset[_-]?|login[_-]?)?(?:token|code|key)=([A-Za-z0-9._~%-]+)".to_owned(),
+        format!(
+            r#"(?i)https?://[^\s"'<>]*(?:{under})[^\s"'<>?]*/([A-Za-z0-9._~-]{{8,}})(?:[\s"'<>?#]|$)"#
+        ),
+        // A code written out on its own: "your code is 482913", "Code: X7K2Q9".
+        r"(?i)\bcode(?:\s+is)?\s*:?\s*([A-Za-z0-9]{4,12})\b".to_owned(),
     ]
     .iter()
     .map(|p| regex::Regex::new(p).map_err(|e| e.to_string()))
@@ -4354,6 +4913,10 @@ mod tests {
         outbox: Vec<(String, String)>,
         /// Reset codes handed out: code -> (account, used).
         reset_codes: BTreeMap<String, (String, bool)>,
+        /// Sign-in codes handed out: code -> (account, the session that asked, used).
+        sign_in_codes: BTreeMap<String, (String, String, bool)>,
+        /// Wrong sign-in codes per session.
+        code_failures: BTreeMap<String, u32>,
     }
 
     #[derive(Default, Clone, Copy)]
@@ -4484,6 +5047,26 @@ mod tests {
         /// answered differently. Not a fault: it is here so a comparison that forgot to check the
         /// two alike answers first would accuse a correct app.
         reset_answer_counts: bool,
+        /// A sign-in code can be used again after it has signed in.
+        code_reusable: bool,
+        /// A sign-in code works in any session, not only the one that asked for it.
+        code_unbound: bool,
+        /// Sign-in codes are four digits.
+        code_short: bool,
+        /// Wrong sign-in codes are never counted.
+        code_guessing_unlimited: bool,
+        /// A session is locked after its first wrong code, rather than its third.
+        code_locks_after_one: bool,
+        /// Using a sign-in code answers as if it worked and signs nobody in.
+        code_does_nothing: bool,
+        /// Asking for a sign-in code answers and sends no email.
+        code_sends_nothing: bool,
+        /// Past the limit, wrong codes are answered as before and the code is quietly cancelled:
+        /// the only sign of pushing back is that the right code no longer works. Not a fault.
+        code_cancels_quietly: bool,
+        /// Every wrong code is answered 429 from the first, as an app whose limiter an earlier
+        /// check has tripped would.
+        code_already_refusing: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -4824,6 +5407,91 @@ mod tests {
                             self.kept.insert(who.clone(), stored);
                         }
                         self.users.get_mut(&who)?.0 = new;
+                    }
+                    Self::respond(303, vec![("Location", "/account".into())], "")
+                }
+                ("GET", "/login/code" | "/login/verify") => {
+                    // A session for the code to be tied to, unless the browser already has one.
+                    let mut headers = vec![];
+                    if !sid.as_ref().is_some_and(|s| self.sessions.contains_key(s)) {
+                        let id = self.new_id();
+                        self.sessions.insert(id.clone(), String::new());
+                        let attrs = self.cookie_attrs();
+                        headers.push(("Set-Cookie", format!("sid={id}; {attrs}")));
+                    }
+                    Self::respond(
+                        200,
+                        headers,
+                        &format!("<input type=hidden name=csrf_token value={CSRF}>"),
+                    )
+                }
+                ("POST", "/login/code") => {
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let email = form(r).get("email")?.clone();
+                    if self.users.contains_key(&email) && !self.flaws.code_sends_nothing {
+                        self.next += 1;
+                        let n = u64::from(self.next).wrapping_mul(7_919 * 104_729);
+                        let code = if self.flaws.code_short {
+                            format!("{:04}", n % 10_000)
+                        } else {
+                            format!("{:06}", n % 1_000_000)
+                        };
+                        self.sign_in_codes.insert(
+                            code.clone(),
+                            (email.clone(), sid.clone().unwrap_or_default(), false),
+                        );
+                        self.outbox.push((
+                            email,
+                            format!("Your sign-in code is {code}. It works once, in this browser."),
+                        ));
+                    }
+                    Self::respond(
+                        200,
+                        vec![],
+                        "If that address has an account, we sent a code.",
+                    )
+                }
+                ("POST", "/login/verify") => {
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let session = sid.clone().unwrap_or_default();
+                    let limit = if self.flaws.code_locks_after_one {
+                        1
+                    } else {
+                        3
+                    };
+                    let failures = self.code_failures.get(&session).copied().unwrap_or(0);
+                    let code = form(r).get("code")?.clone();
+                    if failures >= limit && !self.flaws.code_guessing_unlimited {
+                        if self.flaws.code_cancels_quietly {
+                            self.sign_in_codes
+                                .retain(|_, (_, asked, _)| *asked != session);
+                            *self.code_failures.entry(session).or_insert(0) += 1;
+                            return Some(Self::respond(401, vec![], "that code does not work"));
+                        }
+                        return Some(Self::respond(429, vec![], "ask for a new code"));
+                    }
+                    if self.flaws.code_already_refusing && !self.sign_in_codes.contains_key(&code) {
+                        return Some(Self::respond(429, vec![], "slow down"));
+                    }
+                    let good = self
+                        .sign_in_codes
+                        .get(&code)
+                        .cloned()
+                        .filter(|(_, asked, used)| {
+                            (*asked == session || self.flaws.code_unbound)
+                                && (!used || self.flaws.code_reusable)
+                        });
+                    let Some((who, asked, _)) = good else {
+                        *self.code_failures.entry(session).or_insert(0) += 1;
+                        return Some(Self::respond(401, vec![], "that code does not work"));
+                    };
+                    self.sign_in_codes.insert(code, (who.clone(), asked, true));
+                    if !self.flaws.code_does_nothing && !session.is_empty() {
+                        self.sessions.insert(session, who);
                     }
                     Self::respond(303, vec![("Location", "/account".into())], "")
                 }
@@ -5231,6 +5899,17 @@ mod tests {
                         ("password", "{new_password}"),
                         ("csrf_token", "{csrf}"),
                     ],
+                ),
+                code_pattern: None,
+            }),
+            email_code: Some(sv_manifest::ResetSection {
+                request: t(
+                    "/login/code",
+                    &[("email", "{user}"), ("csrf_token", "{csrf}")],
+                ),
+                use_code: t(
+                    "/login/verify",
+                    &[("code", "{code}"), ("csrf_token", "{csrf}")],
                 ),
                 code_pattern: None,
             }),
@@ -6727,7 +7406,7 @@ mod tests {
         sv_manifest::PolicySection {
             failed_sign_ins: failed,
             within_minutes: Some(15),
-            fix_within_days: None,
+            ..Default::default()
         }
     }
 
@@ -7858,6 +8537,7 @@ mod tests {
         assert!(
             app.outbox
                 .iter()
+                .filter(|(_, text)| text.contains("Reset"))
                 .all(|(to, _)| to == "reset.a@example.test"),
             "only the account made for it is ever sent a reset: {:?}",
             app.outbox
@@ -7869,7 +8549,7 @@ mod tests {
 
     #[test]
     fn a_code_is_found_in_a_link_however_the_email_writes_it() {
-        let p = reset_patterns(None).unwrap();
+        let p = code_patterns(None, "reset").unwrap();
         for (mail, code) in [
             ("Go to http://app/reset?token=abc123XYZ now", "abc123XYZ"),
             (
@@ -8054,6 +8734,450 @@ mod tests {
                 &answer(200, "Sent. Ticket 7.")
             ),
             1
+        );
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Signing in with an emailed code
+
+    const CODE_RULES: [&str; 4] = [
+        EMAIL_CODE_REUSABLE.rule_id,
+        EMAIL_CODE_UNBOUND.rule_id,
+        EMAIL_CODE_SHORT.rule_id,
+        EMAIL_CODE_GUESSING.rule_id,
+    ];
+
+    fn code_findings(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| CODE_RULES.contains(id))
+            .collect()
+    }
+
+    fn code_credits(o: &Outcome) -> Vec<&str> {
+        verified_ids(o)
+            .into_iter()
+            .filter(|id| CODE_RULES.contains(id))
+            .collect()
+    }
+
+    fn code_not_assessed(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.contains("V6.5.1") || ids.contains("V6.6."))
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    fn codes_policy(n: u32) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            failed_codes: Some(n),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_code_that_works_once_where_it_was_asked_for_is_credited() {
+        for o in [
+            run_against(Flaws::default(), &users()),
+            run_signing_up(Flaws::default()),
+        ] {
+            assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
+            assert_eq!(
+                code_credits(&o),
+                vec![EMAIL_CODE_UNBOUND.rule_id],
+                "{:?}",
+                o.steps
+            );
+            // A code tied to its session cannot be tried twice from another, so single use is
+            // not credited on a refusal there.
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(ids, why)| ids == "V6.5.1" && why.contains("tied to the session")),
+                "{:?}",
+                o.not_assessed
+            );
+            // Guessing is held to a stated number, and none was stated.
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(ids, why)| ids == "V6.6.3" && why.contains("failed-codes")),
+                "{:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn each_fault_in_a_sign_in_code_is_found_by_its_own_rule() {
+        for (flaws, found) in [
+            (
+                Flaws {
+                    code_reusable: true,
+                    code_unbound: true,
+                    ..Default::default()
+                },
+                vec![EMAIL_CODE_UNBOUND.rule_id, EMAIL_CODE_REUSABLE.rule_id],
+            ),
+            (
+                Flaws {
+                    code_unbound: true,
+                    ..Default::default()
+                },
+                vec![EMAIL_CODE_UNBOUND.rule_id],
+            ),
+            (
+                Flaws {
+                    code_short: true,
+                    ..Default::default()
+                },
+                vec![EMAIL_CODE_SHORT.rule_id],
+            ),
+        ] {
+            for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+                assert_eq!(code_findings(&o), found, "{found:?}: {:?}", o.steps);
+                for rule in &found {
+                    assert!(
+                        !code_credits(&o).contains(rule),
+                        "{rule} both found and credited"
+                    );
+                }
+            }
+        }
+        // A code that works from any session but only once: the one case where a refused second
+        // use is credited.
+        let flaws = Flaws {
+            code_unbound: true,
+            ..Default::default()
+        };
+        for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+            assert_eq!(
+                code_credits(&o),
+                vec![EMAIL_CODE_REUSABLE.rule_id],
+                "{:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn guessing_is_held_to_the_stated_number_of_wrong_codes() {
+        let o = run_with(Flaws::default(), &codes_policy(3));
+        assert!(
+            code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+            "{:?}\n{:?}",
+            o.steps,
+            o.not_assessed
+        );
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+
+        let o = run_with(
+            Flaws {
+                code_guessing_unlimited: true,
+                ..Default::default()
+            },
+            &codes_policy(3),
+        );
+        assert_eq!(
+            code_findings(&o),
+            vec![EMAIL_CODE_GUESSING.rule_id],
+            "{:?}",
+            o.steps
+        );
+        // And through the seeded fixture, with A's own address.
+        let mut app = FakeApp::new(Flaws {
+            code_guessing_unlimited: true,
+            ..Default::default()
+        });
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let o = run(&mut app, &users(), &acc, true, &codes_policy(3));
+        assert_eq!(code_findings(&o), vec![EMAIL_CODE_GUESSING.rule_id]);
+    }
+
+    #[test]
+    fn guessing_is_not_judged_on_a_number_it_cannot_reach() {
+        for n in [0, 25, 400] {
+            let o = run_with(
+                Flaws {
+                    code_guessing_unlimited: true,
+                    ..Default::default()
+                },
+                &codes_policy(n),
+            );
+            assert!(
+                !code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+                "{n}"
+            );
+            assert!(
+                !code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+                "{n}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_sign_in_code_that_signs_nobody_in_is_not_assessed_however_else_it_is_broken() {
+        let flaws = Flaws {
+            code_does_nothing: true,
+            code_reusable: true,
+            code_unbound: true,
+            ..Default::default()
+        };
+        for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+            assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
+            assert!(code_credits(&o).is_empty(), "{:?}", code_credits(&o));
+            assert!(
+                code_not_assessed(&o)
+                    .iter()
+                    .any(|w| w.contains("did not open")),
+                "{:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn with_no_sign_in_email_to_read_nothing_is_judged_and_it_says_why() {
+        for (flaws, why) in [
+            (
+                Flaws {
+                    no_mail_sink: true,
+                    code_reusable: true,
+                    ..Default::default()
+                },
+                "no mail server",
+            ),
+            (
+                Flaws {
+                    code_sends_nothing: true,
+                    code_reusable: true,
+                    ..Default::default()
+                },
+                "sent no email",
+            ),
+        ] {
+            for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+                assert!(code_findings(&o).is_empty(), "{why}: {:#?}", o.findings);
+                assert!(code_credits(&o).is_empty(), "{why}");
+                assert!(
+                    code_not_assessed(&o).iter().any(|w| w.contains(why)),
+                    "{why}: {:?}",
+                    o.not_assessed
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_refusal_is_credited_only_when_the_sessions_own_code_then_works() {
+        // The session is locked by its first wrong code, so the code from elsewhere is refused and
+        // so is its own afterwards: the refusal says nothing about where the code came from.
+        let flaws = Flaws {
+            code_locks_after_one: true,
+            ..Default::default()
+        };
+        for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+            // Nor is single use: with binding unknown, a refused second use shows nothing.
+            assert!(!code_credits(&o).contains(&EMAIL_CODE_REUSABLE.rule_id));
+            assert!(!code_credits(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
+            assert!(!code_findings(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(ids, why)| ids == "V6.6.2" && why.contains("own code")),
+                "{:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_wrong_code_is_wrong_everywhere_and_looks_like_the_right_one() {
+        for code in ["482913", "X7k2Q9", "000000", "9f86d081884c7d659a2f"] {
+            let guesses: Vec<String> = (0..25).map(|n| wrong_code(code, n)).collect();
+            for g in &guesses {
+                assert_eq!(g.len(), code.len());
+                assert!(
+                    g.chars().zip(code.chars()).all(|(a, b)| a != b
+                        && a.is_ascii_digit() == b.is_ascii_digit()
+                        && a.is_ascii_lowercase() == b.is_ascii_lowercase()),
+                    "{code} -> {g}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn pushing_back_by_cancelling_the_code_counts_and_refusing_from_the_start_is_not_judged() {
+        // Wrong codes answered the same all the way through: the right code refused afterwards is
+        // the only sign, and it is enough.
+        let flaws = Flaws {
+            code_cancels_quietly: true,
+            ..Default::default()
+        };
+        let o = run_with(flaws, &codes_policy(3));
+        assert!(
+            code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+
+        let flaws = Flaws {
+            code_already_refusing: true,
+            code_guessing_unlimited: true,
+            ..Default::default()
+        };
+        let o = run_with(flaws, &codes_policy(3));
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(!code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V6.6.3" && why.contains("already refusing")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_short_code_that_works_anywhere_and_twice_is_three_findings_and_no_credit() {
+        let flaws = Flaws {
+            code_reusable: true,
+            code_unbound: true,
+            code_short: true,
+            ..Default::default()
+        };
+        let o = run_with(flaws, &codes_policy(3));
+        let mut found = code_findings(&o);
+        found.sort_unstable();
+        let mut want = vec![
+            EMAIL_CODE_REUSABLE.rule_id,
+            EMAIL_CODE_UNBOUND.rule_id,
+            EMAIL_CODE_SHORT.rule_id,
+        ];
+        want.sort_unstable();
+        assert_eq!(found, want, "{:?}", o.steps);
+        assert_eq!(code_credits(&o), vec![EMAIL_CODE_GUESSING.rule_id]);
+    }
+
+    /// The seeded fixture, with a policy: the other way into every emailed-code check, so none of
+    /// them rests on the sign-up fixture alone.
+    fn seeded_with(flaws: Flaws, policy: &sv_manifest::PolicySection) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        run(&mut app, &users(), &acc, true, policy)
+    }
+
+    #[test]
+    fn seeded_a_locked_session_leaves_binding_unjudged() {
+        let o = seeded_with(
+            Flaws {
+                code_locks_after_one: true,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        assert!(!code_credits(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
+    }
+
+    #[test]
+    fn seeded_guessing_is_credited_when_pushed_back_and_found_when_not() {
+        let o = seeded_with(Flaws::default(), &codes_policy(3));
+        assert!(code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        let o = seeded_with(
+            Flaws {
+                code_cancels_quietly: true,
+                ..Default::default()
+            },
+            &codes_policy(3),
+        );
+        assert!(
+            code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+    }
+
+    #[test]
+    fn seeded_an_app_refusing_from_the_first_wrong_code_is_not_judged() {
+        let o = seeded_with(
+            Flaws {
+                code_already_refusing: true,
+                code_guessing_unlimited: true,
+                ..Default::default()
+            },
+            &codes_policy(3),
+        );
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(!code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+    }
+
+    #[test]
+    fn seeded_a_code_that_signs_nobody_in_is_not_assessed() {
+        let o = seeded_with(
+            Flaws {
+                code_does_nothing: true,
+                code_reusable: true,
+                code_unbound: true,
+                ..Default::default()
+            },
+            &codes_policy(3),
+        );
+        assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(code_credits(&o).is_empty());
+    }
+
+    #[test]
+    fn seeded_no_mail_server_is_said_as_such() {
+        let o = seeded_with(
+            Flaws {
+                no_mail_sink: true,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        assert!(
+            code_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("no mail server")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn seeded_a_number_too_large_to_reach_is_not_judged() {
+        let o = seeded_with(
+            Flaws {
+                code_guessing_unlimited: true,
+                ..Default::default()
+            },
+            &codes_policy(400),
+        );
+        assert!(!code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V6.6.3" && why.contains("400")),
+            "{:?}",
+            o.not_assessed
         );
     }
 }

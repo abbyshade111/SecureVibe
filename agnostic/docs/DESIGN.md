@@ -1520,6 +1520,40 @@ Verified end to end with a scratch app sending through Python's `smtplib`: the c
 nothing and its steps show the email arriving, the code working once, and being refused the second
 time; the careless one (a four-digit code, reusable, 404 for an unknown address) raised all three.
 
+### Signing in with an emailed code
+
+The same mail server serves a second entry, `email-code`: an app that offers to email a sign-in
+code or link beside the password. `request` asks for one with `{user}`; `use` sends `{code}`. Each
+code is asked for and used in a browser session of its own, and a code counts as working when that
+session then opens the private page. The code is found as for a reset, with the sign-in words
+(`login`, `magic`, `verify`, `auth`, …) in place of `reset`, and a code written out after the word
+"code".
+
+In order, with the setup proven first — a code used where it was asked for signs in, or nothing is
+judged:
+
+- **V6.6.2, bound to its request.** Two sessions each ask for a code, and the first one's code is
+  used in the second. Signing in is a finding. A refusal is credited only when the second session's
+  own code then works, so the refusal is known to be about where the code came from and not, say, a
+  session already locked.
+- **V6.5.1, used once.** The first code again, from a new session. Signing in is a finding. A
+  refusal is credited only when the step above showed codes working outside the session that asked:
+  a code tied to its session is refused in a new one used or not, and the session it belonged to is
+  already signed in. So an app with bound codes gets V6.6.2 and *not assessed* for V6.5.1, with
+  that reason. This was caught by the fake app, not reasoned out: the first version credited single
+  use for every bound-code app on a refusal that proved nothing.
+- **V6.5.4, long enough.** Finding only, by `most_bits` over every code seen: under 20 bits.
+- **V6.6.3, guessing.** Held to a number, `[policy] failed-codes`, as V6.3.1 is held to
+  `failed-sign-ins`: one more wrong code than that, then the right one. Pushing back is any of
+  refusing the right code afterwards, or answering the wrong ones differently, outright, or slowly.
+  Run last of all, after the password guessing, and *not assessed* when the app was refusing before
+  the first wrong code. It first shows a fresh code signing in, in a session of its own: without
+  that, an app whose codes sign nobody in had its right code "refused after the guesses", and the
+  first version credited that as pushing back. A second fixture, added only to give each guard two
+  witnesses, is what caught it.
+
+V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

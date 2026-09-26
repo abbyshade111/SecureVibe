@@ -53,6 +53,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   SMTP_HOST and SMTP_PORT (no encryption, any user name and password accepted); `{code}` is the
 #   code or the token from the link in the email. Add `code-pattern = "…"`, a regular expression
 #   whose first group is the code, when it is not a link's `token`, `code`, or `key`.
+# email-code = { request = { path = "/login/code", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/login/verify", form = { code = "{code}", csrf_token = "{csrf}" } } }
+#   Signing in with a code or link the app emails, beside the password. The code is used in the
+#   same browser session that asked for it; `code-pattern` works as for `reset`.
 
 [data]
 # What kinds of information the app holds about people.
@@ -101,6 +104,7 @@ multimodal = false        # does it take images, video or audio, rather than typ
 # Leave one out and nothing is claimed about it either way.
 [policy]
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
+# failed-codes = 5        # wrong emailed sign-in codes in a row before pushing back (with `email-code`)
 # within-minutes = 15     # the window that count applies within (recorded, not tested: every
 #                         # attempt this makes lands within a few seconds)
 # The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares
