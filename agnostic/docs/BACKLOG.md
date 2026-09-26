@@ -421,7 +421,8 @@ another session is not a claim.
 
 - **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
   26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording
-  changed to say so. **Claimed on 26 September 2026 by session securevibe-e8.**
+  changed to say so. **Claimed on 26 September 2026 by session securevibe-e8. Done the same day**,
+  with a test holding the password and the quoted count to that file.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
