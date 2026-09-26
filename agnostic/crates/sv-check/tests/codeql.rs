@@ -143,7 +143,7 @@ fn run_with_leftover(
     }
     let adapters = stand_in(&dir, id, env);
     let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
-    let outcome = adapters::run_all(&adapters, &app, &languages, &dir);
+    let outcome = adapters::run_all(&adapters, &app, &languages, &Default::default(), &dir);
     // Its working state goes when it is done: a database left behind would be the next run's.
     let leftovers: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
@@ -342,7 +342,13 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
     )
     .unwrap();
     let adapters = Adapters::load(&real_adapters()).unwrap();
-    let out = adapters::run_all(&adapters, &app, &["javascript".to_owned()], &dir);
+    let out = adapters::run_all(
+        &adapters,
+        &app,
+        &["javascript".to_owned()],
+        &Default::default(),
+        &dir,
+    );
     std::fs::remove_dir_all(&dir).ok();
     let not_run: Vec<_> = out
         .not_run

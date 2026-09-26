@@ -1044,7 +1044,11 @@ another session is not a claim.
   (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
   Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
   **Step 2, `p/ai-best-practices` for apps that use AI, claimed on 26 September 2026 by session
-  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed.
+  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed. **Step 2 done the same day:**
+  adapters can carry `conditional_args`, and semgrep adds the AI pack unless the app is known not to
+  call a model; when nobody has said, it runs, because its rules only ever find something. AISVS goes
+  from 2 to 6 by the honest count, 5 of them findings only, plus V1.3.6. See DESIGN, "The AI pack, for
+  apps that may call a model".
   **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
   what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
   refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
@@ -1052,9 +1056,13 @@ another session is not a claim.
 
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
-  before deciding. **The local-folder measurement claimed on 26 September 2026 by session
-  securevibe-e8**, which has `semgrep` 1.176.0 and can fetch the rules repository; `p/default` still
-  needs semgrep.dev and is not claimed.
+  before deciding.
+  **Step 3's measurements, the pinned rules beside `p/default`, claimed on 26 September 2026 by
+  session relaxed-nobel-27acfa**, at the owner's asking. The decision stays the owner's.
+  **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
+  branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
+  by then, below, so relaxed-nobel-27acfa's run can take `p/default`, and treat these numbers as
+  something to confirm rather than redo.
   **Measured the same day.** Semgrep 1.176.0 and `semgrep-rules` at `a84ff9c`, every rule the map
   names copied into one file with its registry id, so nothing is fetched from semgrep.dev:
 
@@ -1083,6 +1091,24 @@ another session is not a claim.
 
   Not decided here: whether 19 more requirements are worth 17 false alarms on a template of this size,
   15 seconds more per run, and the license question. That is the owner's.
+
+  **The owner's decision, 26 September 2026:** 19 more requirements are worth it for the time they
+  add. The false alarms are the next item.
+
+- **Keep the false alarms down when the adapter runs the map's own rules.** Asked for by the owner on
+  26 September 2026, after the measurement above: run the rules the map names, and work out how to
+  keep their false alarms to a minimum. Not claimed. Where to start, from the 17 on v1's template:
+  - Which rules make them. Four did (`var-in-href`, `html-in-template-string`,
+    `detect-non-literal-regexp`, `unsafe-dynamic-method`); per rule, measure findings against real
+    faults over the golden apps and the examples, and decide per rule: keep, keep as low confidence,
+    or leave out and say which requirement loses it.
+  - What `sv` already knows that semgrep does not: a value from the app's own settings or routes, a
+    test file, a template that escapes by default. Semgrep's own `paths` and `pattern-not` can say
+    some of this in the rule file itself.
+  - Findings that come only from the added rules could be shown apart ("worth a look") rather than as
+    needs attention, if a rule turns out to be right sometimes and wrong often.
+  - The rules' license (above) has to be read before the adapter is changed.
+  - The evaluation harness is the measure, so the change should come with baseline updates.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
