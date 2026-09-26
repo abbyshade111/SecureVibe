@@ -185,6 +185,11 @@ another session is not a claim.
   each needs already exists. Counts are from `docs/COVERAGE.md` at the time: 25 uncovered at Level 1,
   146 at Level 2, 89 at Level 3.
 
+  **The five Level 1 lines are claimed on 26 September 2026 by session securevibe-e9**, as one piece
+  of work: each is a few lines against machinery that already exists, and splitting them into five
+  pull requests would cost more in merges than it saves in review. The four Level 2 lines are
+  claimed by the same session, as a second piece.
+
   **Level 1 — 25 uncovered, 5 look reachable.** The rest are documentation (V2.1.1, V6.1.1, V8.1.1,
   V15.1.1 → the security-notes file), deployment (V3.4.1, V12.2.1 → the production check), the
   authorization server (V10.4.1–V10.4.5, which apply to almost nobody now that they are scoped),
