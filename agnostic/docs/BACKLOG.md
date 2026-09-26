@@ -307,7 +307,7 @@ another session is not a claim.
      emailed code".
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
-     one late (V6.5.1, V6.5.5).
+     one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e9.**
   5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
      whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers.
   6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
