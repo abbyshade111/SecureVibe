@@ -153,7 +153,8 @@ another session is not a claim.
     gated on the `ai` condition like the rest of AISVS.
 
   The deliverable is a short written recommendation — adopt, adopt in part, or not worth it — with
-  the numbers behind it, before anything is built. Not claimed.
+  the numbers behind it, before anything is built. **Claimed on 26 September 2026 by session
+  securevibe-e8.**
 
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
