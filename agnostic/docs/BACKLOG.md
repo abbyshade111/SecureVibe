@@ -1059,6 +1059,8 @@ another session is not a claim.
   - Express's two-argument `res.redirect(301, url)` is missed: the first argument is the status,
     and it is a literal. `send_file`/`redirect_to` in Ruby, `Paths.get` in Java and PHP's
     `include $x` are not covered. Kotlin and C have no path or redirect query, Rust none of the four.
+    **Claimed on 26 September 2026 by session securevibe-e8** (the redirect status, `send_file`,
+    `Paths.get`/`Path.of`, and `include $x`).
   - The file-path rule is low confidence on purpose: it cannot tell a request value from an internal
     one held in a lowercase variable.
 
