@@ -38,6 +38,7 @@ another session is not a claim.
     not-yet; `on`, a date; `by`; and `how`, required), current for 90 days, reported as *checked by
     hand by the owner* just above *attested by the owner*, a tool's `done` as *stated by the AI coding
     tool*, and `problem` as needs attention.
+    **Done the same day.** See DESIGN, "Checks made by hand, and what was seen".
   - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
     contract, and worth its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop

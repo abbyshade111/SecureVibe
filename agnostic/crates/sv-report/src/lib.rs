@@ -56,6 +56,12 @@ pub enum Status {
     /// `yes` is still the author grading its own work. Everything that keeps *attested* honest holds
     /// here too: it stays a test to write and settles no threat.
     Stated,
+    /// The owner made a check by hand and recorded what they saw (`[checked-by-hand]`).
+    ///
+    /// Just above *attested*, at the owner's decision (26 September 2026): they watched the app
+    /// behave rather than describing how it is built. Still their word, which nothing here repeats,
+    /// so never *checked*, still a test to write where a test could show it, and no threat settled.
+    ByHand,
     /// The owner answered this requirement's question in the security notes.
     ///
     /// Its own tier, below *checked* and above *not verified*, because it is a different kind of
@@ -75,6 +81,7 @@ impl Status {
             Status::Documented => "documented by the owner",
             Status::Attested => "attested by the owner",
             Status::Stated => "stated by the AI coding tool",
+            Status::ByHand => "checked by hand by the owner",
             Status::NotVerified => "not verified",
         }
     }
@@ -105,6 +112,8 @@ pub struct RequirementLine {
     pub documented_by: Vec<CheckedBy>,
     /// The owner's answer to a design question about this requirement.
     pub attested_by: Vec<CheckedBy>,
+    /// The owner's record of a check made by hand, with what they saw.
+    pub by_hand: Vec<CheckedBy>,
 }
 
 /// One check that was satisfied about a requirement, and what it examined to say so.
@@ -198,6 +207,8 @@ pub struct Counts {
     pub attested: usize,
     /// Requirements the AI coding tool answered a design question about. Below `attested`.
     pub stated: usize,
+    /// Requirements the owner checked by hand and recorded. Just above `attested`.
+    pub by_hand: usize,
     pub not_verified: usize,
     pub not_applicable: usize,
     pub not_assessed: usize,
@@ -316,6 +327,8 @@ pub struct Inputs<'a> {
     /// Design questions the AI coding tool answered `yes`, or that nobody said the owner answered.
     /// A tier below `attested`: see `sv_check::design`.
     pub stated: &'a [sv_check::Verified],
+    /// Checks the owner made by hand and recorded, current. See `sv_check::hand`.
+    pub by_hand: &'a [sv_check::Verified],
     /// The three catalogs of what a person can do about a requirement no check settles. Absent
     /// leaves the checklist out of the report.
     pub human: Option<(
@@ -384,6 +397,15 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 }
             }
         }
+        let by_hand: Vec<CheckedBy> = inputs
+            .by_hand
+            .iter()
+            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
+            .map(|v| CheckedBy {
+                check_id: v.check_id.clone(),
+                scope: v.scope.clone(),
+            })
+            .collect();
         let attested_by: Vec<CheckedBy> = inputs
             .attested
             .iter()
@@ -413,6 +435,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             Status::Checked
         } else if !documented_by.is_empty() {
             Status::Documented
+        } else if !by_hand.is_empty() {
+            Status::ByHand
         } else if attested_by.iter().any(|c| c.check_id == "design.attested") {
             Status::Attested
         } else if !attested_by.is_empty() {
@@ -437,6 +461,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             supported_by,
             documented_by,
             attested_by,
+            by_hand,
         });
     }
     requirements.sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.id.cmp(&b.id)));
@@ -453,7 +478,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         // become "checked" without anyone deciding to make it so.
         if !matches!(
             line.status,
-            Status::NotVerified | Status::Attested | Status::Stated
+            Status::NotVerified | Status::Attested | Status::Stated | Status::ByHand
         ) {
             continue;
         }
@@ -525,6 +550,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         documented: count(&requirements, Status::Documented),
         attested: count(&requirements, Status::Attested),
         stated: count(&requirements, Status::Stated),
+        by_hand: count(&requirements, Status::ByHand),
         not_verified: count(&requirements, Status::NotVerified),
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
@@ -729,8 +755,9 @@ impl Ord for Status {
                 Status::NotVerified => 1,
                 Status::Stated => 2,
                 Status::Attested => 3,
-                Status::Documented => 4,
-                Status::Checked => 5,
+                Status::ByHand => 4,
+                Status::Documented => 5,
+                Status::Checked => 6,
             }
         }
         rank(*self).cmp(&rank(*other))
