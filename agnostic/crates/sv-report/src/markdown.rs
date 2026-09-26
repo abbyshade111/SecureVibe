@@ -288,7 +288,11 @@ pub fn compliance(report: &Report) -> String {
                 cell(&item.id),
                 cell(&item.title),
                 cell(item.route.what_to_do()),
-                cell(&item.how)
+                cell(&match &item.where_to_look {
+                    Some(where_to_look) =>
+                        format!("{} **Where to look:** {where_to_look}", item.how),
+                    None => item.how.clone(),
+                })
             ));
         }
         out.push('\n');

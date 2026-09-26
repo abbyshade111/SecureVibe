@@ -1358,6 +1358,48 @@ inside byte counts (`14039`), request ids (`req=a401b9`), durations (`took=403ms
 a 401. A status is now a whole token: what follows its last `=` or `:`, trimmed of punctuation, and
 equal to the code. The fixture that caught it is a table of lines real servers write.
 
+### What a log line and a download carry
+
+Four Level 2 requirements, each read off something a check already had in hand.
+
+**V16.2.1 and V16.2.2 read the line the log check already found** — the one naming the refused
+sign-in for an account that does not exist. That line's *what* and *who* are known by how it was
+found; what is left to read is *when* and *where*. V16.2.1 is credited when it also carries a
+timestamp and a source address or path; V16.2.2 when that timestamp states its zone.
+
+This is where the log check stops being credit-only, and the line between the two cases is the
+point. A **missing** timestamp is *not assessed*: writing to standard output and letting the
+platform stamp each line — `docker logs -t`, journald, a log shipper — is sound and common, and
+faulting it would be crying wolf. A timestamp the app **wrote without a zone** is a finding: no
+platform repairs that, it is Python's logging default, and it is exactly what V16.2.2 asks about.
+Both are read only from the line that records the event; a well-formed line elsewhere in the log
+is somebody else's.
+
+Timestamps are read in the shapes servers actually write: ISO 8601 with `Z`, an offset, or `UTC`,
+and the common log format's `[26/Sep/2026:10:00:03 +0000]`. A version number, a date with no time,
+and a duration are not timestamps, and a test says so.
+
+**V5.4.1 reads the name the ordinary upload comes back under.** An upload fetched back is a
+download, and the requirement asks that it be served under a name rather than leaving the browser
+to take one from the address.
+
+**V5.4.2 uploads a name built to break the header**: `sv-probe;svinjected=1.gif`, a legal file
+name whose `;` and `=` start a new parameter if the app writes the name into `Content-Disposition`
+unquoted. Nothing else sets a parameter called `svinjected`, so the question becomes exact: after
+the round trip, does the header have one?
+
+Reading that needs the header split the way RFC 6266 means it — never inside a quoted string, and
+with `\"` inside one taken as a quote rather than its end. A naive split on `;` would *be* the bug
+V5.4.2 is about. So the fake app has a correct variant that quotes the name without cleaning it,
+`filename="sv-probe;svinjected=1.gif"`, which RFC 6266 allows; a check splitting on every `;` would
+accuse that app of the exact fault it avoided, and two tests go red when it does.
+
+Breaking each rule found two places where one witness was all there was, and one place where my
+first attempt to break it proved nothing. Forcing `named` true *inside* `.any()` left the check
+intact, because a header with no parameters never calls the closure at all; the break that shows
+the rule is `named = true` outright. A break that cannot fail is not evidence of anything, which is
+the same lesson as a test that cannot.
+
 ### Four more Level 1 questions
 
 From the sweep of everything no check reached. Each reads something the run already has, or sends
@@ -1901,6 +1943,58 @@ next reader finds the answer rather than the puzzle. The specification's version
 specification says, and temporal scoring — if this ever grows it — produces intermediate values the
 equivalence does not cover.
 
+### Late, not merely known: the owner's time frames
+
+V15.2.1 asks that the app contains no component that has *breached the documented remediation time
+frame*. Until 26 September 2026 every known vulnerability was counted as that breach, so an advisory
+published yesterday and one left alone for two years read the same, and the requirement's own question
+— is anything late? — was never asked.
+
+The time frames are V15.1.1's document, and the owner writes them twice: in words in
+security-notes.md, and as numbers in securevibe.toml, which `sv audit` can hold the packages to.
+
+```toml
+[policy]
+fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
+```
+
+Each finding is then one of three things, printed in this order:
+
+* **Past the time frame.** A breach of V15.2.1, which the finding cites, with the day it was due and how
+  far past it is.
+* **Not judged.** No time frames at all, none for this severity, no publication date that can be read, or
+  a clock that reads before 1970. Each is counted against V15.2.1 exactly as before, because *not shown
+  to be late* is not *shown to be on time*, and the finding says which piece was missing.
+* **Inside the time frame.** Still a known vulnerability and still a finding, with the day it is due. It
+  no longer cites V15.2.1, because it has not breached anything yet.
+
+Four choices, each made so that a mistake can only make something look later than it is:
+
+* **The age is counted from the advisory's publication date.** A vulnerability can be known before its
+  advisory is published, never after, so this is the shortest the age can be. It is also the one
+  direction that could hide a breach, so the finding says so in as many words.
+* **An advisory with no rating is held to the shortest time frame stated.** Its real severity is
+  unknown, and any longer time frame could call something on time that its rating would make late.
+* **A severity the owner left out is not judged**, rather than borrowing a neighbor's number.
+* **The last day is inside.** Published on 1 January with 30 days is due by 31 January, and late on
+  1 February.
+
+**The one thing this could get wrong.** With the inside-the-time-frame findings no longer citing
+V15.2.1, "no finding about V15.2.1" and "nothing found" became different sentences, and only the second
+is a clean comparison. A package with a known vulnerability is not clean because it is not late yet.
+The clean claim still asks for no findings at all, and
+`a_vulnerability_inside_its_time_frame_still_stops_the_clean_claim` holds it: rewriting the condition to
+"nothing cites V15.2.1" fails that test and nothing else, which is why it has a test of its own rather
+than being left to others to notice.
+
+Every guard was broken once to see what caught it. Seven in the check each failed the test written for
+it; the four in `sv audit`'s printing — late and inside swapped, the not-judged group dropped, the reason
+not printed, the time frames never read — each failed `crates/sv-cli/tests/audit_deadlines.rs`, which runs
+the binary. A guard on the check is not a guard on what reaches the reader.
+
+**Not done:** `sv report` does not run the advisory comparison at all, so V15.2.1 has no evidence in the
+report whatever `sv audit` says. That was so before this change and is its own piece of work.
+
 ## Rules that read the code
 
 Everything else in `sv-check` works on text. That is right for credentials, where the thing being looked
@@ -2172,3 +2266,72 @@ requirement that reads *not verified* and carries no evidence of any kind.
 That is the second time in this work a guard could only see a difference when the fault was a change
 applied to everything, and it is worth remembering as a shape: a test that compares two outputs is
 blind to anything that moves both.
+
+### Where to look, beside what to answer
+
+Every row on the checklist also says where to go and find the answer, not only what the answer should
+be. The `human-checks.json` entries were instructions already; the rows that come from the security
+notes and the design questions were not. "Write down the session inactivity timeout and the absolute
+maximum session lifetime" is the right sentence for the notes file and no help at all to somebody who
+does not know where those numbers are configured — so each of those carries a `howToFindOut` line,
+and a guard refuses one without.
+
+The owner asked for the level 2 ones. Writing them left the level 1 entries as the only rows with
+nothing but a question, which is backwards, since level 1 is where somebody starts. So the rule is
+every catalog entry that could reach the checklist.
+
+And a third instance of the shape above: the guard that says the catalogs carry the line said nothing
+about whether it reaches the reader. Dropping it on the way into the row was caught by nothing, and
+so was never printing it. **A guard on the input is not a guard on the output**, and both ends now
+have one.
+
+## `sv probe`: the questions only the live site can answer
+
+Some requirements are about deployment rather than code, and reading a repository will never settle
+them. `sv probe https://your-app.example.com` asks four: is the certificate one browsers trust
+(V12.2.2), is plain HTTP still served (V12.2.1), is HSTS set (V3.4.1), and do cookies carry the
+`__Host-` prefix (V3.3.3). Level 1 goes from 45 to 47 of 70.
+
+### What it may do is most of the design
+
+This is the first thing in `sv` that reaches outside the machine it runs on. Everything else reads
+files, or talks to an app inside a fence that cannot route anywhere. A tool that fetches an address
+somebody supplies is a tool that can be pointed at a stranger, so each limit is narrow and each one
+has a test:
+
+- **The address comes from the command line and nowhere else.** Not from securevibe.toml: a file can
+  be committed and then run by CI against a host its author never meant, while an argument was typed
+  by somebody looking at the terminal. That is the only consent available, because nothing here can
+  prove who owns a domain.
+- **Read-only.** `--head`, so no body is even downloaded. No cookies, no `Authorization`, no form.
+- **A hard cap of four requests**, enforced in the fetcher rather than the caller, so a caller that
+  loops cannot turn a look into a scan.
+- **One host.** A redirect to a different host is reported and not followed — otherwise the owner's
+  own address could hand the probe somewhere they never named.
+- **No path guessing.** It asks for the address it was given, which is the line between a look and a
+  scan.
+
+`curl` rather than a Rust HTTP client, for the reason the tool adapters are external programs: it is
+everywhere, it uses the platform's trust store, and its TLS is maintained by people who do nothing
+else. Absent, the check says so and settles nothing.
+
+**Verification is never disabled to get a result.** The handshake failing *is* the answer to V12.2.2.
+The one place `--insecure` appears is to tell an untrusted certificate apart from a host that is not
+there, and the outcome is a finding either way, never a pass.
+
+### Two faults found by running it against real sites
+
+Neither would have been found by reasoning about the code, and both were on the flattering side.
+
+**It reported a missing header on a site that sends one.** Through a proxy, `github.com` answered
+`400`, which carries none of the site's own headers — and the check read that as the site failing to
+send HSTS. An error answer is not what a visitor gets, so the header questions now require an
+ordinary answer first and say so when they do not get one. The certificate question is unaffected,
+because the handshake is the evidence there whatever the status.
+
+**A proxy's `HTTP/1.1 200 Connection Established` was parsed as the site's answer.** It is the
+tunnel's own status line, and counting it clears the headers that arrive after it.
+
+And one in the terminal output: with nothing reachable, it printed "Nothing it asked about came back
+wrong", which reads as a pass for a site it never touched. It now says it could not reach the address
+and has nothing to say either way.

@@ -39,6 +39,11 @@ TIERS = [
     ("running", "The running app", "a container backend and a `run` section (`--run`)"),
     ("signed-in", "Signed in", "the above, and a `users` section with test accounts"),
     ("tools", "Outside tools", "the tool installed (`--tools`)"),
+    (
+        "production",
+        "Your own live site",
+        "the address your app is served from, typed at the terminal (`sv probe https://…`)",
+    ),
 ]
 
 # Checks whose citations are written in Rust rather than in a data file.
@@ -79,6 +84,10 @@ RUST_CHECKS = {
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
     "probe.failed-sign-ins-unlimited": ("signed-in", ["V6.3.1"]),
+    "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
+    "probe.plain-http-served": ("production", ["V12.2.1"]),
+    "probe.no-hsts": ("production", ["V3.4.1"]),
+    "probe.cookie-without-host-prefix": ("production", ["V3.3.3"]),
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
     "probe.no-sign-out-link": ("signed-in", ["V7.4.4"]),
@@ -88,6 +97,10 @@ RUST_CHECKS = {
     "probe.uploaded-file-rendered": ("signed-in", ["V3.2.1"]),
     "probe.authentication-logged": ("signed-in", ["V16.3.1"]),
     "probe.authorization-failure-logged": ("signed-in", ["V16.3.2"]),
+    "probe.log-line-metadata": ("signed-in", ["V16.2.1"]),
+    "probe.log-timestamp-zoned": ("signed-in", ["V16.2.2"]),
+    "probe.download-unnamed": ("signed-in", ["V5.4.1"]),
+    "probe.download-name-injected": ("signed-in", ["V5.4.2"]),
     "probe.validation-only-in-the-browser": ("signed-in", ["V2.2.2"]),
     "probe.session-token-unverified": ("signed-in", ["V7.2.1"]),
     "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1"]),

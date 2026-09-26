@@ -17,6 +17,7 @@ pub mod junit;
 pub mod logs;
 pub mod notes;
 pub mod probes;
+pub mod production;
 pub mod sbom;
 pub mod secrets;
 pub mod signed_in;

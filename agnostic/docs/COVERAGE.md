@@ -25,25 +25,26 @@ What each kind of check needs before it can run:
 | The running app | a container backend and a `run` section (`--run`) |
 | Signed in | the above, and a `users` section with test accounts |
 | Outside tools | the tool installed (`--tools`) |
+| Your own live site | the address your app is served from, typed at the terminal (`sv probe https://…`) |
 
 ## Summary
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 87 (25%) | 2 | 256 |
+| OWASP ASVS 5.0 | 345 | 94 (27%) | 3 | 248 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
 ## ASVS 5.0 by level
 
 A requirement reached by more than one kind of check is counted under each.
 
-| Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools |
-|---|---|---|---|---|---|---|---|
-| L1 | 70 | 49 | 7 | 1 | 3 | 28 | 20 |
-| L2 | 183 | 35 | 4 | 0 | 10 | 7 | 21 |
-| L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 |
+| Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
+|---|---|---|---|---|---|---|---|---|
+| L1 | 70 | 51 | 7 | 1 | 3 | 28 | 20 | 2 |
+| L2 | 183 | 40 | 4 | 0 | 10 | 11 | 21 | 1 |
+| L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
 
@@ -53,20 +54,20 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
 | V2 Validation and Business Logic | 13 | 1 | 0 | 12 |
-| V3 Web Frontend Security | 31 | 14 | 0 | 17 |
+| V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 2 | 0 | 14 |
-| V5 File Handling | 13 | 5 | 0 | 8 |
+| V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 12 | 0 | 35 |
 | V7 Session Management | 19 | 6 | 0 | 13 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 0 | 0 | 36 |
 | V11 Cryptography | 24 | 8 | 1 | 15 |
-| V12 Secure Communication | 12 | 4 | 0 | 8 |
+| V12 Secure Communication | 12 | 5 | 1 | 6 |
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
 | V15 Secure Coding and Architecture | 21 | 5 | 0 | 16 |
-| V16 Security Logging and Error Handling | 17 | 4 | 0 | 13 |
+| V16 Security Logging and Error Handling | 17 | 6 | 0 | 11 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -88,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (46)
+### Settled by asking the running app (50)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -107,6 +108,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
 | V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
 | V5.3.1 | L1 | Signed in: `probe.uploaded-file-executed` |
+| V5.4.1 | L2 | Signed in: `probe.download-unnamed` |
+| V5.4.2 | L2 | Signed in: `probe.download-name-injected` |
 | V6.2.1 | L1 | Signed in: `probe.short-password-accepted` |
 | V6.2.2 | L1 | Signed in: `probe.password-change` |
 | V6.2.3 | L1 | Signed in: `probe.password-change-without-current` |
@@ -135,6 +138,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V14.3.1 | L1 | Signed in: `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
+| V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
+| V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
@@ -178,18 +183,19 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.3.3 | L2 | Outside tools: `brakeman`, `semgrep` |
 | V16.2.5 | L2 | Outside tools: `semgrep` |
 
-### Supporting only (2)
+### Supporting only (3)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
+| V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (21)
+### Level 1 with no check at all (18)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.3.1, V3.4.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V12.2.1, V12.2.2, V15.1.1
+V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.3.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
@@ -237,10 +243,11 @@ control as supporting evidence.
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
 | C Reliability & Resilience | 8 | 1 | 5 | 1 |
 | D Access Control & Secure Communication | 7 | 2 | 5 | 3 |
-| E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 0 |
+| E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
-- SBD-DM-02: through V12.3.1
+- SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
 - SBD-AC-01: through V12.3.1
 - SBD-AC-03: through V8.2.1
 - SBD-AC-05: through V13.3.1
+- SBD-MT-01: through V16.2.1

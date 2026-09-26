@@ -228,6 +228,10 @@ another session is not a claim.
   and settle a Level 1 requirement, but it is a citation being stretched, so somebody should decide
   rather than it being slipped in.
 
+  **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
+  V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
+  download carry".
+
   **Level 2 — 146 uncovered, 4 look reachable now**, all of them because of machinery added in the
   last few days rather than anything new:
 
@@ -249,12 +253,139 @@ another session is not a claim.
   technologies almost no small app runs. Level 3 stays a person's job, and saying so is better than
   a sweep that keeps rediscovering it.
 
+- **What a new tool, service, or process would reach.** The follow-on question to the sweep above,
+  asked by the owner on 26 September 2026 and answered by session securevibe-e9. After the Level 1
+  and Level 2 work from that sweep, 251 ASVS requirements have no check. About 45 of them come
+  within reach with one of the additions below; the other ~200 are documentation (the
+  security-notes file), design, cryptographic internals, WebRTC, or an authorization server's own
+  workings, and stay a person's job. Ordered by what each buys for what it costs. Nothing is
+  claimed.
+
+  1. **More of the same machinery, no new tool (~11).** Tampering with the token `token_field`
+     already captures: `alg: none`, a changed claim under the old signature, the wrong `aud` and
+     `typ` (V9.2.2, V9.2.3, V6.8.2). Whether the log line the log check already finds is in a
+     common format — JSON, logfmt, or the common log format (V16.2.4). The same field sent twice,
+     and a string sent as an array or a JSON `true`, through templates that exist (V15.3.7,
+     V15.3.5). And small manifest entries naming a GraphQL path and a WebSocket path, for an
+     introspection query, a too-deep query, and a handshake from a foreign `Origin` (V4.3.1,
+     V4.3.2, V4.4.2–V4.4.4).
+  2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
+     OIDC provider made for tests — that the app is pointed at for the run, so the probes can
+     drive a real sign-in and then replay the code, drop the `state`, reuse the `nonce`, change
+     `aud`, and serve metadata for a second provider (V10.1.2, V10.2.1, V10.2.2, V10.5.1–V10.5.4,
+     V6.8.1, V6.8.2, V6.8.4). The largest single gain, and it lands exactly on the OAuth *client*
+     requirements the authorization-server fix left applying to every "Sign in with Google" app.
+  3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
+     probes read it. Password reset stops needing a person: the reset link can be used twice,
+     used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
+     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this.
+  4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
+     and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
+     one late (V6.5.1, V6.5.5).
+  5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
+     whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers.
+  6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
+     container inside the fence. It can see what only a browser decides: whether a request needs a
+     CORS preflight (V3.5.2), whether markup submitted through a form executes when the page renders
+     (V1.3.1 and the rest of V1.3), and whether authorization lives only in hidden buttons (V8.3.1).
+     It also turns two partial checks into real ones — storage actually emptied after sign-out
+     (V14.3.1, today only the header) and a sign-out link actually visible (V7.4.4, today only
+     present in the HTML).
+  7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
+     — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
+     writes matches a call; none follows a value from where it came in to where it is used, which
+     is what blocked V1.2.2, V1.3.1, V2.2.1, V9.1.3, V15.3.2, and the AISVS entry's "user input
+     placed in the system instructions". The small in-`sv` half: a rule kind that matches string
+     literals, for the literal `javascript:` URL V1.2.2 was withdrawn over.
+  8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
+     sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
+     (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,
+     carefully and only on request, request smuggling (V4.2.1). The only item here that reaches
+     outside the machine, so it follows whatever `sv probe` decides about the fence.
+
+  Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
+  reaches outside; only item 8 does, and only to the owner's own address.
+
 - **A production check.** `sv probe https://…`: read-only requests to the owner's own live address, for
   what the repository cannot say. HSTS (V3.4.1), TLS with a publicly trusted certificate and no fallback
   to plain HTTP (V12.2.1, V12.2.2), redirects to HTTPS only where a browser is the client (V4.1.2), and
   the `__Host-` cookie prefix (V3.3.3), which only means anything over HTTPS. The rest of deployment
   becomes a "before going live" list in the report. The fence and what the probes may send need
   thinking through first: this reaches outside the machine, which nothing in `sv` does yet.
+  **Claimed on 26 September 2026 by session securevibe-e8.** The safety design is the substance: the
+  address comes from the command line and nowhere else, so a person typed it and no committed file
+  can aim it; GET and HEAD only, with no body, no cookies, and no Authorization header; a hard cap on
+  requests, so it is three or four and never a scan; and a redirect to a different host is refused
+  rather than followed, so nothing can drag the probe somewhere the owner did not name. TLS
+  verification enforced rather than skipped is itself the V12.2.2 check. **Done on 26 September
+  2026.** Four requirements — V12.2.2, V12.2.1, V3.4.1, V3.3.3 — and level 1 goes from 45 to 47 of
+  70. See DESIGN, "`sv probe`: the questions only the live site can answer". Running it against real
+  sites found two faults reasoning would not have: an error answer's headers read as the site's own,
+  and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
+  browser is the client) needs a request shaped like an API client's and was not written, and the
+  rest of deployment is still a "before going live" list nobody has written.
+
+- **Deadlines for known vulnerabilities (V15.2.1).** Asked for by the owner on 26 September 2026.
+  V15.2.1 asks that the app contains no component that has *breached the documented remediation time
+  frame*; the advisory check reads every known vulnerability as a breach, so an advisory published
+  yesterday and one ignored for two years look the same. The owner states the time frames as policy
+  numbers (`[policy] fix-within-days`, one per severity), and each advisory's published date says how
+  long it has been known. Past the deadline stays a finding on V15.2.1; within it stays a finding with
+  a due date, but no longer claims V15.2.1 is breached. A clean comparison credits it exactly as now,
+  and nothing here credits more than that. **Claimed on 26 September 2026 by session securevibe-e8.**
+  **Done on 26 September 2026.** `[policy] fix-within-days` in securevibe.toml, the publication date
+  read from each OSV record, and `sv audit` printing past the time frame first, then not judged, then
+  inside it. Anything that cannot be judged — no time frame for that severity, no date, no clock — still
+  counts against V15.2.1, and an unrated advisory is held to the shortest time frame. See DESIGN, "Late,
+  not merely known". Left over, found while doing it: **`sv report` never runs the advisory comparison**,
+  so V15.2.1 has no evidence in the report whatever `sv audit` says, and the checklist sends the owner
+  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report` and is not
+  claimed.
+
+- **Five new tools or processes, and what each would make checkable.** From the owner's question on
+  26 September 2026 — *"are there any level 1 or level 2 checks that could be testable with the
+  addition of any new tools or processes?"* — answered by reading the 22 Level 1 requirements with no
+  check and the 20 entries in `data/human-checks.json`, after leaving out what the running-app tier
+  already reaches (two accounts, container logs, and object-level authorization are all built). None is
+  claimed; each is its own piece of work. The deadlines for known vulnerabilities came out of the same
+  question and are the entry above.
+
+  - **Named pages for sign-up, password change, and one multi-step flow.** No new dependency: three
+    addresses in `[stack.run.users]`, the way `upload` names one. It reaches V6.2.12 (L2, breached
+    passwords refused: try `Password123!`), V6.2.11 (L2, context-specific words refused: the app's own
+    name is always one, so one case needs no word list, and a `[policy]` list would cover the rest),
+    and V2.3.1 (L1, steps cannot be skipped: ask for the last step's address in a fresh session). The
+    guard it must not get wrong is the one the brute-force check got wrong first: an app that refuses
+    *every* password has shown nothing, so an ordinary password has to be accepted first, and when
+    it is not, the answer is *not assessed*. V2.3.1 is on `manualOnly` today, and taking it off is a
+    decision rather than a side effect.
+  - **A real browser (headless Chromium).** Every probe today is an HTTP request; nothing runs the
+    app's own script, so nothing that lives in the browser is visible. It reaches V14.3.1 (L1: sign
+    out, then read local storage, session storage, and IndexedDB — fuller than the `Clear-Site-Data`
+    line in the sweep above, which credits on the header alone), V1.3.1 (L1: post a script where rich
+    text is accepted and see whether it *ran*, which no string search can answer; needs the page
+    named), V3.4.3 (L2: the policy enforced, not only sent), and V14.2.3 (L2: list the requests that
+    go to another host while signed in, and look in them for the test account's own details — only
+    ever a finding, since `sv` does not know every field an app considers sensitive). The cost is a
+    large dependency, and it has to run inside the same fence as the app.
+  - **A mail catcher beside the app.** Password reset and email confirmation cannot be checked while
+    `sv` cannot read the email. A small mail server in its own container, handed to the app as its
+    outgoing mail settings, reaches V6.4.1 (L1: collect several activation codes or first passwords
+    and check they differ, are long enough, and refuse a second use) and V6.4.3 (L2: a reset that does
+    not step around a second factor). This is the "password reset needs an entry of its own" left
+    open in the running-app entry above. It needs the app to take its mail settings from the
+    environment, which `sv` cannot arrange.
+  - **A TLS scanner on the live address.** `sv probe` sees whether the certificate is trusted; it
+    cannot see which protocol versions and ciphers the site offers. A scanner (`sslyze` or
+    `testssl.sh`) reaches V12.1.1 (L1) and V12.1.2 (L2) on the deployed site, where semgrep today
+    sees only TLS settings written in code. It cannot keep the probe's four-request cap, because a
+    scan is dozens of handshakes, so what the cap means for it needs deciding first; the address
+    still comes from the command line and nowhere else.
+  - **A test configuration with short session timeouts.** V7.3.1 and V7.3.2 (L2) are human checks
+    that say "wait longer than your timeout". If the app can be started with timeouts of seconds, the
+    check is a short wait. It shows the mechanism exists and obeys its setting, not that production's
+    number is the one written down, so it is partial evidence and the report has to say which half it
+    saw. The policy-numbers entry above explains why reading the cookie's lifetime instead was left.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and

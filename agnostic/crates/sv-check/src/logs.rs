@@ -26,7 +26,7 @@
 //! both names are found. One of the two is not the requirement, and would be the kind of
 //! half-credit this project exists to refuse.
 
-use crate::finding::Severity;
+use crate::finding::{Confidence, Finding, Location, Severity};
 
 /// The strings the probes planted, and what each one would prove.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -43,8 +43,12 @@ pub struct Markers {
 }
 
 /// What reading the log concluded.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct LogOutcome {
+    /// Only ever about a line that *was* found. Nothing here faults an app for what its output
+    /// does not contain; a finding is about a security event the app did write down, and wrote
+    /// down in a way that falls short.
+    pub findings: Vec<crate::finding::Finding>,
     pub verified: Vec<crate::Verified>,
     pub not_assessed: Vec<(String, String)>,
     pub steps: Vec<String>,
@@ -83,7 +87,7 @@ fn records_status(line: &str, status: u16) -> bool {
 pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
     let mut out = LogOutcome::default();
     if log.trim().is_empty() {
-        for ids in ["V16.3.1", "V16.3.2"] {
+        for ids in ["V16.3.1", "V16.3.2", "V16.2.1", "V16.2.2"] {
             out.not_assessed
                 .push((ids.to_owned(), NO_OUTPUT.to_owned()));
         }
@@ -143,6 +147,22 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
         )),
     }
 
+    // ---- V16.2.1 and V16.2.2: what the refused sign-in's line carries.
+    if let Some(failed) = &markers.failed_sign_in
+        && let Some(line) = log.lines().find(|l| l.contains(failed.as_str()))
+    {
+        metadata_checks(line, &mut out);
+    } else {
+        for id in ["V16.2.1", "V16.2.2"] {
+            out.not_assessed.push((
+                id.to_owned(),
+                "These are read from the line recording the refused sign-in this run made, and no \
+                 such line was found, so there was no security event's metadata to read."
+                    .to_owned(),
+            ));
+        }
+    }
+
     // ---- V16.3.2: a refused request.
     match &markers.refused_request {
         Some((marker, status)) => {
@@ -195,9 +215,138 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
     out
 }
 
-/// Never used to fault an app; kept so the severity this module would use is written down once.
-#[allow(dead_code)]
-const WOULD_BE: Severity = Severity::Low;
+/// A timestamp on a log line, and whether it says what time zone it is in.
+#[derive(Debug, PartialEq, Eq)]
+struct Timestamp {
+    text: String,
+    zoned: bool,
+}
+
+/// Finds the first timestamp on a line, in the shapes real servers write: ISO 8601
+/// (`2026-09-26T10:00:03Z`, `2026-09-26 10:00:03,123`) and the Apache and nginx common log format
+/// (`[26/Sep/2026:10:00:03 +0000]`).
+fn timestamp(line: &str) -> Option<Timestamp> {
+    let iso = regex::Regex::new(
+        r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(Z|[+-]\d{2}:?\d{2}| ?UTC\b)?",
+    )
+    .expect("valid pattern");
+    if let Some(c) = iso.captures(line) {
+        return Some(Timestamp {
+            text: c[0].trim().to_owned(),
+            zoned: c.get(1).is_some(),
+        });
+    }
+    let clf = regex::Regex::new(r"\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2}( [+-]\d{4})?")
+        .expect("valid pattern");
+    clf.captures(line).map(|c| Timestamp {
+        text: c[0].to_owned(),
+        zoned: c.get(1).is_some(),
+    })
+}
+
+/// Whether a line says where a request came from or went to: an IP address, or a path.
+fn has_place(line: &str) -> bool {
+    let ipv4 = regex::Regex::new(r"\b\d{1,3}(?:\.\d{1,3}){3}\b").expect("valid pattern");
+    ipv4.is_match(line)
+        || line.contains("::1")
+        || line.split_whitespace().any(|t| {
+            t.trim_start_matches(|c: char| !c.is_ascii_alphanumeric() && c != '/')
+                .starts_with('/')
+        })
+}
+
+/// V16.2.1 and V16.2.2, read from the one line known to record a security event.
+///
+/// The line was found by the name of an account that does not exist, so it records a refused
+/// sign-in: that is its *what*, and the name on it is its *who*. What is left to read is *when*
+/// and *where*.
+///
+/// A missing timestamp is not assessed rather than a finding. Writing to standard output and
+/// letting the platform stamp each line — `docker logs -t`, journald, a log shipper — is a sound
+/// and common arrangement, and faulting it would be crying wolf. A timestamp the app *did* write
+/// without saying its zone is different: no platform fixes that, and it is the exact thing V16.2.2
+/// asks about.
+fn metadata_checks(line: &str, out: &mut LogOutcome) {
+    let when = timestamp(line);
+    let place = has_place(line);
+    out.steps.push(format!(
+        "the refused sign-in's line carried a timestamp: {}; a source address or path: {}",
+        match &when {
+            Some(t) if t.zoned => "yes, with its zone",
+            Some(_) => "yes, with no zone",
+            None => "no",
+        },
+        if place { "yes" } else { "no" }
+    ));
+
+    match (&when, place) {
+        (Some(t), true) => out.verified.push(crate::Verified::new(
+            "probe.log-line-metadata",
+            &["V16.2.1"],
+            format!(
+                "the line recording a refused sign-in this run made carried the account (who), the \
+                 event (what), a timestamp `{}` (when), and a source address or path (where)",
+                t.text
+            ),
+        )),
+        _ => out.not_assessed.push((
+            "V16.2.1".to_owned(),
+            format!(
+                "The line recording the refused sign-in carried {}. That is not a finding: an app \
+                 writing to its own output often leaves the platform to add the time and origin, \
+                 and nothing here can see what the platform added.",
+                match (&when, place) {
+                    (None, false) => "neither a timestamp nor a source address or path",
+                    (None, true) => "no timestamp",
+                    _ => "no source address or path",
+                }
+            ),
+        )),
+    }
+
+    match &when {
+        Some(t) if t.zoned => out.verified.push(crate::Verified::new(
+            "probe.log-timestamp-zoned",
+            &["V16.2.2"],
+            format!(
+                "the timestamp on a security event's line, `{}`, states its time zone",
+                t.text
+            ),
+        )),
+        Some(t) => out.findings.push(Finding {
+            rule_id: "probe.log-timestamp-zoned".to_owned(),
+            title: "A security event is logged with a time that does not say its zone".to_owned(),
+            severity: Severity::Low,
+            confidence: Confidence::High,
+            location: Location {
+                file: "the running app's output".into(),
+                line: 1,
+            },
+            secret: None,
+            requirement_ids: vec!["V16.2.2".to_owned()],
+            cwe: vec!["CWE-778".to_owned()],
+            description: format!(
+                "The line recording a refused sign-in carried the time `{}`, with no `Z` and no \
+                 offset, so nothing in the line says which time zone it is in.",
+                t.text
+            ),
+            impact:
+                "Lines from two machines, or from either side of a clock change, cannot be put \
+                     in order with confidence, which is the thing an investigation needs first."
+                    .to_owned(),
+            fix: "Write times in UTC with a trailing `Z` (`2026-09-26T10:00:03Z`), or with an \
+                  explicit offset. In Python, `datetime.now(timezone.utc).isoformat()`; most \
+                  logging libraries have a UTC setting."
+                .to_owned(),
+        }),
+        None => out.not_assessed.push((
+            "V16.2.2".to_owned(),
+            "The line recording the refused sign-in carried no timestamp of the app's own, so \
+             there was no zone to read. The platform may add one, which nothing here can see."
+                .to_owned(),
+        )),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -218,7 +367,7 @@ mod tests {
     #[test]
     fn an_app_that_logs_both_sign_ins_and_the_refusal_is_credited() {
         let log = "\
-2026-09-26T10:00:01Z auth: sign-in failed for sv-log-nobody-4a91@example.test (no such account)
+2026-09-26T10:00:01Z auth: sign-in failed for sv-log-nobody-4a91@example.test from=10.0.0.7 (no such account)
 2026-09-26T10:00:02Z auth: sign-in ok for sv-log-ok-4a91@example.test
 2026-09-26T10:00:03Z GET /account?sv-log-refused-4a91=1 403 anonymous
 ";
@@ -228,7 +377,10 @@ mod tests {
             ids(&o).contains(&"probe.authorization-failure-logged"),
             "{o:?}"
         );
+        assert!(ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
+        assert!(ids(&o).contains(&"probe.log-timestamp-zoned"), "{o:?}");
         assert!(o.not_assessed.is_empty(), "{:?}", o.not_assessed);
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
     }
 
     #[test]
@@ -336,12 +488,123 @@ mod tests {
     }
 
     #[test]
+    fn a_timestamp_is_read_with_its_zone_in_the_shapes_servers_write() {
+        for (line, zoned) in [
+            ("2026-09-26T10:00:03Z sign-in failed", true),
+            ("2026-09-26T10:00:03.412+02:00 sign-in failed", true),
+            ("2026-09-26T10:00:03-0500 sign-in failed", true),
+            ("2026-09-26 10:00:03 UTC sign-in failed", true),
+            (
+                r#"10.0.0.7 - - [26/Sep/2026:10:00:03 +0000] "POST /login" 403"#,
+                true,
+            ),
+            // Python's logging default, and the reason V16.2.2 exists.
+            ("2026-09-26 10:00:03,123 WARNING sign-in failed", false),
+            ("2026-09-26T10:00:03 sign-in failed", false),
+        ] {
+            let t = timestamp(line).unwrap_or_else(|| panic!("no timestamp found in: {line}"));
+            assert_eq!(
+                t.zoned, zoned,
+                "zone misread in: {line} (read `{}`)",
+                t.text
+            );
+        }
+        // Not a timestamp: a version number, a date with no time, a duration.
+        for line in [
+            "release 2026.09.26",
+            "on 2026-09-26 it failed",
+            "took 10:00ms",
+        ] {
+            assert!(timestamp(line).is_none(), "read a timestamp out of: {line}");
+        }
+    }
+
+    #[test]
+    fn a_time_with_no_zone_on_a_security_event_is_a_finding() {
+        // The one thing in this module that faults, and why it may: the line *was* found, it
+        // records a refused sign-in, and the app chose to write a time on it without saying which
+        // zone. No platform repairs that.
+        let log = "2026-09-26 10:00:03,123 sign-in failed for sv-log-nobody-4a91@example.test from 10.0.0.7\n";
+        let o = evaluate(&markers(), log);
+        assert_eq!(o.findings.len(), 1, "{:?}", o.findings);
+        assert_eq!(o.findings[0].requirement_ids, vec!["V16.2.2".to_owned()]);
+        assert!(!ids(&o).contains(&"probe.log-timestamp-zoned"));
+        // V16.2.1 is still met: when, where, who and what are all on the line.
+        assert!(ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
+    }
+
+    #[test]
+    fn a_line_with_no_time_of_its_own_is_never_a_finding() {
+        // Writing to standard output and letting the platform stamp each line is sound, so a
+        // missing timestamp is not assessed for both requirements, never faulted.
+        let log = "sign-in failed for sv-log-nobody-4a91@example.test from 10.0.0.7\n";
+        let o = evaluate(&markers(), log);
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert!(!ids(&o).contains(&"probe.log-line-metadata"));
+        assert!(!ids(&o).contains(&"probe.log-timestamp-zoned"));
+        for id in ["V16.2.1", "V16.2.2"] {
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(i, why)| i == id && why.contains("platform")),
+                "{id}: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn metadata_is_read_only_from_the_line_that_records_the_event() {
+        // A well-formed line somewhere else in the log is somebody else's. The zone and the
+        // address have to be on the line that names the refused sign-in.
+        let log = "\
+2026-09-26T10:00:00Z 10.0.0.1 GET / 200
+sign-in failed for sv-log-nobody-4a91@example.test
+";
+        let o = evaluate(&markers(), log);
+        assert!(!ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
+        assert!(!ids(&o).contains(&"probe.log-timestamp-zoned"), "{o:?}");
+    }
+
+    #[test]
+    fn a_time_without_a_place_does_not_meet_v16_2_1() {
+        // When is not enough on its own: the requirement asks for where too, and a zoned
+        // timestamp must not carry the line past the part it does not have.
+        let log = "2026-09-26T10:00:03Z sign-in failed for sv-log-nobody-4a91@example.test\n";
+        let o = evaluate(&markers(), log);
+        assert!(!ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V16.2.1" && why.contains("no source address or path")),
+            "{:?}",
+            o.not_assessed
+        );
+        // The zone is still read, because it is a separate question about the same line.
+        assert!(ids(&o).contains(&"probe.log-timestamp-zoned"), "{o:?}");
+        let note = o.steps.join(" | ");
+        assert!(note.contains("a source address or path: no"), "{note}");
+    }
+
+    #[test]
+    fn a_structured_log_line_without_an_origin_is_not_enough_either() {
+        // The same rule on a different shape of log: JSON, which is how most apps log once they
+        // grow up. It has a zoned time and a clear event, and still says nothing of where the
+        // request came from or went to.
+        let log = r#"{"ts":"2026-09-26T10:00:03Z","event":"sign-in-failed","account":"sv-log-nobody-4a91@example.test"}"#;
+        let o = evaluate(&markers(), &format!("{log}\n"));
+        assert!(!ids(&o).contains(&"probe.log-line-metadata"), "{o:?}");
+        assert!(ids(&o).contains(&"probe.log-timestamp-zoned"), "{o:?}");
+    }
+
+    #[test]
     fn silence_is_never_a_finding() {
         // The property the whole module rests on. An app that logs to a file writes nothing here,
         // and must not be faulted for it.
         let o = evaluate(&markers(), "   \n  \n");
         assert!(o.verified.is_empty());
-        assert_eq!(o.not_assessed.len(), 2);
+        assert!(o.findings.is_empty());
+        assert_eq!(o.not_assessed.len(), 4);
         for (_, why) in &o.not_assessed {
             assert!(why.contains("logs to a file"), "{why}");
         }
@@ -350,7 +613,7 @@ mod tests {
             let o = evaluate(&markers(), log);
             assert!(o.verified.is_empty() || !o.verified.is_empty());
             assert!(
-                o.not_assessed.iter().all(|(id, _)| id.starts_with("V16.3")),
+                o.not_assessed.iter().all(|(id, _)| id.starts_with("V16.")),
                 "{:?}",
                 o.not_assessed
             );
@@ -361,6 +624,7 @@ mod tests {
     fn without_the_markers_nothing_is_claimed() {
         let o = evaluate(&Markers::default(), "some output\n");
         assert!(o.verified.is_empty());
-        assert_eq!(o.not_assessed.len(), 2);
+        assert!(o.findings.is_empty());
+        assert_eq!(o.not_assessed.len(), 4);
     }
 }

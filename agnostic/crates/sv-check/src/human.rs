@@ -63,6 +63,9 @@ pub struct Item {
     pub id: String,
     pub title: String,
     pub how: String,
+    /// Where to go and look, when the question alone does not say. Absent for a `human-checks.json`
+    /// entry, whose `how` is already the instruction.
+    pub where_to_look: Option<String>,
     /// Where the instruction came from, so the reader knows what kind of answer is wanted.
     pub route: Route,
 }
@@ -108,6 +111,7 @@ pub fn checklist(
                 id: section.id.clone(),
                 title: section.title.clone(),
                 how: section.asks.clone(),
+                where_to_look: section.how_to_find_out.clone(),
                 route: Route::WriteItDown,
             });
         }
@@ -118,6 +122,7 @@ pub fn checklist(
                 id: question.id.clone(),
                 title: question.title.clone(),
                 how: question.asks.clone(),
+                where_to_look: question.how_to_find_out.clone(),
                 route: Route::AnswerInTheManifest,
             });
         }
@@ -128,6 +133,7 @@ pub fn checklist(
                 id: check.id.clone(),
                 title: check.title.clone(),
                 how: check.how.clone(),
+                where_to_look: None,
                 route: Route::GoAndLook,
             });
         }
@@ -172,6 +178,7 @@ mod tests {
                 title: "How sign-in is protected".into(),
                 asks: "How the app defends against guessing.".into(),
                 facts: Vec::new(),
+                how_to_find_out: None,
             }],
             elsewhere: Vec::new(),
         }
@@ -184,6 +191,7 @@ mod tests {
                 title: "Authorization on the server".into(),
                 asks: "Is authorization enforced on the server?".into(),
                 where_means: "the file where it happens".into(),
+                how_to_find_out: None,
             }],
         }
     }
@@ -222,6 +230,30 @@ mod tests {
         for item in &list {
             assert!(!item.how.trim().is_empty(), "{} says nothing", item.id);
         }
+    }
+
+    #[test]
+    fn a_where_to_look_line_reaches_the_row() {
+        // The data guard in tests/human_checks.rs says the catalogs carry a `howToFindOut`. It says
+        // nothing about whether that text ever reaches the reader, and dropping it on the way into
+        // the row was caught by nothing: a guard on the input is not a guard on the output.
+        let mut n = notes();
+        n.sections[0].how_to_find_out = Some("Look in your sign-in code.".to_owned());
+        let list = checklist(&n, &design(), &human(), &want(&["V6.1.1"]));
+        assert_eq!(
+            list[0].where_to_look.as_deref(),
+            Some("Look in your sign-in code."),
+            "the line is in the catalog and not in the row"
+        );
+
+        let mut d = design();
+        d.questions[0].how_to_find_out =
+            Some("Find the code that runs on every request.".to_owned());
+        let list = checklist(&notes(), &d, &human(), &want(&["V8.3.1"]));
+        assert_eq!(
+            list[0].where_to_look.as_deref(),
+            Some("Find the code that runs on every request.")
+        );
     }
 
     #[test]

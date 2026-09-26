@@ -139,10 +139,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(404, page("No", "No such file."))
         # Served by this code rather than by the web server, so nothing in it is ever executed, and
         # as an attachment so a browser never renders it as a page of this app.
+        # Named, so the browser does not take a name from the address (V5.4.1), and the name is
+        # one this app cleaned and then quoted, so a `;` or a quote in what was uploaded cannot
+        # start a header parameter of its own (V5.4.2).
+        clean = "".join(c if c.isalnum() or c in "._-" else "_" for c in os.path.basename(name))
         return self.send(
             200,
             contents.encode(),
-            [("Content-Disposition", "attachment"), ("X-Content-Type-Options", "nosniff")],
+            [
+                ("Content-Disposition", f'attachment; filename="{clean}"'),
+                ("X-Content-Type-Options", "nosniff"),
+            ],
         )
 
     def forged(self, form, csrf):

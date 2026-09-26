@@ -27,6 +27,7 @@ fn main() -> Result<()> {
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
+        Some("probe") => cmd_probe(args.get(1).map(String::as_str)),
         Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
@@ -51,6 +52,7 @@ fn print_help() {
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
+         sv probe URL       ask your own live site the few things only it can answer\n  \
          sv run [PATH]      start the app behind the network fence and check it answers\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
@@ -422,6 +424,94 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
 
 fn design_questions_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-questions.json")
+}
+
+/// Asks the owner's own live site the handful of questions only it can answer.
+///
+/// The address is an argument and never comes from a file: see `sv_check::production`, where the
+/// limits on what this may do are set out and tested.
+fn cmd_probe(url: Option<&str>) -> Result<()> {
+    let Some(url) = url else {
+        bail!(
+            "give the address your app is served from, for example:\n  \
+             sv probe https://your-app.example.com\n\n\
+             This makes a handful of read-only requests to that address and nothing else. It sends \
+             no cookies and no credentials, never signs in, and cannot change anything."
+        );
+    };
+    let target = sv_check::production::read_target(url).map_err(|why| anyhow::anyhow!("{why}"))?;
+    if !sv_check::production::Curl::available() {
+        bail!(
+            "`curl` is not on this computer, and this check uses it for the connection so that the \
+             certificate is judged by your system's own trust store. Install curl and run this again."
+        );
+    }
+
+    println!(
+        "Asking {} the few things only a live site can answer.",
+        target.host
+    );
+    println!(
+        "Read-only: it fetches headers from that address over HTTPS and over plain HTTP, sends no \
+         cookies and no credentials, and follows no redirect to any other host.\n"
+    );
+
+    let mut http = sv_check::production::Curl::new();
+    let out = sv_check::production::run(&mut http, &target);
+
+    println!("It asked for:");
+    for url in &out.requested {
+        println!("  {url}");
+    }
+    println!();
+
+    if out.findings.is_empty() && out.verified.is_empty() {
+        // Nothing was reached, so nothing was asked. Saying "nothing came back wrong" here reads as
+        // a pass, and a clean-looking answer from a site this never touched is the worst thing this
+        // command could print.
+        println!("It could not reach that address, so it has nothing to say about it either way.");
+    } else if out.findings.is_empty() {
+        println!("Nothing it asked about came back wrong.");
+    } else {
+        println!(
+            "{} thing{} to fix:\n",
+            out.findings.len(),
+            if out.findings.len() == 1 { "" } else { "s" }
+        );
+        for f in &out.findings {
+            println!("[{}] {}", f.severity.name(), f.title);
+            for line in wrap(&f.description, 76) {
+                println!("  {line}");
+            }
+            for line in wrap(&f.fix, 76) {
+                println!("  → {line}");
+            }
+            println!();
+        }
+    }
+    if !out.verified.is_empty() {
+        println!("What it checked and found nothing wrong with:");
+        for v in &out.verified {
+            for line in wrap(&format!("{}: {}", v.check_id, v.scope), 76) {
+                println!("  {line}");
+            }
+        }
+        println!();
+    }
+    if !out.not_assessed.is_empty() {
+        println!("What it could not settle:");
+        for (ids, why) in &out.not_assessed {
+            for line in wrap(&format!("{ids} — {why}"), 76) {
+                println!("  {line}");
+            }
+        }
+        println!();
+    }
+    println!(
+        "This says nothing about the code. Run `sv report` in the app folder for that, and read \
+         the two together."
+    );
+    Ok(())
 }
 
 fn notes_path() -> PathBuf {
@@ -994,7 +1084,20 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         return Ok(());
     }
 
-    let result = advisories::audit(&sbom, &database);
+    // The time frames are V15.1.1's document, as numbers. Without them every known vulnerability
+    // counts against V15.2.1 whatever its age, which is what this said before they existed.
+    let manifest_path = app_dir.join("securevibe.toml");
+    let time_frames = if manifest_path.is_file() {
+        Manifest::load(&manifest_path)?.policy.fix_within_days
+    } else {
+        None
+    };
+    let result = advisories::audit_against(
+        &sbom,
+        &database,
+        time_frames.as_ref(),
+        advisories::Day::today(),
+    );
     println!(
         "Compared {} package{} against {} advisory record{}.",
         result.components_checked,
@@ -1063,12 +1166,59 @@ fn cmd_audit(args: &[String]) -> Result<()> {
             "ies"
         }
     );
-    for f in &result.findings {
+
+    // Late first, because that is what V15.2.1 asks about. Then the ones nothing could judge, which
+    // count as late: not shown to be late is not shown to be on time. On time last — still known
+    // vulnerabilities, each with the day it is due, and still what stops a clean result.
+    use advisories::Due;
+    let due = |f: &&sv_check::finding::Finding| result.due.get(&f.rule_id);
+    let late: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Overdue { .. })))
+        .collect();
+    let unjudged: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Unjudged(_)) | None))
+        .collect();
+    let on_time: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| matches!(due(f), Some(Due::Within { .. })))
+        .collect();
+    let print = |f: &sv_check::finding::Finding| {
         println!("\n  [{}] {}", f.severity.name(), f.title);
         if !f.description.is_empty() {
             println!("     {}", f.description);
         }
+        if let Some(Due::Unjudged(why)) = result.due.get(&f.rule_id) {
+            println!("     not judged against a time frame: {why}");
+        }
         println!("     what to do: {}", f.fix);
+    };
+    if !late.is_empty() {
+        println!("\nPast the time frame you set for fixing them (V15.2.1):");
+        late.iter().for_each(|f| print(f));
+    }
+    if !unjudged.is_empty() {
+        println!(
+            "\nNot judged against a time frame, so each counts against V15.2.1 as though it were late:"
+        );
+        unjudged.iter().for_each(|f| print(f));
+        if time_frames.is_none() {
+            println!(
+                "\n  To judge them, write your time frames in securevibe.toml:\n\n    \
+                 [policy]\n    fix-within-days = {{ critical = 7, high = 30, medium = 90, low = 180 }}\n\n  \
+                 with your own numbers — the ones in your security notes for V15.1.1."
+            );
+        }
+    }
+    if !on_time.is_empty() {
+        println!(
+            "\nInside the time frame you set — still to fix, and still why this is not a clean result:"
+        );
+        on_time.iter().for_each(|f| print(f));
     }
     Ok(())
 }

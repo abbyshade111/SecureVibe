@@ -96,6 +96,9 @@ multimodal = false        # does it take images, video or audio, rather than typ
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
 # within-minutes = 15     # the window that count applies within (recorded, not tested: every
 #                         # attempt this makes lands within a few seconds)
+# The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares
+# each one's age with these; a severity left out is counted as overdue whatever its age.
+# fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
 
 # How the app is built. These are the questions no tool can settle, so only you can answer them.
 # Each one is "yes", "no", or "not-sure", and `where` names the file that does it.
