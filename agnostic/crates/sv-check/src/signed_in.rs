@@ -922,7 +922,10 @@ fn brute_force_check(
         Some(signup) => {
             let account = Account {
                 user: format!("guessed.{}", accounts.a.user),
-                password: format!("Gx-{}-1aZ!", &accounts.b.password[..12]),
+                password: format!(
+                    "Gx-{}-1aZ!",
+                    accounts.b.password.chars().take(12).collect::<String>()
+                ),
             };
             sign_up(http, signup, "guessed", &account);
             account
@@ -973,12 +976,33 @@ fn brute_force_check(
     let Some(&(first_status, first_ms)) = answers.first() else {
         return;
     };
+    // The app was already pushing back before this check made its first attempt, so whatever it is
+    // refusing, it is not refusing because of the number the owner stated. Found by session
+    // securevibe-e9 reviewing this after it merged: the test below is the witness. Reachable
+    // exactly where this check is most careful — it runs last *because* it provokes refusals, and
+    // by then the suite has made dozens of sign-in attempts from one address, so a limiter counting
+    // by address is already tripped. Crediting here would be a false *checked* on no evidence.
+    if matches!(first_status, 0 | 423 | 429) {
+        out.not_assessed.push((
+            "V6.3.1".to_owned(),
+            format!(
+                "The app was already refusing sign-in attempts ({first_status}) before this check \
+                 made its first one, so nothing here can say whether it pushes back at {allowed}. \
+                 Something earlier in the run has most likely tripped a limit that counts by \
+                 address rather than by account."
+            ),
+        ));
+        return;
+    }
     let last = answers.last().copied().unwrap_or((0, 0));
     // Pushing back is any of: a different status on the last attempt than the first, a status that
     // says refused outright, or an attempt that took markedly longer than the first.
     let status_changed = last.0 != first_status;
     let refused = matches!(last.0, 0 | 423 | 429) || (last.0 >= 400 && first_status < 400);
-    let slowed = first_ms >= 1 && last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
+    // No `first_ms >= 1` guard: the `+ 900` floor already covers a zero measurement, and the guard
+    // only stopped an app whose first answer came back inside a millisecond — realistic in a local
+    // container — from ever being found to have slowed.
+    let slowed = last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
     let pushed_back = status_changed || refused || slowed;
 
     let how = if refused {
@@ -2609,6 +2633,13 @@ mod tests {
         /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
         /// default, and what a naive app does — counts nothing and accepts guesses forever.
         locks_out_after: Option<u32>,
+        /// Answers a wrong password with this status from the very first attempt, as an app whose
+        /// address-based limiter an earlier check has already tripped would. Correct sign-ins
+        /// still work, because the suite has to reach the brute-force check for this to be the
+        /// case under test at all. A status rather than a flag: a guard written for 429 alone
+        /// leaves 423 and a dropped connection crediting the requirement, and one witness cannot
+        /// tell those apart.
+        already_refusing: Option<u16>,
     }
 
     const CSRF: &str = "tok-123";
@@ -2858,6 +2889,9 @@ mod tests {
                             || self.kept.get(email) == Some(given));
                     if !good || !token_ok {
                         self.guessed_at.push(email.clone());
+                        if let Some(status) = self.flaws.already_refusing {
+                            return Some(Self::respond(status, vec![], "too many attempts"));
+                        }
                         if self.flaws.locks_out_after.is_some() {
                             *self.failures.entry(email.clone()).or_insert(0) += 1;
                         }
@@ -4474,6 +4508,51 @@ mod tests {
             "{:?}",
             out.not_assessed
         );
+    }
+
+    #[test]
+    fn an_app_already_refusing_before_the_first_attempt_is_not_credited() {
+        // Found by session securevibe-e9 reviewing #104, after it had merged. `refused` read only
+        // the last attempt, so an app answering 429 from the very first one satisfied it and
+        // V6.3.1 was credited having tested nothing at all — a false *checked*, which is the one
+        // outcome this report exists to prevent.
+        //
+        // Reachable exactly where the check is most careful: it runs last precisely because it
+        // provokes refusals, and by then the suite has made dozens of sign-in attempts from one
+        // address. A limiter counting by address is already tripped when this begins.
+        //
+        // Every refusal the guard names gets a case. With 429 alone, narrowing the guard to 429
+        // was caught by nothing, and 423 and a dropped connection would have gone on being
+        // credited.
+        for status in [429, 423, 0] {
+            let flaws = Flaws {
+                already_refusing: Some(status),
+                ..Flaws::default()
+            };
+            let out = run_with(flaws, &policy(Some(3)));
+            assert!(
+                !out.verified
+                    .iter()
+                    .any(|v| v.check_id == "probe.failed-sign-ins-unlimited"),
+                "answering {status} from the first attempt proves nothing about the stated \
+                 number, but it was credited"
+            );
+            assert!(
+                !finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"),
+                "and {status} is not a finding either: nothing was established"
+            );
+            let said = out
+                .not_assessed
+                .iter()
+                .find(|(ids, _)| ids.contains("V6.3.1"))
+                .unwrap_or_else(|| panic!("V6.3.1 must be named for {status}"));
+            assert!(
+                said.1.contains("already refusing"),
+                "and the reason is worth telling the owner, because something earlier tripped a \
+                 limiter: {}",
+                said.1
+            );
+        }
     }
 
     #[test]
