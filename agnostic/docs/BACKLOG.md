@@ -248,7 +248,13 @@ another session is not a claim.
   can aim it; GET and HEAD only, with no body, no cookies, and no Authorization header; a hard cap on
   requests, so it is three or four and never a scan; and a redirect to a different host is refused
   rather than followed, so nothing can drag the probe somewhere the owner did not name. TLS
-  verification enforced rather than skipped is itself the V12.2.2 check.
+  verification enforced rather than skipped is itself the V12.2.2 check. **Done on 26 September
+  2026.** Four requirements — V12.2.2, V12.2.1, V3.4.1, V3.3.3 — and level 1 goes from 45 to 47 of
+  70. See DESIGN, "`sv probe`: the questions only the live site can answer". Running it against real
+  sites found two faults reasoning would not have: an error answer's headers read as the site's own,
+  and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
+  browser is the client) needs a request shaped like an API client's and was not written, and the
+  rest of deployment is still a "before going live" list nobody has written.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
