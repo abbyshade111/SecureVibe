@@ -1,6 +1,7 @@
 # sv in a container, for somebody who is not going to install Rust.
 #
-#   docker build -f agnostic/Dockerfile -t securevibe/sv .      (from the repository root)
+#   docker pull ghcr.io/abbyshade111/securevibe-sv                              (the published one)
+#   docker build -f agnostic/Dockerfile -t ghcr.io/abbyshade111/securevibe-sv .   (or build it, from the repository root)
 #
 # The build context is the repository root, because `sv` reads the shared OWASP data in `data/` beside
 # `agnostic/`; the `.dockerignore` at the root keeps the rest of the repository out of it.
