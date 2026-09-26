@@ -855,14 +855,20 @@ impl DockerBackend {
 }
 
 /// How long the sidecar may live: the usual limit, and with `--slow` long enough to wait out the
-/// timeouts the owner states as well.
+/// timeouts the owner states and the ten minutes an emailed sign-in code is kept.
 fn sidecar_seconds(plan: &RunPlan) -> u64 {
     if !plan.slow {
         return SIDECAR_SECONDS;
     }
     let minutes = plan.policy.idle_timeout_minutes.unwrap_or(0)
         + plan.policy.session_lifetime_minutes.unwrap_or(0);
-    SIDECAR_SECONDS + u64::from(minutes.min(180)) * 60 + 120
+    // An emailed sign-in code is kept ten minutes before it is used.
+    let code_minutes = if plan.users.as_ref().is_some_and(|u| u.email_code.is_some()) {
+        12
+    } else {
+        0
+    };
+    SIDECAR_SECONDS + u64::from(minutes.min(180) + code_minutes) * 60 + 120
 }
 
 /// Where requests to the app are sent from.
@@ -900,6 +906,27 @@ fn first_line(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_slow_run_gives_the_sidecar_time_for_an_emailed_codes_ten_minutes() {
+        let mut m = sv_manifest::Manifest::default();
+        m.stack.run.image = Some("busybox:1.36".to_owned());
+        m.stack.run.start = Some("httpd -f".to_owned());
+        let mut plan = RunPlan::from_manifest(&m, std::path::Path::new("/tmp/app")).unwrap();
+        plan.slow = true;
+        let without = sidecar_seconds(&plan);
+        plan.users = Some(sv_manifest::UsersSection {
+            email_code: Some(sv_manifest::ResetSection {
+                request: Default::default(),
+                use_code: Default::default(),
+                code_pattern: None,
+            }),
+            ..Default::default()
+        });
+        assert!(sidecar_seconds(&plan) >= without + 10 * 60);
+        plan.slow = false;
+        assert_eq!(sidecar_seconds(&plan), SIDECAR_SECONDS);
+    }
 
     #[test]
     fn availability_is_judged_by_the_daemon_not_the_binary() {

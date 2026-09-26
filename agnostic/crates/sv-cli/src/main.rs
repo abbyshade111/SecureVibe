@@ -53,7 +53,7 @@ fn print_help() {
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
          sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n  \
-         sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state\n  \
+         sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
@@ -782,8 +782,8 @@ fn cmd_run(args: &[String]) -> Result<()> {
         .unwrap_or_default();
     if slow {
         println!(
-            "With --slow: this waits out the session timeouts securevibe.toml states, so it can take \
-             as long as they are."
+            "With --slow: this waits out the session timeouts securevibe.toml states, and ten \
+             minutes before using an emailed sign-in code, so it can take as long as they are."
         );
     }
     match probe_the_running_app(&manifest, &app_dir, slow) {

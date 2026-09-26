@@ -524,7 +524,10 @@ another session is not a claim.
      with `sv run --slow`) claimed on 26 September 2026 by session securevibe-e9.** V6.4.1 is **done the
      same day**, finding only: an `activation` entry, codes that count up or are short, and a link
      that signs in twice. Level 1 goes from 52 to 53 of 70. See DESIGN, "An activation code emailed
-     at sign-up".
+     at sign-up". V6.5.5 for emailed codes is **done the same day** under `sv run --slow`: a code
+     used ten minutes after it was asked for is a finding if it signs in, and credited only when a
+     fresh code then works. V6.5.5 was already counted, through the two-factor check, so no level
+     changes. See DESIGN, "How long an emailed code lasts".
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e8.** A third account, made by
