@@ -113,6 +113,12 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
             c.attested,
         ));
     }
+    if c.stated > 0 {
+        rows.push((
+            "your AI coding tool answered yes about how the app is built".to_owned(),
+            c.stated,
+        ));
+    }
     rows.push((
         "nothing has looked at these at all".to_owned(),
         c.not_verified,
@@ -246,6 +252,7 @@ mod tests {
             checklist_above_level: Vec::new(),
             tests_to_write: Vec::new(),
             only_you_can_check: Vec::new(),
+            questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: Vec::new(),
             not_for_tests: 0,
