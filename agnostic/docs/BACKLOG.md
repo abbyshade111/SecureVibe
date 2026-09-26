@@ -336,6 +336,11 @@ another session is not a claim.
      (V2.3.1, L1, on `manualOnly` today, so taking it off is a decision). The guard not to get wrong
      is the one the brute-force check got wrong first: an app that refuses *every* password has shown
      nothing, so an ordinary one must be accepted first, or the answer is *not assessed*.
+     **V6.2.12 and V6.2.11 claimed on 26 September 2026 by session securevibe-e8**, through the
+     `signup` entry that already exists, so no new addresses are needed for them: a password from far
+     down `data/knowledge/common-passwords.txt`, and one built from a word in a new
+     `[policy] context-words` list — the documented list V6.2.11 names — each beside a random
+     password of the same shape. V2.3.1 stays unclaimed.
 
   Additions from session securevibe-e8, which answered the same question separately on the same
   day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to
