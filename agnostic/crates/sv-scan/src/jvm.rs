@@ -958,14 +958,17 @@ mod tests {
                      <dependency><groupId>b</groupId><artifactId>b</artifactId><version>${ok.version}</version></dependency>\n\
                      <dependency><groupId>g</groupId><artifactId>core</artifactId><version>${project.version}</version></dependency>\n\
                      <dependency><groupId>d</groupId><artifactId>d</artifactId></dependency>\n\
-                     </dependencies>\n<build><plugins><plugin><artifactId>p</artifactId><version>LATEST</version></plugin></plugins></build>\n</project>",
+                     </dependencies>\n<build><plugins><plugin><artifactId>p</artifactId><version>LATEST</version>\
+                     <dependencies><dependency><groupId>e</groupId><artifactId>e</artifactId><version>LATEST</version></dependency></dependencies>\
+                     </plugin></plugins></build>\n</project>",
                 ),
             ],
         );
         let r = read_pom(&dir, "web/pom.xml").unwrap();
         std::fs::remove_dir_all(&dir).ok();
         // The parent, b, core, and d (managed through the parent) are exact; a floats through
-        // the parent's property; the commented dependency and the build plugin are not read.
+        // the parent's property; the commented dependency and the build plugin, with a dependency of its
+        // own, are not read.
         assert_eq!(summary(&r), (4, vec!["a:a@6".to_owned()], vec![]));
         assert_eq!(r.floating[0].version, "${lib.version} = [1,2)");
     }

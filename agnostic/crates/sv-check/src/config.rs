@@ -711,6 +711,24 @@ mod tests {
     }
 
     #[test]
+    fn a_snapshot_is_a_finding() {
+        // A snapshot is republished under the same version number, so it floats like a range.
+        let dir = scratch("maven-snapshot");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project><artifactId>x</artifactId><dependencies><dependency><groupId>org.x</groupId>\
+             <artifactId>y</artifactId><version>2.1-SNAPSHOT</version></dependency></dependencies>\
+             </project>",
+        )
+        .unwrap();
+        let (passed, finding, _) = pinned_outcome(&dir);
+        let f = finding.expect("a snapshot floats");
+        assert!(!passed);
+        assert!(f.description.contains("snapshot"), "{}", f.description);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn gradle_without_a_lockfile_is_not_reported_when_every_version_is_exact() {
         // The wrong statement this replaced: Gradle's lockfile is optional, and a build that names
         // exact versions installs the same thing every time without one.
