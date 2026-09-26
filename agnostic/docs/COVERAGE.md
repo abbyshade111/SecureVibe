@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 110 (32%) | 5 | 230 |
+| OWASP ASVS 5.0 | 345 | 111 (32%) | 5 | 229 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
-| L2 | 183 | 54 | 4 | 0 | 13 | 18 | 25 | 1 |
+| L2 | 183 | 55 | 4 | 0 | 13 | 19 | 25 | 1 |
 | L3 | 92 | 4 | 1 | 0 | 0 | 1 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -57,7 +57,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
-| V6 Authentication | 47 | 19 | 1 | 27 |
+| V6 Authentication | 47 | 20 | 1 | 26 |
 | V7 Session Management | 19 | 6 | 0 | 13 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (61)
+### Settled by asking the running app (62)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -128,8 +128,9 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` |
 | V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` |
-| V6.5.1 | L2 | Signed in: `probe.email-code-reusable` |
+| V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
 | V6.5.4 | L2 | Signed in: `probe.email-code-short` |
+| V6.5.5 | L2 | Signed in: `probe.totp-old-code-accepted` |
 | V6.6.2 | L2 | Signed in: `probe.email-code-unbound` |
 | V6.6.3 | L2 | Signed in: `probe.email-code-guessing-unlimited` |
 | V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |

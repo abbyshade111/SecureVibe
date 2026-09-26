@@ -398,7 +398,10 @@ impl DockerBackend {
         plan: &RunPlan,
         users: &sv_manifest::UsersSection,
     ) -> sv_check::signed_in::Outcome {
-        let accounts = crate::new_accounts(!users.admin.is_empty());
+        let accounts = crate::new_accounts(
+            !users.admin.is_empty(),
+            users.totp.is_some() && users.seed.is_some(),
+        );
         let mut http = DockerHttp {
             backend: self,
             via,
@@ -422,6 +425,11 @@ impl DockerBackend {
                 if let Some(admin) = &accounts.admin {
                     env.push(("SV_ADMIN", admin.user.clone()));
                     env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
+                }
+                if let Some(totp) = &accounts.totp {
+                    env.push(("SV_USER_TOTP", totp.account.user.clone()));
+                    env.push(("SV_PASSWORD_TOTP", totp.account.password.clone()));
+                    env.push(("SV_TOTP_SECRET", sv_check::totp::base32(&totp.secret)));
                 }
                 for (k, v) in env {
                     args.push("-e".into());

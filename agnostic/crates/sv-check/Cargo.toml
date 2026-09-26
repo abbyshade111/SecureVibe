@@ -27,6 +27,8 @@ tree-sitter-bash.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-scan = { path = "../sv-scan" }
 sv-manifest = { path = "../sv-manifest" }
+hmac = "0.12"
+sha1 = "0.10"
 
 [dev-dependencies]
 sv-frameworks = { path = "../sv-frameworks" }

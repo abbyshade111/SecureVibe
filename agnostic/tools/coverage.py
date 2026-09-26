@@ -73,6 +73,8 @@ RUST_CHECKS = {
     "probe.breached-password-accepted": ("signed-in", ["V6.2.12"]),
     "probe.context-word-password-accepted": ("signed-in", ["V6.2.11"]),
     "probe.flow-step-skipped": ("signed-in", ["V2.3.1"]),
+    "probe.totp-reused": ("signed-in", ["V6.5.1"]),
+    "probe.totp-old-code-accepted": ("signed-in", ["V6.5.5"]),
     "probe.password-composition-rules": ("signed-in", ["V6.2.5"]),
     "probe.default-account": ("signed-in", ["V6.3.2"]),
     "probe.password-in-url": ("signed-in", ["V14.2.1"]),

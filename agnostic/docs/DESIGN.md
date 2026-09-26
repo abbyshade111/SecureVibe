@@ -2392,6 +2392,29 @@ the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
 
+### Two-factor codes, computed rather than waited for (V6.5.1, V6.5.5)
+
+A `totp` entry names the code step of a two-factor sign-in. `seed` is given a third account —
+`SV_USER_TOTP`, `SV_PASSWORD_TOTP` — and `SV_TOTP_SECRET`, 20 random bytes in base32, to enroll it
+with. Never A or B: every other check needs them to sign in with a password alone. With the secret
+known, `sv` computes the codes an authenticator app would show (RFC 6238, through the RustCrypto
+`hmac` and `sha1` crates, and held to the RFC's own test values), so a code from minutes ago is a
+calculation. That is what lets V6.5.5 be asked without the slow mode it was thought to need.
+
+The order is the substance, and the first order was wrong. It used the current code, then the same
+code again, then the old one — and many apps refuse a code for any step not later than the last one
+used, which is how they stop a code working twice. After a current code, that rule refuses an old
+one whatever its age, so an app taking ten-minute-old codes was credited with V6.5.5. The fake app
+does exactly this, and the test for an app that accepts any age failed; so the old code, five steps
+back, now goes first, before any code has been used. Then the current code, which has to sign in;
+then that code again; then, after waiting for the next step to begin, a fresh code, which has to sign
+in too, or the refusals before it may be the account locking and nothing is credited. And before the
+first code, the private page has to stay shut with the password alone, or codes are not what lets
+anybody in.
+
+Six breaks, each caught: the old code moved back after the control (three tests), a credit without
+the fresh control, no gate, no wait, the old code only one step back, and reuse never found.
+
 ### Skipping a step (V2.3.1)
 
 `flow` under `[stack.run.users]` names a flow of several steps — a checkout, a sign-up with a

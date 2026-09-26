@@ -34,6 +34,19 @@ pub trait Http {
     fn mail(&mut self, _to: &str, _at_least: usize) -> Option<Vec<String>> {
         None
     }
+
+    /// Now, in seconds since 1970, by the clock the app is also reading. A test's fake app keeps
+    /// its own, so a check that has to wait for the next time step does not really wait.
+    fn now(&mut self) -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs())
+    }
+
+    /// Waits this many seconds, by that same clock.
+    fn wait(&mut self, seconds: u64) {
+        std::thread::sleep(std::time::Duration::from_secs(seconds));
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,6 +64,17 @@ pub struct Accounts {
     /// Random hex, at least 32 characters, for the passwords the password checks sign up with.
     /// Made with the accounts so every run's are different and none can be guessed from the code.
     pub spare: String,
+    /// A third account with two-factor sign-in, when securevibe.toml has a `totp` entry and a
+    /// `seed` to enroll it. Never A or B: they have to keep signing in with a password alone.
+    pub totp: Option<TotpAccount>,
+}
+
+/// An account `seed` enrolled in two-factor sign-in with a secret this run made.
+#[derive(Debug, Clone)]
+pub struct TotpAccount {
+    pub account: Account,
+    /// The raw secret. `seed` is given it in base32 as `SV_TOTP_SECRET`.
+    pub secret: Vec<u8>,
 }
 
 /// What asking as a signed-in user showed.
@@ -641,6 +665,26 @@ const STEP_SKIPPED: Rule = Rule {
           step before it was completed by the same person in the same flow.",
 };
 
+const TOTP_REUSED: Rule = Rule {
+    rule_id: "probe.totp-reused",
+    requirement_ids: &["V6.5.1"],
+    cwe: &["CWE-294"],
+    impact: "A code that works twice works for whoever sees it the first time: over a shoulder, in \
+             a screenshot, or captured on its way to the app.",
+    fix: "Record the last time step each account's code was accepted for, and refuse a code for \
+          that step or an earlier one.",
+};
+
+const TOTP_OLD_CODE: Rule = Rule {
+    rule_id: "probe.totp-old-code-accepted",
+    requirement_ids: &["V6.5.5"],
+    cwe: &["CWE-613"],
+    impact: "A code that still works minutes after it was shown gives anybody who saw it minutes \
+             to use it.",
+    fix: "Accept the code for the current 30-second step, and at most one step either side for a \
+          clock that has drifted.",
+};
+
 const COMPOSITION_RULES: Rule = Rule {
     rule_id: "probe.password-composition-rules",
     requirement_ids: &["V6.2.5"],
@@ -1174,6 +1218,7 @@ pub fn run(
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
     email_code_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    totp_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. After everything else, without exception. This one deliberately provokes the app into
     //     refusing requests, and a limiter that counts by address rather than by account would then
@@ -3405,6 +3450,194 @@ fn send_upload(
 /// file of the same shape was accepted, so an ordinary GIF goes first and each later answer is read
 /// against it: if the app refuses everything, or the upload path is not what securevibe.toml says,
 /// the questions are reported *not assessed* rather than passed.
+/// What every two-factor sign-in attempt shares: where to send the code, as whom, and the private
+/// page that says whether it worked.
+struct TotpSignIn<'a> {
+    users: &'a UsersSection,
+    entry: &'a RequestTemplate,
+    account: &'a Account,
+    confirm: &'a str,
+}
+
+impl TotpSignIn<'_> {
+    /// Signs in with the password, then gives `code`, and says whether the private page then
+    /// opened. `gate` first asks the private page between the two steps, and answers `None` when it
+    /// already opened there: then the code is not what let anybody in, and nothing about codes can
+    /// be told.
+    fn attempt(&self, http: &mut dyn Http, code: &str, who: &str, gate: bool) -> Option<bool> {
+        let mut quiet = Vec::new();
+        let mut session = sign_in(http, self.users, who, self.account, &mut quiet)?.session;
+        if gate && ok(&http.send(&get(&format!("totp-gate-{who}"), self.confirm, &session))) {
+            return None;
+        }
+        let values = Values {
+            user: &self.account.user,
+            password: &self.account.password,
+            code,
+            ..Default::default()
+        };
+        send_template(
+            http,
+            &format!("totp-{who}"),
+            self.entry,
+            &values,
+            &mut session,
+            &self.users.private,
+        );
+        Some(ok(&http.send(&get(
+            &format!("totp-confirm-{who}"),
+            self.confirm,
+            &session,
+        ))))
+    }
+}
+
+/// Whether a two-factor code works once only (V6.5.1) and only while it is current (V6.5.5).
+///
+/// `seed` enrolled a third account with a secret this run made, so the codes an authenticator app
+/// would show are computed here. The order is the substance:
+///
+/// 1. **The code from five steps ago, first**, two and a half minutes old, which no clock drift
+///    explains — and before any code has been used. Many apps refuse a code for any step not later
+///    than the last one used, which is how they stop a code being used twice; ask for an old code
+///    after a current one and that rule refuses it whatever the app thinks of its age, and an app
+///    that takes ten-minute-old codes would be credited. The private page has to stay shut between
+///    the password and this code, or nothing about codes can be told.
+/// 2. **The current code**, which has to sign in: the control.
+/// 3. **The same code again**, in a new sign-in.
+/// 4. **A fresh code**, once the next step has begun, which has to sign in too. Without it, two
+///    refusals in a row could be the account locking rather than the codes being refused, and
+///    neither is credited.
+fn totp_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V6.5.1, V6.5.5";
+    let Some(entry) = &users.totp else {
+        return;
+    };
+    let Some(totp) = &accounts.totp else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "`totp` is set in securevibe.toml, but only `seed` can enroll an account in two-factor \
+             sign-in, and there is no `seed`."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether a code signed in is told by opening a private page, and no private page was \
+             shown to open for a signed-in user alone."
+                .to_owned(),
+        ));
+        return;
+    };
+    let secret = &totp.secret;
+    let signing = TotpSignIn {
+        users,
+        entry,
+        account: &totp.account,
+        confirm,
+    };
+    let step = http.now() / crate::totp::STEP;
+    let current = crate::totp::code_at_step(secret, step);
+    let old = crate::totp::code_at_step(secret, step.saturating_sub(5));
+
+    // 1. The old code, before any code has been used.
+    let Some(stale) = signing.attempt(http, &old, "1", true) else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "The two-factor account opened {confirm} with its password alone, before any code \
+                 was given, so what the app does with a code cannot be seen. Check that `seed` \
+                 enrolled it with SV_TOTP_SECRET."
+            ),
+        ));
+        return;
+    };
+
+    // 2. The control: the current code.
+    if !signing.attempt(http, &current, "2", false).unwrap_or(false) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "The current code for the secret `seed` was given did not sign the two-factor \
+                 account in through {}, so a refused code shows nothing. Check `totp` in \
+                 securevibe.toml, and that `seed` enrolled the account with SV_TOTP_SECRET.",
+                entry.path
+            ),
+        ));
+        return;
+    }
+
+    // 3. The same code again, in a new sign-in.
+    let reused = signing.attempt(http, &current, "3", false) == Some(true);
+    out.steps.push(format!(
+        "the two-factor account's code from 2½ minutes ago: {}; the current code: opened; the \
+         same code again: {}",
+        if stale { "opened" } else { "refused" },
+        if reused { "opened" } else { "refused" }
+    ));
+
+    // 4. A fresh code, once the next step has begun.
+    let into_next = crate::totp::STEP - http.now() % crate::totp::STEP + 1;
+    http.wait(into_next);
+    let fresh = crate::totp::code_at_step(secret, http.now() / crate::totp::STEP);
+    let works = signing.attempt(http, &fresh, "4", false) == Some(true);
+    out.steps.push(format!(
+        "waited {into_next}s for the next step; its code: {}",
+        if works { "opened" } else { "refused" }
+    ));
+
+    for (worked, rule, id, title, severity, what) in [
+        (
+            reused,
+            &TOTP_REUSED,
+            "V6.5.1",
+            "A two-factor code works more than once",
+            Severity::Medium,
+            "the code that had just signed the account in, used again in a new sign-in",
+        ),
+        (
+            stale,
+            &TOTP_OLD_CODE,
+            "V6.5.5",
+            "A two-factor code still works minutes after it was shown",
+            Severity::Low,
+            "the code from five 30-second steps earlier, two and a half minutes old, before any \
+             code had been used",
+        ),
+    ] {
+        if worked {
+            out.findings.push(finding(
+                rule,
+                title,
+                severity,
+                format!("The app signed the two-factor account in with {what}."),
+            ));
+        } else if works {
+            out.verified.push(crate::Verified::new(
+                rule.rule_id,
+                rule.requirement_ids,
+                format!("{what}, refused, where a fresh code afterwards signed in"),
+            ));
+        } else {
+            out.not_assessed.push((
+                id.to_owned(),
+                format!(
+                    "The app refused {what}, but then refused a fresh code as well, so the refusal \
+                     may be the account locking rather than the code."
+                ),
+            ));
+        }
+    }
+}
+
 /// Whether an answer says the flow finished: `completed` in its page, or in the address it sends
 /// the browser on to. Only an answer the app accepted counts, so an error page that happens to
 /// mention the words does not.
@@ -5268,6 +5501,16 @@ mod tests {
     #[derive(Default)]
     struct FakeApp {
         flaws: Flaws,
+        /// Two-factor secrets, by user.
+        totp: BTreeMap<String, Vec<u8>>,
+        /// Sessions past the password and waiting for a code: session id -> user.
+        pending: BTreeMap<String, String>,
+        /// The last time step each user's code was accepted for.
+        totp_last: BTreeMap<String, u64>,
+        /// Wrong codes given, by user, for `totp_locks`.
+        totp_wrong: BTreeMap<String, u32>,
+        /// The app's clock, in seconds since 1970. Waiting moves it on rather than sleeping.
+        clock: u64,
         /// How far each user has got through the checkout.
         checkout: BTreeMap<String, u32>,
         users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
@@ -5335,6 +5578,18 @@ mod tests {
         flow_broken: bool,
         /// A refused checkout step sends the browser back to the first step, as many apps do.
         flow_refusal_redirects: bool,
+        /// A two-factor code can be used again.
+        totp_reusable: bool,
+        /// A two-factor code from any of the last ten steps is accepted.
+        totp_any_age: bool,
+        /// The password alone signs a two-factor account all the way in.
+        totp_not_required: bool,
+        /// A second wrong two-factor code locks the account's codes.
+        totp_locks: bool,
+        /// The first wrong two-factor code locks the account's codes.
+        totp_locks_at_once: bool,
+        /// No two-factor code is ever accepted.
+        totp_broken: bool,
         /// Sign-up takes a password containing the app's context word.
         context_word_ok: bool,
         /// Sign-up wants a capital and a digit in every password.
@@ -5481,6 +5736,7 @@ mod tests {
         fn new(flaws: Flaws) -> Self {
             let mut app = FakeApp {
                 flaws,
+                clock: 1_700_000_010,
                 ..Default::default()
             };
             if flaws.default_admin {
@@ -5522,6 +5778,11 @@ mod tests {
                 ],
                 "",
             )
+        }
+
+        fn totp_is_locked(&self, who: &str) -> bool {
+            let wrong = self.totp_wrong.get(who).copied().unwrap_or(0);
+            (self.flaws.totp_locks && wrong >= 2) || (self.flaws.totp_locks_at_once && wrong >= 1)
         }
 
         fn password_matches(&self, stored: &str, given: &str) -> bool {
@@ -5663,6 +5924,14 @@ mod tests {
     }
 
     impl Http for FakeApp {
+        fn now(&mut self) -> u64 {
+            self.clock
+        }
+
+        fn wait(&mut self, seconds: u64) {
+            self.clock += seconds;
+        }
+
         fn mail(&mut self, to: &str, _at_least: usize) -> Option<Vec<String>> {
             if self.flaws.no_mail_sink {
                 return None;
@@ -5758,6 +6027,17 @@ mod tests {
                     }
                     self.failures.remove(email);
                     let who = f.get("email")?.clone();
+                    if self.totp.contains_key(&who) && !self.flaws.totp_not_required {
+                        let id = self.new_id();
+                        self.sessions.insert(id.clone(), String::new());
+                        self.pending.insert(id.clone(), who);
+                        let attrs = self.cookie_attrs();
+                        return Some(Self::respond(
+                            200,
+                            vec![("Set-Cookie", format!("sid={id}; {attrs}"))],
+                            "enter the code from your app",
+                        ));
+                    }
                     if self.flaws.keep_session_at_login {
                         self.sessions.insert(sid?, who);
                         return Some(Self::respond(
@@ -6244,6 +6524,42 @@ mod tests {
                         Self::respond(404, vec![], "none")
                     }
                 }
+                ("POST", "/login/2fa") => {
+                    let id = sid.clone()?;
+                    let Some(who) = self.pending.get(&id).cloned() else {
+                        return Some(Self::respond(403, vec![], "sign in first"));
+                    };
+                    let given = form(r).get("code")?.clone();
+                    let secret = self.totp.get(&who)?.clone();
+                    let now = self.clock / crate::totp::STEP;
+                    let oldest = if self.flaws.totp_any_age {
+                        now.saturating_sub(10)
+                    } else {
+                        now.saturating_sub(1)
+                    };
+                    let matched = (oldest..=now + 1)
+                        .find(|step| crate::totp::code_at_step(&secret, *step) == given);
+                    let fresh = |step: u64| {
+                        self.flaws.totp_reusable
+                            || self.totp_last.get(&who).is_none_or(|last| step > *last)
+                    };
+                    match matched {
+                        Some(step)
+                            if fresh(step)
+                                && !self.flaws.totp_broken
+                                && !self.totp_is_locked(&who) =>
+                        {
+                            self.totp_last.insert(who.clone(), step);
+                            self.pending.remove(&id);
+                            self.sessions.insert(id, who);
+                            Self::respond(303, vec![("Location", "/account".into())], "")
+                        }
+                        _ => {
+                            *self.totp_wrong.entry(who).or_insert(0) += 1;
+                            Self::respond(403, vec![], "wrong code")
+                        }
+                    }
+                }
                 ("POST", step) if step.starts_with("/checkout/") => {
                     let Some(who) = user.clone() else {
                         return Some(Self::respond(401, vec![], "sign in"));
@@ -6360,6 +6676,7 @@ mod tests {
                 ),
                 code_pattern: None,
             }),
+            totp: Some(t("/login/2fa", &[("code", "{code}")])),
             flow: Some(sv_manifest::FlowSection {
                 steps: (1..=3)
                     .map(|n| t(&format!("/checkout/{n}"), &[("csrf_token", "{csrf}")]))
@@ -6384,6 +6701,14 @@ mod tests {
                 password: "Sv-00112233445566778899aabb-aZ9!".into(),
             }),
             spare: "3f9c0a7e5b1d2468ace13579bdf02468".into(),
+            totp: Some(TotpAccount {
+                account: Account {
+                    user: "totp@example.test".into(),
+                    password: "Sv-7a6b5c4d3e2f10293847a6b5-aZ9!".into(),
+                },
+                // RFC 6238's own SHA-1 test secret.
+                secret: b"12345678901234567890".to_vec(),
+            }),
         }
     }
 
@@ -6397,6 +6722,14 @@ mod tests {
             .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
         let admin = acc.admin.clone().unwrap();
         app.users.insert(admin.user, (admin.password, true));
+        if let Some(totp) = &acc.totp {
+            app.users.insert(
+                totp.account.user.clone(),
+                (totp.account.password.clone(), false),
+            );
+            app.totp
+                .insert(totp.account.user.clone(), totp.secret.clone());
+        }
         run(&mut app, users, &acc, true, &Default::default())
     }
 
@@ -6405,6 +6738,7 @@ mod tests {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         run(&mut app, users, &acc, false, &Default::default())
     }
 
@@ -7021,6 +7355,7 @@ mod tests {
         });
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         let o = run(&mut app, &u, &acc, false, &Default::default());
         assert!(
             app.users.contains_key(&acc.a.user) && app.users.contains_key(&acc.b.user),
@@ -7288,6 +7623,7 @@ mod tests {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         run(&mut app, &with_signup(), &acc, false, policy)
     }
 
@@ -7538,6 +7874,7 @@ mod tests {
         let mut app = FakeApp::new(Flaws::default());
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         let o = run(&mut app, &u, &acc, false, &Default::default());
         let (_, why) = o
             .not_assessed
@@ -8006,6 +8343,159 @@ mod tests {
         assert!(!rule_ids(&o).contains(&STEP_SKIPPED.rule_id));
     }
 
+    /// Every reason given for not assessing `id`. V6.5.1 is also the emailed-code check's, whose
+    /// reasons are not about two-factor codes, so a test looks through them all.
+    fn totp_named(o: &Outcome, id: &str) -> Vec<String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.split(", ").any(|i| i == id))
+            .map(|(_, why)| why.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_code_used_once_and_only_while_current_is_credited_for_both() {
+        let o = run_against(Flaws::default(), &users());
+        for rule in [&TOTP_REUSED, &TOTP_OLD_CODE] {
+            assert!(!rule_ids(&o).contains(&rule.rule_id), "{:?}", o.steps);
+            assert!(
+                verified_ids(&o).contains(&rule.rule_id),
+                "{} not credited: {:?}\n{:?}",
+                rule.rule_id,
+                o.steps,
+                o.not_assessed
+            );
+        }
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("waited ") && s.ends_with("opened")),
+            "the fresh code after the wait is the control, and it is not in the steps: {:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn each_code_flaw_is_found_by_its_own_rule_and_the_other_is_still_credited() {
+        for (flaws, found, credited) in [
+            (
+                Flaws {
+                    totp_reusable: true,
+                    ..Default::default()
+                },
+                &TOTP_REUSED,
+                &TOTP_OLD_CODE,
+            ),
+            (
+                Flaws {
+                    totp_any_age: true,
+                    ..Default::default()
+                },
+                &TOTP_OLD_CODE,
+                &TOTP_REUSED,
+            ),
+        ] {
+            let o = run_against(flaws, &users());
+            assert!(
+                rule_ids(&o).contains(&found.rule_id),
+                "{}: {:?}",
+                found.rule_id,
+                o.steps
+            );
+            assert!(
+                !verified_ids(&o).contains(&found.rule_id),
+                "{} credited as well",
+                found.rule_id
+            );
+            assert!(
+                !rule_ids(&o).contains(&credited.rule_id),
+                "{}",
+                credited.rule_id
+            );
+            assert!(
+                verified_ids(&o).contains(&credited.rule_id),
+                "{}",
+                credited.rule_id
+            );
+        }
+    }
+
+    #[test]
+    fn nothing_about_codes_is_said_when_the_setup_does_not_hold() {
+        // Three ways the control fails: the password alone lets the account in, no code ever
+        // works, and the account locks after the first wrong code so the fresh one is refused.
+        for (flaws, says) in [
+            (
+                Flaws {
+                    totp_not_required: true,
+                    ..Default::default()
+                },
+                "password alone",
+            ),
+            (
+                Flaws {
+                    totp_broken: true,
+                    ..Default::default()
+                },
+                "did not sign the two-factor account in",
+            ),
+            (
+                Flaws {
+                    totp_locks: true,
+                    ..Default::default()
+                },
+                "refused a fresh code as well",
+            ),
+            (
+                Flaws {
+                    totp_locks_at_once: true,
+                    ..Default::default()
+                },
+                "did not sign the two-factor account in",
+            ),
+        ] {
+            let o = run_against(flaws, &users());
+            for (id, rule) in [("V6.5.1", &TOTP_REUSED), ("V6.5.5", &TOTP_OLD_CODE)] {
+                assert!(
+                    !verified_ids(&o).contains(&rule.rule_id),
+                    "{says}: {id} credited"
+                );
+                assert!(!rule_ids(&o).contains(&rule.rule_id), "{says}: {id} found");
+                let why = totp_named(&o, id);
+                assert!(
+                    why.iter().any(|w| w.contains(says)),
+                    "{says}: {id}: {why:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn without_seed_there_is_no_two_factor_account_and_it_says_so() {
+        // Only `seed` can enroll an account, so a sign-up run has none, as the real runner does.
+        let mut u = with_signup();
+        u.totp = users().totp;
+        let mut app = FakeApp::new(Flaws::default());
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let o = run(&mut app, &u, &acc, false, &Default::default());
+        let why = totp_named(&o, "V6.5.5");
+        assert!(why.iter().any(|w| w.contains("`seed`")), "{why:?}");
+    }
+
+    #[test]
+    fn with_no_totp_entry_nothing_is_said_about_codes() {
+        let mut u = users();
+        u.totp = None;
+        let o = run_against(Flaws::default(), &u);
+        assert!(totp_named(&o, "V6.5.5").is_empty());
+        for rule in [&TOTP_REUSED, &TOTP_OLD_CODE] {
+            assert!(!verified_ids(&o).contains(&rule.rule_id));
+            assert!(!rule_ids(&o).contains(&rule.rule_id));
+        }
+    }
+
     #[test]
     fn with_no_context_words_listed_v6_2_11_is_not_assessed_and_says_how_to_list_them() {
         // V6.2.11 asks that the *documented* list is used. Guessing at words would be testing a
@@ -8209,6 +8699,7 @@ mod tests {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         let out = run(&mut app, &with_signup(), &acc, false, policy);
         (out, app, acc)
     }
@@ -9318,6 +9809,7 @@ mod tests {
         });
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         let o = run(&mut app, &with_signup(), &acc, false, &Default::default());
         assert_eq!(reset_findings(&o), vec![RESET_REUSABLE.rule_id]);
         assert!(
@@ -9448,6 +9940,8 @@ mod tests {
             }
             if !seeded {
                 acc.admin = None;
+                acc.totp = None;
+                acc.totp = None;
             } else {
                 let admin = acc.admin.clone().unwrap();
                 app.users.insert(admin.user, (admin.password, true));
@@ -10028,6 +10522,7 @@ mod tests {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
+        acc.totp = None;
         let o = run(
             &mut app,
             &without_code_csrf(with_signup()),

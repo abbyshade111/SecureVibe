@@ -199,7 +199,7 @@ pub struct RunOutcome {
 /// Fresh every run and never written anywhere but the app's own container: they exist to be signed
 /// in with once. The password carries every kind of character a password rule asks for, so an app
 /// with a strict policy still accepts it.
-pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
+pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::Accounts {
     let account = |role: &str| {
         let tag = random_hex(6);
         sv_check::signed_in::Account {
@@ -212,6 +212,18 @@ pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
         b: account("b"),
         admin: with_admin.then(|| account("admin")),
         spare: random_hex(16),
+        // Twenty random bytes: the secret length RFC 4226 recommends, and what authenticator apps
+        // make. Taken from the same random hex, two characters to a byte.
+        totp: with_totp.then(|| sv_check::signed_in::TotpAccount {
+            account: account("totp"),
+            secret: random_hex(20)
+                .as_bytes()
+                .chunks(2)
+                .map(|pair| {
+                    u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("00"), 16).unwrap_or(0)
+                })
+                .collect(),
+        }),
     }
 }
 
@@ -310,9 +322,31 @@ mod tests {
 
     #[test]
     fn every_run_makes_its_own_accounts_with_passwords_nobody_could_guess() {
-        let one = new_accounts(true);
-        let two = new_accounts(false);
+        let one = new_accounts(true, true);
+        let two = new_accounts(false, false);
         assert!(two.admin.is_none(), "no admin unless one was asked for");
+        assert!(
+            two.totp.is_none(),
+            "no two-factor account unless one was asked for"
+        );
+        let totp = one
+            .totp
+            .as_ref()
+            .expect("a two-factor account when asked for");
+        assert_eq!(
+            totp.secret.len(),
+            20,
+            "RFC 4226's recommended secret length"
+        );
+        assert_ne!(
+            totp.secret,
+            new_accounts(false, true).totp.unwrap().secret,
+            "every run's secret is its own"
+        );
+        assert!(
+            totp.secret.iter().any(|b| *b != 0),
+            "a secret of zeros is what a failed parse would leave"
+        );
         let admin = one.admin.as_ref().expect("an admin when asked for");
         let passwords = [
             &one.a.password,
