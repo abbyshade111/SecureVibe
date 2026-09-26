@@ -86,6 +86,13 @@ self-hosted = false       # does it host or deploy model files itself, rather th
 multi-agent = false       # several AI agents that must identify each other?
 multimodal = false        # does it take images, video or audio, rather than typed text only?
 
+# Numbers you state as policy, which the checks hold the running app to.
+# Leave one out and nothing is claimed about it either way.
+[policy]
+# failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
+# within-minutes = 15     # the window that count applies within (recorded, not tested: every
+#                         # attempt this makes lands within a few seconds)
+
 # How the app is built. These are the questions no tool can settle, so only you can answer them.
 # Each one is "yes", "no", or "not-sure", and `where` names the file that does it.
 #   yes       — your word that the control is there. The report calls it "attested by the owner",

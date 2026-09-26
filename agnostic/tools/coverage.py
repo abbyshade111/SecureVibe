@@ -78,6 +78,7 @@ RUST_CHECKS = {
     "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
+    "probe.failed-sign-ins-unlimited": ("signed-in", ["V6.3.1"]),
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
     "probe.no-sign-out-link": ("signed-in", ["V7.4.4"]),

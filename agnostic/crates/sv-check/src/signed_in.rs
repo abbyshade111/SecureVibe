@@ -619,6 +619,14 @@ const PASSWORD_HINTS: Rule = Rule {
           email address or phone the person registered.",
 };
 
+const NO_BRUTE_FORCE_LIMIT: Rule = Rule {
+    rule_id: "probe.failed-sign-ins-unlimited",
+    requirement_ids: &["V6.3.1"],
+    cwe: &["CWE-307"],
+    impact: "Someone can try passwords as fast as the network allows, so a weak or leaked password              is found in minutes rather than never. This is how most accounts are actually taken.",
+    fix: "Count failed sign-ins per account and per address, and once the number you stated is           reached, slow the next attempt down or refuse it for a while. Refusing for a while beats           locking the account outright, which lets somebody lock a real person out on purpose.",
+};
+
 const SIGN_OUT_ON_GET: Rule = Rule {
     rule_id: "probe.sign-out-on-get",
     requirement_ids: &["V3.5.3"],
@@ -718,6 +726,7 @@ pub fn run(
     users: &UsersSection,
     accounts: &Accounts,
     seeded: bool,
+    policy: &sv_manifest::PolicySection,
 ) -> Outcome {
     let mut out = Outcome::default();
     let problems = users.problems();
@@ -861,7 +870,190 @@ pub fn run(
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
 
+    // 10. After everything else, without exception. This one deliberately provokes the app into
+    //     refusing requests, and a limiter that counts by address rather than by account would then
+    //     be refusing every check above too. Running it last means the worst it can cost is itself.
+    brute_force_check(http, users, accounts, policy, &mut out);
+
     out
+}
+
+/// Whether the app pushes back after the number of wrong passwords the owner said it would (V6.3.1).
+///
+/// V6.3.1 asks that brute-force controls are implemented *according to the application's security
+/// documentation*, which nothing can check against prose. A number can be checked: `failed-sign-ins`
+/// in securevibe.toml is the owner stating the policy, and the probe holds the app to it by making
+/// one more wrong attempt than that and watching what changes.
+///
+/// What counts as pushing back is deliberately broad — a different status, a refusal, a lockout or
+/// an error page, or an attempt that takes markedly longer than the first. Narrowing it would make
+/// the check report apps that defend themselves in a way this did not anticipate, and a check that
+/// cries wolf is one people learn to skip.
+///
+/// Three things it does not do. It never uses A or B, whose sessions the checks above depend on,
+/// and never the admin: it makes its own account through `signup`, or uses a name no account can
+/// have. It does not test `within-minutes`, because every attempt here lands within a few seconds,
+/// which is inside any window worth stating — the count is the testable half and the report says so.
+/// And a clean result is *checked* rather than a pass: it shows the app pushed back at the stated
+/// number on one run, not that the control is correct.
+fn brute_force_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    policy: &sv_manifest::PolicySection,
+    out: &mut Outcome,
+) {
+    let Some(login) = users.login.as_ref() else {
+        return;
+    };
+    let Some(allowed) = policy.failed_sign_ins else {
+        out.not_assessed.push((
+            "V6.3.1".to_owned(),
+            "Whether the app resists password guessing: say how many wrong passwords in a row it \
+             should allow, as `failed-sign-ins` under [policy] in securevibe.toml, and this will \
+             make one more attempt than that and watch what the app does."
+                .to_owned(),
+        ));
+        return;
+    };
+    // Zero would mean the first attempt is already too many, which no app can implement and no
+    // owner means. Said rather than silently treated as one.
+    if allowed == 0 {
+        out.not_assessed.push((
+            "V6.3.1".to_owned(),
+            "[policy] failed-sign-ins is 0, which would mean refusing the first attempt anybody \
+             makes. Set it to the number of wrong passwords in a row the app should allow."
+                .to_owned(),
+        ));
+        return;
+    }
+    // A cap, so a large number cannot turn one check into thousands of requests against somebody's
+    // app. Above it the check says what it did rather than pretending to have tested the policy.
+    const MOST_ATTEMPTS: u32 = 25;
+    if allowed >= MOST_ATTEMPTS {
+        out.not_assessed.push((
+            "V6.3.1".to_owned(),
+            format!(
+                "[policy] failed-sign-ins is {allowed}. This check makes at most {MOST_ATTEMPTS} \
+                 attempts, so it cannot reach that number; a limit that high is worth reconsidering \
+                 on its own."
+            ),
+        ));
+        return;
+    }
+
+    // An account whose password this check knows, so a wrong one is certainly wrong: its own,
+    // through sign-up, and failing that a name no account can have. The second only exercises a
+    // limiter that counts by address; the report says which was used.
+    let target = match &users.signup {
+        Some(signup) => {
+            let account = Account {
+                user: format!("guessed.{}", accounts.a.user),
+                password: format!("Gx-{}-1aZ!", &accounts.b.password[..12]),
+            };
+            sign_up(http, signup, "guessed", &account);
+            account
+        }
+        None => Account {
+            user: format!("nobody.{}", accounts.a.user),
+            password: "this-account-does-not-exist".to_owned(),
+        },
+    };
+    let real_account = users.signup.is_some();
+
+    let wrong = Account {
+        user: target.user.clone(),
+        password: "Wrong-Password-For-This-Probe-1!".to_owned(),
+    };
+    let attempts = allowed + 1;
+    let mut answers: Vec<(u16, u128)> = Vec::new();
+    for n in 0..attempts {
+        let mut session = Session::default();
+        let mut csrf = None;
+        if let Some(page) = http.send(&get(&format!("guess-page-{n}"), &login.path, &session)) {
+            session.absorb(&page);
+            csrf = csrf_token(&page, &session);
+        }
+        let values = Values {
+            user: &wrong.user,
+            password: &wrong.password,
+            csrf,
+            ..Default::default()
+        };
+        let started = std::time::Instant::now();
+        let (response, _) = send_template(
+            http,
+            &format!("guess-{n}"),
+            login,
+            &values,
+            &mut session,
+            &[],
+        );
+        let elapsed = started.elapsed().as_millis();
+        match response {
+            Some(r) => answers.push((r.status, elapsed)),
+            // No answer at all is the app refusing to talk, which is pushing back.
+            None => answers.push((0, elapsed)),
+        }
+    }
+
+    let Some(&(first_status, first_ms)) = answers.first() else {
+        return;
+    };
+    let last = answers.last().copied().unwrap_or((0, 0));
+    // Pushing back is any of: a different status on the last attempt than the first, a status that
+    // says refused outright, or an attempt that took markedly longer than the first.
+    let status_changed = last.0 != first_status;
+    let refused = matches!(last.0, 0 | 423 | 429) || (last.0 >= 400 && first_status < 400);
+    let slowed = first_ms >= 1 && last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
+    let pushed_back = status_changed || refused || slowed;
+
+    let how = if refused {
+        format!("refused it outright ({})", last.0)
+    } else if status_changed {
+        format!("answered {} where the first got {first_status}", last.0)
+    } else {
+        format!("took {}ms against {first_ms}ms for the first", last.1)
+    };
+    let against = if real_account {
+        "an account this check made for it"
+    } else {
+        "a user name no account has, since securevibe.toml declares no sign-up"
+    };
+
+    out.steps.push(format!(
+        "made {attempts} wrong sign-in attempts against {against}; the app {}",
+        if pushed_back {
+            "pushed back"
+        } else {
+            "did not push back"
+        }
+    ));
+
+    if pushed_back {
+        out.verified.push(crate::Verified::new(
+            NO_BRUTE_FORCE_LIMIT.rule_id,
+            NO_BRUTE_FORCE_LIMIT.requirement_ids,
+            format!(
+                "{attempts} wrong passwords in a row against {against}, the number you stated plus \
+                 one: the app {how}. The count is what was tested; `within-minutes` was not, \
+                 because every attempt landed within a few seconds"
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &NO_BRUTE_FORCE_LIMIT,
+            "Wrong passwords can be tried without limit",
+            Severity::High,
+            format!(
+                "securevibe.toml says the app should allow {allowed} wrong passwords in a row. \
+                 Asked {attempts} times in a row with a wrong password, against {against}, the app \
+                 answered {} every time and the last attempt took {}ms against {first_ms}ms for \
+                 the first: nothing about it changed.",
+                first_status, last.1
+            ),
+        ));
+    }
 }
 
 /// Signs an account up through the app's own form.
@@ -2538,6 +2730,12 @@ mod tests {
         next: u32,
         /// Old passwords a change left working, under `change_keeps_old`.
         kept: BTreeMap<String, String>,
+        /// Wrong passwords in a row per account, counted only when `locks_out_after` is set.
+        failures: BTreeMap<String, u32>,
+        /// Every account a wrong password was tried against, always recorded. This is how the
+        /// brute-force check's promise not to guess at the test users is made observable: the
+        /// promise is about which account it attacks, and no step or finding says which.
+        guessed_at: Vec<String>,
         /// The exact `Cache-Control` a private page sends. `None` means the correct `no-store`,
         /// so a test can set a value that only looks right without a flaw flag for each one.
         cache_control: Option<String>,
@@ -2604,6 +2802,9 @@ mod tests {
         delete_does_nothing: bool,
         /// Sign-up asks for the answer to a secret question.
         secret_question: bool,
+        /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
+        /// default, and what a naive app does — counts nothing and accepts guesses forever.
+        locks_out_after: Option<u32>,
         /// Private pages come back without `Cache-Control: no-store`.
         private_page_cacheable: bool,
         /// Private pages carry no link or form pointing at the sign-out address — but do name it
@@ -2846,6 +3047,11 @@ mod tests {
                     let f = form(r);
                     let given = f.get("password")?;
                     let email = f.get("email")?;
+                    if let Some(limit) = self.flaws.locks_out_after
+                        && self.failures.get(email).copied().unwrap_or(0) >= limit
+                    {
+                        return Some(Self::respond(429, vec![], "too many attempts"));
+                    }
                     let good = !self.flaws.broken_login
                         && (self
                             .users
@@ -2853,8 +3059,13 @@ mod tests {
                             .is_some_and(|(p, _)| self.password_matches(p, given))
                             || self.kept.get(email) == Some(given));
                     if !good || !token_ok {
+                        self.guessed_at.push(email.clone());
+                        if self.flaws.locks_out_after.is_some() {
+                            *self.failures.entry(email.clone()).or_insert(0) += 1;
+                        }
                         return Some(Self::respond(403, vec![], "no"));
                     }
+                    self.failures.remove(email);
                     let who = f.get("email")?.clone();
                     if self.flaws.keep_session_at_login {
                         self.sessions.insert(sid?, who);
@@ -3140,7 +3351,7 @@ mod tests {
             .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
         let admin = acc.admin.clone().unwrap();
         app.users.insert(admin.user, (admin.password, true));
-        run(&mut app, users, &acc, true)
+        run(&mut app, users, &acc, true, &Default::default())
     }
 
     fn rule_ids(o: &Outcome) -> Vec<&str> {
@@ -3402,7 +3613,7 @@ mod tests {
     fn accounts_that_were_never_made_are_not_assessed_either() {
         // Second shape of the sign-in setup check: the app is fine, the accounts are not there.
         let mut app = FakeApp::new(Flaws::default());
-        let o = run(&mut app, &users(), &accounts(), true);
+        let o = run(&mut app, &users(), &accounts(), true, &Default::default());
         assert!(o.findings.is_empty(), "{:?}", rule_ids(&o));
         assert!(o.verified.is_empty(), "{:?}", verified_ids(&o));
         assert!(
@@ -3530,7 +3741,7 @@ mod tests {
         });
         let mut acc = accounts();
         acc.admin = None;
-        let o = run(&mut app, &u, &acc, false);
+        let o = run(&mut app, &u, &acc, false, &Default::default());
         assert!(
             app.users.contains_key(&acc.a.user) && app.users.contains_key(&acc.b.user),
             "both users signed up"
@@ -3657,7 +3868,7 @@ mod tests {
         let mut u = users();
         u.login = None;
         let mut app = FakeApp::new(Flaws::default());
-        let o = run(&mut app, &u, &accounts(), true);
+        let o = run(&mut app, &u, &accounts(), true, &Default::default());
         assert!(o.findings.is_empty() && o.verified.is_empty());
         assert!(
             o.not_assessed[0].1.contains("`login` is not set"),
@@ -3793,7 +4004,7 @@ mod tests {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
-        run(&mut app, &with_signup(), &acc, false)
+        run(&mut app, &with_signup(), &acc, false, &Default::default())
     }
 
     #[test]
@@ -4019,7 +4230,7 @@ mod tests {
         let mut app = FakeApp::new(Flaws::default());
         let mut acc = accounts();
         acc.admin = None;
-        let o = run(&mut app, &u, &acc, false);
+        let o = run(&mut app, &u, &acc, false, &Default::default());
         let (_, why) = o
             .not_assessed
             .iter()
@@ -4360,6 +4571,178 @@ mod tests {
         assert_eq!(rule_ids(&o), vec![COMMON_PASSWORD.rule_id], "{:?}", o.steps);
     }
 
+    // -------------------------------------------------------------------------------------------
+    // Holding the app to the number of wrong passwords the owner said it would allow (V6.3.1)
+    // -------------------------------------------------------------------------------------------
+
+    fn policy(failed: Option<u32>) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            failed_sign_ins: failed,
+            within_minutes: Some(15),
+        }
+    }
+
+    fn run_with(flaws: Flaws, policy: &sv_manifest::PolicySection) -> Outcome {
+        run_keeping_app(flaws, policy).0
+    }
+
+    /// The outcome and the app, for the assertions that are about what the app was *sent* rather
+    /// than about what the report says.
+    fn run_keeping_app(
+        flaws: Flaws,
+        policy: &sv_manifest::PolicySection,
+    ) -> (Outcome, FakeApp, Accounts) {
+        let mut app = FakeApp::new(flaws);
+        let mut acc = accounts();
+        acc.admin = None;
+        let out = run(&mut app, &with_signup(), &acc, false, policy);
+        (out, app, acc)
+    }
+
+    fn finding_ids(out: &Outcome) -> Vec<&str> {
+        out.findings.iter().map(|f| f.rule_id.as_str()).collect()
+    }
+
+    #[test]
+    fn an_app_that_never_pushes_back_is_a_finding() {
+        let out = run_with(Flaws::default(), &policy(Some(3)));
+        assert!(
+            finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"),
+            "got {:?}",
+            finding_ids(&out)
+        );
+    }
+
+    #[test]
+    fn an_app_that_locks_out_at_the_stated_number_is_checked() {
+        let flaws = Flaws {
+            locks_out_after: Some(3),
+            ..Flaws::default()
+        };
+        let out = run_with(flaws, &policy(Some(3)));
+        assert!(
+            !finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"),
+            "an app that pushed back was reported anyway: {:?}",
+            finding_ids(&out)
+        );
+        assert!(
+            out.verified
+                .iter()
+                .any(|v| v.check_id == "probe.failed-sign-ins-unlimited"
+                    && v.requirement_ids.iter().any(|r| r == "V6.3.1")),
+            "and it must be credited: {:?}",
+            out.verified
+                .iter()
+                .map(|v| v.check_id.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn an_app_that_pushes_back_too_late_is_still_a_finding() {
+        // The number is the owner's claim, and the point of stating it is that the app is held to
+        // it. An app that only gives way after twenty attempts has not implemented the policy that
+        // says three, and a check that accepted any limiter at all would not be checking the claim.
+        let flaws = Flaws {
+            locks_out_after: Some(20),
+            ..Flaws::default()
+        };
+        let out = run_with(flaws, &policy(Some(3)));
+        assert!(
+            finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"),
+            "got {:?}",
+            finding_ids(&out)
+        );
+    }
+
+    #[test]
+    fn without_a_stated_number_nothing_is_claimed_either_way() {
+        // The honest default. An app nobody has stated a policy for is not thereby failing, and it
+        // is certainly not passing: the report says which question would settle it.
+        let out = run_with(Flaws::default(), &policy(None));
+        assert!(!finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"));
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == "probe.failed-sign-ins-unlimited")
+        );
+        let said = out
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids.contains("V6.3.1"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "V6.3.1 must be named as not assessed: {:?}",
+                    out.not_assessed
+                )
+            });
+        assert!(
+            said.1.contains("failed-sign-ins") && said.1.contains("[policy]"),
+            "and it must say what to write: {}",
+            said.1
+        );
+    }
+
+    #[test]
+    fn a_number_this_check_will_not_make_that_many_attempts_for_is_refused() {
+        // A cap, so one check cannot turn into thousands of requests against somebody's app.
+        let out = run_with(Flaws::default(), &policy(Some(500)));
+        assert!(!finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"));
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V6.3.1") && why.contains("500")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn zero_is_refused_rather_than_read_as_one() {
+        // Nobody means "refuse the first attempt anybody makes", and guessing that they meant one
+        // would hold the app to a policy the owner did not state.
+        let out = run_with(Flaws::default(), &policy(Some(0)));
+        assert!(!finding_ids(&out).contains(&"probe.failed-sign-ins-unlimited"));
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V6.3.1") && why.contains("first attempt")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn the_guessing_never_touches_the_accounts_the_other_checks_need() {
+        // The hazard this check has and no other does: it provokes the app into refusing requests.
+        // If it guessed at A, an app that locks an account out would end the session every check
+        // above depends on, and the run would start reporting faults of this check's own making.
+        //
+        // The first version of this test looped over `out.steps` looking for A's name — and no step
+        // carries it, so the assertion could never fail. Deleting the safeguard was caught by
+        // nothing. The promise is about which account is attacked, so the app records that.
+        let flaws = Flaws {
+            locks_out_after: Some(2),
+            ..Flaws::default()
+        };
+        let (_out, app, acc) = run_keeping_app(flaws, &policy(Some(2)));
+        assert!(
+            !app.guessed_at.is_empty(),
+            "no wrong password reached the app at all, so this proves nothing"
+        );
+        // Counted and labeled rather than printed. The accounts these come from carry generated
+        // passwords, and a failure message is a log line like any other: nothing built from an
+        // `Accounts` belongs in one, whatever the particular field happens to hold.
+        for (label, who) in [("A", &acc.a.user), ("B", &acc.b.user)] {
+            assert!(
+                !app.guessed_at.contains(who),
+                "the guessing attacked {label}, whose session the checks above depend on \
+                 ({} accounts were guessed at)",
+                app.guessed_at.len()
+            );
+        }
+    }
+
     // ---- The private pages themselves: what they let a browser keep (V14.3.2), and whether they
     // show a way out (V7.4.4).
 
@@ -4385,7 +4768,7 @@ mod tests {
                 .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
             let admin = acc.admin.clone().unwrap();
             app.users.insert(admin.user, (admin.password, true));
-            let o = run(&mut app, &users(), &acc, true);
+            let o = run(&mut app, &users(), &acc, true, &Default::default());
             assert!(
                 rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
                 "`{value}` was accepted as no-store: {:?}",
@@ -4423,7 +4806,7 @@ mod tests {
             .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
         let admin = acc.admin.clone().unwrap();
         app.users.insert(admin.user, (admin.password, true));
-        let loose = run(&mut app, &users(), &acc, true);
+        let loose = run(&mut app, &users(), &acc, true, &Default::default());
         assert!(
             loose
                 .steps
@@ -4454,7 +4837,7 @@ mod tests {
                 .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
             let admin = acc.admin.clone().unwrap();
             app.users.insert(admin.user, (admin.password, true));
-            let o = run(&mut app, &users(), &acc, true);
+            let o = run(&mut app, &users(), &acc, true, &Default::default());
             assert!(
                 !rule_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
                 "`{value}` was refused as no-store"

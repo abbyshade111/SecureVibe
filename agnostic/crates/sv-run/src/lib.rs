@@ -99,6 +99,8 @@ pub struct RunPlan {
     pub port: u16,
     /// How to sign in, when securevibe.toml says. Absent means the probes sign in as nobody.
     pub users: Option<sv_manifest::UsersSection>,
+    /// The numbers the owner states as policy, for the probes that hold the app to them.
+    pub policy: sv_manifest::PolicySection,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -153,6 +155,7 @@ impl RunPlan {
                 .unwrap_or_else(|_| app_dir.to_path_buf()),
             port: APP_PORT,
             users: run.users.clone(),
+            policy: manifest.policy.clone(),
         })
     }
 }

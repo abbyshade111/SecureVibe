@@ -341,6 +341,25 @@ pub struct DataSection {
     pub categories: Vec<String>,
 }
 
+/// The numbers the owner states as policy, so a probe can hold the app to them.
+///
+/// A requirement like V6.3.1 asks that brute-force controls are implemented *according to the
+/// application's documentation*. Nothing can check that against a document written in prose, but a
+/// number is a claim a running app can be held to: say five, and the probe makes six wrong attempts
+/// and watches whether the app pushes back. The number is the documented policy for this purpose,
+/// and the report says so.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct PolicySection {
+    /// Wrong passwords in a row before the app should push back: a delay, a lockout, or a refusal.
+    #[serde(default)]
+    pub failed_sign_ins: Option<u32>,
+    /// The window the count applies within, in minutes. Recorded rather than tested: the probe
+    /// makes its attempts in a few seconds, which is inside any window worth stating.
+    #[serde(default)]
+    pub within_minutes: Option<u32>,
+}
+
 /// One answer to a design question: how the app is built, in the owner's own words.
 ///
 /// `yes` is the weakest positive answer `sv` has. It is the owner asserting a property, which is
@@ -376,6 +395,9 @@ pub struct Manifest {
     /// The design questions, keyed by requirement id. See `sv-check::design`.
     #[serde(default)]
     pub design: std::collections::BTreeMap<String, DesignAnswer>,
+    /// The policy numbers a probe can hold the running app to.
+    #[serde(default)]
+    pub policy: PolicySection,
 }
 
 impl Manifest {

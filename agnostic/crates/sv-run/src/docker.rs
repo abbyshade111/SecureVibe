@@ -285,7 +285,7 @@ impl DockerBackend {
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
-            return sv_check::signed_in::run(&mut http, users, &accounts, true);
+            return sv_check::signed_in::run(&mut http, users, &accounts, true, &plan.policy);
         }
         let seeded = match &users.seed {
             Some(seed) => {
@@ -339,7 +339,7 @@ impl DockerBackend {
             }
             None => false,
         };
-        sv_check::signed_in::run(&mut http, users, &accounts, seeded)
+        sv_check::signed_in::run(&mut http, users, &accounts, seeded, &plan.policy)
     }
 }
 
