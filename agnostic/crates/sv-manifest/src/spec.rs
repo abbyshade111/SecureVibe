@@ -56,6 +56,10 @@ health = "/"              # a path that returns 200 once the app is up
 # email-code = { request = { path = "/login/code", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/login/verify", form = { code = "{code}", csrf_token = "{csrf}" } } }
 #   Signing in with a code or link the app emails, beside the password. The code is used in the
 #   same browser session that asked for it; `code-pattern` works as for `reset`.
+# totp = { path = "/login/two-factor", form = { code = "{code}", csrf_token = "{csrf}" } }
+#   The second step of signing in with an authenticator app, sent after `login` in the same session.
+#   Needs `seed`, which is also given SV_TOTP_USER, SV_TOTP_PASSWORD, and SV_TOTP_SECRET (base32):
+#   make that account with two-factor sign-in turned on and that secret, and `sv` works out the codes.
 # flow = { steps = [{ path = "/checkout/address", form = { street = "1 Main St", csrf_token = "{csrf}" } }, { path = "/checkout/pay", form = { card = "4242", csrf_token = "{csrf}" } }, { path = "/checkout/confirm", form = { csrf_token = "{csrf}" } }], completed = "Order placed" }
 #   Anything done in more than one step, in order. `completed` is text the last step answers with
 #   only when the whole thing really finished — in the page, or in the address it sends you on to.

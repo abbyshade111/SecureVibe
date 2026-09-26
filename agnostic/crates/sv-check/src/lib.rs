@@ -22,6 +22,7 @@ pub mod sbom;
 pub mod secrets;
 pub mod signed_in;
 pub mod suite;
+pub mod totp;
 pub mod verified;
 
 pub use finding::{Confidence, Finding, Location, Secret, Severity};

@@ -199,7 +199,7 @@ pub struct RunOutcome {
 /// Fresh every run and never written anywhere but the app's own container: they exist to be signed
 /// in with once. The password carries every kind of character a password rule asks for, so an app
 /// with a strict policy still accepts it.
-pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
+pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::Accounts {
     let account = |role: &str| {
         let tag = random_hex(6);
         sv_check::signed_in::Account {
@@ -212,19 +212,32 @@ pub fn new_accounts(with_admin: bool) -> sv_check::signed_in::Accounts {
         b: account("b"),
         admin: with_admin.then(|| account("admin")),
         spare: random_hex(16),
+        // Twenty bytes, the length RFC 4226 recommends and authenticator apps expect.
+        totp: with_totp.then(|| sv_check::signed_in::TotpAccount {
+            account: account("totp"),
+            secret: random_bytes(20),
+        }),
     }
 }
 
 /// Random bytes as hex, from the operating system. A clock-based value would repeat between runs
 /// started in the same instant, and a password is the one thing here that must not be guessable.
 fn random_hex(bytes: usize) -> String {
+    random_bytes(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// Random bytes from the operating system.
+fn random_bytes(bytes: usize) -> Vec<u8> {
     use std::io::Read;
     let mut buf = vec![0u8; bytes];
     let filled = std::fs::File::open("/dev/urandom")
         .and_then(|mut f| f.read_exact(&mut buf))
         .is_ok();
     assert!(filled, "no source of randomness for test passwords");
-    buf.iter().map(|b| format!("{b:02x}")).collect()
+    buf
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,8 +323,8 @@ mod tests {
 
     #[test]
     fn every_run_makes_its_own_accounts_with_passwords_nobody_could_guess() {
-        let one = new_accounts(true);
-        let two = new_accounts(false);
+        let one = new_accounts(true, false);
+        let two = new_accounts(false, false);
         assert!(two.admin.is_none(), "no admin unless one was asked for");
         let admin = one.admin.as_ref().expect("an admin when asked for");
         let passwords = [

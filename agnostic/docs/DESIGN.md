@@ -1561,6 +1561,41 @@ session, no limit) raised all four findings.
 
 V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
 
+### Two-factor sign-in with an authenticator app
+
+Not a tool at all. When `[stack.run.users]` has a `totp` entry — the request that sends the code after
+the password — `seed` is given one more account, `SV_TOTP_USER` and `SV_TOTP_PASSWORD`, and
+`SV_TOTP_SECRET`, twenty random bytes in base32, and makes it with two-factor sign-in already on. `sv`
+then works out the code an authenticator app would show at any moment (RFC 6238, over SHA-1 and HMAC
+written out in `totp.rs` and checked against the test vectors of RFCs 3174, 2202, 6238, and 4648).
+
+Every code is sent in a new session that has just given the password, as a person would. The order is
+the design, and the fake app found it:
+
+1. **The password alone must not open the private page.** If it does, no code is being asked for, and
+   nothing is judged.
+2. **Older codes first, before any code is used**: the one from a minute ago, then the previous step's.
+   The first version used the current code first, as the setup proof, and then tried the older ones.
+   An app that refuses every step before the last one used — correct replay protection — then refused
+   them whatever their age, so a long lifetime could never show. A test app with a wide window and
+   correct replay protection is what showed it.
+3. **The current code**, which has to sign in. If it does not, nothing is judged — and the reason says
+   the account may have been locked by the two older codes, which is a fair thing for an app to do.
+4. **The current code again (V6.5.1).** Signing in is a finding.
+5. **The next step's code**, after waiting for it, in a new session. Any refusal above is credited only
+   if this one works: an account locked after a few wrong codes refuses everything, and that says
+   nothing about reuse or age.
+
+V6.5.5 asks that a TOTP live at most 30 seconds. A code from a minute or more ago signing in is a
+finding; the previous step's code signing in is a finding too, at low severity, because RFC 6238
+suggests allowing one step of clock drift and many apps do — ASVS does not, and a code that lives 60
+seconds needs a reason written down. The check keeps clear of a step's last ten seconds, so no code
+expires between being worked out and being sent.
+
+The fake app's clock is its own, moved on only by `wait`, so the waiting costs a test nothing; against a
+real app the whole check takes under a minute. Level 2 gains V6.5.5; V6.5.1 was already reachable
+through the emailed-code entry and now has a second way in.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

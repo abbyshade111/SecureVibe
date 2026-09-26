@@ -270,6 +270,12 @@ pub struct UsersSection {
     /// A flow of more than one step, so the probes can try skipping one.
     #[serde(default)]
     pub flow: Option<FlowSection>,
+    /// The second step of a two-factor sign-in with an authenticator app: the request that sends the
+    /// six-digit code, with `{code}`, in the session the password step began. Needs `seed`, which is
+    /// given `SV_TOTP_USER`, `SV_TOTP_PASSWORD`, and `SV_TOTP_SECRET` (base32, as authenticator apps
+    /// take it) to make an account with two-factor sign-in already turned on.
+    #[serde(default)]
+    pub totp: Option<RequestTemplate>,
 }
 
 /// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code
@@ -400,6 +406,19 @@ impl UsersSection {
                 ));
             }
         }
+        if let Some(t) = &self.totp {
+            if !(t.path.contains("{code}")
+                || t.form
+                    .values()
+                    .chain(t.json.values())
+                    .any(|v| v.contains("{code}")))
+            {
+                out.push(format!(
+                    "`totp` ({}) has no `{{code}}`, so the code is never sent",
+                    t.path
+                ));
+            }
+        }
         if let Some(t) = &self.change_password
             && !t
                 .form
@@ -428,7 +447,9 @@ impl UsersSection {
             self.email_code
                 .iter()
                 .flat_map(|r| [&r.request, &r.use_code]),
-        ) {
+        )
+        .chain(self.totp.iter())
+        {
             if !t.form.is_empty() && !t.json.is_empty() {
                 out.push(format!("{} sets both `form` and `json`; pick one", t.path));
             }
