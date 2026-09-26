@@ -6,7 +6,8 @@ another session is not a claim.
 ## Next
 
 - **A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in
-  both directions.** Found on 26 September 2026 reviewing #130/#131; not claimed. `forwarded_check`
+  both directions.** Found on 26 September 2026 reviewing #130/#131. **Claimed on 26 September 2026
+  by session securevibe-e9.** `forwarded_check`
   in `crates/sv-check/src/signed_in.rs` sends one wrong attempt claiming `203.0.113.77` and one
   claiming nothing, and calls it a finding when the first is answered as the first attempt was and
   the second is still refused. That pattern is produced by any limiter that lets one attempt through
