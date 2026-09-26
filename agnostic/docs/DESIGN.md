@@ -1358,6 +1358,48 @@ inside byte counts (`14039`), request ids (`req=a401b9`), durations (`took=403ms
 a 401. A status is now a whole token: what follows its last `=` or `:`, trimmed of punctuation, and
 equal to the code. The fixture that caught it is a table of lines real servers write.
 
+### What a log line and a download carry
+
+Four Level 2 requirements, each read off something a check already had in hand.
+
+**V16.2.1 and V16.2.2 read the line the log check already found** — the one naming the refused
+sign-in for an account that does not exist. That line's *what* and *who* are known by how it was
+found; what is left to read is *when* and *where*. V16.2.1 is credited when it also carries a
+timestamp and a source address or path; V16.2.2 when that timestamp states its zone.
+
+This is where the log check stops being credit-only, and the line between the two cases is the
+point. A **missing** timestamp is *not assessed*: writing to standard output and letting the
+platform stamp each line — `docker logs -t`, journald, a log shipper — is sound and common, and
+faulting it would be crying wolf. A timestamp the app **wrote without a zone** is a finding: no
+platform repairs that, it is Python's logging default, and it is exactly what V16.2.2 asks about.
+Both are read only from the line that records the event; a well-formed line elsewhere in the log
+is somebody else's.
+
+Timestamps are read in the shapes servers actually write: ISO 8601 with `Z`, an offset, or `UTC`,
+and the common log format's `[26/Sep/2026:10:00:03 +0000]`. A version number, a date with no time,
+and a duration are not timestamps, and a test says so.
+
+**V5.4.1 reads the name the ordinary upload comes back under.** An upload fetched back is a
+download, and the requirement asks that it be served under a name rather than leaving the browser
+to take one from the address.
+
+**V5.4.2 uploads a name built to break the header**: `sv-probe;svinjected=1.gif`, a legal file
+name whose `;` and `=` start a new parameter if the app writes the name into `Content-Disposition`
+unquoted. Nothing else sets a parameter called `svinjected`, so the question becomes exact: after
+the round trip, does the header have one?
+
+Reading that needs the header split the way RFC 6266 means it — never inside a quoted string, and
+with `\"` inside one taken as a quote rather than its end. A naive split on `;` would *be* the bug
+V5.4.2 is about. So the fake app has a correct variant that quotes the name without cleaning it,
+`filename="sv-probe;svinjected=1.gif"`, which RFC 6266 allows; a check splitting on every `;` would
+accuse that app of the exact fault it avoided, and two tests go red when it does.
+
+Breaking each rule found two places where one witness was all there was, and one place where my
+first attempt to break it proved nothing. Forcing `named` true *inside* `.any()` left the check
+intact, because a header with no parameters never calls the closure at all; the break that shows
+the rule is `named = true` outright. A break that cannot fail is not evidence of anything, which is
+the same lesson as a test that cannot.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

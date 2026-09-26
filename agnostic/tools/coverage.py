@@ -97,6 +97,10 @@ RUST_CHECKS = {
     "probe.uploaded-file-rendered": ("signed-in", ["V3.2.1"]),
     "probe.authentication-logged": ("signed-in", ["V16.3.1"]),
     "probe.authorization-failure-logged": ("signed-in", ["V16.3.2"]),
+    "probe.log-line-metadata": ("signed-in", ["V16.2.1"]),
+    "probe.log-timestamp-zoned": ("signed-in", ["V16.2.2"]),
+    "probe.download-unnamed": ("signed-in", ["V5.4.1"]),
+    "probe.download-name-injected": ("signed-in", ["V5.4.2"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are

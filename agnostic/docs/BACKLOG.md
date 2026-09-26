@@ -216,6 +216,10 @@ another session is not a claim.
   and settle a Level 1 requirement, but it is a citation being stretched, so somebody should decide
   rather than it being slipped in.
 
+  **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
+  V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
+  download carry".
+
   **Level 2 — 146 uncovered, 4 look reachable now**, all of them because of machinery added in the
   last few days rather than anything new:
 
