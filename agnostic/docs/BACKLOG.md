@@ -138,6 +138,8 @@ another session is not a claim.
   log) recorded the failed sign-ins the probes made (V16.3.1, V16.3.2). Password reset needs an entry of
   its own. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
   its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
+  **The `upload` entry is claimed on 26 September 2026 by session securevibe-e9**, on its own. The
+  three page questions are done in #105; the logging question and password reset are not claimed.
 
 - **A production check.** `sv probe https://…`: read-only requests to the owner's own live address, for
   what the repository cannot say. HSTS (V3.4.1), TLS with a publicly trusted certificate and no fallback
