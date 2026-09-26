@@ -67,6 +67,9 @@ another session is not a claim.
   All 52 flagged pairs were read by hand on 26 September 2026 and none is wrong; this is about what
   happens to the hundred and second.
 
+  **Claimed on 26 September 2026 by session securevibe-e8**, at the owner's asking. The phrases go in a
+  file of `sv`'s own rather than into `threats.json`, which v1 reads too.
+
 - **Investigate MITRE ATLAS for the threat model.** Asked for by the owner on 26 September 2026:
   how feasible it would be, whether it adds anything of value, and whether it is worth it. ATLAS
   (Adversarial Threat Landscape for Artificial-Intelligence Systems) is MITRE's catalog of how AI
