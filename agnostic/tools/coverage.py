@@ -86,6 +86,8 @@ RUST_CHECKS = {
     "probe.file-contents-unchecked": ("signed-in", ["V5.2.2"]),
     "probe.uploaded-file-executed": ("signed-in", ["V5.3.1"]),
     "probe.uploaded-file-rendered": ("signed-in", ["V3.2.1"]),
+    "probe.authentication-logged": ("signed-in", ["V16.3.1"]),
+    "probe.authorization-failure-logged": ("signed-in", ["V16.3.2"]),
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are

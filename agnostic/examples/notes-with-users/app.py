@@ -10,6 +10,7 @@ import html
 import os
 import secrets
 import sqlite3
+from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
@@ -104,6 +105,7 @@ class Handler(BaseHTTPRequestHandler):
     def upload(self, sid, email, csrf):
         """Takes a file, the way V5.2.1, V5.2.2 and V5.3.1 ask for."""
         if not email:
+            self.event("authorization-refused", account="-", status=302)
             return self.send(302, headers=[("Location", "/login")])
         length = int(self.headers.get("Content-Length", 0))
         if length > self.MAX_UPLOAD * 4:
@@ -165,6 +167,7 @@ class Handler(BaseHTTPRequestHandler):
             title = "Sign in" if self.path == "/login" else "Sign up"
             return self.send(200, page(title, form), [self.cookie(sid)])
         if not email:
+            self.event("authorization-refused", account="-", status=302)
             return self.send(302, headers=[("Location", "/login")])
         if self.path.startswith("/files/"):
             return self.serve_upload(self.path[len("/files/") :])
@@ -180,6 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/admin":
             admin = db().execute("select admin from users where email = ?", (email,)).fetchone()
             if not admin or not admin[0]:
+                self.event("authorization-refused", account=email, status=403)
                 return self.send(403, page("No", "Not for you."))
             return self.send(
                 200,
@@ -222,7 +226,9 @@ class Handler(BaseHTTPRequestHandler):
             if not row or not hmac.compare_digest(
                 row[0], hash_password(form.get("password", ""), row[1])
             ):
+                self.event("sign-in-failed", account=form.get("email", ""), status=403)
                 return self.send(403, page("No", "Wrong email or password."))
+            self.event("sign-in-ok", account=form["email"], status=303)
             with db() as conn:
                 conn.execute("delete from sessions where id = ?", (sid,))
             new_sid, _ = self.new_session(form["email"])
@@ -244,6 +250,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(422, page("No", "That account exists."))
             return self.send(303, headers=[("Location", "/login")])
         if not email:
+            self.event("authorization-refused", account="-", status=302)
             return self.send(302, headers=[("Location", "/login")])
         if self.forged(form, csrf):
             return self.send(403, page("No", "Refused."))
@@ -288,7 +295,19 @@ class Handler(BaseHTTPRequestHandler):
         return self.send(404, page("Not found", "No such page."))
 
     def log_message(self, *args):
-        pass
+        """The default request log is suppressed; security events are written by `event` below."""
+
+    def event(self, what, **fields):
+        """A security event, on the app's own output: V16.3.1, V16.3.2, V16.2.1.
+
+        When, where, who and what, on one line, so an investigation can follow a timeline.
+        """
+        when = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        rest = " ".join(f"{k}={v}" for k, v in fields.items())
+        print(
+            f"{when} event={what} from={self.client_address[0]} path={self.path} {rest}",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
