@@ -758,3 +758,65 @@ fn the_map_spells_every_rule_the_way_the_registry_does() {
         "map key / registry id: {misspelled:?}"
     );
 }
+
+fn semgrep_packs() -> serde_json::Value {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/semgrep-packs.json");
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+#[test]
+fn the_pack_snapshot_is_the_registry_run_it_came_from() {
+    // `tools/coverage.py` counts semgrep only through rules in this snapshot, so a snapshot that had
+    // drifted from the run it records would make the count wrong in either direction.
+    let sarif = semgrep_registry_sarif();
+    let mut from_run: Vec<String> = sarif["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap().to_owned())
+        .collect();
+    from_run.sort();
+    let packs = semgrep_packs();
+    let recorded: Vec<String> = packs["packs"]["p/security-audit"]["rules"]
+        .as_array()
+        .expect("p/security-audit is recorded")
+        .iter()
+        .map(|r| r.as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(recorded.len(), 225);
+    assert_eq!(recorded, from_run);
+    assert_eq!(packs["packs"]["p/security-audit"]["semgrep"], "1.176.0");
+}
+
+#[test]
+fn every_pack_the_semgrep_adapter_runs_has_been_measured() {
+    // A pack added to the adapter without measuring what it loads would leave the coverage count
+    // unable to say what semgrep reaches. `coverage.py` refuses it too; this says so in the suite.
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(data()).unwrap()).unwrap();
+    let semgrep = data["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "semgrep")
+        .unwrap();
+    let args: Vec<&str> = semgrep["run"]["args"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a.as_str().unwrap())
+        .collect();
+    let run: Vec<&str> = args
+        .windows(2)
+        .filter(|w| w[0] == "--config")
+        .map(|w| w[1])
+        .collect();
+    assert!(!run.is_empty(), "the adapter names no pack");
+    let packs = semgrep_packs();
+    for pack in run {
+        assert!(
+            packs["packs"][pack]["rules"].is_array(),
+            "the adapter runs {pack}, which data/semgrep-packs.json has not measured"
+        );
+    }
+}

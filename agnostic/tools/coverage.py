@@ -203,6 +203,26 @@ def rust_literals():
 FINDINGS_ONLY = defaultdict(set)
 # Requirement id -> {tool}: tools with some rule a clean run credits to it.
 CREDITED_BY_TOOL = defaultdict(set)
+# Requirement id -> {rule}: semgrep rules in the map that name it, in no pack the adapter runs.
+NOT_RUN = defaultdict(set)
+
+
+def semgrep_loaded(adapter):
+    """The semgrep rules the adapter's packs load, as measured in data/semgrep-packs.json.
+
+    The map knows about a thousand rules; the adapter runs registry packs, and a pack loads only some
+    of them. A rule no pack loads is never run, so it is evidence of nothing, whatever the map says.
+    """
+    args = adapter["run"]["args"]
+    packs = [args[i + 1] for i, a in enumerate(args[:-1]) if a == "--config"]
+    measured = load(AGNOSTIC / "data/semgrep-packs.json")["packs"]
+    unmeasured = [p for p in packs if p not in measured]
+    if unmeasured:
+        sys.exit(
+            "the semgrep adapter runs " + ", ".join(unmeasured) + ", which data/semgrep-packs.json has "
+            "not measured; run tools/semgrep_packs.py"
+        )
+    return {rule for p in packs for rule in measured[p]["rules"]}
 
 
 def evidence():
@@ -215,12 +235,18 @@ def evidence():
         for q in rule["requirementIds"]:
             ev[q]["static"].append(rule["id"])
     for adapter in load(AGNOSTIC / "data/adapters.json")["adapters"]:
-        for rule in adapter["rules"].values():
+        loaded = semgrep_loaded(adapter) if adapter["id"] == "semgrep" else None
+        for rule_id in [r for r in adapter["rules"] if loaded is not None and r not in loaded]:
+            rule = adapter["rules"][rule_id]
+            for q in rule["requirements"] + rule.get("findings_against", []):
+                NOT_RUN[q].add(rule_id)
+        rules = {k: v for k, v in adapter["rules"].items() if loaded is None or k in loaded}
+        for rule in rules.values():
             for q in rule["requirements"]:
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
                 CREDITED_BY_TOOL[q].add(adapter["id"])
-        for rule_id, rule in adapter["rules"].items():
+        for rule_id, rule in rules.items():
             for q in rule.get("findings_against", []):
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
@@ -336,6 +362,20 @@ def main():
     w(f"With nothing beyond plain `sv check`, {sum(settles(q) and 'static' in tiers(q) for q in asvs)} "
       f"ASVS requirements can be settled. {len(only_tools)} can be settled only by an outside tool, "
       "almost all by semgrep and CodeQL, and only for the languages their rules are written for.\n")
+
+    # ---- semgrep rules in the map that no pack it runs loads
+    packs = load(AGNOSTIC / "data/semgrep-packs.json")["packs"]
+    named_elsewhere = {q for q in NOT_RUN if "semgrep" not in ev[q]["tools"]}
+    order = lambda q: [int(x) for x in re.findall(r"\d+", q)]
+    w("### Semgrep: rules in its map that are not run\n")
+    w("Semgrep is counted above only through rules in a pack the adapter runs ("
+      + ", ".join(f"`{p}`, {len(v['rules'])} rules, measured {v['measured']} with semgrep {v['semgrep']}"
+                  for p, v in sorted(packs.items()))
+      + "). Its map names more requirements through rules no pack it runs loads; nothing counts those,"
+      " and a report never credited them either, since a clean run is credited only with the rules its"
+      f" own report lists. {len(named_elsewhere)} requirements are named that way and by no semgrep rule"
+      " that runs:\n")
+    w(", ".join(sorted(named_elsewhere, key=lambda q: (q[0], order(q)))) + ".\n")
 
     # ---- ASVS by chapter
     w("## ASVS 5.0 by chapter\n")

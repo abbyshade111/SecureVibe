@@ -892,9 +892,10 @@ another session is not a claim.
   loads. The two are not exclusive. Either way, the packs are the registry's, and they change without
   `sv` changing, so whatever is chosen should be re-measured when the map is regenerated.
 
-  **For every session working on `sv`: these rules are not being run.** Until this is settled, treat a
+  **For every session working on `sv`: these rules are not being run.** Since step 1 below,
+  `docs/COVERAGE.md` no longer counts them and lists them by name. Before it, the instruction was to treat a
   requirement that semgrep reaches only through its map as *not checked*, whatever `docs/COVERAGE.md`
-  says, and do not build on the 19 listed above as if semgrep covered them. That includes the eight
+  said, and not to build on the 19 listed above as if semgrep covered them. That includes the eight
   AISVS requirements "AISVS, beyond applicability" credited to semgrep's AI rules; none of those rules
   is in `p/security-audit`.
 
@@ -950,6 +951,10 @@ another session is not a claim.
   registry run's own list of the rules `p/security-audit` loaded
   (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
   Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
+  **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
+  what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
+  refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
+  count. See DESIGN, "Counting semgrep by what it runs".
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
