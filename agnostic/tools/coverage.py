@@ -80,6 +80,7 @@ RUST_CHECKS = {
     "probe.flow-step-skipped": ("signed-in", ["V2.3.1"]),
     "probe.activation-code-guessable": ("signed-in", ["V6.4.1"]),
     "probe.activation-link-reusable": ("signed-in", ["V6.4.1"]),
+    "probe.email-code-long-lived": ("signed-in", ["V6.5.5"]),
     "probe.totp-reused": ("signed-in", ["V6.5.1"]),
     "probe.totp-old-code-accepted": ("signed-in", ["V6.5.5"]),
     "probe.forwarded-for-trusted": ("signed-in", ["V15.3.4"]),

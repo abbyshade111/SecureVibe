@@ -1636,7 +1636,23 @@ session at all, and the app had nothing to tie them to. After the fix, the corre
 and V6.6.3 checked and V6.5.1 not assessed, and the careless one (four digits, reusable, any
 session, no limit) raised all four findings.
 
-V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
+V6.5.5, a code's lifetime, needs waiting, and is asked only with `--slow` (below).
+
+#### How long an emailed code lasts
+
+V6.5.5 allows an out-of-band code ten minutes at most. With `sv run --slow` a code is asked for,
+ten minutes and five seconds are let pass, and the code is used in the session that asked for it.
+Signing in is a finding, `probe.email-code-long-lived`. A refusal is credited only when a code asked
+for then, in a new session, signs in at once: the control that shows the old code was refused for
+its age, and not because codes do nothing or the app stopped answering. The credit says how long
+after asking the code was refused, to the second.
+
+The session that asked is kept in use while it waits, a request for the code's page every two
+minutes. A code tied to its session dies with the session, so an app whose sessions end after five
+idle minutes would otherwise refuse a code that never expires, and a code that never expires would
+be credited. The fake app's version of that is one of the witnesses. The sidecar's time limit grows
+by twelve minutes when there is an `email-code` entry. Without `--slow` nothing is waited for, and
+V6.5.5 says so for emailed codes, apart from what the two-factor check says about its own.
 
 ### An activation code emailed at sign-up
 

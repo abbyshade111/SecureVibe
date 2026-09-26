@@ -133,7 +133,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` |
 | V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
 | V6.5.4 | L2 | Signed in: `probe.email-code-short` |
-| V6.5.5 | L2 | Signed in: `probe.totp-old-code-accepted` |
+| V6.5.5 | L2 | Signed in: `probe.email-code-long-lived`, `probe.totp-old-code-accepted` |
 | V6.6.2 | L2 | Signed in: `probe.email-code-unbound` |
 | V6.6.3 | L2 | Signed in: `probe.email-code-guessing-unlimited` |
 | V6.8.2 | L2 | Signed in: `probe.oidc-signature-not-checked` |
