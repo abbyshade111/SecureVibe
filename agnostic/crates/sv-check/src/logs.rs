@@ -700,6 +700,16 @@ sign-in failed for sv-log-nobody-4a91@example.test
     }
 
     #[test]
+    fn a_sentence_with_an_equals_sign_is_not_credited_as_logfmt() {
+        // The second witness for the logfmt threshold, through the whole evaluation rather than
+        // the recognizer alone: the line that records the event is prose with one `key=value` in
+        // it, and V16.2.4 must not be credited on the strength of that.
+        let log = "2026-09-26T10:00:03Z sign-in failed for sv-log-nobody-4a91@example.test after retries=3 from 10.0.0.7\n";
+        let o = evaluate(&markers(), log);
+        assert!(!ids(&o).contains(&"probe.log-common-format"), "{o:?}");
+    }
+
+    #[test]
     fn a_line_in_no_common_format_is_not_assessed_never_faulted() {
         let log = "2026-09-26T10:00:03Z sign-in failed for sv-log-nobody-4a91@example.test from 10.0.0.7\n";
         let o = evaluate(&markers(), log);

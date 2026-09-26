@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 94 (27%) | 3 | 248 |
+| OWASP ASVS 5.0 | 345 | 98 (28%) | 3 | 244 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 51 | 7 | 1 | 3 | 28 | 20 | 2 |
-| L2 | 183 | 40 | 4 | 0 | 10 | 11 | 21 | 1 |
+| L2 | 183 | 44 | 4 | 0 | 13 | 12 | 21 | 1 |
 | L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
@@ -55,7 +55,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
 | V2 Validation and Business Logic | 13 | 1 | 0 | 12 |
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
-| V4 API and Web Service | 16 | 2 | 0 | 14 |
+| V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 12 | 0 | 35 |
 | V7 Session Management | 19 | 6 | 0 | 13 |
@@ -67,7 +67,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
 | V15 Secure Coding and Architecture | 21 | 5 | 0 | 16 |
-| V16 Security Logging and Error Handling | 17 | 6 | 0 | 11 |
+| V16 Security Logging and Error Handling | 17 | 7 | 0 | 10 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (50)
+### Settled by asking the running app (54)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -105,6 +105,9 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
+| V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
+| V4.3.2 | L2 | The running app: `probe.graphql-introspection` |
+| V4.4.2 | L2 | The running app: `probe.websocket-origin-unchecked` |
 | V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
 | V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
 | V5.3.1 | L1 | Signed in: `probe.uploaded-file-executed` |
@@ -140,6 +143,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
+| V16.2.4 | L2 | Signed in: `probe.log-common-format` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |

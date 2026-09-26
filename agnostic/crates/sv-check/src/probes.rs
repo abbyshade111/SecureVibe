@@ -628,9 +628,12 @@ pub fn evaluate_api(
                         GRAPHQL_AMOUNT.rule_id,
                         GRAPHQL_AMOUNT.requirement_ids,
                         format!(
-                            "a request of {ALIASES} aliases refused ({}) where a plain query was \
-                             answered",
-                            many.status
+                            "a request of {ALIASES} aliases {} where a plain query was answered",
+                            if (200..300).contains(&many.status) {
+                                "answered with an error instead of being run".to_owned()
+                            } else {
+                                format!("refused ({})", many.status)
+                            }
                         ),
                     ));
                 }
@@ -1789,6 +1792,97 @@ mod tests {
         );
         assert!(f.is_empty() && v.is_empty());
         assert!(na.iter().any(|(id, _)| id == "V4.4.2"), "{na:?}");
+    }
+
+    #[test]
+    fn a_partial_answer_with_errors_is_a_limit_not_a_run() {
+        // A cost limiter that stops partway answers with some data *and* an error. That is the
+        // limit working, and the second witness for reading `errors` at all.
+        let partial = gql(
+            "graphql-aliases",
+            200,
+            r#"{"data":{"a0":"Query","a1":"Query"},"errors":[{"message":"query cost limit reached"}]}"#,
+        );
+        let (f, v, _) = evaluate_api(&[gql("graphql-plain", 200, PLAIN_OK), partial], Some(false));
+        assert!(
+            !f.iter()
+                .any(|x| x.rule_id == "probe.graphql-no-amount-limit"),
+            "{f:?}"
+        );
+        assert!(
+            v.iter()
+                .any(|x| x.check_id == "probe.graphql-no-amount-limit")
+        );
+    }
+
+    #[test]
+    fn an_empty_schema_beside_an_error_is_introspection_refused() {
+        // The same shape for introspection, and the second witness for reading `errors`: a
+        // `__schema` key that came back empty, beside the error saying why, is a refusal.
+        let refused = gql(
+            "graphql-introspection",
+            200,
+            r#"{"data":{"__schema":null},"errors":[{"message":"introspection is disabled"}]}"#,
+        );
+        let (f, _, _) = evaluate_api(&[gql("graphql-plain", 200, PLAIN_OK), refused], Some(false));
+        assert!(
+            !f.iter().any(|x| x.rule_id == "probe.graphql-introspection"),
+            "{f:?}"
+        );
+    }
+
+    #[test]
+    fn an_api_meant_for_others_may_be_introspected() {
+        // The second witness for the `public-api` claim, on its own: an open schema is not a fault
+        // for an API other programs are meant to use, and must never be reported as one.
+        let (f, _, _) = evaluate_api(
+            &[
+                gql("graphql-plain", 200, PLAIN_OK),
+                gql(
+                    "graphql-introspection",
+                    200,
+                    r#"{"data":{"__schema":{"queryType":{"name":"Query"}}}}"#,
+                ),
+            ],
+            Some(true),
+        );
+        assert!(f.is_empty(), "{f:?}");
+    }
+
+    #[test]
+    fn a_websocket_that_refuses_every_handshake_is_not_credited() {
+        // The second witness for the WebSocket setup proof: an endpoint refusing the plain
+        // handshake and the foreign one alike is not checking origins, it is not working, and the
+        // foreign refusal must not be read as the control.
+        let (f, v, na) = evaluate_api(
+            &[
+                response("ws-no-origin", 403, &[], ""),
+                response("ws-foreign-origin", 403, &[], ""),
+            ],
+            None,
+        );
+        assert!(f.is_empty());
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.websocket-origin-unchecked"),
+            "{v:?}"
+        );
+        assert!(na.iter().any(|(id, _)| id == "V4.4.2"));
+    }
+
+    #[test]
+    fn a_websocket_accepting_any_origin_is_found() {
+        let up = |id: &str| response(id, 101, &[("Upgrade", "websocket")], "");
+        let (f, v, _) = evaluate_api(&[up("ws-no-origin"), up("ws-foreign-origin")], Some(true));
+        assert!(
+            f.iter()
+                .any(|x| x.rule_id == "probe.websocket-origin-unchecked"),
+            "{f:?}"
+        );
+        assert!(
+            !v.iter()
+                .any(|x| x.check_id == "probe.websocket-origin-unchecked")
+        );
     }
 
     #[test]

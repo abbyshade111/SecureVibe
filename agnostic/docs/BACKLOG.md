@@ -261,8 +261,11 @@ another session is not a claim.
   workings, and stay a person's job. Ordered by what each buys for what it costs. Nothing is
   claimed.
 
-  1. **More of the same machinery, no new tool (~6).** **Claimed on 26 September 2026 by session
-     securevibe-e9.** Whether the log line the log check already finds is in a common format —
+  1. **More of the same machinery, no new tool (~6).** **Four done on 26 September 2026 by session
+     securevibe-e9**: V16.2.4, V4.3.1, V4.3.2, and V4.4.2; level 2 goes from 40 to 44 of 183. See
+     DESIGN, "GraphQL, WebSocket, and a log line's format". V4.4.3 and V4.4.4 (a WebSocket's own
+     session) are not done: they need to know whether the connection is meant to be private, which
+     no entry says yet. Whether the log line the log check already finds is in a common format —
      JSON, logfmt, or the common log format (V16.2.4). And small
      manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a
      request of a thousand aliases (V4.3.2, V4.3.1), and a handshake from a foreign `Origin` and
