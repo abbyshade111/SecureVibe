@@ -45,7 +45,8 @@ another session is not a claim.
   alternation.
 
 - **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
-  26 September 2026 reviewing the TOTP probes (#129); not claimed. `totp_checks` in
+  26 September 2026 reviewing the TOTP probes (#129). **Claimed on 26 September 2026 by session
+  securevibe-e9.** `totp_checks` in
   `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
   Three sign-in attempts later, that code is given again to see whether the app takes it twice. If the
   30-second step has ended in between — the run starts at a uniformly random point inside its step, so
