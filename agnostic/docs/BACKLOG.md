@@ -1034,7 +1034,9 @@ another session is not a claim.
 
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
-  before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+  before deciding. **The local-folder measurement claimed on 26 September 2026 by session
+  securevibe-e8**, which has `semgrep` 1.176.0 and can fetch the rules repository; `p/default` still
+  needs semgrep.dev and is not claimed.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
