@@ -2132,7 +2132,7 @@ fn plant_log_markers(
 /// Makes an account through `signup`, and — when the app activates accounts with an emailed code
 /// (`activation`) — activates it, so every account a check signs up can sign in as that check
 /// expects. Quietly: a check that needs to watch activation happen calls `sign_up_only`.
-fn sign_up(
+pub(crate) fn sign_up(
     http: &mut dyn Http,
     users: &UsersSection,
     signup: &RequestTemplate,

@@ -17,7 +17,7 @@
 use crate::finding::Severity;
 use crate::probes::ProbeRequest;
 use crate::signed_in::{
-    Account, Http, Outcome, Rule, Session, finding, get, ok, send_filled, sign_in, status,
+    Account, Http, Outcome, Rule, Session, finding, get, ok, send_filled, sign_in, sign_up, status,
 };
 use sv_manifest::{AiSection, UsersSection};
 
@@ -75,6 +75,16 @@ const UNLIMITED: Rule = Rule {
           the model.",
 };
 
+const KILL_SWITCH: Rule = Rule {
+    rule_id: "probe.ai-kill-switch-ignored",
+    requirement_ids: &["C9.6.1"],
+    cwe: &["CWE-693"],
+    impact: "A kill switch that does not stop the model is found not to work at the moment it is \
+             needed: when the feature is misbehaving and has to stop now.",
+    fix: "Check the switch before every call to the model, not once at start-up in code that \
+          caches it, and answer with a plain message instead of calling it.",
+};
+
 /// The most messages the rate check sends in its burst.
 const MOST_MESSAGES: u32 = 30;
 
@@ -87,6 +97,8 @@ pub struct Context<'a> {
     /// A page of the app's own that is not the AI feature, to tell a limit on the feature from one
     /// on everything.
     pub health: &'a str,
+    /// Whether `seed` made the accounts; when it did not, they are made through `signup`.
+    pub seeded: bool,
 }
 
 /// The requirements asked here, for a reason that stops all of them.
@@ -320,6 +332,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
         return (out, markers);
     }
 
+    markers.model_reached = true;
     if plain_seen.input_tokens > 0 && plain_seen.output_tokens > 0 {
         markers.call = Some(Call {
             model: plain_seen.model.clone(),
@@ -675,6 +688,130 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     (out, markers)
 }
 
+/// Whether the kill switch halts the AI feature (C9.6.1), asked of a second copy of the app started
+/// with the switch on. `started` is whether that copy came up; `markers` carries the control from
+/// the first copy: a plain message reached the model there, with the switch off.
+pub fn kill_switch(
+    http: &mut dyn Http,
+    section: &AiSection,
+    ctx: &Context,
+    markers: &LogMarkers,
+    started: bool,
+    out: &mut Outcome,
+) {
+    const ID: &str = "C9.6.1";
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push((ID.to_owned(), why));
+    let Some(switch) = &section.kill_switch else {
+        say(
+            "Whether the AI feature can be switched off: name the setting that does it, as \
+             `kill-switch = \"NAME=value\"` under [stack.run.ai] in securevibe.toml, and a copy \
+             of the app is started with it on and asked."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    if !markers.model_reached {
+        say(
+            "Whether the AI feature can be switched off: with the switch off it never reached the \
+             test model, so its not reaching it with the switch on would show nothing."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    if !started {
+        say(
+            format!(
+                "Whether the AI feature can be switched off: a copy of the app started with \
+                 {switch} did not come up, so there was nothing to ask."
+            ),
+            out,
+        );
+        return;
+    }
+    let mut session = Session::default();
+    if section.signed_in {
+        let Some((users, account)) = ctx.signed_in else {
+            say(
+                "Whether the AI feature can be switched off: `ai.signed-in` is set, and there is \
+                 no `[stack.run.users]` to sign in with."
+                    .to_owned(),
+                out,
+            );
+            return;
+        };
+        // The copy has none of the first one's accounts unless `seed` gave them to it.
+        if !ctx.seeded
+            && let Some(signup) = &users.signup
+        {
+            sign_up(http, users, signup, "b-off", account);
+        }
+        match sign_in(http, users, "b-off", account, &mut out.steps) {
+            Some(signed) => session = signed.session,
+            None => {
+                say(
+                    "Whether the AI feature can be switched off: signing in to the copy started \
+                     with the switch on got no answer."
+                        .to_owned(),
+                    out,
+                );
+                return;
+            }
+        }
+    }
+    let t = tag(200);
+    let prompt = format!("Hello, what can you help me with? SV-PROBE-PLAIN-{t}");
+    let answer = send_filled(
+        http,
+        "ai-kill-switch",
+        &with_prompt(section, &prompt),
+        &mut session,
+        &[],
+    );
+    let reached = seen(http, &t).unwrap_or_default().received;
+    out.steps.push(format!(
+        "started a copy of the app with {switch} and sent its AI feature a plain message ({}): {}",
+        status(&answer),
+        if reached {
+            "it reached the test model"
+        } else {
+            "it did not reach the test model"
+        }
+    ));
+    if reached {
+        out.findings.push(finding(
+            &KILL_SWITCH,
+            "The AI feature's kill switch does not stop it",
+            Severity::Medium,
+            format!(
+                "With {switch} set, as securevibe.toml says turns the AI feature off, a message sent \
+                 through {} still reached the model.",
+                section.chat.path
+            ),
+        ));
+    } else if answer.is_some() {
+        out.verified.push(crate::Verified::new(
+            KILL_SWITCH.rule_id,
+            KILL_SWITCH.requirement_ids,
+            format!(
+                "a copy of the app started with {switch} answered the AI feature ({}) without \
+                 calling the model, where the same message reached it with the switch off; that \
+                 the switch takes effect without a restart was not shown",
+                status(&answer)
+            ),
+        ));
+    } else {
+        say(
+            format!(
+                "Whether the AI feature can be switched off: with {switch} set, the app gave no \
+                 answer at all, which is not the same as the feature being off."
+            ),
+            out,
+        );
+    }
+}
+
 // ------------------------------------------------------------------------------------------------
 // What the app's own output recorded about the AI feature (C12.1.3, C12.2.1)
 //
@@ -690,6 +827,9 @@ pub struct LogMarkers {
     pub call: Option<Call>,
     /// The tag carried by the textbook injection.
     pub injection: Option<String>,
+    /// Whether a plain message reached the model: the control for the kill switch, asked of a
+    /// second copy of the app.
+    pub model_reached: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -952,6 +1092,14 @@ mod tests {
         every_other_refused: bool,
         /// Passes on this many messages in all, ever, and refuses the rest.
         quota: Option<u32>,
+        /// This copy was started with the kill switch on.
+        switched_off: bool,
+        /// The kill switch is read once and cached before the setting, so it changes nothing.
+        ignores_kill_switch: bool,
+        /// With the switch on, the chat gives no answer at all.
+        silent_when_off: bool,
+        /// Signing in needs an account made through sign-up first.
+        needs_account: bool,
     }
 
     /// How the fake app writes its model calls and the injection to its output.
@@ -999,6 +1147,8 @@ mod tests {
         passed_at: Vec<u64>,
         /// Until when every page refuses, when the limit throttles everything.
         throttled_until: u64,
+        /// The addresses signed up.
+        accounts: std::collections::BTreeSet<String>,
     }
 
     const MODEL: &str = "gpt-test";
@@ -1118,6 +1268,9 @@ mod tests {
             if self.flaws.ignores_base_url {
                 return answer(502, "{\"error\":\"could not reach the model\"}".into());
             }
+            if self.flaws.switched_off && !self.flaws.ignores_kill_switch {
+                return answer(503, "{\"error\":\"The assistant is switched off.\"}".into());
+            }
             if self.flaws.every_other_refused && self.passed_on % 2 == 1 {
                 self.passed_on += 1;
                 return answer(503, "{\"error\":\"busy\"}".into());
@@ -1201,6 +1354,37 @@ mod tests {
                 });
             }
             match (r.method.as_str(), r.path.as_str()) {
+                ("POST", "/signup") => {
+                    let email = r
+                        .body
+                        .as_deref()
+                        .unwrap_or_default()
+                        .split('&')
+                        .find_map(|kv| kv.strip_prefix("email="))
+                        .unwrap_or_default()
+                        .to_owned();
+                    self.accounts.insert(email);
+                    Some(ProbeResponse {
+                        id: r.id.clone(),
+                        status: 303,
+                        headers: vec![("location".into(), "/login".into())],
+                        body: String::new(),
+                    })
+                }
+                ("POST", "/login")
+                    if self.flaws.needs_account
+                        && !self.accounts.iter().any(|a| {
+                            !a.is_empty()
+                                && r.body.as_deref().unwrap_or_default().contains(a.as_str())
+                        }) =>
+                {
+                    Some(ProbeResponse {
+                        id: r.id.clone(),
+                        status: 401,
+                        headers: Vec::new(),
+                        body: "no such account".into(),
+                    })
+                }
                 ("POST", "/login") => {
                     self.signed_in = true;
                     Some(ProbeResponse {
@@ -1212,6 +1396,9 @@ mod tests {
                         ],
                         body: String::new(),
                     })
+                }
+                ("POST", "/api/chat") if self.flaws.switched_off && self.flaws.silent_when_off => {
+                    None
                 }
                 ("POST", "/api/chat") => {
                     let body: serde_json::Value =
@@ -1276,6 +1463,7 @@ mod tests {
             },
             signed_in: false,
             base_url_env: Vec::new(),
+            kill_switch: None,
         }
     }
 
@@ -1298,6 +1486,7 @@ mod tests {
             signed_in,
             policy,
             health: "/",
+            seeded: true,
         }
     }
 
@@ -1924,6 +2113,7 @@ mod tests {
                 output_tokens: 1234,
             }),
             injection: None,
+            model_reached: true,
         };
         // 44321 and 12345 contain the counts but are not them.
         let mut o = Outcome::default();
@@ -1950,6 +2140,7 @@ mod tests {
                 output_tokens: 1234,
             }),
             injection: Some("abc123".into()),
+            model_reached: true,
         }
     }
 
@@ -2347,5 +2538,362 @@ mod tests {
             3,
         );
         assert!(credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // The kill switch
+
+    fn with_switch() -> AiSection {
+        let mut s = section();
+        s.kill_switch = Some("AI_DISABLED=1".into());
+        s
+    }
+
+    /// Runs the questions against the first copy, then the kill switch against a second started
+    /// with it, the way the run does.
+    fn ask_switched(first: Flaws, second: Flaws, started: bool) -> Outcome {
+        let s = with_switch();
+        let ctx = context(None, &NO_POLICY);
+        let mut app = FakeChat {
+            flaws: first,
+            ..Default::default()
+        };
+        let (mut o, markers) = run(&mut app, &s, &ctx);
+        let mut copy = FakeChat {
+            flaws: Flaws {
+                switched_off: true,
+                ..second
+            },
+            ..Default::default()
+        };
+        kill_switch(&mut copy, &s, &ctx, &markers, started, &mut o);
+        o
+    }
+
+    fn switch_why(o: &Outcome) -> Vec<&str> {
+        why(o, "C9.6.1")
+    }
+
+    #[test]
+    fn a_switch_that_stops_the_model_is_credited() {
+        let o = ask_switched(Flaws::default(), Flaws::default(), true);
+        assert!(credited(&o).contains(&KILL_SWITCH.rule_id), "{:?}", o.steps);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == KILL_SWITCH.rule_id)
+            .unwrap();
+        assert!(
+            credit.scope.contains("without a restart was not shown"),
+            "{}",
+            credit.scope
+        );
+    }
+
+    #[test]
+    fn a_switch_the_app_ignores_is_found() {
+        let o = ask_switched(
+            Flaws::default(),
+            Flaws {
+                ignores_kill_switch: true,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(found(&o).contains(&KILL_SWITCH.rule_id), "{:?}", o.steps);
+        assert!(!credited(&o).contains(&KILL_SWITCH.rule_id));
+    }
+
+    #[test]
+    fn with_no_switch_named_it_says_how_to_name_one() {
+        let mut app = FakeChat::default();
+        let ctx = context(None, &NO_POLICY);
+        let (mut o, markers) = run(&mut app, &section(), &ctx);
+        kill_switch(
+            &mut FakeChat::default(),
+            &section(),
+            &ctx,
+            &markers,
+            false,
+            &mut o,
+        );
+        assert!(
+            switch_why(&o).iter().any(|w| w.contains("kill-switch")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_copy_that_never_came_up_is_not_judged() {
+        let o = ask_switched(
+            Flaws::default(),
+            Flaws {
+                ignores_kill_switch: true,
+                ..Default::default()
+            },
+            false,
+        );
+        assert!(!found(&o).contains(&KILL_SWITCH.rule_id));
+        assert!(
+            switch_why(&o).iter().any(|w| w.contains("did not come up")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn with_no_working_feature_to_begin_with_the_switch_shows_nothing() {
+        let o = ask_switched(
+            Flaws {
+                ignores_base_url: true,
+                ..Default::default()
+            },
+            Flaws::default(),
+            true,
+        );
+        assert!(
+            !credited(&o).contains(&KILL_SWITCH.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            switch_why(&o)
+                .iter()
+                .any(|w| w.contains("switch off it never reached"))
+        );
+    }
+
+    #[test]
+    fn no_answer_at_all_is_not_the_feature_being_off() {
+        let o = ask_switched(
+            Flaws::default(),
+            Flaws {
+                silent_when_off: true,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(
+            !credited(&o).contains(&KILL_SWITCH.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            switch_why(&o)
+                .iter()
+                .any(|w| w.contains("no answer at all"))
+        );
+    }
+
+    #[test]
+    fn behind_sign_in_the_copy_is_signed_up_to_and_asked() {
+        let users = UsersSection {
+            signup: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/signup".into(),
+                form: [("email", "{user}"), ("password", "{password}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            }),
+            login: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/login".into(),
+                form: [("email", "{user}"), ("password", "{password}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            }),
+            private: vec!["/account".into()],
+            ..Default::default()
+        };
+        let b = Account {
+            user: "b@example.test".into(),
+            password: "Bb-1234567890-zz".into(),
+        };
+        let mut s = with_switch();
+        s.signed_in = true;
+        let ctx = Context {
+            seeded: false,
+            ..context(Some((&users, &b)), &NO_POLICY)
+        };
+        for (second, credit) in [
+            (Flaws::default(), true),
+            (
+                Flaws {
+                    ignores_kill_switch: true,
+                    ..Default::default()
+                },
+                false,
+            ),
+        ] {
+            let mut app = FakeChat {
+                flaws: Flaws {
+                    needs_sign_in: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let (mut o, markers) = run(&mut app, &s, &ctx);
+            let mut copy = FakeChat {
+                flaws: Flaws {
+                    needs_sign_in: true,
+                    needs_account: true,
+                    switched_off: true,
+                    ..second
+                },
+                ..Default::default()
+            };
+            kill_switch(&mut copy, &s, &ctx, &markers, true, &mut o);
+            assert_eq!(
+                credited(&o).contains(&KILL_SWITCH.rule_id),
+                credit,
+                "{:?}",
+                o.steps
+            );
+            assert_eq!(
+                found(&o).contains(&KILL_SWITCH.rule_id),
+                !credit,
+                "{:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_switch_that_is_not_a_setting_is_a_manifest_problem() {
+        let mut s = section();
+        s.kill_switch = Some("turn it off".into());
+        assert!(s.problems().iter().any(|p| p.contains("kill-switch")));
+    }
+
+    // Second witnesses for the kill switch, behind sign-in.
+
+    fn signed_in_switch_run(first: Flaws, second: Flaws, started: bool) -> Outcome {
+        let users = UsersSection {
+            signup: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/signup".into(),
+                form: [("email", "{user}"), ("password", "{password}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            }),
+            login: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/login".into(),
+                form: [("email", "{user}"), ("password", "{password}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            }),
+            private: vec!["/account".into()],
+            ..Default::default()
+        };
+        let b = Account {
+            user: "b2@example.test".into(),
+            password: "Bb-1234567890-zz".into(),
+        };
+        let mut s = with_switch();
+        s.signed_in = true;
+        let ctx = Context {
+            seeded: false,
+            ..context(Some((&users, &b)), &NO_POLICY)
+        };
+        let mut app = FakeChat {
+            flaws: Flaws {
+                needs_sign_in: true,
+                ..first
+            },
+            ..Default::default()
+        };
+        let (mut o, markers) = run(&mut app, &s, &ctx);
+        let mut copy = FakeChat {
+            flaws: Flaws {
+                needs_sign_in: true,
+                needs_account: true,
+                switched_off: true,
+                ..second
+            },
+            ..Default::default()
+        };
+        kill_switch(&mut copy, &s, &ctx, &markers, started, &mut o);
+        o
+    }
+
+    #[test]
+    fn a_copy_that_ignores_the_switch_is_found_once_its_account_is_made() {
+        let o = signed_in_switch_run(
+            Flaws::default(),
+            Flaws {
+                ignores_kill_switch: true,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(found(&o).contains(&KILL_SWITCH.rule_id), "{:?}", o.steps);
+    }
+
+    #[test]
+    fn behind_sign_in_a_first_copy_that_never_reached_the_model_shows_nothing() {
+        let o = signed_in_switch_run(
+            Flaws {
+                screens_everything: true,
+                ..Default::default()
+            },
+            Flaws::default(),
+            true,
+        );
+        assert!(
+            !credited(&o).contains(&KILL_SWITCH.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            switch_why(&o)
+                .iter()
+                .any(|w| w.contains("switch off it never reached"))
+        );
+    }
+
+    #[test]
+    fn behind_sign_in_a_copy_that_never_came_up_is_not_judged() {
+        let o = signed_in_switch_run(
+            Flaws::default(),
+            Flaws {
+                ignores_kill_switch: true,
+                ..Default::default()
+            },
+            false,
+        );
+        assert!(!found(&o).contains(&KILL_SWITCH.rule_id), "{:?}", o.steps);
+        assert!(switch_why(&o).iter().any(|w| w.contains("did not come up")));
+    }
+
+    #[test]
+    fn behind_sign_in_no_answer_is_not_the_feature_being_off() {
+        let o = signed_in_switch_run(
+            Flaws::default(),
+            Flaws {
+                silent_when_off: true,
+                ..Default::default()
+            },
+            true,
+        );
+        assert!(
+            !credited(&o).contains(&KILL_SWITCH.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            switch_why(&o)
+                .iter()
+                .any(|w| w.contains("no answer at all"))
+        );
     }
 }

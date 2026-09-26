@@ -3216,6 +3216,26 @@ a refusal that did not stay shut — and five with one; each now has two or more
 witnesses shows why the minute's wait is there: a limit of three is only credited because the four
 messages before the burst had aged out.
 
+### A kill switch, tried on a second copy
+
+C9.6.1 asks for a way to halt the model's work at once. The owner names the setting that does it, as
+`kill-switch = "NAME=value"` under `[stack.run.ai]`. After the AI questions, a second copy of the app is
+started beside the first with that one setting added — the same image, folder, network, and
+settings otherwise, including the test model's address — so the first copy and the declared tests
+are left as they were. When the feature needs a signed-in user, the copy is given the accounts the
+same way the first was: `seed` is run in it, or the second test user signs up.
+
+The control is the first copy: a plain message reached the test model there with the switch off. A
+plain message to the copy reaching the model is a finding. Answered without reaching it — any answer,
+a 503 included, since a switched-off feature has to say something — is credited, and the credit says
+that the switch taking effect without a restart was not shown: a setting read at start-up is a kill
+switch that needs one. A copy that never came up, or answered nothing at all, is *not assessed*.
+
+Verified end to end: two scratch apps that read the switch on each request were credited, and one
+that never reads it was a finding, with no copy left behind afterwards. The break round found the
+sign-up in the copy with no witness: the fake app let anybody sign in, account or not, so it could
+not tell whether the copy was given one. It now can, and every guard has two witnesses or more.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
