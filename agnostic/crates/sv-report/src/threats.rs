@@ -309,6 +309,9 @@ pub struct ThreatLine {
     /// nothing, for the same reason as `documented` and more strongly: this is their word about a
     /// property of the app, and a threat is settled by evidence or not at all.
     pub attested: Vec<String>,
+    /// The answering requirements the AI coding tool answered a design question about. Counted
+    /// toward nothing, as `attested`.
+    pub stated: Vec<String>,
     /// The answering requirements that apply and nothing has looked at.
     pub not_verified: Vec<String>,
     /// Answering requirements that are not among this app's, at its level: above the target level,
@@ -379,6 +382,7 @@ pub fn evaluate(
             checked: Vec::new(),
             documented: Vec::new(),
             attested: Vec::new(),
+            stated: Vec::new(),
             not_verified: Vec::new(),
             not_at_this_level: Vec::new(),
             unanswered,
@@ -395,6 +399,7 @@ pub fn evaluate(
                 Some(Status::Checked) => line.checked.push(id.clone()),
                 Some(Status::Documented) => line.documented.push(id.clone()),
                 Some(Status::Attested) => line.attested.push(id.clone()),
+                Some(Status::Stated) => line.stated.push(id.clone()),
                 Some(Status::NotVerified) => line.not_verified.push(id.clone()),
                 None => line.not_at_this_level.push(id.clone()),
             }
@@ -502,6 +507,10 @@ pub fn evidence_words(line: &ThreatLine) -> String {
         (
             "you answered yes about, which is not evidence about this threat",
             &line.attested,
+        ),
+        (
+            "your AI coding tool answered yes about, which is not evidence about this threat",
+            &line.stated,
         ),
         ("not verified", &line.not_verified),
         (

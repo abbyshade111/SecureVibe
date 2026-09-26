@@ -36,6 +36,15 @@
 //! - **A `where` that names a file the app does not have** — a pointer that has gone stale, which is
 //!   worse than no pointer: it reads as evidence and leads nowhere. The attestation is withheld and
 //!   the staleness is reported.
+//!
+//! # The AI coding tool's answers, one tier lower
+//!
+//! The tool that wrote the app knows its code better than a non-programmer owner does, so it is
+//! asked these questions too (`sv mcp`). Its `yes` is the author grading its own work, so it gets
+//! its own tier, *stated by the AI coding tool*, below the owner's word, with everything above
+//! holding for it as well: still a test to write, no threat settled, and `no` still a finding. An
+//! answer that does not say who gave it is counted as the tool's: the file is usually written by the
+//! tool, and crediting the owner on nobody's say-so is the direction that overstates.
 
 use crate::{Confidence, Finding, Location, Severity, Verified};
 use anyhow::{Context, Result};
@@ -49,6 +58,11 @@ pub const NOT_SURE: &str = "not-sure";
 
 /// The three answers, and nothing else. A typo must not read as an answer.
 pub const ANSWERS: [&str; 3] = [YES, NO, NOT_SURE];
+
+/// Who gave an answer, as `by` says it.
+pub const OWNER: &str = "owner";
+pub const AI_TOOL: &str = "ai-tool";
+pub const WHO: [&str; 2] = [OWNER, AI_TOOL];
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Question {
@@ -93,18 +107,23 @@ impl Questions {
 pub struct Answer {
     pub answer: String,
     pub location: Option<String>,
+    /// `owner`, `ai-tool`, or nothing, which counts as `ai-tool`.
+    pub by: Option<String>,
 }
 
 /// What the answers came to.
 #[derive(Debug, Default)]
 pub struct Outcome {
-    /// `yes`, with a pointer that resolves if one was given.
+    /// The owner's `yes`, with a pointer that resolves if one was given.
     pub attested: Vec<Verified>,
+    /// The AI coding tool's `yes`, or one nobody said was the owner's. One tier below `attested`.
+    pub stated: Vec<Verified>,
     /// `no`, and pointers that lead nowhere.
     pub findings: Vec<Finding>,
     /// Questions that apply and nobody has answered, or answered `not-sure`.
     pub unanswered: Vec<String>,
-    /// An answer that is not one of the three words, named so a typo cannot pass for silence.
+    /// An answer that is not one of the three words, or a `by` that is neither `owner` nor
+    /// `ai-tool`, named so a typo cannot pass for silence or for somebody else's word.
     pub unreadable: Vec<String>,
 }
 
@@ -127,28 +146,52 @@ pub fn evaluate(
             out.unanswered.push(question.id.clone());
             continue;
         };
+        let who = match answer.by.as_deref() {
+            None | Some(AI_TOOL) => Who::AiTool,
+            Some(OWNER) => Who::Owner,
+            Some(_) => {
+                out.unreadable.push(question.id.clone());
+                continue;
+            }
+        };
         match answer.answer.as_str() {
             NOT_SURE => out.unanswered.push(question.id.clone()),
-            NO => out.findings.push(said_no(question)),
+            NO => out.findings.push(said_no(question, who)),
             YES => match &answer.location {
                 Some(path) if !file_exists(path) => {
-                    out.findings.push(stale_pointer(question, path));
+                    out.findings.push(stale_pointer(question, path, who));
                 }
-                Some(path) => out.attested.push(Verified::new(
-                    "design.attested",
-                    &[question.id.as_str()],
-                    format!(
-                        "securevibe.toml: you answered yes, and named {path}. This is your word \
-                         about the app, not a check of it."
-                    ),
-                )),
-                None => out.attested.push(Verified::new(
-                    "design.attested",
-                    &[question.id.as_str()],
-                    "securevibe.toml: you answered yes, without saying where. This is your word \
-                     about the app, not a check of it."
-                        .to_owned(),
-                )),
+                location => {
+                    let named = match location {
+                        Some(path) => format!("named {path}"),
+                        None => "did not say where".to_owned(),
+                    };
+                    let id = [question.id.as_str()];
+                    match who {
+                        Who::Owner => out.attested.push(Verified::new(
+                            "design.attested",
+                            &id,
+                            format!(
+                                "securevibe.toml: you answered yes, and {named}. This is your word \
+                                 about the app, not a check of it."
+                            ),
+                        )),
+                        Who::AiTool => out.stated.push(Verified::new(
+                            "design.stated-by-ai",
+                            &id,
+                            format!(
+                                "securevibe.toml: {} yes, and {named}. This is the word of the \
+                                 tool that wrote the code, not a check of it.",
+                                if answer.by.is_some() {
+                                    "your AI coding tool answered"
+                                } else {
+                                    "the answer does not say who gave it, so it counts as your AI \
+                                     coding tool's. It answered"
+                                }
+                            ),
+                        )),
+                    }
+                }
             },
             _ => out.unreadable.push(question.id.clone()),
         }
@@ -156,11 +199,28 @@ pub fn evaluate(
     out
 }
 
-/// The owner says the control is not there. Their word is the best authority there is for that.
-fn said_no(question: &Question) -> Finding {
+#[derive(Clone, Copy)]
+enum Who {
+    Owner,
+    AiTool,
+}
+
+impl Who {
+    /// The start of a sentence about the answer.
+    fn answered(self) -> &'static str {
+        match self {
+            Who::Owner => "You answered",
+            Who::AiTool => "Your AI coding tool answered",
+        }
+    }
+}
+
+/// The owner, or the tool that wrote the code, says the control is not there. For a missing control
+/// either is the best authority there is: nobody overstates an app by saying it lacks something.
+fn said_no(question: &Question, who: Who) -> Finding {
     Finding {
         rule_id: "design.answered-no".to_owned(),
-        title: format!("You answered no: {}", question.title.to_lowercase()),
+        title: format!("{} no: {}", who.answered(), question.title.to_lowercase()),
         // The owner reporting a missing control is as certain as this gets; how bad it is depends
         // on the requirement, so the severity is the same for all of them and the requirement's own
         // words say what is at stake.
@@ -174,13 +234,18 @@ fn said_no(question: &Question) -> Finding {
         requirement_ids: vec![question.id.clone()],
         cwe: Vec::new(),
         description: format!(
-            "In securevibe.toml you answered no to this question: {}",
+            "In securevibe.toml {} no to this question: {}",
+            who.answered().to_lowercase(),
             question.asks
         ),
         impact: format!(
-            "{} is one of the requirements this app is being checked against, and you have said \
-             the control it asks for is not there.",
-            question.id
+            "{} is one of the requirements this app is being checked against, and {} said the \
+             control it asks for is not there.",
+            question.id,
+            match who {
+                Who::Owner => "you have",
+                Who::AiTool => "your AI coding tool has",
+            }
         ),
         fix: format!(
             "Either build the control and change the answer to yes, naming {}, or leave the answer \
@@ -191,7 +256,7 @@ fn said_no(question: &Question) -> Finding {
 }
 
 /// A pointer that leads nowhere reads as evidence and is not, which is worse than none.
-fn stale_pointer(question: &Question, path: &str) -> Finding {
+fn stale_pointer(question: &Question, path: &str, who: Who) -> Finding {
     Finding {
         rule_id: "design.where-is-not-there".to_owned(),
         title: format!("`{path}` is not in this app"),
@@ -205,8 +270,9 @@ fn stale_pointer(question: &Question, path: &str) -> Finding {
         requirement_ids: vec![question.id.clone()],
         cwe: Vec::new(),
         description: format!(
-            "You answered yes for {} and said the work is in `{path}`, and there is no such file \
-             in this app. It may have been renamed or moved.",
+            "{} yes for {} and said the work is in `{path}`, and there is no such file in this \
+             app. It may have been renamed or moved.",
+            who.answered(),
             question.id
         ),
         impact: "A pointer that leads nowhere reads as evidence and is not, so this answer is not \
@@ -254,6 +320,7 @@ mod tests {
                     Answer {
                         answer: (*answer).to_owned(),
                         location: location.map(|l| l.to_owned()),
+                        by: Some(OWNER.to_owned()),
                     },
                 )
             })
@@ -386,6 +453,90 @@ mod tests {
             "V2.2.2 does not apply, so answering no about it reports nothing"
         );
         assert!(out.unanswered.is_empty());
+    }
+
+    fn by(who: Option<&str>) -> BTreeMap<String, Answer> {
+        let mut a = answers(&[("V8.3.1", YES, Some("auth.py"))]);
+        a.get_mut("V8.3.1").unwrap().by = who.map(|w| w.to_owned());
+        a
+    }
+
+    #[test]
+    fn the_ai_tools_yes_is_its_own_tier_and_says_whose_word_it_is() {
+        let out = evaluate(
+            &questions(),
+            &by(Some(AI_TOOL)),
+            &all_apply,
+            &everything_exists,
+        );
+        assert!(
+            out.attested.is_empty(),
+            "the tool's word is not the owner's"
+        );
+        assert_eq!(out.stated.len(), 1);
+        assert_eq!(out.stated[0].check_id, "design.stated-by-ai");
+        assert!(
+            out.stated[0]
+                .scope
+                .contains("your AI coding tool answered yes")
+                && out.stated[0].scope.contains("not a check of it"),
+            "{:?}",
+            out.stated[0].scope
+        );
+    }
+
+    #[test]
+    fn an_answer_that_does_not_say_who_gave_it_counts_as_the_ai_tools() {
+        // The file is usually written by the tool. Crediting the owner on nobody's say-so is the
+        // direction that overstates, so silence about who answered takes the weaker tier.
+        let out = evaluate(&questions(), &by(None), &all_apply, &everything_exists);
+        assert!(out.attested.is_empty());
+        assert_eq!(out.stated.len(), 1);
+        assert!(
+            out.stated[0].scope.contains("does not say who gave it"),
+            "{:?}",
+            out.stated[0].scope
+        );
+    }
+
+    #[test]
+    fn a_by_that_is_neither_owner_nor_ai_tool_is_named_rather_than_guessed() {
+        let out = evaluate(
+            &questions(),
+            &by(Some("me")),
+            &all_apply,
+            &everything_exists,
+        );
+        assert_eq!(out.unreadable, vec!["V8.3.1".to_owned()]);
+        assert!(out.attested.is_empty() && out.stated.is_empty() && out.findings.is_empty());
+    }
+
+    #[test]
+    fn the_ai_tools_no_is_still_a_finding_and_says_who_said_it() {
+        let mut a = answers(&[("V8.3.1", NO, None)]);
+        a.get_mut("V8.3.1").unwrap().by = Some(AI_TOOL.to_owned());
+        let out = evaluate(&questions(), &a, &all_apply, &everything_exists);
+        assert_eq!(out.findings.len(), 1);
+        assert_eq!(out.findings[0].rule_id, "design.answered-no");
+        assert!(
+            out.findings[0]
+                .title
+                .starts_with("Your AI coding tool answered no"),
+            "{}",
+            out.findings[0].title
+        );
+    }
+
+    #[test]
+    fn the_ai_tools_stale_pointer_is_withheld_like_the_owners() {
+        let out = evaluate(
+            &questions(),
+            &by(Some(AI_TOOL)),
+            &all_apply,
+            &nothing_exists,
+        );
+        assert!(out.stated.is_empty() && out.attested.is_empty());
+        assert_eq!(out.findings[0].rule_id, "design.where-is-not-there");
     }
 
     #[test]
