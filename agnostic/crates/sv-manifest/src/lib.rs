@@ -248,6 +248,39 @@ pub struct UsersSection {
     /// Only ever used on an account made for it through `signup`, never on A or B.
     #[serde(default)]
     pub delete_account: Option<RequestTemplate>,
+    /// How the app takes a file, so the probes can send it ones it ought to refuse.
+    #[serde(default)]
+    pub upload: Option<UploadSection>,
+}
+
+/// How to upload a file, and what the owner says the app accepts.
+///
+/// The probes send three files an app ought to refuse — one too large, one whose contents do not
+/// match its extension, and one that is server-side code — and, when `serves-at` says where to
+/// fetch an upload back, read what the app does with it afterwards.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct UploadSection {
+    /// The path the file is posted to.
+    pub path: String,
+    /// The form field the file itself goes in.
+    pub field: String,
+    /// The other fields the form needs, `{csrf}` and `{marker}` included, as elsewhere.
+    #[serde(default)]
+    pub form: std::collections::BTreeMap<String, String>,
+    /// Where an uploaded file can be fetched back, with `{name}` standing for its file name.
+    ///
+    /// Absent means the probes cannot see what the app serves, and V5.3.1 and V3.2.1 are reported
+    /// as not assessed rather than guessed at: an app may well store uploads somewhere no URL
+    /// reaches, which is the safest thing it can do and must not read as a failure.
+    #[serde(default)]
+    pub serves_at: Option<String>,
+    /// The largest file, in bytes, the owner says the app accepts.
+    ///
+    /// The documented policy for V5.2.1, in the same spirit as `[policy] failed-sign-ins`: prose
+    /// cannot be checked, a number can. Absent means V5.2.1 is not assessed.
+    #[serde(default)]
+    pub max_bytes: Option<u64>,
 }
 
 impl UsersSection {

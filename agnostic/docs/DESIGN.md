@@ -1273,6 +1273,52 @@ comes back, and nothing reads it, with nothing failing anywhere. Both sides call
 function, and a test builds its responses from the real request list rather than from ids typed into
 the test, so drift between them is caught rather than silently tolerated.
 
+### The `upload` entry
+
+Four Level 1 requirements turn on what an app does with a file somebody sends it, and all four are
+about behavior rather than code, so the probes can reach them once `securevibe.toml` says how to
+upload:
+
+```toml
+upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" },
+           serves-at = "/files/{name}", max-bytes = 1048576 }
+```
+
+`max-bytes` is the documented policy for V5.2.1, in the same shape as `[policy] failed-sign-ins`:
+prose cannot be checked, a number can. `serves-at` is optional, and its absence is an answer rather
+than a gap — an app that stores uploads where no URL reaches them is the safest arrangement there
+is, so V5.3.1 and V3.2.1 come back *not assessed* rather than failed.
+
+**An ordinary file goes first, and everything else is read against it.** Each of these checks is
+looking for a refusal, and an app whose upload path is not what the manifest says refuses
+everything. Without the ordinary file, the least working app imaginable would score four passes —
+the most flattering possible result for the app that deserves it least. So a real GIF is uploaded
+first, and if that fails all four are not assessed, naming why.
+
+**The files are GIFs because the body has to be text.** A probe request carries a `String`, so a
+real PNG header cannot be written into one: `\x89PNG` is not valid UTF-8. `GIF87a` is ASCII, which
+is why the good file is a GIF — a convenience of the harness, not a claim about what apps accept.
+The mismatched file claims `.gif` as well, so that both halves of the comparison share an extension
+and a refusal can only be about the contents.
+
+**What "executed" means is one distinction, and it is not the marker.** Both the safe and the unsafe
+answer contain the marker string the file was given: served as-is, it is inside the source; run, it
+is the output. The check reads whether `<?php` came back, not whether the marker did. A check keyed
+on the marker alone cannot tell the two apart at all, and two tests hold that.
+
+**Rendering is judged by any of three answers**, because ASVS names several: `Content-Disposition:
+attachment`, a `Content-Security-Policy` with `sandbox`, or a content type that is not HTML.
+Insisting on one would report apps that chose another; accepting none of them would credit every
+app. Both halves are tested.
+
+There is a cap on what is sent. A stated limit above 8 MB is not tested, and says so: the point is
+to find an app that takes anything, not to turn one check into a denial-of-service attempt against
+somebody's own app. The fake app records the largest body it was ever sent, because that promise is
+about what goes over the wire and no finding or note can show it.
+
+Left over, reachable the same way and not written: V5.3.2 (a path built from a submitted file name)
+and V5.4.1 with V5.4.2 (the file name and disposition the app sends back).
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets
