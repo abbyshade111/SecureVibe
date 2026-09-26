@@ -2475,6 +2475,18 @@ included. That is the honest outcome, and against such an app V15.3.4 stays unas
 Five breaks, each caught: no control, the header never sent, run on a slowdown too, "lifted" misread,
 and the check never run.
 
+
+**Two of each, after review.** The first version sent one attempt claiming an address and one claiming
+nothing. A limiter that lets one attempt through for each one it refuses — a token bucket, a sliding
+window, `nginx limit_req` — answers that pair in exactly the pattern of a limit believing the header,
+so a correct app was reported, with an evidence line word for word the true one's. Now two attempts
+claim two different addresses and two claim nothing, and it is a finding only when both claimed ones
+got through and both plain ones were refused. The fake app has both kinds of leak: one attempt per
+refusal (`lockout_leaks`), which the plain pair catches, and a window that rolls over just as the first
+claimed attempt arrives (`window_rolls_over_at_first_claim`), which only the second claimed attempt,
+from its own address, catches. Alternating plain and claimed attempts would not have worked: a
+one-for-one leak produces exactly that alternation. A leaky limiter can still hide an app that does
+trust the header; that is the safe direction for a check that is only ever a finding.
 ### Two-factor codes, computed rather than waited for (V6.5.1, V6.5.5)
 
 A `totp` entry names the code step of a two-factor sign-in. `seed` is given a third account —
