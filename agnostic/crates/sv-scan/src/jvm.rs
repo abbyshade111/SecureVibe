@@ -972,4 +972,45 @@ mod tests {
         assert_eq!(summary(&r), (4, vec!["a:a@6".to_owned()], vec![]));
         assert_eq!(r.floating[0].version, "${lib.version} = [1,2)");
     }
+
+    #[test]
+    fn a_version_nobody_supplies_is_unsettled_and_one_a_platform_supplies_is_not() {
+        let bare = app(
+            "bare",
+            &[
+                (
+                    "build.gradle",
+                    "dependencies {\n    implementation 'org.x:bare'\n}\n",
+                ),
+                (
+                    "pom.xml",
+                    "<project><artifactId>x</artifactId><dependencies>\n<dependency><groupId>org.x</groupId>\
+                     <artifactId>bare</artifactId></dependency></dependencies></project>",
+                ),
+            ],
+        );
+        let gradle = read_gradle(&bare, "build.gradle").unwrap();
+        let maven = read_pom(&bare, "pom.xml").unwrap();
+        std::fs::remove_dir_all(&bare).ok();
+        assert_eq!(
+            summary(&gradle),
+            (0, vec![], vec!["org.x:bare@2".to_owned()])
+        );
+        assert_eq!(
+            summary(&maven),
+            (0, vec![], vec!["org.x:bare@2".to_owned()])
+        );
+
+        let managed = app(
+            "managed",
+            &[(
+                "build.gradle",
+                "dependencies {\n    implementation platform('org.springframework.boot:spring-boot-dependencies:3.3.4')\n\
+                 implementation 'org.springframework.boot:spring-boot-starter-web'\n}\n",
+            )],
+        );
+        let r = read_gradle(&managed, "build.gradle").unwrap();
+        std::fs::remove_dir_all(&managed).ok();
+        assert_eq!(summary(&r), (2, vec![], vec![]));
+    }
 }
