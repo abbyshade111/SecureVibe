@@ -45,7 +45,8 @@ another session is not a claim.
     at any point; ordering them by level, or by what is most at stake, would help.
 
 - **Ten requirements a person must answer, and nothing anywhere tells them how.** Found on
-  26 September 2026 while drawing the coverage maps; not claimed. `applicability.json`'s `manualOnly`
+  26 September 2026 while drawing the coverage maps. **Claimed on 26 September 2026 by session
+  securevibe-e8.** `applicability.json`'s `manualOnly`
   now holds 26 requirements — ones no check may ever settle. Guidance for them lives in three
   catalogs: `data/human-checks.json`, `data/security-notes.json`, and `data/design-questions.json`.
   Ten are in none of them, so the report marks them unverified and offers the reader nothing:
