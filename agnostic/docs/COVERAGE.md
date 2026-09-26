@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 111 (32%) | 5 | 229 |
+| OWASP ASVS 5.0 | 345 | 112 (32%) | 5 | 228 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
-| L2 | 183 | 55 | 4 | 0 | 13 | 19 | 25 | 1 |
+| L2 | 183 | 56 | 4 | 0 | 13 | 20 | 25 | 1 |
 | L3 | 92 | 4 | 1 | 0 | 0 | 1 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -66,7 +66,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V12 Secure Communication | 12 | 5 | 1 | 6 |
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 3 | 0 | 10 |
-| V15 Secure Coding and Architecture | 21 | 7 | 0 | 14 |
+| V15 Secure Coding and Architecture | 21 | 8 | 0 | 13 |
 | V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (62)
+### Settled by asking the running app (63)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -149,6 +149,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V14.3.1 | L1 | Signed in: `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
+| V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
 | V16.2.4 | L2 | Signed in: `probe.log-common-format` |

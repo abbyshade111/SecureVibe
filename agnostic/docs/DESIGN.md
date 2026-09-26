@@ -2392,6 +2392,29 @@ the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
 
+### A limit that believes a made-up address (V15.3.4)
+
+Once the brute-force check has seen the app refuse — with a different answer, not only a slower one,
+because a delay is too noisy to compare — two more wrong attempts follow. The first claims to come
+from `203.0.113.77`, an address set aside for documentation, in `X-Forwarded-For`, `X-Real-IP`, and
+`Forwarded`; the second claims nothing. The first answered as the very first attempt was, while the
+second is still refused, is a limiter that let a header the client wrote lift it. Nothing sits in
+front of the app inside the fence, so no proxy can have written that header.
+
+The second attempt is the control: a limit that lifts by itself lifts for both, and blaming the header
+for it would be a false finding. It is only ever a finding. A limit counting by account is not moved
+by the header at all, which says nothing about how the app treats addresses.
+
+It is asked against the running app rather than the live site, where it was first listed: `sv probe`
+sends only read-only requests, so it cannot make wrong sign-in attempts. And one limit on it, found
+writing the tests: a limit counting by address, set lower than the longest run of wrong sign-ins the
+suite makes before the brute-force check (four in a row, trying default accounts), trips during the
+suite. The brute-force check then finds the app already refusing, says so, and asks nothing, this
+included. That is the honest outcome, and against such an app V15.3.4 stays unasked.
+
+Five breaks, each caught: no control, the header never sent, run on a slowdown too, "lifted" misread,
+and the check never run.
+
 ### Two-factor codes, computed rather than waited for (V6.5.1, V6.5.5)
 
 A `totp` entry names the code step of a two-factor sign-in. `seed` is given a third account —
