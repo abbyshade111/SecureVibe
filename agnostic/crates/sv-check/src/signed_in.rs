@@ -972,7 +972,10 @@ fn breached_seen() -> String {
         .as_str()
         .and_then(long_date)
         .expect("the evidence has a date written YYYY-MM-DD");
-    format!("{} times when last checked, on {checked}", with_commas(seen))
+    format!(
+        "{} times when last checked, on {checked}",
+        with_commas(seen)
+    )
 }
 
 /// 133732 as "133,732".
@@ -9106,15 +9109,28 @@ mod tests {
         let checked = long_date(evidence["checked"].as_str().expect("a date")).expect("a date");
         assert_eq!(
             breached_seen(),
-            format!("{} times when last checked, on {checked}", with_commas(seen))
+            format!(
+                "{} times when last checked, on {checked}",
+                with_commas(seen)
+            )
         );
     }
 
     #[test]
     fn dates_and_counts_are_written_out_for_a_person() {
-        assert_eq!(long_date("2026-09-26").as_deref(), Some("26 September 2026"));
+        assert_eq!(
+            long_date("2026-09-26").as_deref(),
+            Some("26 September 2026")
+        );
         assert_eq!(long_date("2027-01-05").as_deref(), Some("5 January 2027"));
-        for bad in ["2026-13-01", "2026-00-10", "2026-09-32", "26-09-2026", "2026-9-26", ""] {
+        for bad in [
+            "2026-13-01",
+            "2026-00-10",
+            "2026-09-32",
+            "26-09-2026",
+            "2026-9-26",
+            "",
+        ] {
             assert_eq!(long_date(bad), None, "{bad:?}");
         }
         assert_eq!(with_commas(133_732), "133,732");
