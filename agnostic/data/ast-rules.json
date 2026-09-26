@@ -594,6 +594,74 @@
         "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
       },
       "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter"
+    },
+    {
+      "id": "ast.plaintext-websocket-url",
+      "title": "A WebSocket address without encryption is written into the code",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V4.4.1"
+      ],
+      "cwe": [
+        "CWE-319"
+      ],
+      "description": "A `ws://` address to another computer is written into the code. `ws://` is a WebSocket with no encryption, the way `http://` is a page without it.",
+      "impact": "Everything sent over the connection, including the session it was opened with and whatever the person types, can be read and changed by anybody on the network between them and the app: the same café Wi-Fi, a compromised router.",
+      "fix": "Use `wss://`. In a browser, build the address from the page's own, so it follows the page to HTTPS: `(location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/socket'`.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(string) @hit @arg",
+        "javascript": "[(string) (template_string)] @hit @arg",
+        "typescript": "[(string) (template_string)] @hit @arg",
+        "go": "[(interpreted_string_literal) (raw_string_literal)] @hit @arg",
+        "php": "[(string) (encapsed_string)] @hit @arg",
+        "ruby": "(string) @hit @arg",
+        "java": "(string_literal) @hit @arg",
+        "csharp": "[(string_literal) (verbatim_string_literal)] @hit @arg",
+        "kotlin": "(string_literal) @hit @arg",
+        "dart": "(string_literal) @hit @arg",
+        "swift": "(line_string_literal) @hit @arg",
+        "rust": "[(string_literal) (raw_string_literal)] @hit @arg",
+        "c": "(string_literal) @hit @arg",
+        "shell": "[(string) (raw_string) (word)] @hit @arg"
+      },
+      "argumentPatterns": {
+        "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "javascript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "typescript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "go": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "php": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "ruby": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "java": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "csharp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "kotlin": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "dart": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]"
+      },
+      "safeArgumentPatterns": {
+        "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "javascript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "typescript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "go": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "php": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "ruby": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "java": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "csharp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "kotlin": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "dart": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)"
+      },
+      "looksFor": "a `ws://` address to another computer written into the code",
+      "looksForIn": {
+        "shell": "a `ws://` address to another computer given to a command, quoted or not"
+      }
     }
   ]
 }
