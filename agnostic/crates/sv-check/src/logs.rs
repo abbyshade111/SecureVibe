@@ -221,7 +221,7 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
 /// Three, because they are what log processors read without being taught: a JSON object, logfmt
 /// (`key=value` pairs, the way Heroku and most Go services write), and the Apache and nginx common
 /// log format.
-fn common_format(line: &str) -> Option<&'static str> {
+pub(crate) fn common_format(line: &str) -> Option<&'static str> {
     let trimmed = line.trim();
     if trimmed.starts_with('{')
         && serde_json::from_str::<serde_json::Value>(trimmed).is_ok_and(|v| v.is_object())

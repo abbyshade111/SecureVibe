@@ -538,7 +538,10 @@ another session is not a claim.
       sends a textbook injection, the same log check looks for the app having flagged it.
     **C12.1.3 and C12.2.1 claimed on 26 September 2026 by session securevibe-e9**, at the owner's
     asking. C12.2.3 is not: it asks for rules that catch *coordinated* attempts, which one message
-    cannot show, and it stays unclaimed.
+    cannot show, and it stays unclaimed. **Both done the same day:** C12.1.3 from the line carrying the token
+    counts the test model reported, credited when structured and complete and a finding when found
+    and short; C12.2.1 from a line saying the injection was caught. AISVS goes from 10 to 12 of 191.
+    See DESIGN, "What the app wrote down about it".
     - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
       as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
       costs nothing when the model is the fake one.

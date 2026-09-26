@@ -330,7 +330,15 @@ impl Backend for DockerBackend {
                 .as_ref()
                 .zip(accounts.as_ref())
                 .map(|(users, accounts)| (users, &accounts.b));
-            sv_check::ai::run(&mut http, section, signed_in)
+            let (mut outcome, markers) = sv_check::ai::run(&mut http, section, signed_in);
+            // Then what the app wrote down about it, read after the questions, as the signed-in
+            // suite reads its own markers.
+            let log = self
+                .docker(&["logs", "--tail", "2000", &app])
+                .map(|(_, out)| out)
+                .unwrap_or_default();
+            sv_check::ai::logged(&markers, &log, &mut outcome);
+            outcome
         });
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
