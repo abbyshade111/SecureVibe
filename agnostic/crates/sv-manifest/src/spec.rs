@@ -47,6 +47,8 @@ health = "/"              # a path that returns 200 once the app is up
 # base-url-env = ["LLM_BASE_URL"]   # other variables the app reads the model's address from
 # kill-switch = "AI_DISABLED=1"   # the setting that turns the feature off; a second copy of the app
 #                                 # is started with it and must answer without calling the model
+# mcp-url-env = "MCP_SERVER_URL"  # where the app reads its MCP server's address, if it gives the
+#                                 # model tools from one; it is given a test MCP server there
 
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
