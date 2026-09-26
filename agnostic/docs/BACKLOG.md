@@ -381,7 +381,10 @@ another session is not a claim.
 
   **The owner's decision, 26 September 2026: the fake model first, not garak.** **The fake model
   claimed the same day by session securevibe-e9**, for the four requirements above (C7.3.2, C7.3.3,
-  C7.1.2, C2.1.3). garak stays unclaimed and undecided.
+  C7.1.2, C2.1.3). garak stays unclaimed and undecided. **The fake model is done the same day:** a `[stack.run.ai]`
+  section starts it, C7.1.2, C7.3.2, and C2.1.3 are credited or found, and C7.3.3 is found only.
+  AISVS goes from 6 to 10 of 191 that a check can settle. See DESIGN, "A test model inside the
+  fence".
 
   **Thoughts.**
 

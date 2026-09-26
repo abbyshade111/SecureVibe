@@ -36,7 +36,11 @@ OUT = AGNOSTIC / "docs" / "COVERAGE.md"
 TIERS = [
     ("static", "Reads the code", "nothing: plain `sv check`"),
     ("advisories", "Known vulnerabilities", "a local copy of the OSV database (`--advisories DIR`)"),
-    ("running", "The running app", "a container backend and a `run` section (`--run`)"),
+    (
+        "running",
+        "The running app",
+        "a container backend and a `run` section (`--run`); for the AI checks, an `ai` section too",
+    ),
     (
         "signed-in",
         "Signed in",
@@ -64,6 +68,10 @@ RUST_CHECKS = {
     "probe.cors-any-origin": ("running", ["V3.4.2"]),
     "probe.error-detail-leak": ("running", ["V13.4.2", "V16.5.1"]),
     "probe.trace-enabled": ("running", ["V13.4.4"]),
+    "probe.ai-instructions-leaked": ("running", ["C7.3.2"]),
+    "probe.ai-output-fetched": ("running", ["C7.3.3"]),
+    "probe.ai-output-unbounded": ("running", ["C7.1.2"]),
+    "probe.ai-injection-unscreened": ("running", ["C2.1.3"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),

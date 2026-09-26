@@ -59,6 +59,12 @@ pub trait Http {
     fn browser(&mut self, _job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
         None
     }
+
+    /// Sends a request to the run's test model rather than to the app: `None` when the run has no
+    /// test model. See `ai.rs`.
+    fn model(&mut self, _request: &ProbeRequest) -> Option<ProbeResponse> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -411,6 +417,18 @@ fn send_template(
         session.absorb(r);
     }
     (response, cookies)
+}
+
+/// Sends a template whose own placeholders are already filled in, fetching the page's anti-forgery
+/// token first when it asks for one, as `send_template` does for the checks here.
+pub(crate) fn send_filled(
+    http: &mut dyn Http,
+    id: &str,
+    t: &RequestTemplate,
+    session: &mut Session,
+    pages: &[String],
+) -> Option<ProbeResponse> {
+    send_template(http, id, t, &Values::default(), session, pages).0
 }
 
 // ------------------------------------------------------------------------------------------------

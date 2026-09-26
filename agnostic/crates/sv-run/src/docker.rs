@@ -29,6 +29,13 @@ const MAIL_IMAGE: &str = "axllent/mailpit:v1.31";
 const PROVIDER_IMAGE: &str = "node:22-alpine";
 const PROVIDER_PORT: u16 = 9000;
 const PROVIDER_SCRIPT: &str = include_str!("../assets/oidc-provider.mjs");
+/// The test model the app's AI feature is pointed at, in the same stock Node image. See
+/// `assets/model-provider.mjs`.
+const MODEL_PORT: u16 = 9100;
+const MODEL_SCRIPT: &str = include_str!("../assets/model-provider.mjs");
+/// What the app is given as its API keys for the test model: something to send, and nothing that
+/// would work anywhere else.
+const MODEL_KEY: &str = "sv-test-model-key-not-a-real-key";
 /// The client id the app is told to use. Not a secret: the provider checks it only to refuse a
 /// sign-in the app did not ask for with its own configuration.
 const PROVIDER_CLIENT_ID: &str = "sv-test-client";
@@ -102,6 +109,7 @@ impl Backend for DockerBackend {
         let mail_name = format!("{run_id}-mail");
         let provider_name = format!("{run_id}-idp");
         let browser_name = format!("{run_id}-browser");
+        let model_name = format!("{run_id}-model");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
@@ -111,6 +119,7 @@ impl Backend for DockerBackend {
                 mail_name.clone(),
                 provider_name.clone(),
                 browser_name.clone(),
+                model_name.clone(),
             ],
         };
 
@@ -151,6 +160,11 @@ impl Backend for DockerBackend {
         let provider = (plan.oidc.is_some()
             && self.start_provider(&network, &provider_name, &client_secret))
         .then_some(provider_name.as_str());
+
+        // 1d½. A test model, when the app has an AI feature to ask. Before the app, which may read
+        //      the model's address as it starts.
+        let model = (plan.ai.is_some() && self.start_model(&network, &model_name))
+            .then_some(model_name.as_str());
 
         // 1e. A headless browser, when securevibe.toml asks for checks made in one. On the same
         //     fenced network, so the pages it draws can reach nothing the app could not. If it
@@ -216,6 +230,13 @@ impl Backend for DockerBackend {
         for pair in &provider_env {
             args.extend(["-e", pair.as_str()]);
         }
+        let model_env: Vec<String> = match (model, &plan.ai) {
+            (Some(host), Some(section)) => model_env(host, &section.base_url_env),
+            _ => Vec::new(),
+        };
+        for pair in &model_env {
+            args.extend(["-e", pair.as_str()]);
+        }
         args.extend([plan.image.as_str(), "sh", "-c", command.as_str()]);
         let (code, out) = self
             .docker(&args)
@@ -262,10 +283,17 @@ impl Backend for DockerBackend {
 
         // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
         //     those see the app as a stranger first; before the tests, which may change its data.
+        let accounts = plan.users.as_ref().map(|users| {
+            crate::new_accounts(
+                !users.admin.is_empty(),
+                users.totp.is_some() && users.seed.is_some(),
+            )
+        });
         let signed_in = plan
             .users
             .as_ref()
-            .map(|users| self.signed_in(&via, &app, mail, browser, plan, users));
+            .zip(accounts.as_ref())
+            .map(|pair| self.signed_in(&via, &app, mail, browser, plan, pair));
 
         // 4c. Signing in through the test provider, when the app signs in through another service.
         //     A provider that never came up leaves `provider` empty, and the check says so.
@@ -278,8 +306,31 @@ impl Backend for DockerBackend {
                 mail: None,
                 provider: provider.filter(|host| self.provider_ready(&via, host)),
                 browser: None,
+                model: None,
             };
             sv_check::oidc::run(&mut http, section)
+        });
+
+        // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
+        //     Last of the questions, as the second test user when it needs one: nothing after it
+        //     depends on that user's session.
+        let ai = plan.ai.as_ref().map(|section| {
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: model.filter(|host| self.model_ready(&via, host)),
+            };
+            let signed_in = plan
+                .users
+                .as_ref()
+                .zip(accounts.as_ref())
+                .map(|(users, accounts)| (users, &accounts.b));
+            sv_check::ai::run(&mut http, section, signed_in)
         });
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
@@ -294,6 +345,9 @@ impl Backend for DockerBackend {
         }
         if browser.is_some() {
             let _ = self.docker(&["rm", "-f", &browser_name]);
+        }
+        if model.is_some() {
+            let _ = self.docker(&["rm", "-f", &model_name]);
         }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
@@ -355,6 +409,7 @@ impl Backend for DockerBackend {
             probe_responses,
             signed_in,
             oidc,
+            ai,
         })
     }
 }
@@ -372,6 +427,8 @@ struct DockerHttp<'a> {
     provider: Option<&'a str>,
     /// The headless browser's container, when the run has one.
     browser: Option<&'a str>,
+    /// The test model's name on the fenced network, when the run has one that answered.
+    model: Option<&'a str>,
 }
 
 impl sv_check::signed_in::Http for DockerHttp<'_> {
@@ -388,6 +445,14 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let host = self.provider?;
         self.backend.probe(self.via, host, PROVIDER_PORT, request)
+    }
+
+    fn model(
+        &mut self,
+        request: &sv_check::probes::ProbeRequest,
+    ) -> Option<sv_check::probes::ProbeResponse> {
+        let host = self.model?;
+        self.backend.probe(self.via, host, MODEL_PORT, request)
     }
 
     fn browser(&mut self, job: &sv_check::browser::Job) -> Option<Vec<serde_json::Value>> {
@@ -464,6 +529,50 @@ fn provider_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 4]) -> Vec<
         PROVIDER_SCRIPT,
     ]);
     args
+}
+
+/// How the test model is started: fenced and hardened like the test provider.
+fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a str> {
+    let mut args = vec![
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+    ];
+    for pair in env {
+        args.extend(["-e", pair]);
+    }
+    args.extend([
+        PROVIDER_IMAGE,
+        "node",
+        "--input-type=module",
+        "-e",
+        MODEL_SCRIPT,
+    ]);
+    args
+}
+
+/// What the app is told about the test model: the addresses the OpenAI and Anthropic libraries
+/// read, a key for each that works nowhere else, and the OpenAI-style address in any other
+/// variables securevibe.toml names.
+fn model_env(host: &str, others: &[String]) -> Vec<String> {
+    let openai = format!("http://{host}:{MODEL_PORT}/v1");
+    let mut env = vec![
+        format!("OPENAI_BASE_URL={openai}"),
+        format!("OPENAI_API_KEY={MODEL_KEY}"),
+        format!("ANTHROPIC_BASE_URL=http://{host}:{MODEL_PORT}"),
+        format!("ANTHROPIC_API_KEY={MODEL_KEY}"),
+    ];
+    env.extend(others.iter().map(|name| format!("{name}={openai}")));
+    env
 }
 
 /// How the browser is started. Hardened like the sidecar, with somewhere in memory to write, since
@@ -578,12 +687,8 @@ impl DockerBackend {
         mail: Option<&str>,
         browser: Option<&str>,
         plan: &RunPlan,
-        users: &sv_manifest::UsersSection,
+        (users, accounts): (&sv_manifest::UsersSection, &sv_check::signed_in::Accounts),
     ) -> sv_check::signed_in::Outcome {
-        let accounts = crate::new_accounts(
-            !users.admin.is_empty(),
-            users.totp.is_some() && users.seed.is_some(),
-        );
         let mut http = DockerHttp {
             backend: self,
             via,
@@ -592,10 +697,11 @@ impl DockerBackend {
             mail,
             provider: None,
             browser,
+            model: None,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
-            return sv_check::signed_in::run(&mut http, users, &accounts, true, &plan.policy);
+            return sv_check::signed_in::run(&mut http, users, accounts, true, &plan.policy);
         }
         let seeded = match &users.seed {
             Some(seed) => {
@@ -657,7 +763,7 @@ impl DockerBackend {
         let mut out = sv_check::signed_in::run_with(
             &mut http,
             users,
-            &accounts,
+            accounts,
             seeded,
             &plan.policy,
             plan.slow,
@@ -771,6 +877,35 @@ impl DockerBackend {
             )),
             Ok((0, _))
         )
+    }
+
+    fn start_model(&self, network: &str, name: &str) -> bool {
+        let host = format!("HOST={name}");
+        let port = format!("PORT={MODEL_PORT}");
+        matches!(
+            self.docker(&model_args(network, name, [&host, &port])),
+            Ok((0, _))
+        )
+    }
+
+    /// Whether the test model answers yet, for the same reason as the provider below.
+    fn model_ready(&self, via: &Via, host: &str) -> bool {
+        let health = sv_check::probes::ProbeRequest {
+            id: "model-health".to_owned(),
+            method: "GET".to_owned(),
+            path: "/_sv/health".to_owned(),
+            headers: Vec::new(),
+            body: None,
+        };
+        (0..20).any(|_| {
+            let up = self
+                .probe(via, host, MODEL_PORT, &health)
+                .is_some_and(|r| r.status == 200);
+            if !up {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            up
+        })
     }
 
     /// Whether the provider answers yet: Node takes a moment, and a check that starts before it
@@ -1182,6 +1317,41 @@ mod probe_tests {
     }
 
     #[test]
+    fn the_test_model_is_fenced_and_hardened_like_the_sidecar() {
+        let args = model_args("sv-1-net", "sv-1-model", ["HOST=sv-1-model", "PORT=9100"]);
+        for flag in HARDENING {
+            assert!(args.contains(&flag), "{flag} missing: {args:?}");
+        }
+        let at = args.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(args[at + 1], "sv-1-net");
+        assert!(
+            !args
+                .iter()
+                .any(|a| *a == "-p" || a.starts_with("--publish")),
+            "nothing published: {args:?}"
+        );
+        assert_eq!(args.last(), Some(&MODEL_SCRIPT));
+    }
+
+    #[test]
+    fn the_app_is_given_the_test_model_and_no_key_that_works_anywhere_else() {
+        let env = model_env("sv-1-model", &["LLM_BASE_URL".to_owned()]);
+        for expected in [
+            "OPENAI_BASE_URL=http://sv-1-model:9100/v1",
+            "ANTHROPIC_BASE_URL=http://sv-1-model:9100",
+            "LLM_BASE_URL=http://sv-1-model:9100/v1",
+        ] {
+            assert!(env.iter().any(|e| e == expected), "{expected}: {env:?}");
+        }
+        for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+            assert!(
+                env.iter().any(|e| *e == format!("{key}={MODEL_KEY}")),
+                "{key}: {env:?}"
+            );
+        }
+    }
+
+    #[test]
     fn an_answer_a_node_server_takes_a_moment_over_still_arrives() {
         // The transport lost every answer a Node server was still working on: `echo | nc`
         // half-closed the connection and Node dropped it. This runs a server that waits 200ms
@@ -1313,6 +1483,7 @@ http.createServer((q, s) => {
                 mail: None,
                 provider: None,
                 browser: Some(&browser),
+                model: None,
             };
             use sv_check::browser::{Action, Job};
             use sv_check::signed_in::Http;

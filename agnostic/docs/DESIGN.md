@@ -3055,6 +3055,64 @@ Left for later: V6.8.1 and V10.2.2 need two providers, V10.5.3 needs metadata th
 start-up to change, and V10.5.2 and V6.8.4 depend on what the app decides rather than on what the
 provider sends.
 
+## A test model inside the fence
+
+An app's AI feature cannot reach its AI service from inside the fence, so until now nothing about it
+was asked of the running app. `[stack.run.ai]` names the request that sends it a message, with
+`{prompt}` where the text goes (and `signed-in = true` when it needs the second test user). The run
+then starts a test model of `sv`'s own on the fenced network and gives the app its address in
+`OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL`, which the OpenAI and Anthropic libraries read by
+themselves, with placeholder keys that work nowhere else; `base-url-env` names any other variable an
+app reads. Nothing is sent to an AI service and nothing is spent. The owner chose this over garak on
+26 September 2026 (see BACKLOG, "Testing an app's AI feature").
+
+### What it judges: the app, not the model
+
+The test model is a short script in the same stock Node image as the test sign-in provider
+(`assets/model-provider.mjs`). It speaks OpenAI's chat completions and responses and Anthropic's
+messages, each plain or streamed, and does on purpose what a model can be talked into doing. What is
+judged is what the app does around it, which is the part a small app owns; the model's own robustness
+is not asked, since a stand-in says nothing about the real one. Each message carries
+`SV-PROBE-<KIND>-<nonce>`, and the test model is asked afterwards what arrived for that nonce:
+
+- **The setup first.** A plain message has to reach the test model, or nothing is judged, and the
+  report says to check that the app reads the address. Whether its reply reached the app's answer is
+  noted, because one check depends on it.
+- **C7.1.2, a length limit.** Read from the request the app made for the plain message:
+  `max_tokens`, `max_completion_tokens`, or `max_output_tokens`. None is a finding; one is credited
+  for the length half, and the credit says termination controls were not shown.
+- **C7.3.2, instructions held back.** The test model answers an ordinary message by repeating the
+  instructions the app sent it, word for word. Forty letters and digits of them in a row reaching the
+  answer is a finding, read after JSON escapes are undone and everything else dropped, so neither
+  escaping nor changed line breaks hide one. Missing from the answer is credited only when a plain
+  reply was shown to reach it, and the credit says whether the instructions were taken out or the
+  whole reply held back. Instructions under twenty letters and digits are too few to recognize, and
+  that is said.
+- **C2.1.3, injections screened.** A message that opens "Ignore all previous instructions" reaching
+  the model is a finding. Refused, with an answer rather than a crash, is credited — for one
+  well-known pattern, which the credit says — but only when a plain message sent straight after does
+  reach the model. The fake app found why: an app that passes on one message a minute refuses the
+  injection too, and the first version credited that as a screen.
+- **C7.3.3, addresses in a reply.** The test model answers with a markdown image and a link pointing
+  back at itself. The app fetching the address, or turning it into an `<img>` in its answer, is a
+  finding. Neither is not credited: a page can still draw the reply's markdown as an image in the
+  browser, which the answer's text does not show.
+
+### What running it for real found
+
+Checked with the real `openai` and `anthropic` Python libraries against the test model, in all six
+ways they talk to it (chat completions, responses, and messages, each plain and streamed), and then
+end to end with three scratch apps. The first run failed on the responses stream: the OpenAI library
+refuses text for an output item it was not first told about, so the test model now sends every event
+the real service sends, in order. After that, a careful app on Anthropic's library and another on
+OpenAI's responses were each credited for C7.1.2, C7.3.2, and C2.1.3, and a careless one (no limit,
+no screen, no filter, fetching and drawing the image) raised all four findings.
+
+The break round found two guards with no witness — a message that never reached the model, for the
+leak and for the image, left unjudged — and eleven with one; each now has two or more, most from the
+same faults answered as a page of HTML rather than JSON. It is also what found the one-message limit
+above.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
