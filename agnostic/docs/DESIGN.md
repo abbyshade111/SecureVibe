@@ -3160,6 +3160,36 @@ leak and for the image, left unjudged — and eleven with one; each now has two 
 same faults answered as a page of HTML rather than JSON. It is also what found the one-message limit
 above.
 
+### What the app wrote down about it
+
+C12.1.3 asks that each model call be logged in a structured schema naming the model, the input and
+output token counts, the provider, and the operation; C12.2.1, that injection attempts be detected and
+alerted on. Both are read from the app's output after the questions, the way the log check reads its
+own markers (see "Reading the app's own log"), and on the same terms: a line that was found can be
+credited or faulted, and no line is *not assessed*, because an app that logs to a file or a service
+writes nothing to its output and is not logging any less for it.
+
+- **C12.1.3.** The test model reports token counts picked at random for each reply (4,000 to 8,999
+  in, 1,000 to 3,999 out), so a line carrying both, as numbers of their own, can only be the record of
+  that call. It is credited when it is JSON or logfmt and also names the model the app asked for, a
+  service (OpenAI, Anthropic, Azure, and the rest), and a kind of call (chat, completion, messages,
+  responses, and the like). Found and short of any of that is a finding naming what it leaves out. The
+  common log format counts as structured for V16.2.4 and not here: an access log line is not a record
+  of the call.
+- **C12.2.1.** A line naming the attack (injection, jailbreak), or one carrying the injection's own tag
+  with a word for stopping it (blocked, flagged, refused, and so on). An app that writes every message
+  down as it came has noticed nothing, and is not credited; nor is one that refuses something else.
+  The credit says whether anybody is alerted beyond the log was not seen. C12.2.3 is not asked: it is
+  about rules for *coordinated* attempts, which one message cannot show.
+
+Verified end to end with the scratch apps, now writing their calls down from what the OpenAI and
+Anthropic libraries report: the careful one, one JSON record per call and a warning for the blocked
+injection, was credited for both; the one using OpenAI's responses left out the service and got the
+finding; and the careless one's sentence got it too. The break round found four guards with no
+witness and five with one, and each now has two or more. It also found a guard that could not be
+witnessed at all — taking the probe's own tag out of each line before looking for "injection", when
+the tag's `INJECT-` never matches that word — and it was removed rather than kept as decoration.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
