@@ -462,10 +462,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
             } else {
                 format!("{} {rating}", advisory.summary)
             };
-            match due.sentence() {
-                Some(when) => format!("{what} {when}"),
-                None => what,
-            }
+            format!("{what} {}", due.sentence())
         },
         impact:
             "A known vulnerability in something this app ships is a problem somebody has already \
@@ -587,8 +584,8 @@ impl Due {
         matches!(self, Due::Within { .. })
     }
 
-    /// The sentence the finding carries about its deadline, when there is one to say.
-    pub fn sentence(&self) -> Option<String> {
+    /// The sentence the finding carries about its deadline, or about why it has none.
+    pub fn sentence(&self) -> String {
         match self {
             Due::Overdue {
                 published,
@@ -596,26 +593,30 @@ impl Due {
                 unrated,
                 by,
                 days_over,
-            } => Some(format!(
+            } => format!(
                 "Published on {}, and {}, so it was due by {} and is {days_over} day{} past it.",
                 published.show(),
                 time_frame_words(*allowed, *unrated),
                 by.show(),
                 plural(*days_over)
-            )),
+            ),
             Due::Within {
                 published,
                 allowed,
                 unrated,
                 by,
-            } => Some(format!(
+            } => format!(
                 "Published on {}, and {}, so it is due by {}. It may have been known before it \
                  was published, never after.",
                 published.show(),
                 time_frame_words(*allowed, *unrated),
                 by.show()
-            )),
-            Due::Unjudged(_) => None,
+            ),
+            // Said in the finding itself, so every place that shows it — `sv audit`, the report,
+            // SARIF — carries the reason rather than only the terminal.
+            Due::Unjudged(why) => {
+                format!("It is treated as past your time frame for fixing it, because {why}.")
+            }
         }
     }
 }

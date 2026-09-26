@@ -346,7 +346,10 @@ another session is not a claim.
   not merely known". Left over, found while doing it: **`sv report` never runs the advisory comparison**,
   so V15.2.1 has no evidence in the report whatever `sv audit` says, and the checklist sends the owner
   to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report`.
-  **Claimed on 26 September 2026 by session securevibe-e8.**
+  **Claimed on 26 September 2026 by session securevibe-e8. Done the same day:** `sv report
+  --advisories DIR` puts the findings, the clean result, and what could not be compared into the
+  report, and without a database the report says it compared nothing rather than staying silent. See
+  DESIGN, "In the report too". The MCP server still takes no database, deliberately.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and

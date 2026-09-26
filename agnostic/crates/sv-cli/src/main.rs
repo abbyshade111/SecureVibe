@@ -58,7 +58,7 @@ fn print_help() {
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
              match what the app ships against a local OSV database\n  \
-         sv report [PATH] [--out DIR] [--run] [--tools]\n                     \
+         sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     \
              write the reports: what applies, what was found, what nobody has answered\n  \
          sv mcp [--root DIR]\n                     \
              serve the checks to an AI coding tool over MCP, for the apps under DIR\n"
@@ -1192,9 +1192,6 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         if !f.description.is_empty() {
             println!("     {}", f.description);
         }
-        if let Some(Due::Unjudged(why)) = result.due.get(&f.rule_id) {
-            println!("     not judged against a time frame: {why}");
-        }
         println!("     what to do: {}", f.fix);
     };
     if !late.is_empty() {
@@ -1254,6 +1251,10 @@ struct ReportOptions {
     why_not_run: &'static str,
     /// Said in the report when the tools were not run.
     why_no_tools: &'static str,
+    /// A local advisory database to compare the bill of materials with. `sv` never fetches one.
+    advisories: Option<PathBuf>,
+    /// Said in the report when there was no database to compare with.
+    why_no_advisories: &'static str,
 }
 
 /// Everything `sv report` knows about an app, built once for every caller.
@@ -1350,11 +1351,90 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // and that is the difference between "this list is approximate" and "this list is empty".
     // Building it reads manifests and lockfiles; it opens no network connection.
     let bill_of_materials = sbom::build(app_dir);
+    let mut findings_from_advisories = Vec::new();
+
+    // Known vulnerabilities, when the owner has pointed at a local advisory database, held to the
+    // time frames in securevibe.toml exactly as `sv audit` holds them. Without a database this says
+    // so: a report silent about known vulnerabilities reads as a report that found none.
+    let mut advisory_verified = Vec::new();
+    let mut advisory_gaps = Vec::new();
+    match &options.advisories {
+        None => advisory_gaps.push(sv_report::Gap {
+            what: "known vulnerabilities in the packages this app ships".to_owned(),
+            why: format!(
+                "{} `sv` does not fetch anything, because the list of packages an app depends on \
+                 is yours: download an OSV export for this app's ecosystems, unpack it, and pass \
+                 its folder with --advisories.",
+                options.why_no_advisories
+            ),
+        }),
+        Some(dir) => {
+            let database = advisories::load_database(dir)
+                .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
+            if database.is_empty() {
+                advisory_gaps.push(sv_report::Gap {
+                    what: "known vulnerabilities in the packages this app ships".to_owned(),
+                    why: format!(
+                        "{} holds no advisory records `sv` could read, so nothing was compared. \
+                         An empty database and a healthy app look the same from here.",
+                        dir.display()
+                    ),
+                });
+            } else {
+                let result = advisories::audit_against(
+                    &bill_of_materials,
+                    &database,
+                    manifest.policy.fix_within_days.as_ref(),
+                    advisories::Day::today(),
+                );
+                findings_from_advisories = result.findings;
+                advisory_verified = result.verified;
+                if !result.uncovered.is_empty() {
+                    advisory_gaps.push(sv_report::Gap {
+                        what: format!(
+                            "known vulnerabilities in this app's {} packages",
+                            result
+                                .uncovered
+                                .iter()
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                        why: "the advisory database holds nothing about them, so they were not \
+                              compared. That is not the same as their being clean."
+                            .to_owned(),
+                    });
+                }
+                if !result.uncomparable.is_empty() {
+                    let n = result.uncomparable.len();
+                    let shown: Vec<String> = result
+                        .uncomparable
+                        .iter()
+                        .take(5)
+                        .map(|(name, version)| format!("{name} {version}"))
+                        .collect();
+                    advisory_gaps.push(sv_report::Gap {
+                        what: format!(
+                            "whether {n} package version{} {} a known vulnerability ({}{})",
+                            if n == 1 { "" } else { "s" },
+                            if n == 1 { "has" } else { "have" },
+                            shown.join(", "),
+                            if n > 5 { ", …" } else { "" }
+                        ),
+                        why: "these versions could not be compared with any affected range, so \
+                              nothing is claimed about them either way"
+                            .to_owned(),
+                    });
+                }
+            }
+        }
+    }
 
     let mut probe_verified = Vec::new();
     let mut tool_verified = Vec::new();
     let mut test_verified = Vec::new();
     let mut findings = Vec::new();
+    findings.extend(findings_from_advisories);
     findings.extend(secrets.findings.iter().cloned());
     findings.extend(config.findings.iter().cloned());
     findings.extend(code.findings.iter().cloned());
@@ -1649,6 +1729,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         });
     }
     gaps.extend(dependency_gaps(&bill_of_materials));
+    gaps.extend(advisory_gaps);
 
     // Everything that ran, looked at what it needed to, and found nothing wrong. Each of these
     // fails closed on its own coverage, so the list is short on an app `sv` could not read fully —
@@ -1658,6 +1739,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     verified.extend(code.verified.iter().cloned());
     verified.extend(probe_verified.iter().cloned());
     verified.extend(tool_verified.iter().cloned());
+    verified.extend(advisory_verified);
     verified.extend(test_verified.iter().cloned());
 
     // Which requirements the app's tests name, read from the files whether or not the tests ran, so
@@ -1831,6 +1913,8 @@ fn cmd_report(args: &[String]) -> Result<()> {
     // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
     // of them fetches its rules over the network the first time it runs.
     let mut run_tools = false;
+    // A folder the owner downloaded on purpose. `sv` never fetches advisories itself.
+    let mut advisories_dir: Option<PathBuf> = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -1841,6 +1925,11 @@ fn cmd_report(args: &[String]) -> Result<()> {
             }
             "--run" => run_the_app = true,
             "--tools" => run_tools = true,
+            "--advisories" => {
+                advisories_dir = Some(PathBuf::from(
+                    rest.next().context("--advisories needs a folder")?,
+                ));
+            }
             other if other.starts_with('-') => bail!("unknown option: {other}"),
             other => app_dir = PathBuf::from(other),
         }
@@ -1854,6 +1943,9 @@ fn cmd_report(args: &[String]) -> Result<()> {
             run_tools,
             why_not_run: "`sv report` does not start the app unless you pass --run.",
             why_no_tools: "`sv report` does not run other people's tools unless you pass --tools.",
+            advisories: advisories_dir,
+            why_no_advisories: "`sv report` compares against known vulnerabilities only when you \
+                                pass --advisories DIR.",
         },
     )?;
 

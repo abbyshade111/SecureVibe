@@ -14,7 +14,7 @@
     {
       "id": "V15.2.1",
       "title": "Nothing is past the update deadline you set",
-      "how": "Write the time frames from your security notes into securevibe.toml as `[policy] fix-within-days`, one number of days per severity, then run `sv audit` against a local advisory database. It lists the packages with a known vulnerability and puts the ones past your time frame first. Those are the answer to this one. Without the numbers it counts every known vulnerability as late, whatever its age."
+      "how": "Write the time frames from your security notes into securevibe.toml as `[policy] fix-within-days`, one number of days per severity, then run `sv report --advisories DIR` (or `sv audit`) against a local advisory database. It lists the packages with a known vulnerability and puts the ones past your time frame first. Those are the answer to this one. Without the numbers it counts every known vulnerability as late, whatever its age."
     },
     {
       "id": "V2.3.2",

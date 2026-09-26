@@ -21,6 +21,7 @@ cargo run -p sv-cli -- check ./my-app    # credentials, configuration, and rules
 cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
 cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
 cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
+cargo run -p sv-cli -- report ./my-app --advisories ./osv  # …with known vulnerabilities in it too
 cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding tool (see below)
 ```
 

@@ -194,6 +194,9 @@ impl Server {
                               `sv report --run` in a terminal.",
                 why_no_tools: "The MCP server never runs other people's tools; the person can, \
                                with `sv report --tools` in a terminal.",
+                advisories: None,
+                why_no_advisories: "The MCP server does not read an advisory database; the \
+                                    person can, with `sv report --advisories DIR` in a terminal.",
             },
         )
     }
@@ -682,6 +685,8 @@ mod tests {
                 run_tools: false,
                 why_not_run: "",
                 why_no_tools: "",
+                advisories: None,
+                why_no_advisories: "",
             },
         )
         .unwrap();

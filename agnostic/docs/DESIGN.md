@@ -1946,8 +1946,23 @@ it; the four in `sv audit`'s printing — late and inside swapped, the not-judge
 not printed, the time frames never read — each failed `crates/sv-cli/tests/audit_deadlines.rs`, which runs
 the binary. A guard on the check is not a guard on what reaches the reader.
 
-**Not done:** `sv report` does not run the advisory comparison at all, so V15.2.1 has no evidence in the
-report whatever `sv audit` says. That was so before this change and is its own piece of work.
+### In the report too
+
+`sv report --advisories DIR` runs the same comparison with the same time frames, and puts its findings,
+its clean result, and what it could not compare into the report. Without a database the report now says
+it compared nothing: before 26 September 2026 it said nothing at all, and a report silent about known
+vulnerabilities reads as a report that found none. The reason a finding was not judged against a time
+frame moved into the finding's own words at the same time, so it reaches the report and SARIF rather
+than only the terminal.
+
+The report is a second place the on-time case could go wrong — a finding that cites nothing leaves
+nothing marking V15.2.1, and it must not come out *checked* — so
+`crates/sv-cli/tests/report_advisories.rs` holds it there too, by running the binary. Six breaks of the
+wiring (no-database gap, findings, clean claim, uncovered-ecosystem gap, gaps reaching the report, time
+frames read) each failed at least one of its five tests.
+
+The MCP server does not take a database: an AI coding tool asking about an app gets the no-database gap,
+and the person can run the comparison from a terminal.
 
 ## Rules that read the code
 
