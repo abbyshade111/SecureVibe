@@ -92,7 +92,7 @@ another session is not a claim.
 
 - **V11.3.3 is the one requirement no semgrep pack brings back, and `sv` could own it outright.**
   Found on 26 September 2026 while reading the coverage maps after #164 made the semgrep count
-  honest; **not claimed**, and session relaxed-nobel-27acfa is pointing at this item from the step 3
+  honest; **claimed on 26 September 2026 by session securevibe-e8**, and session relaxed-nobel-27acfa is pointing at this item from the step 3
   write-up rather than duplicating it. Four requirements lost their credit when the count started
   following the pack: V4.4.1, V9.2.1, V11.3.3, and V11.4.3, each mapped to semgrep alone with no
   other tool behind it. From relaxed-nobel-27acfa's measurements, `p/default` reaches three of them
