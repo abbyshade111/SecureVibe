@@ -8,7 +8,8 @@ https://github.com/semgrep/semgrep-rules when semgrep's rules change:
 
 A registry rule's id, and so the `ruleId` in semgrep's SARIF, is its file's path with dots for
 slashes, then its own id: `python/lang/security/audit/eval-detected.yaml` holding `eval-detected`
-is `python.lang.security.audit.eval-detected.eval-detected`.
+is `python.lang.security.audit.eval-detected.eval-detected`. The path part is lowercased and the
+rule's own id is not, which a real registry run showed.
 
 A rule is mapped only when two things agree: its CWE is one of a class's, and its id says the same
 thing in words. CWE alone is not enough: semgrep tags Go's `dangerous-exec-cmd` as code injection
@@ -312,7 +313,10 @@ def read_rules(root):
                 continue
             if not isinstance(doc, dict) or not isinstance(doc.get("rules"), list):
                 continue
-            base = rel[: -len(".yaml")].replace(os.sep, ".")
+            # The registry lowercases the file's path and keeps the rule's own id as written:
+            # `detect-pseudoRandomBytes.yaml` is `…detect-pseudorandombytes.detect-pseudoRandomBytes`.
+            # Seen in a real `p/security-audit` run on 26 September 2026.
+            base = rel[: -len(".yaml")].replace(os.sep, ".").lower()
             for r in doc["rules"]:
                 if not isinstance(r, dict) or "id" not in r:
                     continue

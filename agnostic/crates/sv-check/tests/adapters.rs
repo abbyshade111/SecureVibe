@@ -683,3 +683,78 @@ fn one_language_tools_keep_their_whole_map(ids: &[&str]) {
         assert_eq!(evidence, mapped, "{id}");
     }
 }
+
+/// A real SARIF report from Semgrep 1.176.0 run with the registry pack `p/security-audit` itself —
+/// the adapter's own command — over the same app, on 26 September 2026. Rules that produced nothing
+/// are kept by id only; the fixture's README says why and how it was made.
+fn semgrep_registry_sarif() -> serde_json::Value {
+    let text = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif"),
+    )
+    .unwrap();
+    serde_json::from_str(&text).unwrap()
+}
+
+#[test]
+fn every_rule_the_registry_pack_really_reported_is_mapped() {
+    // The map's ids were reproduced from a checkout of the rules, never seen from the registry, until
+    // this run. Every rule it reported is a security rule, and each must carry its requirement.
+    let sarif = semgrep_registry_sarif();
+    let adapters = adapters();
+    let semgrep = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed");
+    let findings = adapters::parse_sarif(semgrep, &sarif.to_string()).expect("the report parses");
+    assert_eq!(findings.len(), 13, "the fixture's run reported 13");
+    let unmapped: Vec<&str> = findings
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+}
+
+#[test]
+fn the_map_spells_every_rule_the_way_the_registry_does() {
+    // The registry lowercases a rule file's path and keeps the rule's own id as written. The map had
+    // three keys with capitals in the path, and a finding from any of them would have carried no
+    // requirement. Checked against every rule the pack loaded, not only the ones that fired.
+    let sarif = semgrep_registry_sarif();
+    let loaded: Vec<&str> = sarif["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect();
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(data()).unwrap()).unwrap();
+    let map = data["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "semgrep")
+        .unwrap()["rules"]
+        .as_object()
+        .unwrap();
+    let exact = loaded.iter().filter(|id| map.contains_key(**id)).count();
+    assert!(
+        exact >= 150,
+        "only {exact} of the pack's rules are in the map"
+    );
+    let misspelled: Vec<(&String, &&str)> = map
+        .keys()
+        .filter_map(|k| {
+            loaded
+                .iter()
+                .find(|id| id.eq_ignore_ascii_case(k) && **id != k)
+                .map(|id| (k, id))
+        })
+        .collect();
+    assert!(
+        misspelled.is_empty(),
+        "map key / registry id: {misspelled:?}"
+    );
+}

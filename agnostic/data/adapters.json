@@ -997,7 +997,7 @@
             "*"
           ]
         },
-        "csharp.lang.security.cryptography.X509-subject-name-validation.X509-subject-name-validation": {
+        "csharp.lang.security.cryptography.x509-subject-name-validation.X509-subject-name-validation": {
           "what": "TLS certificate validation turned off in a client",
           "requirements": [
             "V12.3.2"
@@ -5583,7 +5583,7 @@
             "typescript"
           ]
         },
-        "javascript.lang.security.detect-pseudoRandomBytes.detect-pseudoRandomBytes": {
+        "javascript.lang.security.detect-pseudorandombytes.detect-pseudoRandomBytes": {
           "what": "random numbers that must not be guessable taken from a generator that is not cryptographically secure",
           "requirements": [
             "V11.5.1"
@@ -9527,7 +9527,7 @@
             "scala"
           ]
         },
-        "scala.slick.security.scala-slick-overrideSql-literal.scala-slick-overrideSql-literal": {
+        "scala.slick.security.scala-slick-overridesql-literal.scala-slick-overrideSql-literal": {
           "what": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
           "requirements": [
             "V1.2.4"
