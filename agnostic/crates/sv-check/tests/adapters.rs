@@ -855,7 +855,12 @@ fn semgrep_runs_the_ai_pack_unless_the_app_is_known_not_to_call_a_model() {
     // Before the `--`, so a file called `--config` in the app is still a file.
     for args in [&unsettled, &not_ai] {
         let dashes = args.iter().position(|a| a == "--").expect("a --");
-        assert_eq!(args[dashes + 1], "{files}", "{args:?}");
+        assert_eq!(args[dashes + 1..], ["{files}"], "{args:?}");
+        // After the `--`, a pack's name would be read as a file to scan.
+        assert!(
+            !args[dashes..].iter().any(|a| a.starts_with("p/")),
+            "{args:?}"
+        );
         assert!(args[..dashes].iter().any(|a| a == "--sarif"), "{args:?}");
     }
     // A condition nothing depends on changes nothing.
