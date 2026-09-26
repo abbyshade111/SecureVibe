@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
+| L1 | 70 | 52 | 7 | 1 | 3 | 29 | 21 | 2 |
 | L2 | 183 | 63 | 4 | 0 | 13 | 27 | 25 | 1 |
 | L3 | 92 | 6 | 1 | 0 | 0 | 1 | 2 | 2 |
 
-With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ## ASVS 5.0 by chapter
 
@@ -89,12 +89,13 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (70)
+### Settled by asking the running app (71)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
+| V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `insecure-document-method`, `insecure-innerhtml`, `react-dangerouslysetinnerhtml`) |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` |
@@ -141,7 +142,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V7.3.2 | L2 | Signed in: `probe.session-lifetime` |
 | V7.4.1 | L1 | Signed in: `probe.logout-keeps-session` |
 | V7.4.2 | L1 | Signed in: `probe.sessions-survive-deletion` |
-| V7.4.4 | L2 | Signed in: `probe.no-sign-out-link` |
+| V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
@@ -170,7 +171,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (33)
+### Settled only by an outside tool (32)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -185,7 +186,6 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V1.3.10 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V1.3.12 | L3 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.5.1 | L1 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
-| V3.2.2 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `insecure-document-method`, `insecure-innerhtml`, `react-dangerouslysetinnerhtml`) |
 | V3.3.1 | L1 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.5.5 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V4.4.1 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`) |

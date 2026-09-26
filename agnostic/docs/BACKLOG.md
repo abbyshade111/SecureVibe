@@ -5,9 +5,20 @@ another session is not a claim.
 
 ## Next
 
+- **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
+  on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
+  admiring-murdock-875699.** `the_fence_really_blocks_outbound_traffic` in
+  `crates/sv-run/tests/fence.rs` counts *any* failure of `docker exec … nc` as "blocked": `nc` missing
+  from the image, a flag it does not understand, or the container gone would all pass. And its only
+  control is the host reaching `1.1.1.1:53`, but on Docker Desktop containers run in a separate Linux
+  VM, so the host getting out does not show a container could. Fix: a control container on an
+  ordinary network created the same way minus `--internal`, running the identical command, which
+  must connect; and the fenced run must show that `nc` really ran and failed to connect.
+
 - **A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in
   both directions.** Found on 26 September 2026 reviewing #130/#131. **Claimed on 26 September 2026
-  by session securevibe-e9.** `forwarded_check`
+  by session securevibe-e9, and done the same day** with the fix below: two claimed attempts from two
+  addresses, then two plain ones. `forwarded_check`
   in `crates/sv-check/src/signed_in.rs` sends one wrong attempt claiming `203.0.113.77` and one
   claiming nothing, and calls it a finding when the first is answered as the first attempt was and
   the second is still refused. That pattern is produced by any limiter that lets one attempt through
@@ -44,7 +55,8 @@ another session is not a claim.
   alternation.
 
 - **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
-  26 September 2026 reviewing the TOTP probes (#129); not claimed. `totp_checks` in
+  26 September 2026 reviewing the TOTP probes (#129). **Claimed on 26 September 2026 by session
+  securevibe-e9.** `totp_checks` in
   `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
   Three sign-in attempts later, that code is given again to see whether the app takes it twice. If the
   30-second step has ended in between — the run starts at a uniformly random point inside its step, so
@@ -508,7 +520,19 @@ another session is not a claim.
      It also turns two partial checks into real ones — storage actually emptied after sign-out
      (V14.3.1, today only the header) and a sign-out link actually visible (V7.4.4, today only
      present in the HTML). **Claimed on 26 September 2026 by session securevibe-e8**, at the
-     owner's asking.
+     owner's asking. **The first part is done the same day:** `[stack.run.users.browser]` starts a
+     pinned headless Chromium on the fenced network, signed in with the first user's cookies. It
+     settles V3.2.2 (text typed into a form is shown as text, not drawn as markup), which only a
+     semgrep finding could name before, and makes V7.4.4 real (the sign-out control can be seen,
+     not only found in the HTML). See DESIGN, "A real browser inside the fence". The count above was
+     wrong about which requirement the typed markup reaches: it is V3.2.2, content meant as text; V1.3.1
+     asks for a sanitizer for rich text, which an app that shows text as text does not need and a
+     browser cannot see being used. Left: V14.3.1 (storage emptied after sign-out, which means
+     signing the browser out, so it needs a session of its own that no later check is using);
+     V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
+     the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
+     app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
+     in every real browser, which a check could say directly.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which

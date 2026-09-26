@@ -2475,6 +2475,18 @@ included. That is the honest outcome, and against such an app V15.3.4 stays unas
 Five breaks, each caught: no control, the header never sent, run on a slowdown too, "lifted" misread,
 and the check never run.
 
+
+**Two of each, after review.** The first version sent one attempt claiming an address and one claiming
+nothing. A limiter that lets one attempt through for each one it refuses — a token bucket, a sliding
+window, `nginx limit_req` — answers that pair in exactly the pattern of a limit believing the header,
+so a correct app was reported, with an evidence line word for word the true one's. Now two attempts
+claim two different addresses and two claim nothing, and it is a finding only when both claimed ones
+got through and both plain ones were refused. The fake app has both kinds of leak: one attempt per
+refusal (`lockout_leaks`), which the plain pair catches, and a window that rolls over just as the first
+claimed attempt arrives (`window_rolls_over_at_first_claim`), which only the second claimed attempt,
+from its own address, catches. Alternating plain and claimed attempts would not have worked: a
+one-for-one leak produces exactly that alternation. A leaky limiter can still hide an app that does
+trust the header; that is the safe direction for a check that is only ever a finding.
 ### Two-factor codes, computed rather than waited for (V6.5.1, V6.5.5)
 
 A `totp` entry names the code step of a two-factor sign-in. `seed` is given a third account —
@@ -2772,3 +2784,92 @@ without it.
 Left for later: V6.8.1 and V10.2.2 need two providers, V10.5.3 needs metadata that an app reads at
 start-up to change, and V10.5.2 and V6.8.4 depend on what the app decides rather than on what the
 provider sends.
+
+## A real browser inside the fence
+
+Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
+HTML: the control can be there with `hidden` on it, or moved off the screen. Whether text somebody
+typed is shown as text or run as part of the page is not in the response either, when the page puts
+it together with script. `[stack.run.users.browser]` starts a headless Chromium on the fenced network
+and asks both, signed in as the first test user. V3.2.2 (content meant as text is not rendered as
+markup) can now be credited; before, a semgrep finding was all that could ever name it. V7.4.4 is
+checked by what is drawn, beside the older check of what is in the HTML.
+
+### Three containers, and none of them new to the fence
+
+- **The browser** is `chromedp/headless-shell`, pinned to one Chromium version, so a run today and a
+  run next month draw the same page the same way. It is hardened like the sidecar and the mail
+  server: read-only, no capabilities, no new privileges, and memory for the one place it writes
+  (`/tmp`). Chromium's own sandbox is off, as it must be in a container, so the container is the
+  sandbox.
+- **The driver** is a short script of `sv`'s own (`crates/sv-run/assets/browser-driver.mjs`) in the
+  same stock Node image as the test provider, using Node's built-in WebSocket to speak the DevTools
+  protocol. It has no network of its own: it joins the browser's (`--network container:…`), where
+  the DevTools port is on 127.0.0.1 and the app is reached by its name, and nothing else is. It
+  takes a list of plain actions (open a page, type into a form, ask the page a question, wait) and
+  prints one answer for each. A list shorter than the job means it did not finish, and then nothing
+  it said is used.
+- **A forwarder** inside the browser's container (`socat`, which the image carries) makes the app
+  reachable at `http://localhost:<port>`, the way a person runs an app on their own computer.
+
+The last one was not in the first design. The browser first reached the app by its container
+name, and the example app refused the typed note as a forgery: its own origin, as it knows it, is
+`http://localhost:8080`, not `http://sv-…-app:8080`. Reaching it as `localhost` also makes Chromium
+treat the page as secure, so `Secure` and `__Host-` cookies are kept over plain HTTP, as they are on
+a developer's computer.
+
+### Signed in with the plain requests' cookies, and checked to be
+
+The browser is not signed in through the sign-in form. It is handed the first user's session
+cookies, at the point in the run where that session is known to work and nothing has yet changed a
+password, tripped a limiter, or signed the user in elsewhere. Then every private page has to open in
+it, at its own address rather than a sign-in page, or nothing here says anything. An app that signs
+in with a token in JSON gives no cookie to hand over, and the checks say so.
+
+### What the typed line is, and how its answers are read
+
+One line goes into the first box in the first form on `text-form`. It closes a quoted attribute,
+then carries an image whose failure to load runs a line of script, and a bold tag, each marked with
+a value made fresh for the run. The page that shows it (`shows`, or wherever the form leads) is then
+asked four things: did the script run, did the marked tags become elements, is the line there as
+the text typed, and is the mark there at all.
+
+- **It ran:** a finding, High.
+- **It became elements but did not run:** a finding, Medium. The usual reason is the page's
+  Content-Security-Policy, which is a second line; the text is still going into the page as markup.
+- **It is there as typed:** V3.2.2 is credited, for that form and that page.
+- **The mark is there but the line is not as typed:** not credited, and not a finding. Something
+  changed it on the way, perhaps a sanitizer, which is V1.3.1's business for rich text; it is not
+  text shown as text.
+- **Not there at all,** or any of the four not answered: nothing is said but why.
+
+The mark is made from the run's randomness through a hash, not cut from it, because pieces of that
+randomness are the test accounts' passwords, and the typed line is stored by the app.
+
+### What running it for real found
+
+- **The example refused its own forms in a real browser.** `examples/notes-with-users` sent
+  `Referrer-Policy: no-referrer`, and under that policy Chromium posts a page's own forms with
+  `Origin: null`, which the app's origin check refuses. No plain request could have shown it: the
+  probes set `Origin` themselves. The example now sends `same-origin`, which keeps its addresses from
+  other sites just the same, and trusts its origin with its port. A check for this in any app is on
+  the backlog.
+- **A test copy "hid" its sign-out button with an inline style, and the browser drew it anyway.**
+  The app's policy (`default-src 'self'`) blocks inline styles, so the button was in plain sight,
+  and the check was right to credit it. The broken copies now hide it with the `hidden` attribute,
+  and move it off the screen with the policy removed; both are found.
+- Against broken copies of the example: a note shown unescaped is High with no policy and Medium
+  with one, and a note put inside an attribute is High. Each finding came from its own copy and no
+  other.
+
+### What the guards caught
+
+Every guard in `browser.rs` was removed in turn and the tests run. Three survived the first time: a
+form page that sent the browser to sign in (whose own form has a box to type into) was not noticed; a
+browser that stopped part of the way was believed on what it had answered; and a page that said the
+line was there as typed, but not whether its script ran, was credited. The third was a fault in the
+code as well as in the tests: it was being explained as "changed on the way". Each now has a test,
+and a page that does not answer all four questions is not judged.
+
+Left for later: V14.3.1 needs the browser signed out, and so a session of its own that no later
+check is using.
