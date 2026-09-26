@@ -303,6 +303,24 @@ another session is not a claim.
      carefully and only on request, request smuggling (V4.2.1). The only item here that reaches
      outside the machine, so it follows whatever `sv probe` decides about the fence.
 
+  9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
+     addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),
+     the app's own name as a password (V6.2.11, L2 — the app's name is always a context-specific
+     word, so one case needs no word list), and the last step of the flow in a fresh session
+     (V2.3.1, L1, on `manualOnly` today, so taking it off is a decision). The guard not to get wrong
+     is the one the brute-force check got wrong first: an app that refuses *every* password has shown
+     nothing, so an ordinary one must be accepted first, or the answer is *not assessed*.
+
+  Additions from session securevibe-e8, which answered the same question separately on the same
+  day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to
+  waiting is a test configuration with timeouts of seconds, which shows the mechanism works and not
+  that production's number is the stated one, so it is partial evidence and has to say which half it
+  saw. To item 6: V14.2.3 (L2 — list the requests that go to another host while signed in, and look
+  in them for the test account's own details; only ever a finding) and V3.4.3 (L2 — the policy
+  enforced, not only sent). To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
+  ciphers the live site offers, where semgrep today sees only TLS settings written in code; a scan
+  is dozens of handshakes, so what `sv probe`'s four-request cap means for it needs deciding first.
+
   Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
   reaches outside; only item 8 does, and only to the owner's own address.
 
@@ -339,53 +357,11 @@ another session is not a claim.
   counts against V15.2.1, and an unrated advisory is held to the shortest time frame. See DESIGN, "Late,
   not merely known". Left over, found while doing it: **`sv report` never runs the advisory comparison**,
   so V15.2.1 has no evidence in the report whatever `sv audit` says, and the checklist sends the owner
-  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report` and is not
-  claimed.
-
-- **Five new tools or processes, and what each would make checkable.** From the owner's question on
-  26 September 2026 — *"are there any level 1 or level 2 checks that could be testable with the
-  addition of any new tools or processes?"* — answered by reading the 22 Level 1 requirements with no
-  check and the 20 entries in `data/human-checks.json`, after leaving out what the running-app tier
-  already reaches (two accounts, container logs, and object-level authorization are all built). None is
-  claimed; each is its own piece of work. The deadlines for known vulnerabilities came out of the same
-  question and are the entry above.
-
-  - **Named pages for sign-up, password change, and one multi-step flow.** No new dependency: three
-    addresses in `[stack.run.users]`, the way `upload` names one. It reaches V6.2.12 (L2, breached
-    passwords refused: try `Password123!`), V6.2.11 (L2, context-specific words refused: the app's own
-    name is always one, so one case needs no word list, and a `[policy]` list would cover the rest),
-    and V2.3.1 (L1, steps cannot be skipped: ask for the last step's address in a fresh session). The
-    guard it must not get wrong is the one the brute-force check got wrong first: an app that refuses
-    *every* password has shown nothing, so an ordinary password has to be accepted first, and when
-    it is not, the answer is *not assessed*. V2.3.1 is on `manualOnly` today, and taking it off is a
-    decision rather than a side effect.
-  - **A real browser (headless Chromium).** Every probe today is an HTTP request; nothing runs the
-    app's own script, so nothing that lives in the browser is visible. It reaches V14.3.1 (L1: sign
-    out, then read local storage, session storage, and IndexedDB — fuller than the `Clear-Site-Data`
-    line in the sweep above, which credits on the header alone), V1.3.1 (L1: post a script where rich
-    text is accepted and see whether it *ran*, which no string search can answer; needs the page
-    named), V3.4.3 (L2: the policy enforced, not only sent), and V14.2.3 (L2: list the requests that
-    go to another host while signed in, and look in them for the test account's own details — only
-    ever a finding, since `sv` does not know every field an app considers sensitive). The cost is a
-    large dependency, and it has to run inside the same fence as the app.
-  - **A mail catcher beside the app.** Password reset and email confirmation cannot be checked while
-    `sv` cannot read the email. A small mail server in its own container, handed to the app as its
-    outgoing mail settings, reaches V6.4.1 (L1: collect several activation codes or first passwords
-    and check they differ, are long enough, and refuse a second use) and V6.4.3 (L2: a reset that does
-    not step around a second factor). This is the "password reset needs an entry of its own" left
-    open in the running-app entry above. It needs the app to take its mail settings from the
-    environment, which `sv` cannot arrange.
-  - **A TLS scanner on the live address.** `sv probe` sees whether the certificate is trusted; it
-    cannot see which protocol versions and ciphers the site offers. A scanner (`sslyze` or
-    `testssl.sh`) reaches V12.1.1 (L1) and V12.1.2 (L2) on the deployed site, where semgrep today
-    sees only TLS settings written in code. It cannot keep the probe's four-request cap, because a
-    scan is dozens of handshakes, so what the cap means for it needs deciding first; the address
-    still comes from the command line and nowhere else.
-  - **A test configuration with short session timeouts.** V7.3.1 and V7.3.2 (L2) are human checks
-    that say "wait longer than your timeout". If the app can be started with timeouts of seconds, the
-    check is a short wait. It shows the mechanism exists and obeys its setting, not that production's
-    number is the one written down, so it is partial evidence and the report has to say which half it
-    saw. The policy-numbers entry above explains why reading the cookie's lifetime instead was left.
+  to `sv audit` by hand. Bringing it into the report needs `--advisories` on `sv report`.
+  **Claimed on 26 September 2026 by session securevibe-e8. Done the same day:** `sv report
+  --advisories DIR` puts the findings, the clean result, and what could not be compared into the
+  report, and without a database the report says it compared nothing rather than staying silent. See
+  DESIGN, "In the report too". The MCP server still takes no database, deliberately.
 
 - ~~**OAuth requirements for authorization servers are applied to OAuth clients.**~~ Done on 25 September
   2026 by session securevibe-e9. A second condition, `authorization-server`, gates V10.4, V10.6, and
