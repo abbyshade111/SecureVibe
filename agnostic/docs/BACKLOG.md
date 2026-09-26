@@ -892,6 +892,35 @@ another session is not a claim.
   loads. The two are not exclusive. Either way, the packs are the registry's, and they change without
   `sv` changing, so whatever is chosen should be re-measured when the map is regenerated.
 
+  **For every session working on `sv`: these rules are not being run.** Until this is settled, treat a
+  requirement that semgrep reaches only through its map as *not checked*, whatever `docs/COVERAGE.md`
+  says, and do not build on the 19 listed above as if semgrep covered them. That includes the eight
+  AISVS requirements "AISVS, beyond applicability" credited to semgrep's AI rules; none of those rules
+  is in `p/security-audit`.
+
+  **Recommendations.** Each session adds its own below, under its name, as its own commit, and the
+  owner decides. Asked for by the owner on 26 September 2026.
+
+  - *Session relaxed-nobel-27acfa.* Three steps, in this order:
+    1. **Make the count honest first, and without changing what runs.** Keep a dated snapshot of the
+       rule ids each pack loads (`data/semgrep-packs.json`), written by a script like
+       `tools/pwned_passwords.py` on a machine that can reach semgrep.dev, and have `coverage.py`
+       credit semgrep only with mapped rules in a pack the adapter runs. A test holds the adapter's
+       `--config` list to the packs in the snapshot, so adding a pack without measuring it fails.
+       This is cheap, changes no finding, and stops the document claiming 19 requirements nobody checks.
+    2. **Then add `p/ai-best-practices`.** 27 rules, six more requirements (31 to 37), most of them
+       the AISVS ones the map was built for, and Semgrep only runs a rule on files in its language, so an
+       app without AI code pays almost nothing. It is where the AI rules actually live.
+    3. **Then decide on `p/default` with numbers from the evaluation harness, not from me.** Adding it
+       reaches 46 of the 50. Measured over the example apps and v1's app template (197 files), it
+       added about 3 seconds and 3 findings, all on the template, and all three are false alarms:
+       `detect-non-literal-regexp` on patterns built from the app's own settings and route names, not
+       from anything a visitor types. Three mistaken findings on one app is small, but the owner reads
+       every finding, so it should be counted over the golden apps with `npm run eval` before adopting.
+
+    Not recommended: `p/owasp-top-ten` and `p/secrets` on top. They add one requirement between them
+    (V11.3.3), and `sv` already has its own secret scanner.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
