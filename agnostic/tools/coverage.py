@@ -37,7 +37,12 @@ TIERS = [
     ("static", "Reads the code", "nothing: plain `sv check`"),
     ("advisories", "Known vulnerabilities", "a local copy of the OSV database (`--advisories DIR`)"),
     ("running", "The running app", "a container backend and a `run` section (`--run`)"),
-    ("signed-in", "Signed in", "the above, and a `users` section with test accounts"),
+    (
+        "signed-in",
+        "Signed in",
+        "the above, and a `users` section with test accounts, or an `oidc` section for a sign-in "
+        "through another service",
+    ),
     ("tools", "Outside tools", "the tool installed (`--tools`)"),
     (
         "production",
@@ -79,6 +84,10 @@ RUST_CHECKS = {
     "probe.password-composition-rules": ("signed-in", ["V6.2.5"]),
     "probe.default-account": ("signed-in", ["V6.3.2"]),
     "probe.password-in-url": ("signed-in", ["V14.2.1"]),
+    "probe.oidc-sign-in-from-another-session": ("signed-in", ["V10.1.2", "V10.2.1"]),
+    "probe.oidc-nonce-not-checked": ("signed-in", ["V10.5.1"]),
+    "probe.oidc-audience-not-checked": ("signed-in", ["V10.5.4"]),
+    "probe.oidc-signature-not-checked": ("signed-in", ["V6.8.2"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
     "probe.password-altered": ("signed-in", ["V6.2.8"]),
     "probe.long-password-refused": ("signed-in", ["V6.2.9"]),

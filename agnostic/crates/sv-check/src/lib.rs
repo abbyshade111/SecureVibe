@@ -16,6 +16,7 @@ pub mod human;
 pub mod junit;
 pub mod logs;
 pub mod notes;
+pub mod oidc;
 pub mod probes;
 pub mod production;
 pub mod sbom;
