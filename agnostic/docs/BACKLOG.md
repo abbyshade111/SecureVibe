@@ -374,12 +374,37 @@ another session is not a claim.
   **Neither reaches** membership inference (C11.2.5), drift and hallucination monitoring (C12.3),
   the training-data chapters, or most of the agent architecture in C9; those stay the owner's to answer.
 
+  **The owner's decision, 26 September 2026: the fake model first, not garak.** **The fake model
+  claimed the same day by session securevibe-e9**, for the four requirements above (C7.3.2, C7.3.3,
+  C7.1.2, C2.1.3). garak stays unclaimed and undecided.
+
   **Thoughts.**
 
   - *Session securevibe-e9.* The fake model first: free, exact, fenced, and able to credit the
     controls a small app owns. garak afterwards as an optional adapter, findings only, run only when
     the owner lets the app reach its provider for the run and agrees to what it spends, with the
     probe set and a cap named in the manifest.
+
+    Asked by the owner for more ways to reach the remaining AISVS requirements, each built on
+    machinery that exists or on the fake model once it does. None is claimed:
+    - **C12.1.3, structured inference logs.** The fake model answers with a model name and token
+      counts nobody else would use; the log check then looks for them in the app's output, as it
+      does for its own markers (V16.2.1). Credit on presence.
+    - **C12.2.1 and C12.2.3, injection attempts detected and alerted on.** After the C2.1.3 probe
+      sends a textbook injection, the same log check looks for the app having flagged it.
+    - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
+      as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
+      costs nothing when the model is the fake one.
+    - **C9.6.1, a kill switch.** The owner names the setting that halts the AI feature (an
+      environment variable or a flag); the run starts the app with it on and asks the AI route,
+      which must then answer without the fake model being called.
+    - **C10.4.1 and C10.4.2, MCP responses screened.** The same idea as the fake model, for an app
+      that is an MCP client: a fake MCP server in the fence whose `tools/list` breaks its own
+      schema and whose `tools/call` carries an injected instruction, and the fake model reports
+      whether either reached it.
+    - **C9.3.4 and C9.3.7, what an agent may call.** The fake model asks for a tool call outside
+      what the app declares, or to install a package that does not exist, and reports whether the
+      app went ahead. Harder: the effect has to be observable, which depends on the app.
 
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
