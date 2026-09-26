@@ -38,3 +38,20 @@ skips anything under a `tests/` folder, so it cannot be run in place):
 Only the rule folders that produced a result were loaded for the kept run, because SARIF carries the
 full description of every rule loaded: with all of Python's and Go's it was 725 KB, and gave the same
 35 results.
+
+## The registry run
+
+`semgrep-registry-1.176.0.sarif` is that check, made on 26 September 2026 with Semgrep 1.176.0 from a
+copy of `app/`:
+
+    semgrep scan --config p/security-audit --metrics=off --disable-version-check \
+      --sarif --output registry.sarif --quiet .
+
+It reported 13 results from 12 rules, every one a key in the map as written. The pack loaded 225
+rules. To keep the file small, rules that produced nothing are kept by their `id` only; the 12 that
+fired keep their full description, and every result is as semgrep wrote it. The ids of all 225 are
+what `the_map_spells_every_rule_the_way_the_registry_does` checks the map against.
+
+What it showed is in DESIGN, "Semgrep: a thousand rules". In short, the registry lowercases the path
+part of an id, which three map keys got wrong. The pack is also a quarter of the map: 22 of the 35
+results in `semgrep-1.178.0.sarif`, from 20 of its 32 rules, come from rules `p/security-audit` does not load.

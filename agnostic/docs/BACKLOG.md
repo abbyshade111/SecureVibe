@@ -872,6 +872,26 @@ another session is not a claim.
   `Location:` header printed by hand). Every rule is now taught every language `sv` reads, and a test
   pins it. What each misses is in DESIGN, "Thirteen languages".
 
+- **Semgrep's pack reaches 31 of the 50 requirements its map names.** Found on 26 September 2026 by
+  the registry run (session relaxed-nobel-27acfa); not claimed. The adapter runs `p/security-audit`,
+  which loads 225 rules, 162 of them mapped. The map has 1,022, and `docs/COVERAGE.md` counts all of
+  them, so it credits semgrep with 19 requirements no rule the adapter loads can reach: all eight
+  AISVS ones and V1.3.6, V1.3.12, V3.3.2, V3.5.5, V4.4.1, V9.1.1, V9.2.1, V11.3.3, V11.4.2, V11.4.3,
+  and V16.2.5. Measured by loading each pack over the fixture app:
+
+  | Packs | Rules loaded | Requirements reached (of 50) |
+  |---|---|---|
+  | `p/security-audit` (today) | 225 | 31 |
+  | and `p/ai-best-practices` | 252 | 37 |
+  | and `p/default` | 1,087 | 41 |
+  | and `p/default` and `p/ai-best-practices` | 1,114 | 46 |
+  | and all of those, `p/owasp-top-ten`, and `p/secrets` | 1,185 | 47 |
+
+  Two ways to make the coverage document true, and the owner's to choose: run more packs (more
+  findings, a slower run, and the same network fetch), or count only the rules the adapter really
+  loads. The two are not exclusive. Either way, the packs are the registry's, and they change without
+  `sv` changing, so whatever is chosen should be re-measured when the map is regenerated.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
@@ -914,7 +934,11 @@ another session is not a claim.
   map is keyed on the registry's form of a rule id, which was reproduced rather than observed, so one
   run of `p/security-audit` on a machine that can reach semgrep.dev is owed (the fixture's README has
   the command). **That registry run claimed on 26 September 2026 by session
-  relaxed-nobel-27acfa**, which can reach semgrep.dev; the rest of this entry is not claimed. `staticcheck` and `phpcs-security-audit` are each a data entry.
+  relaxed-nobel-27acfa**, which can reach semgrep.dev; the rest of this entry is not claimed. **The
+  run is done, the same day.** The form was right, except that the registry lowercases the path part,
+  which three keys got wrong and are corrected. It also found that the pack loads only 225 of the
+  map's rules; that is its own entry, "Semgrep's pack reaches 31 of the 50 requirements its map
+  names", below. See DESIGN, "Semgrep: a thousand rules". `staticcheck` and `phpcs-security-audit` are each a data entry.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,

@@ -728,6 +728,32 @@ which makes semgrep's own prefixing produce the registry's form. Semgrep did the
 folder layout was arranged. A run against the registry on a machine that can reach it is the one check
 still owed, and the fixture's README says how.
 
+**The registry run, done on 26 September 2026** (session relaxed-nobel-27acfa, Semgrep 1.176.0,
+`--metrics=off`). It confirmed the form: all 12 rules that fired are keys in the map, as written. It
+also showed one thing the reproduction got wrong, and one thing nobody had measured.
+
+* **The registry lowercases the path.** `detect-pseudoRandomBytes.yaml` is
+  `javascript.lang.security.detect-pseudorandombytes.detect-pseudoRandomBytes`: the path is
+  lowercased, and the rule's own id keeps its capitals (`use-of-DES`). None of the 225 loaded ids has
+  a capital before its last part. Three map keys did (that rule, a C# X.509 rule, and a Scala Slick
+  rule), so a finding from any of them would have carried no requirement. The generator now
+  lowercases the path, and the three keys are corrected. Only the first can be witnessed, because the
+  other two are not in this pack; that they follow the same rule is inferred, not seen.
+* **The pack is a quarter of the map.** `p/security-audit` loads 225 rules, and 162 of them are in the
+  map. The map has 1,022 (the first pass's 998 and 24 AI rules), so the other 860 are never loaded by
+  the adapter's command and can never fire. Counted by requirement, the map names 50, and the pack's
+  rules reach 31. The other 19 are reachable
+  only through rules the pack does not load: all eight AISVS requirements from semgrep's AI rules
+  (C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2), and V1.3.6, V1.3.12, V3.3.2,
+  V3.5.5, V4.4.1, V9.1.1, V9.2.1, V11.3.3, V11.4.2, V11.4.3, and V16.2.5. `docs/COVERAGE.md` counts the
+  whole map, so it credits semgrep with those 19. The kept fixture hid this, because it was made with
+  every rule loaded; 22 of its 35 results, from 20 of its 32 rules, come from outside the pack. Which packs to run instead
+  is a decision about what `sv` runs, and it is in the backlog with the numbers.
+
+The run is kept beside the first one as `semgrep-registry-1.176.0.sarif`, with tests that every rule
+it reported is mapped and that no map key differs from a registry id only in its capitals. Putting the
+old spelling back fails the second, and only it, because that rule did not fire in the fixture app.
+
 Against that run, over a Flask app and a Go program with one of each fault, every one of the 29
 security findings lands on a requirement, sixteen of them checked against the fault written to
 produce them, while semgrep's best-practice and
