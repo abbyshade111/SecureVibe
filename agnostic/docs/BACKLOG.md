@@ -507,7 +507,8 @@ another session is not a claim.
      (V1.3.1 and the rest of V1.3), and whether authorization lives only in hidden buttons (V8.3.1).
      It also turns two partial checks into real ones — storage actually emptied after sign-out
      (V14.3.1, today only the header) and a sign-out link actually visible (V7.4.4, today only
-     present in the HTML).
+     present in the HTML). **Claimed on 26 September 2026 by session securevibe-e8**, at the
+     owner's asking.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which
