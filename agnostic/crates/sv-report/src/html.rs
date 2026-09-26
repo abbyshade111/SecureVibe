@@ -36,6 +36,18 @@ td.n { text-align: right; width: 6rem; }
 .documented { color: var(--dim); font-style: italic; }
 .attested { color: var(--unknown); font-style: italic; }
 .note { color: var(--dim); }
+.bluf { border: 1px solid var(--edge); border-left: 4px solid var(--bad); border-radius: 6px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+.bluf p.headline { font-size: 1.15rem; font-weight: 600; margin-top: 0; }
+.bluf ul, .bluf ol { margin: .4rem 0; padding-left: 1.3rem; }
+.bluf ul.tally li { margin: .15rem 0; }
+.bluf ol.next li { margin: .35rem 0; }
+.bluf ol.next .note { display: block; font-size: .9em; }
+.bluf h3 { font-size: 1rem; margin: 1.1rem 0 .3rem; }
+.sev { font-size: .8em; text-transform: uppercase; letter-spacing: .04em; padding: .05rem .35rem; border: 1px solid currentColor; border-radius: 3px; }
+.sev-critical, .sev-high { color: var(--bad); }
+.sev-medium { color: var(--unknown); }
+.sev-low, .sev-info { color: var(--dim); }
+details > summary { cursor: pointer; color: var(--dim); }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
 
@@ -61,9 +73,67 @@ pub fn page(report: &Report) -> String {
         report.target_level
     ));
 
+    // The short version, before any of the explaining. See `crate::bluf`.
+    b.push_str("<section class=\"bluf\">\n");
+    b.push_str(&format!(
+        "<p class=\"headline\">{}</p>\n",
+        escape(&crate::bluf::headline(report))
+    ));
+    let (worst, rest) = crate::bluf::worst_findings(report);
+    if !worst.is_empty() {
+        b.push_str("<ul class=\"worst\">\n");
+        for f in worst {
+            b.push_str(&format!(
+                "<li><strong>{}</strong> <span class=\"sev sev-{}\">{}</span> \
+                 <code>{}</code></li>\n",
+                escape(&f.title),
+                escape(f.severity.name()),
+                escape(f.severity.name()),
+                escape(&f.rule_id)
+            ));
+        }
+        if rest > 0 {
+            b.push_str(&format!(
+                "<li class=\"note\">… and {rest} more, in security.md, worst first</li>\n"
+            ));
+        }
+        b.push_str("</ul>\n");
+    }
+    b.push_str("<p>Of the requirements that apply to this app:</p>\n<ul class=\"tally\">\n");
+    for (label, n) in crate::bluf::counted(report) {
+        b.push_str(&format!(
+            "<li><strong>{n}</strong> — {}</li>\n",
+            escape(&label)
+        ));
+    }
+    b.push_str("</ul>\n");
+    let steps = crate::bluf::next_steps(report);
+    if !steps.is_empty() {
+        b.push_str("<h3>What to do next</h3>\n<ol class=\"next\">\n");
+        for step in &steps {
+            b.push_str(&format!(
+                "<li>{} <span class=\"note\">{}</span></li>\n",
+                escape(&step.what),
+                escape(&step.where_to_look)
+            ));
+        }
+        b.push_str("</ol>\n");
+    }
+    b.push_str("</section>\n");
+
     b.push_str("<h2>Read this first</h2>\n");
     if let Some(note) = &report.run_note {
         b.push_str(&format!("<p>{}</p>\n", escape(note)));
+    }
+    if !report.run_steps.is_empty() {
+        b.push_str(&format!(
+            "<details>\n<summary>The {} things it did while the app ran</summary>\n<ol>\n",
+            report.run_steps.len()
+        ));
+        for step in &report.run_steps {
+            b.push_str(&format!("<li>{}</li>\n", escape(step)));
+        }
+        b.push_str("</ol>\n</details>\n");
     }
     b.push_str(&format!(
         "<p class=\"lede\">{} requirements apply to this app. \

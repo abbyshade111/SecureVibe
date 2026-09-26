@@ -19,6 +19,7 @@
 //! 3. **A requirement nobody could even decide the applicability of is its own bucket.** Not
 //!    applicable, not failing, not verified: *not assessed*, with the question that would settle it.
 
+pub mod bluf;
 pub mod html;
 pub mod markdown;
 pub mod sarif;
@@ -74,6 +75,9 @@ pub struct RequirementLine {
     pub id: String,
     pub description: String,
     pub chapter: String,
+    /// The ASVS level, so the short version can say how much of the work is at level 1. Zero for a
+    /// Secure by Design control or an AISVS appendix entry, which have no ASVS level.
+    pub level: u8,
     pub status: Status,
     /// Rule ids of the findings that cite this requirement.
     pub findings: Vec<String>,
@@ -201,6 +205,13 @@ pub struct Report {
     /// of document from one that only read files, and the reader should not have to work that out
     /// from which sections happen to be populated.
     pub run_note: Option<String>,
+    /// Everything the checks did while the app ran, one step per entry.
+    ///
+    /// Kept apart from `run_note` rather than joined into it. Thirty steps crammed into one
+    /// sentence made a 381-word paragraph, and it was the first thing on the page: the reader met a
+    /// wall of semicolons before they met a single finding. A list can be skimmed, and the HTML
+    /// report folds it away until somebody wants it.
+    pub run_steps: Vec<String>,
     pub counts: Counts,
     pub requirements: Vec<RequirementLine>,
     pub excluded: Vec<ExcludedRequirement>,
@@ -250,6 +261,8 @@ pub struct Inputs<'a> {
     pub target_level: u8,
     pub generated: Option<String>,
     pub run_note: Option<String>,
+    /// One entry per thing the checks did while the app ran. See `Report::run_steps`.
+    pub run_steps: Vec<String>,
     pub frameworks: &'a Frameworks,
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
@@ -374,6 +387,12 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             id: id.clone(),
             description,
             chapter,
+            level: inputs
+                .frameworks
+                .requirements
+                .get(id)
+                .map(|r| r.level)
+                .unwrap_or(0),
             status,
             findings,
             checked_by,
@@ -564,6 +583,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         target_level: inputs.target_level,
         generated: inputs.generated,
         run_note: inputs.run_note,
+        run_steps: inputs.run_steps,
         counts,
         requirements,
         excluded,

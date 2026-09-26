@@ -35,9 +35,58 @@ pub fn compliance(report: &Report) -> String {
         ));
     }
 
+    // The short version, before any of the explaining. See `crate::bluf`.
+    out.push_str("## The short version\n\n");
+    out.push_str(&format!("{}\n\n", crate::bluf::headline(report)));
+    let (worst, rest) = crate::bluf::worst_findings(report);
+    if !worst.is_empty() {
+        for f in worst {
+            out.push_str(&format!(
+                "- **{}** — {} ({})\n",
+                cell(&f.title),
+                cell(f.severity.name()),
+                cell(&f.rule_id)
+            ));
+        }
+        if rest > 0 {
+            out.push_str(&format!(
+                "- … and {rest} more, in security.md, worst first\n"
+            ));
+        }
+        out.push('\n');
+    }
+    out.push_str("Of the requirements that apply to this app:\n\n");
+    for (label, n) in crate::bluf::counted(report) {
+        out.push_str(&format!("- **{n}** — {label}\n"));
+    }
+    out.push('\n');
+    let steps = crate::bluf::next_steps(report);
+    if !steps.is_empty() {
+        out.push_str("### What to do next\n\n");
+        for (i, step) in steps.iter().enumerate() {
+            out.push_str(&format!(
+                "{}. {} *({})*\n",
+                i + 1,
+                step.what,
+                step.where_to_look
+            ));
+        }
+        out.push('\n');
+    }
+
     out.push_str("## Read this first\n\n");
     if let Some(note) = &report.run_note {
         out.push_str(&format!("{note}\n\n"));
+    }
+    if !report.run_steps.is_empty() {
+        out.push_str(&format!(
+            "<details>\n<summary>The {} things it did while the app ran</summary>\n\n",
+            report.run_steps.len()
+        ));
+        for step in &report.run_steps {
+            out.push_str(&format!("- {}\n", cell(step)));
+        }
+        out.push_str("\n</details>\n\n");
     }
     out.push_str(&format!(
         "{} requirements apply to this app. Of those, **{} have been looked at by something** and \

@@ -1244,6 +1244,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // report about an app and a report about the part of an app somebody happened to look at.
     let mut gaps = Vec::new();
     let mut run_note = None;
+    let mut run_steps: Vec<String> = Vec::new();
 
     if options.run_the_app {
         match probe_the_running_app(&manifest, app_dir) {
@@ -1252,6 +1253,15 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     running_app_evidence(&outcome);
                 findings.extend(running_findings);
                 probe_verified = running_verified;
+                // The summary, and the steps kept apart from it. Joining them made one
+                // 381-word paragraph at the top of the report — the first thing the reader met,
+                // and unreadable. The renderers lay the steps out as a list.
+                let signed_in_steps: Vec<String> = outcome
+                    .signed_in
+                    .as_ref()
+                    .map(|s| s.steps.clone())
+                    .unwrap_or_default();
+                run_steps = signed_in_steps.clone();
                 run_note = Some(format!(
                     "This app was started with {} and asked {} question{} while it ran, as \
                      somebody who had not signed in. It answered on {}.{} {}",
@@ -1263,11 +1273,14 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         "s"
                     },
                     plan.health_path,
-                    match &outcome.signed_in {
-                        Some(s) if !s.steps.is_empty() => {
-                            format!(" Then, as two test users: {}.", s.steps.join("; "))
-                        }
-                        _ => String::new(),
+                    if signed_in_steps.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            " It was then asked {} more question{} as two signed-in test users.",
+                            signed_in_steps.len(),
+                            if signed_in_steps.len() == 1 { "" } else { "s" }
+                        )
                     },
                     outcome.fence.explain()
                 ));
@@ -1638,6 +1651,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         target_level: manifest.target_level(),
         generated: None,
         run_note,
+        run_steps,
         frameworks: &frameworks,
         buckets: &buckets,
         claims: &resolved,
