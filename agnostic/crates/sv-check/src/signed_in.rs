@@ -636,6 +636,19 @@ const FORGERY: Rule = Rule {
           Origin header against the app's own address, and set SameSite on the session cookie.",
 };
 
+const SIMPLE_REQUEST: Rule = Rule {
+    rule_id: "probe.preflight-skipped",
+    requirement_ids: &["V3.5.2"],
+    cwe: &["CWE-352"],
+    impact: "The app takes this request in a form a page on another site can send without the \
+             browser asking the app first, so a signed-in person's browser can be made to carry it \
+             out for that site. A JSON request is only safe from that because browsers ask first, \
+             and this one did not need to be JSON.",
+    fix: "Refuse a request that changes something unless its Content-Type is `application/json`, \
+          or unless it carries a header of the app's own that only its own pages send, and check \
+          the Origin header against the app's own address as well.",
+};
+
 const SHORT_PASSWORD: Rule = Rule {
     rule_id: "probe.short-password-accepted",
     requirement_ids: &["V6.2.1"],
@@ -6230,6 +6243,7 @@ fn owned_checks(
     }
 
     forgery_check(http, owned, &session, a, out);
+    simple_request_check(http, owned, &session, a, out);
     Some(read_path)
 }
 
@@ -6332,6 +6346,157 @@ fn forgery_check(
             "a request that creates a record, sent with a signed-in user's cookies from another \
              origin and without a token, and refused"
                 .to_owned(),
+        ));
+    }
+}
+
+/// Whether the create request can be made in a form browsers send across sites without a CORS
+/// preflight (V3.5.2).
+///
+/// A JSON request from another site makes the browser ask the app first, and an app that answers no
+/// is safe from it; many apps rely on exactly that. But the same fields sent as `text/plain`, as a
+/// form, or as multipart are "simple" requests a page on any site can send with the person's cookies
+/// and no asking. Each goes out with another site's Origin and no token. Taken in any of the three
+/// forms is a finding; refused in all three is credit, for this request. Only a 2xx is taken and only
+/// a 4xx is refused: a redirect or a server error says neither, and credits nothing.
+fn simple_request_check(
+    http: &mut dyn Http,
+    owned: &sv_manifest::OwnedSection,
+    session: &Session,
+    a: &SignedIn,
+    out: &mut Outcome,
+) {
+    const ID: &str = "V3.5.2";
+    if owned.create.json.is_empty() {
+        out.not_assessed.push((
+            ID.to_owned(),
+            "The `owned` create request is a form, which a browser sends from another site without \
+             asking the app first anyway, so no preflight is being relied on; whether the app \
+             refuses it is the cross-site check's question (V3.5.1)."
+                .to_owned(),
+        ));
+        return;
+    }
+    let values = Values {
+        marker: "sv-probe-simple-request-4e07",
+        csrf: Some(String::new()),
+        ..Default::default()
+    };
+    let base = request("simple-request", &owned.create, &values, session);
+    let fields: Vec<(String, String)> = owned
+        .create
+        .json
+        .iter()
+        .map(|(k, v)| (k.clone(), fill(v, &values)))
+        .collect();
+    let boundary = "sv-probe-boundary-5c1e";
+    let multipart: String = fields
+        .iter()
+        .map(|(k, v)| {
+            format!("--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n")
+        })
+        .chain(std::iter::once(format!("--{boundary}--\r\n")))
+        .collect();
+    let form: String = fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", form_encode(k), form_encode(v)))
+        .collect::<Vec<_>>()
+        .join("&");
+    let variants = [
+        (
+            "text/plain",
+            "text/plain;charset=UTF-8".to_owned(),
+            base.body.clone().unwrap_or_default(),
+        ),
+        (
+            "a form",
+            "application/x-www-form-urlencoded".to_owned(),
+            form,
+        ),
+        (
+            "multipart",
+            format!("multipart/form-data; boundary={boundary}"),
+            multipart,
+        ),
+    ];
+    let mut taken = Vec::new();
+    let mut refused = 0;
+    let mut unclear = Vec::new();
+    for (name, content_type, body) in variants {
+        let mut simple = base.clone();
+        simple.id = format!("simple-request-{}", name.replace([' ', '/'], "-"));
+        simple.headers.retain(|(n, _)| {
+            let n = n.to_lowercase();
+            n != "content-type" && !n.contains("csrf") && !n.contains("xsrf")
+        });
+        simple.headers.extend([
+            ("Content-Type".to_owned(), content_type),
+            ("Origin".to_owned(), STRANGER.to_owned()),
+            ("Referer".to_owned(), format!("{STRANGER}/")),
+        ]);
+        simple.body = Some(body);
+        let response = http.send(&simple);
+        match response.as_ref().map(|r| r.status) {
+            Some(200..=299) => taken.push(name),
+            Some(400..=499) => refused += 1,
+            _ => unclear.push(format!("{name} ({})", status(&response))),
+        }
+    }
+    out.steps.push(format!(
+        "the create request as another site could send it without a preflight: taken as {}; \
+         refused {refused} of 3",
+        if taken.is_empty() {
+            "none".to_owned()
+        } else {
+            taken.join(", ")
+        }
+    ));
+    if !taken.is_empty() {
+        let protected_by_same_site = !a.set_at_login.is_empty()
+            && a.set_at_login
+                .iter()
+                .all(|c| matches!(c.same_site.as_deref(), Some("lax") | Some("strict")));
+        out.findings.push(finding(
+            &SIMPLE_REQUEST,
+            "A request another site can send without asking is accepted",
+            if protected_by_same_site {
+                Severity::Medium
+            } else {
+                Severity::High
+            },
+            format!(
+                "The create request at {} was taken when its fields came as {}, with the signed-in \
+                 user's cookies, an Origin of {STRANGER}, and no token. A browser sends those from \
+                 any site without a preflight.{}",
+                owned.create.path,
+                taken.join(" and as "),
+                if protected_by_same_site {
+                    " The session cookie's SameSite would stop a browser sending it from another \
+                     site, which is why this is not rated higher."
+                } else {
+                    ""
+                }
+            ),
+        ));
+    } else if refused == 3 {
+        out.verified.push(crate::Verified::new(
+            SIMPLE_REQUEST.rule_id,
+            SIMPLE_REQUEST.requirement_ids,
+            format!(
+                "the JSON create request at {}, sent from another origin in each of the three forms \
+                 a browser sends without a preflight (text/plain, a form, multipart), refused all \
+                 three",
+                owned.create.path
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "The create request, sent as another site could send it without a preflight, got \
+                 answers that neither took it nor refused it: {}.",
+                unclear.join(", ")
+            ),
         ));
     }
 }
@@ -6615,6 +6780,16 @@ mod tests {
         validation_only_in_browser: bool,
         /// A record is handed back with the owner's password hash in it.
         record_leaks_fields: bool,
+        /// The JSON API reads a JSON body whatever its Content-Type says.
+        api_parses_any_type: bool,
+        /// The JSON API also takes its fields as a form or as multipart.
+        api_takes_forms: bool,
+        /// The JSON API refuses a request from another origin.
+        api_checks_origin: bool,
+        /// The JSON API answers a request it will not take with a redirect, not a refusal.
+        api_redirects_refusals: bool,
+        /// The JSON API redirects a multipart request, and refuses the rest it will not take.
+        api_redirects_multipart: bool,
         /// Signing out sends Clear-Site-Data.
         clears_site_data: bool,
         /// Refuses every upload, whatever it is. An app whose upload path does not work as
@@ -7549,6 +7724,78 @@ mod tests {
                         ],
                         contents,
                     )
+                }
+                ("POST", "/api/notes") => {
+                    // A JSON API that relies on the browser asking first: no token, and unless
+                    // told otherwise, no look at the Origin either.
+                    let Some(owner) = user else {
+                        return Some(Self::respond(401, vec![], "sign in"));
+                    };
+                    let refuse = |app: &Self, status: u16| {
+                        if app.flaws.api_redirects_refusals {
+                            Self::respond(302, vec![("Location", "/".into())], "")
+                        } else {
+                            Self::respond(status, vec![], "no")
+                        }
+                    };
+                    if self.flaws.api_checks_origin && foreign {
+                        return Some(refuse(self, 403));
+                    }
+                    let content_type_is = |prefix: &str| {
+                        r.headers.iter().any(|(k, v)| {
+                            k.eq_ignore_ascii_case("content-type")
+                                && v.to_lowercase().starts_with(prefix)
+                        })
+                    };
+                    if self.flaws.api_redirects_multipart && content_type_is("multipart/") {
+                        return Some(Self::respond(302, vec![("Location", "/".into())], ""));
+                    }
+                    let content_type = r
+                        .headers
+                        .iter()
+                        .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+                        .map(|(_, v)| v.to_lowercase())
+                        .unwrap_or_default();
+                    let body = r.body.clone().unwrap_or_default();
+                    let as_json = || {
+                        serde_json::from_str::<serde_json::Value>(&body)
+                            .ok()
+                            .and_then(|v| v.get("text")?.as_str().map(str::to_owned))
+                    };
+                    let text = if content_type.starts_with("application/json")
+                        || self.flaws.api_parses_any_type
+                    {
+                        as_json()
+                    } else if self.flaws.api_takes_forms
+                        && content_type.starts_with("application/x-www-form-urlencoded")
+                    {
+                        pairs(&body).get("text").cloned()
+                    } else if self.flaws.api_takes_forms
+                        && content_type.starts_with("multipart/form-data")
+                    {
+                        body.split("name=\"text\"\r\n\r\n")
+                            .nth(1)
+                            .and_then(|rest| rest.split("\r\n").next())
+                            .map(str::to_owned)
+                    } else {
+                        return Some(refuse(self, 415));
+                    };
+                    let Some(text) = text else {
+                        return Some(refuse(self, 400));
+                    };
+                    self.notes.push((owner, text));
+                    Self::respond(201, vec![], &format!("{{\"id\":{}}}", self.notes.len()))
+                }
+                ("GET", p) if p.starts_with("/api/notes/") => {
+                    let n: usize = p["/api/notes/".len()..].parse().ok()?;
+                    let Some((owner, text)) = self.notes.get(n.checked_sub(1)?) else {
+                        return Some(Self::respond(404, vec![], "none"));
+                    };
+                    if user.as_ref() == Some(owner) {
+                        Self::respond(200, vec![], &format!("{{\"text\":\"{text}\"}}"))
+                    } else {
+                        Self::respond(404, vec![], "none")
+                    }
                 }
                 ("POST", "/notes") => {
                     let Some(owner) = user else {
@@ -9501,6 +9748,151 @@ mod tests {
                 credited.rule_id
             );
         }
+    }
+
+    /// `users()`, with the owned record behind a JSON API.
+    fn with_json_api() -> UsersSection {
+        let mut u = users();
+        u.owned = Some(sv_manifest::OwnedSection {
+            create: RequestTemplate {
+                method: "POST".into(),
+                path: "/api/notes".into(),
+                form: BTreeMap::new(),
+                json: [("text".to_owned(), "{marker}".to_owned())].into(),
+            },
+            read: Some("/api/notes/{id}".into()),
+            id_field: None,
+        });
+        u
+    }
+
+    fn simple_request_named(o: &Outcome) -> Vec<String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.split(", ").any(|i| i == "V3.5.2"))
+            .map(|(_, why)| why.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_json_api_that_takes_json_alone_is_credited_for_the_preflight_it_relies_on() {
+        let o = run_against(Flaws::default(), &with_json_api());
+        assert!(
+            verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id),
+            "{:?}\n{:?}",
+            o.steps,
+            o.not_assessed
+        );
+        assert!(!rule_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+        // The record really was made through the API, or none of this means anything.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("created a record at /api/notes/")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn each_simple_form_the_api_takes_is_named_in_the_finding() {
+        for (flaws, says, not) in [
+            (
+                Flaws {
+                    api_parses_any_type: true,
+                    ..Default::default()
+                },
+                "text/plain",
+                "multipart",
+            ),
+            (
+                Flaws {
+                    api_takes_forms: true,
+                    ..Default::default()
+                },
+                "a form and as multipart",
+                "text/plain",
+            ),
+        ] {
+            let o = run_against(flaws, &with_json_api());
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == SIMPLE_REQUEST.rule_id)
+                .unwrap_or_else(|| panic!("{says}: no finding: {:?}", o.steps));
+            assert!(f.description.contains(says), "{}", f.description);
+            assert!(!f.description.contains(not), "{}", f.description);
+            assert!(!verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+        }
+    }
+
+    #[test]
+    fn an_api_that_checks_the_origin_is_credited_too() {
+        let o = run_against(
+            Flaws {
+                api_parses_any_type: true,
+                api_takes_forms: true,
+                api_checks_origin: true,
+                ..Default::default()
+            },
+            &with_json_api(),
+        );
+        assert!(
+            verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+    }
+
+    #[test]
+    fn a_redirect_is_neither_taken_nor_refused_and_a_form_needs_no_preflight() {
+        let o = run_against(
+            Flaws {
+                api_redirects_refusals: true,
+                ..Default::default()
+            },
+            &with_json_api(),
+        );
+        assert!(!verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+        assert!(!rule_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+        assert!(
+            simple_request_named(&o)
+                .iter()
+                .any(|w| w.contains("neither took it nor refused it")),
+            "{:?}",
+            o.not_assessed
+        );
+        // Two of the three refused and the third a redirect is not three refused.
+        let o = run_against(
+            Flaws {
+                api_redirects_multipart: true,
+                ..Default::default()
+            },
+            &with_json_api(),
+        );
+        assert!(
+            !verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            simple_request_named(&o)
+                .iter()
+                .any(|w| w.contains("multipart (302)")),
+            "{:?}",
+            o.not_assessed
+        );
+        // The ordinary notes page takes a form, which no preflight ever guarded.
+        let o = run_against(Flaws::default(), &users());
+        assert!(!verified_ids(&o).contains(&SIMPLE_REQUEST.rule_id));
+        assert!(
+            simple_request_named(&o)
+                .iter()
+                .any(|w| w.contains("is a form")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]

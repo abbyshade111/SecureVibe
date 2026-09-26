@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 122 (35%) | 5 | 218 |
+| OWASP ASVS 5.0 | 345 | 123 (36%) | 5 | 217 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -42,7 +42,7 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 53 | 7 | 1 | 3 | 30 | 21 | 2 |
+| L1 | 70 | 54 | 7 | 1 | 3 | 31 | 21 | 2 |
 | L2 | 183 | 63 | 4 | 0 | 13 | 27 | 25 | 1 |
 | L3 | 92 | 6 | 1 | 0 | 0 | 1 | 2 | 2 |
 
@@ -54,7 +54,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
-| V3 Web Frontend Security | 31 | 17 | 0 | 14 |
+| V3 Web Frontend Security | 31 | 18 | 0 | 13 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (72)
+### Settled by asking the running app (73)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -104,6 +104,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V3.4.5 | L2 | The running app: `probe.security-headers` |
 | V3.4.6 | L2 | The running app: `probe.security-headers` |
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V3.5.2 | L1 | Signed in: `probe.preflight-skipped` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
@@ -219,11 +220,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 32 ca
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (15)
+### Level 1 with no check at all (14)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.3.1, V2.1.1, V2.2.1, V3.5.2, V6.1.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
