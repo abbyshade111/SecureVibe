@@ -24,6 +24,14 @@ const PROBE_IMAGE: &str = "busybox:1.36";
 /// every message it is sent and answers questions about them over HTTP. Pinned to a minor release,
 /// as the probe image is, so a run does not change under the owner because a new one came out.
 const MAIL_IMAGE: &str = "axllent/mailpit:v1.31";
+/// The test OpenID Connect provider runs in a stock Node image: its script uses built-in modules
+/// only, because the fence has no route to a package registry.
+const PROVIDER_IMAGE: &str = "node:22-alpine";
+const PROVIDER_PORT: u16 = 9000;
+const PROVIDER_SCRIPT: &str = include_str!("../assets/oidc-provider.mjs");
+/// The client id the app is told to use. Not a secret: the provider checks it only to refuse a
+/// sign-in the app did not ask for with its own configuration.
+const PROVIDER_CLIENT_ID: &str = "sv-test-client";
 /// Where the app sends its mail on the mail server, and where the probes read it.
 const SMTP_PORT: u16 = 1025;
 const MAIL_API_PORT: u16 = 8025;
@@ -87,10 +95,16 @@ impl Backend for DockerBackend {
         let app = format!("{run_id}-app");
         let sidecar = format!("{run_id}-probe");
         let mail_name = format!("{run_id}-mail");
+        let provider_name = format!("{run_id}-idp");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
-            containers: vec![app.clone(), sidecar.clone(), mail_name.clone()],
+            containers: vec![
+                app.clone(),
+                sidecar.clone(),
+                mail_name.clone(),
+                provider_name.clone(),
+            ],
         };
 
         // 1. The fence.
@@ -122,6 +136,14 @@ impl Backend for DockerBackend {
             .is_some_and(|u| u.reset.is_some() || u.email_code.is_some());
         let mail =
             (wants_mail && self.start_mail(&network, &mail_name)).then_some(mail_name.as_str());
+
+        // 1d. A test OpenID Connect provider, when the app signs in through another service. Also
+        //     before the app, which may read the provider's details as it starts. The secret is new
+        //     every run and goes only to the provider and the app.
+        let client_secret = crate::random_hex(16);
+        let provider = (plan.oidc.is_some()
+            && self.start_provider(&network, &provider_name, &client_secret))
+        .then_some(provider_name.as_str());
 
         // 2. The app. Its folder is mounted read-only: `sv` reads code, it does not let the code
         //    it is checking rewrite itself mid-check. No port is published — nothing on this
@@ -166,6 +188,18 @@ impl Backend for DockerBackend {
             "/dev/null",
         ];
         for pair in &mail_env {
+            args.extend(["-e", pair.as_str()]);
+        }
+        let provider_env: Vec<String> = provider
+            .map(|host| {
+                vec![
+                    format!("OIDC_ISSUER=http://{host}:{PROVIDER_PORT}"),
+                    format!("OIDC_CLIENT_ID={PROVIDER_CLIENT_ID}"),
+                    format!("OIDC_CLIENT_SECRET={client_secret}"),
+                ]
+            })
+            .unwrap_or_default();
+        for pair in &provider_env {
             args.extend(["-e", pair.as_str()]);
         }
         args.extend([plan.image.as_str(), "sh", "-c", command.as_str()]);
@@ -214,12 +248,29 @@ impl Backend for DockerBackend {
             .as_ref()
             .map(|users| self.signed_in(&via, &app, mail, plan, users));
 
+        // 4c. Signing in through the test provider, when the app signs in through another service.
+        //     A provider that never came up leaves `provider` empty, and the check says so.
+        let oidc = plan.oidc.as_ref().map(|section| {
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: provider.filter(|host| self.provider_ready(&via, host)),
+            };
+            sv_check::oidc::run(&mut http, section)
+        });
+
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
         // after the probes.
         let _ = self.docker(&["rm", "-f", &sidecar]);
         if mail.is_some() {
             let _ = self.docker(&["rm", "-f", &mail_name]);
+        }
+        if provider.is_some() {
+            let _ = self.docker(&["rm", "-f", &provider_name]);
         }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
@@ -280,6 +331,7 @@ impl Backend for DockerBackend {
             fence: Fence::DockerInternalNetwork,
             probe_responses,
             signed_in,
+            oidc,
         })
     }
 }
@@ -293,6 +345,8 @@ struct DockerHttp<'a> {
     port: u16,
     /// The mail server's name on the fenced network, when the run has one.
     mail: Option<&'a str>,
+    /// The test provider's name on the fenced network, when the run has one that answered.
+    provider: Option<&'a str>,
 }
 
 impl sv_check::signed_in::Http for DockerHttp<'_> {
@@ -301,6 +355,14 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
         request: &sv_check::probes::ProbeRequest,
     ) -> Option<sv_check::probes::ProbeResponse> {
         self.backend.probe(self.via, self.app, self.port, request)
+    }
+
+    fn provider(
+        &mut self,
+        request: &sv_check::probes::ProbeRequest,
+    ) -> Option<sv_check::probes::ProbeResponse> {
+        let host = self.provider?;
+        self.backend.probe(self.via, host, PROVIDER_PORT, request)
     }
 
     fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
@@ -329,6 +391,36 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
                 .collect(),
         )
     }
+}
+
+/// How the test provider is started: fenced and hardened like the mail server, with its script
+/// passed on the command line so nothing is written to the owner's disk.
+fn provider_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 4]) -> Vec<&'a str> {
+    let mut args = vec![
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+    ];
+    for pair in env {
+        args.extend(["-e", pair]);
+    }
+    args.extend([
+        PROVIDER_IMAGE,
+        "node",
+        "--input-type=module",
+        "-e",
+        PROVIDER_SCRIPT,
+    ]);
+    args
 }
 
 /// How the mail server is started. Separate so its hardening can be checked without starting it.
@@ -408,6 +500,7 @@ impl DockerBackend {
             app,
             port: plan.port,
             mail,
+            provider: None,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
@@ -547,6 +640,43 @@ impl DockerBackend {
     /// by this one; there is nothing behind it to protect.
     fn start_mail(&self, network: &str, name: &str) -> bool {
         matches!(self.docker(&mail_args(network, name)), Ok((0, _)))
+    }
+
+    fn start_provider(&self, network: &str, name: &str, secret: &str) -> bool {
+        let issuer = format!("ISSUER=http://{name}:{PROVIDER_PORT}");
+        let port = format!("PORT={PROVIDER_PORT}");
+        let client = format!("CLIENT_ID={PROVIDER_CLIENT_ID}");
+        let secret = format!("CLIENT_SECRET={secret}");
+        matches!(
+            self.docker(&provider_args(
+                network,
+                name,
+                [&issuer, &port, &client, &secret]
+            )),
+            Ok((0, _))
+        )
+    }
+
+    /// Whether the provider answers yet: Node takes a moment, and a check that starts before it
+    /// is up would report the app's sign-in as broken when the provider was.
+    fn provider_ready(&self, via: &Via, host: &str) -> bool {
+        let health = sv_check::probes::ProbeRequest {
+            id: "provider-health".to_owned(),
+            method: "GET".to_owned(),
+            path: "/_sv/health".to_owned(),
+            headers: Vec::new(),
+            body: None,
+        };
+        for _ in 0..20 {
+            if self
+                .probe(via, host, PROVIDER_PORT, &health)
+                .is_some_and(|r| r.status == 200)
+            {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        false
     }
 
     /// Runs a command where requests to the app are made from: in the sidecar, or in a throw-away
@@ -725,6 +855,24 @@ fn base64(input: &[u8]) -> String {
 /// of its own. There is no safe repair for that — a stripped path is a different request from the
 /// one asked for — so the whole request is refused, and a probe with no answer is already reported
 /// as unanswered rather than as a pass.
+/// The shell that sends one request and reads the whole answer, run in the sidecar.
+///
+/// Until 26 September 2026 this was `echo … | nc`, and it lost every answer a Node server was
+/// still working on. When `echo` finishes, BusyBox's `nc` half-closes the connection, and Node's
+/// HTTP server drops a connection whose client has stopped sending before the reply is written —
+/// so a route that waited on anything (a database, a fetch, OpenID Connect discovery) came back
+/// as "no answer", while a route that replied at once worked. Found by the first real sign-in
+/// through the test provider: the app answered `/` and never `/login/google`. `nc -e` hands the
+/// connected socket to a small script that writes the request and then reads until the server
+/// closes, so the sending side stays open. `timeout` stands in for `nc -w`, which no longer
+/// applies once the script has the socket, so a server that never closes cannot stall the run.
+fn exchange_script(host: &str, port: u16, raw: &str) -> String {
+    format!(
+        "timeout 15 nc -w 5 {host} {port} -e sh -c 'echo {} | base64 -d; cat 1>&2' 2>&1",
+        base64(raw.as_bytes())
+    )
+}
+
 fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<String> {
     let unsafe_text = |s: &str| s.contains(['\r', '\n', ' ', '\t']);
     if unsafe_text(&request.method) || unsafe_text(&request.path) || unsafe_text(host) {
@@ -768,10 +916,7 @@ impl DockerBackend {
             body: None,
         };
         let raw = request_bytes(&request, host)?;
-        let script = format!(
-            "echo {} | base64 -d | nc -w 5 {host} {port}",
-            base64(raw.as_bytes())
-        );
+        let script = exchange_script(host, port, &raw);
         let (_, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
         let (head, body) = out.split_once("\r\n\r\n")?;
         head.split_whitespace()
@@ -822,10 +967,7 @@ impl DockerBackend {
         request: &sv_check::probes::ProbeRequest,
     ) -> Option<sv_check::probes::ProbeResponse> {
         let raw = request_bytes(request, app)?;
-        let script = format!(
-            "echo {} | base64 -d | nc -w 5 {app} {port}",
-            base64(raw.as_bytes())
-        );
+        let script = exchange_script(app, port, &raw);
         let (code, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
         if code != 0 && out.trim().is_empty() {
             return None;
@@ -862,6 +1004,75 @@ mod probe_tests {
         );
         // Measured against a real sidecar on 25 September 2026, with the host reaching 1.1.1.1:53
         // as the control: outbound blocked, DNS blocked, every path read-only, CapEff all zeroes.
+    }
+
+    #[test]
+    fn the_test_provider_is_fenced_and_hardened_like_the_sidecar() {
+        let args = provider_args("sv-1-net", "sv-1-idp", ["A=1", "B=2", "C=3", "D=4"]);
+        for flag in HARDENING {
+            assert!(args.contains(&flag), "{flag} missing: {args:?}");
+        }
+        let at = args.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(args[at + 1], "sv-1-net");
+        assert!(
+            !args
+                .iter()
+                .any(|a| *a == "-p" || a.starts_with("--publish")),
+            "nothing published: {args:?}"
+        );
+        assert_eq!(
+            args.last(),
+            Some(&PROVIDER_SCRIPT),
+            "the script is passed in, not read from the owner's disk"
+        );
+    }
+
+    #[test]
+    fn an_answer_a_node_server_takes_a_moment_over_still_arrives() {
+        // The transport lost every answer a Node server was still working on: `echo | nc`
+        // half-closed the connection and Node dropped it. This runs a server that waits 200ms
+        // before replying and asks it through the same path the probes use. Where there is no
+        // container backend it says so and stops, like the other tests that need one; where there
+        // is one, a setup that fails is a failure, not a skip.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-slowtest-{}", std::process::id());
+        let server = format!("{network}-app");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            "require('http').createServer(async (q, s) => { await new Promise(r => setTimeout(r, 200)); s.end('late but here') }).listen(8080)",
+        ]);
+        let answer = matches!(started, Ok((0, _))).then(|| {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let request = sv_check::probes::ProbeRequest {
+                id: "slow".to_owned(),
+                method: "GET".to_owned(),
+                path: "/".to_owned(),
+                headers: Vec::new(),
+                body: None,
+            };
+            backend.probe(&Via::FreshContainer(&network), &server, 8080, &request)
+        });
+        let _ = backend.docker(&["rm", "-f", &server]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        let answer = answer.unwrap_or_else(|| panic!("the test server did not start: {started:?}"));
+        let answer =
+            answer.expect("no answer: the reply was dropped while the server worked on it");
+        assert_eq!(answer.status, 200);
+        assert!(answer.body.contains("late but here"), "{}", answer.body);
     }
 
     #[test]

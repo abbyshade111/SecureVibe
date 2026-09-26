@@ -425,7 +425,11 @@ another session is not a claim.
      script in a stock Node image on the fenced network — because it has to misbehave on purpose,
      which no ready-made test provider does. Left for later: V6.8.1 and V10.2.2 need two providers,
      V10.5.3 needs metadata an app reads at start-up to change, and V10.5.2 and V6.8.4 depend on
-     what the app decides rather than on what the provider sends.
+     what the app decides rather than on what the provider sends. **The five are done the same
+     day:** a `[stack.run.oidc]` section starts the test provider, and Level 2 goes from 56 to 61 of
+     183. On the way it found that the sidecar's `echo | nc` cut the connection before a slow Node
+     route could answer, which affected every run. See DESIGN, "A pretend "Sign in with Google"
+     inside the fence".
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,

@@ -1,0 +1,28 @@
+manifest-version = 1
+
+# An example of [stack.run.oidc]: the app's only sign-in is through another service. For the run,
+# `sv` points it at a test provider of its own (OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET) and
+# sees what it accepts. `flaws.json` beside it, if present, switches checks off.
+
+[app]
+name = "Notes with Sign in with Google"
+description = "Private notes; people sign in through an OpenID Connect provider."
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["javascript"]
+
+[stack.run]
+image = "node:22-alpine"
+start = "node server.js"
+health = "/"
+
+[stack.run.oidc]
+start = "/login/google"
+private = "/account"
+
+[capabilities]
+auth = true
+oauth = true
+tls = "terminated-upstream"

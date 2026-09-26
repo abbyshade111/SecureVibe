@@ -101,6 +101,9 @@ pub struct RunPlan {
     pub users: Option<sv_manifest::UsersSection>,
     /// The numbers the owner states as policy, for the probes that hold the app to them.
     pub policy: sv_manifest::PolicySection,
+    /// How the app signs in through another service, when securevibe.toml says. The run then
+    /// starts a test provider of `sv`'s own and points the app at it.
+    pub oidc: Option<sv_manifest::OidcSection>,
     /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
     pub graphql: Option<String>,
     pub websocket: Option<String>,
@@ -163,6 +166,7 @@ impl RunPlan {
             port: APP_PORT,
             users: run.users.clone(),
             policy: manifest.policy.clone(),
+            oidc: run.oidc.clone(),
             graphql: run.graphql.clone(),
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
@@ -192,6 +196,10 @@ pub struct RunOutcome {
     pub probe_responses: Vec<sv_check::probes::ProbeResponse>,
     /// What asking as signed-in users showed, when securevibe.toml says how to sign in.
     pub signed_in: Option<sv_check::signed_in::Outcome>,
+    /// What signing in through the test provider showed, when the app signs in through another
+    /// service. Kept apart from `signed_in`: an app whose only sign-in is "Sign in with …" was not
+    /// asked any of the signed-in questions, and folding the two together would say it was.
+    pub oidc: Option<sv_check::signed_in::Outcome>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.

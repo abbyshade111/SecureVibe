@@ -182,6 +182,25 @@ pub struct RunSection {
     /// no `Origin` and one from a site the app has never heard of.
     #[serde(default)]
     pub websocket: Option<String>,
+    /// How the app signs people in through another service ("Sign in with Google"), so the run
+    /// can point it at a test provider of `sv`'s own and see what it accepts.
+    #[serde(default)]
+    pub oidc: Option<OidcSection>,
+}
+
+/// `[stack.run.oidc]`: the app signs in through OpenID Connect.
+///
+/// For the run, the app is given a test provider instead of the real one, in `OIDC_ISSUER`,
+/// `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET`, and has to use those. The provider signs anybody in
+/// without asking, and can be told to get one thing wrong in the next token it issues — which is
+/// how the probes see whether the app notices.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct OidcSection {
+    /// The path that starts signing in: it answers by sending the browser to the provider.
+    pub start: String,
+    /// A page only a signed-in person sees, to tell whether a sign-in worked.
+    pub private: String,
 }
 
 /// One request the probes make on the app's behalf: how to sign up, sign in, or create something.
