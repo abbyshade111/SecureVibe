@@ -111,6 +111,9 @@ pub struct RunPlan {
     /// Introspection is allowed for an API meant for others and not otherwise (V4.3.2), so the
     /// answer to that question depends on this one, and silence here leaves it unanswered.
     pub public_api: Option<bool>,
+    /// Wait out the session timeouts the owner states (`sv run --slow`). Off unless asked for: it
+    /// can take as long as the timeouts, up to an hour and a half.
+    pub slow: bool,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -170,6 +173,7 @@ impl RunPlan {
             graphql: run.graphql.clone(),
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
+            slow: false,
         })
     }
 }

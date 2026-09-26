@@ -5,6 +5,43 @@ another session is not a claim.
 
 ## Next
 
+- **A leaky guessing limit makes `probe.forwarded-for-trusted` say the opposite of the truth, in
+  both directions.** Found on 26 September 2026 reviewing #130/#131; not claimed. `forwarded_check`
+  in `crates/sv-check/src/signed_in.rs` sends one wrong attempt claiming `203.0.113.77` and one
+  claiming nothing, and calls it a finding when the first is answered as the first attempt was and
+  the second is still refused. That pattern is produced by any limiter that lets one attempt through
+  per interval — a token bucket, a sliding window, `nginx limit_req`, `express-rate-limit` — whatever
+  it thinks about addresses.
+
+  Reproduced with a fake app whose limit releases one attempt each time it refuses one
+  (`lockout_leaks`), a limit counting by address, `locks_out_after: Some(6)`, `policy(Some(6))`:
+
+  | limiter | reads X-Forwarded-For | finding |
+  |---|---|---|
+  | steady | no | none — correct |
+  | steady | **yes** | **found** — correct |
+  | leaky | no | **found — a false positive on a correct app** |
+  | leaky | **yes** | none — **a false negative on the real flaw** |
+
+  The two errors swap places: the leak invents the finding on the app that ignores the header, and
+  hides it on the app that trusts it, because the same leak lifts the plain control too. And the
+  evidence line for the false positive is **character-for-character the one for the true positive** —
+  *"answered 403, as the first attempt was; one more claiming nothing: still refused (429)"* — so
+  nobody reading the report can tell them apart. The finding's own words then assert the wrong
+  conclusion: *"Nothing sits in front of the app here, so the address came from the request itself."*
+
+  **A tested fix.** Two spoofed attempts in a row, each from its own address (`.77`, `.78`), then two
+  plain ones; credit the finding only when both spoofed attempts were answered as the first was and
+  both plain ones were refused. A one-per-interval leak releases one of the two, so the pattern
+  breaks. Measured against the same four rows: the false positive goes, the three correct outcomes
+  stay, and the full suite still passes (367 tests). The false negative stays — a leaky limiter still
+  hides a genuinely header-trusting app — which is the safe direction and probably needs timing to
+  do better; the check is finding-only, so nothing is credited either way.
+
+  Note also that alternating the attempts (plain, spoofed, plain, spoofed) does **not** work, and it
+  is the first thing that comes to mind: a limiter releasing one attempt in two produces exactly that
+  alternation.
+
 - **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
   26 September 2026 reviewing the TOTP probes (#129); not claimed. `totp_checks` in
   `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
@@ -426,7 +463,7 @@ another session is not a claim.
      which no ready-made test provider does. Left for later: V6.8.1 and V10.2.2 need two providers,
      V10.5.3 needs metadata an app reads at start-up to change, and V10.5.2 and V6.8.4 depend on
      what the app decides rather than on what the provider sends. **The five are done the same
-     day:** a `[stack.run.oidc]` section starts the test provider, and Level 2 goes from 56 to 61 of
+     day:** a `[stack.run.oidc]` section starts the test provider, and Level 2 goes from 58 to 63 of
      183. On the way it found that the sidecar's `echo | nc` cut the connection before a slow Node
      route could answer, which affected every run. See DESIGN, "A pretend "Sign in with Google"
      inside the fence".
@@ -460,7 +497,9 @@ another session is not a claim.
      so it now goes first. See DESIGN, "Two-factor codes, computed rather than waited for".
   5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
      whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers. **Claimed on 26
-     September 2026 by session securevibe-e9.**
+     September 2026 by session securevibe-e9, and done the same day:** `idle-timeout-minutes` and
+     `session-lifetime-minutes` under `[policy]`, held to by `sv run --slow`. Level 2 gains V7.3.1
+     and V7.3.2. See DESIGN, "Session timeouts, waited out".
   6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
      container inside the fence. It can see what only a browser decides: whether a request needs a
      CORS preflight (V3.5.2), whether markup submitted through a form executes when the page renders
@@ -496,6 +535,10 @@ another session is not a claim.
      address". Against an app whose limit counts by address and trips during the suite before the
      brute-force check, it is not asked; the report says why for V6.3.1, the brute-force check's own
      requirement, and does not name V15.3.4 there.
+     **V12.1.4, V12.1.5, and V3.7.4 claimed on 26 September 2026 by session securevibe-e9**, as more
+     of `sv probe`: a stapled OCSP response, an ECH configuration in the site's DNS, and the HSTS
+     preload list from a local copy. Request smuggling (V4.2.1) is left out: it means sending a live
+     site deliberately malformed requests, which is not what `sv probe`'s read-only rule allows.
 
   9. **Named pages for sign-up, password change, and one multi-step flow (3).** No new tool: three
      addresses in `[stack.run.users]`, the way `upload` names one. Try `Password123!` (V6.2.12, L2),

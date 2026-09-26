@@ -1638,6 +1638,27 @@ session, no limit) raised all four findings.
 
 V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
 
+### Session timeouts, waited out
+
+V7.3.1 and V7.3.2 ask for an idle timeout and an absolute session lifetime "according to documented
+security decisions". As with `failed-sign-ins`, prose cannot be held to anything and a number can, so
+the owner states two under `[policy]`: `idle-timeout-minutes` and `session-lifetime-minutes`. Checking
+them means waiting, so it happens only with `sv run --slow` (or `sv report --run --slow`), and it waits
+at most 90 minutes in all; a larger number is said and not waited for.
+
+Two new sessions of A's, both shown to open the private page first. One is left alone. The other is
+kept busy — a request every third of the idle timeout, never more than two minutes apart. After the
+idle timeout and a minute more, the idle session has to be refused while the busy one still opens the
+page; the busy one is the control that says the idle one ended for being idle, not because every
+session died or the app stopped answering. After the lifetime and a minute more, the busy one has to
+be refused too, and a sign-in begun then has to work — the control that says the app is still letting
+people in. A refusal without its control is *not assessed*, and says why.
+
+It runs early, straight after signing in is shown to work, because A's password is still the one it was
+made with there; later checks change it when there is no sign-up. An idle timeout no shorter than the
+lifetime is not judged: the busy session would end too, and the two could not be told apart. The
+sidecar's time limit grows by the waiting.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets
@@ -2658,7 +2679,7 @@ requirements about how it treats what comes back: that a sign-in is finished onl
 that started it (V10.1.2, V10.2.1), that the ID token's `nonce` is the one the app sent (V10.5.1),
 that the token was issued to this app and not another (V10.5.4), and that its signature is checked
 against the provider's published keys (V6.8.2). None of those can be asked of Google itself, which
-never misbehaves on request and is outside the fence anyway. Level 2 goes from 56 to 61 of 183.
+never misbehaves on request and is outside the fence anyway. Level 2 goes from 58 to 63 of 183.
 
 A `[stack.run.oidc]` section names the address that starts a sign-in and a page only a signed-in
 person sees. `sv run` then starts a test provider on the fenced network and gives the app

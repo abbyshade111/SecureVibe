@@ -103,6 +103,8 @@ RUST_CHECKS = {
     "probe.reset-code-guessable": ("signed-in", ["V6.4.3"]),
     "probe.reset-reveals-account": ("signed-in", ["V6.3.8"]),
     "probe.email-code-reusable": ("signed-in", ["V6.5.1"]),
+    "probe.session-idle-timeout": ("signed-in", ["V7.3.1"]),
+    "probe.session-lifetime": ("signed-in", ["V7.3.2"]),
     "probe.email-code-unbound": ("signed-in", ["V6.6.2"]),
     "probe.email-code-short": ("signed-in", ["V6.5.4"]),
     "probe.email-code-guessing-unlimited": ("signed-in", ["V6.6.3"]),

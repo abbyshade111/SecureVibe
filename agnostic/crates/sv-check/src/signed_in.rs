@@ -888,6 +888,25 @@ const EMAIL_CODE_GUESSING: Rule = Rule {
           attempts or cancel the code and ask for a new one.",
 };
 
+const NO_IDLE_TIMEOUT: Rule = Rule {
+    rule_id: "probe.session-idle-timeout",
+    requirement_ids: &["V7.3.1"],
+    cwe: &["CWE-613"],
+    impact: "A session left open on a shared or stolen computer stays signed in long after its owner \
+             walked away.",
+    fix: "End a session that has not been used for the time you stated, on the server: record when \
+          it was last used, and refuse it once that is longer ago than the timeout.",
+};
+
+const NO_SESSION_LIFETIME: Rule = Rule {
+    rule_id: "probe.session-lifetime",
+    requirement_ids: &["V7.3.2"],
+    cwe: &["CWE-613"],
+    impact: "A session kept busy — by its owner, or by whoever stole it — never has to sign in again.",
+    fix: "Record when each session began, and ask for the password again once it is older than the \
+          lifetime you stated, however recently it was used.",
+};
+
 const SESSIONS_SURVIVE_DELETION: Rule = Rule {
     rule_id: "probe.sessions-survive-deletion",
     requirement_ids: &["V7.4.2"],
@@ -1073,6 +1092,19 @@ pub fn run(
     seeded: bool,
     policy: &sv_manifest::PolicySection,
 ) -> Outcome {
+    run_with(http, users, accounts, seeded, policy, false)
+}
+
+/// `run`, and with `slow` also the checks that have to wait: the session timeouts the owner states,
+/// waited out (`sv run --slow`).
+pub fn run_with(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    seeded: bool,
+    policy: &sv_manifest::PolicySection,
+    slow: bool,
+) -> Outcome {
     let mut out = Outcome::default();
     let problems = users.problems();
     if !problems.is_empty() {
@@ -1171,6 +1203,19 @@ pub fn run(
             ),
         ));
     }
+
+    // 2b. The session timeouts, which mean waiting. Here, while A's password is still the one it
+    //     was made with — later checks change it when there is no sign-up — and with sessions of
+    //     its own, so nothing below is using them.
+    session_timeout_checks(
+        http,
+        users,
+        &accounts.a,
+        confirm_path.as_deref().filter(|_| signed_in_works),
+        policy,
+        slow,
+        &mut out,
+    );
 
     // 3. A record A owns, read as B and as nobody; then the same request from another site. First
     //    among the signed-in checks because A reading back what A made is the second way to show
@@ -1339,6 +1384,252 @@ fn forwarded_check(
             ),
         ));
     }
+}
+
+/// The most `sv run --slow` waits, in all. A lifetime stated longer is not waited out.
+const MOST_WAIT_MINUTES: u32 = 90;
+
+/// Whether sessions end when the owner says they should (V7.3.1, V7.3.2), which means waiting.
+///
+/// Two sessions of A's, both shown open first. One is left alone; the other is kept busy, a request
+/// every so often. After the idle timeout and a minute more, the idle one must be refused and the
+/// busy one must still work — the busy one is what shows the idle one was refused for being idle,
+/// rather than because every session died or the app stopped answering. After the lifetime and a
+/// minute more, the busy one must be refused too, and a sign-in begun then must still work.
+///
+/// The numbers are the owner's (`idle-timeout-minutes`, `session-lifetime-minutes`), as
+/// `failed-sign-ins` is: the requirements ask for timeouts "according to documented security
+/// decisions", and a number can be held to where prose cannot. Only with `--slow`.
+fn session_timeout_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    a: &Account,
+    confirm: Option<&str>,
+    policy: &sv_manifest::PolicySection,
+    slow: bool,
+    out: &mut Outcome,
+) {
+    let idle = policy.idle_timeout_minutes;
+    let lifetime = policy.session_lifetime_minutes;
+    let say = |id: &str, why: String, out: &mut Outcome| {
+        out.not_assessed.push((id.to_owned(), why));
+    };
+    if idle.is_none() && lifetime.is_none() {
+        say(
+            "V7.3.1, V7.3.2",
+            "Whether sessions time out: say after how long, as `idle-timeout-minutes` and \
+             `session-lifetime-minutes` under [policy] in securevibe.toml, and run `sv run --slow`, \
+             which waits that long and then asks."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    if !slow {
+        say(
+            "V7.3.1, V7.3.2",
+            "Whether sessions time out when securevibe.toml says they should: that means waiting, \
+             so it is asked only by `sv run --slow`."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let Some(confirm) = confirm else {
+        say(
+            "V7.3.1, V7.3.2",
+            "Whether sessions time out: telling needs a private page a signed-in user alone can \
+             open, and none was shown."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    // What will be waited out, within the most this waits.
+    let lifetime = match lifetime {
+        Some(0) | None => None,
+        Some(l) if l > MOST_WAIT_MINUTES => {
+            say(
+                "V7.3.2",
+                format!(
+                    "A session lifetime of {l} minutes is longer than the {MOST_WAIT_MINUTES} this \
+                     waits, so it was not waited out."
+                ),
+                out,
+            );
+            None
+        }
+        Some(l) => Some(l),
+    };
+    let idle = match idle {
+        Some(0) | None => None,
+        Some(i) if i + 1 > MOST_WAIT_MINUTES => {
+            say(
+                "V7.3.1",
+                format!(
+                    "An idle timeout of {i} minutes is longer than the {MOST_WAIT_MINUTES} this \
+                     waits, so it was not waited out."
+                ),
+                out,
+            );
+            None
+        }
+        // A session that must end within the idle timeout anyway cannot show idleness is what
+        // ended it: the busy one would end too.
+        Some(i) if lifetime.is_some_and(|l| l <= i) => {
+            say(
+                "V7.3.1",
+                format!(
+                    "The idle timeout, {i} minutes, is no shorter than the session lifetime, so a \
+                     session refused after it cannot be told to have ended for being idle."
+                ),
+                out,
+            );
+            None
+        }
+        Some(i) => Some(i),
+    };
+    if idle.is_none() && lifetime.is_none() {
+        return;
+    }
+
+    let opens = |http: &mut dyn Http, session: &Session, label: &str| {
+        ok(&http.send(&get(&format!("timeout-{label}"), confirm, session)))
+    };
+    let mut quiet = Vec::new();
+    let (Some(left), Some(busy)) = (
+        sign_in(http, users, "idle", a, &mut quiet),
+        sign_in(http, users, "busy", a, &mut quiet),
+    ) else {
+        return;
+    };
+    let (left, busy) = (left.session, busy.session);
+    if !(opens(http, &left, "idle-start") && opens(http, &busy, "busy-start")) {
+        say(
+            "V7.3.1, V7.3.2",
+            "Whether sessions time out: two new sessions of the first test user did not both open \
+             the private page to begin with."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let began = http.now();
+    // Kept busy well inside the shortest timeout, and never idle for more than two minutes.
+    let every = idle.map_or(120, |i| (u64::from(i) * 60 / 3).clamp(10, 120));
+    let wait_until = |http: &mut dyn Http, until: u64| {
+        while http.now() < until {
+            let left = until - http.now();
+            http.wait(every.min(left));
+            ok(&http.send(&get("timeout-keep-busy", confirm, &busy)));
+        }
+    };
+
+    if let Some(minutes) = idle {
+        wait_until(http, began + u64::from(minutes) * 60 + 60);
+        let left_open = opens(http, &left, "idle-after");
+        let busy_open = opens(http, &busy, "busy-after-idle");
+        out.steps.push(format!(
+            "after {} minutes, a session left alone {} and one kept busy {}",
+            minutes + 1,
+            if left_open {
+                "still opened the private page"
+            } else {
+                "was refused"
+            },
+            if busy_open {
+                "still opened it"
+            } else {
+                "was refused"
+            },
+        ));
+        if left_open {
+            out.findings.push(finding(
+                &NO_IDLE_TIMEOUT,
+                "A session left unused does not time out",
+                Severity::Medium,
+                format!(
+                    "securevibe.toml says a session should end after {} unused. A \
+                     session left alone for {} minutes still opened {confirm}.",
+                    minutes_text(minutes),
+                    minutes + 1
+                ),
+            ));
+        } else if busy_open {
+            out.verified.push(crate::Verified::new(
+                NO_IDLE_TIMEOUT.rule_id,
+                NO_IDLE_TIMEOUT.requirement_ids,
+                format!(
+                    "a session left unused for {} minutes, refused, where one kept busy for the \
+                     same time still opened the private page; the timeout you stated is {}",
+                    minutes + 1,
+                    minutes_text(minutes)
+                ),
+            ));
+        } else {
+            say(
+                "V7.3.1",
+                "A session left unused was refused, but so was one kept busy, so it cannot be \
+                 said to have ended for being idle."
+                    .to_owned(),
+                out,
+            );
+        }
+    }
+
+    if let Some(minutes) = lifetime {
+        wait_until(http, began + u64::from(minutes) * 60 + 60);
+        let busy_open = opens(http, &busy, "busy-after-lifetime");
+        let fresh = sign_in(http, users, "after-lifetime", a, &mut quiet)
+            .is_some_and(|s| opens(http, &s.session, "fresh-after-lifetime"));
+        out.steps.push(format!(
+            "after {} minutes, the session kept busy {}, and a new sign-in {}",
+            minutes + 1,
+            if busy_open {
+                "still opened the private page"
+            } else {
+                "was refused"
+            },
+            if fresh { "worked" } else { "did not" },
+        ));
+        if busy_open {
+            out.findings.push(finding(
+                &NO_SESSION_LIFETIME,
+                "A session kept busy never has to sign in again",
+                Severity::Medium,
+                format!(
+                    "securevibe.toml says a session should last at most {}. One \
+                     used every {every} seconds still opened {confirm} after {} minutes.",
+                    minutes_text(minutes),
+                    minutes + 1
+                ),
+            ));
+        } else if fresh {
+            out.verified.push(crate::Verified::new(
+                NO_SESSION_LIFETIME.rule_id,
+                NO_SESSION_LIFETIME.requirement_ids,
+                format!(
+                    "a session used every {every} seconds, refused after {} minutes, where a new \
+                     sign-in then worked; the lifetime you stated is {}",
+                    minutes + 1,
+                    minutes_text(minutes)
+                ),
+            ));
+        } else {
+            say(
+                "V7.3.2",
+                "The busy session was refused at the end of its lifetime, but a new sign-in then \
+                 did not work either, so the refusal cannot be said to be the lifetime."
+                    .to_owned(),
+                out,
+            );
+        }
+    }
+}
+
+/// "1 minute", "15 minutes".
+fn minutes_text(n: u32) -> String {
+    format!("{n} minute{}", if n == 1 { "" } else { "s" })
 }
 
 /// Whether the app pushes back after the number of wrong passwords the owner said it would (V6.3.1).
@@ -5618,6 +5909,16 @@ mod tests {
     #[derive(Default)]
     struct FakeApp {
         flaws: Flaws,
+        /// Seconds a signed-in session may go unused, when this app ends idle sessions at all.
+        idle_limit: Option<u64>,
+        /// Seconds a signed-in session may last, when this app limits that at all.
+        lifetime_limit: Option<u64>,
+        /// Per session: when it was first seen signed in, and when it was last used.
+        session_times: BTreeMap<String, (u64, u64)>,
+        /// From this moment on the clock, every sign-in is refused, as by an app that went down.
+        sign_ins_refused_from: Option<u64>,
+        /// Signing in ends every other session of the same user.
+        one_session_per_user: bool,
         /// Two-factor secrets, by user.
         totp: BTreeMap<String, Vec<u8>>,
         /// Sessions past the password and waiting for a code: session id -> user.
@@ -5883,6 +6184,9 @@ mod tests {
 
         /// A new session for this user, answered the way POST /login answers.
         fn signed_in(&mut self, who: String) -> ProbeResponse {
+            if self.one_session_per_user {
+                self.sessions.retain(|_, u| *u != who);
+            }
             let id = if self.flaws.same_session_id {
                 let n = who.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
                     (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
@@ -6077,6 +6381,22 @@ mod tests {
                 .and_then(|(_, v)| v.strip_prefix("Bearer "))
                 .map(str::to_owned);
             let sid = bearer.or_else(|| cookie_value(r, "sid"));
+            // The session timeouts, when this app keeps any: a signed-in session is ended here if
+            // it has been unused, or alive, too long; otherwise its last use is now.
+            if let Some(s) = sid.as_ref()
+                && self.sessions.get(s).is_some_and(|u| !u.is_empty())
+            {
+                let now = self.clock;
+                let (began, last) = *self.session_times.entry(s.clone()).or_insert((now, now));
+                let idle_over = self.idle_limit.is_some_and(|limit| now - last > limit);
+                let life_over = self.lifetime_limit.is_some_and(|limit| now - began > limit);
+                if idle_over || life_over {
+                    self.sessions.remove(s);
+                    self.session_times.remove(s);
+                } else if let Some(times) = self.session_times.get_mut(s) {
+                    times.1 = now;
+                }
+            }
             let user = sid
                 .as_ref()
                 .and_then(|s| self.sessions.get(s))
@@ -6149,6 +6469,9 @@ mod tests {
                         return Some(Self::respond(429, vec![], "too many attempts"));
                     }
                     let good = !self.flaws.broken_login
+                        && self
+                            .sign_ins_refused_from
+                            .is_none_or(|from| self.clock < from)
                         && (self
                             .users
                             .get(email)
@@ -10796,5 +11119,359 @@ mod tests {
         assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
         assert!(code_credits(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
         assert!(code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Session timeouts, waited out with --slow
+
+    const TIMEOUT_RULES: [&str; 2] = [NO_IDLE_TIMEOUT.rule_id, NO_SESSION_LIFETIME.rule_id];
+
+    fn timeout_findings(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| TIMEOUT_RULES.contains(id))
+            .collect()
+    }
+
+    fn timeout_credits(o: &Outcome) -> Vec<&str> {
+        verified_ids(o)
+            .into_iter()
+            .filter(|id| TIMEOUT_RULES.contains(id))
+            .collect()
+    }
+
+    fn timeout_why(o: &Outcome, id: &str) -> Vec<String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.contains(id))
+            .map(|(_, why)| why.clone())
+            .collect()
+    }
+
+    fn timeouts(idle: Option<u32>, lifetime: Option<u32>) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            idle_timeout_minutes: idle,
+            session_lifetime_minutes: lifetime,
+            ..Default::default()
+        }
+    }
+
+    /// The seeded fixture, with the app's own timeouts in minutes, the owner's stated ones, and
+    /// `slow` on.
+    fn slow_run(
+        app_idle: Option<u64>,
+        app_lifetime: Option<u64>,
+        policy: &sv_manifest::PolicySection,
+        tune: impl FnOnce(&mut FakeApp),
+    ) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        app.idle_limit = app_idle.map(|m| m * 60);
+        app.lifetime_limit = app_lifetime.map(|m| m * 60);
+        tune(&mut app);
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        super::run_with(&mut app, &users(), &acc, true, policy, true)
+    }
+
+    /// The same through sign-up rather than seeding.
+    fn slow_signup_run(
+        app_idle: Option<u64>,
+        app_lifetime: Option<u64>,
+        policy: &sv_manifest::PolicySection,
+    ) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        app.idle_limit = app_idle.map(|m| m * 60);
+        app.lifetime_limit = app_lifetime.map(|m| m * 60);
+        let mut acc = accounts();
+        acc.admin = None;
+        super::run_with(&mut app, &with_signup(), &acc, false, policy, true)
+    }
+
+    #[test]
+    fn sessions_that_end_when_stated_are_credited_for_both() {
+        let policy = timeouts(Some(15), Some(60));
+        for o in [
+            slow_run(Some(15), Some(60), &policy, |_| {}),
+            slow_signup_run(Some(15), Some(60), &policy),
+        ] {
+            assert!(timeout_findings(&o).is_empty(), "{:#?}", o.findings);
+            assert_eq!(
+                timeout_credits(&o),
+                vec![NO_IDLE_TIMEOUT.rule_id, NO_SESSION_LIFETIME.rule_id],
+                "{:?}\n{:?}",
+                o.steps,
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_session_that_never_idles_out_is_found() {
+        let policy = timeouts(Some(15), Some(60));
+        for o in [
+            slow_run(None, Some(60), &policy, |_| {}),
+            slow_signup_run(None, Some(60), &policy),
+        ] {
+            assert_eq!(
+                timeout_findings(&o),
+                vec![NO_IDLE_TIMEOUT.rule_id],
+                "{:?}",
+                o.steps
+            );
+            assert_eq!(timeout_credits(&o), vec![NO_SESSION_LIFETIME.rule_id]);
+        }
+    }
+
+    #[test]
+    fn a_session_that_lasts_forever_when_busy_is_found() {
+        let policy = timeouts(Some(15), Some(60));
+        for o in [
+            slow_run(Some(15), None, &policy, |_| {}),
+            slow_signup_run(Some(15), None, &policy),
+        ] {
+            assert_eq!(
+                timeout_findings(&o),
+                vec![NO_SESSION_LIFETIME.rule_id],
+                "{:?}",
+                o.steps
+            );
+            assert_eq!(timeout_credits(&o), vec![NO_IDLE_TIMEOUT.rule_id]);
+        }
+    }
+
+    #[test]
+    fn a_timeout_longer_than_stated_is_found() {
+        // Idle sessions do end, at 30 minutes: not at the 15 stated.
+        let o = slow_run(Some(30), Some(60), &timeouts(Some(15), Some(60)), |_| {});
+        assert_eq!(
+            timeout_findings(&o),
+            vec![NO_IDLE_TIMEOUT.rule_id],
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn an_idle_session_refused_beside_a_busy_one_refused_too_is_not_credited() {
+        // Every session dies after ten minutes, busy or not: the idle one's refusal at sixteen
+        // says nothing about idleness.
+        for o in [
+            slow_run(None, Some(10), &timeouts(Some(15), Some(60)), |_| {}),
+            slow_signup_run(None, Some(10), &timeouts(Some(15), Some(60))),
+        ] {
+            assert!(!timeout_credits(&o).contains(&NO_IDLE_TIMEOUT.rule_id));
+            assert!(!timeout_findings(&o).contains(&NO_IDLE_TIMEOUT.rule_id));
+            assert!(
+                timeout_why(&o, "V7.3.1")
+                    .iter()
+                    .any(|w| w.contains("kept busy")),
+                "{:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_busy_session_refused_when_no_sign_in_works_is_not_credited() {
+        // The app refuses every sign-in from 40 minutes in: the busy session's refusal at the
+        // lifetime cannot be told from the app no longer letting anyone in.
+        let policy = timeouts(None, Some(60));
+        let o = slow_run(Some(15), Some(60), &policy, |app| {
+            app.sign_ins_refused_from = Some(app.clock + 40 * 60);
+        });
+        assert!(
+            !timeout_credits(&o).contains(&NO_SESSION_LIFETIME.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            timeout_why(&o, "V7.3.2")
+                .iter()
+                .any(|w| w.contains("new sign-in")),
+            "{:?}",
+            o.not_assessed
+        );
+        let o = slow_run(None, Some(30), &timeouts(None, Some(45)), |app| {
+            app.sign_ins_refused_from = Some(app.clock + 40 * 60);
+        });
+        assert!(
+            !timeout_credits(&o).contains(&NO_SESSION_LIFETIME.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn nothing_is_waited_for_without_slow_or_without_numbers() {
+        let mut app = FakeApp::new(Flaws::default());
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let start = app.clock;
+        let o = super::run_with(
+            &mut app,
+            &users(),
+            &acc,
+            true,
+            &timeouts(Some(15), Some(60)),
+            false,
+        );
+        assert!(timeout_credits(&o).is_empty() && timeout_findings(&o).is_empty());
+        assert!(
+            timeout_why(&o, "V7.3.1")
+                .iter()
+                .any(|w| w.contains("--slow"))
+        );
+        assert!(app.clock - start < 5 * 60, "it waited without --slow");
+
+        let o = slow_run(None, None, &timeouts(None, None), |_| {});
+        assert!(timeout_findings(&o).is_empty());
+        assert!(
+            timeout_why(&o, "V7.3.1")
+                .iter()
+                .any(|w| w.contains("idle-timeout-minutes")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn numbers_that_cannot_be_waited_out_or_told_apart_are_said_so() {
+        // A day is not waited for; the idle timeout is still judged.
+        let o = slow_run(Some(15), None, &timeouts(Some(15), Some(24 * 60)), |_| {});
+        assert!(
+            timeout_why(&o, "V7.3.2")
+                .iter()
+                .any(|w| w.contains("longer than"))
+        );
+        assert_eq!(timeout_credits(&o), vec![NO_IDLE_TIMEOUT.rule_id]);
+        // An idle timeout no shorter than the lifetime cannot be told apart from it.
+        let o = slow_run(Some(30), Some(30), &timeouts(Some(30), Some(30)), |_| {});
+        assert!(
+            timeout_why(&o, "V7.3.1")
+                .iter()
+                .any(|w| w.contains("no shorter")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert_eq!(timeout_credits(&o), vec![NO_SESSION_LIFETIME.rule_id]);
+    }
+
+    #[test]
+    fn two_sessions_that_do_not_both_open_are_not_judged() {
+        // One session per user: signing the busy one in ends the idle one at once. Its refusal at
+        // the end would otherwise read as an idle timeout.
+        let o = slow_run(None, None, &timeouts(Some(15), None), |app| {
+            app.one_session_per_user = true;
+        });
+        assert!(timeout_credits(&o).is_empty(), "{:?}", o.steps);
+        assert!(
+            timeout_why(&o, "V7.3.1")
+                .iter()
+                .any(|w| w.contains("did not both open")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn seeded_an_idle_refusal_with_the_busy_one_refused_too_is_not_credited() {
+        let o = slow_run(Some(15), Some(10), &timeouts(Some(15), None), |_| {});
+        assert!(
+            !timeout_credits(&o).contains(&NO_IDLE_TIMEOUT.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn through_sign_up_a_session_that_lasts_forever_is_found() {
+        let o = slow_signup_run(None, None, &timeouts(None, Some(45)));
+        assert_eq!(
+            timeout_findings(&o),
+            vec![NO_SESSION_LIFETIME.rule_id],
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_lifetime_refusal_when_sign_in_stopped_working_is_not_credited_through_a_short_lifetime() {
+        let o = slow_run(None, Some(30), &timeouts(None, Some(45)), |app| {
+            app.sign_ins_refused_from = Some(app.clock + 40 * 60);
+        });
+        assert!(
+            !timeout_credits(&o).contains(&NO_SESSION_LIFETIME.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            timeout_why(&o, "V7.3.2")
+                .iter()
+                .any(|w| w.contains("new sign-in"))
+        );
+    }
+
+    #[test]
+    fn through_sign_up_nothing_is_waited_for_without_slow() {
+        let mut app = FakeApp::new(Flaws::default());
+        app.idle_limit = Some(15 * 60);
+        let mut acc = accounts();
+        acc.admin = None;
+        let start = app.clock;
+        let o = super::run_with(
+            &mut app,
+            &with_signup(),
+            &acc,
+            false,
+            &timeouts(Some(15), None),
+            false,
+        );
+        assert!(timeout_credits(&o).is_empty());
+        assert!(app.clock - start < 5 * 60, "it waited without --slow");
+    }
+
+    #[test]
+    fn through_sign_up_no_numbers_are_said_to_be_needed() {
+        let o = slow_signup_run(Some(15), None, &timeouts(None, None));
+        assert!(timeout_credits(&o).is_empty());
+        assert!(
+            timeout_why(&o, "V7.3.2")
+                .iter()
+                .any(|w| w.contains("session-lifetime-minutes"))
+        );
+    }
+
+    #[test]
+    fn a_lifetime_of_two_hours_is_not_waited_for() {
+        let o = slow_run(None, None, &timeouts(None, Some(120)), |_| {});
+        assert!(timeout_findings(&o).is_empty(), "{:?}", o.steps);
+        assert!(
+            timeout_why(&o, "V7.3.2")
+                .iter()
+                .any(|w| w.contains("longer than"))
+        );
+    }
+
+    #[test]
+    fn an_idle_timeout_longer_than_the_lifetime_is_not_judged() {
+        let o = slow_run(None, Some(30), &timeouts(Some(45), Some(30)), |_| {});
+        assert!(
+            !timeout_findings(&o).contains(&NO_IDLE_TIMEOUT.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            timeout_why(&o, "V7.3.1")
+                .iter()
+                .any(|w| w.contains("no shorter"))
+        );
     }
 }

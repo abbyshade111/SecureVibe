@@ -520,6 +520,14 @@ pub struct PolicySection {
     /// kind of stated number as `failed-sign-ins`, for the codes `email-code` sends.
     #[serde(default)]
     pub failed_codes: Option<u32>,
+    /// Minutes a signed-in session may sit unused before the app asks for the password again, for
+    /// V7.3.1. Held to it only by `sv run --slow`, which waits that long.
+    #[serde(default)]
+    pub idle_timeout_minutes: Option<u32>,
+    /// Minutes a session may last however busy it is, for V7.3.2. Held to it only by
+    /// `sv run --slow`, and only when it is short enough to wait out.
+    #[serde(default)]
+    pub session_lifetime_minutes: Option<u32>,
     /// How many days a known vulnerability may stay unfixed, by how serious it is: V15.1.1's time
     /// frames, as numbers `sv audit` can hold the app's packages to for V15.2.1.
     #[serde(default)]

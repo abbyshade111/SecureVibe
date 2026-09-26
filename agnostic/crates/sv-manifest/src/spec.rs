@@ -122,6 +122,8 @@ multimodal = false        # does it take images, video or audio, rather than typ
 [policy]
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
 # failed-codes = 5        # wrong emailed sign-in codes in a row before pushing back (with `email-code`)
+# idle-timeout-minutes = 15       # how long a session may sit unused (checked by `sv run --slow`)
+# session-lifetime-minutes = 60   # how long a session may last however busy (`sv run --slow`, up to 90)
 # within-minutes = 15     # the window that count applies within (recorded, not tested: every
 #                         # attempt this makes lands within a few seconds)
 # The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares

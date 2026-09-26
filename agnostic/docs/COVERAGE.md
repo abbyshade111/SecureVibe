@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 117 (34%) | 5 | 223 |
+| OWASP ASVS 5.0 | 345 | 119 (34%) | 5 | 221 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 52 | 7 | 1 | 3 | 28 | 21 | 2 |
-| L2 | 183 | 61 | 4 | 0 | 13 | 25 | 25 | 1 |
+| L2 | 183 | 63 | 4 | 0 | 13 | 27 | 25 | 1 |
 | L3 | 92 | 4 | 1 | 0 | 0 | 1 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -58,7 +58,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 21 | 1 | 25 |
-| V7 Session Management | 19 | 6 | 0 | 13 |
+| V7 Session Management | 19 | 8 | 0 | 11 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 4 | 0 | 32 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (68)
+### Settled by asking the running app (70)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -137,6 +137,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 33 ca
 | V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |
 | V7.2.3 | L1 | Signed in: `probe.session-id-weak` |
 | V7.2.4 | L1 | Signed in: `probe.session-not-renewed` |
+| V7.3.1 | L2 | Signed in: `probe.session-idle-timeout` |
+| V7.3.2 | L2 | Signed in: `probe.session-lifetime` |
 | V7.4.1 | L1 | Signed in: `probe.logout-keeps-session` |
 | V7.4.2 | L1 | Signed in: `probe.sessions-survive-deletion` |
 | V7.4.4 | L2 | Signed in: `probe.no-sign-out-link` |

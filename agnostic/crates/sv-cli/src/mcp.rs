@@ -189,6 +189,7 @@ impl Server {
             app_dir,
             &crate::ReportOptions {
                 run_the_app: false,
+                slow: false,
                 run_tools: false,
                 why_not_run: "The MCP server never starts the app; the person can, with \
                               `sv report --run` in a terminal.",
@@ -682,6 +683,7 @@ mod tests {
             &examples().join("tested-notes").canonicalize().unwrap(),
             &crate::ReportOptions {
                 run_the_app: false,
+                slow: false,
                 run_tools: false,
                 why_not_run: "",
                 why_no_tools: "",

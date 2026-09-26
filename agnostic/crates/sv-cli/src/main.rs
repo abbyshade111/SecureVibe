@@ -28,7 +28,7 @@ fn main() -> Result<()> {
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
         Some("probe") => cmd_probe(args.get(1).map(String::as_str)),
-        Some("run") => cmd_run(args.get(1).map(PathBuf::from)),
+        Some("run") => cmd_run(&args[1..]),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
         Some("audit") => cmd_audit(&args[1..]),
@@ -53,7 +53,7 @@ fn print_help() {
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
          sv probe URL       ask your own live site the few things only it can answer\n  \
-         sv run [PATH]      start the app behind the network fence and check it answers\n  \
+         sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
          sv audit [PATH] --advisories DIR\n                     \
@@ -663,8 +663,10 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
 fn probe_the_running_app(
     manifest: &Manifest,
     app_dir: &Path,
+    slow: bool,
 ) -> std::result::Result<(sv_run::RunOutcome, sv_run::RunPlan), String> {
-    let plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
+    let mut plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
+    plan.slow = slow;
     let backend = sv_run::detect().map_err(|e| e.explain())?;
     let requests = anonymous_requests(&plan);
     let outcome = backend.run(&plan, &requests).map_err(|e| e.explain())?;
@@ -710,8 +712,17 @@ fn running_app_evidence(
     (findings, verified, not_assessed)
 }
 
-fn cmd_run(path: Option<PathBuf>) -> Result<()> {
-    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+fn cmd_run(args: &[String]) -> Result<()> {
+    let mut app_dir = PathBuf::from(".");
+    // Opt-in: waiting out the session timeouts the owner states can take as long as they are.
+    let mut slow = false;
+    for arg in args {
+        match arg.as_str() {
+            "--slow" => slow = true,
+            other if other.starts_with('-') => bail!("unknown option: {other}"),
+            other => app_dir = PathBuf::from(other),
+        }
+    }
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -725,7 +736,13 @@ fn cmd_run(path: Option<PathBuf>) -> Result<()> {
     let requests = RunPlan::from_manifest(&manifest, &app_dir)
         .map(|plan| anonymous_requests(&plan))
         .unwrap_or_default();
-    match probe_the_running_app(&manifest, &app_dir) {
+    if slow {
+        println!(
+            "With --slow: this waits out the session timeouts securevibe.toml states, so it can take \
+             as long as they are."
+        );
+    }
+    match probe_the_running_app(&manifest, &app_dir, slow) {
         Err(reason) => {
             println!("\nNot assessed.\n\n{reason}");
         }
@@ -1270,6 +1287,8 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
 struct ReportOptions {
     /// Start the app behind the fence and ask it questions. Opt-in: this runs somebody's code.
     run_the_app: bool,
+    /// And wait out the session timeouts the owner states. Opt-in: it takes as long as they are.
+    slow: bool,
     /// Run the language's own security tool. Opt-in: these are other people's programs.
     run_tools: bool,
     /// Said in the report when the app was not started, in the words of whoever built it.
@@ -1502,7 +1521,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let mut run_steps: Vec<String> = Vec::new();
 
     if options.run_the_app {
-        match probe_the_running_app(&manifest, app_dir) {
+        match probe_the_running_app(&manifest, app_dir, options.slow) {
             Ok((outcome, plan)) => {
                 let (running_findings, running_verified, signed_in_not_assessed) =
                     running_app_evidence(&outcome, &plan);
@@ -1947,6 +1966,8 @@ fn cmd_report(args: &[String]) -> Result<()> {
     // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
     // computer — and it is still their decision to make rather than a default.
     let mut run_the_app = false;
+    // With --run: wait out the session timeouts too.
+    let mut slow = false;
     // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
     // of them fetches its rules over the network the first time it runs.
     let mut run_tools = false;
@@ -1961,6 +1982,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                 ));
             }
             "--run" => run_the_app = true,
+            "--slow" => slow = true,
             "--tools" => run_tools = true,
             "--advisories" => {
                 advisories_dir = Some(PathBuf::from(
@@ -1977,6 +1999,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         &app_dir,
         &ReportOptions {
             run_the_app,
+            slow,
             run_tools,
             why_not_run: "`sv report` does not start the app unless you pass --run.",
             why_no_tools: "`sv report` does not run other people's tools unless you pass --tools.",
