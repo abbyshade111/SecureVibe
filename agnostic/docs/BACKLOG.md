@@ -945,6 +945,10 @@ another session is not a claim.
        apps are mostly real. Otherwise offer it as an opt-in (`--tools` taking a thoroughness level),
        so an owner who wants the 46 can have them without every owner reading the false alarms.
 
+  **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
+  `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
+  before deciding. Not claimed; it needs `semgrep` installed and the rules repository fetched.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
