@@ -2915,3 +2915,60 @@ header is found, naming the key. A copy that stores the same thing for everybody
 included, is set aside as nobody's in particular and not credited. Removing each guard in turn, every
 one was caught; the one that first looked uncaught was a mutation that changed nothing (the job has
 exactly as many answers as the length it was relaxed to).
+
+## MITRE ATLAS: adopt in part, as references on the AI threats
+
+The owner asked whether MITRE ATLAS, the catalog of attacks on AI systems, is worth bringing into the
+threat model. Measured on 26 September 2026 against ATLAS content 2026.09 (format 6.0.0: 16 tactics,
+120 techniques and 88 sub-techniques, 40 mitigations, 73 case studies). **Recommendation: adopt in
+part.** Cite ATLAS techniques by ID on the six threats about AI, for a security reviewer reading the
+report; do not copy ATLAS into `sv`, do not add checks from it, and do not show it to the owner in the
+plain-language view. Nothing is built yet; the follow-up is on the backlog waiting for the owner's
+yes.
+
+### What it would add
+
+- **A shared name for each AI threat, for the people who need one.** Each of the six AI threats has a
+  clear ATLAS technique: T-07 prompt injection is AML.T0051 (LLM Prompt Injection); T-08 is AML.T0057
+  (LLM Data Leakage) and AML.T0056 (Extract LLM System Prompt); T-09 is AML.T0034 (Cost Harvesting)
+  and AML.T0029 (Denial of AI Service); T-10 is AML.T0055 (Unsecured Credentials); T-11 is AML.T0053
+  (AI Agent Tool Invocation); T-12 is AML.T0048 (External Harms). A reviewer, an auditor, or an AI
+  security team can look each one up and read ATLAS's case studies of it happening for real. That is
+  the value, and it is modest.
+- **Not new checks.** ATLAS describes attacks; what can be checked comes from its mitigations, and by
+  this reading 35 of its 40 mitigations already have a home in an AISVS chapter (training data in C1,
+  input validation in C2, supply chain in C6, output and guardrails in C7, agents in C9, monitoring in
+  C12, and so on). The five without one (limiting what is published about a system, user training,
+  deepfake detection, honeypots, and sensor fusion for predictive models) are policies or model
+  engineering that nothing in an app's code or its running behavior can show. AISVS itself cites ATLAS
+  in its chapter references, nine techniques and mitigations by ID, so the overlap is by design.
+- **Most of ATLAS is about someone else's system.** 28 of the 120 techniques belong only to an
+  attacker preparing (reconnaissance, resource development, adapting an attack), and many of the rest
+  are about training or hosting a model. The apps `sv` sees call an AI service; they do not train one.
+
+### What it would cost
+
+- **Names drift; IDs hold.** Of the nine ATLAS entries AISVS cites, six have been renamed since (Evade
+  ML Model is now Evade AI Model, Backdoor ML Model is now Manipulate AI Model, and so on), and all nine
+  IDs still resolve. Citations must be by ID, against a named release, with the name read from that
+  release rather than written by hand.
+- **Monthly releases, and a format that moves.** Fourteen releases in the past year; the data format
+  changed in May 2026 (5.x to 6.0.0), and the file older tools read is deprecated. Keeping a copy of
+  the whole catalog (840 KB of YAML) current would be real upkeep for little use. Six IDs and their
+  names, pinned to one release, is not.
+- **Terms.** The data is published by MITRE in `mitre-atlas/atlas-data` under the Apache License 2.0,
+  which allows this with attribution; ATLAS is MITRE's trademark and should be written "MITRE ATLAS".
+- **Plain language.** Technique names are written for security people ("Cost Harvesting", "External
+  Harms"). The owner's view keeps the threat model's own sentences; ATLAS belongs in the part a
+  reviewer reads.
+- **Only for apps that use AI.** The six threats are already gated on `ai`, `ai-actions`, and
+  `ai-moderation`, so the references would appear only where they apply.
+
+### If the owner says yes
+
+An `atlas` list on each of the six threats (`data/knowledge/threats.json` is shared with v1, so this
+is a data change both variants see, and needs the v1 side agreed too), a small file of the cited IDs
+with their names and the release they were read from, a test that every cited ID is in that file, and
+a script like `tools/pwned_passwords.py` that re-reads a newer release and reports any ID that has been
+renamed or withdrawn. The citation guard's rule applies: each reference carries a `because` naming what
+the threat and the technique share.
