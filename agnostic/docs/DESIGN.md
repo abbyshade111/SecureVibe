@@ -2022,6 +2022,57 @@ one, and Maven comes back **not assessed** with a reason: versions live in the m
 read ranges out of it yet. Removing that distinction fails two tests — one that Maven produces no finding,
 and one that it does not silently pass either, because not reporting something must not mean approving it.
 
+### Reading Maven and Gradle versions
+
+Done on 26 September 2026 (session relaxed-nobel-27acfa). The "yet" above is answered: `sv-scan::jvm`
+reads the versions a `pom.xml`, `build.gradle`, or `build.gradle.kts` names, and `ecosystems::pinning`
+says for each project how it pins, if it does.
+
+Doing it turned up the same wrong statement a second time, in Gradle. Its `gradle.lockfile` is something
+a project turns on, not something every project has, so a Gradle build with only exact versions and no
+lockfile — which installs the same thing every time — was reported as pinning nothing, with a Medium
+finding telling the owner to commit a lockfile. Now each version lands in one of three places:
+
+* **Exact:** `1.2.3`, `[1.2.3]`, or Gradle's `1.2.3!!`. The same goes for a version given by something
+  exact: a parent POM, a BOM, a Gradle platform, Spring's dependency-management plugin, or the Kotlin
+  plugin for Kotlin's own libraries. A reference to the project's own version is a dependency on one of
+  its own modules and counts as exact too. Every one exact is a **pass** for V15.1.2.
+* **Floating:** a range, Maven's `LATEST` and `RELEASE`, Gradle's `1.+` and `latest.release`, and a
+  `-SNAPSHOT`, which is republished under the same number. Any one is a **finding** at its line, naming
+  the dependency and the version as written and as resolved (`${lib.version} = [1,2)`). The fix says to
+  write exact versions, or for Gradle to turn on dependency locking. A Gradle build with a lockfile
+  passes as before, whatever it names, because the lockfile is what pins it.
+* **Unsettled:** a property set in a parent outside the folder or on the command line, a variable `sv`
+  cannot find, a catalog entry that is not there, a dependency with no version and nothing to give one,
+  or a line that names a coordinate in a way it does not read (`add("implementation", …)`). This stays
+  **not assessed**, and the reason lists up to three of them with their lines.
+
+What is read: properties from the POM and from its parents while they are inside the app folder (the
+file at `relativePath` counts only if it is the project the parent section names); Gradle variables
+from the build file and from `gradle.properties` up to the app folder; and the version catalog
+`gradle/libs.versions.toml`, through its aliases, `version.ref`, rich versions, and bundles. Comments are
+blanked before anything is read, keeping line numbers, so a commented-out `LATEST` is not a finding.
+
+What is not, and is said here rather than claimed away:
+
+* **Only the versions this build names.** A library that asks for a range of another library can still
+  move underneath an app whose own versions are all exact. That is rare on Maven Central, where
+  published POMs do not change, but it is why a lockfile is still the stronger answer and the fix for
+  Gradle mentions one.
+* **Build plugins are left out:** Maven's `<build>` and `<reporting>`, including a plugin's own
+  dependencies, and Gradle's `plugins {}` and `classpath`. They build the app and are not shipped in it.
+* **Gradle is read as text,** line by line inside `dependencies {}` blocks, not run. A build that
+  computes its coordinates in code is not guessed at. The guard is that any line in those blocks that
+  names a coordinate `sv` did not read is *unsettled*, never skipped.
+
+Eleven breaks, each now caught by a test written for it: a range, a `+`, and a snapshot counted as
+exact; an unknown property counted as exact; comments read; Gradle judged by its lockfile alone;
+unread lines skipped; build plugins read; a platform ignored; and a missing version counted as exact,
+in Gradle and in Maven. Three got through the first time. Build plugins were caught by nothing, because
+the fixture's plugin had a version but no dependency of its own, so the guard had nothing to guard. A
+snapshot was caught only by a unit test. A missing Gradle version was caught by nothing. Each has a
+fixture now.
+
 ## The bill of materials
 
 `sv sbom ./app` writes CycloneDX 1.5 JSON to standard output and everything else to standard error, so

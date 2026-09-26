@@ -91,9 +91,9 @@ pub struct DetectedEcosystem {
     /// Whether this ecosystem pins versions with a lockfile at all.
     ///
     /// Maven does not: versions live in `pom.xml` and there is no lockfile to look for. Without this
-    /// flag `unpinned` reports every Maven project as pinning nothing, which is not a coverage gap but
-    /// a wrong statement in a report — the thing ADR-012 exists to stop. A caller that wants to say
-    /// "this app pins nothing" has to check this first.
+    /// flag `unpinned` reported every Maven project as pinning nothing, which is not a coverage gap
+    /// but a wrong statement in a report — the thing ADR-012 exists to stop. A caller that wants to
+    /// say "this app pins nothing" asks `pinning`, which reads Maven's versions instead.
     pub pins_with_lockfile: bool,
 }
 
@@ -309,22 +309,76 @@ fn glob_matches(pattern: &str, path: &str) -> bool {
     go(&p, &s)
 }
 
-/// Ecosystems in use that pin nothing, so what is actually installed cannot be known.
+/// Whether one project pins what it installs, and how `sv` knows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pinning {
+    /// A lockfile pins it: the lockfile's path from the app folder.
+    Lockfile(String),
+    /// No lockfile, and every version the build names is exact, or given by something that is.
+    /// Maven always, and Gradle without `gradle.lockfile`; see `jvm`.
+    Exact,
+    /// An ecosystem that pins with a lockfile, without one.
+    NoLockfile,
+    /// Versions that move: the build takes whatever is newest when it runs.
+    Floating(Vec<crate::jvm::VersionAt>),
+    /// Versions `sv` could not settle from the files, and nothing floating beside them.
+    Unsettled(Vec<crate::jvm::VersionAt>),
+}
+
+impl Pinning {
+    /// Whether this is a statement that the project does not pin what it installs.
+    pub fn is_unpinned(&self) -> bool {
+        matches!(self, Pinning::NoLockfile | Pinning::Floating(_))
+    }
+}
+
+/// How one detected project pins what it installs.
 ///
-/// Only ecosystems that pin with a lockfile can be missing one. Maven is in use here and has no lockfile
-/// to be missing; reporting it would be a wrong statement rather than a finding.
+/// A lockfile settles it. Without one, Maven and Gradle are read for their versions, because
+/// neither needs a lockfile to install the same thing every time; every other ecosystem without
+/// its lockfile pins nothing.
+pub fn pinning(app_dir: &Path, eco: &DetectedEcosystem) -> Pinning {
+    if let Some(lockfile) = &eco.lockfile {
+        return Pinning::Lockfile(lockfile.clone());
+    }
+    let reading = match file_name(&eco.manifest) {
+        "pom.xml" => crate::jvm::read_pom(app_dir, &eco.manifest),
+        "build.gradle" | "build.gradle.kts" => crate::jvm::read_gradle(app_dir, &eco.manifest),
+        _ if eco.pins_with_lockfile => return Pinning::NoLockfile,
+        _ => None,
+    };
+    match reading {
+        None => Pinning::Unsettled(vec![crate::jvm::VersionAt {
+            manifest: eco.manifest.clone(),
+            line: 1,
+            dependency: eco.manifest.clone(),
+            version: String::new(),
+            why: "the file could not be read".to_owned(),
+        }]),
+        Some(r) if !r.floating.is_empty() => Pinning::Floating(r.floating),
+        Some(r) if !r.unsettled.is_empty() => Pinning::Unsettled(r.unsettled),
+        Some(_) => Pinning::Exact,
+    }
+}
+
+/// Ecosystems in use that do not pin what they install, so what is actually installed cannot be
+/// known: a lockfile missing where one is used, or a Maven or Gradle version that floats.
+///
+/// Maven has no lockfile to be missing and Gradle's is optional, so for both the versions are read
+/// instead; reporting either for the missing file alone would be a wrong statement, not a finding.
 pub fn unpinned(app_dir: &Path) -> Vec<DetectedEcosystem> {
     detect(app_dir)
         .into_iter()
-        .filter(|e| e.pins_with_lockfile && e.lockfile.is_none())
+        .filter(|e| pinning(app_dir, e).is_unpinned())
         .collect()
 }
 
-/// Ecosystems in use whose pinning `sv` cannot judge, because they do not use a lockfile at all.
+/// Ecosystems in use whose pinning `sv` could not settle: a Maven or Gradle version it could not
+/// work out, with nothing floating beside it.
 pub fn pinning_unknown(app_dir: &Path) -> Vec<DetectedEcosystem> {
     detect(app_dir)
         .into_iter()
-        .filter(|e| !e.pins_with_lockfile)
+        .filter(|e| matches!(pinning(app_dir, e), Pinning::Unsettled(_)))
         .collect()
 }
 

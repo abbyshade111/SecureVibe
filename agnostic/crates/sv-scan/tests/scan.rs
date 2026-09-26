@@ -904,17 +904,29 @@ fn a_claim_is_corroborated_from_a_kotlin_build_script() {
 }
 
 #[test]
-fn a_kotlin_build_script_with_no_lockfile_pins_nothing() {
-    // The third place the missing ecosystem showed: a Kotlin project with no lockfile was not
-    // reported as pinning nothing, because it was not recognized as a project at all.
+fn a_kotlin_build_script_is_read_for_its_versions() {
+    // The third place the missing ecosystem showed: a Kotlin project that did not pin was not
+    // reported, because it was not recognized as a project at all. Gradle's lockfile is optional,
+    // so it is the versions that decide: one that floats is unpinned, all exact is not.
     let dir = scratch("gradle-kts-unpinned");
-    std::fs::write(dir.join("build.gradle.kts"), "dependencies {}\n").unwrap();
-    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::write(
+        dir.join("build.gradle.kts"),
+        "dependencies {\n    implementation(\"org.x:y:1.+\")\n}\n",
+    )
+    .unwrap();
+    let floating = sv_scan::ecosystems::unpinned(&dir);
+    std::fs::write(
+        dir.join("build.gradle.kts"),
+        "dependencies {\n    implementation(\"org.x:y:1.2.3\")\n}\n",
+    )
+    .unwrap();
+    let exact = sv_scan::ecosystems::unpinned(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(
-        unpinned.iter().any(|e| e.manifest == "build.gradle.kts"),
-        "{unpinned:?}"
+        floating.iter().any(|e| e.manifest == "build.gradle.kts"),
+        "{floating:?}"
     );
+    assert!(exact.is_empty(), "{exact:?}");
 }
 
 #[test]
