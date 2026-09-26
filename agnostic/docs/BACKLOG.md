@@ -1314,6 +1314,26 @@ another session is not a claim.
   re-examine: it is the largest single piece of borrowed work here, and this condition governs all of
   it.
 
+  **The golden apps, at the owner's asking, the same day.** The evaluation harness built all five
+  golden apps without AI (all built, 0 regressed against their baselines), and the four options ran
+  over each app's code:
+
+  | Option | Per app | Findings across the five apps |
+  |---|---|---|
+  | A. Today's two packs | 3.0 s | 0 |
+  | B. A and `p/default` | 5.3 s | 8 |
+  | C. The pinned rules | 39.0 s | 148 |
+  | D. A and the 26 rules | 10.9 s | 8 |
+
+  B's eight are the same three template lines as before (`scripts/setup.ts:37` in all five,
+  `src/features/ai/screening.ts:49` in two, `src/features/apikeys/index.ts:44` in one), so there are no
+  new kinds of false alarm, and fixing those lines clears all of them. D found the same eight. C's are
+  the kinds already read: `var-in-href` 68, `generic-api-key` 57, `html-in-template-string` 10, the
+  same eight regular expressions, and `unsafe-dynamic-method` 5. None of the options found a real
+  fault in the golden apps. That fits apps built from a hardened template; it is also why B's value
+  shows on the fixture's planted faults rather than here. The recommendation stands: B, with those
+  three template lines fixed at the source.
+
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
   Not claimed. The license question above comes first, since it decides whether C can be run at all.
