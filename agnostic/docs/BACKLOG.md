@@ -340,7 +340,13 @@ another session is not a claim.
      `signup` entry that already exists, so no new addresses are needed for them: a password from far
      down `data/knowledge/common-passwords.txt`, and one built from a word in a new
      `[policy] context-words` list — the documented list V6.2.11 names — each beside a random
-     password of the same shape. V2.3.1 stays unclaimed.
+     password of the same shape. V2.3.1 stays unclaimed. **Done on 26 September 2026.** Level 2 goes
+     from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
+     the shared `manualOnly` list and one refused password is not the whole breached set. The
+     password list's source is not recorded anywhere in the repository, and checking the chosen
+     password against Have I Been Pwned was refused by this environment's network policy, so the
+     finding says "one of the 100,000 most common" rather than "breached". See DESIGN, "Two more
+     passwords at sign-up".
 
   Additions from session securevibe-e8, which answered the same question separately on the same
   day; the two answers are merged here rather than kept as two entries. To item 5: the alternative to

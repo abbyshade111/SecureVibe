@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 104 (30%) | 3 | 238 |
+| OWASP ASVS 5.0 | 345 | 105 (30%) | 4 | 236 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 51 | 7 | 1 | 3 | 28 | 20 | 2 |
-| L2 | 183 | 49 | 4 | 0 | 13 | 17 | 21 | 1 |
+| L2 | 183 | 50 | 4 | 0 | 13 | 18 | 21 | 1 |
 | L3 | 92 | 4 | 1 | 0 | 0 | 1 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
@@ -57,7 +57,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
-| V6 Authentication | 47 | 18 | 0 | 29 |
+| V6 Authentication | 47 | 19 | 1 | 27 |
 | V7 Session Management | 19 | 6 | 0 | 13 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (60)
+### Settled by asking the running app (61)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -122,6 +122,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V6.2.7 | L1 | Signed in: `probe.password-paste-blocked` |
 | V6.2.8 | L1 | Signed in: `probe.password-altered` |
 | V6.2.9 | L2 | Signed in: `probe.long-password-refused` |
+| V6.2.11 | L2 | Signed in: `probe.context-word-password-accepted` |
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
 | V6.3.2 | L1 | Signed in: `probe.default-account` |
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` |
@@ -193,10 +194,11 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.3.3 | L2 | Outside tools: `brakeman`, `semgrep` |
 | V16.2.5 | L2 | Outside tools: `semgrep` |
 
-### Supporting only (3)
+### Supporting only (4)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |

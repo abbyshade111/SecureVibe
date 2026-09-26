@@ -479,6 +479,11 @@ pub struct PolicySection {
     /// frames, as numbers `sv audit` can hold the app's packages to for V15.2.1.
     #[serde(default)]
     pub fix_within_days: Option<FixWithinDays>,
+    /// Words a password must not be built from: the app's name, the organization's, a product or
+    /// project name. V6.2.11's documented list of context-specific words, as a list the sign-up
+    /// probe can try one of.
+    #[serde(default)]
+    pub context_words: Vec<String>,
 }
 
 /// The remediation time frames, one per severity. A severity left out has no time frame, and a
