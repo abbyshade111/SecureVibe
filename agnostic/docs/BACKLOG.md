@@ -894,9 +894,10 @@ another session is not a claim.
   loads. The two are not exclusive. Either way, the packs are the registry's, and they change without
   `sv` changing, so whatever is chosen should be re-measured when the map is regenerated.
 
-  **For every session working on `sv`: these rules are not being run.** Until this is settled, treat a
+  **For every session working on `sv`: these rules are not being run.** Since step 1 below,
+  `docs/COVERAGE.md` no longer counts them and lists them by name. Before it, the instruction was to treat a
   requirement that semgrep reaches only through its map as *not checked*, whatever `docs/COVERAGE.md`
-  says, and do not build on the 19 listed above as if semgrep covered them. That includes the eight
+  said, and not to build on the 19 listed above as if semgrep covered them. That includes the eight
   AISVS requirements "AISVS, beyond applicability" credited to semgrep's AI rules; none of those rules
   is in `p/security-audit`.
 
@@ -923,6 +924,29 @@ another session is not a claim.
     Not recommended: `p/owasp-top-ten` and `p/secrets` on top. They add one requirement between them
     (V11.3.3), and `sv` already has its own secret scanner.
 
+  - *Session securevibe-e8.* Agreed on the order, with three things to know before each step:
+    1. **The overstatement is in `docs/COVERAGE.md`, not in anybody's report.** A report already
+       credits a clean semgrep run only with rules its own SARIF says were loaded, and only for a
+       language the app is in (`credit_loaded_only`, `crates/sv-check/src/adapters.rs`), so no app has
+       been credited with the 19. Step 1 is fixing the document and what sessions plan from it, and it
+       can be done now. When it is, `coverage.py` should also keep "can credit" apart from "can only
+       find": a rule's `findings_against` is never credited by a clean run.
+    2. **`p/ai-best-practices` adds findings for the AISVS requirements, not credit.** All eight are
+       mapped as `findings_against`, deliberately: no user input reaching a system prompt is not an
+       enforced instruction hierarchy. So the pack's value is catching the mistakes, and the coverage
+       count should show those eight as "finding only", not as settled. Still worth adding, for that.
+    3. **Prefer the mapped rules to the whole of `p/default`.** A result from a rule the map does not
+       know still reaches the owner, as a finding with no requirement (`adapters.rs`, module notes),
+       so every unmapped rule in a pack is one more thing a non-programmer may have to read and
+       dismiss; `p/default` adds about 835 rules to reach four more requirements. Semgrep takes a
+       registry rule by id (`--config r/<rule-id>`, repeatable), so the adapter could add just the
+       mapped rules those four need beside the two packs. Whether that resolves and how long it takes
+       has to be measured on a machine that reaches semgrep.dev, which this session cannot. If it
+       does not work, the evaluation harness decides, as above.
+
+    Not decided by any of this: which packs change is the owner's, and so is whether three false alarms
+    on one app is too many.
+
   - *Session securevibe-e9.* The same three steps in the same order, with one correction to how bad
     the problem is and one more option to measure before step 3.
     1. **The per-run report is already honest; the document is what overstates.** Semgrep's adapter
@@ -944,6 +968,17 @@ another session is not a claim.
        yet. Whichever option wins, adopt it by default only if its extra findings over the golden
        apps are mostly real. Otherwise offer it as an opt-in (`--tools` taking a thoroughness level),
        so an owner who wants the 46 can have them without every owner reading the false alarms.
+
+  **The owner, on 26 September 2026:** leaning toward that order, and toward keeping the AI pack
+  separate, so that `p/ai-best-practices` only runs against apps that use AI (the `ai` condition).
+  **Step 1, the honest count, claimed on 26 September 2026 by session securevibe-e8**, from the
+  registry run's own list of the rules `p/security-audit` loaded
+  (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
+  Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
+  **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
+  what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
+  refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest
+  count. See DESIGN, "Counting semgrep by what it runs".
 
   **The owner's answer, 26 September 2026:** measure the fourth option too — the pinned
   `semgrep-rules` commit the map was generated from, run as a local folder — beside `p/default`,
