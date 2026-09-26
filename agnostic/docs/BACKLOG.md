@@ -5,6 +5,62 @@ another session is not a claim.
 
 ## Next
 
+- **Promote `sv` to the top of the repository, and keep v1 for the paper.** **The owner's decision,
+  26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
+  lost, and its code stays preserved exactly for the paper. **When** is for the sessions to work out
+  together — this entry is the place. **Not claimed.** Add your view under "Thoughts", below, under
+  your own name and as its own commit, before anybody claims the move.
+
+  **Rules that hold whatever the plan:**
+  - **Never rewrite history.** No `filter-repo`, no squashing old commits, no force-push to `main`.
+    The paper's appendix, both USB bundles, and the ADR cross-references cite commit hashes (see the
+    message of `7fa07d6`), and a rewrite changes every one of them. Moving files in an ordinary commit
+    keeps every hash.
+  - **`data/` stays where it is.** `sv` reads it — the OWASP frameworks, `data/knowledge`, and more —
+    and so does v1. So does `docs/paper/`.
+  - **v1 stays reachable three ways:** a tag `v1-paper` at the commit that was `main` when the
+    repository was made public (the owner's choice); a tag `v1-final` at the last commit before the
+    move; and a `v1` branch for anybody who needs to patch it. Each tag gets a GitHub Release, a
+    snapshot anybody can download and cite. A DOI through Zenodo, which also keeps its own copy, needs
+    the owner's GitHub account, so it is theirs to set up; so is protecting the tags, which is a
+    repository setting. GitHub no longer holds the event that made the repository public (it keeps 300
+    events, the oldest from 26 September), so the owner names the date.
+
+  **What the move touches, as far as is known:**
+  - **Paths inside `sv`.** Seven source files find data by a path counted from their own crate
+    folder: `sv-check/src/{ast,secrets,signed_in}.rs`, `sv-cli/src/{main,mcp}.rs`,
+    `sv-manifest/src/lib.rs`, `sv-report/src/threats.rs` (`env!("CARGO_MANIFEST_DIR")`, with
+    `../../../data` for the shared folder and `../../data` for `sv`'s own). Moving `agnostic/` up one
+    level changes both depths, so it is a code change with the tests watching, not a rename.
+  - **CI.** `checks.yml` builds and tests v1 (`npm ci`, `working-directory: server`); `rust.yml` runs
+    only on `agnostic/**`; `codeql.yml` covers both languages. Each needs deciding, not only moving.
+  - **Everything that describes the layout:** the root `README.md` and `CLAUDE.md` are v1's, and
+    `agnostic/README.md` would become the front page; the launch configurations in `.claude/launch.json`
+    (`securevibe`, `server-tests`, `eval-no-ai`, `template-tests`); v1's evaluation harness (`evals/`),
+    `self-assessment/`, `artifacts/`, `templates/`, and the npm workspace at the root.
+  - **Outside the repository.** Sessions' memory notes name v1 paths. And the owner's own setup points
+    into `agnostic/`: `~/code/my-first-app/.mcp.json` and the PATH line in `~/.zshrc` both use
+    `sv-tool/agnostic/target/release/sv`. `sv-tool` is a separate worktree fixed at one commit, so the
+    move does not break it until it is updated, and then both paths change.
+
+  **How to do it without five sessions colliding** (sessions working on `agnostic/` collided five
+  times in one day earlier this month):
+  1. Thoughts first, here, from every session with a view.
+  2. One session claims the move, in its own commit, and names a freeze: no new pull requests that
+     touch `agnostic/`, `CLAUDE.md`, or CI until the move lands. Open ones are merged or parked
+     before it starts.
+  3. The tags and releases are made before any file moves.
+  4. The move is one pull request — renames, path fixes, CI, and the documents — and it lands only
+     with every test green.
+  5. Afterwards each session merges `main` into its branch; git follows renames.
+
+  **Open questions for the Thoughts:** does v1's evaluation harness or self-assessment still earn a
+  place once `sv` checks itself; which parts of `data/knowledge` only v1 reads, and whether they stay
+  (the simple answer: `data/` stays whole, since `v1-final` holds v1 anyway); and whether anything in
+  `artifacts/` belongs with the paper rather than with either product.
+
+  **Thoughts.** None yet.
+
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
   making it easy for people who aren't technical or security experts to vibe code safely." **Not
