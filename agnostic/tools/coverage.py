@@ -99,6 +99,7 @@ RUST_CHECKS = {
     "probe.oidc-nonce-not-checked": ("signed-in", ["V10.5.1"]),
     "probe.oidc-audience-not-checked": ("signed-in", ["V10.5.4"]),
     "probe.oidc-signature-not-checked": ("signed-in", ["V6.8.2"]),
+    "probe.oidc-issuer-not-checked": ("signed-in", ["V10.2.2"]),
     "probe.sign-out-control-hidden": ("signed-in", ["V7.4.4"]),
     "probe.text-rendered-as-markup": ("signed-in", ["V3.2.2"]),
     "probe.storage-kept-after-sign-out": ("signed-in", ["V14.3.1"]),
@@ -233,6 +234,8 @@ def evidence():
     for rule in load(AGNOSTIC / "data/ast-rules.json")["rules"]:
         for q in rule["requirementIds"]:
             ev[q]["static"].append(rule["id"])
+            if rule.get("findingsOnly"):
+                FINDINGS_ONLY[q].add(("sv", rule["id"]))
     for rule in load(AGNOSTIC / "data/secret-rules.json")["rules"]:
         for q in rule["requirementIds"]:
             ev[q]["static"].append(rule["id"])

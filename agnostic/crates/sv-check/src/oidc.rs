@@ -25,7 +25,7 @@ use crate::probes::{ProbeRequest, ProbeResponse};
 use crate::signed_in::{Http, Outcome, Rule, Session, finding, get, ok, status};
 use sv_manifest::OidcSection;
 
-const IDS: &str = "V10.1.2, V10.2.1, V10.5.1, V10.5.4, V6.8.2";
+const IDS: &str = "V10.1.2, V10.2.1, V10.5.1, V10.5.4, V6.8.2, V10.2.2";
 
 const CROSS_SESSION: Rule = Rule {
     rule_id: "probe.oidc-sign-in-from-another-session",
@@ -65,6 +65,19 @@ const UNCHECKED_SIGNATURE: Rule = Rule {
              that person.",
     fix: "Verify every ID token's signature against the provider's published keys, with the \
           algorithm fixed in advance, and refuse `alg: none` and any token that does not verify.",
+};
+
+/// Credit only: an app that signs in through one provider cannot be mixed up with another, since
+/// only that provider can sign its tokens, so taking a wrong issuer is never called a finding.
+const MIX_UP: Rule = Rule {
+    rule_id: "probe.oidc-issuer-not-checked",
+    requirement_ids: &["V10.2.2"],
+    cwe: &["CWE-346"],
+    impact: "An app that signs in through more than one provider can be tricked into sending a \
+             sign-in meant for one to another (a mix-up attack), when it does not check which \
+             provider the answer came from.",
+    fix: "Check the `iss` parameter in the sign-in's return, and the `iss` claim in the ID token, \
+          against the provider the sign-in was started with.",
 };
 
 /// One sign-in, begun: the session it started in, and where the provider sends the browser back.
@@ -261,9 +274,16 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
         _ => None,
     };
 
-    // The four tokens the provider gets wrong on purpose.
+    // The sign-ins the provider gets wrong on purpose.
     let mut broken: Vec<(&str, Option<bool>)> = Vec::new();
-    for mode in ["wrong-nonce", "wrong-aud", "unsigned", "wrong-key"] {
+    for mode in [
+        "wrong-nonce",
+        "wrong-aud",
+        "unsigned",
+        "wrong-key",
+        "wrong-iss",
+        "wrong-token-iss",
+    ] {
         let result = if mode == "wrong-nonce" && !nonce_sent {
             None
         } else {
@@ -278,12 +298,15 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
     let still_works = sign_in(http, section, "normal", "after").unwrap_or(false);
     out.steps.push(format!(
         "finished in another session: {}; a wrong nonce: {}; a wrong audience: {}; unsigned: {}; \
-         signed with another key: {}; an ordinary sign-in afterwards: {}",
+         signed with another key: {}; another provider named in the return: {}; another \
+         provider named in the ID token: {}; an ordinary sign-in afterwards: {}",
         word(crossed),
         word(broken[0].1),
         word(broken[1].1),
         word(broken[2].1),
         word(broken[3].1),
+        word(broken[4].1),
+        word(broken[5].1),
         if still_works { "opened" } else { "refused" }
     ));
 
@@ -348,6 +371,48 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
              published"
         },
     );
+    // V10.2.2, credit only.
+    let named = |mode: &str| match mode {
+        "wrong-iss" => "the sign-in's `iss` parameter",
+        _ => "the ID token's `iss` claim",
+    };
+    let took: Vec<&str> = ["wrong-iss", "wrong-token-iss"]
+        .into_iter()
+        .filter(|m| accepted(m))
+        .map(named)
+        .collect();
+    if !took.is_empty() {
+        out.not_assessed.push((
+            "V10.2.2".to_owned(),
+            format!(
+                "The app signed the probes in when {} named another provider. That is the defense \
+                 V10.2.2 asks for against mix-up attacks, which matter only to an app that signs in \
+                 through more than one provider; with one, only that provider can sign its tokens. \
+                 securevibe.toml does not say how many the app uses, so this is not called a \
+                 finding.",
+                took.join(" and when ")
+            ),
+        ));
+    } else if refused("wrong-iss") && refused("wrong-token-iss") && still_works {
+        out.verified.push(crate::Verified::new(
+            MIX_UP.rule_id,
+            MIX_UP.requirement_ids,
+            "a sign-in whose return named another provider, and one whose ID token did, both \
+             refused, where an ordinary sign-in afterwards worked"
+                .to_owned(),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V10.2.2".to_owned(),
+            if still_works {
+                "A sign-in naming another provider could not be made through to the end.".to_owned()
+            } else {
+                "The app refused sign-ins naming another provider, but an ordinary sign-in \
+                 afterwards did not work either, so the refusal may not have been about the issuer."
+                    .to_owned()
+            },
+        ));
+    }
     out
 }
 
@@ -420,6 +485,10 @@ mod tests {
         no_provider: bool,
         /// The provider gives no answer when asked for this one mode.
         provider_fails_on: Option<&'static str>,
+        /// The app ignores the `iss` parameter in the provider's return.
+        no_iss_param_check: bool,
+        /// The app ignores the ID token's `iss` claim.
+        no_token_iss_check: bool,
     }
 
     /// A token as the fake provider issues it: what it says, and how it was signed.
@@ -428,6 +497,7 @@ mod tests {
         nonce: Option<String>,
         aud: String,
         signed: &'static str, // "good", "none", or "stranger"
+        iss: &'static str,
     }
 
     #[derive(Default)]
@@ -491,7 +561,8 @@ mod tests {
             };
             let nonce = f.no_nonce_check || token.nonce == *nonce_sent;
             let aud = f.no_aud_check || token.aud == "client";
-            signature && nonce && aud
+            let iss = f.no_token_iss_check || token.iss == "idp";
+            signature && nonce && aud && iss
         }
     }
 
@@ -529,6 +600,9 @@ mod tests {
                         return Some(answer(400, vec![]));
                     };
                     if !self.flaws.no_state_check && q.get("state") != Some(&state) {
+                        return Some(answer(400, vec![]));
+                    }
+                    if !self.flaws.no_iss_param_check && q.get("iss").is_some_and(|i| i != "idp") {
                         return Some(answer(400, vec![]));
                     }
                     let Some((_, token)) = q.get("code").and_then(|c| self.codes.remove(c)) else {
@@ -590,6 +664,11 @@ mod tests {
                     "wrong-key" => "stranger",
                     _ => "good",
                 },
+                iss: if mode == "wrong-token-iss" {
+                    "other"
+                } else {
+                    "idp"
+                },
             };
             self.codes.insert(code.clone(), (nonce, token));
             Some(answer(
@@ -597,8 +676,9 @@ mod tests {
                 vec![(
                     "location",
                     format!(
-                        "http://app/callback?code={code}&state={}",
-                        q.get("state").cloned().unwrap_or_default()
+                        "http://app/callback?code={code}&state={}&iss={}",
+                        q.get("state").cloned().unwrap_or_default(),
+                        if mode == "wrong-iss" { "other" } else { "idp" }
                     ),
                 )],
             ))
@@ -640,6 +720,12 @@ mod tests {
     fn an_app_that_checks_everything_is_credited_for_all_four() {
         let o = run_with(Flaws::default());
         assert!(o.findings.is_empty(), "{:?}", found(&o));
+        // And for checking which provider a sign-in came from.
+        assert!(
+            credited(&o).contains(&MIX_UP.rule_id),
+            "{:?}",
+            o.not_assessed
+        );
         for rule in ALL {
             assert!(
                 credited(&o).contains(&rule.rule_id),
@@ -821,8 +907,59 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
-        // The other three are still judged.
-        assert_eq!(credited(&o).len(), 3, "{:?}", credited(&o));
+        // The other three are still judged, and the issuer credit beside them.
+        assert_eq!(credited(&o).len(), 4, "{:?}", credited(&o));
+    }
+
+    #[test]
+    fn a_wrong_issuer_taken_is_said_and_never_a_finding() {
+        // Mix-up attacks need a second provider, and securevibe.toml does not say whether there is
+        // one, so an app that ignores the issuer is not accused of anything; it is not credited.
+        for (flaws, says) in [
+            (
+                Flaws {
+                    no_iss_param_check: true,
+                    ..Default::default()
+                },
+                "the sign-in's `iss` parameter named",
+            ),
+            (
+                Flaws {
+                    no_token_iss_check: true,
+                    ..Default::default()
+                },
+                "the ID token's `iss` claim named",
+            ),
+        ] {
+            let o = run_with(flaws);
+            assert!(o.findings.is_empty(), "{says}: {:?}", found(&o));
+            assert!(!credited(&o).contains(&MIX_UP.rule_id), "{says}");
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(ids, why)| ids == "V10.2.2" && why.contains(says)),
+                "{says}: {:?}",
+                o.not_assessed
+            );
+            // The four that are findings are still judged, and credited here.
+            assert_eq!(credited(&o).len(), 4, "{says}: {:?}", credited(&o));
+        }
+    }
+
+    #[test]
+    fn one_refused_issuer_is_not_credit_when_the_other_could_not_be_tried() {
+        let o = run_with(Flaws {
+            provider_fails_on: Some("wrong-token-iss"),
+            ..Default::default()
+        });
+        assert!(!credited(&o).contains(&MIX_UP.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V10.2.2" && why.contains("could not be made")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]

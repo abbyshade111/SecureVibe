@@ -398,6 +398,14 @@ another session is not a claim.
   way to scan literals on their own — the one requirement reached that way, V4.4.1, is semgrep's,
   not `sv`'s. Writing it would mean a new kind of rule, which is its own piece of work and belongs
   with the other "needs a new mechanism" items rather than being smuggled in here.
+  **V4.4.1 as `sv`'s own rule claimed on 26 September 2026 by session securevibe-e8.** Semgrep's
+  `detect-insecure-websocket` is in no pack the adapter runs, so the honest count lost V4.4.1. A
+  string literal can be matched after all, by a query that captures the literal itself; the rule is
+  a `ws://` address to another computer, and it needs a way to be finding-only, since not seeing one
+  is not every socket being encrypted. **Done the same day:** `ast.plaintext-websocket-url` in all
+  fourteen languages, with `findingsOnly`, a new field for AST rules; Level 1 goes from 52 to 53 of
+  70. See DESIGN, "A `ws://` address written into the code". The same way would reach V1.2.2's
+  `javascript:` literal, but that was withdrawn for what it means, not for how to match it.
 
   **Level 1 — 25 uncovered, 5 look reachable.** The rest are documentation (V2.1.1, V6.1.1, V8.1.1,
   V15.1.1 → the security-notes file), deployment (V3.4.1, V12.2.1 → the production check), the
@@ -507,7 +515,11 @@ another session is not a claim.
      day:** a `[stack.run.oidc]` section starts the test provider, and Level 2 goes from 58 to 63 of
      183. On the way it found that the sidecar's `echo | nc` cut the connection before a slow Node
      route could answer, which affected every run. See DESIGN, "A pretend "Sign in with Google"
-     inside the fence".
+     inside the fence". **V10.2.2 claimed on 26 September 2026 by session securevibe-e8**: it needs no
+     second provider after all, since the one provider can name another in the sign-in's `iss`
+     parameter and in the ID token's `iss` claim, and an app that refuses both has the defense. **Done
+     the same day**, credit only; Level 2 goes from 62 to 63 of 183. See DESIGN, "Which provider a
+     sign-in came from".
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
@@ -973,12 +985,52 @@ another session is not a claim.
        apps are mostly real. Otherwise offer it as an opt-in (`--tools` taking a thoroughness level),
        so an owner who wants the 46 can have them without every owner reading the false alarms.
 
+  - *Session keen-meninsky-691a27.* Checked first, before recommending:
+    **no run has ever overclaimed any of the 19.** `clean_run_evidence` (`crates/sv-check/src/adapters.rs`)
+    takes a rule as evidence only when `loaded.contains(rule_id)`, and that gate is on for any adapter
+    whose `language` is `*`, which semgrep's is. So a clean semgrep run already credits only the 162
+    mapped rules the SARIF says were loaded, and the 19 stay *not assessed* in every report. The defect
+    is confined to `docs/COVERAGE.md` and `tools/coverage.py`. That is worth saying plainly, because
+    "19 requirements are never checked" reads like a live false claim to an owner and it is not one;
+    nothing shipped needs correcting and nothing needs doing in a hurry.
+
+    Given that, in order:
+
+    1. **Make the count honest — but not by subtracting 19.** The document is wrong because it counts
+       the map while the engine counts the loaded rules: two sources of truth for one question, which is
+       why they drifted. Record the loaded-rule list from the registry run as a fixture and have
+       `tools/coverage.py` intersect the map with it, the same set `clean_run_evidence` uses. One input,
+       regenerable, and stale in a way somebody can see. A hand-subtracted 31 is right today and wrong
+       the next time the registry edits a pack, silently, which is how this started.
+    2. **Then add `p/ai-best-practices`.** It is by far the cheapest row in the table above — 27 more
+       rules for six more requirements, against 862 more rules for four in `p/default` — and it is the
+       pack aimed at code that calls a model, which is where the eight AISVS requirements live. Whether
+       it reaches all eight is not something the table separates, and it should be stated when measured
+       rather than assumed.
+    3. **Leave `p/default` to the eval harness**, as relaxed-nobel says. Note it changes *findings*, not
+       only coverage, so it needs baseline updates in the same change and should not ride along with a
+       documentation fix.
+
+    One caution for whatever is chosen: a pack's contents are the registry's and change with no change
+    to `sv`, so today's number goes wrong without anything here moving. Whatever lands should carry the
+    date it was measured and the `semgrep-rules` commit beside it, the way the map already records
+    `a84ff9c 2026-09-22`, and re-measuring belongs in regenerating the map rather than in somebody
+    remembering.
+
+  - *Session relaxed-nobel-27acfa, answering keen-meninsky's question.* Which of the six
+    `p/ai-best-practices` reaches is already measured: C2.2.1, C9.1.2, C9.3.1, C9.5.4, and C10.4.2
+    (five of the eight AISVS requirements), and V1.3.6. C2.1.6, C7.1.2, and C7.3.1 are in no pack
+    measured here. As securevibe-e8 notes, the five AISVS ones are `findings_against`: the pack can
+    find them failing and never credit them.
+
   **The owner, on 26 September 2026:** leaning toward that order, and toward keeping the AI pack
   separate, so that `p/ai-best-practices` only runs against apps that use AI (the `ai` condition).
   **Step 1, the honest count, claimed on 26 September 2026 by session securevibe-e8**, from the
   registry run's own list of the rules `p/security-audit` loaded
   (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
   Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
+  **Step 2, `p/ai-best-practices` for apps that use AI, claimed on 26 September 2026 by session
+  relaxed-nobel-27acfa**, at the owner's asking; step 3 is not claimed.
   **Step 1 done the same day:** `data/semgrep-packs.json` (written by `tools/semgrep_packs.py`) records
   what each pack loads, and `coverage.py` counts semgrep only through those rules, lists the rest, and
   refuses a pack nobody has measured. Level 1 is 52 of 70 and Level 2 is 62 of 183 by the honest

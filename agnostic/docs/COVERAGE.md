@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 127 (37%) | 5 | 213 |
+| OWASP ASVS 5.0 | 345 | 129 (37%) | 5 | 211 |
 | OWASP AISVS 1.0 | 191 | 2 (1%) | 0 | 189 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 52 | 7 | 1 | 3 | 31 | 19 | 2 |
-| L2 | 183 | 64 | 4 | 0 | 14 | 29 | 23 | 1 |
+| L1 | 70 | 53 | 8 | 1 | 3 | 31 | 19 | 2 |
+| L2 | 183 | 65 | 4 | 0 | 14 | 30 | 23 | 1 |
 | L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
 
-With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 13 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -61,13 +61,13 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 21 | 0 | 10 |
-| V4 API and Web Service | 16 | 7 | 0 | 9 |
+| V4 API and Web Service | 16 | 8 | 0 | 8 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
 | V9 Self-contained Tokens | 7 | 2 | 0 | 5 |
-| V10 OAuth and OIDC | 36 | 4 | 0 | 32 |
+| V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
 | V11 Cryptography | 24 | 6 | 1 | 17 |
 | V12 Secure Communication | 12 | 6 | 1 | 5 |
 | V13 Configuration | 21 | 7 | 1 | 13 |
@@ -78,7 +78,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (12)
+### Settled by reading the code (13)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -87,6 +87,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url` (sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
@@ -95,7 +96,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (81)
+### Settled by asking the running app (82)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -161,6 +162,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
+| V10.2.2 | L2 | Signed in: `probe.oidc-issuer-not-checked` |
 | V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
@@ -230,11 +232,11 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (16)
+### Level 1 with no check at all (15)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.3.1, V2.1.1, V2.2.1, V4.4.1, V6.1.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V9.2.1, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V9.2.1, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
