@@ -100,6 +100,66 @@
       "id": "V16.3.3",
       "title": "The events you said would be logged really are",
       "how": "Do each thing your notes say gets logged — a failed sign-in, a permission refused, a record deleted — then look in the logs and confirm each one is there with enough detail to tell who and when. Then try something that should be refused, such as posting a form with a field the app does not expect, and check that the refusal was logged too."
+    },
+    {
+      "id": "V5.4.3",
+      "title": "Uploaded files are scanned for viruses",
+      "how": "Find where a file someone uploads is stored before anyone downloads it, and check whether it is scanned by antivirus software on the way in: your host's upload service may offer this, or a scanner such as ClamAV can be added. Try uploading the harmless EICAR test file, which every antivirus scanner recognizes. If the app accepts it and serves it back, known malicious content would be served too."
+    },
+    {
+      "id": "C7.2.1",
+      "title": "The app judges how reliable each AI answer is",
+      "how": "Ask your AI coding tool to show you where the app decides how confident it is in an answer the model generated, before showing it. Look for a score or a check, not just the model's text passed straight through. If the answer is shown whatever the model said, the reliability of generated answers is not being assessed."
+    },
+    {
+      "id": "C7.2.2",
+      "title": "A doubtful AI answer is blocked or replaced",
+      "how": "With the confidence check from the item above, find the threshold below which an answer is not shown, and what the app shows instead: a fallback message such as \"I'm not sure, please contact us\". Try asking the AI something it cannot know about your business. It should fall back rather than invent an answer."
+    },
+    {
+      "id": "C11.1.1",
+      "title": "The AI model has had safety training",
+      "how": "Look up which model the app uses (your AI coding tool can tell you where it is named) and open the provider's model card or safety documentation. Check that it describes alignment or safety training against disallowed content. Models from the major providers do; a model you downloaded or trained yourself may not, and then this is yours to arrange."
+    },
+    {
+      "id": "C11.1.2",
+      "title": "The AI's safety is tested again whenever the model changes",
+      "how": "Write down a short list of prompts the app must refuse or answer carefully, and keep it in version control beside the code. Each time the model is updated or its version changes, run the list again and compare the answers. Check whether this happens today; if nobody reruns anything when the model changes, the answer is no."
+    },
+    {
+      "id": "C11.1.3",
+      "title": "The AI has been tried against known attacks",
+      "how": "Try the well-known attacks on the AI part of your app yourself: ask it to ignore its instructions, to reveal its system prompt, to role-play its way past a rule, or hide an instruction inside a document or image it reads. Write down which ones it resisted. A tool such as garak runs many of these adversarial techniques at once."
+    },
+    {
+      "id": "C11.1.4",
+      "title": "The AI is hardened against tricky inputs",
+      "how": "Take the attacks from the item above that worked, and check what the app now does about them: input it filters, instructions it keeps apart from what a visitor types, answers it checks before showing. Try each attack again. Hardened means each one that worked before now fails."
+    },
+    {
+      "id": "C11.3.1",
+      "title": "Someone copying the AI by asking it everything would be noticed",
+      "how": "Look at what the app records about the questions people ask the AI: who asked, how many, how fast. Check whether anything watches that record for the pattern of someone systematically asking thousands of varied questions to copy what the model knows, the query pattern of an extraction attempt, and warns somebody."
+    },
+    {
+      "id": "C12.2.2",
+      "title": "Unusual behavior toward the AI is spotted",
+      "how": "Check whether the app watches for conversations that look like probing: the same question retried many times with small changes, excessive retry attempts, or one visitor trying many different tricks in a row. Try it yourself and look for whether anything was flagged or anyone told."
+    },
+    {
+      "id": "C12.2.3",
+      "title": "Jailbreak and prompt-injection attempts are recognized",
+      "how": "List the rules the app uses to recognize attacks aimed at the AI: jailbreak phrasings, prompt injection hidden in documents it reads, attempts to extract its system prompt. Try a few coordinated attempts from two accounts at once, and check whether the rules catch them and something is recorded."
+    },
+    {
+      "id": "AC.4.1",
+      "title": "A person reviews the code the AI wrote",
+      "how": "Look at how changes to the app get in: check that every change your AI coding tool wrote is read and approved by a qualified person before it goes live, and that the reviewer is not the same person who asked the AI for the code. The AI agent does not count as the human reviewer. If changes go straight from the AI to the live app, the answer is no."
+    },
+    {
+      "id": "AC.6.3",
+      "title": "The AI coding tools themselves are attacked on purpose, on a schedule",
+      "how": "Check whether anyone regularly tries to trick the AI tools that help build the app: a pull request, issue, or comment with a hidden instruction, a known jailbreak, or a request to add a harmful package. Write down when this was last done and what it found, and whether each finding was tracked until fixed. If it has never been done, schedule the first red-team exercise."
     }
   ]
 }

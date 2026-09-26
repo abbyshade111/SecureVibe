@@ -2699,6 +2699,21 @@ Nine guards were broken in turn, each caught: a blank `how` counted, no expiry, 
 accepted, silence read as the owner's, a problem not reported, the tier never shown, the tier dropped
 from the tests to write, its rank swapped with *documented*, and the CLI not passing the checks on.
 
+### Every requirement only a person can settle is explained somewhere
+
+`manualOnly` lists the requirements no tool may ever settle, so for each of them a person is the
+only way to an answer, and the checklist and the interview are the only places that tell them how.
+Ten were in none of the three catalogs when this was found (26 September 2026), nine of them AISVS,
+added as the framework grew. Twelve entries went into `human-checks.json` (the ten, and two AISVS
+appendix C requirements at levels 1 and 2 that the finding had set aside as unleveled), each an
+instruction for somebody who is not a programmer: look up the model's safety documentation, try the
+well-known attacks yourself, check that a person who did not ask the AI for the code reviews it.
+
+The guards so far all ran one way: every entry names a real requirement, fits it, and says what to
+do. None ran the other way, so a requirement could be added to `manualOnly` and reach the reader as a
+row with nothing beside it. `every_requirement_only_a_person_can_settle_is_explained_somewhere` is
+that direction, at levels 1 and 2 like the checklist.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

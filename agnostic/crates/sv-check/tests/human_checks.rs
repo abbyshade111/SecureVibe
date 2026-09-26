@@ -248,3 +248,44 @@ fn a_where_to_look_line_says_where_rather_than_repeating_the_question() {
     }
     assert!(lazy.is_empty(), "these do not say where to look: {lazy:#?}");
 }
+
+/// Every requirement no check may ever settle is explained by some catalog.
+///
+/// The other direction from everything above. `manualOnly` in `applicability.json` lists the
+/// requirements a tool can never settle, so a person is the only way any of them gets an answer, and
+/// a person needs to be told how. Ten were in no catalog when this was found (26 September 2026),
+/// nine of them AISVS: the framework grew and the catalogs did not follow. This names the next one as
+/// it is added. Level 3 is left out, as the checklist leaves it out (`every_check_is_at_level_one_or_two`).
+#[test]
+fn every_requirement_only_a_person_can_settle_is_explained_somewhere() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../data/knowledge/applicability.json");
+    let applicability: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let manual: Vec<String> = applicability["manualOnly"]
+        .as_array()
+        .expect("applicability.json has a manualOnly list")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
+    assert!(manual.len() > 20, "the list did not load: {manual:?}");
+    let explained: BTreeSet<String> = human()
+        .checks
+        .iter()
+        .map(|c| c.id.clone())
+        .chain(notes().sections.iter().map(|s| s.id.clone()))
+        .chain(design().questions.iter().map(|q| q.id.clone()))
+        .collect();
+    let f = frameworks();
+    let unexplained: Vec<String> = manual
+        .iter()
+        .filter(|id| f.requirements.get(*id).is_some_and(|r| r.level <= 2))
+        .filter(|id| !explained.contains(*id))
+        .cloned()
+        .collect();
+    assert!(
+        unexplained.is_empty(),
+        "only a person can settle these, and no catalog tells them how: {unexplained:?}. Add a \
+         line to human-checks.json, security-notes.json, or design-questions.json."
+    );
+}

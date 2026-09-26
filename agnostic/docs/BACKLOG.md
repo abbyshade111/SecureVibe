@@ -81,6 +81,15 @@ another session is not a claim.
   checklist is its own guidance, or wants entries too, decides whether the count is ten or thirteen —
   and the test should encode whichever answer is chosen.
 
+  **Done the same day.** Twelve entries in `data/human-checks.json`, not ten: `AC.4.1` and `AC.6.3`
+  are the AISVS appendix on AI-assisted development and carry levels (1 and 2), so they belong with
+  the others; `AC.1.4` is level 3 and stays out, as the checklist leaves out level 3 everywhere. The
+  test is `every_requirement_only_a_person_can_settle_is_explained_somewhere` in
+  `crates/sv-check/tests/human_checks.rs`: every `manualOnly` requirement at level 1 or 2 must be in
+  one of the three catalogs. Removing an entry names it; widening the test to level 3 names `AC.1.4`.
+  The twelve reach the owner through the report's checklist and the interview (`sv questions`), and
+  can be recorded in `[checked-by-hand]`.
+
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
   admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails
