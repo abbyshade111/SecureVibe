@@ -131,6 +131,10 @@ another session is not a claim.
   required to have a found and a not-found witness, and the pair that matters here is CBC-with-a-MAC,
   which is the case a single query gets wrong.
 
+  **Done the same day** as `ast.unauthenticated-encryption`, finding-only at low confidence, in all
+  fourteen languages; its fix says encrypt-then-MAC code is already correct. See DESIGN, "Encryption
+  that cannot show it was changed (V11.3.3)".
+
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
   admiring-murdock-875699. Done the same day:** with `--internal` removed the test now fails
