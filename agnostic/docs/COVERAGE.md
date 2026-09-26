@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 125 (36%) | 5 | 215 |
+| OWASP ASVS 5.0 | 345 | 127 (37%) | 5 | 213 |
 | OWASP AISVS 1.0 | 191 | 2 (1%) | 0 | 189 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 52 | 7 | 1 | 3 | 31 | 19 | 2 |
-| L2 | 183 | 62 | 4 | 0 | 14 | 27 | 23 | 1 |
+| L2 | 183 | 64 | 4 | 0 | 14 | 29 | 23 | 1 |
 | L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -61,7 +61,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 21 | 0 | 10 |
-| V4 API and Web Service | 16 | 5 | 0 | 11 |
+| V4 API and Web Service | 16 | 7 | 0 | 9 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
@@ -95,7 +95,7 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (79)
+### Settled by asking the running app (81)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -120,6 +120,8 @@ C2.1.6, C2.2.1, C7.1.2, C7.3.1, C9.1.2, C9.3.1, C9.5.4, C10.4.2, V1.3.6, V1.3.12
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
 | V4.3.2 | L2 | The running app: `probe.graphql-introspection` |
 | V4.4.2 | L2 | The running app: `probe.websocket-origin-unchecked` |
+| V4.4.3 | L2 | Signed in: `probe.websocket-after-sign-out` |
+| V4.4.4 | L2 | Signed in: `probe.websocket-without-session` |
 | V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
 | V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
 | V5.3.1 | L1 | Signed in: `probe.uploaded-file-executed` |
