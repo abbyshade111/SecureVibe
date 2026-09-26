@@ -1,32 +1,13 @@
-//! Three more questions only the live site can answer, beside `production.rs`: whether its TLS
-//! handshake staples an OCSP response (V12.1.4), whether its DNS offers Encrypted Client Hello
-//! (V12.1.5), and whether its name is on the HSTS preload list (V3.7.4).
+//! Two more questions about the live site, beside `production.rs`: whether its DNS offers Encrypted
+//! Client Hello (V12.1.5), and whether its name is on the HSTS preload list (V3.7.4).
 //!
-//! The limits `sv probe` keeps are kept here, and one is added. The handshake is one more
-//! connection to the same host, and nothing is sent in it. The DNS question goes to this computer's
-//! own resolver, as any browser's would, and never to the site. The preload list is never fetched:
-//! it is a file the owner downloaded on purpose, exactly as the advisory database is, because
-//! looking a name up in somebody else's service tells that service which site is being checked.
+//! Neither sends the site anything. The DNS question goes to this computer's own resolver, as any
+//! browser's would. The preload list is never fetched: it is a file the owner downloaded on
+//! purpose, exactly as the advisory database is, because looking a name up in somebody else's
+//! service tells that service which site is being checked.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::verified::Verified;
-
-/// What one TLS handshake showed about revocation.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Handshake {
-    /// Absent when the handshake happened; otherwise why it did not.
-    pub failure: Option<String>,
-    /// Whether the server sent an OCSP response in the handshake, and whether it said "good".
-    pub stapled: bool,
-    pub stapled_good: bool,
-    /// Whether the site's certificate names an OCSP responder at all. `None` when it could not be
-    /// read.
-    pub names_responder: Option<bool>,
-}
-
-pub trait Tls {
-    fn handshake(&mut self, host: &str) -> Handshake;
-}
 
 /// One HTTPS resource record (RFC 9460): its priority (0 is an alias), and the keys of the
 /// parameters it carries. Key 5 is `ech`.
@@ -49,7 +30,7 @@ pub struct Outcome {
     pub findings: Vec<Finding>,
     pub verified: Vec<Verified>,
     pub not_assessed: Vec<(String, String)>,
-    /// What was asked, for the owner to see: the handshake, the DNS question, the list lookup.
+    /// What was asked, for the owner to see: the DNS question and the list lookup.
     pub asked: Vec<String>,
 }
 
@@ -61,18 +42,6 @@ struct Rule {
     impact: &'static str,
     fix: &'static str,
 }
-
-const NOT_STAPLED: Rule = Rule {
-    rule_id: "live.ocsp-not-stapled",
-    requirement_ids: &["V12.1.4"],
-    cwe: &["CWE-299"],
-    title: "The site's certificate names an OCSP responder, and the handshake staples no answer",
-    impact: "A browser that wants to know the certificate has not been revoked has to ask the \
-             certificate authority itself, which tells the authority who is visiting the site, or \
-             skip the question, which is what most browsers do.",
-    fix: "Turn on OCSP stapling in the web server or load balancer that ends TLS (`ssl_stapling on` \
-          in nginx, `SSLUseStapling on` in Apache; most hosted load balancers do it already).",
-};
 
 const NO_ECH: Rule = Rule {
     rule_id: "live.ech-not-offered",
@@ -119,62 +88,11 @@ fn finding(rule: &Rule, host: &str, description: String) -> Finding {
     }
 }
 
-/// Asks the three questions. `preload` is the text of Chromium's list, when the owner gave one.
-pub fn run(tls: &mut dyn Tls, dns: &mut dyn Dns, host: &str, preload: Option<&str>) -> Outcome {
+/// Asks the two questions. `preload` is the text of Chromium's list, when the owner gave one.
+pub fn run(dns: &mut dyn Dns, host: &str, preload: Option<&str>) -> Outcome {
     let mut out = Outcome::default();
     // The name without a port: DNS and the preload list know nothing of ports.
     let name = host.split(':').next().unwrap_or(host).to_lowercase();
-
-    // V12.1.4: one handshake.
-    out.asked.push(format!("one TLS handshake with {host}, asking for a stapled OCSP answer"));
-    let shake = tls.handshake(host);
-    match (&shake.failure, shake.stapled, shake.names_responder) {
-        (Some(why), _, _) => out.not_assessed.push((
-            "V12.1.4".to_owned(),
-            format!("Whether the handshake staples an OCSP answer: the handshake did not complete ({why})."),
-        )),
-        (None, true, _) if shake.stapled_good => out.verified.push(Verified::new(
-            NOT_STAPLED.rule_id,
-            NOT_STAPLED.requirement_ids,
-            format!("the TLS handshake with {host} stapled an OCSP answer saying the certificate is good"),
-        )),
-        (None, true, _) => out.findings.push(Finding {
-            title: "The stapled OCSP answer does not say the certificate is good".to_owned(),
-            severity: Severity::High,
-            ..finding(
-                &NOT_STAPLED,
-                &name,
-                format!(
-                    "The TLS handshake with {host} stapled an OCSP answer, and it did not say \
-                     `good`: the certificate may have been revoked, or the answer is stale."
-                ),
-            )
-        }),
-        (None, false, Some(true)) => out.findings.push(finding(
-            &NOT_STAPLED,
-            &name,
-            format!(
-                "The certificate {host} presents names an OCSP responder, and the handshake sent \
-                 no OCSP answer with it."
-            ),
-        )),
-        (None, false, Some(false)) => out.not_assessed.push((
-            "V12.1.4".to_owned(),
-            format!(
-                "The certificate {host} presents names no OCSP responder, so there is nothing to \
-                 staple; some authorities, Let's Encrypt among them, now publish revocation only \
-                 in lists. Whether that meets what your security notes decided about revocation \
-                 is a question for them."
-            ),
-        )),
-        (None, false, None) => out.not_assessed.push((
-            "V12.1.4".to_owned(),
-            format!(
-                "The handshake with {host} stapled no OCSP answer, and whether its certificate \
-                 names a responder could not be read, so it cannot be said whether one was owed."
-            ),
-        )),
-    }
 
     // V12.1.5: the site's HTTPS records, from this computer's resolver.
     out.asked.push(format!(
@@ -275,9 +193,7 @@ pub fn preload_entry(text: &str, name: &str) -> Result<Option<String>, String> {
         .join("\n");
     let value: serde_json::Value =
         serde_json::from_str(&json).map_err(|e| format!("it is not the list's JSON ({e})"))?;
-    let entries = value["entries"]
-        .as_array()
-        .ok_or("it has no `entries`")?;
+    let entries = value["entries"].as_array().ok_or("it has no `entries`")?;
     if entries.is_empty() {
         return Err("it has no entries".to_owned());
     }
@@ -394,7 +310,11 @@ impl Dns for SystemDns {
             .ok_or("/etc/resolv.conf names no resolver")?;
         let id = std::process::id() as u16 ^ 0x5ab1;
         let query = https_query(id, host).ok_or("the name cannot be asked about")?;
-        let bind = if server.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
+        let bind = if server.is_ipv4() {
+            "0.0.0.0:0"
+        } else {
+            "[::]:0"
+        };
         let socket = std::net::UdpSocket::bind(bind).map_err(|e| e.to_string())?;
         socket
             .set_read_timeout(Some(std::time::Duration::from_secs(5)))
@@ -410,111 +330,300 @@ impl Dns for SystemDns {
     }
 }
 
-// ------------------------------------------------------------------------------------------------
-// The handshake, through the `openssl` command, as `production.rs` goes through `curl`.
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Reads what `openssl s_client -status` printed about a stapled OCSP answer.
-pub fn read_stapling(printed: &str) -> (bool, bool) {
-    if printed.contains("OCSP response: no response sent") {
-        return (false, false);
-    }
-    let stapled = printed.contains("OCSP Response Status: successful");
-    let good = stapled && printed.contains("Cert Status: good");
-    (stapled, good)
-}
+    /// Real answers from a public resolver on 26 September 2026, to the question `https_query`
+    /// asks with id 0x1234: crypto.cloudflare.com, which offers ECH; cloudflare.com, which has an
+    /// HTTPS record without it; and github.com, which has none.
+    const WITH_ECH: &[u8] = include_bytes!("../tests/fixtures/live/https-with-ech.bin");
+    const WITHOUT_ECH: &[u8] = include_bytes!("../tests/fixtures/live/https-without-ech.bin");
+    const NO_RECORD: &[u8] = include_bytes!("../tests/fixtures/live/https-none.bin");
+    /// Real lines of Chromium's list: its header, `app` and `dev` (whole top-level domains),
+    /// `accounts.google.com` and `github.com` with their subdomains, and `g.co` without.
+    const PRELOAD: &str = include_str!("../tests/fixtures/live/preload-sample.json");
 
-/// The first certificate `openssl s_client` printed, as PEM.
-pub fn first_certificate(printed: &str) -> Option<String> {
-    let start = printed.find("-----BEGIN CERTIFICATE-----")?;
-    let end_marker = "-----END CERTIFICATE-----";
-    let end = printed[start..].find(end_marker)? + start + end_marker.len();
-    Some(format!("{}\n", &printed[start..end]))
-}
+    struct FakeDns(Result<Vec<ServiceRecord>, String>);
 
-pub struct Openssl;
-
-impl Openssl {
-    pub fn available() -> bool {
-        std::process::Command::new("openssl")
-            .arg("version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok_and(|s| s.success())
-    }
-
-    /// Runs openssl with this input, giving up after `seconds`.
-    fn run(args: &[&str], input: &[u8], seconds: u64) -> Result<String, String> {
-        use std::io::{Read, Write};
-        let mut child = std::process::Command::new("openssl")
-            .args(args)
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| format!("openssl could not be started: {e}"))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(input);
+    impl Dns for FakeDns {
+        fn https_records(&mut self, _host: &str) -> Result<Vec<ServiceRecord>, String> {
+            self.0.clone()
         }
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
-        loop {
-            match child.try_wait() {
-                Ok(Some(_)) => break,
-                Ok(None) if std::time::Instant::now() < deadline => {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err(format!("no answer within {seconds} seconds"));
-                }
+    }
+
+    fn ech() -> FakeDns {
+        FakeDns(Ok(vec![ServiceRecord {
+            priority: 1,
+            keys: vec![1, 4, 5, 6],
+        }]))
+    }
+
+    fn rules(o: &Outcome) -> Vec<&str> {
+        o.findings.iter().map(|f| f.rule_id.as_str()).collect()
+    }
+
+    fn credits(o: &Outcome) -> Vec<&str> {
+        o.verified.iter().map(|v| v.check_id.as_str()).collect()
+    }
+
+    #[test]
+    fn the_question_asked_is_the_one_the_real_answers_were_to() {
+        let q = https_query(0x1234, "crypto.cloudflare.com").unwrap();
+        // The answer repeats the question after its 12-byte header.
+        assert_eq!(&WITH_ECH[12..12 + q.len() - 12], &q[12..]);
+        assert_eq!(&q[..2], &[0x12, 0x34]);
+        assert!(https_query(1, "bad..name").is_none());
+        assert!(https_query(1, &format!("{}.com", "a".repeat(64))).is_none());
+    }
+
+    #[test]
+    fn real_answers_are_read_for_what_they_offer() {
+        let with = https_answer(0x1234, WITH_ECH).unwrap();
+        assert!(
+            with.iter()
+                .any(|r| r.priority > 0 && r.keys.contains(&ECH_KEY)),
+            "{with:?}"
+        );
+        let without = https_answer(0x1234, WITHOUT_ECH).unwrap();
+        assert!(!without.is_empty());
+        assert!(
+            without.iter().all(|r| !r.keys.contains(&ECH_KEY)),
+            "{without:?}"
+        );
+        assert!(https_answer(0x1234, NO_RECORD).unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_answer_that_is_not_one_is_never_read_as_no_records() {
+        // Another question's answer, a cut-off answer, a truncated one, and a server failure: each
+        // is an error, never an empty list, which would read as "no ECH".
+        assert!(https_answer(0x9999, WITH_ECH).is_err());
+        assert!(https_answer(0x1234, &WITH_ECH[..60]).is_err());
+        let mut truncated = WITH_ECH.to_vec();
+        truncated[2] |= 0x02;
+        assert!(https_answer(0x1234, &truncated).is_err());
+        let mut failed = WITHOUT_ECH.to_vec();
+        failed[3] = (failed[3] & 0xf0) | 2;
+        assert!(https_answer(0x1234, &failed).is_err());
+    }
+
+    #[test]
+    fn ech_offered_is_credited_and_missing_is_found() {
+        let o = run(&mut ech(), "example.dev", Some(PRELOAD));
+        assert!(credits(&o).contains(&NO_ECH.rule_id), "{:?}", o.findings);
+        let o = run(
+            &mut FakeDns(Ok(vec![ServiceRecord {
+                priority: 1,
+                keys: vec![1, 4, 6],
+            }])),
+            "example.dev",
+            Some(PRELOAD),
+        );
+        assert_eq!(rules(&o), vec![NO_ECH.rule_id]);
+        let o = run(&mut FakeDns(Ok(vec![])), "example.dev", Some(PRELOAD));
+        assert_eq!(rules(&o), vec![NO_ECH.rule_id]);
+    }
+
+    #[test]
+    fn a_dns_question_that_could_not_be_asked_settles_nothing() {
+        let o = run(
+            &mut FakeDns(Err("the resolver did not answer".into())),
+            "example.dev",
+            Some(PRELOAD),
+        );
+        assert!(!rules(&o).contains(&NO_ECH.rule_id));
+        assert!(!credits(&o).contains(&NO_ECH.rule_id));
+        assert!(o.not_assessed.iter().any(|(id, _)| id == "V12.1.5"));
+    }
+
+    #[test]
+    fn a_record_that_only_points_elsewhere_is_not_read_as_no_ech() {
+        let o = run(
+            &mut FakeDns(Ok(vec![ServiceRecord {
+                priority: 0,
+                keys: vec![],
+            }])),
+            "example.dev",
+            Some(PRELOAD),
+        );
+        assert!(!rules(&o).contains(&NO_ECH.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V12.1.5" && why.contains("points"))
+        );
+        // Even an alias that carries an `ech` key is not credited: an alias's parameters mean
+        // nothing (RFC 9460), and the name it points at was not asked.
+        let o = run(
+            &mut FakeDns(Ok(vec![ServiceRecord {
+                priority: 0,
+                keys: vec![ECH_KEY],
+            }])),
+            "example.dev",
+            Some(PRELOAD),
+        );
+        assert!(!credits(&o).contains(&NO_ECH.rule_id));
+    }
+
+    #[test]
+    fn the_preload_list_covers_a_name_by_itself_or_a_parent_with_its_subdomains() {
+        for (name, entry) in [
+            ("github.com", Some("github.com")),
+            ("gist.github.com", Some("github.com")),
+            ("my-site.dev", Some("dev")),
+            ("GitHub.com.", Some("github.com")),
+            ("g.co", Some("g.co")),
+            ("www.g.co", None),
+            ("example.com", None),
+        ] {
+            assert_eq!(
+                preload_entry(PRELOAD, name).unwrap().as_deref(),
+                entry,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_file_that_is_not_the_list_is_said_so() {
+        assert!(preload_entry("not json", "github.com").is_err());
+        assert!(preload_entry("{\"entries\": []}", "github.com").is_err());
+        assert!(preload_entry("{\"pins\": []}", "github.com").is_err());
+        let o = run(&mut ech(), "github.com", Some("{}"));
+        assert!(o.not_assessed.iter().any(|(id, _)| id == "V3.7.4"));
+        assert!(!rules(&o).contains(&NOT_PRELOADED.rule_id));
+    }
+
+    #[test]
+    fn preloaded_is_credited_missing_is_found_and_no_list_is_said() {
+        let o = run(&mut ech(), "api.github.com", Some(PRELOAD));
+        assert!(credits(&o).contains(&NOT_PRELOADED.rule_id));
+        let o = run(&mut ech(), "shop.example.com", Some(PRELOAD));
+        assert_eq!(rules(&o), vec![NOT_PRELOADED.rule_id]);
+        let o = run(&mut ech(), "shop.example.com", None);
+        assert!(rules(&o).is_empty() && !credits(&o).contains(&NOT_PRELOADED.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V3.7.4" && why.contains("--hsts-preload"))
+        );
+    }
+
+    #[test]
+    fn a_port_in_the_address_is_not_part_of_the_name() {
+        let o = run(&mut ech(), "api.github.com:8443", Some(PRELOAD));
+        assert!(
+            credits(&o).contains(&NOT_PRELOADED.rule_id),
+            "{:?}",
+            o.findings
+        );
+    }
+
+    #[test]
+    fn an_answer_missing_its_last_byte_is_not_read() {
+        // Every field before the last parameter's value is there, so without its length checked
+        // this would read as a complete answer.
+        for answer in [WITH_ECH, WITHOUT_ECH] {
+            assert!(https_answer(0x1234, &answer[..answer.len() - 1]).is_err());
+        }
+    }
+
+    #[test]
+    fn a_real_answer_to_another_question_or_with_a_failure_is_not_read() {
+        assert!(https_answer(0x4321, WITHOUT_ECH).is_err());
+        assert!(https_answer(0x0000, NO_RECORD).is_err());
+        let mut truncated = NO_RECORD.to_vec();
+        truncated[2] |= 0x02;
+        assert!(https_answer(0x1234, &truncated).is_err());
+        let mut refused = NO_RECORD.to_vec();
+        refused[3] = (refused[3] & 0xf0) | 5;
+        assert!(https_answer(0x1234, &refused).is_err());
+    }
+
+    #[test]
+    fn only_a_forced_https_entry_counts() {
+        let list = r#"// a comment
+{ "entries": [
+    { "name": "example.com", "policy": "custom", "mode": "report-only", "include_subdomains": true },
+    { "name": "example.org", "policy": "custom", "mode": "force-https" }
+] }"#;
+        assert_eq!(preload_entry(list, "example.com").unwrap(), None);
+        assert_eq!(preload_entry(list, "shop.example.com").unwrap(), None);
+        assert_eq!(
+            preload_entry(list, "example.org").unwrap().as_deref(),
+            Some("example.org")
+        );
+    }
+
+    #[test]
+    fn a_parent_entry_without_subdomains_does_not_cover_them() {
+        let list = r#"{ "entries": [ { "name": "example.org", "mode": "force-https" } ] }"#;
+        assert_eq!(preload_entry(list, "www.example.org").unwrap(), None);
+        let o = run(&mut ech(), "www.g.co", Some(PRELOAD));
+        assert_eq!(rules(&o), vec![NOT_PRELOADED.rule_id]);
+    }
+
+    #[test]
+    fn an_empty_list_is_not_a_list_the_site_is_missing_from() {
+        let o = run(&mut ech(), "shop.example.com", Some("{ \"entries\": [] }"));
+        assert!(!rules(&o).contains(&NOT_PRELOADED.rule_id));
+        assert!(o.not_assessed.iter().any(|(id, _)| id == "V3.7.4"));
+    }
+
+    #[test]
+    fn with_a_port_the_name_is_still_found_on_the_list_and_asked_of_dns() {
+        struct Seen(Vec<String>);
+        impl Dns for Seen {
+            fn https_records(&mut self, host: &str) -> Result<Vec<ServiceRecord>, String> {
+                self.0.push(host.to_owned());
+                Ok(vec![])
             }
         }
-        let mut out = String::new();
-        if let Some(mut stdout) = child.stdout.take() {
-            let _ = stdout.read_to_string(&mut out);
-        }
-        Ok(out)
+        let mut dns = Seen(Vec::new());
+        run(&mut dns, "github.com:8443", Some(PRELOAD));
+        assert_eq!(dns.0, vec!["github.com".to_owned()]);
     }
-}
 
-impl Tls for Openssl {
-    fn handshake(&mut self, host: &str) -> Handshake {
-        let name = host.split(':').next().unwrap_or(host);
-        let address = if host.contains(':') {
-            host.to_owned()
-        } else {
-            format!("{host}:443")
-        };
-        // Nothing is sent after the handshake: stdin is closed at once.
-        let printed = match Self::run(
-            &["s_client", "-connect", &address, "-servername", name, "-status"],
-            b"",
-            20,
-        ) {
-            Ok(printed) => printed,
-            Err(why) => {
-                return Handshake {
-                    failure: Some(why),
-                    ..Default::default()
-                };
-            }
-        };
-        let Some(certificate) = first_certificate(&printed) else {
-            return Handshake {
-                failure: Some("no certificate came back".to_owned()),
-                ..Default::default()
-            };
-        };
-        let (stapled, stapled_good) = read_stapling(&printed);
-        let names_responder = Self::run(&["x509", "-noout", "-ocsp_uri"], certificate.as_bytes(), 10)
-            .ok()
-            .map(|uri| uri.lines().any(|l| l.trim().starts_with("http")));
-        Handshake {
-            failure: None,
-            stapled,
-            stapled_good,
-            names_responder,
-        }
+    #[test]
+    fn a_resolver_that_does_not_answer_is_not_a_missing_record() {
+        let o = run(
+            &mut FakeDns(Err("the resolver at 10.0.0.1 did not answer".into())),
+            "shop.example.com",
+            None,
+        );
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+    }
+
+    #[test]
+    fn an_alias_beside_nothing_else_is_said_and_neither_credited_nor_found() {
+        let o = run(
+            &mut FakeDns(Ok(vec![ServiceRecord {
+                priority: 0,
+                keys: vec![1, ECH_KEY],
+            }])),
+            "shop.example.com",
+            None,
+        );
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert!(o.verified.is_empty());
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("points at another name"))
+        );
+    }
+
+    #[test]
+    fn an_answer_cut_inside_its_ech_configuration_is_not_read_as_offering_it() {
+        // Two bytes short: the `ech` key and its length are there, its configuration is not.
+        assert!(https_answer(0x1234, &WITH_ECH[..WITH_ECH.len() - 2]).is_err());
+    }
+
+    #[test]
+    fn a_site_whose_only_entry_is_not_forced_https_is_found_missing() {
+        let list = r#"{ "entries": [ { "name": "example.com", "mode": "report-only", "include_subdomains": true } ] }"#;
+        let o = run(&mut ech(), "example.com", Some(list));
+        assert_eq!(rules(&o), vec![NOT_PRELOADED.rule_id]);
     }
 }

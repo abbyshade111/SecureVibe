@@ -27,7 +27,7 @@ fn main() -> Result<()> {
         }
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
-        Some("probe") => cmd_probe(args.get(1).map(String::as_str)),
+        Some("probe") => cmd_probe(&args[1..]),
         Some("run") => cmd_run(&args[1..]),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
@@ -52,7 +52,7 @@ fn print_help() {
          sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
-         sv probe URL       ask your own live site the few things only it can answer\n  \
+         sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n  \
          sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
          sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
@@ -430,7 +430,31 @@ fn design_questions_path() -> PathBuf {
 ///
 /// The address is an argument and never comes from a file: see `sv_check::production`, where the
 /// limits on what this may do are set out and tested.
-fn cmd_probe(url: Option<&str>) -> Result<()> {
+fn cmd_probe(args: &[String]) -> Result<()> {
+    let mut url = None;
+    // A copy of Chromium's HSTS preload list the owner downloaded. `sv` never fetches it: looking a
+    // name up in somebody else's service tells that service which site is being checked.
+    let mut preload_file: Option<PathBuf> = None;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--hsts-preload" => {
+                preload_file = Some(PathBuf::from(
+                    rest.next()
+                        .context("--hsts-preload needs the list's file")?,
+                ));
+            }
+            other if other.starts_with('-') => bail!("unknown option: {other}"),
+            other => url = Some(other),
+        }
+    }
+    let preload = match &preload_file {
+        Some(path) => Some(
+            std::fs::read_to_string(path)
+                .with_context(|| format!("reading the HSTS preload list at {}", path.display()))?,
+        ),
+        None => None,
+    };
     let Some(url) = url else {
         bail!(
             "give the address your app is served from, for example:\n  \
@@ -457,27 +481,47 @@ fn cmd_probe(url: Option<&str>) -> Result<()> {
     );
 
     let mut http = sv_check::production::Curl::new();
-    let out = sv_check::production::run(&mut http, &target);
+    let mut out = sv_check::production::run(&mut http, &target);
+    // Whether the site answered at all, decided from its own answers before the two questions
+    // below, which ask DNS and a local file rather than the site.
+    let reached = !(out.findings.is_empty() && out.verified.is_empty());
+    let live = sv_check::live_tls::run(
+        &mut sv_check::live_tls::SystemDns,
+        &target.host,
+        preload.as_deref(),
+    );
 
     println!("It asked for:");
     for url in &out.requested {
         println!("  {url}");
     }
+    for asked in &live.asked {
+        println!("  {asked}");
+    }
     println!();
+    out.findings.extend(live.findings);
+    out.verified.extend(live.verified);
+    out.not_assessed.extend(live.not_assessed);
 
-    if out.findings.is_empty() && out.verified.is_empty() {
-        // Nothing was reached, so nothing was asked. Saying "nothing came back wrong" here reads as
-        // a pass, and a clean-looking answer from a site this never touched is the worst thing this
-        // command could print.
+    if !reached {
+        // Nothing was reached, so nothing about the site itself was asked. Saying "nothing came
+        // back wrong" here reads as a pass, and a clean-looking answer from a site this never
+        // touched is the worst thing this command could print.
         println!("It could not reach that address, so it has nothing to say about it either way.");
+        if !out.findings.is_empty() {
+            println!("Its DNS and the preload list were still asked about:\n");
+        }
     } else if out.findings.is_empty() {
         println!("Nothing it asked about came back wrong.");
-    } else {
-        println!(
-            "{} thing{} to fix:\n",
-            out.findings.len(),
-            if out.findings.len() == 1 { "" } else { "s" }
-        );
+    }
+    if !out.findings.is_empty() {
+        if reached {
+            println!(
+                "{} thing{} to fix:\n",
+                out.findings.len(),
+                if out.findings.len() == 1 { "" } else { "s" }
+            );
+        }
         for f in &out.findings {
             println!("[{}] {}", f.severity.name(), f.title);
             for line in wrap(&f.description, 76) {

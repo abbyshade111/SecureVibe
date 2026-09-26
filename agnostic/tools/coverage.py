@@ -103,6 +103,8 @@ RUST_CHECKS = {
     "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
     "probe.plain-http-served": ("production", ["V12.2.1"]),
     "probe.no-hsts": ("production", ["V3.4.1"]),
+    "live.ech-not-offered": ("production", ["V12.1.5"]),
+    "live.hsts-not-preloaded": ("production", ["V3.7.4"]),
     "probe.cookie-without-host-prefix": ("production", ["V3.3.3"]),
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
