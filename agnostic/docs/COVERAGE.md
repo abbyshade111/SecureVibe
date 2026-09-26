@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 105 (30%) | 4 | 236 |
+| OWASP ASVS 5.0 | 345 | 105 (30%) | 5 | 235 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
@@ -53,7 +53,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 13 | 0 | 17 |
-| V2 Validation and Business Logic | 13 | 1 | 0 | 12 |
+| V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 5 | 0 | 11 |
 | V5 File Handling | 13 | 7 | 0 | 6 |
@@ -194,20 +194,21 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.3.3 | L2 | Outside tools: `brakeman`, `semgrep` |
 | V16.2.5 | L2 | Outside tools: `semgrep` |
 
-### Supporting only (4)
+### Supporting only (5)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (18)
+### Level 1 with no check at all (17)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.2.2, V1.3.1, V2.1.1, V2.2.1, V2.3.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V1.2.2, V1.3.1, V2.1.1, V2.2.1, V3.5.2, V6.1.1, V6.4.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 

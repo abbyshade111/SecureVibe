@@ -4,7 +4,7 @@
     {
       "id": "V2.3.1",
       "title": "Steps cannot be skipped or done out of order",
-      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice."
+      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice. Describing the flow in securevibe.toml as `flow` under [stack.run.users] lets `sv report --run` try the first two skips for you; the wrong order and the repeated step are still yours."
     },
     {
       "id": "V12.2.2",
