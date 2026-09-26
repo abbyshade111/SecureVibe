@@ -100,10 +100,86 @@ another session is not a claim.
     not-yet; `on`, a date; `by`; and `how`, required), current for 90 days, reported as *checked by
     hand by the owner* just above *attested by the owner*, a tool's `done` as *stated by the AI coding
     tool*, and `problem` as needs attention.
+    **Done the same day.** See DESIGN, "Checks made by hand, and what was seen".
   - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
     contract, and worth its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
+
+- **Ten requirements a person must answer, and nothing anywhere tells them how.** Found on
+  26 September 2026 while drawing the coverage maps. **Claimed on 26 September 2026 by session
+  securevibe-e8.** `applicability.json`'s `manualOnly`
+  now holds 26 requirements — ones no check may ever settle. Guidance for them lives in three
+  catalogs: `data/human-checks.json`, `data/security-notes.json`, and `data/design-questions.json`.
+  Ten are in none of them, so the report marks them unverified and offers the reader nothing:
+
+  | | Level | |
+  |---|---|---|
+  | V5.4.3 | L2 | files from untrusted sources are scanned by antivirus |
+  | C7.2.1 | L2 | the reliability of generated answers is assessed with a confidence estimate |
+  | C7.2.2 | L2 | answers below the confidence threshold are blocked or fall back |
+  | C11.1.1 | L1 | the model has had alignment or safety training |
+  | C11.1.2 | L1 | a version-controlled alignment test suite runs on every model release |
+  | C11.1.3 | L1 | models are evaluated against known adversarial techniques for their modality |
+  | C11.1.4 | L2 | models are hardened against adversarial inputs |
+  | C11.3.1 | L1 | query-pattern analysis feeds an extraction-attempt detector |
+  | C12.2.2 | L2 | behavioral anomaly detection identifies probing behavior |
+  | C12.2.3 | L2 | custom rules detect coordinated jailbreak and prompt-injection attempts |
+
+  Nine of the ten are AISVS, which is the part of the work that has grown fastest, so the gap is
+  where the framework moved and the catalogs did not follow.
+
+  **The fix is a test, not a list.** `crates/sv-check/tests/human_checks.rs` already guards the other
+  direction thoroughly — every check names a requirement that exists, no requirement is explained by
+  two catalogs, every check shares vocabulary with its requirement, every check is at level one or
+  two, every check is written for somebody who is not a programmer. Nothing guards *this* direction:
+  that every requirement `sv` can never settle is asked by some catalog. A test that fails with the
+  unasked ids listed would have caught all ten as they were added, and will catch the next one, which
+  writing ten entries by hand will not.
+
+  Also worth a decision rather than an assumption: `AC.1.4`, `AC.4.1`, and `AC.6.3` are `manualOnly`
+  and asked nowhere either, but the Secure by Design controls carry no level, and
+  `every_check_is_at_level_one_or_two` says human checks are deliberately L1 and L2 only. Whether the
+  checklist is its own guidance, or wants entries too, decides whether the count is ten or thirteen —
+  and the test should encode whichever answer is chosen.
+
+- **V11.3.3 is the one requirement no semgrep pack brings back, and `sv` could own it outright.**
+  Found on 26 September 2026 while reading the coverage maps after #164 made the semgrep count
+  honest; **not claimed**, and session relaxed-nobel-27acfa is pointing at this item from the step 3
+  write-up rather than duplicating it. Four requirements lost their credit when the count started
+  following the pack: V4.4.1, V9.2.1, V11.3.3, and V11.4.3, each mapped to semgrep alone with no
+  other tool behind it. From relaxed-nobel-27acfa's measurements, `p/default` reaches three of them
+  and **not V11.3.3**. So three are a pack decision and the fourth is not; adding packs leaves it
+  uncovered forever.
+
+  It does not have to be. V11.3.3 asks that "encrypted data is protected against unauthorized
+  modification, preferably by using an approved authenticated encryption method or by combining an
+  approved encryption method with an approved MAC algorithm" — a question about a call site, which is
+  what `data/ast-rules.json` is for. Its neighbours are already there: `ast.weak-cipher` cites V11.3.1
+  and V11.3.2 across fourteen languages, `ast.weak-hash-function` cites V11.4.1 across fourteen. The
+  call sites are the same ones — `createCipheriv`, `openssl_encrypt`, `Cipher.getInstance`, `AES.new`
+  — and what differs is the argument: a non-authenticated mode (`aes-256-cbc`, `aes-256-ctr`,
+  `MODE_CBC`, `AES/CBC/PKCS5Padding`) where `ast.weak-cipher` looks for a retired cipher or ECB.
+  `argumentPatterns` and `safeArgumentPatterns` already express exactly that shape, GCM, CCM, OCB,
+  SIV, ChaCha20-Poly1305, Fernet and libsodium's secretbox being the safe side, so it is a data entry
+  and not a change in Rust.
+
+  **The catch, and it decides the shape.** CBC combined with a separate HMAC satisfies the
+  requirement, and no single query can see the HMAC: it is a different call, often in a different
+  function. A rule written the obvious way flags every correct encrypt-then-MAC as a finding. Two
+  honest ways out, and the difference matters:
+  - `"confidence": "low"`, the way `ast.file-path-from-value` already handles a question it cannot
+    settle from one call site. Cheap, consistent with what is there, but a clean run still credits
+    V11.3.3 as checked, which for an app doing CBC plus HMAC is the right answer reached by luck and
+    for an app doing raw CBC is the rule having missed nothing.
+  - Make it finding-only. `findings_against` exists for adapters and **has no equivalent for AST
+    rules** — `nothingToFind` is a per-language "this language has no such construct" note, not this —
+    so that route is a change in `ast.rs` and the rule schema, not a data entry. It is the more honest
+    of the two, and it is the more expensive.
+
+  Whoever takes it should also break it and count: every (rule, language) pair in this file is
+  required to have a found and a not-found witness, and the pair that matters here is CBC-with-a-MAC,
+  which is the case a single query gets wrong.
 
 - **The fence test can pass without proving anything.** Found on 26 September 2026 running the suite
   on the owner's Mac (Docker Desktop). **Claimed on 26 September 2026 by session
@@ -441,12 +517,37 @@ another session is not a claim.
   **Neither reaches** membership inference (C11.2.5), drift and hallucination monitoring (C12.3),
   the training-data chapters, or most of the agent architecture in C9; those stay the owner's to answer.
 
+  **The owner's decision, 26 September 2026: the fake model first, not garak.** **The fake model
+  claimed the same day by session securevibe-e9**, for the four requirements above (C7.3.2, C7.3.3,
+  C7.1.2, C2.1.3). garak stays unclaimed and undecided.
+
   **Thoughts.**
 
   - *Session securevibe-e9.* The fake model first: free, exact, fenced, and able to credit the
     controls a small app owns. garak afterwards as an optional adapter, findings only, run only when
     the owner lets the app reach its provider for the run and agrees to what it spends, with the
     probe set and a cap named in the manifest.
+
+    Asked by the owner for more ways to reach the remaining AISVS requirements, each built on
+    machinery that exists or on the fake model once it does. None is claimed:
+    - **C12.1.3, structured inference logs.** The fake model answers with a model name and token
+      counts nobody else would use; the log check then looks for them in the app's output, as it
+      does for its own markers (V16.2.1). Credit on presence.
+    - **C12.2.1 and C12.2.3, injection attempts detected and alerted on.** After the C2.1.3 probe
+      sends a textbook injection, the same log check looks for the app having flagged it.
+    - **C11.2.2, rate limits on the inference route.** A number the owner states under `[policy]`,
+      as `failed-sign-ins` is for V6.3.1, and one more request than that to the AI route, which
+      costs nothing when the model is the fake one.
+    - **C9.6.1, a kill switch.** The owner names the setting that halts the AI feature (an
+      environment variable or a flag); the run starts the app with it on and asks the AI route,
+      which must then answer without the fake model being called.
+    - **C10.4.1 and C10.4.2, MCP responses screened.** The same idea as the fake model, for an app
+      that is an MCP client: a fake MCP server in the fence whose `tools/list` breaks its own
+      schema and whose `tools/call` carries an injected instruction, and the fake model reports
+      whether either reached it.
+    - **C9.3.4 and C9.3.7, what an agent may call.** The fake model asks for a tool call outside
+      what the app declares, or to install a package that does not exist, and reports whether the
+      app went ahead. Harder: the effect has to be observable, which depends on the app.
 
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked

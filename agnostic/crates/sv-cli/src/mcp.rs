@@ -952,6 +952,43 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_check_made_by_hand_is_read_from_the_manifest_and_reported() {
+        // Through the real manifest, so the section's name and fields are held too, not only the
+        // judgment of them. The date is today's, so the check is current whenever this runs.
+        let root = scratch_app("hand", "tested-notes");
+        let today = sv_check::advisories::Day::today().unwrap().show();
+        let manifest = root.join("app").join("securevibe.toml");
+        let mut toml = std::fs::read_to_string(&manifest).unwrap();
+        toml.push_str(&format!(
+            "\n[checked-by-hand]\n\
+             \"V12.2.2\" = {{ result = \"done\", on = \"{today}\", by = \"owner\", how = \"The padlock shows a trusted certificate.\" }}\n\
+             \"V2.3.4\" = {{ result = \"problem\", on = \"{today}\", by = \"owner\", how = \"Two browsers booked one slot.\" }}\n"
+        ));
+        std::fs::write(&manifest, toml).unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_check", json!({ "path": "app" }));
+        let questions = call(&server, "securevibe_questions", json!({ "path": "app" }));
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(result["isError"], false, "{}", text(&result));
+        assert_eq!(
+            result["structuredContent"]["counts"]["by_hand"],
+            1,
+            "{}",
+            text(&result)
+        );
+        assert!(
+            text(&result).contains("Checked by hand, and it failed"),
+            "the problem is a finding: {}",
+            text(&result)
+        );
+        assert!(
+            !text(&questions).contains(" - V12.2.2:"),
+            "a current check by hand is not asked again: {}",
+            text(&questions)
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn the_notes_file_is_not_written_through_a_link_out_of_the_app() {

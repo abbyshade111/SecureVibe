@@ -98,8 +98,14 @@ pub fn text(report: &Report) -> String {
 
     if !by_hand.is_empty() {
         out.push_str(&format!(
-            "\n{}. CHECKS TO MAKE BY HAND ({}). Nothing records these yet. Walk the person through \
-             each one, help with the part that is in the code, and fix what you find together.\n",
+            "\n{}. CHECKS TO MAKE BY HAND ({}). Walk the person through each one, and help with the \
+             part that is in the code. Then record what happened in securevibe.toml, in the \
+             [checked-by-hand] section, keyed by its id:\n   \"V12.2.2\" = {{ result = \"done\", on = \
+             \"2026-09-26\", by = \"owner\", how = \"Opened the live site; the padlock shows a \
+             trusted certificate.\" }}\n   `result` is done, problem, or not-yet; `on` is the day; \
+             `how` is one sentence of what was done and seen, in the person's words, and is \
+             required. A check you made yourself, reading the code, is by = \"ai-tool\". A problem \
+             is worth recording: the report lists it as something to fix.\n",
             1 + usize::from(!design.is_empty()) + usize::from(!notes.is_empty()),
             by_hand.len()
         ));

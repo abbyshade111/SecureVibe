@@ -2040,6 +2040,88 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         });
     }
 
+    // The checks made by hand, recorded in securevibe.toml. The owner's `done` is their word about
+    // what they saw; `problem` is a finding; an old one is out of date and counts for nothing.
+    let hand_answers: std::collections::BTreeMap<String, sv_check::hand::Answer> = manifest
+        .checked_by_hand
+        .iter()
+        .map(|(id, a)| {
+            (
+                id.clone(),
+                sv_check::hand::Answer {
+                    result: a.result.clone(),
+                    on: a.on.clone(),
+                    by: a.by.clone(),
+                    how: a.how.clone(),
+                },
+            )
+        })
+        .collect();
+    let hand = match sv_check::advisories::Day::today() {
+        Some(today) => sv_check::hand::evaluate(
+            &human_checks,
+            &hand_answers,
+            &|id| buckets.applicable.iter().any(|a| a == id),
+            today,
+        ),
+        // A clock before 1970 cannot say whether a check is current, so none is counted.
+        None => sv_check::hand::Outcome::default(),
+    };
+    findings.extend(hand.findings.iter().cloned());
+    if !hand.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} check{} made by hand",
+                hand.unreadable.len(),
+                if hand.unreadable.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "securevibe.toml records {} in [checked-by-hand] in a way nothing could be made \
+                 of, so it counts for nothing: {}.",
+                if hand.unreadable.len() == 1 {
+                    "this"
+                } else {
+                    "these"
+                },
+                hand.unreadable
+                    .iter()
+                    .map(|(id, why)| format!("{id} ({why})"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        });
+    }
+    if !hand.out_of_date.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} check{} made by hand more than {} days ago",
+                hand.out_of_date.len(),
+                if hand.out_of_date.len() == 1 { "" } else { "s" },
+                sv_check::hand::CURRENT_FOR_DAYS
+            ),
+            why: format!(
+                "Certificates expire and apps change, so an old check counts for nothing. Make \
+                 {} again and record the new date: {}.",
+                if hand.out_of_date.len() == 1 {
+                    "it"
+                } else {
+                    "them"
+                },
+                hand.out_of_date
+                    .iter()
+                    .map(|(id, on)| format!("{id}, checked on {on}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        });
+    }
+    let stated: Vec<sv_check::Verified> = design
+        .stated
+        .iter()
+        .chain(hand.stated.iter())
+        .cloned()
+        .collect();
+
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -2061,7 +2143,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         not_for_tests,
         documented: &documented,
         attested: &design.attested,
-        stated: &design.stated,
+        stated: &stated,
+        by_hand: &hand.by_owner,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((&threat_rules, &ctx)),
     });
@@ -2164,9 +2247,16 @@ fn cmd_report(args: &[String]) -> Result<()> {
             c.attested
         );
     }
+    if c.by_hand > 0 {
+        println!(
+            "A further {} you checked by hand and recorded in securevibe.toml, with what you saw. \
+             That is your word, which nothing here repeated.",
+            c.by_hand
+        );
+    }
     if c.stated > 0 {
         println!(
-            "A further {} your AI coding tool answered yes to in the [design] section of \
+            "A further {} your AI coding tool answered yes to, or checked by hand, in \
              securevibe.toml, or that do not say who answered. That is the word of the tool that \
              wrote the code, weaker still than yours: each one is still listed as a test to write.",
             c.stated
