@@ -622,7 +622,7 @@ another session is not a claim.
   report, and without a database the report says it compared nothing rather than staying silent. See
   DESIGN, "In the report too". The MCP server still takes no database, deliberately.
 
-- **Keep the breached-password evidence current through the Pwned Passwords API.** Asked for by the
+- ~~**Keep the breached-password evidence current through the Pwned Passwords API.**~~ Asked for by the
   owner on 26 September 2026. V6.2.12's sign-up probe tries `1qaz2wsx3edc4rfv`, and the only record
   that it is a breached password is one range file the owner fetched in a browser and pasted into
   the session that day, because this environment's network policy refused
@@ -636,7 +636,14 @@ another session is not a claim.
   hash prefix is ever sent, and none of this runs inside `sv` itself: `sv` fetches nothing, and
   this is maintenance of the repository's own data, done by whoever runs the script.
   **Claimed on 26 September 2026 by session relaxed-nobel-27acfa**, which runs on a machine that
-  can reach the API.
+  can reach the API. **Done the same day.** `python3 tools/pwned_passwords.py` re-checks the password
+  (still 133,732) and rewrites the evidence file, and the V6.2.12 wording is now built from that file,
+  so it says "when last checked, on <date>" without an edit to the code. `--sample` looked up 300
+  entries spread across the list's ranks: all 300 are in Pwned Passwords, with counts falling from a
+  median of 391,080 in the top thousand to 8,932 in the last band. Results in
+  `data/common-passwords-breach-sample.json`; see DESIGN, "V6.2.12, breached passwords". One thing
+  learned: inside the Claude Code sandbox the network proxy cuts Python's reads of these answers
+  short, where curl gets them whole; run outside it, every answer arrived complete.
 
 - **Record the owner's Pwned Passwords check for V6.2.12.** The count from the range file pasted on
   26 September 2026 (133,732), in `data/breached-password-evidence.json`, with the finding's wording

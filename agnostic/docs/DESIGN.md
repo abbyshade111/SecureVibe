@@ -2538,12 +2538,24 @@ things limit what it can say, and both are said:
 
 * **The list's source is not recorded in this repository**, so the password's being breached is not
   taken from it. It is Have I Been Pwned's count: the Pwned Passwords range for the first five
-  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The request was
-  refused from here by the network policy, so the owner fetched the range in a browser on
-  26 September 2026 and pasted it in; the matching line, the hash, and the date are in
-  `data/breached-password-evidence.json`, and the finding quotes the count. A test holds the
-  password and the quoted count to that file, and changing either without new evidence fails it.
-  Re-checking it with a script, and sampling the whole list, is its own backlog item.
+  characters of its SHA-1 hash, which says it has been seen **133,732 times**. The owner first
+  fetched the range in a browser on 26 September 2026, because the network policy refused it from
+  the session; `tools/pwned_passwords.py` now re-fetches it and rewrites
+  `data/breached-password-evidence.json` with the matching line, the hash, the count, and the date.
+  That file is compiled into `sv`, which fetches nothing, and the finding's wording is built from it:
+  "seen in breaches 133,732 times when last checked, on 26 September 2026". A test holds the password
+  to the file and the hash to the password, so the password cannot change without new evidence, and
+  the script refuses to write if the password ever drops out of the data. Only the first five
+  characters of the hash are sent, with `Add-Padding: true`.
+* **The list is breach data, as far as a sample can say.** The same script's `--sample` looked up
+  300 entries of `common-passwords.txt` on 26 September 2026, 50 evenly spaced in each of six bands
+  of rank (1–1,000, to 3,000, 10,000, 30,000, 60,000, and the end at 96,517). **All 300 are in Pwned
+  Passwords.** The counts fall with rank, as a list ordered by frequency should: a median of 391,080
+  sightings in the top thousand, 43,108 in ranks 3,001–10,000, and 8,932 in the last band, with the
+  fewest, 11, in ranks 30,001–60,000. The entries and counts are in
+  `data/common-passwords-breach-sample.json`. This says the list is breach data, not where it came
+  from, which stays unrecorded; and it is a sample, not the whole list. The list is v1's too, so it
+  was only read.
 * **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
   refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
   one refused password shows that a list longer than 3000 is checked, not that it is a set of
