@@ -644,7 +644,7 @@ report then names it.
 Four tree-sitter rules across four languages is a start, not a security review. Every ecosystem already
 has a tool that knows its own traps, and the useful thing `sv` can do is run it and read the result
 rather than re-implement a hundred rules badly in Rust. `data/adapters.json` describes bandit, gosec,
-brakeman and semgrep; adding a fifth is a data change. `sv report --tools` runs the ones that suit the
+brakeman, semgrep, and CodeQL; adding another is a data change. `sv report --tools` runs the ones that suit the
 app, opt-in for the same reason as `--run` and one more: one of them fetches its rules over the network
 the first time it runs, and that is stated in the file rather than discovered from a firewall log.
 
@@ -840,6 +840,44 @@ What `sv`'s own code rules could add was looked at and not written. Every one of
 one place to another (a request value into a system prompt, a response into a tool's return value),
 and the code rules match a call and its arguments. A rule that fired on any string reaching
 `messages` would mostly report the user message, which is where user input belongs.
+
+### CodeQL: following a value, which no rule here could
+
+Every rule `sv` writes, and nearly every semgrep rule, matches a call: `eval(...)`, a query built with
+`+`. None of them follows a value from where it enters the app to where it is used, and that is what
+several requirements are really about: a regular expression built from what somebody typed (V1.2.9),
+a parameter that arrives as an array where the code assumed a string (V15.3.5), a property name from
+the request that reaches an object's prototype (V15.3.6), input written to a log unencoded (V16.4.1).
+CodeQL does follow it (taint tracking), and it already runs in this repository's own CI.
+
+Two entries, `codeql-javascript` (which also reads TypeScript, so its `language` names both) and
+`codeql-python`, each running the bundle's `security-extended` suite offline. CodeQL works in two steps,
+so an adapter can now have a `prepare` step before `run`, with a `{database}` folder that passes between
+them, made fresh for each run and removed afterwards. A database that cannot be built means the tool did
+not run, in the words CodeQL used; a database left by an earlier run is removed first, because analyzing
+it would report on somebody else's code.
+
+Three things about reading its reports, each found by running it rather than from its documentation:
+
+- **Severity and weakness are on the rule, not the result.** CodeQL's results carry neither a level nor
+  tags. The rule has a `security-severity` score, read on the CVSS bands (9.8 is critical), and tags
+  written `external/cwe/cwe-079`, read as `CWE-79`. Every adapter now falls back to the rule's own.
+- **A clean run is credited only with the rules its report says ran** (`credit_loaded_only`). The suite
+  is chosen, not everything CodeQL has, so the map can know rules that did not run.
+- **A run that read no code is not clean.** CodeQL reports the lines of the app's own code it extracted;
+  zero means it read nothing, and a report with no findings is then recorded as not a clean result.
+
+The map follows the same vocabulary as the other tools, so the citation guard reads it the same way:
+49 JavaScript and 32 Python queries. A query that fits no requirement cleanly (`js/missing-rate-limiting`,
+say) is left unmapped, and its finding is still shown with no requirement attached. Two are only ever
+findings: `js/incomplete-url-scheme-check` shows half of V1.2.2 missing and a clean run says nothing about
+URL encoding, and `js/system-prompt-injection` is evidence against AISVS C2.1.6 exactly as semgrep's
+rule is. Level 1 goes from 51 to 52 of 70 and Level 2 from 49 to 53 of 183, each with `--tools` and
+CodeQL installed.
+
+Tested with a stand-in that plays both steps and replays reports from a real CodeQL 2.27.1 run, and once
+against the real tool when it is on the PATH, which here it was: it built the database, analyzed it,
+and found the cross-site scripting it was given, in 29 seconds.
 
 ### Three more wrong citations, in the place the guard could not see
 

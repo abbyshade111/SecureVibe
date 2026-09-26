@@ -323,7 +323,13 @@ another session is not a claim.
      is what blocked V1.2.2, V1.3.1, V2.2.1, V9.1.3, V15.3.2, and the AISVS entry's "user input
      placed in the system instructions". The small in-`sv` half: a rule kind that matches string
      literals, for the literal `javascript:` URL V1.2.2 was withdrawn over. The CodeQL adapter is
-     **claimed on 26 September 2026 by session securevibe-e9.**
+     **claimed on 26 September 2026 by session securevibe-e9, and done the same day** for JavaScript,
+     TypeScript, and Python: V1.2.9, V15.3.5, V15.3.6, V16.4.1, and V1.2.2 (as a finding only) with
+     `--tools`, Level 1 to 52 of 70 and Level 2 to 53 of 183. See DESIGN, "CodeQL: following a
+     value". Left over: V1.3.1, V2.2.1, V9.1.3, and V15.3.2 have no CodeQL query that fits them; Go,
+     Ruby, and Java entries are the same data change with their own maps; and reading a SARIF file
+     from the owner's own CI, rather than running CodeQL here, needs the report's commit compared
+     with the code's before a clean result could be credited.
   8. **The live site, with a TLS scanner (~5, mostly Level 3).** Beside `sv probe`: testssl.sh or
      sslyze for OCSP stapling and Encrypted Client Hello (V12.1.4, V12.1.5), the HSTS preload list
      (V3.7.4), a spoofed `X-Forwarded-For` to see whether rate limiting trusts it (V15.3.4), and,

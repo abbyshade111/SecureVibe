@@ -9932,6 +9932,580 @@
         }
       },
       "working_directory": "{dir}"
+    },
+    {
+      "id": "codeql-javascript",
+      "name": "CodeQL (JavaScript and TypeScript)",
+      "language": "javascript,typescript",
+      "version": {
+        "command": "codeql",
+        "args": [
+          "version",
+          "--format=terse"
+        ]
+      },
+      "prepare": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "create",
+          "{database}",
+          "--language=javascript",
+          "--source-root",
+          "{dir}",
+          "--overwrite",
+          "--threads=0"
+        ]
+      },
+      "run": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "analyze",
+          "{database}",
+          "codeql/javascript-queries:codeql-suites/javascript-security-extended.qls",
+          "--format=sarif-latest",
+          "--output",
+          "{output}",
+          "--threads=0"
+        ]
+      },
+      "install": "download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH",
+      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline.",
+      "credit_loaded_only": true,
+      "rules": {
+        "js/clear-text-cookie": {
+          "what": "a cookie set without the 'Secure' attribute",
+          "requirements": [
+            "V3.3.1"
+          ]
+        },
+        "js/clear-text-logging": {
+          "what": "sensitive data such as credentials written to logs",
+          "requirements": [
+            "V16.2.5"
+          ]
+        },
+        "js/client-exposed-cookie": {
+          "what": "a cookie set without the 'HttpOnly' attribute",
+          "requirements": [
+            "V3.3.4"
+          ]
+        },
+        "js/client-side-unvalidated-url-redirection": {
+          "what": "a redirect to a destination taken from the request (open redirect)",
+          "requirements": [
+            "V3.7.2"
+          ]
+        },
+        "js/code-injection": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "js/command-line-injection": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "js/cors-misconfiguration-for-credentials": {
+          "what": "a CORS Access-Control-Allow-Origin header that is not a fixed value",
+          "requirements": [
+            "V3.4.2"
+          ]
+        },
+        "js/cors-permissive-configuration": {
+          "what": "a CORS Access-Control-Allow-Origin header that is not a fixed value",
+          "requirements": [
+            "V3.4.2"
+          ]
+        },
+        "js/disabling-certificate-validation": {
+          "what": "TLS certificate validation turned off in a client",
+          "requirements": [
+            "V12.3.2"
+          ]
+        },
+        "js/html-constructed-from-input": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/incomplete-url-scheme-check": {
+          "what": "a URL scheme check that lets javascript: or data: URLs through",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.2"
+          ]
+        },
+        "js/indirect-command-line-injection": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "js/insecure-randomness": {
+          "what": "random numbers that must not be guessable taken from a generator that is not cryptographically secure",
+          "requirements": [
+            "V11.5.1"
+          ]
+        },
+        "js/insufficient-key-size": {
+          "what": "a key size below 128 bits of security, such as a small RSA or DSA key",
+          "requirements": [
+            "V11.2.3"
+          ]
+        },
+        "js/insufficient-password-hash": {
+          "what": "passwords stored with a hash function that is not a slow key derivation function",
+          "requirements": [
+            "V11.4.2"
+          ]
+        },
+        "js/jwt-missing-verification": {
+          "what": "a self-contained token (JWT) accepted without validating its signature",
+          "requirements": [
+            "V9.1.1"
+          ]
+        },
+        "js/log-injection": {
+          "what": "log injection: user input written to a log without encoding, so it can forge or break log entries",
+          "requirements": [
+            "V16.4.1"
+          ]
+        },
+        "js/missing-origin-check": {
+          "what": "postMessage data used without checking the origin of the message",
+          "requirements": [
+            "V3.5.5"
+          ]
+        },
+        "js/missing-token-validation": {
+          "what": "cross-site request forgery protection turned off",
+          "requirements": [
+            "V3.5.1"
+          ]
+        },
+        "js/path-injection": {
+          "what": "a file path built from user-submitted data (path traversal)",
+          "requirements": [
+            "V5.3.2"
+          ]
+        },
+        "js/polynomial-redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "js/prototype-polluting-assignment": {
+          "what": "prototype pollution: an object's prototype can be changed through property names taken from user input",
+          "requirements": [
+            "V15.3.6"
+          ]
+        },
+        "js/prototype-pollution": {
+          "what": "prototype pollution: an object's prototype can be changed through property names taken from user input",
+          "requirements": [
+            "V15.3.6"
+          ]
+        },
+        "js/prototype-pollution-utility": {
+          "what": "prototype pollution: an object's prototype can be changed through property names taken from user input",
+          "requirements": [
+            "V15.3.6"
+          ]
+        },
+        "js/redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "js/reflected-xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/regex-injection": {
+          "what": "a regular expression built from user input without escaping its special characters, so they are read as metacharacters",
+          "requirements": [
+            "V1.2.9"
+          ]
+        },
+        "js/request-forgery": {
+          "what": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
+          "requirements": [
+            "V1.3.6"
+          ]
+        },
+        "js/samesite-none-cookie": {
+          "what": "a cookie set without a suitable 'SameSite' attribute",
+          "requirements": [
+            "V3.3.2"
+          ]
+        },
+        "js/second-order-command-line-injection": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "js/server-side-unvalidated-url-redirection": {
+          "what": "a redirect to a destination taken from the request (open redirect)",
+          "requirements": [
+            "V3.7.2"
+          ]
+        },
+        "js/shell-command-constructed-from-input": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "js/shell-command-injection-from-environment": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "js/sql-injection": {
+          "what": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
+        "js/stored-xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/system-prompt-injection": {
+          "what": "user input placed into the system instructions, where it can override system and developer messages",
+          "requirements": [],
+          "findings_against": [
+            "C2.1.6"
+          ]
+        },
+        "js/tainted-format-string": {
+          "what": "a format string built from untrusted input",
+          "requirements": [
+            "V1.3.10"
+          ]
+        },
+        "js/template-object-injection": {
+          "what": "a template built from untrusted input (template injection)",
+          "requirements": [
+            "V1.3.7"
+          ]
+        },
+        "js/type-confusion-through-parameter-tampering": {
+          "what": "type confusion: a request parameter assumed to be a string can be sent as an array, and the code does not check its type",
+          "requirements": [
+            "V15.3.5"
+          ]
+        },
+        "js/unsafe-code-construction": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "js/unsafe-deserialization": {
+          "what": "deserialization of untrusted data into arbitrary objects",
+          "requirements": [
+            "V1.5.2"
+          ]
+        },
+        "js/unsafe-dynamic-method-access": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "js/unsafe-jquery-plugin": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/xpath-injection": {
+          "what": "an XPath query built from untrusted data (XPath injection)",
+          "requirements": [
+            "V1.2.7"
+          ]
+        },
+        "js/xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/xss-through-dom": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/xss-through-exception": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "js/xxe": {
+          "what": "an XML parser that resolves external entities (XXE)",
+          "requirements": [
+            "V1.5.1"
+          ]
+        },
+        "js/zipslip": {
+          "what": "archive extraction that trusts the paths inside the archive (zip slip)",
+          "requirements": [
+            "V5.3.3"
+          ]
+        }
+      }
+    },
+    {
+      "id": "codeql-python",
+      "name": "CodeQL (Python)",
+      "language": "python",
+      "version": {
+        "command": "codeql",
+        "args": [
+          "version",
+          "--format=terse"
+        ]
+      },
+      "prepare": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "create",
+          "{database}",
+          "--language=python",
+          "--source-root",
+          "{dir}",
+          "--overwrite",
+          "--threads=0"
+        ]
+      },
+      "run": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "analyze",
+          "{database}",
+          "codeql/python-queries:codeql-suites/python-security-extended.qls",
+          "--format=sarif-latest",
+          "--output",
+          "{output}",
+          "--threads=0"
+        ]
+      },
+      "install": "download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH",
+      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline.",
+      "credit_loaded_only": true,
+      "rules": {
+        "py/clear-text-logging-sensitive-data": {
+          "what": "sensitive data such as credentials written to logs",
+          "requirements": [
+            "V16.2.5"
+          ]
+        },
+        "py/client-exposed-cookie": {
+          "what": "a cookie set without the 'HttpOnly' attribute",
+          "requirements": [
+            "V3.3.4"
+          ]
+        },
+        "py/code-injection": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "py/command-line-injection": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "py/csrf-protection-disabled": {
+          "what": "cross-site request forgery protection turned off",
+          "requirements": [
+            "V3.5.1"
+          ]
+        },
+        "py/flask-debug": {
+          "what": "a web framework left in debug mode",
+          "requirements": [
+            "V13.4.2"
+          ]
+        },
+        "py/full-ssrf": {
+          "what": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
+          "requirements": [
+            "V1.3.6"
+          ]
+        },
+        "py/insecure-cookie": {
+          "what": "a cookie set without the 'Secure' attribute",
+          "requirements": [
+            "V3.3.1"
+          ]
+        },
+        "py/insecure-default-protocol": {
+          "what": "an outdated TLS or SSL protocol version enabled",
+          "requirements": [
+            "V12.1.1"
+          ]
+        },
+        "py/insecure-protocol": {
+          "what": "an outdated TLS or SSL protocol version enabled",
+          "requirements": [
+            "V12.1.1"
+          ]
+        },
+        "py/jinja2/autoescape-false": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "py/ldap-injection": {
+          "what": "an LDAP query built from untrusted data (LDAP injection)",
+          "requirements": [
+            "V1.2.6"
+          ]
+        },
+        "py/log-injection": {
+          "what": "log injection: user input written to a log without encoding, so it can forge or break log entries",
+          "requirements": [
+            "V16.4.1"
+          ]
+        },
+        "py/nosql-injection": {
+          "what": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
+        "py/partial-ssrf": {
+          "what": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
+          "requirements": [
+            "V1.3.6"
+          ]
+        },
+        "py/path-injection": {
+          "what": "a file path built from user-submitted data (path traversal)",
+          "requirements": [
+            "V5.3.2"
+          ]
+        },
+        "py/polynomial-redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "py/redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "py/reflective-xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "py/regex-injection": {
+          "what": "a regular expression built from user input without escaping its special characters, so they are read as metacharacters",
+          "requirements": [
+            "V1.2.9"
+          ]
+        },
+        "py/request-without-cert-validation": {
+          "what": "TLS certificate validation turned off in a client",
+          "requirements": [
+            "V12.3.2"
+          ]
+        },
+        "py/samesite-none-cookie": {
+          "what": "a cookie set without a suitable 'SameSite' attribute",
+          "requirements": [
+            "V3.3.2"
+          ]
+        },
+        "py/shell-command-constructed-from-input": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "py/sql-injection": {
+          "what": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
+        "py/tarslip": {
+          "what": "archive extraction that trusts the paths inside the archive (zip slip)",
+          "requirements": [
+            "V5.3.3"
+          ]
+        },
+        "py/template-injection": {
+          "what": "a template built from untrusted input (template injection)",
+          "requirements": [
+            "V1.3.7"
+          ]
+        },
+        "py/unsafe-deserialization": {
+          "what": "deserialization of untrusted data into arbitrary objects",
+          "requirements": [
+            "V1.5.2"
+          ]
+        },
+        "py/url-redirection": {
+          "what": "a redirect to a destination taken from the request (open redirect)",
+          "requirements": [
+            "V3.7.2"
+          ]
+        },
+        "py/weak-crypto-key": {
+          "what": "a key size below 128 bits of security, such as a small RSA or DSA key",
+          "requirements": [
+            "V11.2.3"
+          ]
+        },
+        "py/weak-sensitive-data-hashing": {
+          "what": "a disallowed hash function such as MD5 or SHA1",
+          "requirements": [
+            "V11.4.1"
+          ]
+        },
+        "py/xpath-injection": {
+          "what": "an XPath query built from untrusted data (XPath injection)",
+          "requirements": [
+            "V1.2.7"
+          ]
+        },
+        "py/xxe": {
+          "what": "an XML parser that resolves external entities (XXE)",
+          "requirements": [
+            "V1.5.1"
+          ]
+        }
+      }
     }
   ]
 }
