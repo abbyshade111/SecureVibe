@@ -2354,6 +2354,30 @@ the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
 
+### Skipping a step (V2.3.1)
+
+`flow` under `[stack.run.users]` names a flow of several steps — a checkout, a sign-up with a
+confirmation — and `completed`, words the last step answers with only when the whole thing finished,
+in the page or in the address it sends the browser on to. A goes through every step in order first,
+and that has to end in `completed`: an app whose flow does not work as described refuses every skip,
+and that is not a guarded flow. Then B, signed in afresh each time so nothing carries over, goes
+straight to the last step, and — when there is a middle to leave out — does the first step and then
+the last. Either ending in `completed` is a finding; both refused supports V2.3.1, which stays on
+`manualOnly` at the owner's word, since two skips refused is not every order refused. Doing a step
+twice, and the wrong order other than by leaving steps out, are not tried, and the hand check says
+they are still the owner's.
+
+Only an answer the app accepted counts as finished, and only because of the owner's words. Both
+halves have a case of their own: an error page saying "an order is placed only after the steps before
+it" is a refusal, and so is a `303` back to the first step, which is an accepted status and the way
+many apps answer a skipped step. That second case was added after the first run of breaks: judging a
+skip by its status alone was caught by nothing until it existed.
+
+Seven breaks, each caught: any status counting as finished, no control, the middle never skipped, a
+skip judged by status alone, the redirect address ignored, a working skip credited, and a one-step
+flow tried anyway. The flow is also in the default test fixture, so every signed-in test runs it and
+the checks after it are shown not to be disturbed by it.
+
 ### Two more passwords at sign-up: one far down the list, one made from your own words
 
 The password checks already sign up with a control — an ordinary strong password that has to work

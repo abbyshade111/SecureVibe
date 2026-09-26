@@ -56,6 +56,10 @@ health = "/"              # a path that returns 200 once the app is up
 # email-code = { request = { path = "/login/code", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/login/verify", form = { code = "{code}", csrf_token = "{csrf}" } } }
 #   Signing in with a code or link the app emails, beside the password. The code is used in the
 #   same browser session that asked for it; `code-pattern` works as for `reset`.
+# flow = { steps = [{ path = "/checkout/address", form = { street = "1 Main St", csrf_token = "{csrf}" } }, { path = "/checkout/pay", form = { card = "4242", csrf_token = "{csrf}" } }, { path = "/checkout/confirm", form = { csrf_token = "{csrf}" } }], completed = "Order placed" }
+#   Anything done in more than one step, in order. `completed` is text the last step answers with
+#   only when the whole thing really finished — in the page, or in the address it sends you on to.
+#   The probes go through it once in order, then try skipping steps as another user.
 
 [data]
 # What kinds of information the app holds about people.

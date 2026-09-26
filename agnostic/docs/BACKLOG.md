@@ -340,7 +340,12 @@ another session is not a claim.
      `signup` entry that already exists, so no new addresses are needed for them: a password from far
      down `data/knowledge/common-passwords.txt`, and one built from a word in a new
      `[policy] context-words` list — the documented list V6.2.11 names — each beside a random
-     password of the same shape. V2.3.1 stays unclaimed. **Done on 26 September 2026.** Level 2 goes
+     password of the same shape. **V2.3.1 claimed on 26 September 2026 by session securevibe-e8:**
+     a `flow` entry naming the steps and what the last one shows when it really finished; A goes
+     through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
+     stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
+     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
      password list's source is not recorded anywhere in the repository, and checking the chosen
