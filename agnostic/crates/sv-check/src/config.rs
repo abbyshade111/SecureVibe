@@ -18,6 +18,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::verified::Verified;
 use std::path::Path;
 use std::process::Command;
+use sv_scan::ecosystems::Pinning;
 
 /// What a configuration check concluded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -221,10 +222,12 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
 /// developer, not a reviewer, and not `sv`. The same build on a different day is a different app.
 ///
 /// The trap here is worth naming, because it was one function call away. `pom.xml` has no lockfile to
-/// look for: Maven pins in the manifest itself. A check that asked "is there a lockfile?" would report
-/// every Maven project as pinning nothing — not a coverage gap but a wrong statement in a report, which
-/// is exactly what ADR-012 is about. So Maven is *not assessed* here, with a reason, until something can
-/// read its version ranges.
+/// look for: Maven pins in the manifest itself, and Gradle's lockfile is something a project turns on.
+/// A check that asked "is there a lockfile?" would report every Maven project as pinning nothing — not
+/// a coverage gap but a wrong statement in a report, which is exactly what ADR-012 is about — and did
+/// report every Gradle project without one. So for both the versions are read (`sv_scan::jvm`): all
+/// exact passes, one that floats is a finding at its line, and one `sv` cannot work out leaves the
+/// question open with the reason.
 fn versions_pinned(app_dir: &Path) -> Outcome {
     let detected = sv_scan::ecosystems::detect(app_dir);
     if detected.is_empty() {
@@ -235,11 +238,47 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
         );
     }
 
-    let unpinned = sv_scan::ecosystems::unpinned(app_dir);
-    let unknown = sv_scan::ecosystems::pinning_unknown(app_dir);
+    let judged: Vec<(sv_scan::ecosystems::DetectedEcosystem, Pinning)> = detected
+        .into_iter()
+        .map(|e| {
+            let p = sv_scan::ecosystems::pinning(app_dir, &e);
+            (e, p)
+        })
+        .collect();
 
-    if let Some(first) = unpinned.first() {
-        let names: Vec<String> = unpinned.iter().map(|e| e.label()).collect();
+    let unpinned: Vec<&(sv_scan::ecosystems::DetectedEcosystem, Pinning)> =
+        judged.iter().filter(|(_, p)| p.is_unpinned()).collect();
+    if let Some((first, how)) = unpinned.first() {
+        let names: Vec<String> = unpinned.iter().map(|(e, _)| e.label()).collect();
+        let (location, description, fix) = match how {
+            Pinning::Floating(versions) => (
+                Location {
+                    file: versions[0].manifest.clone(),
+                    line: versions[0].line,
+                },
+                format!(
+                    "`{}` asks for {}, so the versions installed today and the versions installed \
+                     tomorrow can differ.",
+                    first.manifest,
+                    listed(versions)
+                ),
+                "Write an exact version for each of these (`1.2.3`, not a range, `+`, `LATEST`, or a \
+                 snapshot). A Gradle project can instead turn on dependency locking and commit the \
+                 `gradle.lockfile` it writes.",
+            ),
+            _ => (
+                Location {
+                    file: first.manifest.clone(),
+                    line: 1,
+                },
+                format!(
+                    "`{}` is in use and there is no lockfile beside it, so the versions installed \
+                     today and the versions installed tomorrow can differ.",
+                    first.manifest
+                ),
+                "Install once and commit the lockfile that produces, then install from it from then on.",
+            ),
+        };
         return Outcome::Failed(Box::new(Finding {
             rule_id: "config.versions-pinned".into(),
             title: if names.len() == 1 {
@@ -249,7 +288,7 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
             },
             severity: Severity::Medium,
             confidence: Confidence::High,
-            location: Location { file: first.manifest.clone(), line: 1 },
+            location,
             secret: None,
             // V15.1.2 asks that an inventory catalog of third-party libraries is maintained.
             // A lockfile is what makes that inventory the versions actually installed rather than
@@ -259,33 +298,58 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
             // sanitization.
             requirement_ids: vec!["V15.1.2".into()],
             cwe: vec!["CWE-1104".into()],
-            description: format!(
-                "`{}` is in use and there is no lockfile beside it, so the versions installed today and \
-                 the versions installed tomorrow can differ.",
-                first.manifest
-            ),
+            description,
             impact: "The inventory of third-party libraries this app ships is then a list of what was \
                      asked for rather than what is installed, so nobody can say whether a known \
                      vulnerability applies to it — and a component that is compromised upstream arrives \
                      on the next install without anything changing here."
                 .into(),
-            fix: "Install once and commit the lockfile that produces, then install from it from then on."
-                .into(),
+            fix: fix.into(),
         }));
     }
 
-    if let Some(first) = unknown.first() {
-        let names: Vec<String> = unknown.iter().map(|e| e.label()).collect();
+    let open: Vec<String> = judged
+        .iter()
+        .filter_map(|(e, p)| match p {
+            Pinning::Unsettled(versions) => Some(format!(
+                "{} (`{}`): {}",
+                e.label(),
+                e.manifest,
+                listed(versions)
+            )),
+            _ => None,
+        })
+        .collect();
+    if !open.is_empty() {
         return Outcome::NotAssessed(format!(
-            "{} does not use a lockfile at all — versions live in `{}` — and `sv` does not read version \
-             ranges out of it yet. Whether this app pins what it installs is still an open question, not \
-             a passed check.",
-            names.join(" and "),
-            first.manifest
+            "`sv` read the versions this app asks for and could not settle every one. {}. Whether \
+             this app pins what it installs is still an open question, not a passed check.",
+            open.join("; ")
         ));
     }
 
     Outcome::Passed(&["V15.1.2"])
+}
+
+/// Up to three versions in words, with how many more there are: "`g:a` at `[1.0,2.0)` (line 12, a
+/// range, …)".
+fn listed(versions: &[sv_scan::jvm::VersionAt]) -> String {
+    let mut parts: Vec<String> = versions
+        .iter()
+        .take(3)
+        .map(|v| {
+            let at = if v.version.is_empty() {
+                String::new()
+            } else {
+                format!(" at `{}`", v.version)
+            };
+            format!("`{}`{at} (line {}: {})", v.dependency, v.line, v.why)
+        })
+        .collect();
+    if versions.len() > 3 {
+        parts.push(format!("and {} more", versions.len() - 3));
+    }
+    parts.join(", ")
 }
 
 /// Whether there is a way to report a security problem. Not a vulnerability; an absence.
@@ -548,12 +612,16 @@ mod tests {
     }
 
     #[test]
-    fn maven_is_an_open_question_rather_than_a_pass() {
-        // The other half, and a different assertion: not reporting it must not mean approving it.
+    fn maven_is_an_open_question_when_a_version_cannot_be_worked_out() {
+        // The other half, and a different assertion: not reporting it must not mean approving it. A
+        // version held in a property from a parent outside the folder is one `sv` cannot see.
         let dir = scratch("maven2");
         fs::write(
             dir.join("pom.xml"),
-            "<project><artifactId>x</artifactId></project>",
+            "<project><parent><groupId>com.acme</groupId><artifactId>base</artifactId>\
+             <version>3</version><relativePath/></parent><artifactId>x</artifactId><dependencies>\
+             <dependency><groupId>org.x</groupId><artifactId>y</artifactId>\
+             <version>${y.version}</version></dependency></dependencies></project>",
         )
         .unwrap();
         let report = check_dir(&dir);
@@ -569,7 +637,120 @@ mod tests {
             .iter()
             .find(|(id, _)| id == "config.versions-pinned")
             .unwrap_or_else(|| panic!("{report:?}"));
-        assert!(why.contains("does not use a lockfile"), "{why}");
+        assert!(
+            why.contains("${y.version}") && why.contains("org.x:y"),
+            "{why}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    fn pinned_outcome(dir: &std::path::Path) -> (bool, Option<Finding>, Option<String>) {
+        let report = check_dir(dir);
+        (
+            report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.versions-pinned"),
+            report
+                .findings
+                .into_iter()
+                .find(|f| f.rule_id == "config.versions-pinned"),
+            report
+                .not_assessed
+                .into_iter()
+                .find(|(id, _)| id == "config.versions-pinned")
+                .map(|(_, why)| why),
+        )
+    }
+
+    #[test]
+    fn maven_with_exact_versions_passes() {
+        // A Spring Boot app as Spring Initializr writes it: the parent is exact, the starters take
+        // their versions from it, and one library's version is a property set in the same file.
+        let dir = scratch("maven-exact");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project>\n<parent><groupId>org.springframework.boot</groupId>\
+             <artifactId>spring-boot-starter-parent</artifactId><version>3.3.4</version></parent>\n\
+             <properties><jjwt.version>0.12.6</jjwt.version></properties>\n<dependencies>\n\
+             <dependency><groupId>org.springframework.boot</groupId>\
+             <artifactId>spring-boot-starter-web</artifactId></dependency>\n\
+             <dependency><groupId>io.jsonwebtoken</groupId><artifactId>jjwt-api</artifactId>\
+             <version>${jjwt.version}</version></dependency>\n</dependencies></project>",
+        )
+        .unwrap();
+        let (passed, finding, open) = pinned_outcome(&dir);
+        assert!(
+            passed && finding.is_none() && open.is_none(),
+            "{finding:?} {open:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_maven_range_is_a_finding_at_its_line() {
+        let dir = scratch("maven-range");
+        fs::write(
+            dir.join("pom.xml"),
+            "<project>\n<artifactId>x</artifactId>\n<dependencies>\n<dependency>\n\
+             <groupId>org.x</groupId><artifactId>y</artifactId>\n<version>[1.0,2.0)</version>\n\
+             </dependency>\n</dependencies></project>",
+        )
+        .unwrap();
+        let (passed, finding, _) = pinned_outcome(&dir);
+        let f = finding.expect("a range floats");
+        assert!(!passed);
+        assert_eq!((f.location.file.as_str(), f.location.line), ("pom.xml", 6));
+        assert!(f.title.contains("Maven"), "{}", f.title);
+        assert!(
+            f.description.contains("org.x:y") && f.description.contains("[1.0,2.0)"),
+            "{}",
+            f.description
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gradle_without_a_lockfile_is_not_reported_when_every_version_is_exact() {
+        // The wrong statement this replaced: Gradle's lockfile is optional, and a build that names
+        // exact versions installs the same thing every time without one.
+        let dir = scratch("gradle-exact");
+        fs::write(
+            dir.join("build.gradle"),
+            "plugins { id 'java' }\ndependencies {\n    implementation 'com.google.guava:guava:33.3.1-jre'\n    testImplementation(\"org.junit.jupiter:junit-jupiter:5.11.2\")\n}\n",
+        )
+        .unwrap();
+        let (passed, finding, open) = pinned_outcome(&dir);
+        assert!(
+            passed && finding.is_none() && open.is_none(),
+            "{finding:?} {open:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_gradle_dynamic_version_is_a_finding_unless_a_lockfile_pins_it() {
+        let dir = scratch("gradle-plus");
+        fs::write(
+            dir.join("build.gradle.kts"),
+            "dependencies {\n    implementation(\"com.google.guava:guava:33.+\")\n}\n",
+        )
+        .unwrap();
+        let (_, finding, _) = pinned_outcome(&dir);
+        let f = finding.expect("a `+` floats");
+        assert_eq!(
+            (f.location.file.as_str(), f.location.line),
+            ("build.gradle.kts", 2)
+        );
+        assert!(f.fix.contains("gradle.lockfile"), "{}", f.fix);
+
+        fs::write(
+            dir.join("gradle.lockfile"),
+            "com.google.guava:guava:33.3.1-jre=compileClasspath\n",
+        )
+        .unwrap();
+        let (passed, finding, _) = pinned_outcome(&dir);
+        assert!(passed && finding.is_none(), "{finding:?}");
         fs::remove_dir_all(&dir).ok();
     }
 

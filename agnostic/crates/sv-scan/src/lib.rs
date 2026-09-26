@@ -14,6 +14,7 @@
 
 pub mod deps;
 pub mod ecosystems;
+pub mod jvm;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -313,7 +314,7 @@ fn evaluate(
         };
     }
 
-    // An ecosystem that pins nothing is a second way of not knowing: the declared names are not
+    // An ecosystem that does not pin what it installs is a second way of not knowing: the declared names are not
     // what is installed, so an absent dependency is not evidence of an absent technology.
     if !report.unpinned.is_empty() && !sig.packages.is_empty() {
         let names: Vec<&str> = report.unpinned.iter().map(|e| e.name.as_str()).collect();
@@ -322,7 +323,8 @@ fn evaluate(
             value: None,
             evidence: Evidence::Incomplete {
                 reason: format!(
-                    "{} pins no versions, so what is actually installed cannot be known",
+                    "{} does not pin every version it installs, so what is actually installed \
+                     cannot be known",
                     names.join(", ")
                 ),
             },

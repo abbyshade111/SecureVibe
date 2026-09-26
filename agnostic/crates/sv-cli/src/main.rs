@@ -215,7 +215,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     }
     for eco in &report.unpinned {
         println!(
-            "  {} pins no versions ({} has no lockfile), so what is actually installed cannot be known.",
+            "  {} does not pin every version it installs (see {}), so what is actually installed cannot be known.",
             eco.label(),
             eco.manifest
         );
