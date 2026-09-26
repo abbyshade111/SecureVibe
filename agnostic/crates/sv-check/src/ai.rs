@@ -17,7 +17,7 @@
 use crate::finding::Severity;
 use crate::probes::ProbeRequest;
 use crate::signed_in::{
-    Account, Http, Outcome, Rule, Session, finding, send_filled, sign_in, status,
+    Account, Http, Outcome, Rule, Session, finding, get, ok, send_filled, sign_in, status,
 };
 use sv_manifest::{AiSection, UsersSection};
 
@@ -63,6 +63,31 @@ const UNSCREENED: Rule = Rule {
     fix: "Screen what people type before it reaches the model — a prompt-injection classifier or a \
           ruleset — and refuse what it flags.",
 };
+
+const UNLIMITED: Rule = Rule {
+    rule_id: "probe.ai-rate-unlimited",
+    requirement_ids: &["C11.2.2"],
+    cwe: &["CWE-770"],
+    impact: "With no limit on how often the model can be asked, somebody can ask it thousands of \
+             times — to copy what it knows, map how it answers, or run up the bill.",
+    fix: "Limit how many messages each person, and the feature as a whole, can send in a minute, \
+          separately from any limit on the rest of the app, and refuse the rest before they reach \
+          the model.",
+};
+
+/// The most messages the rate check sends in its burst.
+const MOST_MESSAGES: u32 = 30;
+
+/// What the AI checks need from the rest of the run.
+pub struct Context<'a> {
+    /// The users section and the account to sign in as, when the feature needs a signed-in user.
+    pub signed_in: Option<(&'a UsersSection, &'a Account)>,
+    /// The owner's stated numbers; `ai-requests-per-minute` is the one read here.
+    pub policy: &'a sv_manifest::PolicySection,
+    /// A page of the app's own that is not the AI feature, to tell a limit on the feature from one
+    /// on everything.
+    pub health: &'a str,
+}
 
 /// The requirements asked here, for a reason that stops all of them.
 const ALL: &str = "C7.3.2, C7.3.3, C7.1.2, C2.1.3";
@@ -187,11 +212,7 @@ fn with_prompt(section: &AiSection, prompt: &str) -> sv_manifest::RequestTemplat
 
 /// Asks the app's AI feature. `signed_in` is the users section and the account to sign in as when
 /// the feature needs a signed-in user.
-pub fn run(
-    http: &mut dyn Http,
-    section: &AiSection,
-    signed_in: Option<(&UsersSection, &Account)>,
-) -> (Outcome, LogMarkers) {
+pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome, LogMarkers) {
     let mut out = Outcome::default();
     let mut markers = LogMarkers::default();
     let say = |ids: &str, why: String, out: &mut Outcome| {
@@ -229,7 +250,7 @@ pub fn run(
     let mut session = Session::default();
     let mut pages = Vec::new();
     if section.signed_in {
-        let Some((users, account)) = signed_in else {
+        let Some((users, account)) = ctx.signed_in else {
             say(
                 ALL,
                 "`ai.signed-in` is set, and there is no `[stack.run.users]` to sign in with."
@@ -537,6 +558,120 @@ pub fn run(
             &mut out,
         );
     }
+
+    // 7. C11.2.2, last of the questions because it sets out to make the app refuse: one more
+    //    message than the owner says a minute allows, then a page of the app's own that is not the
+    //    AI feature, so a limit on the feature is told from one on everything.
+    match ctx.policy.ai_requests_per_minute {
+        None => say(
+            "C11.2.2",
+            "Whether the AI feature limits how often it can be asked: say how many messages a \
+             minute it should pass on, as `ai-requests-per-minute` under [policy] in \
+             securevibe.toml, and this will send one more than that."
+                .to_owned(),
+            &mut out,
+        ),
+        Some(n) if n == 0 || n >= MOST_MESSAGES => say(
+            "C11.2.2",
+            format!(
+                "[policy] ai-requests-per-minute is {n}; this check sends between 2 and \
+                 {MOST_MESSAGES} messages, so it cannot hold the app to that number."
+            ),
+            &mut out,
+        ),
+        Some(n) => {
+            // A minute's pause first, so the messages above no longer count against a limit per
+            // minute.
+            http.wait(61);
+            let began = http.now();
+            let (mut reached, mut first, mut last) = (0, false, false);
+            for i in 0..=n {
+                let (tag, _) = ask(http, 100 + i, "PLAIN", "Just checking in.");
+                let got = seen(http, &tag).unwrap_or_default().received;
+                reached += u32::from(got);
+                first |= i == 0 && got;
+                last = got;
+            }
+            let took = http.now().saturating_sub(began);
+            let other = http.send(&get("ai-rate-other-page", ctx.health, &Session::default()));
+            out.steps.push(format!(
+                "sent the AI feature {} messages in {took} second{}: {reached} reached the test \
+                 model; the app's own page {} afterwards: {}",
+                n + 1,
+                if took == 1 { "" } else { "s" },
+                ctx.health,
+                status(&other)
+            ));
+            if !first {
+                say(
+                    "C11.2.2",
+                    "Whether the AI feature limits how often it can be asked: the first message of \
+                     the burst did not reach the model, so a refusal later on shows nothing."
+                        .to_owned(),
+                    &mut out,
+                );
+            } else if took > 55 {
+                say(
+                    "C11.2.2",
+                    format!(
+                        "Whether the AI feature limits how often it can be asked: sending {} \
+                         messages took {took} seconds, longer than the minute a limit per minute \
+                         counts over.",
+                        n + 1
+                    ),
+                    &mut out,
+                );
+            } else if reached > n {
+                out.findings.push(finding(
+                    &UNLIMITED,
+                    "The AI feature can be asked without limit",
+                    Severity::Medium,
+                    format!(
+                        "securevibe.toml says the AI feature should pass on at most {n} messages \
+                         a minute. All {} sent through {} within {took} seconds reached the model.",
+                        n + 1,
+                        section.chat.path
+                    ),
+                ));
+            } else if last {
+                say(
+                    "C11.2.2",
+                    format!(
+                        "Whether the AI feature limits how often it can be asked: {reached} of {} \
+                         messages reached the model, the last among them, so what refused the \
+                         others was not a limit that stayed shut.",
+                        n + 1
+                    ),
+                    &mut out,
+                );
+            } else if !ok(&other) {
+                say(
+                    "C11.2.2",
+                    format!(
+                        "Whether the AI feature has a limit of its own: after the burst the app \
+                         refused its own page {} as well ({}), so the limit may be one throttle over \
+                         everything, which C11.2.2 says is not enough on its own.",
+                        ctx.health,
+                        status(&other)
+                    ),
+                    &mut out,
+                );
+            } else {
+                out.verified.push(crate::Verified::new(
+                    UNLIMITED.rule_id,
+                    UNLIMITED.requirement_ids,
+                    format!(
+                        "{} messages to the AI feature within a minute, where the owner states \
+                         {n}: {reached} reached the model and the rest were refused before it, \
+                         while the app's own page {} still answered; whether the limit is per person \
+                         as well as overall was not shown",
+                        n + 1,
+                        ctx.health
+                    ),
+                ));
+            }
+        }
+    }
     (out, markers)
 }
 
@@ -807,6 +942,16 @@ mod tests {
         html_page: bool,
         /// Its instructions are a few words only.
         short_instructions: bool,
+        /// Passes on at most this many messages a minute to the model, refusing the rest.
+        rate_limit: Option<u32>,
+        /// The limit, once reached, shuts every page for a minute, not only the AI feature.
+        throttles_everything: bool,
+        /// Seconds each request takes, by the fake clock.
+        seconds_per_request: u64,
+        /// Every other message is refused, whatever the time.
+        every_other_refused: bool,
+        /// Passes on this many messages in all, ever, and refuses the rest.
+        quota: Option<u32>,
     }
 
     /// How the fake app writes its model calls and the injection to its output.
@@ -849,6 +994,11 @@ mod tests {
         passed_on: u32,
         logs: Logs,
         log: Vec<String>,
+        clock: u64,
+        /// When each message the fake app passed on was passed on, by its clock.
+        passed_at: Vec<u64>,
+        /// Until when every page refuses, when the limit throttles everything.
+        throttled_until: u64,
     }
 
     const MODEL: &str = "gpt-test";
@@ -968,6 +1118,24 @@ mod tests {
             if self.flaws.ignores_base_url {
                 return answer(502, "{\"error\":\"could not reach the model\"}".into());
             }
+            if self.flaws.every_other_refused && self.passed_on % 2 == 1 {
+                self.passed_on += 1;
+                return answer(503, "{\"error\":\"busy\"}".into());
+            }
+            if self.flaws.quota.is_some_and(|q| self.passed_on >= q) {
+                return answer(429, "{\"error\":\"quota used up\"}".into());
+            }
+            if let Some(limit) = self.flaws.rate_limit {
+                let now = self.clock;
+                let recent = self.passed_at.iter().filter(|t| now - **t < 60).count();
+                if recent >= limit as usize {
+                    if self.flaws.throttles_everything {
+                        self.throttled_until = now + 60;
+                    }
+                    return answer(429, "{\"error\":\"slow down\"}".into());
+                }
+                self.passed_at.push(now);
+            }
             if self.flaws.one_message_only && self.passed_on >= 1 {
                 return answer(429, "{\"error\":\"one message a minute\"}".into());
             }
@@ -1014,7 +1182,24 @@ mod tests {
     }
 
     impl Http for FakeChat {
+        fn now(&mut self) -> u64 {
+            self.clock
+        }
+
+        fn wait(&mut self, seconds: u64) {
+            self.clock += seconds;
+        }
+
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.clock += self.flaws.seconds_per_request;
+            if self.clock < self.throttled_until && r.path != "/api/chat" {
+                return Some(ProbeResponse {
+                    id: r.id.clone(),
+                    status: 429,
+                    headers: Vec::new(),
+                    body: "slow down".into(),
+                });
+            }
             match (r.method.as_str(), r.path.as_str()) {
                 ("POST", "/login") => {
                     self.signed_in = true;
@@ -1099,7 +1284,21 @@ mod tests {
             flaws,
             ..Default::default()
         };
-        run(&mut app, &section(), None).0
+        run(&mut app, &section(), &context(None, &NO_POLICY)).0
+    }
+
+    static NO_POLICY: std::sync::LazyLock<sv_manifest::PolicySection> =
+        std::sync::LazyLock::new(Default::default);
+
+    fn context<'a>(
+        signed_in: Option<(&'a UsersSection, &'a Account)>,
+        policy: &'a sv_manifest::PolicySection,
+    ) -> Context<'a> {
+        Context {
+            signed_in,
+            policy,
+            health: "/",
+        }
     }
 
     /// The same, then its log read as the run reads the app's output.
@@ -1109,7 +1308,7 @@ mod tests {
             logs,
             ..Default::default()
         };
-        let (mut o, markers) = run(&mut app, &section(), None);
+        let (mut o, markers) = run(&mut app, &section(), &context(None, &NO_POLICY));
         logged(&markers, &app.log.join("\n"), &mut o);
         o
     }
@@ -1334,7 +1533,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let o = run(&mut app, &s, Some((&users, &b))).0;
+        let o = run(&mut app, &s, &context(Some((&users, &b)), &NO_POLICY)).0;
         assert_eq!(
             credited(&o),
             vec![UNBOUNDED.rule_id, LEAKED.rule_id, UNSCREENED.rule_id],
@@ -1343,7 +1542,7 @@ mod tests {
         );
         // Without the users section, it says why and asks nothing.
         let mut app = FakeChat::default();
-        let o = run(&mut app, &s, None).0;
+        let o = run(&mut app, &s, &context(None, &NO_POLICY)).0;
         assert!(credited(&o).is_empty());
         assert!(
             why(&o, "C7.1.2")
@@ -1372,7 +1571,7 @@ mod tests {
         let mut s = section();
         s.chat.json.clear();
         let mut app = FakeChat::default();
-        let o = run(&mut app, &s, None).0;
+        let o = run(&mut app, &s, &context(None, &NO_POLICY)).0;
         assert!(
             why(&o, "C2.1.3").iter().any(|w| w.contains("{prompt}")),
             "{:?}",
@@ -1492,7 +1691,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let o = run(&mut app, &s, Some((&users, &b))).0;
+        let o = run(&mut app, &s, &context(Some((&users, &b)), &NO_POLICY)).0;
         assert!(!credited(&o).contains(&UNSCREENED.rule_id), "{:?}", o.steps);
         assert!(!credited(&o).contains(&LEAKED.rule_id));
         for id in ["C7.3.2", "C7.3.3"] {
@@ -1578,7 +1777,7 @@ mod tests {
         let mut s = section();
         s.base_url_env = vec!["LLM URL".into()];
         let mut app = FakeChat::default();
-        let o = run(&mut app, &s, None).0;
+        let o = run(&mut app, &s, &context(None, &NO_POLICY)).0;
         assert!(credited(&o).is_empty());
         assert!(
             why(&o, "C7.3.2")
@@ -1709,7 +1908,7 @@ mod tests {
             logs: Logs::Full,
             ..Default::default()
         };
-        let (mut o, markers) = run(&mut app, &section(), None);
+        let (mut o, markers) = run(&mut app, &section(), &context(None, &NO_POLICY));
         assert_eq!(markers, LogMarkers::default());
         logged(&markers, "anything at all", &mut o);
         logged(&markers, "", &mut o);
@@ -1866,5 +2065,287 @@ mod tests {
         let mut o = Outcome::default();
         logged(&LogMarkers::default(), "", &mut o);
         assert!(o.not_assessed.is_empty() && o.steps.is_empty());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // A limit on how often the AI feature can be asked
+
+    fn per_minute(n: u32) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            ai_requests_per_minute: Some(n),
+            ..Default::default()
+        }
+    }
+
+    fn ask_limited(flaws: Flaws, stated: u32) -> Outcome {
+        let mut app = FakeChat {
+            flaws,
+            ..Default::default()
+        };
+        let policy = per_minute(stated);
+        run(&mut app, &section(), &context(None, &policy)).0
+    }
+
+    #[test]
+    fn a_limit_on_the_feature_alone_is_credited_at_or_below_the_stated_number() {
+        for limit in [10, 4] {
+            let o = ask_limited(
+                Flaws {
+                    rate_limit: Some(limit),
+                    ..Default::default()
+                },
+                10,
+            );
+            assert!(
+                credited(&o).contains(&UNLIMITED.rule_id),
+                "{limit}: {:?}",
+                o.steps
+            );
+            assert!(!found(&o).contains(&UNLIMITED.rule_id));
+        }
+    }
+
+    #[test]
+    fn no_limit_is_found() {
+        let o = ask_limited(Flaws::default(), 10);
+        assert!(found(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id));
+    }
+
+    #[test]
+    fn a_limit_looser_than_stated_is_found() {
+        let o = ask_limited(
+            Flaws {
+                rate_limit: Some(15),
+                ..Default::default()
+            },
+            10,
+        );
+        assert!(found(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+    }
+
+    #[test]
+    fn a_throttle_over_everything_is_not_credited_as_the_features_own() {
+        let o = ask_limited(
+            Flaws {
+                rate_limit: Some(10),
+                throttles_everything: true,
+                ..Default::default()
+            },
+            10,
+        );
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("one throttle over everything")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn with_no_number_stated_nothing_is_sent_and_it_says_so() {
+        let o = ask(Flaws::default());
+        assert!(!o.steps.iter().any(|s| s.contains("messages in")));
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("ai-requests-per-minute")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_number_too_large_to_reach_is_not_judged() {
+        let o = ask_limited(Flaws::default(), 40);
+        assert!(!found(&o).contains(&UNLIMITED.rule_id));
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("cannot hold the app")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_burst_that_is_refused_from_its_first_message_shows_nothing() {
+        let o = ask_limited(
+            Flaws {
+                one_message_only: true,
+                ..Default::default()
+            },
+            5,
+        );
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("first message")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_burst_slower_than_a_minute_is_not_judged() {
+        let o = ask_limited(
+            Flaws {
+                seconds_per_request: 3,
+                ..Default::default()
+            },
+            20,
+        );
+        assert!(!found(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("longer than the minute")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    // Second witnesses, each of a different shape from the first.
+
+    #[test]
+    fn an_app_that_refuses_at_random_is_not_credited_with_a_limit() {
+        let o = ask_limited(
+            Flaws {
+                every_other_refused: true,
+                ..Default::default()
+            },
+            10,
+        );
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(!found(&o).contains(&UNLIMITED.rule_id));
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("did not stay shut") || w.contains("stayed shut")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn behind_sign_in_a_random_refusal_is_not_a_limit_either() {
+        let users = UsersSection {
+            login: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/login".into(),
+                form: [("email", "{user}"), ("password", "{password}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            }),
+            private: vec!["/account".into()],
+            ..Default::default()
+        };
+        let b = Account {
+            user: "b@example.test".into(),
+            password: "Bb-1234567890-zz".into(),
+        };
+        let mut s = section();
+        s.signed_in = true;
+        let policy = per_minute(8);
+        for (flaws, words) in [
+            (
+                Flaws {
+                    needs_sign_in: true,
+                    every_other_refused: true,
+                    ..Default::default()
+                },
+                "stayed shut",
+            ),
+            (
+                Flaws {
+                    needs_sign_in: true,
+                    rate_limit: Some(8),
+                    throttles_everything: true,
+                    ..Default::default()
+                },
+                "one throttle over everything",
+            ),
+        ] {
+            let mut app = FakeChat {
+                flaws,
+                ..Default::default()
+            };
+            let o = run(&mut app, &s, &context(Some((&users, &b)), &policy)).0;
+            assert!(
+                !credited(&o).contains(&UNLIMITED.rule_id),
+                "{words}: {:?}",
+                o.steps
+            );
+            assert!(
+                why(&o, "C11.2.2").iter().any(|w| w.contains(words)),
+                "{words}: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_quota_used_up_before_the_burst_shows_nothing() {
+        let o = ask_limited(
+            Flaws {
+                quota: Some(4),
+                ..Default::default()
+            },
+            10,
+        );
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("first message"))
+        );
+    }
+
+    #[test]
+    fn a_stated_limit_of_none_at_all_is_not_judged() {
+        let o = ask_limited(Flaws::default(), 0);
+        assert!(!found(&o).contains(&UNLIMITED.rule_id));
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("cannot hold the app"))
+        );
+    }
+
+    #[test]
+    fn a_slow_app_with_a_small_limit_is_not_judged_either() {
+        let o = ask_limited(
+            Flaws {
+                seconds_per_request: 6,
+                rate_limit: Some(12),
+                ..Default::default()
+            },
+            10,
+        );
+        assert!(!credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C11.2.2")
+                .iter()
+                .any(|w| w.contains("longer than the minute"))
+        );
+    }
+
+    #[test]
+    fn a_tight_limit_is_credited_only_because_the_minute_before_the_burst_was_waited() {
+        // Four messages passed on already in the questions before; a limit of three would refuse
+        // the burst's first message if the earlier ones still counted.
+        let o = ask_limited(
+            Flaws {
+                rate_limit: Some(3),
+                ..Default::default()
+            },
+            3,
+        );
+        assert!(credited(&o).contains(&UNLIMITED.rule_id), "{:?}", o.steps);
     }
 }
