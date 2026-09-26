@@ -1654,6 +1654,13 @@ be credited. The fake app's version of that is one of the witnesses. The sidecar
 by twelve minutes when there is an `email-code` entry. Without `--slow` nothing is waited for, and
 V6.5.5 says so for emailed codes, apart from what the two-factor check says about its own.
 
+Verified end to end with the email-code scratch app under `sv run --slow`: the correct one, whose
+codes expire after ten minutes, had its code refused 10 minutes 6 seconds after asking and a fresh one
+sign in, and was credited; the careless one, whose codes never expire, signed in with the old code
+and raised the finding. The break round found three guards with one witness each — the finding, the
+session kept in use, and the control — and a sign-up fixture, in an app whose sessions end after five
+idle minutes, is now the second witness for all three.
+
 ### An activation code emailed at sign-up
 
 V6.4.1 asks that an initial secret sent to a new user, an activation code among them, be random,
