@@ -286,9 +286,9 @@
         "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) @arg)) @hit",
-        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
-        "ruby": "(call receiver: (constant) @mod method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
-        "java": "(object_creation_expression type: (type_identifier) @fn\n                            arguments: (argument_list . (_) @arg)) @hit",
+        "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit\n(include_expression \"include\" @fn (_) @arg) @hit\n(include_once_expression \"include_once\" @fn (_) @arg) @hit\n(require_expression \"require\" @fn (_) @arg) @hit\n(require_once_expression \"require_once\" @fn (_) @arg) @hit",
+        "ruby": "(call receiver: (constant) @mod method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit\n(call !receiver method: (identifier) @fn @mod\n      arguments: (argument_list . (_) @arg)) @hit",
+        "java": "(object_creation_expression type: (type_identifier) @fn @mod\n                            arguments: (argument_list . (_) @arg)) @hit\n(method_invocation object: (identifier) @mod name: (identifier) @fn\n                   arguments: (argument_list (_) @arg)) @hit",
         "csharp": "(invocation_expression\n   function: (member_access_expression expression: (identifier) @mod\n                                       name: (identifier) @fn)\n   arguments: (argument_list . (argument (_) @arg))) @hit",
         "dart": "(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg)) @hit",
         "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) @arg)))\n (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))] @hit",
@@ -302,9 +302,9 @@
         "javascript": "^(readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync|sendFile|download)$",
         "typescript": "^(readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync|sendFile|download)$",
         "go": "^(Open|OpenFile|ReadFile|WriteFile|Create|Remove|RemoveAll)$",
-        "php": "^(file_get_contents|file_put_contents|fopen|readfile|file|unlink)$",
-        "ruby": "^(read|binread|readlines|open|new|write|binwrite|delete|unlink)$",
-        "java": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)$",
+        "php": "^(file_get_contents|file_put_contents|fopen|readfile|file|unlink|include|include_once|require|require_once)$",
+        "ruby": "^(read|binread|readlines|open|new|write|binwrite|delete|unlink|send_file)$",
+        "java": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile|get|of)$",
         "csharp": "^(ReadAllText|ReadAllBytes|ReadAllLines|OpenRead|OpenWrite|Open|WriteAllText|WriteAllBytes|AppendAllText|Delete)$",
         "dart": "^(File|Directory|Link)$",
         "swift": "^(String|NSString|Data|NSData|FileHandle|contents|contentsOfDirectory|removeItem|createFile|copyItem|moveItem|streamFile|write)$",
@@ -317,16 +317,17 @@
         "javascript": "^(fs|fsp|res|response)$",
         "typescript": "^(fs|fsp|res|response)$",
         "go": "^(os|ioutil)$",
-        "ruby": "^(File|IO)$",
+        "ruby": "^(File|IO|send_file)$",
         "csharp": "^File$",
-        "rust": "(^|::)(File|fs|NamedFile|ServeFile|ServeDir)$"
+        "rust": "(^|::)(File|fs|NamedFile|ServeFile|ServeDir)$",
+        "java": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile|Paths|Path)$"
       },
       "safeArgumentPatterns": {
         "python": "^[A-Z][A-Z0-9_]*$|secure_filename\\(|safe_join\\(|^os\\.path\\.join\\(\\s*(os\\.path\\.dirname\\(\\s*(os\\.path\\.abspath\\(\\s*)?__file__\\s*\\)\\)?|BASE_DIR)(\\s*,\\s*('[^'{}]*'|\"[^\"{}]*\"))*\\s*,?\\s*\\)$",
         "javascript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
         "typescript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
-        "ruby": "^[A-Z][A-Z0-9_]*$",
-        "php": "^[A-Z][A-Z0-9_]*$",
+        "ruby": "^([A-Z][A-Z0-9_]*|Rails\\.root\\.join\\(\\s*(['\"][^'\"#]*['\"]\\s*,?\\s*)*\\))$",
+        "php": "^([A-Z][A-Z0-9_]*|\\(?\\s*(__DIR__|dirname\\(__FILE__\\))\\s*\\.\\s*['\"][^'\"$]*['\"]\\s*\\)?)$",
         "swift": "^\\w+\\s*:\\s*(URL\\(fileURLWithPath:\\s*\"[^\"\\\\]*\"\\)|Bundle\\.main\\.)"
       },
       "argumentPatterns": {
@@ -499,8 +500,8 @@
       "literalArgumentIsSafe": true,
       "queries": {
         "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
-        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
-        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit",
         "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) . (_) . (_) @arg)) @hit",
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
         "ruby": "(call method: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
@@ -594,6 +595,74 @@
         "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
       },
       "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter"
+    },
+    {
+      "id": "ast.plaintext-websocket-url",
+      "title": "A WebSocket address without encryption is written into the code",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V4.4.1"
+      ],
+      "cwe": [
+        "CWE-319"
+      ],
+      "description": "A `ws://` address to another computer is written into the code. `ws://` is a WebSocket with no encryption, the way `http://` is a page without it.",
+      "impact": "Everything sent over the connection, including the session it was opened with and whatever the person types, can be read and changed by anybody on the network between them and the app: the same café Wi-Fi, a compromised router.",
+      "fix": "Use `wss://`. In a browser, build the address from the page's own, so it follows the page to HTTPS: `(location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/socket'`.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(string) @hit @arg",
+        "javascript": "[(string) (template_string)] @hit @arg",
+        "typescript": "[(string) (template_string)] @hit @arg",
+        "go": "[(interpreted_string_literal) (raw_string_literal)] @hit @arg",
+        "php": "[(string) (encapsed_string)] @hit @arg",
+        "ruby": "(string) @hit @arg",
+        "java": "(string_literal) @hit @arg",
+        "csharp": "[(string_literal) (verbatim_string_literal)] @hit @arg",
+        "kotlin": "(string_literal) @hit @arg",
+        "dart": "(string_literal) @hit @arg",
+        "swift": "(line_string_literal) @hit @arg",
+        "rust": "[(string_literal) (raw_string_literal)] @hit @arg",
+        "c": "(string_literal) @hit @arg",
+        "shell": "[(string) (raw_string) (word)] @hit @arg"
+      },
+      "argumentPatterns": {
+        "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "javascript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "typescript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "go": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "php": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "ruby": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "java": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "csharp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "kotlin": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "dart": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]"
+      },
+      "safeArgumentPatterns": {
+        "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "javascript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "typescript": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "go": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "php": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "ruby": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "java": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "csharp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "kotlin": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "dart": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)"
+      },
+      "looksFor": "a `ws://` address to another computer written into the code",
+      "looksForIn": {
+        "shell": "a `ws://` address to another computer given to a command, quoted or not"
+      }
     }
   ]
 }

@@ -97,6 +97,11 @@ pub struct AstRule {
     /// Per language, where the rule looks for something narrower than `looks_for` says.
     #[serde(default)]
     pub looks_for_in: BTreeMap<String, String>,
+    /// A rule that can show the fault present and never its absence, so a run that finds nothing
+    /// credits nothing. Not finding a `ws://` address written into the code is not every WebSocket
+    /// being encrypted: the address is usually built at run time, where no rule can see it.
+    #[serde(default)]
+    pub findings_only: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -880,6 +885,9 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     }
     let mut out = Vec::new();
     for (rule_id, languages, requirement_ids) in rules.coverage() {
+        if rules.rules().any(|r| r.id == rule_id && r.findings_only) {
+            continue;
+        }
         if scan.findings.iter().any(|f| f.rule_id == rule_id)
             || scan.untaught.iter().any(|u| u.rule_id == rule_id)
         {
@@ -1918,6 +1926,61 @@ mod tests {
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: /login\\n\\n\"); }", false),
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: %s\\n\\n\", \"/login\"); }", false),
         ("ast.open-redirect", "c", "void f(const char *t) { printf(\"Content-Type: %s\\n\\n\", t); }", false),
+        // Four forms the path and redirect rules missed.
+        ("ast.open-redirect", "javascript", "res.redirect(301, req.query.next)", true),
+        ("ast.open-redirect", "javascript", "res.redirect(301, '/home')", false),
+        ("ast.open-redirect", "typescript", "res.redirect(302, req.body.returnTo)", true),
+        ("ast.open-redirect", "typescript", "res.redirect(302, \"/login\")", false),
+        ("ast.file-path-from-value", "ruby", "send_file params[:path]", true),
+        ("ast.file-path-from-value", "ruby", "send_file(params[:name], disposition: 'attachment')", true),
+        ("ast.file-path-from-value", "ruby", "send_file 'public/terms.pdf'", false),
+        ("ast.file-path-from-value", "ruby", "send_file Rails.root.join('public', 'report.pdf')", false),
+        ("ast.file-path-from-value", "ruby", "send_message params[:text]", false),
+        ("ast.file-path-from-value", "java", "class A { void f(String n) { Path p = Paths.get(n); } }", true),
+        ("ast.file-path-from-value", "java", "class A { void f(String n) { Path p = Path.of(\"uploads\", n); } }", true),
+        ("ast.file-path-from-value", "java", "class A { void f() { Path p = Path.of(\"uploads\", \"a.txt\"); } }", false),
+        ("ast.file-path-from-value", "java", "class A { void f(String n) { Path p = Path.of(n); } }", true),
+        ("ast.file-path-from-value", "java", "class A { void f() { Path p = Paths.get(\"app.properties\"); } }", false),
+        ("ast.file-path-from-value", "java", "class A { void f(java.util.Map<String, String> m, String n) { m.get(n); } }", false),
+        ("ast.file-path-from-value", "php", "<?php include $_GET['page'];", true),
+        ("ast.file-path-from-value", "php", "<?php require_once($page);", true),
+        ("ast.file-path-from-value", "php", "<?php include 'header.php';", false),
+        ("ast.file-path-from-value", "php", "<?php require_once __DIR__ . '/config.php';", false),
+        ("ast.file-path-from-value", "php", "<?php require_once(dirname(__FILE__) . '/lib.php');", false),
+        // WebSocket addresses written into the code.
+        ("ast.plaintext-websocket-url", "python", "ws = create_connection(\"ws://chat.example.com/live\")", true),
+        ("ast.plaintext-websocket-url", "python", "ws = create_connection(\"wss://chat.example.com/live\")", false),
+        ("ast.plaintext-websocket-url", "python", "ws = create_connection('ws://localhost:8765')", false),
+        ("ast.plaintext-websocket-url", "javascript", "const s = new WebSocket('ws://chat.example.com/socket')", true),
+        ("ast.plaintext-websocket-url", "javascript", "const s = new WebSocket(`wss://${location.host}/socket`)", false),
+        ("ast.plaintext-websocket-url", "javascript", "const s = new WebSocket(`ws://${host}/socket`)", false),
+        ("ast.plaintext-websocket-url", "javascript", "const u = url.replace('ws://', 'wss://')", false),
+        ("ast.plaintext-websocket-url", "javascript", "const s = new WebSocket('ws://127.0.0.1:3000')", false),
+        ("ast.plaintext-websocket-url", "typescript", "const s: WebSocket = new WebSocket(\"ws://feed.example.org\")", true),
+        ("ast.plaintext-websocket-url", "typescript", "const s: WebSocket = new WebSocket(\"wss://feed.example.org\")", false),
+        ("ast.plaintext-websocket-url", "go", "c, _, err := websocket.DefaultDialer.Dial(\"ws://chat.example.com/ws\", nil)", true),
+        ("ast.plaintext-websocket-url", "go", "c, _, err := websocket.DefaultDialer.Dial(\"wss://chat.example.com/ws\", nil)", false),
+        ("ast.plaintext-websocket-url", "php", "<?php $c = new Client('ws://chat.example.com/socket');", true),
+        ("ast.plaintext-websocket-url", "php", "<?php $c = new Client('wss://chat.example.com/socket');", false),
+        ("ast.plaintext-websocket-url", "ruby", "ws = WebSocket::Client::Simple.connect 'ws://chat.example.com'", true),
+        ("ast.plaintext-websocket-url", "ruby", "ws = WebSocket::Client::Simple.connect 'wss://chat.example.com'", false),
+        ("ast.plaintext-websocket-url", "java", "class A { void f() throws Exception { new URI(\"ws://chat.example.com/ws\"); } }", true),
+        ("ast.plaintext-websocket-url", "java", "class A { void f() throws Exception { new URI(\"wss://chat.example.com/ws\"); } }", false),
+        ("ast.plaintext-websocket-url", "csharp", "class A { void F() { var u = new Uri(\"ws://chat.example.com/ws\"); } }", true),
+        ("ast.plaintext-websocket-url", "csharp", "class A { void F() { var u = new Uri(\"wss://chat.example.com/ws\"); } }", false),
+        ("ast.plaintext-websocket-url", "kotlin", "val request = Request.Builder().url(\"ws://chat.example.com/ws\").build()", true),
+        ("ast.plaintext-websocket-url", "kotlin", "val request = Request.Builder().url(\"wss://chat.example.com/ws\").build()", false),
+        ("ast.plaintext-websocket-url", "dart", "void f() { final c = WebSocketChannel.connect(Uri.parse('ws://chat.example.com/ws')); }", true),
+        ("ast.plaintext-websocket-url", "dart", "void f() { final c = WebSocketChannel.connect(Uri.parse('wss://chat.example.com/ws')); }", false),
+        ("ast.plaintext-websocket-url", "swift", "let url = URL(string: \"ws://chat.example.com/ws\")!", true),
+        ("ast.plaintext-websocket-url", "swift", "let url = URL(string: \"wss://chat.example.com/ws\")!", false),
+        ("ast.plaintext-websocket-url", "rust", "fn f() { let r = connect_async(\"ws://chat.example.com/ws\"); }", true),
+        ("ast.plaintext-websocket-url", "rust", "fn f() { let r = connect_async(\"wss://chat.example.com/ws\"); }", false),
+        ("ast.plaintext-websocket-url", "c", "void f(void) { lws_client_connect(\"ws://chat.example.com/ws\"); }", true),
+        ("ast.plaintext-websocket-url", "c", "void f(void) { lws_client_connect(\"wss://chat.example.com/ws\"); }", false),
+        ("ast.plaintext-websocket-url", "shell", "websocat ws://chat.example.com/ws", true),
+        ("ast.plaintext-websocket-url", "shell", "websocat wss://chat.example.com/ws", false),
+        ("ast.plaintext-websocket-url", "shell", "websocat ws://localhost:8080/ws", false),
     ];
 
     #[test]
@@ -1955,6 +2018,7 @@ mod tests {
             "ast.weak-hash-function",
             "ast.weak-cipher",
             "ast.open-redirect",
+            "ast.plaintext-websocket-url",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {
