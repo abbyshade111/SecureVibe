@@ -2705,6 +2705,7 @@ impl<'a> EmailCode<'a> {
     ) -> Result<String, String> {
         let no_sink = || "The run's mail server stopped answering.".to_owned();
         let before = http.mail(&self.account.user, 0).ok_or_else(no_sink)?.len();
+        self.open_form(http, &self.entry.request.path, session, label);
         let values = Values {
             user: &self.account.user,
             ..Default::default()
@@ -2751,6 +2752,19 @@ impl<'a> EmailCode<'a> {
         }
     }
 
+    /// Opens the form's page first in a session that has nothing yet, as a browser would. A
+    /// template with no `{csrf}` sends no page request of its own, and a code asked for with no
+    /// session at all cannot be tied to one: that is how the first run against a real app reported
+    /// a correct one for codes that work anywhere.
+    fn open_form(&self, http: &mut dyn Http, path: &str, session: &mut Session, label: &str) {
+        if session.cookies.is_empty()
+            && session.bearer.is_none()
+            && let Some(page) = http.send(&get(&format!("email-code-page-{label}"), path, session))
+        {
+            session.absorb(&page);
+        }
+    }
+
     fn send_use(
         &self,
         http: &mut dyn Http,
@@ -2783,6 +2797,7 @@ impl<'a> EmailCode<'a> {
         label: &str,
         out: &mut Outcome,
     ) -> bool {
+        self.open_form(http, &self.entry.use_code.path, session, label);
         let answer = self.send_use(http, code, session, label);
         let opened = ok(&http.send(&get(
             &format!("email-code-private-{label}"),
@@ -5061,6 +5076,9 @@ mod tests {
         code_does_nothing: bool,
         /// Asking for a sign-in code answers and sends no email.
         code_sends_nothing: bool,
+        /// The sign-in-by-code forms carry no anti-forgery token, so nothing makes the probe open
+        /// their pages. Not a fault.
+        code_no_csrf: bool,
         /// Past the limit, wrong codes are answered as before and the code is quietly cancelled:
         /// the only sign of pushing back is that the right code no longer works. Not a fault.
         code_cancels_quietly: bool,
@@ -5426,7 +5444,7 @@ mod tests {
                     )
                 }
                 ("POST", "/login/code") => {
-                    if !token_ok {
+                    if !token_ok && !self.flaws.code_no_csrf {
                         return Some(Self::respond(403, vec![], "refused"));
                     }
                     let email = form(r).get("email")?.clone();
@@ -5454,7 +5472,7 @@ mod tests {
                     )
                 }
                 ("POST", "/login/verify") => {
-                    if !token_ok {
+                    if !token_ok && !self.flaws.code_no_csrf {
                         return Some(Self::respond(403, vec![], "refused"));
                     }
                     let session = sid.clone().unwrap_or_default();
@@ -9116,6 +9134,23 @@ mod tests {
     }
 
     #[test]
+    fn seeded_guessing_without_limit_is_found() {
+        let o = seeded_with(
+            Flaws {
+                code_guessing_unlimited: true,
+                ..Default::default()
+            },
+            &codes_policy(5),
+        );
+        assert_eq!(
+            code_findings(&o),
+            vec![EMAIL_CODE_GUESSING.rule_id],
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
     fn seeded_an_app_refusing_from_the_first_wrong_code_is_not_judged() {
         let o = seeded_with(
             Flaws {
@@ -9142,6 +9177,32 @@ mod tests {
         );
         assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
         assert!(code_credits(&o).is_empty());
+        assert!(
+            code_not_assessed(&o)
+                .iter()
+                .any(|w| w.contains("did not open")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_code_that_signs_nobody_in_is_never_credited_for_resisting_guesses() {
+        let o = run_with(
+            Flaws {
+                code_does_nothing: true,
+                ..Default::default()
+            },
+            &codes_policy(3),
+        );
+        assert!(!code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V6.6.3" && why.contains("did not sign in")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]
@@ -9179,5 +9240,64 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    /// The fixtures with the emailed-code forms carrying no `{csrf}`.
+    fn without_code_csrf(mut u: UsersSection) -> UsersSection {
+        let entry = u.email_code.as_mut().unwrap();
+        for t in [&mut entry.request, &mut entry.use_code] {
+            t.form.remove("csrf_token");
+        }
+        u
+    }
+
+    #[test]
+    fn a_form_with_no_token_is_still_opened_first_so_the_code_has_a_session_to_belong_to() {
+        let flaws = Flaws {
+            code_no_csrf: true,
+            ..Default::default()
+        };
+        let mut app = FakeApp::new(flaws);
+        let mut acc = accounts();
+        acc.admin = None;
+        let o = run(
+            &mut app,
+            &without_code_csrf(with_signup()),
+            &acc,
+            false,
+            &Default::default(),
+        );
+        assert!(
+            code_findings(&o).is_empty(),
+            "{:#?}\n{:?}",
+            o.findings,
+            o.steps
+        );
+        assert_eq!(code_credits(&o), vec![EMAIL_CODE_UNBOUND.rule_id]);
+    }
+
+    #[test]
+    fn seeded_a_form_with_no_token_is_still_opened_first() {
+        let mut app = FakeApp::new(Flaws {
+            code_no_csrf: true,
+            ..Default::default()
+        });
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let o = run(
+            &mut app,
+            &without_code_csrf(users()),
+            &acc,
+            true,
+            &codes_policy(3),
+        );
+        assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(code_credits(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
+        assert!(code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
     }
 }

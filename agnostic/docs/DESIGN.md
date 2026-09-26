@@ -1552,6 +1552,13 @@ judged:
   first version credited that as pushing back. A second fixture, added only to give each guard two
   witnesses, is what caught it.
 
+A form page is opened first in a session that has nothing yet, as a browser would. The first run
+against a real app, a scratch Python app whose forms carry no anti-forgery token, reported it for
+V6.6.2: with no `{csrf}` nothing made the probe visit a page, so both codes were asked for with no
+session at all, and the app had nothing to tie them to. After the fix, the correct app got V6.6.2
+and V6.6.3 checked and V6.5.1 not assessed, and the careless one (four digits, reusable, any
+session, no limit) raised all four findings.
+
 V6.5.5, a code's lifetime, needs waiting and belongs with the slow mode.
 
 ### Verified against a real container
