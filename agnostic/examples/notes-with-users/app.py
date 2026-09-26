@@ -21,7 +21,12 @@ DB = os.environ.get("NOTES_DB", "/tmp/notes.db")
 # a password must contain (V6.2.5).
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "common-passwords.txt")) as f:
     COMMON = {line.strip() for line in f if line.strip()}
-OWN_ORIGINS = {f"http://{h}" for h in ("localhost", "127.0.0.1")}
+# Where this app is served from, with and without its port: a form posted from its own page says so
+# in `Origin`, and any other origin is refused (V3.5.1).
+PORT = int(os.environ.get("PORT", "8080"))
+OWN_ORIGINS = {
+    f"http://{h}{p}" for h in ("localhost", "127.0.0.1") for p in ("", f":{PORT}")
+}
 
 
 def db():
@@ -65,7 +70,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Security-Policy", "default-src 'self'")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Referrer-Policy", "no-referrer")
+        # `same-origin`, not `no-referrer`: both keep this app's addresses from other sites, but
+        # under `no-referrer` a browser posts this app's own forms with `Origin: null`, and the
+        # origin check below then refuses every one of them. Found by the browser check.
+        self.send_header("Referrer-Policy", "same-origin")
         for name, value in headers:
             self.send_header(name, value)
         self.send_header("Content-Length", str(len(body)))
@@ -199,7 +207,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.private(),
             )
         if self.path == "/notes":
-            form = f"<form method=post><input type=hidden name=csrf_token value='{csrf}'></form>"
+            form = (
+                f"<form method=post><input type=hidden name=csrf_token value='{csrf}'>"
+                "<label>Note <textarea name=text maxlength=2000></textarea></label>"
+                "<button>Save</button></form>"
+            )
             return self.send(200, page("New note", form))
         if self.path == "/password":
             form = (
@@ -333,4 +345,4 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     db().close()
-    ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

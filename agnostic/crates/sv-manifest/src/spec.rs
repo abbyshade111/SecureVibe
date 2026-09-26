@@ -73,6 +73,12 @@ health = "/"              # a path that returns 200 once the app is up
 #   `seed`: make one more account from SV_USER_TOTP and SV_PASSWORD_TOTP, and enroll it in
 #   two-factor sign-in with SV_TOTP_SECRET (base32, as an authenticator app takes it). The probes
 #   work out its codes themselves and try one twice, and one from a few minutes ago.
+# browser = { text-form = "/notes/new", shows = "/notes" }
+#   Checks made in a real browser (a headless Chromium on the same fenced network), signed in as the
+#   first user: that the sign-out control on each private page can really be seen, and, with
+#   `text-form`, that text typed into that page's form is shown as text and not run as code on the
+#   page that shows it (`shows`, or wherever the form leads when that is left out). `browser = {}`
+#   asks only about the sign-out control.
 
 [data]
 # What kinds of information the app holds about people.

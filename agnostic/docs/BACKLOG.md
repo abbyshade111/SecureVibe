@@ -508,7 +508,19 @@ another session is not a claim.
      It also turns two partial checks into real ones — storage actually emptied after sign-out
      (V14.3.1, today only the header) and a sign-out link actually visible (V7.4.4, today only
      present in the HTML). **Claimed on 26 September 2026 by session securevibe-e8**, at the
-     owner's asking.
+     owner's asking. **The first part is done the same day:** `[stack.run.users.browser]` starts a
+     pinned headless Chromium on the fenced network, signed in with the first user's cookies. It
+     settles V3.2.2 (text typed into a form is shown as text, not drawn as markup), which only a
+     semgrep finding could name before, and makes V7.4.4 real (the sign-out control can be seen,
+     not only found in the HTML). See DESIGN, "A real browser inside the fence". The count above was
+     wrong about which requirement the typed markup reaches: it is V3.2.2, content meant as text; V1.3.1
+     asks for a sanitizer for rich text, which an app that shows text as text does not need and a
+     browser cannot see being used. Left: V14.3.1 (storage emptied after sign-out, which means
+     signing the browser out, so it needs a session of its own that no later check is using);
+     V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
+     the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
+     app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
+     in every real browser, which a check could say directly.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which

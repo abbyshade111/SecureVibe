@@ -8,6 +8,7 @@
 pub mod adapters;
 pub mod advisories;
 pub mod ast;
+pub mod browser;
 pub mod config;
 pub mod cvss;
 pub mod design;

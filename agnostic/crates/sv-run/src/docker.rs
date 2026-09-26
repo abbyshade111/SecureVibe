@@ -32,6 +32,11 @@ const PROVIDER_SCRIPT: &str = include_str!("../assets/oidc-provider.mjs");
 /// The client id the app is told to use. Not a secret: the provider checks it only to refuse a
 /// sign-in the app did not ask for with its own configuration.
 const PROVIDER_CLIENT_ID: &str = "sv-test-client";
+/// The headless browser, pinned to one version so a run today and a run next month draw pages the
+/// same way. Its DevTools port is reached only from the driver, which shares its network.
+const BROWSER_IMAGE: &str = "chromedp/headless-shell:151.0.7922.109";
+/// What drives it: a script of `sv`'s own, run in the same stock Node image as the test provider.
+const DRIVER_SCRIPT: &str = include_str!("../assets/browser-driver.mjs");
 /// Where the app sends its mail on the mail server, and where the probes read it.
 const SMTP_PORT: u16 = 1025;
 const MAIL_API_PORT: u16 = 8025;
@@ -96,6 +101,7 @@ impl Backend for DockerBackend {
         let sidecar = format!("{run_id}-probe");
         let mail_name = format!("{run_id}-mail");
         let provider_name = format!("{run_id}-idp");
+        let browser_name = format!("{run_id}-browser");
         let guard = Teardown {
             backend: self,
             network: network.clone(),
@@ -104,6 +110,7 @@ impl Backend for DockerBackend {
                 sidecar.clone(),
                 mail_name.clone(),
                 provider_name.clone(),
+                browser_name.clone(),
             ],
         };
 
@@ -144,6 +151,13 @@ impl Backend for DockerBackend {
         let provider = (plan.oidc.is_some()
             && self.start_provider(&network, &provider_name, &client_secret))
         .then_some(provider_name.as_str());
+
+        // 1e. A headless browser, when securevibe.toml asks for checks made in one. On the same
+        //     fenced network, so the pages it draws can reach nothing the app could not. If it
+        //     cannot be started the checks that needed it say so.
+        let wants_browser = plan.users.as_ref().is_some_and(|u| u.browser.is_some());
+        let browser = (wants_browser && self.start_browser(&network, &browser_name))
+            .then_some(browser_name.as_str());
 
         // 2. The app. Its folder is mounted read-only: `sv` reads code, it does not let the code
         //    it is checking rewrite itself mid-check. No port is published — nothing on this
@@ -221,6 +235,11 @@ impl Backend for DockerBackend {
             Via::FreshContainer(&network)
         };
         let healthy = self.wait_until_ready(&via, &app, plan);
+        // The browser reaches the app at http://localhost:<port>, as a person running it on their
+        // own computer would: an app that trusts its own origin for forms trusts that one, and a
+        // browser treats localhost as secure, so `Secure` cookies work without HTTPS. A forwarder
+        // inside the browser's container carries it across. Without it there is no browser.
+        let browser = browser.filter(|name| healthy && self.forward_browser(name, &app, plan.port));
         if !healthy {
             let logs = self
                 .docker(&["logs", "--tail", "20", &app])
@@ -246,7 +265,7 @@ impl Backend for DockerBackend {
         let signed_in = plan
             .users
             .as_ref()
-            .map(|users| self.signed_in(&via, &app, mail, plan, users));
+            .map(|users| self.signed_in(&via, &app, mail, browser, plan, users));
 
         // 4c. Signing in through the test provider, when the app signs in through another service.
         //     A provider that never came up leaves `provider` empty, and the check says so.
@@ -258,6 +277,7 @@ impl Backend for DockerBackend {
                 port: plan.port,
                 mail: None,
                 provider: provider.filter(|host| self.provider_ready(&via, host)),
+                browser: None,
             };
             sv_check::oidc::run(&mut http, section)
         });
@@ -271,6 +291,9 @@ impl Backend for DockerBackend {
         }
         if provider.is_some() {
             let _ = self.docker(&["rm", "-f", &provider_name]);
+        }
+        if browser.is_some() {
+            let _ = self.docker(&["rm", "-f", &browser_name]);
         }
 
         // 5. The declared tests, inside the app container so they see what the app sees.
@@ -347,6 +370,8 @@ struct DockerHttp<'a> {
     mail: Option<&'a str>,
     /// The test provider's name on the fenced network, when the run has one that answered.
     provider: Option<&'a str>,
+    /// The headless browser's container, when the run has one.
+    browser: Option<&'a str>,
 }
 
 impl sv_check::signed_in::Http for DockerHttp<'_> {
@@ -363,6 +388,24 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let host = self.provider?;
         self.backend.probe(self.via, host, PROVIDER_PORT, request)
+    }
+
+    fn browser(&mut self, job: &sv_check::browser::Job) -> Option<Vec<serde_json::Value>> {
+        let container = self.browser?;
+        let job = serde_json::json!({
+            "app": format!("http://localhost:{}", self.port),
+            "cookies": job.cookies,
+            "actions": job.actions.iter().map(|a| a.to_json()).collect::<Vec<_>>(),
+        });
+        let env = format!("SV_JOB={}", base64(job.to_string().as_bytes()));
+        let network = format!("container:{container}");
+        let (code, out) = self.backend.docker(&driver_args(&network, &env)).ok()?;
+        if code != 0 {
+            return None;
+        }
+        // The driver prints one line of JSON last; anything Node said before it is not the answer.
+        let line = out.lines().rev().find(|l| l.starts_with('['))?;
+        serde_json::from_str::<Vec<serde_json::Value>>(line).ok()
     }
 
     fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
@@ -421,6 +464,52 @@ fn provider_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 4]) -> Vec<
         PROVIDER_SCRIPT,
     ]);
     args
+}
+
+/// How the browser is started. Hardened like the sidecar, with somewhere in memory to write, since
+/// Chromium keeps its profile under `/tmp`; it runs with its own sandbox off, as it must in a
+/// container, so the container is the sandbox and everything it may not do is taken away.
+fn browser_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
+    vec![
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        BROWSER_IMAGE,
+    ]
+}
+
+/// How the driver is started: inside the browser's network, where the DevTools port is on
+/// 127.0.0.1 and the app is reached by its name on the fenced network, and nothing else is.
+fn driver_args<'a>(network: &'a str, job: &'a str) -> Vec<&'a str> {
+    vec![
+        "run",
+        "--rm",
+        "--network",
+        network,
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "-e",
+        job,
+        PROVIDER_IMAGE,
+        "node",
+        "--input-type=module",
+        "-e",
+        DRIVER_SCRIPT,
+    ]
 }
 
 /// How the mail server is started. Separate so its hardening can be checked without starting it.
@@ -487,6 +576,7 @@ impl DockerBackend {
         via: &Via,
         app: &str,
         mail: Option<&str>,
+        browser: Option<&str>,
         plan: &RunPlan,
         users: &sv_manifest::UsersSection,
     ) -> sv_check::signed_in::Outcome {
@@ -501,6 +591,7 @@ impl DockerBackend {
             port: plan.port,
             mail,
             provider: None,
+            browser,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
@@ -647,6 +738,24 @@ impl DockerBackend {
     /// by this one; there is nothing behind it to protect.
     fn start_mail(&self, network: &str, name: &str) -> bool {
         matches!(self.docker(&mail_args(network, name)), Ok((0, _)))
+    }
+
+    fn start_browser(&self, network: &str, name: &str) -> bool {
+        matches!(self.docker(&browser_args(network, name)), Ok((0, _)))
+    }
+
+    /// Carries the browser's `localhost:<port>` to the app. Refused for the two ports Chromium's
+    /// own DevTools use, where the forwarder would take the place of the thing it is driving.
+    fn forward_browser(&self, name: &str, app: &str, port: u16) -> bool {
+        if port == 9222 || port == 9223 {
+            return false;
+        }
+        let listen = format!("TCP4-LISTEN:{port},fork,reuseaddr,bind=127.0.0.1");
+        let to = format!("TCP4:{app}:{port}");
+        matches!(
+            self.docker(&["exec", "-d", name, "socat", &listen, &to]),
+            Ok((0, _))
+        )
     }
 
     fn start_provider(&self, network: &str, name: &str, secret: &str) -> bool {
@@ -1091,6 +1200,122 @@ mod probe_tests {
             answer.expect("no answer: the reply was dropped while the server worked on it");
         assert_eq!(answer.status, 200);
         assert!(answer.body.contains("late but here"), "{}", answer.body);
+    }
+
+    #[test]
+    fn the_browser_and_its_driver_are_fenced_and_hardened_like_the_sidecar() {
+        let browser = browser_args("sv-1-net", "sv-1-browser");
+        let driver = driver_args("container:sv-1-browser", "SV_JOB=e30=");
+        for args in [&browser, &driver] {
+            for flag in HARDENING {
+                assert!(args.contains(&flag), "{flag} missing: {args:?}");
+            }
+            assert!(
+                !args
+                    .iter()
+                    .any(|a| *a == "-p" || a.starts_with("--publish") || *a == "-v"),
+                "nothing published or mounted: {args:?}"
+            );
+        }
+        let at = browser.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(browser[at + 1], "sv-1-net");
+        // The driver has no network of its own: only the browser's, which is the fenced one.
+        let at = driver.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(driver[at + 1], "container:sv-1-browser");
+        assert_eq!(driver.last(), Some(&DRIVER_SCRIPT));
+        // One version of Chromium, named, so two runs draw pages the same way.
+        let tag = BROWSER_IMAGE.rsplit(':').next().unwrap();
+        assert!(
+            tag.split('.').count() == 4 && tag.split('.').all(|p| p.parse::<u32>().is_ok()),
+            "{BROWSER_IMAGE}"
+        );
+    }
+
+    #[test]
+    fn the_browser_signs_in_with_the_cookies_it_is_given_and_runs_the_page() {
+        // The driver, the forwarder, and the browser together, against a small app on a fenced
+        // network: the cookie opens a private page, the page's own script runs, and a form typed
+        // into is posted and shown. Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-browsertest-{}", std::process::id());
+        let server = format!("{network}-app");
+        let browser = format!("{network}-browser");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let app = r#"
+const http = require('http');
+http.createServer((q, s) => {
+  s.setHeader('content-type', 'text/html');
+  const signed = (q.headers.cookie || '').includes('sid=abc');
+  if (q.url === '/private' && !signed) { s.writeHead(302, { location: '/login' }); return s.end(); }
+  if (q.url === '/private') return s.end('<title>x</title><p>mine</p><script>document.title = "ran"</script>');
+  if (q.url === '/form') return s.end('<form method=post action=/echo><textarea name=t></textarea><button>Go</button></form>');
+  if (q.url === '/echo') {
+    let b = ''; q.on('data', (c) => (b += c));
+    return q.on('end', () => s.end('<p>' + new URLSearchParams(b).get('t').replace(/</g, '&lt;') + '</p>'));
+  }
+  s.end('<p>login</p>');
+}).listen(8080);"#;
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            app,
+        ]);
+        let ready = matches!(started, Ok((0, _))) && backend.start_browser(&network, &browser) && {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            backend.forward_browser(&browser, &server, 8080)
+        };
+        let answers = ready.then(|| {
+            let via = Via::FreshContainer(&network);
+            let mut http = DockerHttp {
+                backend: &backend,
+                via: &via,
+                app: &server,
+                port: 8080,
+                mail: None,
+                provider: None,
+                browser: Some(&browser),
+            };
+            use sv_check::browser::{Action, Job};
+            use sv_check::signed_in::Http;
+            http.browser(&Job {
+                cookies: vec![("sid".to_owned(), "abc".to_owned())],
+                actions: vec![
+                    Action::Goto("/private".into()),
+                    Action::Eval("document.title".into()),
+                    Action::Fill {
+                        page: "/form".into(),
+                        text: "hi <b>".into(),
+                    },
+                    Action::Eval("document.body.innerText".into()),
+                ],
+            })
+        });
+        let _ = backend.docker(&["rm", "-f", &server, &browser]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(
+            ready,
+            "the app, the browser, or the forwarder did not start: {started:?}"
+        );
+        let answers = answers.flatten().expect("the driver gave no answer");
+        assert_eq!(answers.len(), 4, "{answers:?}");
+        assert_eq!(answers[0]["status"], 200, "{answers:?}");
+        assert_eq!(answers[0]["path"], "/private", "{answers:?}");
+        assert_eq!(answers[1]["value"], "ran", "{answers:?}");
+        assert_eq!(answers[2]["found"], true, "{answers:?}");
+        assert_eq!(answers[2]["after"]["path"], "/echo", "{answers:?}");
+        assert_eq!(answers[3]["value"], "hi <b>", "{answers:?}");
     }
 
     #[test]

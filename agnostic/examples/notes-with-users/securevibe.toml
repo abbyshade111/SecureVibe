@@ -3,7 +3,8 @@ manifest-version = 1
 # An example of [stack.run.users]: `sv run` makes two accounts and an admin with `seed`, signs in as
 # each, and asks what they can reach — each other's notes, the admin page, a note created from
 # another site, the session after signing out — and signs up through `signup` to ask what passwords
-# the app accepts.
+# the app accepts. With `browser`, it also opens the private pages and types a note in a headless
+# Chromium on the same fenced network.
 
 [app]
 name = "Notes with users"
@@ -31,6 +32,9 @@ owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "
 change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
 upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" }, serves-at = "/files/{name}", max-bytes = 65536 }
+# A real browser, for what only a drawn page shows: the sign-out button can be seen, and a note is
+# shown as the text typed (the note page it leads to), not run as part of the page.
+browser = { text-form = "/notes" }
 
 [data]
 categories = ["contact"]
