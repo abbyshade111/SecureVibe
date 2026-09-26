@@ -2499,7 +2499,7 @@ fn client_side_validation_check(
     // Setup: an ordinary sign-up has to work, or a refusal below says nothing.
     let control = Account {
         user: format!("valid.{}", accounts.a.user),
-        password: format!("Sv-Valid-{}-aZ9!", &accounts.b.password.len()),
+        password: format!("Sv-Valid-{}-aZ9!", accounts.b.password.len()),
     };
     if sign_up(http, signup, "validation-control", &control).is_none_or(|r| r.status >= 400) {
         out.not_assessed.push((
