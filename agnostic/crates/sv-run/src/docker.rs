@@ -181,7 +181,7 @@ impl Backend for DockerBackend {
         // 3. Ready, judged from inside the fence, by the sidecar every request goes through. If it
         //    cannot be started, each request starts a container of its own instead, as before:
         //    slower, and the same answers.
-        let via = if self.start_sidecar(&network, &sidecar) {
+        let via = if self.start_sidecar(&network, &sidecar, plan) {
             Via::Sidecar(&sidecar)
         } else {
             Via::FreshContainer(&network)
@@ -470,7 +470,14 @@ impl DockerBackend {
             }
             None => false,
         };
-        let mut out = sv_check::signed_in::run(&mut http, users, &accounts, seeded, &plan.policy);
+        let mut out = sv_check::signed_in::run_with(
+            &mut http,
+            users,
+            &accounts,
+            seeded,
+            &plan.policy,
+            plan.slow,
+        );
 
         // Last of all, and only after everything the probes do: whether the app wrote any of it
         // down. Reading the log earlier would be reading it before the events happened.
@@ -515,8 +522,8 @@ impl DockerBackend {
     /// system, no capabilities, and no way to gain privileges. It runs `sleep` and nothing else until
     /// a request is `exec`ed into it. `--rm` and the time limit mean a run that dies without its
     /// teardown still leaves nothing behind for long.
-    fn start_sidecar(&self, network: &str, name: &str) -> bool {
-        let limit = SIDECAR_SECONDS.to_string();
+    fn start_sidecar(&self, network: &str, name: &str, plan: &RunPlan) -> bool {
+        let limit = sidecar_seconds(plan).to_string();
         matches!(
             self.docker(&[
                 "run",
@@ -606,6 +613,17 @@ impl DockerBackend {
         }
         false
     }
+}
+
+/// How long the sidecar may live: the usual limit, and with `--slow` long enough to wait out the
+/// timeouts the owner states as well.
+fn sidecar_seconds(plan: &RunPlan) -> u64 {
+    if !plan.slow {
+        return SIDECAR_SECONDS;
+    }
+    let minutes = plan.policy.idle_timeout_minutes.unwrap_or(0)
+        + plan.policy.session_lifetime_minutes.unwrap_or(0);
+    SIDECAR_SECONDS + u64::from(minutes.min(180)) * 60 + 120
 }
 
 /// Where requests to the app are sent from.

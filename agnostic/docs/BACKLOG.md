@@ -370,7 +370,9 @@ another session is not a claim.
      so it now goes first. See DESIGN, "Two-factor codes, computed rather than waited for".
   5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
      whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers. **Claimed on 26
-     September 2026 by session securevibe-e9.**
+     September 2026 by session securevibe-e9, and done the same day:** `idle-timeout-minutes` and
+     `session-lifetime-minutes` under `[policy]`, held to by `sv run --slow`. Level 2 gains V7.3.1
+     and V7.3.2. See DESIGN, "Session timeouts, waited out".
   6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a
      container inside the fence. It can see what only a browser decides: whether a request needs a
      CORS preflight (V3.5.2), whether markup submitted through a form executes when the page renders
