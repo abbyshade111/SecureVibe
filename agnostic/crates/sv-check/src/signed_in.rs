@@ -881,6 +881,17 @@ const EMAIL_CODE_REUSABLE: Rule = Rule {
           code that has been used.",
 };
 
+const EMAIL_CODE_LONG_LIVED: Rule = Rule {
+    rule_id: "probe.email-code-long-lived",
+    requirement_ids: &["V6.5.5"],
+    cwe: &["CWE-613"],
+    impact: "A sign-in code that keeps working long after it was sent gives whoever reads the email \
+             later — in a shared mailbox, a synced phone, or a forwarded message — as good a way in \
+             as the person who asked for it.",
+    fix: "Store when each code was sent and refuse it once ten minutes have passed; a shorter \
+          lifetime is better still.",
+};
+
 const EMAIL_CODE_UNBOUND: Rule = Rule {
     rule_id: "probe.email-code-unbound",
     requirement_ids: &["V6.6.2"],
@@ -1407,6 +1418,7 @@ pub fn run_with(
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
     activation_checks(http, users, accounts, confirm.as_deref(), &mut out);
     email_code_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    email_code_lifetime(http, users, accounts, confirm.as_deref(), slow, &mut out);
     totp_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. After everything else, without exception. This one deliberately provokes the app into
@@ -3257,6 +3269,116 @@ fn email_code_checks(
              codes here are tied to the session that asked for them, so it would have been \
              refused there unused too, and the session it belonged to is already signed in."
                 .to_owned(),
+        ));
+    }
+}
+
+/// How long an emailed sign-in code lasts (V6.5.5): at most ten minutes. Only with `--slow`.
+///
+/// A code is asked for, and its session kept busy while ten minutes pass — a code tied to a session
+/// that ended for being idle would be refused for that, not for its age. Then the code is used
+/// there. Signing in is a finding. A refusal is credited only when a code asked for then, in a new
+/// session, signs in at once: that is what shows the old one was refused for being old.
+fn email_code_lifetime(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    slow: bool,
+    out: &mut Outcome,
+) {
+    const ID: &str = "V6.5.5";
+    /// Ten minutes, the most V6.5.5 allows, and a few seconds more.
+    const LATE: u64 = 10 * 60 + 5;
+    if users.email_code.is_none() {
+        return;
+    }
+    if !slow {
+        out.not_assessed.push((
+            ID.to_owned(),
+            "How long an emailed sign-in code keeps working: that means waiting ten minutes, so it \
+             is asked only by `sv run --slow`."
+                .to_owned(),
+        ));
+        return;
+    }
+    // Quietly: the checks above already said why, if the flow cannot be started.
+    let mut quiet = Outcome::default();
+    let Some(flow) = EmailCode::start(http, users, accounts, confirm, ID, &mut quiet) else {
+        out.not_assessed.push((
+            ID.to_owned(),
+            "How long an emailed sign-in code keeps working: the sign-in by emailed code could not \
+             be started, as said above."
+                .to_owned(),
+        ));
+        return;
+    };
+    let mut asked = Session::default();
+    let asked_at = http.now();
+    let code = match flow.ask(http, &mut asked, "old", out) {
+        Ok(code) => code,
+        Err(why) => {
+            out.not_assessed.push((ID.to_owned(), why));
+            return;
+        }
+    };
+    // Kept busy, a page request every two minutes, so the session outlives the wait.
+    while http.now() < asked_at + LATE {
+        let left = asked_at + LATE - http.now();
+        http.wait(left.min(120));
+        http.send(&get(
+            "email-code-keep-busy",
+            &flow.entry.use_code.path,
+            &asked,
+        ));
+    }
+    let late = flow.signs_in(http, &code, &mut asked, "late", out);
+    let waited = http.now().saturating_sub(asked_at);
+    let after = format!("{} minutes {} seconds", waited / 60, waited % 60);
+    if late {
+        out.findings.push(finding(
+            &EMAIL_CODE_LONG_LIVED,
+            "An emailed sign-in code still works after ten minutes",
+            Severity::Medium,
+            format!(
+                "A code asked for through {} was used through {} {after} later, in the session \
+                 that asked for it, and signed in.",
+                flow.entry.request.path, flow.entry.use_code.path
+            ),
+        ));
+        return;
+    }
+    let mut fresh = Session::default();
+    let control = match flow.ask(http, &mut fresh, "fresh", out) {
+        Ok(new) => flow.signs_in(http, &new, &mut fresh, "fresh", out),
+        Err(_) => false,
+    };
+    out.steps.push(format!(
+        "an emailed code used {after} after it was asked for: refused; a code asked for then {}",
+        if control {
+            "signed in"
+        } else {
+            "did not sign in either"
+        }
+    ));
+    if control {
+        out.verified.push(crate::Verified::new(
+            EMAIL_CODE_LONG_LIVED.rule_id,
+            EMAIL_CODE_LONG_LIVED.requirement_ids,
+            format!(
+                "an emailed sign-in code refused through {} {after} after it was asked for, in a \
+                 session kept in use, where a code asked for then signed in",
+                flow.entry.use_code.path
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "How long an emailed sign-in code keeps working: a code used {after} after it was \
+                 asked for was refused, and so was one asked for and used straight away then, so \
+                 the refusal cannot be said to be about its age."
+            ),
         ));
     }
 }
@@ -6651,6 +6773,10 @@ mod tests {
         sign_in_codes: BTreeMap<String, (String, String, bool)>,
         /// Wrong sign-in codes per session.
         code_failures: BTreeMap<String, u32>,
+        /// When each sign-in code was handed out, by the clock.
+        code_born: BTreeMap<String, u64>,
+        /// Whether the idle timeout ends sessions nobody has signed in to yet, too.
+        anonymous_sessions_time_out: bool,
     }
 
     /// The fake app's own context-specific word, as an owner would list it in `context-words`.
@@ -6871,6 +6997,8 @@ mod tests {
         /// Every wrong code is answered 429 from the first, as an app whose limiter an earlier
         /// check has tripped would.
         code_already_refusing: bool,
+        /// Sign-in codes never expire; otherwise they last ten minutes.
+        code_long_lived: bool,
     }
 
     const CSRF: &str = "tok-123";
@@ -7107,7 +7235,10 @@ mod tests {
             // The session timeouts, when this app keeps any: a signed-in session is ended here if
             // it has been unused, or alive, too long; otherwise its last use is now.
             if let Some(s) = sid.as_ref()
-                && self.sessions.get(s).is_some_and(|u| !u.is_empty())
+                && self
+                    .sessions
+                    .get(s)
+                    .is_some_and(|u| !u.is_empty() || self.anonymous_sessions_time_out)
             {
                 let now = self.clock;
                 let (began, last) = *self.session_times.entry(s.clone()).or_insert((now, now));
@@ -7361,6 +7492,7 @@ mod tests {
                             code.clone(),
                             (email.clone(), sid.clone().unwrap_or_default(), false),
                         );
+                        self.code_born.insert(code.clone(), self.clock);
                         self.outbox.push((
                             email,
                             format!("Your sign-in code is {code}. It works once, in this browser."),
@@ -7403,6 +7535,17 @@ mod tests {
                         .filter(|(_, asked, used)| {
                             (*asked == session || self.flaws.code_unbound)
                                 && (!used || self.flaws.code_reusable)
+                        })
+                        .filter(|_| {
+                            self.flaws.code_long_lived
+                                || self
+                                    .code_born
+                                    .get(&code)
+                                    .is_some_and(|born| self.clock - born <= 600)
+                        })
+                        // A code tied to its session dies with it.
+                        .filter(|_| {
+                            self.flaws.code_unbound || self.sessions.contains_key(&session)
                         });
                     let Some((who, asked, _)) = good else {
                         *self.code_failures.entry(session).or_insert(0) += 1;
@@ -9679,6 +9822,8 @@ mod tests {
         o.not_assessed
             .iter()
             .filter(|(ids, _)| ids.split(", ").any(|i| i == id))
+            // V6.5.5 is asked of emailed codes too, and those are said apart.
+            .filter(|(_, why)| !why.contains("emailed sign-in code"))
             .map(|(_, why)| why.clone())
             .collect()
     }
@@ -11614,6 +11759,199 @@ mod tests {
             ),
             1
         );
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // How long an emailed code lasts, waited out with --slow
+
+    fn lifetime_why(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(id, why)| id == "V6.5.5" && why.contains("emailed sign-in code"))
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    /// The seeded fixture with `--slow` and no timeouts stated, so the only waiting is the code's.
+    fn code_slow_run(flaws: Flaws, tune: impl FnOnce(&mut FakeApp)) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        tune(&mut app);
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        super::run_with(&mut app, &users(), &acc, true, &Default::default(), true)
+    }
+
+    #[test]
+    fn a_code_refused_after_ten_minutes_is_credited_when_a_fresh_one_works() {
+        let o = code_slow_run(Flaws::default(), |_| {});
+        assert!(
+            !rule_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id),
+            "{:#?}",
+            o.findings
+        );
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == EMAIL_CODE_LONG_LIVED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(credit.scope.contains("10 minutes"), "{}", credit.scope);
+        assert!(lifetime_why(&o).is_empty(), "{:?}", lifetime_why(&o));
+    }
+
+    #[test]
+    fn a_code_that_never_expires_is_found() {
+        for o in [
+            code_slow_run(
+                Flaws {
+                    code_long_lived: true,
+                    ..Default::default()
+                },
+                |_| {},
+            ),
+            // With sessions that end after five idle minutes: the one that asked is kept in use,
+            // so the old code is judged on its age and not on a session that ended.
+            code_slow_run(
+                Flaws {
+                    code_long_lived: true,
+                    ..Default::default()
+                },
+                |app| {
+                    app.idle_limit = Some(5 * 60);
+                    app.anonymous_sessions_time_out = true;
+                },
+            ),
+        ] {
+            assert!(
+                rule_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id),
+                "{:?}",
+                o.steps
+            );
+            assert!(!verified_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        }
+    }
+
+    #[test]
+    fn a_session_kept_in_use_outlives_the_wait_so_a_good_app_is_still_credited() {
+        let o = code_slow_run(Flaws::default(), |app| {
+            app.idle_limit = Some(5 * 60);
+            app.anonymous_sessions_time_out = true;
+        });
+        assert!(
+            verified_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_refusal_with_no_working_code_to_compare_is_not_assessed() {
+        let o = code_slow_run(
+            Flaws {
+                code_does_nothing: true,
+                ..Default::default()
+            },
+            |_| {},
+        );
+        assert!(!rule_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        assert!(!verified_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        assert!(
+            lifetime_why(&o)
+                .iter()
+                .any(|w| w.contains("cannot be said to be about its age")),
+            "{:?}",
+            lifetime_why(&o)
+        );
+    }
+
+    /// The sign-up fixture with `--slow`, in an app whose sessions end after five idle minutes,
+    /// signed in or not: the lifetime check's account is made through sign-up there.
+    fn code_slow_signup_run(flaws: Flaws) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        app.idle_limit = Some(5 * 60);
+        app.anonymous_sessions_time_out = true;
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        super::run_with(
+            &mut app,
+            &with_signup(),
+            &acc,
+            false,
+            &Default::default(),
+            true,
+        )
+    }
+
+    #[test]
+    fn through_sign_up_each_lifetime_outcome_is_reached() {
+        let long_lived = code_slow_signup_run(Flaws {
+            code_long_lived: true,
+            ..Default::default()
+        });
+        assert!(
+            rule_ids(&long_lived).contains(&EMAIL_CODE_LONG_LIVED.rule_id),
+            "{:?}",
+            long_lived.steps
+        );
+        assert!(!verified_ids(&long_lived).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+
+        let correct = code_slow_signup_run(Flaws::default());
+        assert!(
+            verified_ids(&correct).contains(&EMAIL_CODE_LONG_LIVED.rule_id),
+            "{:?}",
+            correct.steps
+        );
+
+        let broken = code_slow_signup_run(Flaws {
+            code_does_nothing: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&broken).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        assert!(!rule_ids(&broken).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        assert!(
+            lifetime_why(&broken)
+                .iter()
+                .any(|w| w.contains("cannot be said to be about its age")),
+            "{:?}",
+            lifetime_why(&broken)
+        );
+    }
+
+    #[test]
+    fn without_slow_nothing_is_waited_for_and_it_says_so() {
+        let mut app = FakeApp::new(Flaws {
+            code_long_lived: true,
+            ..Default::default()
+        });
+        let start = app.clock;
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let o = run(&mut app, &users(), &acc, true, &Default::default());
+        assert!(!rule_ids(&o).contains(&EMAIL_CODE_LONG_LIVED.rule_id));
+        assert!(
+            lifetime_why(&o).iter().any(|w| w.contains("--slow")),
+            "{:?}",
+            lifetime_why(&o)
+        );
+        assert!(app.clock - start < 5 * 60, "it waited without --slow");
+    }
+
+    #[test]
+    fn with_no_email_code_entry_the_lifetime_is_not_mentioned() {
+        let mut u = users();
+        u.email_code = None;
+        let o = run_against(Flaws::default(), &u);
+        assert!(lifetime_why(&o).is_empty(), "{:?}", lifetime_why(&o));
     }
 
     // --------------------------------------------------------------------------------------------
