@@ -1156,29 +1156,22 @@ another session is not a claim.
   Smaller than relaxed-nobel's run and consistent with it: on the owner's six built apps option C was
   twice as slow again, and far noisier, than on the examples and template alone.
 
-  **The owner's decision, 26 September 2026:** "19 more requirements definitely seems worth it for
-  not too much added time", made on securevibe-e8's numbers (20 seconds, 17 false alarms), before
-  relaxed-nobel-27acfa's run above reached the owner: 40 seconds an app, 148 findings on the owner's
-  apps, and a license that rules out keeping the rules here. **To confirm with the owner** whether
-  that still holds, or whether B (46 of 50, about 5 seconds, few false alarms, and the injection
-  catches) is the choice.
+  **The owner's decision, 26 September 2026:** B, `p/default` beside the two packs, for now. (An
+  earlier "19 more requirements definitely seems worth it" was made on securevibe-e8's smaller numbers
+  before relaxed-nobel-27acfa's run and license reading reached the owner, and is replaced by this.)
+  Adopting B, as relaxed-nobel-27acfa proposed: add `p/default` to the adapter, measure it into
+  `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
+  fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
 
-- **Keep the false alarms down, whichever set of rules is adopted.** Asked for by the owner on
-  26 September 2026: work out how to keep the added rules' false alarms to a minimum. Not claimed.
-  Where to start, from both measurements above:
-  - Which rules make them. On the template, four did (`var-in-href`, `html-in-template-string`,
-    `detect-non-literal-regexp`, `unsafe-dynamic-method`); on the owner's apps, `generic-api-key` on
-    the hashes in `securevibe.provenance.json` too. Per rule, count findings against real faults over
-    the golden apps and the examples, and decide per rule: keep, keep as low confidence, or leave out
-    and say which requirement loses it.
-  - Fix what is the template's own fault at the source: three lines of v1's template make all nine of
-    `p/default`'s regular-expression findings on the owner's apps.
-  - What `sv` already knows that semgrep does not: a value from the app's own settings or routes, a
-    test file, a template that escapes by default, a file `sv` itself writes. Semgrep's `paths` and
-    `pattern-not` can say some of this in the rule file, where the license allows it.
-  - Findings that come only from the added rules could be shown apart ("worth a look") rather than as
-    needs attention, if a rule turns out to be right sometimes and wrong often.
-  - The evaluation harness is the measure, so the change should come with baseline updates.
+- **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
+  Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
+  `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
+  `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
+  faults over the golden apps and the examples; what `sv` knows that semgrep does not (a value from
+  the app's own settings, a test file, a template that escapes by default, a file `sv` writes); and
+  whether findings only the added rules make should be shown apart, as "worth a look".
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
