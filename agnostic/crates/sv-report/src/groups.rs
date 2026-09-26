@@ -76,6 +76,7 @@ mod tests {
             supported_by: Vec::new(),
             documented_by: Vec::new(),
             attested_by: Vec::new(),
+            by_hand: Vec::new(),
         }
     }
 
