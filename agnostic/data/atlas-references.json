@@ -1,0 +1,61 @@
+{
+  "_comment": "MITRE ATLAS techniques for the threats about AI in data/knowledge/threats.json, for a security reviewer reading the report. Kept here rather than in threats.json, which v1 shares. Cited by ID: ATLAS renames techniques often, and keeps their IDs. `techniques` holds each cited ID's name as the pinned `release` gives it, written by tools/atlas_references.py and never by hand; `threats` says which technique each threat is, and `because` names what the two share, which the citation guard holds against both. MITRE ATLAS (TM) data, Copyright 2021-2026 The MITRE Corporation, from https://github.com/mitre-atlas/atlas-data, licensed under the Apache License 2.0.",
+  "release": "2026.09",
+  "source": "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/v6/ATLAS-2026.09.yaml",
+  "techniques": {
+    "AML.T0029": "Denial of AI Service",
+    "AML.T0034": "Cost Harvesting",
+    "AML.T0048": "External Harms",
+    "AML.T0051": "LLM Prompt Injection",
+    "AML.T0053": "AI Agent Tool Invocation",
+    "AML.T0055": "Unsecured Credentials",
+    "AML.T0056": "Extract LLM System Prompt",
+    "AML.T0057": "LLM Data Leakage"
+  },
+  "threats": {
+    "T-07": [
+      {
+        "id": "AML.T0051",
+        "because": "prompt injection"
+      }
+    ],
+    "T-08": [
+      {
+        "id": "AML.T0057",
+        "because": "data leakage of other people's records"
+      },
+      {
+        "id": "AML.T0056",
+        "because": "revealing its own instructions, the system prompt"
+      }
+    ],
+    "T-09": [
+      {
+        "id": "AML.T0034",
+        "because": "running up the bill: the cost, harvesting it"
+      },
+      {
+        "id": "AML.T0029",
+        "because": "exhausting the provider's quota, a denial of the service"
+      }
+    ],
+    "T-10": [
+      {
+        "id": "AML.T0055",
+        "because": "a leaked API key is an unsecured credential"
+      }
+    ],
+    "T-11": [
+      {
+        "id": "AML.T0053",
+        "because": "the model makes a change through an agent tool invocation"
+      }
+    ],
+    "T-12": [
+      {
+        "id": "AML.T0048",
+        "because": "harmful content spread to others, external harms"
+      }
+    ]
+  }
+}

@@ -59,7 +59,10 @@ another session is not a claim.
 
 - **The two-factor reuse check credits V6.5.1 when the time step rolls over mid-check.** Found on
   26 September 2026 reviewing the TOTP probes (#129). **Claimed on 26 September 2026 by session
-  securevibe-e9.** `totp_checks` in
+  securevibe-e9, and done the same day:** the check keeps clear of a step's last ten seconds, looks at
+  the clock again after the second use and tries the pair once more in the new step, says V6.5.1 is
+  not assessed if the step ends twice, and the V6.5.5 credit now says the 30-second bound was not
+  shown. `totp_checks` in
   `crates/sv-check/src/signed_in.rs` reads the step once, at the top, and computes `current` from it.
   Three sign-in attempts later, that code is given again to see whether the app takes it twice. If the
   30-second step has ended in between — the run starts at a uniformly random point inside its step, so
@@ -153,7 +156,19 @@ another session is not a claim.
     gated on the `ai` condition like the rest of AISVS.
 
   The deliverable is a short written recommendation — adopt, adopt in part, or not worth it — with
-  the numbers behind it, before anything is built. Not claimed.
+  the numbers behind it, before anything is built. **Claimed on 26 September 2026 by session
+  securevibe-e8. Done the same day: adopt in part.** Cite ATLAS techniques by ID on the six AI
+  threats, for a reviewer; no copy of ATLAS in `sv`, no checks from it (35 of its 40 mitigations
+  already have an AISVS chapter, and AISVS cites ATLAS itself), and nothing in the owner's
+  plain-language view. See DESIGN, "MITRE ATLAS: adopt in part".
+
+- **Cite MITRE ATLAS techniques on the six AI threats.** Proposed on 26 September 2026 by the ATLAS
+  investigation above. **The owner said yes on 26 September 2026. Claimed the same day by session
+  securevibe-e8.** Kept out of `data/knowledge/threats.json`, which v1 shares, in a file of `sv`'s
+  own, so the v1 side has nothing to agree to. **Done the same day:** `data/atlas-references.json`,
+  `tools/atlas_references.py`, and a reviewer's table in the report. See DESIGN, "MITRE ATLAS: adopt in
+  part". Each of T-07 to T-12 cites one or two techniques with a `because`, the names are read from a
+  pinned release, and the script names any cited ID renamed or withdrawn in a newer one.
 
 - **An unanswered question excludes requirements when a corroborator found nothing.** Found on
   26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
@@ -501,6 +516,11 @@ another session is not a claim.
      V6.5.1, V6.5.4, V6.6.2, and V6.6.3 at Level 2, which goes from 45 to 49 of 183, with
      `[policy] failed-codes` as the stated number for guessing. See DESIGN, "Signing in with an
      emailed code".
+     **V6.4.1 (an activation code emailed at sign-up) and V6.5.5 for emailed codes (their lifetime,
+     with `sv run --slow`) claimed on 26 September 2026 by session securevibe-e9.** V6.4.1 is **done the
+     same day**, finding only: an `activation` entry, codes that count up or are short, and a link
+     that signs in twice. Level 1 goes from 52 to 53 of 70. See DESIGN, "An activation code emailed
+     at sign-up".
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5). **Claimed on 26 September 2026 by session securevibe-e8.** A third account, made by
@@ -534,7 +554,9 @@ another session is not a claim.
      browser's own is signed out with the app's control, and what the app kept in the browser's
      storage for the signed-in person has to be gone. See DESIGN, "Signing out in the browser".
      **With that, the item is done.** Not part of it: V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
-     the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
+     the cross-site checks (**claimed on 26 September 2026 by session securevibe-e8**: the `owned`
+     create request, when it is JSON, sent from another origin as `text/plain`, which no browser
+     preflights); V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
      in every real browser, which a check could say directly.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
@@ -894,7 +916,7 @@ another session is not a claim.
   bring. The shape to keep: SARIF only, not installed means not run, and a rule mapped only where it
   can be shown to be about its requirement.
 
-- **More probes.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
+- **More probes.** **Claimed on 26 September 2026 by session securevibe-e9.** The first four questions are asked (`sv-check/src/probes.rs`); they are the ones that
   can be asked of any app by somebody who has not signed in. Redirects, HSTS on an HTTPS app, method
   handling per route and anything that sends data need either a manifest describing the app's routes or a
   session — both of which are their own items below.

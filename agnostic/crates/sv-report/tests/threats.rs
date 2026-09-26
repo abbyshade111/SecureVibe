@@ -563,3 +563,197 @@ fn the_new_parts_appear_only_when_their_conditions_hold() {
     assert!(!lines.iter().any(|t| t.id == "T-42"));
     assert!(lines.iter().any(|t| t.id == "T-35"));
 }
+
+// ---- MITRE ATLAS references, for a security reviewer ----
+
+fn atlas_text() -> String {
+    std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/atlas-references.json"),
+    )
+    .expect("the ATLAS references read")
+}
+
+fn is_about_ai(t: &sv_report::threats::ThreatRule) -> bool {
+    t.when.iter().any(|c| c == "ai" || c.starts_with("ai-"))
+}
+
+#[test]
+fn every_threat_about_ai_has_an_atlas_reference_and_no_other_threat_does() {
+    let r = rules().with_atlas().expect("the ATLAS references load");
+    let atlas = r.atlas.as_ref().unwrap();
+    assert_eq!(atlas.release, "2026.09");
+    let about_ai: Vec<&str> = r
+        .threats
+        .iter()
+        .filter(|t| is_about_ai(t))
+        .map(|t| t.id.as_str())
+        .collect();
+    assert_eq!(about_ai.len(), 6, "{about_ai:?}");
+    for id in &about_ai {
+        assert!(
+            atlas
+                .by_threat
+                .get(*id)
+                .is_some_and(|refs| !refs.is_empty()),
+            "{id} is about AI and has no ATLAS reference"
+        );
+    }
+    assert_eq!(atlas.by_threat.len(), about_ai.len());
+}
+
+#[test]
+fn every_atlas_phrase_shares_vocabulary_with_the_threat_and_the_technique() {
+    // The same guard as the requirements': a phrase that matched only one side could join any
+    // threat to any technique. And a phrase with no word the comparison can use would pass both.
+    let r = rules().with_atlas().unwrap();
+    let mut wrong = Vec::new();
+    let mut pairs = 0;
+    for t in &r.threats {
+        for a in r
+            .atlas
+            .as_ref()
+            .unwrap()
+            .by_threat
+            .get(&t.id)
+            .into_iter()
+            .flatten()
+        {
+            pairs += 1;
+            // Compared with nothing, a phrase with a word reads as sharing nothing; one without, as
+            // agreeing with everything.
+            if !shares_no_words(&a.because, "") {
+                wrong.push(format!(
+                    "{} {}: `{}` has no word to compare",
+                    t.id, a.id, a.because
+                ));
+            }
+            if shares_no_words(&a.because, &t.description) {
+                wrong.push(format!(
+                    "{} {}: `{}` shares nothing with the threat",
+                    t.id, a.id, a.because
+                ));
+            }
+            if shares_no_words(&a.because, &a.name) {
+                wrong.push(format!(
+                    "{} {}: `{}` shares nothing with `{}`",
+                    t.id, a.id, a.because, a.name
+                ));
+            }
+        }
+    }
+    assert!(pairs >= 8, "only {pairs} references read");
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    // And the guard sees a reference pointing at the wrong technique: prompt injection's phrase
+    // against unsecured credentials.
+    let atlas = r.atlas.as_ref().unwrap();
+    let because = &atlas.by_threat["T-07"][0].because;
+    let credentials = &atlas.by_threat["T-10"][0].name;
+    assert!(
+        shares_no_words(because, credentials),
+        "`{because}` against `{credentials}`"
+    );
+}
+
+#[test]
+fn atlas_references_that_could_not_mean_what_they_say_are_refused() {
+    use sv_report::threats::AtlasReferences;
+    let r = rules();
+    let doctored = |change: &dyn Fn(&mut serde_json::Value)| {
+        let mut v: serde_json::Value = serde_json::from_str(&atlas_text()).unwrap();
+        change(&mut v);
+        AtlasReferences::parse(&v.to_string(), &r)
+    };
+    let refused = |change: &dyn Fn(&mut serde_json::Value), says: &str| {
+        let err = doctored(change).expect_err(says).to_string();
+        assert!(err.contains(says), "{says}: {err}");
+    };
+    assert!(doctored(&|_| {}).is_ok(), "the file itself loads");
+    refused(
+        &|v| {
+            v["threats"]["T-99"] =
+                serde_json::json!([{ "id": "AML.T0051", "because": "prompt injection" }])
+        },
+        "not in the threat model",
+    );
+    refused(
+        &|v| {
+            v["threats"]["T-01"] =
+                serde_json::json!([{ "id": "AML.T0051", "because": "prompt injection" }])
+        },
+        "not a threat about AI",
+    );
+    refused(
+        &|v| v["threats"]["T-07"][0]["id"] = "AML.T0015".into(),
+        "whose name was not read",
+    );
+    refused(
+        &|v| v["techniques"]["AML.T0015"] = "Evade AI Model".into(),
+        "which no threat cites",
+    );
+    refused(
+        &|v| v["threats"]["T-07"][0]["because"] = " ".into(),
+        "no `because`",
+    );
+    refused(
+        &|v| v["threats"]["T-07"] = serde_json::json!([]),
+        "no ATLAS technique",
+    );
+    refused(&|v| v["release"] = "2026.10".into(), "read from");
+}
+
+#[test]
+fn the_report_lists_atlas_references_for_a_reviewer_only_where_ai_threats_apply() {
+    let f = Frameworks::load(&data().join("frameworks")).unwrap();
+    let buckets = sv_frameworks::applicability::Buckets::default();
+    let build = |r: &ThreatRules, ai: bool| {
+        let ctx = context(&[("auth", true), ("ai", ai)]);
+        sv_report::build(sv_report::Inputs {
+            app_name: "Atlas",
+            target_level: 1,
+            generated: None,
+            run_note: None,
+            run_steps: Vec::new(),
+            frameworks: &f,
+            buckets: &buckets,
+            claims: &[],
+            findings: vec![],
+            verified: &[],
+            gaps: vec![],
+            manual_only: Default::default(),
+            named_in_tests: Default::default(),
+            not_for_tests: Default::default(),
+            documented: &[],
+            attested: &[],
+            human: None,
+            threats: Some((r, &ctx)),
+        })
+    };
+    let with = rules().with_atlas().unwrap();
+    let report = build(&with, true);
+    let md = sv_report::markdown::compliance(&report);
+    let html = sv_report::html::page(&report);
+    for text in [&md, &html] {
+        assert!(
+            text.contains("For a security reviewer: these threats in MITRE ATLAS"),
+            "{text}"
+        );
+        assert!(text.contains("AML.T0051"), "{text}");
+        assert!(text.contains("LLM Prompt Injection"));
+        assert!(text.contains("release 2026.09"));
+        assert!(text.contains("references, not checks"));
+    }
+    // A reference changes no status: the same app without the references has the same threats.
+    let without = build(&rules(), true);
+    let statuses = |r: &sv_report::Report| {
+        r.threats
+            .iter()
+            .map(|t| (t.id.clone(), t.status))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(statuses(&report), statuses(&without));
+    assert!(!sv_report::markdown::compliance(&without).contains("MITRE ATLAS"));
+    // No AI, no AI threats, and no table.
+    let no_ai = build(&with, false);
+    assert!(!sv_report::markdown::compliance(&no_ai).contains("MITRE ATLAS"));
+    assert!(!sv_report::html::page(&no_ai).contains("MITRE ATLAS"));
+}

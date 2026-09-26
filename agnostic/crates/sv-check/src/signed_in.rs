@@ -917,6 +917,25 @@ const NO_SESSION_LIFETIME: Rule = Rule {
           lifetime you stated, however recently it was used.",
 };
 
+const ACTIVATION_GUESSABLE: Rule = Rule {
+    rule_id: "probe.activation-code-guessable",
+    requirement_ids: &["V6.4.1"],
+    cwe: &["CWE-330"],
+    impact: "An activation code that can be guessed lets anybody finish somebody else's sign-up, or \
+             activate an account made in another person's name.",
+    fix: "Make each activation code from a secure random generator, long enough that guessing is \
+          hopeless (16 random bytes is a common choice), and never count up from an earlier one.",
+};
+
+const ACTIVATION_REUSABLE: Rule = Rule {
+    rule_id: "probe.activation-link-reusable",
+    requirement_ids: &["V6.4.1"],
+    cwe: &["CWE-294"],
+    impact: "An activation link that signs its account in works for whoever finds it later — in a \
+             mailbox, a browser history, or a forwarded email — for as long as it keeps working.",
+    fix: "Mark the activation code as used, or delete it, when it is used, and refuse it afterwards.",
+};
+
 const SESSIONS_SURVIVE_DELETION: Rule = Rule {
     rule_id: "probe.sessions-survive-deletion",
     requirement_ids: &["V7.4.2"],
@@ -1196,7 +1215,7 @@ pub fn run_with(
 
     if !seeded && let Some(signup) = &users.signup {
         for (who, account) in [("a", &accounts.a), ("b", &accounts.b)] {
-            let response = sign_up(http, signup, who, account);
+            let response = sign_up(http, users, signup, who, account);
             out.steps.push(format!(
                 "signed up {} ({})",
                 who.to_uppercase(),
@@ -1373,6 +1392,7 @@ pub fn run_with(
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    activation_checks(http, users, accounts, confirm.as_deref(), &mut out);
     email_code_checks(http, users, accounts, confirm.as_deref(), &mut out);
     totp_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
@@ -1834,7 +1854,7 @@ fn brute_force_check(
                     accounts.b.password.chars().take(12).collect::<String>()
                 ),
             };
-            sign_up(http, signup, "guessed", &account);
+            sign_up(http, users, signup, "guessed", &account);
             account
         }
         None => Account {
@@ -2018,7 +2038,7 @@ fn plant_log_markers(
             user: format!("sv-log-ok-{tag}@example.test"),
             password: format!("Sv-Log-{tag}-aZ9!"),
         };
-        sign_up(http, signup, "log-marker", &only);
+        sign_up(http, users, signup, "log-marker", &only);
         if sign_in(http, users, "log-marker-ok", &only, &mut Vec::new()).is_some() {
             out.log_markers.successful_sign_in = Some(only.user);
         }
@@ -2041,7 +2061,53 @@ fn plant_log_markers(
 }
 
 /// Signs an account up through the app's own form.
+/// Makes an account through `signup`, and — when the app activates accounts with an emailed code
+/// (`activation`) — activates it, so every account a check signs up can sign in as that check
+/// expects. Quietly: a check that needs to watch activation happen calls `sign_up_only`.
 fn sign_up(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    signup: &RequestTemplate,
+    who: &str,
+    account: &Account,
+) -> Option<ProbeResponse> {
+    let Some(activation) = &users.activation else {
+        return sign_up_only(http, signup, who, account);
+    };
+    let before = http.mail(&account.user, 0).map_or(0, |m| m.len());
+    let answer = sign_up_only(http, signup, who, account);
+    let code = code_patterns(
+        activation.code_pattern.as_deref(),
+        "activate|activation|verify|confirm|welcome",
+    )
+    .ok()
+    .and_then(|patterns| {
+        let mail = http.mail(&account.user, before + 1)?;
+        mail.get(before..)?
+            .last()
+            .and_then(|m| reset_code(m, &patterns))
+    });
+    if let Some(code) = code {
+        let values = Values {
+            user: &account.user,
+            code: &code,
+            ..Default::default()
+        };
+        let mut session = Session::default();
+        send_template(
+            http,
+            &format!("activate-{who}"),
+            &activation.use_code,
+            &values,
+            &mut session,
+            &[],
+        );
+    }
+    answer
+}
+
+/// Makes an account through `signup`, and nothing else.
+fn sign_up_only(
     http: &mut dyn Http,
     signup: &RequestTemplate,
     who: &str,
@@ -2153,7 +2219,7 @@ fn password_checks(
         .map(|c| (b'g' + c.to_digit(16).unwrap_or(0) as u8) as char)
         .collect();
     let control = account("control", format!("Sv-{}-aZ9!", &spare[8..32]));
-    sign_up(http, signup, "control", &control);
+    sign_up(http, users, signup, "control", &control);
     if !account_works(http, users, "control", &control, confirm, &mut out.steps) {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -2191,7 +2257,7 @@ fn password_checks(
     let tries: Vec<(&str, Account)> = tries.into_iter().chain(context_tries).collect();
     let mut works = std::collections::BTreeMap::new();
     for (label, try_account) in &tries {
-        sign_up(http, signup, label, try_account);
+        sign_up(http, users, signup, label, try_account);
         works.insert(
             *label,
             account_works(http, users, label, try_account, confirm, &mut out.steps),
@@ -2380,7 +2446,7 @@ fn exact_password_checks(
         user: format!("long.{}", control.user.trim_start_matches("control.")),
         password: format!("Lg-{0}{0}{1}-aZ9!", &spare[..32], &spare[..11]),
     };
-    sign_up(http, signup, "long", &long);
+    sign_up(http, users, signup, "long", &long);
     let long_works = account_works(http, users, "long", &long, confirm, &mut out.steps);
     let cut = Account {
         user: long.user.clone(),
@@ -2631,7 +2697,7 @@ fn change_password_checks(
                 user: format!("change.{}", accounts.a.user),
                 password: format!("Ch-{}-aZ9!", &spare[4..28]),
             };
-            sign_up(http, signup, "change", &account);
+            sign_up(http, users, signup, "change", &account);
             account
         }
         None => accounts.a.clone(),
@@ -2829,7 +2895,7 @@ fn reset_checks(
                 user: format!("reset.{}", accounts.a.user),
                 password: format!("Re-{}-aZ9!", &spare[5..29]),
             };
-            sign_up(http, signup, "reset", &account);
+            sign_up(http, users, signup, "reset", &account);
             account
         }
         None => accounts.b.clone(),
@@ -3437,7 +3503,7 @@ impl<'a> EmailCode<'a> {
                         spare.chars().skip(4).take(24).collect::<String>()
                     ),
                 };
-                sign_up(http, signup, "code", &account);
+                sign_up(http, users, signup, "code", &account);
                 account
             }
             None => accounts.a.clone(),
@@ -3575,6 +3641,270 @@ impl<'a> EmailCode<'a> {
             if opened { "signed in" } else { "not signed in" }
         ));
         opened
+    }
+}
+
+/// The activation code emailed at sign-up (V6.4.1), followed through the mail server.
+///
+/// Two accounts are made through `signup`, so there are two codes to compare. The setup is shown
+/// to work first: the email arrives and a code is found in it; where the app refuses a sign-in
+/// before activation, the code has to lift that. Then two findings are possible: a code short
+/// enough to guess, or two that count up; and an activation link that signs the account in and
+/// then does so again. Only ever findings: V6.4.1 also asks that a code expire after a while and
+/// that an initial password never become the lasting one, which this does not try.
+fn activation_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const ID: &str = "V6.4.1";
+    let Some(entry) = &users.activation else {
+        return;
+    };
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push((ID.to_owned(), why));
+    let Some(signup) = &users.signup else {
+        say(
+            "The activation code emailed at sign-up: securevibe.toml sets `activation` and no \
+             `signup`, so no account is made that would be sent one."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let Some(confirm) = confirm else {
+        say(
+            "The activation code emailed at sign-up: telling whether it worked needs a private \
+             page a signed-in user alone can open, and none was shown."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let patterns = match code_patterns(
+        entry.code_pattern.as_deref(),
+        "activate|activation|verify|confirm|welcome",
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            say(
+                format!("`activation.code-pattern` in securevibe.toml cannot be used: {e}."),
+                out,
+            );
+            return;
+        }
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    let made: Vec<Account> = (1..=2)
+        .map(|n| Account {
+            user: format!("activate{n}.{}", accounts.a.user),
+            password: format!("Ac{n}-{}-aZ9!", &spare[n..n + 24]),
+        })
+        .collect();
+    if http.mail(&made[0].user, 0).is_none() {
+        say(
+            "The activation code emailed at sign-up: the run had no mail server for the app to \
+             send to, so there was no email to read."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+
+    // Each account: signed up, its email read. Whether it could sign in before activation is
+    // asked of the first only; it decides what the code has to show.
+    let mut codes = Vec::new();
+    let mut gated = false;
+    for (n, account) in made.iter().enumerate() {
+        let before = http.mail(&account.user, 0).map_or(0, |m| m.len());
+        let answer = sign_up_only(http, signup, &format!("activate-{n}"), account);
+        let mail = http.mail(&account.user, before + 1).unwrap_or_default();
+        let code = mail
+            .get(before..)
+            .and_then(|new| new.last())
+            .and_then(|m| reset_code(m, &patterns));
+        out.steps.push(format!(
+            "signed up {} ({}): {}",
+            account.user,
+            status(&answer),
+            match (&code, mail.len() > before) {
+                (Some(_), _) => "an email arrived with an activation code in it",
+                (None, true) => "an email arrived with no code found in it",
+                (None, false) => "no email arrived",
+            }
+        ));
+        let Some(code) = code else {
+            say(
+                if mail.len() > before {
+                    "The sign-up email arrived and no activation code was found in it. Set \
+                     `activation.code-pattern` in securevibe.toml to a pattern whose first group \
+                     is the code."
+                        .to_owned()
+                } else {
+                    format!(
+                        "Signing up {} sent no email to the run's mail server. The app is told \
+                         where that is in SMTP_HOST and SMTP_PORT; check that it reads them.",
+                        account.user
+                    )
+                },
+                out,
+            );
+            return;
+        };
+        if n == 0 {
+            gated = !account_works(
+                http,
+                users,
+                "activate-before",
+                account,
+                confirm,
+                &mut out.steps,
+            );
+        }
+        codes.push(code);
+    }
+
+    // The code, used once in a new session: whether it activated, and whether it signed in.
+    let use_code = |http: &mut dyn Http, code: &str, label: &str, session: &mut Session| {
+        let values = Values {
+            user: &made[0].user,
+            code,
+            ..Default::default()
+        };
+        send_template(
+            http,
+            &format!("activation-{label}"),
+            &entry.use_code,
+            &values,
+            session,
+            &[],
+        )
+        .0
+    };
+    let mut first = Session::default();
+    let answer = use_code(http, &codes[0], "first", &mut first);
+    let signed_in_by_link = ok(&http.send(&get("activation-first-private", confirm, &first)));
+    let works = account_works(
+        http,
+        users,
+        "activate-after",
+        &made[0],
+        confirm,
+        &mut out.steps,
+    );
+    out.steps.push(format!(
+        "used the activation code ({}): the account {}{}",
+        status(&answer),
+        if works {
+            "then signed in"
+        } else {
+            "still could not sign in"
+        },
+        if signed_in_by_link {
+            ", and the link itself signed it in"
+        } else {
+            ""
+        }
+    ));
+    if gated && !works {
+        say(
+            format!(
+                "The account could not sign in before activation and still could not after its \
+                 code was used through {}: check `activation` in securevibe.toml. With no \
+                 activation that works, nothing about the code can be told.",
+                entry.use_code.path
+            ),
+            out,
+        );
+        return;
+    }
+    if !gated {
+        out.steps.push(
+            "the account could sign in before it was activated, so activation guards nothing \
+             here that a password does not"
+                .to_owned(),
+        );
+    }
+
+    // Guessable: from the two codes.
+    activation_code_check(&codes, out);
+
+    // Used again: only tellable when the link signs the account in.
+    if signed_in_by_link {
+        let mut again = Session::default();
+        use_code(http, &codes[0], "again", &mut again);
+        let reused = ok(&http.send(&get("activation-again-private", confirm, &again)));
+        out.steps.push(format!(
+            "used the same activation code again in a new session: {}",
+            if reused { "signed in" } else { "not signed in" }
+        ));
+        if reused {
+            out.findings.push(finding(
+                &ACTIVATION_REUSABLE,
+                "An activation link signs its account in more than once",
+                Severity::High,
+                format!(
+                    "The activation code sent at sign-up signed the account in through {}, and \
+                     then did so again from a new session after it had been used.",
+                    entry.use_code.path
+                ),
+            ));
+        }
+    }
+    say(
+        if signed_in_by_link {
+            "Two parts of V6.4.1 were not tried: whether an activation code stops working after a \
+             while, which would mean waiting, and whether a system-made initial password can \
+             become the lasting one."
+                .to_owned()
+        } else {
+            "Whether an activation code works twice: using it did not sign anybody in, so a second \
+             use could not be told from the first. Not tried either: whether a code stops working \
+             after a while, and whether a system-made initial password can become the lasting one."
+                .to_owned()
+        },
+        out,
+    );
+}
+
+/// Whether activation codes could be guessed: too short to hold 20 bits, or counting up.
+fn activation_code_check(codes: &[String], out: &mut Outcome) {
+    let Some(shortest) = codes.iter().min_by_key(|c| c.chars().count()) else {
+        return;
+    };
+    let bits = most_bits(shortest);
+    if bits < 19.9 {
+        out.findings.push(finding(
+            &ACTIVATION_GUESSABLE,
+            "The activation code is short enough to guess",
+            Severity::High,
+            format!(
+                "The code in the sign-up email is {} characters long and can hold at most {bits:.0} \
+                 bits, fewer than the 20 of six random digits.",
+                shortest.chars().count()
+            ),
+        ));
+        return;
+    }
+    let numbers: Vec<u128> = codes.iter().filter_map(|c| c.parse().ok()).collect();
+    if numbers.len() == codes.len()
+        && let [.., earlier, later] = numbers.as_slice()
+        && (1..=1000).contains(&later.abs_diff(*earlier))
+    {
+        out.findings.push(finding(
+            &ACTIVATION_GUESSABLE,
+            "Activation codes count up",
+            Severity::High,
+            format!(
+                "Two sign-ups one after the other were sent codes {} apart: whoever has one code \
+                 can work out the next.",
+                later.abs_diff(*earlier)
+            ),
+        ));
     }
 }
 
@@ -3816,7 +4146,7 @@ fn delete_account_check(
         user: format!("delete.{}", accounts.a.user),
         password: format!("De-{}-aZ9!", &spare[3..27]),
     };
-    sign_up(http, signup, "delete", &account);
+    sign_up(http, users, signup, "delete", &account);
     let mut quiet = Vec::new();
     let (Some(first), Some(second)) = (
         sign_in(http, users, "delete-1", &account, &mut quiet),
@@ -4079,6 +4409,13 @@ fn totp_checks(
         account: &totp.account,
         confirm,
     };
+    // Clear of the end of a step: with ten seconds or fewer left, the step can end between a code
+    // being worked out and being given, and a code refused for going stale reads as a code refused
+    // for being used. The rest of that risk is handled below, by looking at the clock again.
+    let into = http.now() % crate::totp::STEP;
+    if into + 10 >= crate::totp::STEP {
+        http.wait(crate::totp::STEP - into + 1);
+    }
     let step = http.now() / crate::totp::STEP;
     let current = crate::totp::code_at_step(secret, step);
     let old = crate::totp::code_at_step(secret, step.saturating_sub(5));
@@ -4096,22 +4433,52 @@ fn totp_checks(
         return;
     };
 
-    // 2. The control: the current code.
-    if !signing.attempt(http, &current, "2", false).unwrap_or(false) {
-        out.not_assessed.push((
-            IDS.to_owned(),
-            format!(
-                "The current code for the secret `seed` was given did not sign the two-factor \
-                 account in through {}, so a refused code shows nothing. Check `totp` in \
-                 securevibe.toml, and that `seed` enrolled the account with SV_TOTP_SECRET.",
-                entry.path
-            ),
-        ));
-        return;
+    // 2. The control: the current code, then 3. the same code again, in a new sign-in. A refusal of
+    //    the second is evidence only when the step it was worked out for has not ended: an app that
+    //    takes the current step alone refuses a code whose step is over, used or not. So when the
+    //    step has moved on and the code was refused, the pair is tried once more with the new
+    //    step's code; if the step ends again, nothing is said about reuse.
+    let mut current = current;
+    let mut step = step;
+    let mut reused = false;
+    let mut unsure = false;
+    for round in 0..2 {
+        if !signing
+            .attempt(http, &current, &format!("2-{round}"), false)
+            .unwrap_or(false)
+        {
+            let ended = http.now() / crate::totp::STEP != step;
+            out.not_assessed.push((
+                IDS.to_owned(),
+                if ended {
+                    format!(
+                        "The 30-second step ended while the current code was being given through \
+                         {}, so its refusal shows nothing about the code or the setup. Run it \
+                         again.",
+                        entry.path
+                    )
+                } else {
+                    format!(
+                        "The current code for the secret `seed` was given did not sign the \
+                         two-factor account in through {}, so a refused code shows nothing. Check \
+                         `totp` in securevibe.toml, and that `seed` enrolled the account with \
+                         SV_TOTP_SECRET.",
+                        entry.path
+                    )
+                },
+            ));
+            return;
+        }
+        reused = signing.attempt(http, &current, &format!("3-{round}"), false) == Some(true);
+        let now_step = http.now() / crate::totp::STEP;
+        if reused || now_step == step {
+            unsure = false;
+            break;
+        }
+        unsure = true;
+        step = now_step;
+        current = crate::totp::code_at_step(secret, step);
     }
-
-    // 3. The same code again, in a new sign-in.
-    let reused = signing.attempt(http, &current, "3", false) == Some(true);
     out.steps.push(format!(
         "the two-factor account's code from 2½ minutes ago: {}; the current code: opened; the \
          same code again: {}",
@@ -4155,11 +4522,29 @@ fn totp_checks(
                 severity,
                 format!("The app signed the two-factor account in with {what}."),
             ));
+        } else if id == "V6.5.1" && unsure {
+            out.not_assessed.push((
+                id.to_owned(),
+                "The 30-second step ended between the two uses of a code, twice, so its refusal \
+                 may be the code going stale rather than the app refusing a code used before."
+                    .to_owned(),
+            ));
         } else if works {
             out.verified.push(crate::Verified::new(
                 rule.rule_id,
                 rule.requirement_ids,
-                format!("{what}, refused, where a fresh code afterwards signed in"),
+                if id == "V6.5.5" {
+                    // What was shown is the first clause of V6.5.5, a defined lifetime; the second,
+                    // at most 30 seconds, would take refusing the code from one step back, which a
+                    // sensible allowance for clock drift accepts.
+                    format!(
+                        "{what}, refused, where a fresh code afterwards signed in: codes have a \
+                         defined lifetime, shorter than two and a half minutes; that it is at most \
+                         30 seconds was not shown"
+                    )
+                } else {
+                    format!("{what}, refused, where a fresh code afterwards signed in")
+                },
             ));
         } else {
             out.not_assessed.push((
@@ -4930,7 +5315,8 @@ fn client_side_validation_check(
         user: format!("valid.{}", accounts.a.user),
         password: format!("Sv-Valid-{}-aZ9!", accounts.b.password.len()),
     };
-    if sign_up(http, signup, "validation-control", &control).is_none_or(|r| r.status >= 400) {
+    if sign_up(http, users, signup, "validation-control", &control).is_none_or(|r| r.status >= 400)
+    {
         out.not_assessed.push((
             "V2.2.2".to_owned(),
             "An ordinary sign-up was not accepted, so a refusal of the broken value would say \
@@ -6036,6 +6422,15 @@ mod tests {
     #[derive(Default)]
     struct FakeApp {
         flaws: Flaws,
+        /// Sign-up emails an activation code, and sign-in waits for it.
+        activation: bool,
+        /// Activation codes: code -> (account, used).
+        activation_codes: BTreeMap<String, (String, bool)>,
+        /// Accounts signed up and not yet activated.
+        not_activated: std::collections::BTreeSet<String>,
+        /// Seconds the clock moves on with each request. Zero, the default, stands it still
+        /// except during `wait`.
+        seconds_per_request: u64,
         /// Seconds a signed-in session may go unused, when this app ends idle sessions at all.
         idle_limit: Option<u64>,
         /// Seconds a signed-in session may last, when this app limits that at all.
@@ -6127,6 +6522,21 @@ mod tests {
         flow_refusal_redirects: bool,
         /// A two-factor code can be used again.
         totp_reusable: bool,
+        /// An activation code works again after it has been used.
+        activation_reusable: bool,
+        /// Activation codes are four digits.
+        activation_short: bool,
+        /// Activation codes are six digits, one more than the last.
+        activation_counting: bool,
+        /// Sign-in does not wait for activation.
+        activation_not_gating: bool,
+        /// Using an activation code answers as if it worked and activates nothing.
+        activation_does_nothing: bool,
+        /// The activation link activates the account without signing it in.
+        activation_link_does_not_sign_in: bool,
+        /// Only the current 30-second step's code is taken, with no allowance for clock drift: the
+        /// 30-second lifetime V6.5.5 asks for.
+        totp_current_only: bool,
         /// A two-factor code from any of the last ten steps is accepted.
         totp_any_age: bool,
         /// The password alone signs a two-factor account all the way in.
@@ -6509,6 +6919,8 @@ mod tests {
         }
 
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            // Time passing as requests are answered, when a test asks for it.
+            self.clock += self.seconds_per_request;
             // A bearer token is a session id too, for the JSON sign-in below.
             let bearer = r
                 .headers
@@ -6643,6 +7055,9 @@ mod tests {
                     }
                     self.failures.remove(&key);
                     let who = f.get("email")?.clone();
+                    if self.not_activated.contains(&who) && !self.flaws.activation_not_gating {
+                        return Some(Self::respond(403, vec![], "activate your account first"));
+                    }
                     if self.totp.contains_key(&who) && !self.flaws.totp_not_required {
                         let id = self.new_id();
                         self.sessions.insert(id.clone(), String::new());
@@ -6716,7 +7131,30 @@ mod tests {
                     }
                     Self::respond(303, vec![("Location", "/account".into())], "")
                 }
-                ("GET", "/login/code" | "/login/verify") => {
+                ("POST", "/activate") => {
+                    if !token_ok {
+                        return Some(Self::respond(403, vec![], "refused"));
+                    }
+                    let code = form(r).get("code")?.clone();
+                    let Some((who, used)) = self.activation_codes.get(&code).cloned() else {
+                        return Some(Self::respond(400, vec![], "unknown code"));
+                    };
+                    if used && !self.flaws.activation_reusable {
+                        return Some(Self::respond(400, vec![], "already used"));
+                    }
+                    self.activation_codes.insert(code, (who.clone(), true));
+                    if self.flaws.activation_does_nothing {
+                        return Some(Self::respond(303, vec![("Location", "/".into())], ""));
+                    }
+                    self.not_activated.remove(&who);
+                    if !self.flaws.activation_link_does_not_sign_in
+                        && let Some(session) = sid.clone()
+                    {
+                        self.sessions.insert(session, who);
+                    }
+                    Self::respond(303, vec![("Location", "/account".into())], "")
+                }
+                ("GET", "/login/code" | "/login/verify" | "/activate") => {
                     // A session for the code to be tied to, unless the browser already has one.
                     let mut headers = vec![];
                     if !sid.as_ref().is_some_and(|s| self.sessions.contains_key(s)) {
@@ -6919,7 +7357,27 @@ mod tests {
                         return Some(Self::respond(422, vec![], "password refused"));
                     }
                     if !self.flaws.signup_does_nothing {
-                        self.users.insert(email, (password, false));
+                        self.users.insert(email.clone(), (password, false));
+                        if self.activation {
+                            self.next += 1;
+                            let code = if self.flaws.activation_short {
+                                format!("{:04}", (self.next * 7919) % 10_000)
+                            } else if self.flaws.activation_counting {
+                                format!("{}", 100_000 + self.next)
+                            } else {
+                                self.new_id()
+                            };
+                            self.activation_codes
+                                .insert(code.clone(), (email.clone(), false));
+                            self.not_activated.insert(email.clone());
+                            self.outbox.push((
+                                email,
+                                format!(
+                                    "Welcome! Activate your account: \
+                                     http://app:8080/activate?code={code}"
+                                ),
+                            ));
+                        }
                     }
                     Self::respond(303, vec![("Location", "/login".into())], "")
                 }
@@ -7150,10 +7608,17 @@ mod tests {
                     let now = self.clock / crate::totp::STEP;
                     let oldest = if self.flaws.totp_any_age {
                         now.saturating_sub(10)
+                    } else if self.flaws.totp_current_only {
+                        now
                     } else {
                         now.saturating_sub(1)
                     };
-                    let matched = (oldest..=now + 1)
+                    let newest = if self.flaws.totp_current_only {
+                        now
+                    } else {
+                        now + 1
+                    };
+                    let matched = (oldest..=newest)
                         .find(|step| crate::totp::code_at_step(&secret, *step) == given);
                     let fresh = |step: u64| {
                         self.flaws.totp_reusable
@@ -7229,6 +7694,7 @@ mod tests {
             json: BTreeMap::new(),
         };
         UsersSection {
+            activation: None,
             seed: Some("seed".into()),
             signup: None,
             login: Some(t(
@@ -11773,5 +12239,533 @@ mod tests {
             !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
             "{steps:?}"
         );
+    }
+
+    /// The seeded suite, starting `before` seconds ahead of a 30-second boundary, with the clock
+    /// moving `per_request` seconds with every request, as it does against a real app.
+    fn totp_ticking(flaws: Flaws, before: u64, per_request: u64) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        let step = crate::totp::STEP;
+        app.clock = (app.clock / step + 10) * step - before;
+        app.seconds_per_request = per_request;
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        if let Some(admin) = acc.admin.clone() {
+            app.users.insert(admin.user, (admin.password, true));
+        }
+        let totp = acc.totp.clone().unwrap();
+        app.users.insert(
+            totp.account.user.clone(),
+            (totp.account.password.clone(), false),
+        );
+        app.totp
+            .insert(totp.account.user.clone(), totp.secret.clone());
+        run(&mut app, &users(), &acc, true, &Default::default())
+    }
+
+    #[test]
+    fn a_code_that_works_twice_is_never_credited_whenever_the_step_ends() {
+        // From the review: an app that takes a code twice, and accepts only the current step, with
+        // the step ending partway through the check. Every combination must end in the finding or
+        // in not assessed — never in V6.5.1 credited.
+        for before in [2, 4, 6, 9, 15, 25] {
+            for per_request in [0, 1, 2, 3] {
+                let o = totp_ticking(
+                    Flaws {
+                        totp_reusable: true,
+                        totp_current_only: true,
+                        ..Default::default()
+                    },
+                    before,
+                    per_request,
+                );
+                assert!(
+                    !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+                    "credited, {before}s before a boundary, {per_request}s a request: {:?}",
+                    o.steps
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_correct_app_is_still_credited_with_the_clock_moving() {
+        // The fix must not just stop crediting: with a step ending in the middle, the pair is
+        // tried again in the new step and the refusal counts.
+        // One or two seconds a request: a sign-in and a second use fit in one step. Slower than
+        // that they cannot, and `a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so` holds.
+        for (before, per_request) in [(25, 1), (15, 1), (9, 2), (4, 0)] {
+            let o = totp_ticking(
+                Flaws {
+                    totp_current_only: true,
+                    ..Default::default()
+                },
+                before,
+                per_request,
+            );
+            assert!(
+                verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+                "{before}s before a boundary, {per_request}s a request: {:?}\n{:?}",
+                o.steps,
+                totp_named(&o, "V6.5.1")
+            );
+        }
+    }
+
+    #[test]
+    fn an_app_that_takes_a_code_twice_is_still_found_with_the_clock_moving() {
+        // One or two seconds a request: a sign-in and a second use fit in one step. Slower than
+        // that they cannot, and `a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so` holds.
+        for (before, per_request) in [(25, 1), (15, 1), (9, 2), (4, 0)] {
+            let o = totp_ticking(
+                Flaws {
+                    totp_reusable: true,
+                    totp_current_only: true,
+                    ..Default::default()
+                },
+                before,
+                per_request,
+            );
+            assert!(
+                rule_ids(&o).contains(&TOTP_REUSED.rule_id),
+                "{before}s before a boundary, {per_request}s a request: {:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_step_that_keeps_ending_leaves_reuse_unjudged_and_says_so() {
+        // Eight seconds a request: every pair of sign-ins straddles a boundary.
+        let o = totp_ticking(
+            Flaws {
+                totp_current_only: true,
+                ..Default::default()
+            },
+            25,
+            8,
+        );
+        assert!(
+            !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&TOTP_REUSED.rule_id));
+        assert!(
+            totp_named(&o, "V6.5.1")
+                .iter()
+                .any(|w| w.contains("step ended")),
+            "{:?}",
+            totp_named(&o, "V6.5.1")
+        );
+    }
+
+    #[test]
+    fn the_lifetime_credit_says_the_thirty_second_bound_was_not_shown() {
+        let o = run_against(Flaws::default(), &users());
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == TOTP_OLD_CODE.rule_id)
+            .expect("credited");
+        assert!(
+            credit.scope.contains("at most 30 seconds was not shown"),
+            "{}",
+            credit.scope
+        );
+    }
+
+    #[test]
+    fn the_case_from_review_is_not_credited() {
+        // 15 seconds before a boundary, 3 seconds a request, an app that takes a code twice and
+        // only the current step's: credited as verified before the fix.
+        let o = totp_ticking(
+            Flaws {
+                totp_reusable: true,
+                totp_current_only: true,
+                ..Default::default()
+            },
+            15,
+            3,
+        );
+        assert!(
+            !verified_ids(&o).contains(&TOTP_REUSED.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_control_code_refused_as_its_step_ended_does_not_blame_the_setup() {
+        let o = totp_ticking(
+            Flaws {
+                totp_current_only: true,
+                ..Default::default()
+            },
+            25,
+            5,
+        );
+        let why = totp_named(&o, "V6.5.1");
+        assert!(why.iter().any(|w| w.contains("step ended")), "{why:?}");
+        assert!(
+            !why.iter().any(|w| w.contains("Check `totp`")),
+            "a clock problem blamed on the manifest: {why:?}"
+        );
+    }
+
+    #[test]
+    fn the_lifetime_credit_is_worded_the_same_with_the_clock_moving() {
+        let o = totp_ticking(Flaws::default(), 25, 1);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == TOTP_OLD_CODE.rule_id)
+            .expect("credited");
+        assert!(credit.scope.contains("not shown"), "{}", credit.scope);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Activation codes emailed at sign-up (V6.4.1)
+
+    const ACTIVATION_RULES: [&str; 2] = [ACTIVATION_GUESSABLE.rule_id, ACTIVATION_REUSABLE.rule_id];
+
+    fn activation_users() -> UsersSection {
+        let mut u = with_signup();
+        u.activation = Some(sv_manifest::ActivationSection {
+            use_code: RequestTemplate {
+                method: "POST".into(),
+                path: "/activate".into(),
+                form: [("code", "{code}"), ("csrf_token", "{csrf}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            },
+            code_pattern: None,
+        });
+        u
+    }
+
+    fn run_activation(flaws: Flaws) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        app.activation = true;
+        let mut acc = accounts();
+        acc.admin = None;
+        // A and B are seeded, so every activation fixture reaches the check however broken sign-up is.
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let mut u = activation_users();
+        u.seed = Some("seed".into());
+        run(&mut app, &u, &acc, true, &Default::default())
+    }
+
+    /// The same app with every account, A and B included, made through sign-up.
+    fn run_activation_signed_up(flaws: Flaws) -> Outcome {
+        let mut app = FakeApp::new(flaws);
+        app.activation = true;
+        let mut acc = accounts();
+        acc.admin = None;
+        run(
+            &mut app,
+            &activation_users(),
+            &acc,
+            false,
+            &Default::default(),
+        )
+    }
+
+    fn activation_findings(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| ACTIVATION_RULES.contains(id))
+            .collect()
+    }
+
+    fn activation_why(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(id, _)| id == "V6.4.1")
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_correct_activation_is_followed_through_and_credits_nothing() {
+        let o = run_activation(Flaws::default());
+        assert!(activation_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            !verified_ids(&o)
+                .iter()
+                .any(|id| ACTIVATION_RULES.contains(id))
+        );
+        let steps = o.steps.join("\n");
+        for step in [
+            "an email arrived with an activation code in it",
+            "the account then signed in, and the link itself signed it in",
+            "used the same activation code again in a new session: not signed in",
+        ] {
+            assert!(steps.contains(step), "{step}:\n{steps}");
+        }
+        assert!(
+            activation_why(&o).iter().any(|w| w.contains("not tried")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn each_activation_fault_is_found_by_its_own_rule() {
+        for (flaws, rule) in [
+            (
+                Flaws {
+                    activation_reusable: true,
+                    ..Default::default()
+                },
+                ACTIVATION_REUSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    activation_short: true,
+                    ..Default::default()
+                },
+                ACTIVATION_GUESSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    activation_counting: true,
+                    ..Default::default()
+                },
+                ACTIVATION_GUESSABLE.rule_id,
+            ),
+        ] {
+            let o = run_activation(flaws);
+            assert_eq!(activation_findings(&o), vec![rule], "{rule}: {:?}", o.steps);
+        }
+    }
+
+    #[test]
+    fn an_activation_that_activates_nothing_is_not_assessed_however_else_it_is_broken() {
+        let o = run_activation(Flaws {
+            activation_does_nothing: true,
+            activation_reusable: true,
+            ..Default::default()
+        });
+        assert!(activation_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.contains("still could not after")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn a_link_that_does_not_sign_in_leaves_reuse_unjudged() {
+        let o = run_activation(Flaws {
+            activation_link_does_not_sign_in: true,
+            activation_reusable: true,
+            ..Default::default()
+        });
+        assert!(
+            !activation_findings(&o).contains(&ACTIVATION_REUSABLE.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            !o.steps
+                .iter()
+                .any(|s| s.contains("used the same activation code again")),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.contains("did not sign anybody in")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn sign_in_that_does_not_wait_for_activation_is_said_and_still_judged() {
+        let o = run_activation(Flaws {
+            activation_not_gating: true,
+            activation_short: true,
+            ..Default::default()
+        });
+        assert_eq!(activation_findings(&o), vec![ACTIVATION_GUESSABLE.rule_id]);
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("could sign in before it was activated")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn accounts_made_through_sign_up_are_activated_so_the_suite_can_sign_in() {
+        let o = run_activation_signed_up(Flaws::default());
+        let steps = o.steps.join("\n");
+        assert!(
+            steps.contains("signed in as A and opened /account (200)"),
+            "{steps}"
+        );
+        assert!(activation_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            steps.contains("used the same activation code again in a new session: not signed in"),
+            "{steps}"
+        );
+    }
+
+    #[test]
+    fn the_accounts_other_checks_sign_up_are_activated_too() {
+        let o = run_activation_signed_up(Flaws::default());
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("signed in as control.") && s.contains("opened")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn the_faults_are_found_when_every_account_is_signed_up_too() {
+        for (flaws, rule) in [
+            (
+                Flaws {
+                    activation_reusable: true,
+                    ..Default::default()
+                },
+                ACTIVATION_REUSABLE.rule_id,
+            ),
+            (
+                Flaws {
+                    activation_counting: true,
+                    ..Default::default()
+                },
+                ACTIVATION_GUESSABLE.rule_id,
+            ),
+        ] {
+            let o = run_activation_signed_up(flaws);
+            assert_eq!(activation_findings(&o), vec![rule], "{rule}: {:?}", o.steps);
+        }
+    }
+
+    #[test]
+    fn a_short_code_is_not_judged_when_activation_activates_nothing() {
+        let o = run_activation(Flaws {
+            activation_does_nothing: true,
+            activation_short: true,
+            ..Default::default()
+        });
+        assert!(activation_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.contains("With no activation that works")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn reuse_is_not_tried_when_the_link_signs_nobody_in() {
+        let o = run_activation(Flaws {
+            activation_link_does_not_sign_in: true,
+            ..Default::default()
+        });
+        assert!(activation_findings(&o).is_empty(), "{:#?}", o.findings);
+        assert!(
+            !o.steps
+                .iter()
+                .any(|s| s.contains("used the same activation code again")),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.starts_with("Whether an activation code works twice")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn an_ungated_sign_in_is_said_beside_a_reuse_finding() {
+        let o = run_activation(Flaws {
+            activation_not_gating: true,
+            activation_reusable: true,
+            ..Default::default()
+        });
+        assert_eq!(activation_findings(&o), vec![ACTIVATION_REUSABLE.rule_id]);
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("could sign in before it was activated")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn with_no_mail_server_no_activation_account_is_even_signed_up() {
+        let o = run_activation(Flaws {
+            no_mail_sink: true,
+            ..Default::default()
+        });
+        assert!(
+            !o.steps.iter().any(|s| s.starts_with("signed up activate")),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.contains("had no mail server for the app")),
+            "{:?}",
+            activation_why(&o)
+        );
+    }
+
+    #[test]
+    fn without_a_mail_server_or_a_sign_up_nothing_is_judged_and_it_says_why() {
+        let o = run_activation(Flaws {
+            no_mail_sink: true,
+            activation_reusable: true,
+            ..Default::default()
+        });
+        assert!(activation_findings(&o).is_empty());
+        assert!(
+            activation_why(&o)
+                .iter()
+                .any(|w| w.contains("no mail server"))
+        );
+
+        let mut app = FakeApp::new(Flaws {
+            activation_reusable: true,
+            ..Default::default()
+        });
+        app.activation = true;
+        let mut u = activation_users();
+        u.signup = None;
+        u.seed = Some("seed".into());
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let o = run(&mut app, &u, &acc, true, &Default::default());
+        assert!(activation_findings(&o).is_empty());
+        assert!(activation_why(&o).iter().any(|w| w.contains("no `signup`")));
     }
 }

@@ -352,6 +352,33 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+        if let Some(release) = &report.threat_atlas_release {
+            let mapped: Vec<_> = report
+                .threats
+                .iter()
+                .filter(|l| !l.atlas.is_empty())
+                .collect();
+            if !mapped.is_empty() {
+                b.push_str("<h3>For a security reviewer: these threats in MITRE ATLAS</h3>\n");
+                b.push_str(&format!(
+                    "<p>{}</p>\n",
+                    escape(&crate::threats::atlas_intro(release))
+                ));
+                b.push_str("<table>\n<tr><th>threat</th><th>MITRE ATLAS technique</th><th>what the two share</th></tr>\n");
+                for line in mapped {
+                    for r in &line.atlas {
+                        b.push_str(&format!(
+                            "<tr><td><code>{}</code></td><td><code>{}</code> {}</td><td>{}</td></tr>\n",
+                            escape(&line.id),
+                            escape(&r.id),
+                            escape(&r.name),
+                            escape(&r.because)
+                        ));
+                    }
+                }
+                b.push_str("</table>\n");
+            }
+        }
     }
 
     // High up, above the tests: nothing will ever settle these on its own.
