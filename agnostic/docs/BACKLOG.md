@@ -104,6 +104,14 @@ another session is not a claim.
   threat. See DESIGN, "The security notes". Left over, each its own piece of work: the policy numbers
   in securevibe.toml that the probes can test (about eight requirements, V6.3.1 at level 1 among
   them), and the design questions answered as *attested by the owner*.
+  **All three pieces are done**, the policy numbers on 25 September 2026 by session securevibe-e8:
+  `[policy] failed-sign-ins` in securevibe.toml, and a probe that makes one more wrong attempt than
+  that and watches whether the app pushes back. V6.3.1 at level 1 becomes checkable, which takes
+  level 1 to 41 of 70. It runs last and never guesses at the test users, because it is the one check
+  that provokes an app into refusing requests. See DESIGN, "Policy numbers, and the one requirement
+  they make checkable". The session timeouts (V7.3.1, V7.3.2) are left: a stated idle timeout could
+  be compared against the session cookie's own lifetime, which is instant and is evidence about the
+  cookie rather than about the server, so it would be findings-only.
   **The design questions are done, on 25 September 2026 by session securevibe-e8.**
   `data/design-questions.json` (sixteen questions), a `[design]` section in securevibe.toml answered
   yes, no, or not-sure with `where`, and an *attested by the owner* tier ranked below *documented*,

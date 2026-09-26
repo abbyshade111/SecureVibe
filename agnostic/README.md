@@ -96,6 +96,13 @@ what it says. A check that found a problem always wins over what the notes say, 
 settle a threat in the threat model — otherwise an app could talk its way out of one by describing
 itself.
 
+One thing you can state as a number, and `sv` will hold your app to it: how many wrong passwords in
+a row it should allow before pushing back. Put `failed-sign-ins = 5` under `[policy]` in
+`securevibe.toml` and the checks make six wrong attempts and watch what the app does. That settles
+V6.3.1, one of the Level 1 requirements, and it is a real check rather than your word: an app that
+only gives way after twenty attempts, when you said five, is reported. Say nothing and nothing is
+claimed either way.
+
 Sixteen more ask how the app is built rather than what is in it: is input checked on the server as
 well as in the browser, do the app's own parts prove who they are to each other. You answer those in
 the `[design]` section of `securevibe.toml` with yes, no, or not sure, and where in the code it is
