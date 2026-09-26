@@ -96,6 +96,16 @@ what it says. A check that found a problem always wins over what the notes say, 
 settle a threat in the threat model — otherwise an app could talk its way out of one by describing
 itself.
 
+Some requirements are about where the app is *served from* rather than what is in it, and no amount
+of reading the code settles them. `sv probe https://your-app.example.com` asks your own live site the
+four that matter most: is the certificate one browsers trust, is plain HTTP still served, does it
+tell browsers to stick to HTTPS, and do its cookies carry the `__Host-` prefix.
+
+It is deliberately narrow about what it will do. The address has to be typed at the terminal, never
+read from a file. It fetches headers only, sends no cookies and no credentials, makes at most four
+requests, and will not follow a redirect to any host but the one you named. It cannot sign in and
+cannot change anything.
+
 Ninety-odd of the requirements that apply to a typical app cannot be settled by any tool at all, and
 the report now has a section for them: **what only you can check**, with a line each saying what
 doing something about it involves — write it down in the notes, answer it in `[design]`, or go and
