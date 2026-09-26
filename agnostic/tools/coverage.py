@@ -170,7 +170,10 @@ def rust_literals():
 
 # Requirement id -> the rules that can only ever raise it as a finding (`findings_against` in
 # adapters.json), by their folder name. A clean run credits none of these.
+# Requirement id -> {(tool, rule)}: rules that are only ever a finding against it.
 FINDINGS_ONLY = defaultdict(set)
+# Requirement id -> {tool}: tools with some rule a clean run credits to it.
+CREDITED_BY_TOOL = defaultdict(set)
 
 
 def evidence():
@@ -187,6 +190,7 @@ def evidence():
             for q in rule["requirements"]:
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
+                CREDITED_BY_TOOL[q].add(adapter["id"])
         for rule_id, rule in adapter["rules"].items():
             for q in rule.get("findings_against", []):
                 if adapter["id"] not in ev[q]["tools"]:
@@ -194,7 +198,7 @@ def evidence():
                 # The AI rules by their folder, which names the family across vendors and
                 # languages; the rest by their own id.
                 parts = rule_id.split(".")
-                FINDINGS_ONLY[q].add(parts[2] if parts[0] == "ai" else parts[-1])
+                FINDINGS_ONLY[q].add((adapter["id"], parts[2] if parts[0] == "ai" else parts[-1]))
     for check, (tier, ids) in RUST_CHECKS.items():
         for q in ids:
             ev[q][tier].append(check)
@@ -302,7 +306,7 @@ def main():
     only_tools = [q for q in asvs if settles(q) and tiers(q) == ["tools"]]
     w(f"With nothing beyond plain `sv check`, {sum(settles(q) and 'static' in tiers(q) for q in asvs)} "
       f"ASVS requirements can be settled. {len(only_tools)} can be settled only by an outside tool, "
-      "almost all by semgrep, and only for the languages its rules are written for.\n")
+      "almost all by semgrep and CodeQL, and only for the languages their rules are written for.\n")
 
     # ---- ASVS by chapter
     w("## ASVS 5.0 by chapter\n")
@@ -334,9 +338,13 @@ def main():
                     if len(names) > 4:
                         shown += f" and {len(names) - 4} more"
                     checks.append(f"{name}: {shown}")
-            only = (" (semgrep only ever as a finding: "
-                    + ", ".join(f"`{r}`" for r in sorted(FINDINGS_ONLY[q])) + ")"
-                    if q in FINDINGS_ONLY else "")
+            only = ""
+            if q in FINDINGS_ONLY:
+                by_tool = defaultdict(list)
+                for tool, r in sorted(FINDINGS_ONLY[q]):
+                    by_tool[tool].append(f"`{r}`")
+                only = " (" + "; ".join(f"{tool} only ever as a finding: {', '.join(rules)}"
+                                        for tool, rules in by_tool.items()) + ")"
             w(f"| {q} | L{asvs[q]['level']} | {'; '.join(checks)}{only} |")
         w("")
 
@@ -372,11 +380,13 @@ def main():
 
     def credited_by_other(q):
         return any(c for tier, checks in ev[q].items() for c in checks
-                   if not (tier == "tools" and c == "semgrep" and FINDINGS_ONLY.get(q)))
+                   if not (tier == "tools"
+                           and any(tool == c for tool, _ in FINDINGS_ONLY.get(q, ()))
+                           and c not in CREDITED_BY_TOOL[q]))
 
     only = [q for q in settled_ai if q in FINDINGS_ONLY and not credited_by_other(q)]
-    w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: semgrep's rules")
-    w("about applications that call a model can show the control missing, and finding nothing does not")
+    w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: the rules")
+    w("about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not")
     w("show it present, so a clean run credits none of them. Each needs `--tools`.\n")
     for q in settled_ai:
         rules = sorted(FINDINGS_ONLY.get(q, ()))

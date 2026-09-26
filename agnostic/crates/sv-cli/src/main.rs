@@ -1480,8 +1480,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
             why: format!(
-                "{} bandit, gosec and brakeman each know their own language far better than the \
-                 handful of rules built in here.",
+                "{} bandit, gosec, brakeman, and CodeQL each know their languages far better than \
+                 the handful of rules built in here.",
                 options.why_no_tools
             ),
         });

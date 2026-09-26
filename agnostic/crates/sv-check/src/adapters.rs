@@ -41,10 +41,16 @@ pub struct Invocation {
 pub struct Adapter {
     pub id: String,
     pub name: String,
-    /// The language this tool reads, or `*` for one that reads several.
+    /// The language this tool reads, several separated by commas when one tool reads them all the
+    /// same way (CodeQL's JavaScript extractor reads TypeScript too), or `*` for one that reads
+    /// several and runs a different pack of rules for each.
     pub language: String,
     /// How to ask whether the tool is here at all.
     pub version: Invocation,
+    /// A step run before `run`, for a tool that works in two: CodeQL builds a database of the code
+    /// and then analyzes it. It writes nothing `sv` reads; if it fails, the tool did not run.
+    #[serde(default)]
+    pub prepare: Option<Invocation>,
     pub run: Invocation,
     /// What to tell somebody who wants it and does not have it.
     pub install: String,
@@ -64,6 +70,11 @@ pub struct Adapter {
     /// finds nothing is not credited.
     #[serde(default)]
     pub switched_off_by: Vec<String>,
+    /// Credit a clean run only with the rules its report says were run. For a tool that runs a
+    /// chosen suite rather than every rule it has, the map can know rules the suite left out, and a
+    /// clean run is evidence about none of those.
+    #[serde(default)]
+    pub credit_loaded_only: bool,
 }
 
 /// One of a tool's rules: what it detects, and which requirements that is evidence about.
@@ -110,7 +121,10 @@ pub struct Adapters {
 /// tool that decides by itself which files in a folder to skip (see `code_files`). `{scanned}` is
 /// where such a tool writes the list of files it read, which is checked against the list it was
 /// given.
-const PLACEHOLDERS: &[&str] = &["{dir}", "{output}", "{files}", "{scanned}"];
+///
+/// `{database}` is a folder for a tool's own working state between `prepare` and `run`, made fresh
+/// for each run and removed afterwards.
+const PLACEHOLDERS: &[&str] = &["{dir}", "{output}", "{files}", "{scanned}", "{database}"];
 
 /// How much a list of file names may add to a command line. Well inside the smallest limit of the
 /// systems this runs on (macOS allows 1 MiB for arguments and environment together).
@@ -127,7 +141,10 @@ impl Adapters {
             // The commands come from this repository rather than from the app, so this is not the
             // last line of defense — but a security tool that can be made to run something else by
             // an edit to a data file would be a poor advertisement, and the check costs nothing.
-            for command in [&adapter.version.command, &adapter.run.command] {
+            for command in [&adapter.version.command, &adapter.run.command]
+                .into_iter()
+                .chain(adapter.prepare.as_ref().map(|p| &p.command))
+            {
                 if command.is_empty()
                     || command.contains(['/', '\\', ';', '|', '&', '$', '`', '\n', '\r', ' '])
                 {
@@ -137,7 +154,12 @@ impl Adapters {
                     );
                 }
             }
-            for arg in &adapter.run.args {
+            for arg in adapter
+                .run
+                .args
+                .iter()
+                .chain(adapter.prepare.iter().flat_map(|p| &p.args))
+            {
                 let unknown = arg
                     .match_indices('{')
                     .filter_map(|(i, _)| arg[i..].find('}').map(|j| &arg[i..=i + j]))
@@ -188,8 +210,24 @@ impl Adapters {
     pub fn for_languages<'a>(&'a self, languages: &[String]) -> Vec<&'a Adapter> {
         self.adapters
             .iter()
-            .filter(|a| a.language == "*" || languages.iter().any(|l| l == &a.language))
+            .filter(|a| a.language == "*" || languages.iter().any(|l| a.reads(l)))
             .collect()
+    }
+}
+
+impl Adapter {
+    /// Whether this tool reads a language, by `sv`'s name for it.
+    pub fn reads(&self, language: &str) -> bool {
+        self.language == "*" || self.language.split(',').any(|l| l.trim() == language)
+    }
+
+    /// What the tool reads, in the words a report uses.
+    fn subject(&self) -> String {
+        if self.language == "*" {
+            "code".to_owned()
+        } else {
+            self.language.replace(',', " and ")
+        }
     }
 }
 
@@ -269,11 +307,7 @@ pub fn is_installed(adapter: &Adapter) -> bool {
 /// command and start another — and the app folder's path is the one thing here that a stranger
 /// might have chosen.
 pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome {
-    let subject = if adapter.language == "*" {
-        "code".to_owned()
-    } else {
-        adapter.language.clone()
-    };
+    let subject = adapter.subject();
     match presence(adapter) {
         Presence::Ready => {}
         Presence::Missing => {
@@ -330,11 +364,39 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
         }
     }
 
+    let database = report_path.with_extension("db");
+    // A database left from an earlier run would be analyzed in place of this app's code.
+    std::fs::remove_dir_all(&database).ok();
     let fill = |arg: &str| {
         arg.replace("{dir}", &app_dir.to_string_lossy())
             .replace("{output}", &report_path.to_string_lossy())
             .replace("{scanned}", &scanned_path.to_string_lossy())
+            .replace("{database}", &database.to_string_lossy())
     };
+    if let Some(prepare) = &adapter.prepare {
+        let mut command = Command::new(&prepare.command);
+        command.args(prepare.args.iter().map(|a| fill(a)));
+        if adapter.working_directory.is_some() {
+            command.current_dir(app_dir);
+        }
+        command.stdout(std::process::Stdio::null());
+        command.stderr(std::process::Stdio::piped());
+        let failed = match command.output() {
+            Ok(out) if out.status.success() => None,
+            Ok(out) => Some(last_line(&String::from_utf8_lossy(&out.stderr))),
+            Err(e) => Some(e.to_string()),
+        };
+        if let Some(detail) = failed {
+            std::fs::remove_dir_all(&database).ok();
+            return Outcome::NotRun {
+                why: format!(
+                    "{} could not prepare the {subject} in this app for reading, so it did not \
+                     run ({detail})",
+                    adapter.name
+                ),
+            };
+        }
+    }
     let mut command = Command::new(&adapter.run.command);
     for arg in &adapter.run.args {
         if arg == "{files}" {
@@ -350,7 +412,9 @@ pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome
     command.stdout(std::process::Stdio::null());
     command.stderr(std::process::Stdio::piped());
 
-    let output = match command.output() {
+    let output = command.output();
+    std::fs::remove_dir_all(&database).ok();
+    let output = match output {
         Ok(output) => output,
         Err(e) => {
             return Outcome::NotRun {
@@ -428,11 +492,7 @@ pub fn run_all(
                             format!(
                                 "{} over the {} in this app",
                                 adapter.name,
-                                if adapter.language == "*" {
-                                    "code".to_owned()
-                                } else {
-                                    adapter.language.clone()
-                                }
+                                adapter.subject()
                             ),
                         ));
                     }
@@ -473,6 +533,28 @@ pub fn looked_away(adapter: &Adapter, sarif: &str, app_dir: &Path) -> Vec<String
                 if lines == 1 { " is" } else { "s are" }
             ));
         }
+        // CodeQL counts the lines of the app's own code it extracted. None at all means it read
+        // nothing: a language it was told to read and could not find, or files it skipped.
+        let extracted: Vec<u64> = document["runs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|run| {
+                run["properties"]["metricResults"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+            })
+            .filter(|m| {
+                m["ruleId"]
+                    .as_str()
+                    .is_some_and(|id| id.ends_with("/summary/lines-of-user-code"))
+            })
+            .filter_map(|m| m["value"].as_u64())
+            .collect();
+        if !extracted.is_empty() && extracted.iter().all(|&n| n == 0) {
+            out.push("it found no code of its language in the app to read".to_owned());
+        }
         if tests > 0 {
             out.push(format!(
                 "{tests} of its checks {} switched off on particular lines with `# nosec` and a \
@@ -505,12 +587,14 @@ pub fn clean_run_evidence(
     app_languages: &[String],
 ) -> Vec<String> {
     let counts = |rule_id: &str, rule: &MappedRule| {
-        adapter.language != "*"
-            || (loaded.contains(rule_id)
-                && rule
-                    .languages
-                    .iter()
-                    .any(|l| l == "*" || app_languages.iter().any(|a| a == l)))
+        let ran =
+            !(adapter.language == "*" || adapter.credit_loaded_only) || loaded.contains(rule_id);
+        let for_this_app = adapter.language != "*"
+            || rule
+                .languages
+                .iter()
+                .any(|l| l == "*" || app_languages.iter().any(|a| a == l));
+        ran && for_this_app
     };
     let ids: BTreeSet<String> = adapter
         .rules
@@ -643,6 +727,7 @@ pub fn parse_sarif_relative_to(
     for run in runs {
         // A tool's rule metadata, for the text a result does not carry itself.
         let mut help: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
+        let mut rule_meta: BTreeMap<&str, &serde_json::Value> = BTreeMap::new();
         if let Some(rules) = run["tool"]["driver"]["rules"].as_array() {
             for rule in rules {
                 let Some(id) = rule["id"].as_str() else {
@@ -654,6 +739,7 @@ pub fn parse_sarif_relative_to(
                     .or_else(|| rule["help"]["text"].as_str())
                     .unwrap_or("");
                 help.insert(id, (short, full));
+                rule_meta.insert(id, rule);
             }
         }
         let Some(results) = run["results"].as_array() else {
@@ -689,14 +775,38 @@ pub fn parse_sarif_relative_to(
                 } else {
                     short.to_owned()
                 },
-                severity: severity_of(result["level"].as_str().unwrap_or("warning")),
+                severity: rule_meta
+                    .get(rule_id.as_str())
+                    .and_then(|rule| scored_severity(rule))
+                    .unwrap_or_else(|| {
+                        severity_of(
+                            result["level"]
+                                .as_str()
+                                .or_else(|| {
+                                    rule_meta.get(rule_id.as_str()).and_then(|rule| {
+                                        rule["defaultConfiguration"]["level"].as_str()
+                                    })
+                                })
+                                .unwrap_or("warning"),
+                        )
+                    }),
                 // Somebody else's rule fired. `sv` did not decide it was right, and saying so is
                 // more useful than a confidence this code is in no position to judge.
                 confidence: Confidence::Medium,
                 location: Location { file, line },
                 secret: None,
                 requirement_ids,
-                cwe: cwes_of(result),
+                cwe: {
+                    let own = cwes_of(result);
+                    if own.is_empty() {
+                        rule_meta
+                            .get(rule_id.as_str())
+                            .map(|rule| cwes_of(rule))
+                            .unwrap_or_default()
+                    } else {
+                        own
+                    }
+                },
                 description: {
                     let said = if message.is_empty() { full } else { message };
                     match suppressed_by(result) {
@@ -712,11 +822,7 @@ pub fn parse_sarif_relative_to(
                 impact: format!(
                     "Reported by {}, which reads {} the way its own community has learned to.",
                     adapter.name,
-                    if adapter.language == "*" {
-                        "code"
-                    } else {
-                        &adapter.language
-                    }
+                    adapter.subject()
                 ),
                 fix: if full.is_empty() {
                     format!("See {}'s documentation for rule {rule_id}.", adapter.name)
@@ -773,17 +879,54 @@ fn severity_of(level: &str) -> Severity {
     }
 }
 
-fn cwes_of(result: &serde_json::Value) -> Vec<String> {
-    result["properties"]["tags"]
+/// The CWE ids in a result's tags, or a rule's: `CWE-79` as most tools write it, or
+/// `external/cwe/cwe-079` as CodeQL does, which is read as `CWE-79`.
+fn cwes_of(tagged: &serde_json::Value) -> Vec<String> {
+    tagged["properties"]["tags"]
         .as_array()
         .map(|tags| {
             tags.iter()
                 .filter_map(|t| t.as_str())
-                .filter(|t| t.starts_with("CWE-") || t.starts_with("cwe-"))
-                .map(|t| t.to_uppercase())
+                .filter_map(|t| {
+                    let t = t.strip_prefix("external/cwe/").unwrap_or(t);
+                    if t.starts_with("CWE-") {
+                        Some(t.to_owned())
+                    } else {
+                        t.strip_prefix("cwe-")
+                            .map(|n| format!("CWE-{}", n.trim_start_matches('0')))
+                    }
+                })
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// A rule's own severity score, where the tool gives one: CodeQL's `security-severity`, a CVSS-like
+/// number, read on the CVSS bands.
+fn scored_severity(rule: &serde_json::Value) -> Option<Severity> {
+    let score: f64 = match &rule["properties"]["security-severity"] {
+        serde_json::Value::String(s) => s.parse().ok()?,
+        serde_json::Value::Number(n) => n.as_f64()?,
+        _ => return None,
+    };
+    Some(match score {
+        s if s >= 9.0 => Severity::Critical,
+        s if s >= 7.0 => Severity::High,
+        s if s >= 4.0 => Severity::Medium,
+        s if s > 0.0 => Severity::Low,
+        _ => Severity::Info,
+    })
+}
+
+fn last_line(text: &str) -> String {
+    text.lines()
+        .rev()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("it said nothing")
+        .trim()
+        .chars()
+        .take(200)
+        .collect()
 }
 
 /// Where to put a tool's report while it is being read.
