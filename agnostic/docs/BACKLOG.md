@@ -944,6 +944,13 @@ another session is not a claim.
     Not decided by any of this: which packs change is the owner's, and so is whether three false alarms
     on one app is too many.
 
+  **The owner, on 26 September 2026:** leaning toward that order, and toward keeping the AI pack
+  separate, so that `p/ai-best-practices` only runs against apps that use AI (the `ai` condition).
+  **Step 1, the honest count, claimed on 26 September 2026 by session securevibe-e8**, from the
+  registry run's own list of the rules `p/security-audit` loaded
+  (`crates/sv-check/tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif`); what runs is not changed.
+  Steps 2 and 3 are not claimed: both need a machine that reaches semgrep.dev to measure.
+
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
