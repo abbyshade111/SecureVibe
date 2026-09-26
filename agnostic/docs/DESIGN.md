@@ -2354,6 +2354,41 @@ the two are not the same evidence.
 
 A clean result is *checked*, not a pass: the app pushed back at the stated number on one run.
 
+### Two more passwords at sign-up: one far down the list, one made from your own words
+
+The password checks already sign up with a control — an ordinary strong password that has to work
+before anything else means anything — and then with passwords that each differ from it in one thing.
+Two more join them, each with a twin of its own: a random password of exactly the same shape, every
+letter a random letter and every digit a random digit. A refusal counts only when the twin was
+accepted, because a refusal the twin shares is about the shape (a composition rule, a length rule),
+not about the password.
+
+**V6.2.12, breached passwords.** `1qaz2wsx3edc4rfv`, at line 12,393 of
+`data/knowledge/common-passwords.txt`: well past the top 3000 that V6.2.4 asks about, so an app that
+checks only those accepts it, and 16 characters, so no length rule up to 16 refuses it first. Two
+things limit what it can say, and both are said:
+
+* **The list's source is not recorded in this repository.** It arrived inside an unrelated commit.
+  Checking the password against Have I Been Pwned was tried, through its range lookup that is sent
+  only five characters of a hash, and the network policy here refused the connection. So the finding
+  says what was observed — one of the 100,000 most common passwords, accepted — and not that it was
+  seen in a particular breach.
+* **V6.2.12 is on `manualOnly`** in `data/knowledge/applicability.json`, the list v1 shares. A
+  refusal is therefore *supporting* evidence, never *checked*, and that is left alone on purpose:
+  one refused password shows that a list longer than 3000 is checked, not that it is a set of
+  breached passwords, and the list is v1's too. An acceptance is still a finding.
+
+**V6.2.11, context-specific words.** The requirement asks that *the documented list* is used, so the
+list is the owner's, as a policy: `[policy] context-words = ["acme", "notes"]`. The first word with
+between 4 and 32 letters or digits is lowercased and repeated past 16 characters. With no list, or no
+usable word on it, V6.2.11 is *not assessed* and says how to list them: guessing at words — the app's
+name, say — would be testing a list nobody wrote. The v1 template refuses a password containing the
+app's name, compared without case, which is the same rule seen from the other side.
+
+Seven breaks, each caught: an accepted password credited (for each rule), a refusal credited without
+its twin (for each rule), a list guessed when none was given, one-letter words tried, and a twin
+that was really the password itself.
+
 ## What only you can check
 
 On a real app, 98 of the applicable requirements can be settled by nobody but the owner. They sat in

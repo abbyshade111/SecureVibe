@@ -110,6 +110,10 @@ multimodal = false        # does it take images, video or audio, rather than typ
 # The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares
 # each one's age with these; a severity left out is counted as overdue whatever its age.
 # fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
+# Words nobody should be able to build a password from: the app's name, your organization's, a
+# product or project name. The sign-up probe tries a password made of the first one of at least
+# four letters, and the app should refuse it.
+# context-words = ["myapp", "myorganization"]
 
 # How the app is built. These are the questions no tool can settle, so only you can answer them.
 # Each one is "yes", "no", or "not-sure", and `where` names the file that does it.

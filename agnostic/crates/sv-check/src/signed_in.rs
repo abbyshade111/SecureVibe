@@ -610,6 +610,27 @@ const COMMON_PASSWORD: Rule = Rule {
           meet the app's length rule) and refuse a match.",
 };
 
+const BREACHED_PASSWORD: Rule = Rule {
+    rule_id: "probe.breached-password-accepted",
+    requirement_ids: &["V6.2.12"],
+    cwe: &["CWE-521"],
+    impact: "A password other people have already used, and lost, is on the lists anybody trying to \
+             get in works through first — long after the top few thousand.",
+    fix: "Check new passwords against a large set of breached passwords, not only the most common \
+          few thousand: a downloaded copy of the Pwned Passwords list, or its range API, which is \
+          sent only the first five characters of the password's SHA-1 hash.",
+};
+
+const CONTEXT_WORD_PASSWORD: Rule = Rule {
+    rule_id: "probe.context-word-password-accepted",
+    requirement_ids: &["V6.2.11"],
+    cwe: &["CWE-521"],
+    impact: "A password built from the app's own name, or the organization's, is one of the first \
+             things somebody who knows where they are will try.",
+    fix: "Refuse a new password that contains any word from your list of context-specific words, \
+          compared without regard to case.",
+};
+
 const COMPOSITION_RULES: Rule = Rule {
     rule_id: "probe.password-composition-rules",
     requirement_ids: &["V6.2.5"],
@@ -833,6 +854,58 @@ const SIGN_OUT_ON_GET: Rule = Rule {
 /// A password from the top 3000 most common that meets an 8-character rule: line 1,238 of
 /// `data/knowledge/common-passwords.txt`.
 const COMMON: &str = "123qweasdzxc";
+
+/// A password far down the common list, at line 12,393 of `data/knowledge/common-passwords.txt`:
+/// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
+/// 16 characters, so a length rule of up to 16 does not refuse it first. The list's source is not
+/// recorded in this repository, so the finding says what was observed — one of the 100,000 most
+/// common passwords, accepted — and not that it was found in a particular breach.
+const BREACHED: &str = "1qaz2wsx3edc4rfv";
+
+/// A password with the same shape as `template` — each lowercase letter, capital, and digit
+/// replaced by a random one of the same kind, everything else kept — made from `spare`, the random
+/// material every run has. The control that says a refusal was about *these* characters and not
+/// about their length or kinds.
+fn random_like(template: &str, spare: &str) -> String {
+    let nibbles: Vec<u8> = spare
+        .chars()
+        .filter_map(|c| c.to_digit(16))
+        .map(|d| d as u8)
+        .collect();
+    template
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            let n = nibbles[i % nibbles.len()];
+            match c {
+                'a'..='z' => (b'a' + n) as char,
+                'A'..='Z' => (b'A' + n) as char,
+                '0'..='9' => (b'0' + n % 10) as char,
+                other => other,
+            }
+        })
+        .collect()
+}
+
+/// The password tried for V6.2.11: the first word of at least four letters or digits in the
+/// owner's list, lowercased and repeated to at least 16 characters, so no length rule refuses it
+/// first. `None` when no word on the list is long enough to mean anything.
+fn context_password(words: &[String]) -> Option<(String, String)> {
+    let word = words.iter().find_map(|w| {
+        let kept: String = w
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        (4..=32).contains(&kept.len()).then_some((w.clone(), kept))
+    })?;
+    let (named, kept) = word;
+    let mut password = kept.clone();
+    while password.len() < 16 {
+        password.push_str(&kept);
+    }
+    Some((named, password))
+}
 
 /// Accounts somebody might leave in place, tried with their name as the password and with
 /// `password`.
@@ -1058,7 +1131,7 @@ pub fn run(
     // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
-    password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 
@@ -1444,9 +1517,10 @@ fn password_checks(
     users: &UsersSection,
     accounts: &Accounts,
     confirm: Option<&str>,
+    policy: &sv_manifest::PolicySection,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5, V6.2.8, V6.2.9";
+    const IDS: &str = "V6.2.1, V6.2.4, V6.2.5, V6.2.8, V6.2.9, V6.2.11, V6.2.12";
     let Some(signup) = &users.signup else {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -1500,7 +1574,24 @@ fn password_checks(
             "like-common",
             account("like-common", spare[2..14].to_owned()),
         ),
+        ("breached", account("breached", BREACHED.to_owned())),
+        (
+            "like-breached",
+            account("like-breached", random_like(BREACHED, &spare[14..32])),
+        ),
     ];
+    let context = context_password(&policy.context_words);
+    let context_tries: Vec<(&str, Account)> = match &context {
+        Some((_, password)) => vec![
+            ("context", account("context", password.clone())),
+            (
+                "like-context",
+                account("like-context", random_like(password, &spare[4..28])),
+            ),
+        ],
+        None => Vec::new(),
+    };
+    let tries: Vec<(&str, Account)> = tries.into_iter().chain(context_tries).collect();
     let mut works = std::collections::BTreeMap::new();
     for (label, try_account) in &tries {
         sign_up(http, signup, label, try_account);
@@ -1573,6 +1664,81 @@ fn password_checks(
                  kinds of character, so the refusal cannot be told apart from another rule."
             ),
         )),
+    }
+
+    // V6.2.12, in the same shape as V6.2.4: refused beside a random password of the same shape
+    // that was accepted is evidence; refused beside a refused control is evidence of nothing.
+    match (works["breached"], works["like-breached"]) {
+        (true, _) => out.findings.push(finding(
+            &BREACHED_PASSWORD,
+            "A password from a list of known passwords is accepted",
+            Severity::Low,
+            format!(
+                "The app let an account sign up with `{BREACHED}`, which is among the 100,000 most \
+                 common passwords though not among the top 3000, and sign in with it. A check \
+                 against a large set of breached passwords would have refused it."
+            ),
+        )),
+        (false, true) => out.verified.push(crate::Verified::new(
+            BREACHED_PASSWORD.rule_id,
+            BREACHED_PASSWORD.requirement_ids,
+            format!(
+                "`{BREACHED}`, one of the 100,000 most common passwords and not among the top \
+                 3000, refused at sign-up where a random password of the same shape was accepted"
+            ),
+        )),
+        (false, false) => out.not_assessed.push((
+            "V6.2.12".to_owned(),
+            format!(
+                "The app refused `{BREACHED}`, and also a random password of the same length and \
+                 kinds of character, so the refusal cannot be told apart from another rule."
+            ),
+        )),
+    }
+
+    // V6.2.11 asks that the *documented* list is used, so without the owner's list there is
+    // nothing to hold the app to, and guessing at words would be testing a list nobody wrote.
+    match &context {
+        None => out.not_assessed.push((
+            "V6.2.11".to_owned(),
+            if policy.context_words.is_empty() {
+                "securevibe.toml lists no context-specific words. Add your app's and your \
+                 organization's names under [policy] as `context-words`, and sign-up is asked to \
+                 refuse a password made from one."
+                    .to_owned()
+            } else {
+                "No word under `context-words` in securevibe.toml has between 4 and 32 letters or \
+                 digits, so none could be made into a password worth trying."
+                    .to_owned()
+            },
+        )),
+        Some((word, password)) => match (works["context"], works["like-context"]) {
+            (true, _) => out.findings.push(finding(
+                &CONTEXT_WORD_PASSWORD,
+                "A password made from one of your context-specific words is accepted",
+                Severity::Low,
+                format!(
+                    "The app let an account sign up with `{password}`, which is \"{word}\" from \
+                     `context-words` in securevibe.toml, repeated, and sign in with it."
+                ),
+            )),
+            (false, true) => out.verified.push(crate::Verified::new(
+                CONTEXT_WORD_PASSWORD.rule_id,
+                CONTEXT_WORD_PASSWORD.requirement_ids,
+                format!(
+                    "a password made from \"{word}\", the first usable word in `context-words`, \
+                     refused at sign-up where a random password of the same shape was accepted"
+                ),
+            )),
+            (false, false) => out.not_assessed.push((
+                "V6.2.11".to_owned(),
+                format!(
+                    "The app refused a password made from \"{word}\", and also a random password \
+                     of the same length and kinds of character, so the refusal cannot be told \
+                     apart from another rule."
+                ),
+            )),
+        },
     }
 
     exact_password_checks(http, users, signup, &control, spare, confirm, out);
@@ -4934,6 +5100,9 @@ mod tests {
         code_failures: BTreeMap<String, u32>,
     }
 
+    /// The fake app's own context-specific word, as an owner would list it in `context-words`.
+    const CONTEXT_WORD: &str = "acmenotes";
+
     #[derive(Default, Clone, Copy)]
     struct Flaws {
         private_open: bool,
@@ -4951,6 +5120,10 @@ mod tests {
         short_password_ok: bool,
         /// Sign-up takes a password from the common list.
         common_password_ok: bool,
+        /// Sign-up takes a password from far down the common list.
+        breached_password_ok: bool,
+        /// Sign-up takes a password containing the app's context word.
+        context_word_ok: bool,
         /// Sign-up wants a capital and a digit in every password.
         composition_rules: bool,
         /// `admin` / `admin` is an account.
@@ -5190,6 +5363,12 @@ mod tests {
                 return false;
             }
             if password == COMMON && !self.flaws.common_password_ok {
+                return false;
+            }
+            if password == BREACHED && !self.flaws.breached_password_ok {
+                return false;
+            }
+            if password.to_ascii_lowercase().contains(CONTEXT_WORD) && !self.flaws.context_word_ok {
                 return false;
             }
             if self.flaws.composition_rules
@@ -6846,10 +7025,22 @@ mod tests {
     }
 
     fn run_signing_up(flaws: Flaws) -> Outcome {
+        run_signing_up_with(flaws, &with_words(&["Acme Notes"]))
+    }
+
+    fn run_signing_up_with(flaws: Flaws, policy: &sv_manifest::PolicySection) -> Outcome {
         let mut app = FakeApp::new(flaws);
         let mut acc = accounts();
         acc.admin = None;
-        run(&mut app, &with_signup(), &acc, false, &Default::default())
+        run(&mut app, &with_signup(), &acc, false, policy)
+    }
+
+    /// A policy listing these context-specific words, as an owner would write them.
+    fn with_words(words: &[&str]) -> sv_manifest::PolicySection {
+        sv_manifest::PolicySection {
+            context_words: words.iter().map(|w| (*w).to_owned()).collect(),
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -6863,6 +7054,8 @@ mod tests {
             ALTERED_PASSWORD.rule_id,
             LONG_PASSWORD.rule_id,
             UNMASKED_PASSWORD.rule_id,
+            BREACHED_PASSWORD.rule_id,
+            CONTEXT_WORD_PASSWORD.rule_id,
         ] {
             assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
         }
@@ -6906,6 +7099,20 @@ mod tests {
                     ..Default::default()
                 },
                 COMPOSITION_RULES.rule_id,
+            ),
+            (
+                Flaws {
+                    breached_password_ok: true,
+                    ..Default::default()
+                },
+                BREACHED_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    context_word_ok: true,
+                    ..Default::default()
+                },
+                CONTEXT_WORD_PASSWORD.rule_id,
             ),
             (
                 Flaws {
@@ -7359,6 +7566,96 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn with_no_context_words_listed_v6_2_11_is_not_assessed_and_says_how_to_list_them() {
+        // V6.2.11 asks that the *documented* list is used. Guessing at words would be testing a
+        // list nobody wrote, so no list means nothing to hold the app to.
+        let o = run_signing_up_with(
+            Flaws {
+                context_word_ok: true,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        assert!(
+            !rule_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id),
+            "found a fault against a list nobody wrote"
+        );
+        assert!(!verified_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V6.2.11")
+            .expect("V6.2.11 is named as not assessed");
+        assert!(why.contains("context-words"), "{why}");
+    }
+
+    #[test]
+    fn a_list_of_words_too_short_to_try_is_not_assessed_rather_than_padded() {
+        let o = run_signing_up_with(Flaws::default(), &with_words(&["ab", "x!y"]));
+        assert!(!verified_ids(&o).contains(&CONTEXT_WORD_PASSWORD.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V6.2.11" && why.contains("between 4 and 32")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_refusal_that_also_refuses_the_control_credits_neither_new_rule() {
+        // Composition rules refuse both the listed password and its random twin, since neither
+        // has a capital. A refusal the control shares is about the shape, not the password.
+        let o = run_signing_up(Flaws {
+            composition_rules: true,
+            ..Default::default()
+        });
+        for (id, rule) in [
+            ("V6.2.12", BREACHED_PASSWORD.rule_id),
+            ("V6.2.11", CONTEXT_WORD_PASSWORD.rule_id),
+        ] {
+            assert!(!verified_ids(&o).contains(&rule), "{rule} credited");
+            assert!(!rule_ids(&o).contains(&rule), "{rule} found");
+            assert!(
+                o.not_assessed.iter().any(|(ids, _)| ids == id),
+                "{id} not named: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn the_control_has_the_same_shape_and_none_of_the_characters() {
+        let spare = "0123456789abcdef0123456789abcdef";
+        let twin = random_like(BREACHED, spare);
+        assert_eq!(twin.len(), BREACHED.len());
+        for (a, b) in BREACHED.chars().zip(twin.chars()) {
+            assert_eq!(
+                a.is_ascii_digit(),
+                b.is_ascii_digit(),
+                "{BREACHED} / {twin}"
+            );
+            assert_eq!(
+                a.is_ascii_lowercase(),
+                b.is_ascii_lowercase(),
+                "{BREACHED} / {twin}"
+            );
+        }
+        assert_ne!(twin, BREACHED);
+        assert!(!twin.contains(CONTEXT_WORD));
+    }
+
+    #[test]
+    fn the_context_password_is_the_word_repeated_past_any_length_rule() {
+        let (word, password) = context_password(&["Hi".into(), "Acme Notes".into()]).unwrap();
+        assert_eq!(word, "Acme Notes", "the first word long enough, as written");
+        assert_eq!(password, "acmenotesacmenotes");
+        assert!(password.len() >= 16);
+        assert_eq!(context_password(&["ab".into()]), None);
+        assert_eq!(context_password(&[]), None);
     }
 
     #[test]
