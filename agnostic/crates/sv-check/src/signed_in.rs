@@ -1349,11 +1349,20 @@ fn guess_once(
 
 /// Whether the limit on guessing believes an address the client made up (V15.3.4).
 ///
-/// Called once the brute-force check has seen the app refuse. One more wrong attempt claims a new
-/// address, from the range set aside for documentation, in every header an app might take one
-/// from; then one more claims nothing. The first answered as the very first attempt was, while the
-/// second is still refused, is a limiter that let a header the client wrote lift it. The second is
-/// the control: a limit that lifted by itself lifts for both, and says nothing about headers.
+/// Called once the brute-force check has seen the app refuse. Two more wrong attempts, each
+/// claiming a different new address from the range set aside for documentation, in every header an
+/// app might take one from; then two more claiming nothing. Both claimed attempts answered as the
+/// very first attempt was, while both plain ones are still refused, is a limiter that let a header
+/// the client wrote lift it. The plain pair is the control: a limit that lifted by itself lifts for
+/// them too.
+///
+/// Two of each, not one: a limiter that lets one attempt through for every one it refuses — a token
+/// bucket, a sliding window, `nginx limit_req` — answers one claimed and one plain attempt in exactly
+/// the pattern of a limit that believes the header, and reported a correct app for it. Found in
+/// review with a fake limiter that leaks (`lockout_leaks`). Alternating the attempts does not help:
+/// such a limiter produces exactly that alternation. The remaining blind spot is the other
+/// direction — a leaky limiter can still hide an app that does trust the header — which is the safe
+/// one, since this is only ever a finding.
 ///
 /// Only ever a finding. An app whose limit counts by account is not moved by the header at all,
 /// and that shows nothing about how it treats addresses.
@@ -1364,33 +1373,60 @@ fn forwarded_check(
     first_status: u16,
     out: &mut Outcome,
 ) {
-    const ADDRESS: &str = "203.0.113.77";
-    let spoofed = guess_once(
-        http,
-        login,
-        wrong,
-        "guess-forwarded",
-        &[
-            ("X-Forwarded-For", ADDRESS),
-            ("X-Real-IP", ADDRESS),
-            ("Forwarded", "for=203.0.113.77"),
-        ],
-    );
-    let plain = guess_once(http, login, wrong, "guess-after-forwarded", &[]);
-    let lifted = spoofed == first_status;
-    let still_refused = plain != first_status;
-    out.steps.push(format!(
-        "one more wrong attempt claiming to come from {ADDRESS}: {}; one more claiming nothing: {}",
-        if lifted {
-            format!("answered {spoofed}, as the first attempt was")
+    const ADDRESSES: [&str; 2] = ["203.0.113.77", "203.0.113.78"];
+    let spoofed: Vec<u16> = ADDRESSES
+        .iter()
+        .enumerate()
+        .map(|(n, address)| {
+            let forwarded = format!("for={address}");
+            guess_once(
+                http,
+                login,
+                wrong,
+                &format!("guess-forwarded-{n}"),
+                &[
+                    ("X-Forwarded-For", address),
+                    ("X-Real-IP", address),
+                    ("Forwarded", &forwarded),
+                ],
+            )
+        })
+        .collect();
+    let plain: Vec<u16> = (0..2)
+        .map(|n| {
+            guess_once(
+                http,
+                login,
+                wrong,
+                &format!("guess-after-forwarded-{n}"),
+                &[],
+            )
+        })
+        .collect();
+    let lifted = spoofed.iter().all(|s| *s == first_status);
+    let still_refused = plain.iter().all(|p| *p != first_status);
+    let said = |answers: &[u16]| {
+        let all_first = answers.iter().all(|a| *a == first_status);
+        let none_first = answers.iter().all(|a| *a != first_status);
+        let list = answers
+            .iter()
+            .map(u16::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        if all_first {
+            format!("answered {list}, as the first attempt was")
+        } else if none_first {
+            format!("still refused ({list})")
         } else {
-            format!("still refused ({spoofed})")
-        },
-        if still_refused {
-            format!("still refused ({plain})")
-        } else {
-            format!("answered {plain}, as the first attempt was")
+            format!("answered {list}, one as the first attempt was and one refused")
         }
+    };
+    out.steps.push(format!(
+        "two more wrong attempts claiming to come from {} and {}: {}; two more claiming nothing: {}",
+        ADDRESSES[0],
+        ADDRESSES[1],
+        said(&spoofed),
+        said(&plain)
     ));
     if lifted && still_refused {
         out.findings.push(finding(
@@ -1398,11 +1434,12 @@ fn forwarded_check(
             "The limit on guessing passwords can be lifted by claiming another address",
             Severity::Medium,
             format!(
-                "After the app started refusing wrong passwords, one more attempt carrying \
-                 `X-Forwarded-For: {ADDRESS}` was answered {spoofed}, as the very first attempt \
-                 was, while the attempt after it, claiming nothing, was still refused ({plain}). \
-                 Nothing sits in front of the app here, so the address came from the request \
-                 itself."
+                "After the app started refusing wrong passwords, two more attempts, carrying \
+                 `X-Forwarded-For: {}` and then `{}`, were both answered as the very first attempt \
+                 was, while the two after them, claiming nothing, were both still refused. Nothing \
+                 sits in front of the app here, so the addresses came from the requests \
+                 themselves.",
+                ADDRESSES[0], ADDRESSES[1]
             ),
         ));
     }
@@ -5937,6 +5974,8 @@ mod tests {
         lifetime_limit: Option<u64>,
         /// Per session: when it was first seen signed in, and when it was last used.
         session_times: BTreeMap<String, (u64, u64)>,
+        /// Whether `window_rolls_over_at_first_claim` has rolled over.
+        leaked_once: bool,
         /// From this moment on the clock, every sign-in is refused, as by an app that went down.
         sign_ins_refused_from: Option<u64>,
         /// Signing in ends every other session of the same user.
@@ -6112,6 +6151,13 @@ mod tests {
         trusts_forwarded_for: bool,
         /// A lockout lasts for one refused attempt and then lifts by itself.
         lockout_forgets: bool,
+        /// Each refusal lets the next attempt through: one attempt per refusal, as a token bucket, a
+        /// sliding window, or `nginx limit_req` does, whatever it thinks about addresses.
+        lockout_leaks: bool,
+        /// The limit's window rolls over once, just as the first attempt claiming another address
+        /// arrives: that attempt gets through whatever the header says, and nothing after it does.
+        /// Timing a real limiter can produce by chance.
+        window_rolls_over_at_first_claim: bool,
         /// Answers a wrong password with this status from the very first attempt, as an app whose
         /// address-based limiter an earlier check has already tripped would. Correct sign-ins
         /// still work, because the suite has to reach the brute-force check for this to be the
@@ -6482,11 +6528,29 @@ mod tests {
                     } else {
                         email.clone()
                     };
+                    // The window rolling over lets exactly one more attempt in.
+                    if self.flaws.window_rolls_over_at_first_claim
+                        && !self.leaked_once
+                        && r.headers
+                            .iter()
+                            .any(|(k, _)| k.eq_ignore_ascii_case("x-forwarded-for"))
+                        && let Some(limit) = self.flaws.locks_out_after
+                        && let Some(count) = self.failures.get_mut(&key)
+                    {
+                        self.leaked_once = true;
+                        *count = (*count).min(limit.saturating_sub(1));
+                    }
                     if let Some(limit) = self.flaws.locks_out_after
                         && self.failures.get(&key).copied().unwrap_or(0) >= limit
                     {
                         if self.flaws.lockout_forgets {
                             self.failures.remove(&key);
+                        }
+                        if self.flaws.lockout_leaks
+                            && let Some(count) = self.failures.get_mut(&key)
+                        {
+                            // One attempt through for every one refused, as a token bucket does.
+                            *count -= 1;
                         }
                         return Some(Self::respond(429, vec![], "too many attempts"));
                     }
@@ -11495,6 +11559,122 @@ mod tests {
             timeout_why(&o, "V7.3.1")
                 .iter()
                 .any(|w| w.contains("no shorter"))
+        );
+    }
+
+    /// The four rows found in review: steady and leaky limits by address, reading the header or not.
+    fn forwarded_case(leaks: bool, trusts: bool) -> Outcome {
+        run_with(
+            Flaws {
+                locks_out_after: Some(6),
+                limits_by_address: true,
+                trusts_forwarded_for: trusts,
+                lockout_leaks: leaks,
+                ..Flaws::default()
+            },
+            &policy(Some(6)),
+        )
+    }
+
+    #[test]
+    fn a_leaky_limit_that_ignores_the_header_is_not_accused_of_trusting_it() {
+        // The false positive: the leak let exactly one claimed attempt through, which is what a
+        // single claimed attempt beside a single plain one could not tell from a trusted header.
+        let out = forwarded_case(true, false);
+        assert!(
+            !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}",
+            out.steps
+        );
+        let steps = forwarded_steps(&out);
+        assert_eq!(steps.len(), 1, "the attempts were made: {:?}", out.steps);
+        assert!(
+            steps[0].contains("one as the first attempt was and one refused"),
+            "{}",
+            steps[0]
+        );
+    }
+
+    #[test]
+    fn the_four_rows_from_review_come_out_as_they_should() {
+        for (leaks, trusts, found) in [
+            (false, false, false),
+            (false, true, true),
+            (true, false, false),
+            // A leaky limit still hides an app that trusts the header: the safe direction.
+            (true, true, false),
+        ] {
+            let out = forwarded_case(leaks, trusts);
+            assert_eq!(
+                finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+                found,
+                "leaks {leaks}, trusts {trusts}: {:?}",
+                forwarded_steps(&out)
+            );
+        }
+    }
+
+    fn forwarded_once(trusts: bool) -> Outcome {
+        run_with(
+            Flaws {
+                locks_out_after: Some(6),
+                limits_by_address: true,
+                trusts_forwarded_for: trusts,
+                window_rolls_over_at_first_claim: true,
+                ..Flaws::default()
+            },
+            &policy(Some(6)),
+        )
+    }
+
+    #[test]
+    fn a_limit_that_lets_one_attempt_through_once_is_not_accused() {
+        // One claimed attempt gets through and everything after is refused: only the second
+        // claimed attempt, from its own address, tells this apart from a trusted header.
+        let out = forwarded_once(false);
+        assert!(
+            !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}",
+            forwarded_steps(&out)
+        );
+    }
+
+    #[test]
+    fn a_limit_that_leaked_once_and_trusts_the_header_is_still_found() {
+        let out = forwarded_once(true);
+        assert!(
+            finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}",
+            forwarded_steps(&out)
+        );
+    }
+
+    #[test]
+    fn a_leaky_limit_hides_a_trusted_header_rather_than_inventing_one() {
+        let out = forwarded_case(true, true);
+        assert!(
+            !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{:?}",
+            forwarded_steps(&out)
+        );
+    }
+
+    #[test]
+    fn seeded_a_limit_that_lets_one_attempt_through_once_is_not_accused() {
+        let out = seeded_with(
+            Flaws {
+                locks_out_after: Some(6),
+                limits_by_address: true,
+                window_rolls_over_at_first_claim: true,
+                ..Flaws::default()
+            },
+            &policy(Some(6)),
+        );
+        let steps = forwarded_steps(&out);
+        assert_eq!(steps.len(), 1, "the attempts were made: {:?}", out.steps);
+        assert!(
+            !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
+            "{steps:?}"
         );
     }
 }
