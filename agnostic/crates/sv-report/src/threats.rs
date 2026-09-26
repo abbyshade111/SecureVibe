@@ -10,9 +10,19 @@
 use crate::{RequirementLine, Status};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use sv_frameworks::{Condition, ConditionContext};
+
+/// What the reviewer's table of ATLAS references says about itself.
+pub fn atlas_intro(release: &str) -> String {
+    format!(
+        "The threats above that are about AI, as MITRE ATLAS names them (release {release}), for \
+         anyone who works from that catalog. These are references, not checks: nothing was tested \
+         against ATLAS, and they change no status above. MITRE ATLAS is a trademark of The MITRE \
+         Corporation; its data is used under the Apache License 2.0."
+    )
+}
 
 /// What the threat section can and cannot say, at its head in every report.
 pub const INTRO: &str = "What could go wrong with an app like this one, by the part of it each threat concerns, and what the checks showed about each. These are the threats sv has rules for, for what was found in this app: not every threat there is. None is called handled. A threat is only as settled as the requirements that answer it, and each of those is one automated check at most, so the best a threat can be here is checked in part. Found threats come first, then those nothing has looked at.";
@@ -77,11 +87,117 @@ struct ThreatFile {
 pub struct ThreatRules {
     pub elements: Vec<Element>,
     pub threats: Vec<ThreatRule>,
+    /// The MITRE ATLAS techniques each threat about AI corresponds to, when attached.
+    pub atlas: Option<AtlasReferences>,
+}
+
+/// `data/atlas-references.json`, compiled in: `sv` reads it as committed and fetches nothing.
+const ATLAS_REFERENCES: &str = include_str!("../../../data/atlas-references.json");
+
+/// One MITRE ATLAS technique a threat corresponds to, for a security reviewer.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct AtlasRef {
+    pub id: String,
+    /// As the pinned release names it, read from the release by `tools/atlas_references.py`.
+    pub name: String,
+    /// What the threat and the technique share, which the citation guard holds against both.
+    pub because: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AtlasFile {
+    #[serde(rename = "_comment", default)]
+    _comment: String,
+    release: String,
+    source: String,
+    techniques: BTreeMap<String, String>,
+    threats: BTreeMap<String, Vec<Citation>>,
+}
+
+/// The ATLAS references, checked against the threat rules they are attached to.
+#[derive(Debug, Clone)]
+pub struct AtlasReferences {
+    /// The ATLAS content release the names were read from, such as `2026.09`.
+    pub release: String,
+    pub by_threat: BTreeMap<String, Vec<AtlasRef>>,
+}
+
+impl AtlasReferences {
+    /// Parses `text` and refuses a reference that could not mean what it says: a threat that is not
+    /// in the rules, or is not about AI; a technique whose name was not read from the release; a
+    /// name kept for a technique nothing cites; or a reference with no `because`.
+    pub fn parse(text: &str, rules: &ThreatRules) -> Result<Self> {
+        let file: AtlasFile = serde_json::from_str(text).context("parsing the ATLAS references")?;
+        anyhow::ensure!(
+            file.release.len() >= 7 && file.source.contains(&file.release),
+            "the ATLAS references name release `{}` and read from `{}`",
+            file.release,
+            file.source
+        );
+        let mut cited = BTreeSet::new();
+        let mut by_threat = BTreeMap::new();
+        for (threat, citations) in &file.threats {
+            let rule = rules.threats.iter().find(|t| &t.id == threat);
+            let Some(rule) = rule else {
+                anyhow::bail!(
+                    "ATLAS references cite threat {threat}, which is not in the threat model"
+                );
+            };
+            anyhow::ensure!(
+                rule.when.iter().any(|c| c == "ai" || c.starts_with("ai-")),
+                "threat {threat} has ATLAS references but is not a threat about AI"
+            );
+            anyhow::ensure!(
+                !citations.is_empty(),
+                "threat {threat} is listed with no ATLAS technique"
+            );
+            let mut refs = Vec::new();
+            for c in citations {
+                let Some(name) = file.techniques.get(&c.id) else {
+                    anyhow::bail!(
+                        "threat {threat} cites {}, whose name was not read from ATLAS {}; run \
+                         tools/atlas_references.py",
+                        c.id,
+                        file.release
+                    );
+                };
+                anyhow::ensure!(
+                    !c.because.trim().is_empty(),
+                    "threat {threat} cites {} with no `because`",
+                    c.id
+                );
+                cited.insert(c.id.clone());
+                refs.push(AtlasRef {
+                    id: c.id.clone(),
+                    name: name.clone(),
+                    because: c.because.clone(),
+                });
+            }
+            by_threat.insert(threat.clone(), refs);
+        }
+        for id in file.techniques.keys() {
+            anyhow::ensure!(
+                cited.contains(id),
+                "the ATLAS references keep a name for {id}, which no threat cites"
+            );
+        }
+        Ok(Self {
+            release: file.release,
+            by_threat,
+        })
+    }
 }
 
 impl ThreatRules {
     /// Loads the rules and refuses any that could not mean what they say: an unknown STRIDE
     /// category, element, or condition, a repeated id, or a threat answered by nothing.
+    /// These rules with the ATLAS references compiled into `sv` attached, checked against them.
+    pub fn with_atlas(mut self) -> Result<Self> {
+        self.atlas = Some(AtlasReferences::parse(ATLAS_REFERENCES, &self)?);
+        Ok(self)
+    }
+
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
@@ -137,6 +253,7 @@ impl ThreatRules {
         Ok(ThreatRules {
             elements: file.elements,
             threats: file.threats,
+            atlas: None,
         })
     }
 
@@ -199,6 +316,9 @@ pub struct ThreatLine {
     pub not_at_this_level: Vec<String>,
     /// For `CannotPlace`: the conditions nothing answered.
     pub unanswered: Vec<String>,
+    /// The MITRE ATLAS techniques this threat corresponds to, for a security reviewer. References
+    /// only: nothing is checked against them, and they change no status.
+    pub atlas: Vec<AtlasRef>,
 }
 
 /// Whether a set of conditions holds: all true, one false, or some unknown and none false.
@@ -262,6 +382,12 @@ pub fn evaluate(
             not_verified: Vec::new(),
             not_at_this_level: Vec::new(),
             unanswered,
+            atlas: rules
+                .atlas
+                .as_ref()
+                .and_then(|a| a.by_threat.get(&t.id))
+                .cloned()
+                .unwrap_or_default(),
         };
         for id in t.requirements.iter().map(|c| &c.id) {
             match requirements.iter().find(|r| &r.id == id).map(|r| r.status) {

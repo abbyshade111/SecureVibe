@@ -2964,11 +2964,36 @@ yes.
 - **Only for apps that use AI.** The six threats are already gated on `ai`, `ai-actions`, and
   `ai-moderation`, so the references would appear only where they apply.
 
-### If the owner says yes
+### Built, once the owner said yes
 
-An `atlas` list on each of the six threats (`data/knowledge/threats.json` is shared with v1, so this
-is a data change both variants see, and needs the v1 side agreed too), a small file of the cited IDs
-with their names and the release they were read from, a test that every cited ID is in that file, and
-a script like `tools/pwned_passwords.py` that re-reads a newer release and reports any ID that has been
-renamed or withdrawn. The citation guard's rule applies: each reference carries a `because` naming what
-the threat and the technique share.
+The owner said yes the same day. The references live in `data/atlas-references.json`, a file of
+`sv`'s own, rather than in `data/knowledge/threats.json`: v1 shares that file, and the references
+are `sv`'s report's business, so v1 has nothing to agree to. The file is compiled into `sv`, which
+fetches nothing. It holds:
+
+- **The pinned release** (2026.09) and the address of its file.
+- **Eight technique names, read from that release** by `tools/atlas_references.py` and never typed.
+  The script uses Python's standard library alone, so it reads each technique's ID and name from the
+  lines that open its entry, and `--check-against-pyyaml` compares that with a full parse: all 208
+  agree. Given `--release`, it moves to a newer release, prints every cited technique that was
+  renamed, and refuses to write when one is gone.
+- **Which technique each threat is, with a `because`.** The citation guard holds each phrase against
+  the threat's own sentence and the technique's name, and a phrase with no word the comparison can use
+  is refused, as for the requirements.
+
+Loading refuses a reference that could not mean what it says: a threat that is not in the threat
+model, or is not about AI; a technique whose name was not read from the release; a name kept for a
+technique nothing cites; an empty `because`; and a release that is not the one the file was read
+from. A test also holds that every threat about AI has a reference, so a new one cannot be added
+without one.
+
+In the report, a table after the threat table, "For a security reviewer: these threats in MITRE
+ATLAS", lists them for the threats that apply, in the Markdown and HTML reports and in the JSON. It
+says they are references and not checks, and a test shows that the same app has the same threat
+statuses with and without them. An app with no AI has no such table.
+
+Each of those refusals was removed in turn and the suite run: all six were caught. So was dropping
+the one line in `sv report` that attaches the references, but only after a test was added for it:
+the report library's tests passed without it, since they attach the references themselves. The
+script was run against a doctored copy too: a cited technique that is not in the release is refused
+and nothing is written, and a name that differs is reported as a rename and corrected.
