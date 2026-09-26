@@ -81,6 +81,15 @@ another session is not a claim.
   checklist is its own guidance, or wants entries too, decides whether the count is ten or thirteen —
   and the test should encode whichever answer is chosen.
 
+  **Done the same day.** Twelve entries in `data/human-checks.json`, not ten: `AC.4.1` and `AC.6.3`
+  are the AISVS appendix on AI-assisted development and carry levels (1 and 2), so they belong with
+  the others; `AC.1.4` is level 3 and stays out, as the checklist leaves out level 3 everywhere. The
+  test is `every_requirement_only_a_person_can_settle_is_explained_somewhere` in
+  `crates/sv-check/tests/human_checks.rs`: every `manualOnly` requirement at level 1 or 2 must be in
+  one of the three catalogs. Removing an entry names it; widening the test to level 3 names `AC.1.4`.
+  The twelve reach the owner through the report's checklist and the interview (`sv questions`), and
+  can be recorded in `[checked-by-hand]`.
+
 - **V11.3.3 is the one requirement no semgrep pack brings back, and `sv` could own it outright.**
   Found on 26 September 2026 while reading the coverage maps after #164 made the semgrep count
   honest; **not claimed**, and session relaxed-nobel-27acfa is pointing at this item from the step 3
@@ -114,6 +123,9 @@ another session is not a claim.
     rules** — `nothingToFind` is a per-language "this language has no such construct" note, not this —
     so that route is a change in `ast.rs` and the rule schema, not a data entry. It is the more honest
     of the two, and it is the more expensive.
+    *(Note from session securevibe-e8, 26 September 2026: AST rules have had `findingsOnly` since the
+    V4.4.1 WebSocket rule, `ast.plaintext-websocket-url`. A rule with it is never credited by a clean
+    run, and `coverage.py` shows it as finding only, so this route is a data entry after all.)*
 
   Whoever takes it should also break it and count: every (rule, language) pair in this file is
   required to have a found and a not-found witness, and the pair that matters here is CBC-with-a-MAC,
