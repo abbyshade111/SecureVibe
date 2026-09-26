@@ -296,6 +296,26 @@ pub struct UsersSection {
     /// secret (`SV_USER_TOTP`, `SV_PASSWORD_TOTP`, `SV_TOTP_SECRET`) to enroll.
     #[serde(default)]
     pub totp: Option<RequestTemplate>,
+    /// Checks made in a real browser, signed in as the first user. Present, even empty, it starts
+    /// a headless Chromium on the fenced network for the run.
+    #[serde(default)]
+    pub browser: Option<BrowserSection>,
+}
+
+/// `[stack.run.users.browser]`: what a real browser is asked to do as the first user.
+///
+/// Every private page is opened in it to see whether the sign-out control can be seen, and, with
+/// `text-form`, a line of text containing markup is typed into a form to see whether the page that
+/// shows it draws the markup or the text.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct BrowserSection {
+    /// A page with a form a signed-in user types text into, such as a new note or a comment.
+    #[serde(default)]
+    pub text_form: Option<String>,
+    /// The page that shows what was typed. Absent means the page the form leads to.
+    #[serde(default)]
+    pub shows: Option<String>,
 }
 
 /// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code

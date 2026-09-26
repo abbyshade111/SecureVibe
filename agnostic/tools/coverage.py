@@ -88,6 +88,8 @@ RUST_CHECKS = {
     "probe.oidc-nonce-not-checked": ("signed-in", ["V10.5.1"]),
     "probe.oidc-audience-not-checked": ("signed-in", ["V10.5.4"]),
     "probe.oidc-signature-not-checked": ("signed-in", ["V6.8.2"]),
+    "probe.sign-out-control-hidden": ("signed-in", ["V7.4.4"]),
+    "probe.text-rendered-as-markup": ("signed-in", ["V3.2.2"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
     "probe.password-altered": ("signed-in", ["V6.2.8"]),
     "probe.long-password-refused": ("signed-in", ["V6.2.9"]),

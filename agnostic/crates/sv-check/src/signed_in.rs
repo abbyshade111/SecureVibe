@@ -53,6 +53,12 @@ pub trait Http {
     fn provider(&mut self, _request: &ProbeRequest) -> Option<ProbeResponse> {
         None
     }
+
+    /// Has the run's headless browser do what `job` says, and gives back one answer per action:
+    /// `None` when the run has no browser, or it did not finish. See `browser.rs`.
+    fn browser(&mut self, _job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,6 +160,10 @@ pub(crate) struct Session {
 }
 
 impl Session {
+    pub(crate) fn cookies(&self) -> &[(String, String)] {
+        &self.cookies
+    }
+
     pub(crate) fn absorb(&mut self, response: &ProbeResponse) {
         for cookie in set_cookies(response) {
             self.cookies.retain(|(n, _)| *n != cookie.name);
@@ -1233,6 +1243,18 @@ pub fn run_with(
     //    whether they show a way out. Before anything that signs another account in, so the
     //    session that opened them is the one step 2 showed working.
     private_page_checks(http, users, &a, &mut out);
+
+    // 5b. The same pages drawn in a real browser, when securevibe.toml asks for one, with A's
+    //     cookies: whether the way out can be seen, and whether text typed into a form comes back
+    //     as text. Here for the same reason as step 5, and it signs nobody else in.
+    crate::browser::checks(
+        http,
+        users,
+        &a.session,
+        signed_in_works,
+        &crate::browser::token(&accounts.spare),
+        &mut out,
+    );
 
     // 6. Admin pages, as an ordinary user, confirmed against the admin.
     admin_checks(http, users, accounts, &a, &mut out);
@@ -7145,6 +7167,7 @@ mod tests {
                     .collect(),
                 completed: "/orders/".into(),
             }),
+            browser: None,
         }
     }
 
