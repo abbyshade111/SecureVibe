@@ -1126,6 +1126,11 @@ another session is not a claim.
   The evaluation harness was not run; these numbers come from six apps v1 actually built, which is
   what it would build, and it can still be run before adopting. The decision is the owner's.
 
+  **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
+  at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
+  own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
+  word. Not decided yet; B is not claimed.
+
   **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
   branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
   by then, and is kept below relaxed-nobel's fuller run as a second, smaller measurement of option C.
@@ -1162,6 +1167,7 @@ another session is not a claim.
   Adopting B, as relaxed-nobel-27acfa proposed: add `p/default` to the adapter, measure it into
   `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
   fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
+  The owner's condition above still holds: the license questions are looked at before B is built.
 
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
