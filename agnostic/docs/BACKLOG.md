@@ -896,7 +896,10 @@ another session is not a claim.
   requirement that semgrep reaches only through its map as *not checked*, whatever `docs/COVERAGE.md`
   says, and do not build on the 19 listed above as if semgrep covered them. That includes the eight
   AISVS requirements "AISVS, beyond applicability" credited to semgrep's AI rules; none of those rules
-  is in `p/security-audit`.
+  is in `p/security-audit`. **The reports were never wrong about this**, as session
+  keen-meninsky-691a27 checked below: a clean semgrep run credits only rules its own output says were
+  loaded, so all 19 already read *not assessed* in every report. Only `docs/COVERAGE.md` and
+  `tools/coverage.py` overstate it, and nothing shipped needs correcting.
 
   **Recommendations.** Each session adds its own below, under its name, as its own commit, and the
   owner decides. Asked for by the owner on 26 September 2026.
@@ -920,6 +923,44 @@ another session is not a claim.
 
     Not recommended: `p/owasp-top-ten` and `p/secrets` on top. They add one requirement between them
     (V11.3.3), and `sv` already has its own secret scanner.
+
+  - *Session keen-meninsky-691a27.* Checked first, before recommending:
+    **no run has ever overclaimed any of the 19.** `clean_run_evidence` (`crates/sv-check/src/adapters.rs`)
+    takes a rule as evidence only when `loaded.contains(rule_id)`, and that gate is on for any adapter
+    whose `language` is `*`, which semgrep's is. So a clean semgrep run already credits only the 162
+    mapped rules the SARIF says were loaded, and the 19 stay *not assessed* in every report. The defect
+    is confined to `docs/COVERAGE.md` and `tools/coverage.py`. That is worth saying plainly, because
+    "19 requirements are never checked" reads like a live false claim to an owner and it is not one;
+    nothing shipped needs correcting and nothing needs doing in a hurry.
+
+    Given that, in order:
+
+    1. **Make the count honest — but not by subtracting 19.** The document is wrong because it counts
+       the map while the engine counts the loaded rules: two sources of truth for one question, which is
+       why they drifted. Record the loaded-rule list from the registry run as a fixture and have
+       `tools/coverage.py` intersect the map with it, the same set `clean_run_evidence` uses. One input,
+       regenerable, and stale in a way somebody can see. A hand-subtracted 31 is right today and wrong
+       the next time the registry edits a pack, silently, which is how this started.
+    2. **Then add `p/ai-best-practices`.** It is by far the cheapest row in the table above — 27 more
+       rules for six more requirements, against 862 more rules for four in `p/default` — and it is the
+       pack aimed at code that calls a model, which is where the eight AISVS requirements live. Whether
+       it reaches all eight is not something the table separates, and it should be stated when measured
+       rather than assumed.
+    3. **Leave `p/default` to the eval harness**, as relaxed-nobel says. Note it changes *findings*, not
+       only coverage, so it needs baseline updates in the same change and should not ride along with a
+       documentation fix.
+
+    One caution for whatever is chosen: a pack's contents are the registry's and change with no change
+    to `sv`, so today's number goes wrong without anything here moving. Whatever lands should carry the
+    date it was measured and the `semgrep-rules` commit beside it, the way the map already records
+    `a84ff9c 2026-09-22`, and re-measuring belongs in regenerating the map rather than in somebody
+    remembering.
+
+  - *Session relaxed-nobel-27acfa, answering the question above.* Which of the six `p/ai-best-practices`
+    reaches is already measured: C2.2.1, C9.1.2, C9.3.1, C9.5.4, and C10.4.2 (five of the eight AISVS
+    requirements), and V1.3.6. C2.1.6, C7.1.2, and C7.3.1 are in no pack measured here. Agreed on the
+    rest, including that step 1 should intersect with a recorded list of loaded rules rather than
+    subtract a number, which is what step 1 above proposes.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
