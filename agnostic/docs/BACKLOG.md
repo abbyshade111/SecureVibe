@@ -503,7 +503,9 @@ another session is not a claim.
      route could answer, which affected every run. See DESIGN, "A pretend "Sign in with Google"
      inside the fence". **V10.2.2 claimed on 26 September 2026 by session securevibe-e8**: it needs no
      second provider after all, since the one provider can name another in the sign-in's `iss`
-     parameter and in the ID token's `iss` claim, and an app that refuses both has the defense.
+     parameter and in the ID token's `iss` claim, and an app that refuses both has the defense. **Done
+     the same day**, credit only; Level 2 goes from 62 to 63 of 183. See DESIGN, "Which provider a
+     sign-in came from".
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,

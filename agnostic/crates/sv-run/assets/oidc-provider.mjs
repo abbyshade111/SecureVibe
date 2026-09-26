@@ -13,6 +13,9 @@
 //   wrong-aud    issued for another client
 //   unsigned     `alg: none`, no signature
 //   wrong-key    signed with a key the provider never published
+//   wrong-iss    the sign-in's `iss` parameter names another provider (used up at /authorize, since
+//                an app that refuses it never asks for a token)
+//   wrong-token-iss  an ID token whose `iss` claim names another provider
 import http from 'node:http';
 import crypto from 'node:crypto';
 
@@ -24,6 +27,8 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const key = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const stranger = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const KID = 'sv-1';
+// A provider that does not exist, named where a mix-up attack would name one.
+const OTHER_ISSUER = 'http://sv-other-idp.invalid';
 const codes = new Map(); // code -> what the sign-in asked for
 const tokens = new Map(); // access token -> sub
 let mode = 'normal';
@@ -76,6 +81,8 @@ http
         token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
         code_challenge_methods_supported: ['S256', 'plain'],
         scopes_supported: ['openid', 'email', 'profile'],
+        // RFC 9207: the sign-in's return carries `iss`, and a client library that reads this checks it.
+        authorization_response_iss_parameter_supported: true,
       });
     }
     if (req.method === 'GET' && path === '/jwks') {
@@ -96,7 +103,9 @@ http
       const back = new URL(redirect);
       back.searchParams.set('code', code);
       if (q.get('state') !== null) back.searchParams.set('state', q.get('state'));
-      back.searchParams.set('iss', ISSUER);
+      const mixed = mode === 'wrong-iss';
+      if (mixed) mode = 'normal';
+      back.searchParams.set('iss', mixed ? OTHER_ISSUER : ISSUER);
       res.writeHead(302, { location: back.toString() });
       return res.end();
     }
@@ -119,7 +128,7 @@ http
       mode = 'normal';
       const now = Math.floor(Date.now() / 1000);
       const claims = {
-        iss: ISSUER,
+        iss: how === 'wrong-token-iss' ? OTHER_ISSUER : ISSUER,
         sub: 'sv-oidc-user',
         aud: how === 'wrong-aud' ? 'some-other-client' : CLIENT_ID,
         exp: now + 300,
@@ -147,7 +156,7 @@ http
     }
     if (req.method === 'POST' && path === '/_sv/mode') {
       const wanted = new URLSearchParams(await body(req)).get('mode');
-      if (!['normal', 'wrong-nonce', 'wrong-aud', 'unsigned', 'wrong-key'].includes(wanted)) {
+      if (!['normal', 'wrong-nonce', 'wrong-aud', 'unsigned', 'wrong-key', 'wrong-iss', 'wrong-token-iss'].includes(wanted)) {
         return json(res, 400, { error: 'unknown mode' });
       }
       mode = wanted;
