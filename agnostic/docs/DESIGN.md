@@ -1319,6 +1319,45 @@ about what goes over the wire and no finding or note can show it.
 Left over, reachable the same way and not written: V5.3.2 (a path built from a submitted file name)
 and V5.4.1 with V5.4.2 (the file name and disposition the app sends back).
 
+### What the app wrote down
+
+V16.3.1 and V16.3.2 ask that authentication and failed authorization are logged. The run already
+does both to the app — it signs in, it fails to sign in, it is refused a private page — so the only
+missing piece was reading what the app said about it.
+
+**This check can credit and never fault, which is the opposite of most here.** The only output `sv`
+can see is the container's. An app that logs to a file, to syslog, or to a logging service writes
+nothing there and is not logging any less for it, so finding the events is evidence and not finding
+them is evidence of nothing. Silence is *not assessed*, with the reason spelled out.
+
+**The probes plant markers rather than search for words.** "The log mentions `admin`" says nothing:
+every log mentions `admin`. So three things happen that no other traffic could have done, each
+carrying a string nothing else contains:
+
+| planted | what finding it proves |
+|---|---|
+| a sign-in for an account that does not exist | a *failed* authentication was written down |
+| a sign-in that works, by an account used for nothing else | a *successful* one was |
+| a private page asked for by nobody, with a marker in its address | the refusal was |
+
+V16.3.1 is credited only when **both** sign-in names are found. One of the two is not the
+requirement — an app that records only the sign-ins that worked is precisely the app it is aimed at
+— and crediting on half would be the overstatement this project exists to refuse. When only one is
+found, the report says which, because "logs successes but perhaps not failures" is something the
+owner can act on.
+
+**A status has to be a status.** For V16.3.2 the marker alone only shows the request reached a log;
+the status on the same line is what makes it a record of the *decision* rather than of traffic. The
+status travels with the marker rather than being matched against a fixed list of refusal codes —
+an app that sends people to the sign-in page answers 302, which no list of "refused" codes would
+have contained, and it is a refusal all the same.
+
+Matching that status is where writing the test found a real fault in the check. Three digits turn up
+inside byte counts (`14039`), request ids (`req=a401b9`), durations (`took=403ms`) and paths
+(`/invoices/40312`), and the first version split the line on non-digits — which read `req=a401b9` as
+a 401. A status is now a whole token: what follows its last `=` or `:`, trimmed of punctuation, and
+equal to the code. The fixture that caught it is a table of lines real servers write.
+
 ### Verified against a real container
 
 `tests/fixtures/probe-app` is a busybox CGI script that does two careless things on purpose: it sets

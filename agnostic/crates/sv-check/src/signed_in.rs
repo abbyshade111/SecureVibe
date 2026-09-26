@@ -55,6 +55,8 @@ pub struct Outcome {
     pub not_assessed: Vec<(String, String)>,
     /// What happened, in order, for the run note: "signed in as A", "B was refused A's record".
     pub steps: Vec<String>,
+    /// The strings the probes planted for the log check to look for afterwards. See `logs.rs`.
+    pub log_markers: crate::logs::Markers,
 }
 
 /// The most this check will ever send in one upload.
@@ -883,6 +885,10 @@ pub fn run(
     // 4. The session cookie, and whether signing in made a new one.
     session_checks(&a, signed_in_works || owned_read.is_some(), &mut out);
 
+    // 4b. The markers the log check reads afterwards. Done here because the successful one has to
+    //     be a sign-in that really worked, and the refused one a page that is really private.
+    plant_log_markers(http, users, accounts, signed_in_works, &mut out);
+
     // 5. The private pages themselves, read with A's session: what they let a browser keep, and
     //    whether they show a way out. Before anything that signs another account in, so the
     //    session that opened them is the one step 2 showed working.
@@ -1106,6 +1112,80 @@ fn brute_force_check(
                 first_status, last.1
             ),
         ));
+    }
+}
+
+/// Does three things no other traffic could have done, each carrying a string nothing else
+/// contains, so the container's log can be read for them afterwards (V16.3.1, V16.3.2).
+///
+/// None of this asserts anything on its own: `logs::evaluate` reads what the app wrote. The point
+/// of planting rather than searching for ordinary words is that "the log mentions `admin`" says
+/// nothing at all — every log mentions `admin`.
+fn plant_log_markers(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    signed_in_works: bool,
+    out: &mut Outcome,
+) {
+    // A unique run-scoped tag, taken from the account names the run already made unique.
+    let tag: String = accounts
+        .a
+        .user
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(16)
+        .collect();
+
+    // 1. A sign-in for an account that does not exist. Its name can only reach the log because a
+    //    failed authentication was written down.
+    if let Some(login) = &users.login {
+        let nobody = Account {
+            user: format!("sv-log-nobody-{tag}@example.test"),
+            password: "Sv-Log-Marker-Not-A-Real-Password-1!".to_owned(),
+        };
+        let mut session = Session::default();
+        let mut csrf = None;
+        if let Some(page) = http.send(&get("log-marker-page", &login.path, &session)) {
+            session.absorb(&page);
+            csrf = csrf_token(&page, &session);
+        }
+        let values = Values {
+            user: &nobody.user,
+            password: &nobody.password,
+            csrf,
+            ..Default::default()
+        };
+        send_template(http, "log-marker-failed", login, &values, &mut session, &[]);
+        out.log_markers.failed_sign_in = Some(nobody.user);
+    }
+
+    // 2. A sign-in that works, by an account used for nothing else. Needs `signup`: A and B sign in
+    //    and fail elsewhere in the run, so neither of their names could tell the two apart.
+    if let Some(signup) = &users.signup {
+        let only = Account {
+            user: format!("sv-log-ok-{tag}@example.test"),
+            password: format!("Sv-Log-{tag}-aZ9!"),
+        };
+        sign_up(http, signup, "log-marker", &only);
+        if sign_in(http, users, "log-marker-ok", &only, &mut Vec::new()).is_some() {
+            out.log_markers.successful_sign_in = Some(only.user);
+        }
+    }
+
+    // 3. A private page asked for by nobody, with a marker in the address, which the app should
+    //    refuse. Only planted once the page is known to be private at all.
+    if signed_in_works && let Some(path) = users.private.first() {
+        let marker = format!("sv-log-refused-{tag}");
+        let joiner = if path.contains('?') { '&' } else { '?' };
+        let asked = format!("{path}{joiner}{marker}=1");
+        let response = http.send(&get("log-marker-refused", &asked, &Session::default()));
+        // Only a marker the app actually refused is evidence about a refusal being recorded, and
+        // the status it refused with travels with it: a redirect to the sign-in page is a refusal
+        // too, and no fixed list of "refused" codes would have contained it.
+        if let Some(status) = response.map(|r| r.status).filter(|s| *s >= 300) {
+            out.log_markers.refused_request = Some((marker, status));
+        }
     }
 }
 

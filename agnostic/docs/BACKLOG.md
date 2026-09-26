@@ -140,11 +140,14 @@ another session is not a claim.
   finding — six guessed paths and three server signatures cannot show that nothing lists. Level 2
   goes from 30 to 33 of 183. See DESIGN, "Three more questions for the running app".
 
-  Still to do: whether the app's own output (the container's log) recorded the failed sign-ins the
-  probes made (V16.3.1, V16.3.2). **The logging question is claimed on 26 September 2026 by session
-  securevibe-e9**, on its own; it is worth more now that the brute-force check deliberately makes
-  failed sign-ins to look for. Password reset needs an entry of
-  its own, and is not claimed. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
+  The logging question is **done on 26 September 2026 by session securevibe-e9**. The probes plant
+  three markers — a sign-in for an account that does not exist, a sign-in that works by an account
+  used for nothing else, and a private page asked for by nobody with a marker in its address — and
+  the container's output is read for them afterwards. Finding them credits V16.3.1 and V16.3.2;
+  *not* finding them is not assessed and never a finding, because an app that logs to a file or a
+  service writes nothing there and is not logging any less for it. V16.3.1 needs both sign-ins
+  found, since the requirement asks for both. Level 2 goes from 33 to 35 of 183. See DESIGN, "What
+  the app wrote down". Password reset needs an entry of its own, and is not claimed. An `upload` entry lets the probes send an oversized file, a file whose contents do not match
   its extension, and a script, which reaches V5.2.1, V5.2.2, V5.3.1, and V3.2.1 at Level 1.
   **The `upload` entry is done on 26 September 2026 by session securevibe-e9.** `[stack.run.users]`
   takes an `upload` entry — the path, the file field, the other form fields, an optional

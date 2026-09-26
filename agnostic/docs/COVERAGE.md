@@ -30,7 +30,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 81 (23%) | 2 | 262 |
+| OWASP ASVS 5.0 | 345 | 83 (24%) | 2 | 260 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
@@ -42,7 +42,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools |
 |---|---|---|---|---|---|---|---|
 | L1 | 70 | 45 | 7 | 1 | 3 | 24 | 20 |
-| L2 | 183 | 33 | 4 | 0 | 10 | 5 | 21 |
+| L2 | 183 | 35 | 4 | 0 | 10 | 7 | 21 |
 | L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
@@ -66,7 +66,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 2 | 0 | 11 |
 | V15 Secure Coding and Architecture | 21 | 4 | 0 | 17 |
-| V16 Security Logging and Error Handling | 17 | 2 | 0 | 15 |
+| V16 Security Logging and Error Handling | 17 | 4 | 0 | 13 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -88,7 +88,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (40)
+### Settled by asking the running app (42)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -131,6 +131,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
+| V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
+| V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
 
 ### Settled by known-vulnerability data (1)

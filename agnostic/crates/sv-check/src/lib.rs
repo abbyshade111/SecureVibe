@@ -13,6 +13,7 @@ pub mod cvss;
 pub mod design;
 pub mod finding;
 pub mod junit;
+pub mod logs;
 pub mod notes;
 pub mod probes;
 pub mod sbom;

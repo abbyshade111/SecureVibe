@@ -339,7 +339,19 @@ impl DockerBackend {
             }
             None => false,
         };
-        sv_check::signed_in::run(&mut http, users, &accounts, seeded, &plan.policy)
+        let mut out = sv_check::signed_in::run(&mut http, users, &accounts, seeded, &plan.policy);
+
+        // Last of all, and only after everything the probes do: whether the app wrote any of it
+        // down. Reading the log earlier would be reading it before the events happened.
+        let log = self
+            .docker(&["logs", "--tail", "2000", app])
+            .map(|(_, out)| out)
+            .unwrap_or_default();
+        let logged = sv_check::logs::evaluate(&out.log_markers, &log);
+        out.verified.extend(logged.verified);
+        out.not_assessed.extend(logged.not_assessed);
+        out.steps.extend(logged.steps);
+        out
     }
 }
 
