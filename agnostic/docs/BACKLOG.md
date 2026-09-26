@@ -135,6 +135,9 @@ another session is not a claim.
 
   Left for whoever claims it: the recipe committed with a `.dockerignore`, CI that builds and
   publishes the image, a test in the shape above, and the walk-through's MCP section written for it.
+  **Claimed on 26 September 2026 by session securevibe-e9**, all but publishing: CI will build the
+  image and run the test on every change, and publishing it to a registry — a public package made from
+  the repository — is left for the owner to decide.
 
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as
