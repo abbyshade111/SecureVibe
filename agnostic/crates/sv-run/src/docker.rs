@@ -348,6 +348,7 @@ impl DockerBackend {
             .map(|(_, out)| out)
             .unwrap_or_default();
         let logged = sv_check::logs::evaluate(&out.log_markers, &log);
+        out.findings.extend(logged.findings);
         out.verified.extend(logged.verified);
         out.not_assessed.extend(logged.not_assessed);
         out.steps.extend(logged.steps);

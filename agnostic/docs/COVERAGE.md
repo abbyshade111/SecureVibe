@@ -31,10 +31,10 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 86 (25%) | 3 | 256 |
+| OWASP ASVS 5.0 | 345 | 90 (26%) | 3 | 252 |
 | OWASP AISVS 1.0 | 191 | 8 (4%) | 0 | 183 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 5 | 31 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
 ## ASVS 5.0 by level
 
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 47 | 7 | 1 | 3 | 24 | 20 | 2 |
-| L2 | 183 | 36 | 4 | 0 | 10 | 7 | 21 | 1 |
+| L2 | 183 | 40 | 4 | 0 | 10 | 11 | 21 | 1 |
 | L3 | 92 | 3 | 1 | 0 | 0 | 0 | 2 | 0 |
 
 With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep, and only for the languages its rules are written for.
@@ -56,7 +56,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V2 Validation and Business Logic | 13 | 0 | 0 | 13 |
 | V3 Web Frontend Security | 31 | 16 | 0 | 15 |
 | V4 API and Web Service | 16 | 2 | 0 | 14 |
-| V5 File Handling | 13 | 5 | 0 | 8 |
+| V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 12 | 0 | 35 |
 | V7 Session Management | 19 | 5 | 0 | 14 |
 | V8 Authorization | 13 | 2 | 0 | 11 |
@@ -67,7 +67,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13 Configuration | 21 | 5 | 1 | 15 |
 | V14 Data Protection | 13 | 2 | 0 | 11 |
 | V15 Secure Coding and Architecture | 21 | 4 | 0 | 17 |
-| V16 Security Logging and Error Handling | 17 | 4 | 0 | 13 |
+| V16 Security Logging and Error Handling | 17 | 6 | 0 | 11 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -89,7 +89,7 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (42)
+### Settled by asking the running app (46)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -107,6 +107,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
 | V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
 | V5.3.1 | L1 | Signed in: `probe.uploaded-file-executed` |
+| V5.4.1 | L2 | Signed in: `probe.download-unnamed` |
+| V5.4.2 | L2 | Signed in: `probe.download-name-injected` |
 | V6.2.1 | L1 | Signed in: `probe.short-password-accepted` |
 | V6.2.2 | L1 | Signed in: `probe.password-change` |
 | V6.2.3 | L1 | Signed in: `probe.password-change-without-current` |
@@ -132,6 +134,8 @@ With nothing beyond plain `sv check`, 12 ASVS requirements can be settled. 28 ca
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
+| V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
+| V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
@@ -235,10 +239,11 @@ control as supporting evidence.
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
 | C Reliability & Resilience | 8 | 1 | 5 | 1 |
 | D Access Control & Secure Communication | 7 | 2 | 5 | 3 |
-| E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 0 |
+| E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
 - SBD-AC-01: through V12.3.1
 - SBD-AC-03: through V8.2.1
 - SBD-AC-05: through V13.3.1
+- SBD-MT-01: through V16.2.1

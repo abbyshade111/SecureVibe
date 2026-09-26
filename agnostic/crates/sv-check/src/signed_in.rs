@@ -490,6 +490,27 @@ const UPLOAD_RENDERED: Rule = Rule {
           \u{2014} any one stops the browser treating the file as a page of this app.",
 };
 
+const DOWNLOAD_UNNAMED: Rule = Rule {
+    rule_id: "probe.download-unnamed",
+    requirement_ids: &["V5.4.1"],
+    cwe: &["CWE-116"],
+    impact: "The browser names the file from the address instead, which is whatever the person who \
+             uploaded it chose, and a name somebody else chose is the start of most download tricks.",
+    fix: "Send `Content-Disposition: attachment; filename=\"...\"` with a name the app made or \
+          cleaned, not the one that came in with the upload.",
+};
+
+const DOWNLOAD_NAME_INJECTED: Rule = Rule {
+    rule_id: "probe.download-name-injected",
+    requirement_ids: &["V5.4.2"],
+    cwe: &["CWE-113"],
+    impact: "Whoever names the file writes part of the response header, and can change how the \
+             browser handles the download, or what it thinks the file is.",
+    fix: "Quote the name and escape what is inside it (RFC 6266), or better, send \
+          `filename*=UTF-8''` with the name percent-encoded; most frameworks have a helper for \
+          exactly this.",
+};
+
 const SESSION_COOKIE: Rule = Rule {
     rule_id: "probe.session-cookie-attributes",
     requirement_ids: &["V3.3.2", "V3.3.4"],
@@ -2234,6 +2255,209 @@ fn upload_checks(
         return;
     };
     served_upload_checks(http, upload, serves_at, session, token.as_deref(), out);
+    download_name_checks(http, upload, serves_at, session, token.as_deref(), out);
+}
+
+/// The parameters of a `Content-Disposition` value, split on `;` the way RFC 6266 means it:
+/// never inside a quoted string, and with `\"` inside one taken as a quote rather than its end.
+///
+/// A naive split on `;` would itself be the bug V5.4.2 is about, so it cannot be how the check
+/// reads the header.
+fn disposition_params(header: &str) -> Vec<(String, String)> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+    let mut escaped = false;
+    for c in header.chars() {
+        if escaped {
+            current.push(c);
+            escaped = false;
+        } else if quoted && c == '\\' {
+            current.push(c);
+            escaped = true;
+        } else if c == '"' {
+            current.push(c);
+            quoted = !quoted;
+        } else if c == ';' && !quoted {
+            parts.push(std::mem::take(&mut current));
+        } else {
+            current.push(c);
+        }
+    }
+    parts.push(current);
+    parts
+        .iter()
+        .filter_map(|p| {
+            let (name, value) = p.split_once('=')?;
+            Some((
+                name.trim().to_lowercase(),
+                value.trim().trim_matches('"').to_owned(),
+            ))
+        })
+        .collect()
+}
+
+/// The name a file comes back under (V5.4.1), and whether a hostile name can break the header it
+/// comes back in (V5.4.2).
+///
+/// V5.4.1 is read off the ordinary GIF the upload check already put in: an upload fetched back is
+/// a download, and the requirement asks that it be served under a name.
+///
+/// V5.4.2 needs a name built to break things. `sv-probe;svinjected=1.gif` is a legal file name
+/// whose `;` and `=` would start a new header parameter if the app wrote the name into
+/// `Content-Disposition` unquoted, and nothing else on earth sets a parameter called `svinjected`.
+/// So the question becomes exact: after the round trip, does the header have a parameter by that
+/// name?
+fn download_name_checks(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    serves_at: &str,
+    session: &Session,
+    token: Option<&str>,
+    out: &mut Outcome,
+) {
+    const HOSTILE: &str = "sv-probe;svinjected=1.gif";
+
+    // ---- V5.4.1: the ordinary file, uploaded before any of this ran.
+    let ordinary_path = serves_at.replace("{name}", "sv-probe.gif");
+    match http.send(&get("download-ordinary", &ordinary_path, session)) {
+        Some(r) if r.status < 400 => {
+            let header = r
+                .header("content-disposition")
+                .unwrap_or_default()
+                .to_owned();
+            let named = disposition_params(&header)
+                .iter()
+                .any(|(k, v)| (k == "filename" || k == "filename*") && !v.is_empty());
+            out.steps.push(format!(
+                "fetched the ordinary upload back from {ordinary_path}: {}",
+                if named {
+                    "served under a name"
+                } else {
+                    "served with no file name"
+                }
+            ));
+            if named {
+                out.verified.push(crate::Verified::new(
+                    "probe.download-unnamed",
+                    &["V5.4.1"],
+                    format!(
+                        "an uploaded file fetched back from {ordinary_path} came with \
+                         `Content-Disposition: {}`, naming the file",
+                        header.trim()
+                    ),
+                ));
+            } else {
+                out.findings.push(finding(
+                    &DOWNLOAD_UNNAMED,
+                    "An uploaded file is served back without a file name",
+                    Severity::Low,
+                    format!(
+                        "{ordinary_path} answered {} with {}, so nothing tells the browser what \
+                         the file is called; it falls back to a name taken from the address.",
+                        r.status,
+                        if header.is_empty() {
+                            "no `Content-Disposition` header".to_owned()
+                        } else {
+                            format!(
+                                "`Content-Disposition: {}` and no file name in it",
+                                header.trim()
+                            )
+                        }
+                    ),
+                ));
+            }
+        }
+        answer => out.not_assessed.push((
+            "V5.4.1".to_owned(),
+            format!(
+                "The ordinary upload could not be fetched back from {ordinary_path} ({}), so \
+                 nothing here saw what name it is served under.",
+                status(&answer)
+            ),
+        )),
+    }
+
+    // ---- V5.4.2: a name built to break the header.
+    let hostile = Upload {
+        id: "upload-hostile-name",
+        name: HOSTILE,
+        contents: format!("{GIF_MAGIC}sv-probe-hostile-name"),
+    };
+    let stored = send_upload(http, upload, &hostile, session, token);
+    if stored.as_ref().is_none_or(|r| r.status >= 400) {
+        out.not_assessed.push((
+            "V5.4.2".to_owned(),
+            format!(
+                "The app refused a file named `{HOSTILE}` ({}), which is a sound thing to do with \
+                 a name like that, but it means nothing here saw such a name served back.",
+                status(&stored)
+            ),
+        ));
+        return;
+    }
+    let path = serves_at.replace("{name}", HOSTILE);
+    let fetched = http.send(&get("download-hostile", &path, session));
+    let Some(fetched) = fetched.filter(|r| r.status < 400) else {
+        out.not_assessed.push((
+            "V5.4.2".to_owned(),
+            format!(
+                "A file named `{HOSTILE}` was accepted but could not be fetched back from {path}. \
+                 The app may have stored it under a safer name, which would be right; either way \
+                 nothing here saw the name served."
+            ),
+        ));
+        return;
+    };
+    let header = fetched
+        .header("content-disposition")
+        .unwrap_or_default()
+        .to_owned();
+    let params = disposition_params(&header);
+    let injected = params.iter().any(|(k, _)| k == "svinjected");
+    let named = params
+        .iter()
+        .any(|(k, v)| (k == "filename" || k == "filename*") && !v.is_empty());
+    out.steps.push(format!(
+        "fetched a file named `{HOSTILE}` back: {}",
+        if injected {
+            "its name broke the header"
+        } else if named {
+            "its name was served intact"
+        } else {
+            "served with no file name"
+        }
+    ));
+    if injected {
+        out.findings.push(finding(
+            &DOWNLOAD_NAME_INJECTED,
+            "A file name is written into a response header unescaped",
+            Severity::Medium,
+            format!(
+                "A file named `{HOSTILE}` came back from {path} with `Content-Disposition: {}`. The \
+                 `;` in the name ended the file name and began a parameter of its own.",
+                header.trim()
+            ),
+        ));
+    } else if named {
+        out.verified.push(crate::Verified::new(
+            DOWNLOAD_NAME_INJECTED.rule_id,
+            DOWNLOAD_NAME_INJECTED.requirement_ids,
+            format!(
+                "a file named `{HOSTILE}` fetched back from {path} with `Content-Disposition: {}`, \
+                 its name kept inside the file name rather than starting a parameter",
+                header.trim()
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V5.4.2".to_owned(),
+            format!(
+                "A file named `{HOSTILE}` came back from {path} with no file name in its \
+                 headers, so there was no served name to judge."
+            ),
+        ));
+    }
 }
 
 /// The two questions that need the file fetched back again.
@@ -3350,6 +3574,14 @@ mod tests {
         runs_uploaded_code: bool,
         /// Serves an uploaded .html as text/html with nothing telling the browser not to render it.
         renders_uploaded_pages: bool,
+        /// Serves an uploaded file back with no file name in `Content-Disposition`.
+        download_no_filename: bool,
+        /// Writes the uploaded name into `Content-Disposition` as it came in, unquoted.
+        download_name_raw: bool,
+        /// Quotes the uploaded name but does not clean it. Not a fault: a `;` inside a quoted
+        /// string is part of the name, and this is here so a check that split on it would be
+        /// caught accusing a correct app.
+        download_name_quoted_uncleaned: bool,
         /// Refuses every upload, whatever it is. An app whose upload path does not work as
         /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
         upload_broken: bool,
@@ -3864,7 +4096,35 @@ mod tests {
                             contents,
                         ));
                     }
-                    Self::respond(200, vec![("Content-Type", "image/gif".into())], contents)
+                    // A correct download: a name the app cleaned, quoted. Each fault is its own
+                    // switch, so a test that breaks one is not quietly relying on the other.
+                    let disposition = if self.flaws.download_no_filename {
+                        "attachment".to_owned()
+                    } else if self.flaws.download_name_raw {
+                        format!("attachment; filename={name}")
+                    } else if self.flaws.download_name_quoted_uncleaned {
+                        format!("attachment; filename=\"{name}\"")
+                    } else {
+                        let clean: String = name
+                            .chars()
+                            .map(|c| {
+                                if c.is_ascii_alphanumeric() || ".-_".contains(c) {
+                                    c
+                                } else {
+                                    '_'
+                                }
+                            })
+                            .collect();
+                        format!("attachment; filename=\"{clean}\"")
+                    };
+                    Self::respond(
+                        200,
+                        vec![
+                            ("Content-Type", "image/gif".into()),
+                            ("Content-Disposition", disposition),
+                        ],
+                        contents,
+                    )
                 }
                 ("POST", "/notes") => {
                     let Some(owner) = user else {
@@ -5728,6 +5988,179 @@ mod tests {
             rule_ids(&rendered)
         );
         assert!(!verified_ids(&rendered).contains(&UPLOAD_RENDERED.rule_id));
+    }
+
+    #[test]
+    fn a_disposition_header_is_split_the_way_rfc_6266_means_it() {
+        // A `;` inside a quoted name is part of the name; outside quotes it starts a parameter.
+        // Splitting naively on `;` would be the very bug V5.4.2 is about.
+        let quoted = disposition_params(r#"attachment; filename="sv-probe;svinjected=1.gif""#);
+        assert!(!quoted.iter().any(|(k, _)| k == "svinjected"), "{quoted:?}");
+        assert!(
+            quoted
+                .iter()
+                .any(|(k, v)| k == "filename" && v == "sv-probe;svinjected=1.gif")
+        );
+
+        let raw = disposition_params("attachment; filename=sv-probe;svinjected=1.gif");
+        assert!(raw.iter().any(|(k, _)| k == "svinjected"), "{raw:?}");
+
+        // An escaped quote stays inside the quoted string rather than ending it.
+        let escaped = disposition_params(r#"attachment; filename="a\"b;svinjected=1.gif""#);
+        assert!(
+            !escaped.iter().any(|(k, _)| k == "svinjected"),
+            "{escaped:?}"
+        );
+
+        let star = disposition_params("attachment; filename*=UTF-8''sv-probe%3Bsvinjected%3D1.gif");
+        assert!(star.iter().any(|(k, _)| k == "filename*"));
+        assert!(!star.iter().any(|(k, _)| k == "svinjected"));
+    }
+
+    #[test]
+    fn a_download_is_named_and_a_hostile_name_does_not_break_its_header() {
+        let o = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        for rule in [DOWNLOAD_UNNAMED.rule_id, DOWNLOAD_NAME_INJECTED.rule_id] {
+            assert!(
+                verified_ids(&o).contains(&rule),
+                "{rule} was not confirmed: {:?}",
+                o.not_assessed
+            );
+            assert!(
+                !rule_ids(&o).contains(&rule),
+                "{rule} also raised a finding"
+            );
+        }
+    }
+
+    #[test]
+    fn each_download_fault_is_found_by_its_own_rule() {
+        for (flaw, rule) in [
+            (
+                Flaws {
+                    download_no_filename: true,
+                    ..Default::default()
+                },
+                DOWNLOAD_UNNAMED.rule_id,
+            ),
+            (
+                Flaws {
+                    download_name_raw: true,
+                    ..Default::default()
+                },
+                DOWNLOAD_NAME_INJECTED.rule_id,
+            ),
+        ] {
+            let o = run_against(
+                flaw,
+                &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+            );
+            let found = rule_ids(&o);
+            assert!(found.contains(&rule), "{rule} did not fire: {found:?}");
+            let other = if rule == DOWNLOAD_UNNAMED.rule_id {
+                DOWNLOAD_NAME_INJECTED.rule_id
+            } else {
+                DOWNLOAD_UNNAMED.rule_id
+            };
+            assert!(
+                !found.contains(&other),
+                "{rule}'s fault also raised {other}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_quoted_name_with_a_semicolon_in_it_is_correct_and_credited() {
+        // The second witness for reading the header properly, end to end. Quoting is enough under
+        // RFC 6266 — the app does not have to clean the name as well — and a check that split on
+        // every `;` would accuse this correct app of the exact fault it avoided.
+        let o = run_against(
+            Flaws {
+                download_name_quoted_uncleaned: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(
+            !rule_ids(&o).contains(&DOWNLOAD_NAME_INJECTED.rule_id),
+            "a correctly quoted name was reported as injected: {:?}",
+            rule_ids(&o)
+        );
+        assert!(verified_ids(&o).contains(&DOWNLOAD_NAME_INJECTED.rule_id));
+    }
+
+    #[test]
+    fn the_run_note_says_when_a_name_broke_the_header() {
+        // Second witness for the injection finding, on the surface the owner reads.
+        let o = run_against(
+            Flaws {
+                download_name_raw: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        let note = o.steps.join(" | ");
+        assert!(note.contains("its name broke the header"), "{note}");
+        let fine = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(
+            fine.steps
+                .join(" | ")
+                .contains("its name was served intact")
+        );
+    }
+
+    #[test]
+    fn the_run_note_says_when_a_download_has_no_name() {
+        // Second witness for V5.4.1, on the note rather than the verdict: "served under a name" and
+        // "served with no file name" are what the owner reads, and a check that stopped telling
+        // them apart would leave the findings list looking clean.
+        let unnamed = run_against(
+            Flaws {
+                download_no_filename: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        let note = unnamed.steps.join(" | ");
+        assert!(note.contains("served with no file name"), "{note}");
+        assert!(
+            !note.contains("upload back from /files/sv-probe.gif: served under a name"),
+            "{note}"
+        );
+
+        let named = run_against(
+            Flaws::default(),
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(named.steps.join(" | ").contains("served under a name"));
+    }
+
+    #[test]
+    fn with_no_file_name_served_the_hostile_name_has_nothing_to_break() {
+        // V5.4.2 is about a name that is served. When none is, there is nothing to judge, and the
+        // absence is V5.4.1's finding to make, not V5.4.2's.
+        let o = run_against(
+            Flaws {
+                download_no_filename: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64)),
+        );
+        assert!(!rule_ids(&o).contains(&DOWNLOAD_NAME_INJECTED.rule_id));
+        assert!(!verified_ids(&o).contains(&DOWNLOAD_NAME_INJECTED.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V5.4.2" && why.contains("no file name")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]
