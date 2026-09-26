@@ -283,6 +283,10 @@ another session is not a claim.
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
   its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
   could look for the same. Most of AISVS is about training and operating models and stays out of reach.
+  **Potentially a duplicate** (noted on 26 September 2026 by session relaxed-nobel-27acfa): an entry
+  with the same title further down, under the done items, is struck through and says it was done on
+  25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
+  original that was never struck out.
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
   exactly as typed, not cut short or case-folded), V6.2.6 (password fields masked), V6.2.7 (paste not
@@ -906,7 +910,8 @@ another session is not a claim.
   checked against a real SARIF run. See DESIGN, "Semgrep: a thousand rules". Left over from it: the
   map is keyed on the registry's form of a rule id, which was reproduced rather than observed, so one
   run of `p/security-audit` on a machine that can reach semgrep.dev is owed (the fixture's README has
-  the command). `staticcheck` and `phpcs-security-audit` are each a data entry.
+  the command). **That registry run claimed on 26 September 2026 by session
+  relaxed-nobel-27acfa**, which can reach semgrep.dev; the rest of this entry is not claimed. `staticcheck` and `phpcs-security-audit` are each a data entry.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
