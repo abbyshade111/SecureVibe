@@ -312,6 +312,9 @@ another session is not a claim.
      entry for the code step; and the codes computed by `sv` (HMAC-SHA1, RFC 6238) — the current
      one as the control, the same one again, one from five steps back, and a fresh one after the
      next step begins. V6.5.5 needs no slow mode this way: an old code is computed, not waited for.
+     **Done on 26 September 2026.** Level 2 goes from 50 to 51 of 183. The order changed on the way:
+     an old code tried after a used one is refused by the rule that stops reuse, whatever its age,
+     so it now goes first. See DESIGN, "Two-factor codes, computed rather than waited for".
   5. **A slow mode (2).** `sv run --slow`, waiting out the idle timeout the owner states, then asking
      whether the session is dead (V7.3.1, V7.3.2). Belongs with the policy numbers.
   6. **A real browser (~6, and two existing checks made stronger).** Headless Chromium, run as a

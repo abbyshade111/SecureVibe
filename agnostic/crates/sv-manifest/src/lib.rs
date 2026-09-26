@@ -227,7 +227,9 @@ pub struct OwnedSection {
 pub struct UsersSection {
     /// A command run inside the app's container once it is up, which creates the accounts. It is
     /// given `SV_USER_A`, `SV_PASSWORD_A`, `SV_USER_B`, `SV_PASSWORD_B` and, when `admin` pages are
-    /// listed, `SV_ADMIN` and `SV_ADMIN_PASSWORD`.
+    /// listed, `SV_ADMIN` and `SV_ADMIN_PASSWORD`; when `totp` is set, `SV_USER_TOTP`,
+    /// `SV_PASSWORD_TOTP`, and `SV_TOTP_SECRET` (base32) for an account to enroll in two-factor
+    /// sign-in with that secret.
     #[serde(default)]
     pub seed: Option<String>,
     /// Or the app's own sign-up request, used for both ordinary users when there is no `seed`.
@@ -270,6 +272,11 @@ pub struct UsersSection {
     /// A flow of more than one step, so the probes can try skipping one.
     #[serde(default)]
     pub flow: Option<FlowSection>,
+    /// The second step of a two-factor sign-in: `{code}` for the six-digit code, sent in the
+    /// session the password step began. Needs `seed`, which is given a third account and its
+    /// secret (`SV_USER_TOTP`, `SV_PASSWORD_TOTP`, `SV_TOTP_SECRET`) to enroll.
+    #[serde(default)]
+    pub totp: Option<RequestTemplate>,
 }
 
 /// Something the app emails a code for — a password reset, or a sign-in — asked for, and the code

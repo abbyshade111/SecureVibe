@@ -35,7 +35,8 @@ health = "/"              # a path that returns 200 once the app is up
 # reported as "not assessed". `sv` makes two ordinary accounts, A and B, with fresh passwords.
 # The app's folder is read-only while `sv` runs it, so keep its data somewhere like /tmp.
 # seed = "python seed.py"   # creates them; gets SV_USER_A, SV_PASSWORD_A, SV_USER_B, SV_PASSWORD_B,
-#                           # and SV_ADMIN, SV_ADMIN_PASSWORD when `admin` is listed
+#                           # and SV_ADMIN, SV_ADMIN_PASSWORD when `admin` is listed, and
+#                           # SV_USER_TOTP, SV_PASSWORD_TOTP, SV_TOTP_SECRET when `totp` is set
 # signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
@@ -60,6 +61,11 @@ health = "/"              # a path that returns 200 once the app is up
 #   Anything done in more than one step, in order. `completed` is text the last step answers with
 #   only when the whole thing really finished — in the page, or in the address it sends you on to.
 #   The probes go through it once in order, then try skipping steps as another user.
+# totp = { path = "/login/2fa", form = { code = "{code}", csrf_token = "{csrf}" } }
+#   The code step of a two-factor sign-in, sent after the password in the same session. Needs
+#   `seed`: make one more account from SV_USER_TOTP and SV_PASSWORD_TOTP, and enroll it in
+#   two-factor sign-in with SV_TOTP_SECRET (base32, as an authenticator app takes it). The probes
+#   work out its codes themselves and try one twice, and one from a few minutes ago.
 
 [data]
 # What kinds of information the app holds about people.
