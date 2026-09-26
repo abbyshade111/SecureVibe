@@ -29,6 +29,8 @@ describe('route patterns', () => {
     assert.equal(matchesRoutePath('/notes/:id', '/notes'), false);
     assert.equal(matchesRoutePath('/notes/:id', '/notes/42/edit'), false);
     assert.equal(matchesRoutePath('/notes/:id/edit', '/notes/42/edit'), true);
+    // Same number of segments, and the parameter's own one empty: still not a match.
+    assert.equal(matchesRoutePath('/notes/:id/edit', '/notes//edit'), false);
     assert.equal(matchesRoutePath('/account/api-keys/:id/revoke', '/account/api-keys/k_1/revoke'), true);
   });
 
