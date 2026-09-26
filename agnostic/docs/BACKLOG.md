@@ -549,7 +549,9 @@ another session is not a claim.
      browser's own is signed out with the app's control, and what the app kept in the browser's
      storage for the signed-in person has to be gone. See DESIGN, "Signing out in the browser".
      **With that, the item is done.** Not part of it: V3.5.2 needs no browser (a request without a preflight can be sent directly) and belongs with
-     the cross-site checks; V8.3.1 is an owner's answer and stays one. And one found on the way: an
+     the cross-site checks (**claimed on 26 September 2026 by session securevibe-e8**: the `owned`
+     create request, when it is JSON, sent from another origin as `text/plain`, which no browser
+     preflights); V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
      in every real browser, which a check could say directly.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
