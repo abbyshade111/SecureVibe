@@ -1579,6 +1579,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
     let design_questions = sv_check::design::Questions::load(&design_questions_path())?;
+    let human_checks = sv_check::human::HumanChecks::load(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/human-checks.json"),
+    )?;
     let design_answers: std::collections::BTreeMap<String, sv_check::design::Answer> = manifest
         .design
         .iter()
@@ -1663,6 +1666,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         not_for_tests,
         documented: &documented,
         attested: &design.attested,
+        human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((&threat_rules, &ctx)),
     }))
 }

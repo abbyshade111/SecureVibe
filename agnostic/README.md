@@ -96,6 +96,12 @@ what it says. A check that found a problem always wins over what the notes say, 
 settle a threat in the threat model — otherwise an app could talk its way out of one by describing
 itself.
 
+Ninety-odd of the requirements that apply to a typical app cannot be settled by any tool at all, and
+the report now has a section for them: **what only you can check**, with a line each saying what
+doing something about it involves — write it down in the notes, answer it in `[design]`, or go and
+look at the live site and here is what at. Nothing on that list is counted as met. Doing the thing is
+what would change that, not reading about it.
+
 One thing you can state as a number, and `sv` will hold your app to it: how many wrong passwords in
 a row it should allow before pushing back. Put `failed-sign-ins = 5` under `[policy]` in
 `securevibe.toml` and the checks make six wrong attempts and watch what the app does. That settles

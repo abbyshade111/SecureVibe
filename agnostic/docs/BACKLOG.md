@@ -16,7 +16,12 @@ another session is not a claim.
   gathers all three sources, level 1 first. The 58 Secure by Design and AISVS controls get a group
   explanation rather than 58 lines: those standards are checklists already, and 58 more rows is the
   wall of text this work exists to remove. Nothing here credits anything — each stays unverified with
-  the instruction beside it.
+  the instruction beside it. **Done on 26 September 2026.** `data/human-checks.json` (20 entries),
+  `crates/sv-check/src/human.rs` gathering all three catalogs, and a "What only you can check"
+  section above the tests, level 1 first. See DESIGN, "What only you can check". Left over: the 58
+  design-review controls are counted rather than explained, which is deliberate, and the 33 ASVS
+  level 2 entries could use the same treatment as the level 1 ones if the owner wants them broken
+  out.
 
 - ~~**A clean credential scan claims V11.1.1 and C9.5.4.**~~ Withdrawn on 25 September 2026 by session
   securevibe-e8: not a fault. V11.1.1 and V13.3.1 are on `manualOnly` in `data/knowledge/applicability.json`,

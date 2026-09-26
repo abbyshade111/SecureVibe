@@ -61,6 +61,7 @@ fn inputs<'a>(
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        human: None,
         threats: None,
     }
 }
@@ -623,6 +624,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         not_for_tests: Default::default(),
         documented: &[],
         attested: &[],
+        human: None,
         threats: None,
     })
 }
@@ -1247,5 +1249,151 @@ mod same_story {
                 "it must be foldable, not a plain heading: {before}"
             );
         }
+    }
+}
+
+/// The checklist of what only a person can check.
+mod only_you {
+    use super::*;
+
+    fn catalogs() -> (
+        sv_check::notes::Catalog,
+        sv_check::design::Questions,
+        sv_check::human::HumanChecks,
+    ) {
+        let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        (
+            sv_check::notes::Catalog::load(&data.join("security-notes.json")).unwrap(),
+            sv_check::design::Questions::load(&data.join("design-questions.json")).unwrap(),
+            sv_check::human::HumanChecks::load(&data.join("human-checks.json")).unwrap(),
+        )
+    }
+
+    fn report_with_and_without() -> (sv_report::Report, sv_report::Report) {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec![
+                "V6.1.1".into(),
+                "V12.2.2".into(),
+                "V8.3.1".into(),
+                "V1.2.2".into(),
+            ],
+            ..Default::default()
+        };
+        // These three ask for a written decision, a design answer, or a look at production, so a
+        // test of the application cannot show them — which is what puts them on this list rather
+        // than under "tests worth writing". The CLI works this out from the applicability data;
+        // here it is stated, and without it every one of them lands in tests_to_write and the list
+        // under test is empty.
+        let not_for_tests: BTreeSet<String> = ["V6.1.1", "V12.2.2", "V8.3.1"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        let mut plain_inputs = inputs(&f, &buckets, vec![], &[]);
+        plain_inputs.not_for_tests = not_for_tests.clone();
+        let plain = build(plain_inputs);
+        let (notes, design, human) = catalogs();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.not_for_tests = not_for_tests;
+        i.human = Some((&notes, &design, &human));
+        (build(i), plain)
+    }
+
+    #[test]
+    fn nothing_here_credits_a_requirement() {
+        // The one thing this section could get wrong. An instruction for how to check something is
+        // not the check: every requirement on the list must read exactly as it did before the list
+        // existed, and every count must be the same number.
+        let (with, without) = report_with_and_without();
+        assert_eq!(
+            with.counts.checked, without.counts.checked,
+            "the checklist changed the checked count"
+        );
+        assert_eq!(with.counts.documented, without.counts.documented);
+        assert_eq!(with.counts.attested, without.counts.attested);
+        assert_eq!(
+            with.counts.not_verified, without.counts.not_verified,
+            "the checklist moved a requirement out of not-verified"
+        );
+        for (a, b) in with.requirements.iter().zip(&without.requirements) {
+            assert_eq!(a.id, b.id);
+            assert_eq!(a.status, b.status, "{} changed status", a.id);
+        }
+        assert!(
+            !with.only_you_can_check.is_empty(),
+            "and the list is not empty, or this proves nothing"
+        );
+
+        // Asserted directly, not by comparing the two reports. The first version of this test did
+        // only the comparison above, and a mutation that credited every requirement on the list
+        // was caught by four other tests and not by this one — because the crediting happens in
+        // code that runs whether or not the catalogs were supplied, so both sides moved together
+        // and the comparison stayed equal. A guard that can only see a difference cannot see a
+        // change that applies to everything.
+        for item in &with.only_you_can_check {
+            let line = with
+                .requirements
+                .iter()
+                .find(|r| r.id == item.id)
+                .unwrap_or_else(|| panic!("{} is on the list but not in the report", item.id));
+            assert_eq!(
+                line.status,
+                Status::NotVerified,
+                "{} is on the checklist and reads as {}: an instruction for how to check \
+                 something is not the check",
+                item.id,
+                line.status.label()
+            );
+            assert!(
+                line.checked_by.is_empty()
+                    && line.documented_by.is_empty()
+                    && line.attested_by.is_empty(),
+                "{} is on the checklist and carries evidence",
+                item.id
+            );
+        }
+    }
+
+    #[test]
+    fn the_list_is_exactly_what_the_short_version_counts() {
+        // The number at the top and the list below it come from one set. If they drifted, the
+        // report would say "answer these 40" above a table of some other size.
+        let (with, _) = report_with_and_without();
+        assert_eq!(
+            with.only_you_can_check.len() + with.no_instructions_yet,
+            sv_report::bluf::only_a_person_can(&with),
+            "the checklist and the short version disagree about how many there are"
+        );
+    }
+
+    #[test]
+    fn a_requirement_a_test_could_settle_is_not_on_it() {
+        // V1.2.2 is applicable and unverified, and a test could settle it, so it belongs under
+        // "tests worth writing" and not here. Listing it in both sends somebody to do it twice.
+        let (with, _) = report_with_and_without();
+        assert!(
+            !with.only_you_can_check.iter().any(|i| i.id == "V1.2.2"),
+            "{:?}",
+            with.only_you_can_check
+                .iter()
+                .map(|i| &i.id)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn each_row_says_what_to_do_and_how() {
+        let (with, _) = report_with_and_without();
+        for item in &with.only_you_can_check {
+            assert!(
+                !item.route.what_to_do().is_empty() && item.how.len() > 30,
+                "{} does not say what to do: {:?}",
+                item.id,
+                item.how
+            );
+        }
+        let md = sv_report::markdown::compliance(&with);
+        assert!(md.contains("## What only you can check"), "{md}");
+        assert!(sv_report::html::page(&with).contains("What only you can check"));
     }
 }

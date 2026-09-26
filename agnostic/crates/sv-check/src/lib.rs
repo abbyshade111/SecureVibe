@@ -12,6 +12,7 @@ pub mod config;
 pub mod cvss;
 pub mod design;
 pub mod finding;
+pub mod human;
 pub mod junit;
 pub mod notes;
 pub mod probes;

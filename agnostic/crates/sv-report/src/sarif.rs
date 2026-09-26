@@ -110,6 +110,8 @@ mod tests {
             out_of_scope: vec![],
             checklist_above_level: vec![],
             tests_to_write: vec![],
+            only_you_can_check: Vec::new(),
+            no_instructions_yet: 0,
             named_not_credited: vec![],
             not_for_tests: 0,
             threats: Vec::new(),
