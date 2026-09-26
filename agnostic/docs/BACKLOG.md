@@ -1011,7 +1011,8 @@ another session is not a claim.
      over: V4.4.2 for a private socket, which the anonymous check cannot ask. See DESIGN, "V4.4.3 and
      V4.4.4, a private WebSocket's session". **V4.4.2 for a private socket
      claimed on 26 September 2026 by session securevibe-e9**: the foreign-origin handshake sent with the
-     signed-in session, beside the others.
+     signed-in session, beside the others. **Done the same day**; no level changes, since V4.4.2 was already
+     counted through the anonymous probe.
      Whether the log line the log check already finds is in a common format —
      JSON, logfmt, or the common log format (V16.2.4). And small
      manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a

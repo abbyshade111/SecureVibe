@@ -1640,8 +1640,12 @@ session. In order:
 Only the handshake is judged, and it is the handshake that carries the session; what the socket does
 once open is not asked. The anonymous V4.4.2 check still sends its foreign-origin handshake with no
 session, so for a private socket it now reports *not assessed*: the plain handshake is refused, so
-there is no accepted handshake to compare the foreign one with. Asking V4.4.2 with the session is left
-over.
+there is no accepted handshake to compare the foreign one with. So the signed-in check asks V4.4.2
+itself: once the signed-in handshake has upgraded, the same handshake from a site the app has never
+heard of must be refused, and upgrading is a finding under the anonymous probe's rule. The fake app's
+socket that checks the session and not the origin is its witness, beside the one open to anybody;
+end to end, a scratch app that never read `Origin` was found and a copy that refused a foreign one was
+credited.
 
 Verified end to end with a scratch Python app answering the handshake itself: the careful one was
 credited for V4.4.4 and said V4.4.3 was partial; one that lets a handshake with no cookie in raised
