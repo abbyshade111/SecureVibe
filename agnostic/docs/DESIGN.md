@@ -2510,6 +2510,19 @@ anybody in.
 Six breaks, each caught: the old code moved back after the control (three tests), a credit without
 the fresh control, no gate, no wait, the old code only one step back, and reuse never found.
 
+
+**The clock, after review.** The step was read once, at the top, and the current code used twice
+several sign-ins later. When the 30-second step ended in between — ordinary, since a run starts
+anywhere in a step — an app that takes only the current step refused the second use because the code
+was stale, and a reuse flaw was credited as absent. Found in review with a fake clock that moves with
+every request. Now the check waits out a step's last ten seconds before starting, looks at the clock
+again after the second use, and when the step has moved on and the code was refused, tries the pair
+once more with the new step's code; a step that ends twice leaves V6.5.1 not assessed. A control code
+refused as its step ended no longer tells the owner to check their manifest. At three seconds a request
+a sign-in and its second use cannot fit in one step at all, and the answer there is honestly not
+assessed. The V6.5.5 credit now says what it shows — a defined lifetime, shorter than two and a half
+minutes — and that the 30-second bound was not shown, since a sensible allowance for clock drift accepts
+the previous step's code.
 ### Skipping a step (V2.3.1)
 
 `flow` under `[stack.run.users]` names a flow of several steps — a checkout, a sign-up with a
