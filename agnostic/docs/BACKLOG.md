@@ -278,7 +278,8 @@ another session is not a claim.
   3. **A mail sink inside the fence (~7).** A container that accepts the app's email and lets the
      probes read it. Password reset stops needing a person: the reset link can be used twice,
      used late, and inspected for how guessable its code is (V6.4.1, V6.4.3, V6.5.1, V6.5.4,
-     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this.
+     V6.5.5, V6.6.2, V6.6.3). The unclaimed password-reset item is built on this. **Claimed on 26
+     September 2026 by session securevibe-e9**, with the password-reset item it carries.
   4. **A seeded TOTP secret (2).** Not a tool: the `seed` script makes a user with two-factor sign-in
      and hands `sv` the secret, and `sv` computes the codes itself (RFC 6238) to try one twice and
      one late (V6.5.1, V6.5.5).
