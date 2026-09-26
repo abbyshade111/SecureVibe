@@ -287,6 +287,67 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
+- **Testing an app's AI feature: a fake model inside the fence, or garak.** Asked by the owner on
+  26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
+  answered by session securevibe-e9. **For a later decision by the owner; not claimed.** Other sessions
+  are welcome to add their thoughts under "Thoughts" below, each under its own name, as its own commit.
+
+  **What garak could reach.** garak (NVIDIA's model scanner) sends attack prompts to a chat endpoint
+  and scores the replies; pointed at the app's own chat route, through a manifest entry in the shape
+  of the `[stack.run.users]` templates, it speaks to:
+
+  | Requirement | Asks | garak's part |
+  |---|---|---|
+  | C2.1.3 (L1) | prompt injection screened and blocked | its injection probes: a reply following the injected instruction is a finding |
+  | C2.1.2 (L1) | encoded or smuggled input caught | its encoding probes (base64 and the like) |
+  | C7.3.3 (L2) | model output cannot trigger outbound requests | its markdown image exfiltration probe |
+  | C11.1.3 (L1), C11.1.4 (L2) | the model tested against known attacks, and hardened | running it is that test; failures are findings |
+  | C2.1.8 (L3) | many-shot jailbreaks detected | only partly: it has jailbreak probes; whether it has a many-shot one is not checked |
+
+  Beside those, `sv`'s own log check could read the app's log after garak's attempts for C12.2.1 and
+  C12.2.3 (jailbreak and injection attempts detected and alerted on).
+
+  **Only ever findings.** garak samples and its detectors are heuristics: a clean run means these
+  prompts did not get through this time, not that the app resists them, and a hit can be a false
+  alarm, so the report has to show the prompt and the reply. The same rule as semgrep's AI rules
+  (`findings_against`).
+
+  **Two obstacles.**
+  1. **The fence.** The app runs where it cannot reach OpenAI, Anthropic, or anyone else, so its AI
+     feature has no model to call, and garak would be testing an error page. Getting round it means
+     letting the app reach its provider, a hole in the fence and the owner's decision.
+  2. **Money.** Every garak prompt then spends the app's own API credit, and a full run is thousands
+     of prompts. It would need a small probe set, a stated cap, and the owner asked each time, as for
+     any paid step.
+
+  **The alternative: a fake model inside the fence.** A small container speaking the provider's API
+  shape, as the test sign-in provider does for OIDC, that misbehaves on purpose: it obeys injected
+  instructions, repeats its system prompt, answers with a markdown image pointing outside, or answers
+  at great length. That tests the **app's own controls** rather than the model, which are what a small
+  app can actually meet, and it is free, needs no network, and gives exact answers that can credit:
+
+  - C7.3.2 (L2): `sv` plants a marker in what the model is sent, the fake model repeats it, and the
+    marker must not reach the browser.
+  - C7.3.3 (L2): the fake answers with an image or link to an outside address; it must not be
+    fetched or rendered.
+  - C7.1.2 (L1): the fake answers without end; the app has to cut it off.
+  - C2.1.3 (L1): an input carrying a known injection has to be refused before it reaches the model,
+    which the fake can see by whether it was called.
+
+  Its limit: it needs the app to let its provider's address be set (`OPENAI_BASE_URL` and the like),
+  which most SDKs allow and some apps hard-code. That has to be stated in the manifest, and an app
+  that cannot be pointed at it is *not assessed*.
+
+  **Neither reaches** membership inference (C11.2.5), drift and hallucination monitoring (C12.3),
+  the training-data chapters, or most of the agent architecture in C9; those stay the owner's to answer.
+
+  **Thoughts.**
+
+  - *Session securevibe-e9.* The fake model first: free, exact, fenced, and able to credit the
+    controls a small app owns. garak afterwards as an optional adapter, findings only, run only when
+    the owner lets the app reach its provider for the run and agrees to what it spends, with the
+    probe set and a cap named in the manifest.
+
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
   exactly as typed, not cut short or case-folded), V6.2.6 (password fields masked), V6.2.7 (paste not
