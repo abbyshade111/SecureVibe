@@ -1328,6 +1328,86 @@ mod same_story {
 mod only_you {
     use super::*;
 
+    /// The questions the AI coding tool is given to ask the owner.
+    fn interview_report(stated: &[Verified], attested: &[Verified]) -> sv_report::Report {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec![
+                "V6.1.1".into(),
+                "V12.2.2".into(),
+                "V8.3.1".into(),
+                "V2.2.2".into(),
+            ],
+            ..Default::default()
+        };
+        let (notes, design, human) = catalogs();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        i.stated = stated;
+        i.attested = attested;
+        build(i)
+    }
+
+    fn by(check: &str, id: &str) -> Verified {
+        Verified::new(check, &[id], "securevibe.toml".to_owned())
+    }
+
+    #[test]
+    fn every_open_question_is_given_to_the_tool_and_none_the_owner_answered() {
+        let report = interview_report(
+            &[by("design.stated-by-ai", "V2.2.2")],
+            &[by("design.attested", "V8.3.1")],
+        );
+        let asked: Vec<&str> = report
+            .questions_for_you
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
+        // All three routes, and a design question a test could also settle: the interview is wider
+        // than the checklist, which leaves those out.
+        assert!(asked.contains(&"V6.1.1"), "a written decision: {asked:?}");
+        assert!(asked.contains(&"V12.2.2"), "a check by hand: {asked:?}");
+        assert!(
+            asked.contains(&"V2.2.2"),
+            "only the tool has answered this, so the owner is asked to confirm: {asked:?}"
+        );
+        assert!(
+            !asked.contains(&"V8.3.1"),
+            "the owner has answered this; asking again is noise: {asked:?}"
+        );
+        let text = sv_report::interview::text(&report);
+        assert!(
+            text.contains("Only you, the AI coding tool, have answered this so far"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn asking_credits_nothing() {
+        // Writing the questions down is not an answer to any of them.
+        let with = interview_report(&[], &[]);
+        assert!(!with.questions_for_you.is_empty());
+        for item in &with.questions_for_you {
+            let line = with.requirements.iter().find(|r| r.id == item.id).unwrap();
+            assert_eq!(line.status, Status::NotVerified, "{} moved", item.id);
+        }
+    }
+
+    #[test]
+    fn with_nothing_left_to_ask_the_tool_is_told_so_and_not_that_the_app_is_fine() {
+        let f = frameworks();
+        let buckets = Buckets::default();
+        let (notes, design, human) = catalogs();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        let text = sv_report::interview::text(&build(i));
+        assert!(
+            text.contains("0 to ask") && text.contains("does not make the answers right"),
+            "{text}"
+        );
+        assert!(!text.contains("How to ask them"), "{text}");
+    }
+
     fn catalogs() -> (
         sv_check::notes::Catalog,
         sv_check::design::Questions,

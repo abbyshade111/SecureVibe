@@ -41,7 +41,9 @@ const PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
 const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AISVS 1.0 and the \
     Secure by Design checklist. Call securevibe_spec first if the app has no securevibe.toml, and \
     write one from it. securevibe_check never says a requirement passed: read what it says was not \
-    examined before anything else, and do not tell the person the app is secure. It does not start \
+    examined before anything else, and do not tell the person the app is secure. Some questions \
+    only the person can answer; securevibe_questions lists them, for you to ask them one at a \
+    time. It does not start \
     the app or run other security tools; for those, ask the person to run `sv report --run --tools` \
     in a terminal.";
 
@@ -148,6 +150,8 @@ impl Server {
             "securevibe_explain" => explain(&args),
             "securevibe_check" => self.check(&args),
             "securevibe_write_report" => self.write_report(&args),
+            "securevibe_questions" => self.questions(&args),
+            "securevibe_notes_file" => self.notes_file(&args),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
         // A tool that could not do its job says so as its result, which the model reads; a protocol
@@ -208,6 +212,60 @@ impl Server {
         Ok(json!({
             "content": [{ "type": "text", "text": summary(&report) }],
             "structuredContent": structured(&report),
+            "isError": false,
+        }))
+    }
+
+    /// The questions only a person can answer, for the tool to ask them one at a time.
+    fn questions(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let report = self.report_for(&app_dir)?;
+        Ok(json!({
+            "content": [{ "type": "text", "text": sv_report::interview::text(&report) }],
+            "structuredContent": { "questions": report.questions_for_you },
+            "isError": false,
+        }))
+    }
+
+    /// Makes or refreshes security-notes.md, so the tool can write the owner's decisions into it.
+    fn notes_file(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        anyhow::ensure!(
+            app_dir.join("securevibe.toml").exists(),
+            "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
+             into that folder, and try again.",
+            app_dir.display()
+        );
+        // The one file this writes is inside a folder already held to the root, but the file itself
+        // could be a link to somewhere else, and writing follows it. Refused before anything is
+        // written, the same care `securevibe_write_report` takes with its folder.
+        let target = app_dir.join("security-notes.md");
+        if let Ok(meta) = std::fs::symlink_metadata(&target) {
+            anyhow::ensure!(
+                !meta.file_type().is_symlink(),
+                "{} is a link to somewhere else, so it is not written",
+                target.display()
+            );
+        }
+        let written = crate::write_notes_file(&app_dir)?;
+        Ok(json!({
+            "content": [{
+                "type": "text",
+                "text": format!(
+                    "Wrote {}, keeping every answer already in it. {} question{} apply, {} already \
+                     answered. Write the person's decisions under the questions, headed by their \
+                     ids; securevibe_questions says how.",
+                    written.path.display(),
+                    written.asked,
+                    if written.asked == 1 { "" } else { "s" },
+                    written.already
+                ),
+            }],
+            "structuredContent": {
+                "file": written.path.display().to_string(),
+                "asked": written.asked,
+                "alreadyAnswered": written.already,
+            },
             "isError": false,
         }))
     }
@@ -322,6 +380,20 @@ fn tools() -> Value {
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
+            "name": "securevibe_questions",
+            "title": "Questions for the owner",
+            "description": "The questions about the app that only a person can answer: how it is built, the rules it follows, and what to check by hand. Ask the person them one at a time, offering what you know of the code as a tip, and record their answers as the result says. Answers you give yourself are recorded as yours and reported as weaker than the person's.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_notes_file",
+            "title": "Make the security notes file",
+            "description": "Make or refresh security-notes.md in the app's folder, where the person's written decisions go. Keeps everything already written in it.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
+        },
+        {
             "name": "securevibe_spec",
             "title": "How to describe the app",
             "description": "The securevibe.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder from what the app really does; a claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
@@ -403,6 +475,15 @@ fn summary(report: &sv_report::Report) -> String {
         for gap in &report.gaps {
             out.push_str(&format!("- {}: {}\n", gap.what, gap.why));
         }
+    }
+    if !report.questions_for_you.is_empty() {
+        out.push_str(&format!(
+            "\nQUESTIONS FOR THE OWNER — {} that only a person can answer (how the app is built, \
+             the rules it follows, what to check by hand). Call securevibe_questions and ask the \
+             person them one at a time; `sv notes` and `sv questions` in the lines above are the \
+             terminal's way to the same thing.\n",
+            report.questions_for_you.len()
+        ));
     }
     let contradicted: Vec<&sv_report::ClaimLine> = report
         .claims
@@ -758,6 +839,135 @@ mod tests {
         assert!(!wrote, "a report was written to an absolute folder");
     }
 
+    /// A copy of an example app in a folder of its own, for a test that writes into it.
+    fn scratch_app(tag: &str, example: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("sv-mcp-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        for entry in std::fs::read_dir(examples().join(example)).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_file() {
+                std::fs::copy(entry.path(), root.join("app").join(entry.file_name())).unwrap();
+            }
+        }
+        root
+    }
+
+    #[test]
+    fn the_check_points_the_tool_at_the_questions_for_the_owner() {
+        let server = Server::new(&examples()).unwrap();
+        let result = call(
+            &server,
+            "securevibe_check",
+            json!({ "path": "flask-booking" }),
+        );
+        assert!(
+            text(&result).contains("QUESTIONS FOR THE OWNER")
+                && text(&result).contains("securevibe_questions"),
+            "{}",
+            text(&result)
+        );
+    }
+
+    #[test]
+    fn a_contradiction_says_what_in_the_code_contradicted_it() {
+        // "The code says otherwise" left the tool that wrote the manifest with nothing to correct.
+        let server = Server::new(&examples()).unwrap();
+        let result = call(
+            &server,
+            "securevibe_check",
+            json!({ "path": "flask-booking" }),
+        );
+        let line = text(&result)
+            .lines()
+            .find(|l| l.starts_with("- payments:"))
+            .unwrap_or_else(|| panic!("no payments contradiction in:\n{}", text(&result)));
+        assert!(line.contains("What the code shows: `stripe`"), "{line}");
+    }
+
+    #[test]
+    fn the_questions_are_asked_one_at_a_time_and_say_how_to_record_them() {
+        let server = Server::new(&examples()).unwrap();
+        let result = call(
+            &server,
+            "securevibe_questions",
+            json!({ "path": "flask-booking" }),
+        );
+        assert_eq!(result["isError"], false, "{}", text(&result));
+        let t = text(&result);
+        assert!(t.contains(sv_report::interview::HOW_TO_ASK), "{t}");
+        for part in [
+            "1. HOW THE APP IS BUILT",
+            "2. WRITTEN DECISIONS",
+            "3. CHECKS TO MAKE BY HAND",
+        ] {
+            assert!(t.contains(part), "no {part:?} in:\n{t}");
+        }
+        // Every design question that applies is asked, with its own words and where to look.
+        assert!(
+            t.contains(" - V8.3.1: ") && t.contains("Where to look:"),
+            "{t}"
+        );
+        assert!(
+            result["structuredContent"]["questions"]
+                .as_array()
+                .unwrap()
+                .len()
+                > 10
+        );
+    }
+
+    #[test]
+    fn the_notes_file_is_made_in_the_app_and_keeps_what_is_written() {
+        let root = scratch_app("notes", "tested-notes");
+        let server = Server::new(&root).unwrap();
+        let first = call(&server, "securevibe_notes_file", json!({ "path": "app" }));
+        let notes = root.join("app").join("security-notes.md");
+        let made = std::fs::read_to_string(&notes).unwrap_or_default();
+        // An answer written into it survives the next call.
+        let answer =
+            "Sessions end after fifteen minutes idle and eight hours in all, decided by the owner.";
+        let id = made
+            .lines()
+            .find_map(|l| {
+                l.strip_prefix("## ")
+                    .and_then(|r| r.split_whitespace().next())
+            })
+            .map(str::to_owned);
+        if let Some(id) = &id {
+            let edited = made.replacen(sv_check::notes::PLACEHOLDER, answer, 1);
+            std::fs::write(&notes, edited).unwrap();
+        }
+        let second = call(&server, "securevibe_notes_file", json!({ "path": "app" }));
+        let kept = std::fs::read_to_string(&notes).unwrap_or_default();
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(first["isError"], false, "{}", text(&first));
+        assert!(id.is_some(), "the file has no sections to answer:\n{made}");
+        assert!(kept.contains(answer), "the answer was lost:\n{kept}");
+        assert_eq!(
+            second["structuredContent"]["alreadyAnswered"],
+            1,
+            "{}",
+            text(&second)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_notes_file_is_not_written_through_a_link_out_of_the_app() {
+        let root = scratch_app("notes-link", "tested-notes");
+        let outside = root.join("outside.md");
+        std::fs::write(&outside, "not the app's").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("app").join("security-notes.md")).unwrap();
+        // Served from the app folder, so the link's target is outside the root.
+        let server = Server::new(&root.join("app")).unwrap();
+        let result = call(&server, "securevibe_notes_file", json!({}));
+        let after = std::fs::read_to_string(&outside).unwrap();
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(result["isError"], true, "{}", text(&result));
+        assert_eq!(after, "not the app's", "the link was written through");
+    }
+
     #[test]
     fn the_protocol_basics() {
         let server = Server::new(&examples()).unwrap();
@@ -793,6 +1003,8 @@ mod tests {
                 "securevibe_check",
                 "securevibe_write_report",
                 "securevibe_explain",
+                "securevibe_questions",
+                "securevibe_notes_file",
                 "securevibe_spec"
             ]
         );
