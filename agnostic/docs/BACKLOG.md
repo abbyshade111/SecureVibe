@@ -160,6 +160,12 @@ another session is not a claim.
     workflow. Until then an owner builds it with one command, in the README.
   **The owner's decision, 26 September 2026: publish it to GitHub's container registry.** **Claimed
   the same day by session securevibe-e8.**
+  **Done the same day:** a `publish` job in `.github/workflows/rust.yml` pushes
+  `ghcr.io/abbyshade111/securevibe-sv` (`latest` and the commit) on a push to `main`, only after `test`
+  and `image` pass on that commit; it alone may write packages, with the workflow's own token and no
+  third-party action. The README now pulls the published image. Whether the package can be pulled
+  without signing in to GitHub depends on its visibility, which is set in the package's settings on
+  GitHub, and is the owner's to set.
 
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as

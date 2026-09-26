@@ -214,12 +214,16 @@ such as the Claude desktop app.
 
 ### Without installing Rust: the container
 
-`agnostic/Dockerfile` builds `sv` into an image, so the only thing to install is Docker (on a Mac,
-Docker Desktop or Colima). From the repository root:
+`sv` is published as an image, so the only thing to install is Docker (on a Mac, Docker Desktop or
+Colima):
 
 ```bash
-docker build -f agnostic/Dockerfile -t securevibe/sv .
+docker pull ghcr.io/abbyshade111/securevibe-sv
 ```
+
+It is built from `agnostic/Dockerfile` by CI on every change to `main`, once the image has passed its
+test, and tagged `latest` and with the commit it came from. To build it yourself instead, from the
+repository root: `docker build -f agnostic/Dockerfile -t ghcr.io/abbyshade111/securevibe-sv .`
 
 Then the tool starts it in its `.mcp.json`. Use your own folder in all three places, and the full path
 to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/bin`:
@@ -229,7 +233,7 @@ to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/
   "command": "/opt/homebrew/bin/docker",
   "args": ["run", "-i", "--rm", "--network", "none",
            "-v", "/Users/you/code:/Users/you/code",
-           "securevibe/sv", "mcp", "--root", "/Users/you/code"] } } }
+           "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "/Users/you/code"] } } }
 ```
 
 - The folder is mounted at the same path inside, so the paths in findings are your own.
