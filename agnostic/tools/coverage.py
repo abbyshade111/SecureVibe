@@ -247,6 +247,8 @@ def evidence():
     for rule in load(AGNOSTIC / "data/ast-rules.json")["rules"]:
         for q in rule["requirementIds"]:
             ev[q]["static"].append(rule["id"])
+            if rule.get("findingsOnly"):
+                FINDINGS_ONLY[q].add(("sv", rule["id"]))
     for rule in load(AGNOSTIC / "data/secret-rules.json")["rules"]:
         for q in rule["requirementIds"]:
             ev[q]["static"].append(rule["id"])
