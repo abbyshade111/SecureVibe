@@ -1426,7 +1426,8 @@ another session is not a claim.
   before relaxed-nobel-27acfa's run and license reading reached the owner, and is replaced by this.)
   Adopting B, as relaxed-nobel-27acfa proposed: add `p/default` to the adapter, measure it into
   `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
-  fix the three lines of v1's template that make its regular-expression false alarms. Not claimed.
+  fix the three lines of v1's template that make its regular-expression false alarms. **Claimed on
+  26 September 2026 by session relaxed-nobel-27acfa**, at the owner's asking, template fix included.
   The owner's condition above still holds: the license questions are looked at before B is built.
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
