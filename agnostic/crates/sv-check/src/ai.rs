@@ -3138,7 +3138,7 @@ mod tests {
         run(&mut app, &mcp_section(), &context(None, &NO_POLICY)).0
     }
 
-    fn mcp_why<'o>(o: &'o Outcome) -> Vec<&'o str> {
+    fn mcp_why(o: &Outcome) -> Vec<&str> {
         let mut all = why(o, "C10.4.1");
         all.extend(why(o, "C10.4.2"));
         all
