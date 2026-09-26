@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 132 (38%) | 5 | 208 |
-| OWASP AISVS 1.0 | 191 | 13 (7%) | 0 | 178 |
+| OWASP AISVS 1.0 | 191 | 14 (7%) | 0 | 177 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
 
@@ -257,12 +257,12 @@ does not reach.
 | C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 3 | 0 | 31 |
+| C9 Orchestration & Agentic Security | 34 | 4 | 0 | 30 |
 | C10 Model Context Protocol (MCP) Security | 23 | 1 | 0 | 22 |
 | C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-5 of these 13 can only ever be marked *needs attention*: the rules
+5 of these 14 can only ever be marked *needs attention*: the rules
 about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
 show it present, so a clean run credits none of them. Each needs `--tools`.
 
@@ -275,6 +275,7 @@ show it present, so a clean run credits none of them. Each needs `--tools`.
 - C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
+- C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.4.2: found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.

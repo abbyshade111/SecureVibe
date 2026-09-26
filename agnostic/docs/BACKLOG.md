@@ -659,7 +659,9 @@ another session is not a claim.
     not claimed: whether an app acted on a tool call it should have refused is seldom visible from
     outside it, and a check that cannot see the effect could only guess. **C11.2.2 done the same day:** one more
     message than `[policy] ai-requests-per-minute` states, after a minute's wait; credited only when
-    the app's own page still answers afterwards. See DESIGN, "How often it can be asked".
+    the app's own page still answers afterwards. See DESIGN, "How often it can be asked". **C9.6.1
+    done the same day:** a second copy of the app started with the owner's `kill-switch` setting
+    must answer without calling the model. See DESIGN, "A kill switch, tried on a second copy".
 
 - ~~**More Level 1 from the ASVS pass.**~~ Done on 25 September 2026 by session securevibe-e8. From
   the 41 Level 1 requirements no check reached: signed-in questions for V6.2.8 (a password checked
