@@ -12,8 +12,8 @@ still resolves.
   Release and a Zenodo version DOI, **10.5281/zenodo.22984709** (record https://zenodo.org/records/22984709), made
   from the release `v1-paper-doi` on the same commit. Cite that version DOI. The concept DOI (ending 708) always
   follows the repository's latest release, which is now `sv`'s.
-- Tag `v1-final`: the last commit before the move. This branch (`v1`) starts there; the only commit on top of it
-  is this file.
+- Tag `v1-final`: the last commit before the move. This branch (`v1`) starts there; the commits on top of it
+  are this file and one change to how CodeQL keeps its results (see "Known issues at archive time"). Neither touches v1's code.
 
 **What is in this tree.** Everything v1 needs to run and everything that guards it: `server/`, `shared/`,
 `web/`, `templates/` (the app template every build starts from, with its own security test suite), `evals/` (the
@@ -43,6 +43,23 @@ one snapshot from 20 September 2026), `data/` (the OWASP data and the knowledge 
 - The evaluation harness (`npm run eval`, `--only <app>` for one app) builds the golden apps without AI and needs
   the real template `node_modules` from step 2.
 - `npm run self-assess -- --no-ai` is free; without `--no-ai` it spends AI credit.
+
+## Known issues at archive time
+
+CodeQL scanned this code once, on 27 September 2026, and will not scan it again. That was the owner's decision:
+one honest record of what the archived code carries, rather than a list of alerts nobody will work on.
+
+- **How:** the workflow in `.github/workflows/codeql.yml`, started once by hand on `claude/v1-codeql-once` (a
+  branch cut from this one, with the change below). This was run 36336131545, with CodeQL 2.27.1. It covered
+  JavaScript and TypeScript (576 TypeScript, 8 JavaScript, 7 HTML, and 3 workflow files read, none skipped) and
+  Rust. The fixtures, `evals/`, and build output are excluded, as the workflow's `paths-ignore` says.
+- **Result: no open alerts.** The Security tab, filtered to that branch, showed 0 open and 12 closed. A closed
+  alert is one GitHub already had on record as dismissed or fixed from an earlier scan of the same code, and it
+  stays closed when found again. The 12 were not re-examined one by one for this record.
+- **What that does not mean:** CodeQL finds the patterns its queries know. No open alert is not the same as no
+  vulnerability. The code is archived for the paper, not maintained, and should not be deployed.
+- **The one change:** the workflow now also keeps its results as a run artifact for 90 days. That lets the scan
+  be read by someone without access to the Security tab. Nothing starts the workflow on this branch but a person.
 
 ## Patching v1
 
