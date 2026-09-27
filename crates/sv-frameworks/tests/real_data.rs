@@ -220,7 +220,7 @@ fn the_overlay_leaves_almost_no_inherited_never_rules() {
     // statements about v1's Node template: "this app is written in TypeScript for Node.js", "all
     // data lives in its own SQLite database file", "the model is hosted and maintained by the
     // vendor (Anthropic)". For an app `sv` did not write, those are not reasons — they are wrong
-    // statements in a report, which is what ADR-012 exists to prevent.
+    // statements in a report, which is what v1's ADR-012 exists to prevent.
     //
     // The overlay replaces 37 of them. The two left are V15.4 and C5.1, whose reasons say the
     // requirements are ASVS level 3 — honest, and nothing to do with v1.

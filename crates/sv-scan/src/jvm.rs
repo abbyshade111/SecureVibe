@@ -4,7 +4,7 @@
 //! something a project turns on. Both resolve the same versions every time when every version the
 //! build names is exact, so for them "does this app pin what it installs" is answered by reading the
 //! versions rather than by looking for a file. Asking for the file instead reported every Gradle
-//! project without one as pinning nothing, which is the wrong statement ADR-012 exists to stop, and
+//! project without one as pinning nothing, which is the wrong statement v1's ADR-012 exists to stop, and
 //! left every Maven project as an open question forever.
 //!
 //! Each version lands in one of three places:
