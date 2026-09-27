@@ -27,7 +27,20 @@ another session is not a claim.
 
 - **Let the owner confirm what the AI coding tool said, and count it for more.** Asked for by the owner on
   27 September 2026, after trying the interview in VS Code: "give an option for a human to validate
-  information supplied by the AI system to strengthen the evidence on human review." Not claimed.
+  information supplied by the AI system to strengthen the evidence on human review." **Claimed on 27
+  September 2026 by session securevibe-e8**, at the owner's asking, in two steps: first who wrote each
+  notes section (the finding below), then the confirmation itself.
+
+  **The owner's decisions, 27 September 2026** (on the four questions below, each as recommended):
+  1. The nine tool-written sections in the owner's run were reviewed and agreed to by the owner; once a
+     marker exists, they are the owner's.
+  2. **A notes section that does not say who wrote it counts as the AI tool's**, as a design answer
+     without `by` does. `sv` defines one marker line per section and reads nothing else (no guessing at
+     "Decided by the owner"). Existing files are re-asked in the next interview.
+  3. **A confirmation ranks level with the owner's own record of the same kind** (attested, checked by
+     hand, documented), shown as confirmed with the owner's `how`, and never *checked*.
+  4. **The owner or anyone named may confirm**, at the same rank, the name printed; `sv` cannot verify
+     who anyone is, so a named reviewer does not rank higher.
 
   **Today:** when the owner does not know an answer and the tool answers from the code, it is recorded
   `by = "ai-tool"` and shown as *stated by the AI coding tool*, the lowest tier that counts for anything
