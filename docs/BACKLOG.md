@@ -20,6 +20,8 @@ another session is not a claim.
   symbolic links, and no panic anywhere on this repository's own 58,000 lines.
 
   **Faults, most serious first.**
+  **Items 7, 1, and 3 claimed together on 27 September 2026 by session securevibe-e8**, at the owner's
+  asking: one walk of the app, with the link rule and the size cap in it, is one change.
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
