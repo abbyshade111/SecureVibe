@@ -25,9 +25,9 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
   that incident: a check that does not apply is not a check that failed, a scan that did not run is not a
   clean result, and a wrong statement in a report is worse than a gap in it.
 
-  ADR-012 also ruled out SecureVibe writing its own static-analysis rules for other languages. That ruling
-  was about v1. `sv` later wrote such rules for fourteen languages (`DESIGN.md`, "Rules that read the
-  code"), and no record here revisits the ruling. That is a gap in the records, not a decision.
+  ADR-012 also ruled out SecureVibe writing its own static-analysis rules for other languages. `sv` later
+  wrote such rules for fourteen languages (`DESIGN.md`, "Rules that read the code"). ADR-018 replaces that
+  ruling, and the rest of ADR-012 stays in force.
 
 ## `sv`'s records
 
@@ -36,3 +36,4 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-015](ADR-015.md) | What the owner says can add requirements and never remove one, and silence is not a "no" |
 | [ADR-016](ADR-016.md) | The OWASP data files: one copy while both versions lived here, and two since |
 | [ADR-017](ADR-017.md) | `sv` never writes the app's code |
+| [ADR-018](ADR-018.md) | `sv` checks apps written in any language, with rules of its own among the checks (proposed; replaces ADR-012's ruling against such rules) |
