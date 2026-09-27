@@ -33,7 +33,7 @@ What each kind of check needs before it can run:
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 132 (38%) | 6 | 207 |
 | OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
-| AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
+| AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
 ## ASVS 5.0 by level
@@ -263,9 +263,10 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-4 of these 15 can only ever be marked *needs attention*: the rules
-about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not
-show it present, so a clean run credits none of them. Each needs `--tools`.
+5 of these 18 can only ever be marked *needs attention*: a check can
+show the control missing, and finding nothing does not show it present, so a clean run credits
+none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
+need `--tools`.
 
 - C2.1.3: settled by `probe.ai-injection-unscreened`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
@@ -280,8 +281,11 @@ show it present, so a clean run credits none of them. Each needs `--tools`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
+- AC.12.1: settled by `config.workflow-runs-fork-code`.
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.
+- AC.12.2: settled by `config.workflow-checkout-keeps-token`.
 - C12.2.1: settled by `probe.ai-injection-logged`.
+- AC.12.3: found failing by sv's `config.workflow-secrets-with-fork-code`.
 
 ## Secure by Design checklist 0.5.0 by domain
 
