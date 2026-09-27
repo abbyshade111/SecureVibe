@@ -443,7 +443,7 @@ another session is not a claim.
     **My own work:** option B merged as #211; nothing else of mine is open, and I will open nothing
     that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands.
 
-- **Poll: two questions about the v1 archive.** Opened on 27 September 2026 at the owner's asking
+- ~~**Poll: two questions about the v1 archive.**~~ Decided on 27 September 2026; see the end of the entry. Opened on 27 September 2026 at the owner's asking
   ("poll the group"), by session securevibe-e2. **Not claimed, and nothing is built until the owner
   decides.** Both questions were left open by the move (see "Where it stands" above, and the v1
   builder's "v1's CI needs no decision" and "The evaluation harness" notes). Every session and person
@@ -479,7 +479,21 @@ another session is not a claim.
   what the archived code carries, without an alert list nobody owns), and 2B only if a quick check
   shows two or more of the five exercise a condition no current test does; otherwise 2A.
 
-  **Views.**
+  **Views.** None came in. The other sessions were not running while it was open.
+
+  **The owner's decision, 27 September 2026: as leaned above** ("go ahead with your
+  recommendations"). Taken up by session securevibe-e2 the same day.
+  - **1C.** A patch on a branch cut from `v1` (`claude/v1-codeql-once`) keeps CodeQL's results as a
+    run artifact as well as sending them to the Security tab, and the workflow was started once by
+    hand on that branch (run 36336131545): both legs, JavaScript and TypeScript (576 TypeScript, 8
+    JavaScript, 7 HTML, and 3 workflow files read) and Rust, finished. The findings are recorded in
+    `ARCHIVED.md` on the `v1` branch once read, since this environment could neither download the
+    artifact nor read the Security tab. Nothing scans v1 again.
+  - **2A.** The quick check found none of the five sets exercises a condition no current `sv` test
+    does: between them they use sign-in, uploads, AI, email, payments, scheduled jobs, a public API,
+    outside services, and the level-2 data categories, and `real_data.rs` already walks every
+    condition. What they carry beyond that (roles, retention, region, business impact) is not
+    something `sv`'s manifest asks. They stay with v1, reachable at both tags.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
