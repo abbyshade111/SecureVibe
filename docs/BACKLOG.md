@@ -1962,11 +1962,24 @@ another session is not a claim.
   the rest of `SKIP_DIRS` are not handed to it, because no check in `sv` reads them. If built output
   can be what ships, that is a question about `SKIP_DIRS` for every check at once, not about semgrep.
 
-- **Script in a page written the way a browser reads it and a parser does not.** An unquoted
-  attribute value, and a scheme written around a control character, are both named as left behind —
-  correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
-  which is a question with two defensible answers. **Claimed on 27 September 2026 by session
-  securevibe-e8.** Also covers "HTML's embedded scripts" in the C++ entry: the same work.
+- ~~**Script in a page written the way a browser reads it and a parser does not.**~~ Done on 27
+  September 2026 by session securevibe-e8. The premise was wrong in a way that mattered: where an
+  unquoted value ends is not a question with two answers, because the HTML standard ends it at whitespace
+  or `>`. And "each keeps a page unread" was not true of all of them. Checked against pages a browser
+  runs, three were counted as read with nothing taken out: an unquoted handler
+  (`<button onclick=eval(location.hash)>`), a `/` between attributes (`<img/onerror="…">`), and
+  `href="java&#9;script:…"`, where the entity became a tab only after the disguise check had looked. All
+  three were false cleans. `html_fragments` now walks start tags the way a browser's tokenizer does and
+  reads each value the way the URL standard does (put back character references, strip the ends, remove
+  tabs and newlines, then read the scheme). What is still named rather than read, and why, is in
+  DESIGN, "A page of markup is not a hole in the coverage".
+
+  Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace suite.
+  Broke eight things on purpose and watched each go red: unquoted values dropped, tabs kept in a URL, the
+  `javascript:` count switched off, raw-text bodies read as tags, `/` not a separator, the near-scheme
+  check switched off, numeric references not decoded, and unknown named references ignored. The last one
+  was caught by nothing at first, because its only fixture (`&alpha;()`) was also refused by the grammar.
+  A second fixture, `x&alpha;(1)`, parses when the reference is left as written, and now catches it.
 
 - ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
   one of the nine rules either taught each language or saying why there is nothing to find in it
@@ -2309,7 +2322,10 @@ another session is not a claim.
   silences everything" test loses its fixture). `docs/COVERAGE.md` needed no regeneration: cpp adds no
   ASVS requirement no other language already reaches for these twelve rules.
 
-  **Left: HTML's embedded scripts**, which is a different, unstarted half of this entry.
+  **HTML's embedded scripts** had been read since 25 September (DESIGN, "A page of markup is not a hole
+  in the coverage"). The part still named rather than read, which was unquoted values and disguised
+  schemes, was done on 27 September 2026 under its own entry, "Script in a page written the way a browser
+  reads it".
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in
   all. `ast.file-path-from-value` (V5.3.2), `ast.weak-hash-function` (V11.4.1), `ast.weak-cipher`
