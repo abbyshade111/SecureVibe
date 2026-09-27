@@ -397,6 +397,20 @@ fn send_template(
     session: &mut Session,
     pages: &[String],
 ) -> (Option<ProbeResponse>, Vec<Cookie>) {
+    send_template_as(http, id, t, values, session, pages, |_| {})
+}
+
+/// `send_template`, with the request changed by `adjust` after the token is in it and before it
+/// goes: for a header a particular browser would send.
+fn send_template_as(
+    http: &mut dyn Http,
+    id: &str,
+    t: &RequestTemplate,
+    values: &Values,
+    session: &mut Session,
+    pages: &[String],
+    adjust: impl FnOnce(&mut ProbeRequest),
+) -> (Option<ProbeResponse>, Vec<Cookie>) {
     let mut v = values.clone();
     if uses_csrf(t) && v.csrf.is_none() {
         let own = fill(&t.path, &v);
@@ -411,7 +425,9 @@ fn send_template(
             }
         }
     }
-    let response = http.send(&request(id, t, &v, session));
+    let mut sent = request(id, t, &v, session);
+    adjust(&mut sent);
+    let response = http.send(&sent);
     let cookies = response.as_ref().map(set_cookies).unwrap_or_default();
     if let Some(r) = &response {
         session.absorb(r);
@@ -673,6 +689,20 @@ const FORGERY: Rule = Rule {
              carries it out as them.",
     fix: "Require an anti-forgery token on every request that changes something, or check the \
           Origin header against the app's own address, and set SameSite on the session cookie.",
+};
+
+const OWN_FORMS_REFUSED: Rule = Rule {
+    rule_id: "probe.own-forms-refused",
+    // Nothing in ASVS asks an app to accept its own forms; this is a finding about the app not
+    // working, found on the way to the cross-site checks, and it credits nothing.
+    requirement_ids: &[],
+    cwe: &[],
+    impact: "The app tells browsers to send no referrer, and under that policy a browser sends \
+             `Origin: null` with the app's own forms. The app refuses that, so the forms fail for \
+             real people, and the usual way out is to switch the cross-site defense off.",
+    fix: "Accept `Origin: null` on a request that carries a valid anti-forgery token, or send a \
+          Referrer-Policy such as `strict-origin-when-cross-origin` or `same-origin`, under which \
+          browsers send the app's own origin.",
 };
 
 const SIMPLE_REQUEST: Rule = Rule {
@@ -6599,6 +6629,7 @@ fn owned_checks(
 
     forgery_check(http, owned, &session, a, out);
     simple_request_check(http, owned, &session, a, out);
+    null_origin_check(http, owned, &users.private, a, out);
     Some(read_path)
 }
 
@@ -6701,6 +6732,121 @@ fn forgery_check(
             "a request that creates a record, sent with a signed-in user's cookies from another \
              origin and without a token, and refused"
                 .to_owned(),
+        ));
+    }
+}
+
+/// The policy a `Referrer-Policy` header sets: the last value in it a browser knows, as the Fetch
+/// standard reads a list.
+fn referrer_policy(response: &ProbeResponse) -> Option<String> {
+    const KNOWN: &[&str] = &[
+        "no-referrer",
+        "no-referrer-when-downgrade",
+        "same-origin",
+        "origin",
+        "strict-origin",
+        "origin-when-cross-origin",
+        "strict-origin-when-cross-origin",
+        "unsafe-url",
+    ];
+    response
+        .headers
+        .iter()
+        .filter(|(k, _)| k == "referrer-policy")
+        .flat_map(|(_, v)| v.split(','))
+        .map(|p| p.trim().to_lowercase())
+        .filter(|p| KNOWN.contains(&p.as_str()))
+        .last()
+}
+
+/// Whether the app refuses its own create request as a browser sends it under the app's own
+/// `Referrer-Policy: no-referrer`.
+///
+/// Under that policy the Fetch standard has a browser send `Origin: null`, and no `Referer`, with
+/// every request that is not a GET or a HEAD, the app's own forms included. An app that also
+/// refuses `Origin: null`, as a cross-site defense reasonably might, refuses its own forms in every
+/// real browser, which a test client sending no Origin at all never sees. Asked only when a page
+/// the create request is made from sends the policy as a header (a `<meta name="referrer">` is not
+/// read), and judged only against a control: the same request, sent straight after it the way
+/// the other checks send it, has to be taken, so a refusal is about the Origin and not about the
+/// request.
+fn null_origin_check(
+    http: &mut dyn Http,
+    owned: &sv_manifest::OwnedSection,
+    private: &[String],
+    a: &SignedIn,
+    out: &mut Outcome,
+) {
+    let mut session = a.session.clone();
+    let own = fill(&owned.create.path, &Values::default());
+    let mut policy = None;
+    for path in std::iter::once(&own).chain(private.iter()) {
+        let page = http.send(&get("null-origin-page", path, &session));
+        if let Some(page) = page.filter(|p| (200..300).contains(&p.status)) {
+            session.absorb(&page);
+            policy = referrer_policy(&page).map(|p| (path.clone(), p));
+            break;
+        }
+    }
+    let Some((page, _)) = policy.filter(|(_, p)| p == "no-referrer") else {
+        return;
+    };
+    let values = |marker| Values {
+        marker,
+        ..Default::default()
+    };
+    let (nulled, _) = send_template_as(
+        http,
+        "null-origin-create",
+        &owned.create,
+        &values("sv-probe-null-origin-5d3a"),
+        &mut session,
+        private,
+        |r| {
+            r.headers.retain(|(n, _)| {
+                !n.eq_ignore_ascii_case("origin") && !n.eq_ignore_ascii_case("referer")
+            });
+            r.headers.push(("Origin".to_owned(), "null".to_owned()));
+        },
+    );
+    let (control, _) = send_template(
+        http,
+        "null-origin-control",
+        &owned.create,
+        &values("sv-probe-null-origin-control-5d3a"),
+        &mut session,
+        private,
+    );
+    let refused = nulled
+        .as_ref()
+        .is_some_and(|r| (400..500).contains(&r.status));
+    if refused && accepted(&control) {
+        out.findings.push(finding(
+            &OWN_FORMS_REFUSED,
+            "The app refuses its own forms in a real browser",
+            Severity::Low,
+            format!(
+                "{page} sends `Referrer-Policy: no-referrer`, under which a browser sends \
+                 `Origin: null` with a form. The create request sent that way, signed in and with \
+                 its token, was refused ({}); sent straight after without an Origin, it was taken \
+                 ({}).",
+                status(&nulled),
+                status(&control)
+            ),
+        ));
+    } else if accepted(&nulled) {
+        out.steps.push(format!(
+            "{page} sends `Referrer-Policy: no-referrer`, and the create request sent as a browser \
+             then sends it, with `Origin: null`, was taken ({})",
+            status(&nulled)
+        ));
+    } else {
+        out.steps.push(format!(
+            "{page} sends `Referrer-Policy: no-referrer`; the create request sent with \
+             `Origin: null` answered {} and without an Origin {}, which says nothing about the \
+             Origin",
+            status(&nulled),
+            status(&control)
         ));
     }
 }
@@ -7026,6 +7172,10 @@ mod tests {
         /// Anybody at all can read any record.
         records_public: bool,
         no_csrf_check: bool,
+        /// The notes page sends `Referrer-Policy: no-referrer`. Not a flaw on its own.
+        no_referrer: bool,
+        /// Creating a note refuses `Origin: null`, as a strict cross-site defense might.
+        refuses_null_origin: bool,
         keep_session_at_login: bool,
         logout_keeps_session: bool,
         no_httponly: bool,
@@ -8032,7 +8182,11 @@ mod tests {
                 }
                 ("GET", "/notes") => Self::respond(
                     200,
-                    vec![],
+                    if self.flaws.no_referrer {
+                        vec![("Referrer-Policy", "no-referrer".to_owned())]
+                    } else {
+                        vec![]
+                    },
                     &format!("<input name='csrf_token' value='{CSRF}'>"),
                 ),
                 ("POST", "/upload") => {
@@ -8211,6 +8365,11 @@ mod tests {
                     };
                     if !self.flaws.no_csrf_check && (foreign || !token_ok) {
                         return Some(Self::respond(403, vec![], "forged"));
+                    }
+                    if self.flaws.refuses_null_origin
+                        && r.headers.iter().any(|(k, v)| k == "Origin" && v == "null")
+                    {
+                        return Some(Self::respond(403, vec![], "no origin"));
                     }
                     self.notes
                         .push((owner, form(r).get("text").cloned().unwrap_or_default()));
@@ -8861,6 +9020,14 @@ mod tests {
                 },
                 SIGN_OUT_LINK.rule_id,
             ),
+            (
+                Flaws {
+                    no_referrer: true,
+                    refuses_null_origin: true,
+                    ..Default::default()
+                },
+                OWN_FORMS_REFUSED.rule_id,
+            ),
         ] {
             let o = run_against(flaw, &users());
             let found = rule_ids(&o);
@@ -8878,6 +9045,230 @@ mod tests {
             // which is its own not-assessed, not another finding.
             assert!(others.is_empty(), "{rule} also raised {others:?}");
         }
+    }
+
+    #[test]
+    fn an_app_that_asks_for_no_referrer_and_refuses_origin_null_refuses_its_own_forms() {
+        let o = run_against(
+            Flaws {
+                no_referrer: true,
+                refuses_null_origin: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let f = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == OWN_FORMS_REFUSED.rule_id)
+            .expect("own forms refused");
+        assert!(f.requirement_ids.is_empty(), "{:?}", f.requirement_ids);
+        assert!(f.description.contains("/notes"), "{}", f.description);
+        assert!(f.description.contains("refused (403)"), "{}", f.description);
+        // The control was taken, which is what makes the refusal about the Origin.
+        assert!(
+            f.description.contains("it was taken (303)"),
+            "{}",
+            f.description
+        );
+        // No credit anywhere for a rule that has no requirement.
+        assert!(!verified_ids(&o).contains(&OWN_FORMS_REFUSED.rule_id));
+    }
+
+    #[test]
+    fn an_app_that_asks_for_no_referrer_and_takes_origin_null_is_fine() {
+        // The request is sent with the page's token, as the app's own form would send it: a
+        // request sent without it would be refused for the token, and read as a refusal of the
+        // Origin.
+        let o = run_against(
+            Flaws {
+                no_referrer: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("no-referrer") && s.contains("was taken (303)")),
+            "{:#?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn origin_null_is_not_asked_of_an_app_that_does_not_ask_for_no_referrer() {
+        // Refusing `Origin: null` is sensible when no page of the app makes a browser send it.
+        let o = run_against(
+            Flaws {
+                refuses_null_origin: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        assert!(
+            !o.steps.iter().any(|s| s.contains("no-referrer")),
+            "{:#?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_refusal_that_the_control_shares_is_not_about_the_origin() {
+        // With the anti-forgery check broken the other way, nothing is taken: the refusal of the
+        // `Origin: null` request says nothing, and the check says so rather than finding.
+        let mut app = FakeApp::new(Flaws {
+            no_referrer: true,
+            refuses_null_origin: true,
+            ..Default::default()
+        });
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        let mut steps = Vec::new();
+        let a = sign_in(&mut app, &users(), "a", &acc.a, &mut steps).expect("signed in");
+        let mut owned = users().owned.unwrap();
+        // A create request the app never takes: it names no token field.
+        owned.create.form.remove("csrf_token");
+        let mut out = Outcome::default();
+        null_origin_check(&mut app, &owned, &users().private, &a, &mut out);
+        assert!(out.findings.is_empty(), "{:#?}", out.findings);
+        assert!(
+            out.steps
+                .iter()
+                .any(|s| s.contains("says nothing about the Origin")),
+            "{:#?}",
+            out.steps
+        );
+    }
+
+    /// An app with one page and one form, for the `Origin: null` check alone: its page sends
+    /// `policy`, and its form is taken with the token, from `Origin: null` only when `take_null`,
+    /// and at all only when `take_any`.
+    struct NullOriginApp {
+        policy: &'static str,
+        take_null: bool,
+        take_any: bool,
+        sent: Vec<ProbeRequest>,
+    }
+
+    impl Http for NullOriginApp {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.sent.push(r.clone());
+            let respond = |status, headers: Vec<(String, String)>| ProbeResponse {
+                id: String::new(),
+                status,
+                headers,
+                body: "<input name='csrf_token' value='t0k'>".to_owned(),
+            };
+            if r.method == "GET" {
+                return Some(respond(
+                    200,
+                    vec![("referrer-policy".to_owned(), self.policy.to_owned())],
+                ));
+            }
+            let null = r.headers.iter().any(|(k, v)| k == "Origin" && v == "null");
+            let token = r.body.as_deref().unwrap_or("").contains("csrf_token=t0k");
+            let taken = self.take_any && token && (self.take_null || !null);
+            Some(respond(if taken { 303 } else { 403 }, vec![]))
+        }
+    }
+
+    fn against_null_origin_app(
+        policy: &'static str,
+        take_null: bool,
+        take_any: bool,
+    ) -> (Outcome, Vec<ProbeRequest>) {
+        let mut app = NullOriginApp {
+            policy,
+            take_null,
+            take_any,
+            sent: Vec::new(),
+        };
+        let a = SignedIn {
+            session: Session::default(),
+            set_at_login: Vec::new(),
+            before_login: Vec::new(),
+        };
+        let mut out = Outcome::default();
+        null_origin_check(&mut app, &users().owned.unwrap(), &[], &a, &mut out);
+        (out, app.sent)
+    }
+
+    #[test]
+    fn the_origin_null_request_is_the_apps_own_form_as_a_browser_sends_it() {
+        let (out, sent) = against_null_origin_app("no-referrer", false, true);
+        assert_eq!(rule_ids(&out), [OWN_FORMS_REFUSED.rule_id]);
+        let nulled = sent
+            .iter()
+            .find(|r| r.id == "null-origin-create")
+            .expect("sent");
+        assert!(
+            nulled
+                .headers
+                .iter()
+                .any(|(k, v)| k == "Origin" && v == "null"),
+            "{:?}",
+            nulled.headers
+        );
+        assert!(!nulled.headers.iter().any(|(k, _)| k == "Referer"));
+        assert!(
+            nulled
+                .body
+                .as_deref()
+                .unwrap_or("")
+                .contains("csrf_token=t0k"),
+            "{:?}",
+            nulled.body
+        );
+        let (out, _) = against_null_origin_app("no-referrer", true, true);
+        assert!(out.findings.is_empty(), "{:#?}", out.findings);
+    }
+
+    #[test]
+    fn origin_null_is_asked_only_under_a_policy_that_ends_in_no_referrer() {
+        // A later value a browser knows replaces the first, so this page's forms carry its origin.
+        let (out, sent) = against_null_origin_app("no-referrer, same-origin", false, true);
+        assert!(out.findings.is_empty(), "{:#?}", out.findings);
+        assert!(!sent.iter().any(|r| r.id == "null-origin-create"));
+    }
+
+    #[test]
+    fn an_app_that_takes_no_form_at_all_is_not_found_refusing_origin_null() {
+        let (out, _) = against_null_origin_app("no-referrer", false, false);
+        assert!(out.findings.is_empty(), "{:#?}", out.findings);
+        assert!(
+            out.steps
+                .iter()
+                .any(|s| s.contains("says nothing about the Origin")),
+            "{:#?}",
+            out.steps
+        );
+    }
+
+    #[test]
+    fn the_referrer_policy_is_the_last_value_a_browser_knows() {
+        let with = |value: &str| ProbeResponse {
+            id: String::new(),
+            status: 200,
+            headers: vec![("referrer-policy".to_owned(), value.to_owned())],
+            body: String::new(),
+        };
+        assert_eq!(
+            referrer_policy(&with("no-referrer")).as_deref(),
+            Some("no-referrer")
+        );
+        assert_eq!(
+            referrer_policy(&with("no-referrer, strict-origin-when-cross-origin")).as_deref(),
+            Some("strict-origin-when-cross-origin")
+        );
+        assert_eq!(
+            referrer_policy(&with("No-Referrer, made-up-policy")).as_deref(),
+            Some("no-referrer")
+        );
+        assert_eq!(referrer_policy(&with("made-up-policy")), None);
     }
 
     #[test]
