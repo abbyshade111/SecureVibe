@@ -1203,25 +1203,20 @@
     {
       "condition": "public-api",
       "absenceIsEvidence": false,
-      "note": "An interface meant for other programs usually comes with a description of itself and a key to call it with. A key checked by hand against a query parameter leaves almost nothing behind, which is why absence settles nothing.",
+      "note": "An interface meant for other programs usually comes with a description of itself and a key to call it with. A key checked by hand against a query parameter leaves almost nothing behind, which is why absence settles nothing. A rate limiter is not listed: limiting requests is ordinary for any web app, and one of the usual ways to slow down password guessing, so it shows requests are limited, not who is calling.",
       "packages": {
         "npm": [
           "swagger-ui-express",
           "@nestjs/swagger",
-          "express-rate-limit",
-          "@fastify/rate-limit",
           "swagger-jsdoc"
         ],
         "Python": [
           "drf-spectacular",
           "flasgger",
-          "flask-limiter",
-          "slowapi",
           "djangorestframework-api-key"
         ],
         "Ruby": [
-          "rswag",
-          "rack-attack"
+          "rswag"
         ],
         "PHP": [
           "zircote/swagger-php",

@@ -439,6 +439,21 @@ never speaks for them. The conditions no one is asked — the derived ones — k
 code. Putting the old line back fails two tests, a unit test on `resolve` and one that runs `sv report` on
 the bare manifest; before, it failed none.
 
+### A rate limiter is not an API
+
+`public-api` counted five rate limiters as evidence (`express-rate-limit`, `@fastify/rate-limit`,
+`flask-limiter`, `slowapi`, and `rack-attack`). Limiting requests is ordinary for any web app, and
+one of the usual ways to slow down password guessing, so an app that added one was handed the API
+requirements over the manifest's own "no", since corroboration only ever adds. It happened on the
+owner's first build from scratch, to an app with no sign-in and no API at all. A rate limiter shows
+that requests are limited, not who is calling, and all five are gone from the list; what remains
+is what an interface for other programs leaves behind: a description of itself, and a key.
+
+Two tests hold it. A scan of an npm and Python app carrying four of them, and of a Ruby app carrying
+the fifth, does not answer `public-api`, while the same apps with an API description package do, so
+the dependencies were read. And the data file itself is read for any `public-api` package whose
+name says it limits or throttles, in every ecosystem. Putting each of the five back turns both red.
+
 ### Three things this turned up
 
 **A silent field-name mismatch that defaulted to the dangerous value.** `Signature` had no `rename_all`, so
