@@ -582,6 +582,9 @@ pub fn security(report: &Report) -> String {
             "**Where:** `{}` line {}\n\n",
             finding.location.file, finding.location.line
         ));
+        for note in crate::finding_notes(finding) {
+            out.push_str(&format!("*{note}*\n\n"));
+        }
         out.push_str(&format!("{}\n\n", finding.description));
         out.push_str(&format!("**Why it matters.** {}\n\n", finding.impact));
         out.push_str(&format!("**What to do.** {}\n\n", finding.fix));

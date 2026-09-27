@@ -544,6 +544,39 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
     )
 }
 
+/// What the reports say beside a finding, besides the finding itself: how sure `sv` is, whether it
+/// is in test code, and which other tools reported the same thing. One wording for every report, so
+/// the owner and the AI coding tool read the same caution. None of it lowers or hides the finding.
+pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
+    let mut notes = vec![match f.certainty() {
+        "confirmed" => "How sure: confirmed.".to_owned(),
+        "likely" => {
+            "How sure: likely. Rules like this one are usually right, not always.".to_owned()
+        }
+        _ => "How sure: possible. Rules like this one often misfire, so read the code before \
+              changing anything; if it is not a problem, it is a false alarm and the code can stay."
+            .to_owned(),
+    }];
+    if f.in_test_code() {
+        notes.push(
+            "In test or sample code, not the app itself. It still counts: test code can hold a \
+             real key, and sample code gets copied."
+                .to_owned(),
+        );
+    }
+    if !f.also_reported_by.is_empty() {
+        notes.push(format!(
+            "Also reported by: {}. One problem, found more than once, so it is listed once.",
+            f.also_reported_by
+                .iter()
+                .map(|r| format!("`{r}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    notes
+}
+
 /// Everything the renderers need, gathered from the crates that produced it.
 pub struct Inputs<'a> {
     pub app_name: &'a str,

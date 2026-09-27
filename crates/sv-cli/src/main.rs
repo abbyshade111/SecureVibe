@@ -1270,6 +1270,9 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         if let Some(secret) = &f.secret {
             println!("     found: {}", secret.as_str());
         }
+        for note in sv_report::finding_notes(f) {
+            println!("     {note}");
+        }
         if !f.impact.is_empty() {
             println!("     why it matters: {}", f.impact);
         }
@@ -2694,6 +2697,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         .flat_map(|r| r.cites.keys().cloned())
         .collect();
 
+    // The same weakness on the same line, reported by two tools, is one thing to fix.
+    let findings = sv_check::finding::merge_same_place(findings);
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"

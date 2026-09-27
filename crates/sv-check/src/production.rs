@@ -221,6 +221,7 @@ const COOKIE_WITHOUT_HOST_PREFIX: Rule = Rule {
 
 fn finding(rule: &Rule, description: String, host: &str) -> Finding {
     Finding {
+        also_reported_by: Vec::new(),
         rule_id: rule.rule_id.to_owned(),
         title: rule.title.to_owned(),
         severity: rule.severity,

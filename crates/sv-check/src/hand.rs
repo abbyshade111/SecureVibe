@@ -180,6 +180,7 @@ pub fn evaluate(
 /// Somebody checked and it failed. A failure reported never overstates the app, whoever saw it.
 fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> Finding {
     Finding {
+        also_reported_by: Vec::new(),
         rule_id: "hand.problem".to_owned(),
         title: format!(
             "Checked by hand, and it failed: {}",

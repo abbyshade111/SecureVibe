@@ -421,6 +421,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
         format!("{} ({})", advisory.id, advisory.aliases.join(", "))
     };
     Finding {
+        also_reported_by: Vec::new(),
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(
             "{} {} has a known vulnerability: {names}",

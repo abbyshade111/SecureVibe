@@ -366,6 +366,7 @@ fn finding(
 ) -> Finding {
     let [description, impact, fix] = text;
     Finding {
+        also_reported_by: Vec::new(),
         rule_id: rule_id.into(),
         title,
         severity,
