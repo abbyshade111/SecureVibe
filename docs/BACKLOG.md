@@ -417,6 +417,8 @@ another session is not a claim.
       `breached-password-evidence.json`) and say so. `crates/sv-cli/tests/data_readme.rs` fails when a
       file is added without a line or a line names a file that is gone; hidden files such as `.DS_Store`
       are skipped.
+      **The owner's decision, 27 September 2026: remove the eight.** Removed the same day by session
+      securevibe-e2; v1's copies stay on the `v1` branch and at both tags, and ADR-016 has a dated note.
     - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
       of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
       untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
