@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Faults Were Caught</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --v1: #2a78d6; --sv: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --v1: #3987e5; --sv: #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --v1: #3987e5; --sv: #d95926;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 32px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin: 0 0 10px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  .rows { display: grid; grid-template-columns: minmax(170px, 250px) 1fr auto; gap: 10px 14px; align-items: center; }
+  .rows .label b { display: block; font-size: .9rem; }
+  .rows .label span { font-size: .78rem; color: var(--text-muted); }
+  .units { display: flex; flex-wrap: wrap; gap: 4px; }
+  .u { width: 14px; height: 14px; border-radius: 50%; }
+  .rows .n { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: .85rem; white-space: nowrap; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.src { white-space: nowrap; color: var(--text-secondary); }
+  td.who { white-space: nowrap; }
+  blockquote { margin: 18px 0; padding: 10px 16px; border-left: 3px solid var(--text-muted); background: var(--surface-2);
+    border-radius: 0 8px 8px 0; font-size: .92rem; }
+  blockquote cite { display: block; color: var(--text-muted); font-size: .78rem; font-style: normal; margin-top: 4px; }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 14px; }
+  @media (max-width: 600px) {
+    td, th { white-space: normal !important; overflow-wrap: anywhere; }
+    .rows { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>How the faults the tests missed were caught</h1>
+  <p class="sub">Every fault below passed the automated suites. Each was caught another way: by a person using
+     the software, by one AI session reviewing another's merged work, by breaking a guard on purpose to see
+     whether anything noticed, by v1's evaluation harness, or by accident. One dot per fault written down in
+     the repository.</p>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--v1)"></span>v1</span>
+    <span><span class="dot" style="background:var(--sv)"></span><code>sv</code></span>
+  </div>
+  <div class="rows" id="rows" role="img" aria-label="Faults by how they were caught: a person using it, v1 13 and sv 18; another session's review, v1 9 and sv 7; v1's evaluation harness, 8; breaking a guard on purpose, v1 3 and sv 4; by accident, sv 3."></div>
+
+  <blockquote>"a test that checks the code against itself"
+    <cite>docs/DESIGN.md, "The citations were all wrong": the tests for sv's citation map were written from the
+      map rather than from the requirements, so they passed for as long as the map said so.</cite></blockquote>
+
+  <h2>Examples, with where each is recorded</h2>
+  <table>
+    <thead><tr><th>How</th><th></th><th>What was wrong</th><th>Record</th></tr></thead>
+    <tbody>
+      <tr><td>Review</td><td class="who" style="color:var(--sv)">sv</td><td>A line marked <code># nosec</code> made bandit report nothing, and <code>sv</code> credited the silence as a clean run</td><td class="src">#73 → #79</td></tr>
+      <tr><td>Review</td><td class="who" style="color:var(--sv)">sv</td><td>A leaky rate limiter reversed the spoofed-address check both ways, with the same evidence line for the true and the false result</td><td class="src">#134 → #144</td></tr>
+      <tr><td>Review</td><td class="who" style="color:var(--sv)">sv</td><td>The two-factor reuse check could pass an app that reuses codes when the 30-second step rolled over mid-check</td><td class="src">#132 → #152</td></tr>
+      <tr><td>Review</td><td class="who" style="color:var(--sv)">sv</td><td>An unanswered question excluded twelve requirements instead of leaving them open</td><td class="src">#128 → #133</td></tr>
+      <tr><td>Review</td><td class="who" style="color:var(--v1)">v1</td><td>Nine cases of "doing the right thing and saying the wrong thing"; the one that mattered most reported a scan as "skipped" after the owner's AI credit had been spent on it</td><td class="src"><code>a4e4fbf</code></td></tr>
+      <tr><td>Breaking a guard</td><td class="who" style="color:var(--v1)">v1</td><td>The sensitive-field rule was caught by exactly one fixture: "a rule with one accidental witness is a rule that survives being deleted"</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
+      <tr><td>Breaking a guard</td><td class="who" style="color:var(--v1)">v1</td><td>A search test fell back to another record when its write was refused, and passed with the ownership clause deleted</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
+      <tr><td>Breaking a guard</td><td class="who" style="color:var(--sv)">sv</td><td>Three guards were each caught by only one test; each got a second witness that fails differently</td><td class="src"><code>0cd3a74</code></td></tr>
+      <tr><td>Breaking a guard</td><td class="who" style="color:var(--sv)">sv</td><td>The fence test passed with <code>nc</code> missing from the image, and its only comparison was the host, which on Docker Desktop is a different machine from the containers</td><td class="src">#148</td></tr>
+      <tr><td>Harness</td><td class="who" style="color:var(--v1)">v1</td><td>Five template bugs real owners would have hit, in the harness's first hour, among them feature flags written in one case and read in another, and a removed file still imported</td><td class="src"><code>af6b83f</code></td></tr>
+      <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>Nearly every citation in the rule maps pointed at the wrong requirement, plausibly: the right chapter, a digit or two off. Found by accident three times</td><td class="src"><code>docs/DESIGN.md</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Coordination: several sessions, one repository</h2>
+  <p class="lede">The work was done by several AI sessions at once. Several are named in the record: securevibe-e8,
+     securevibe-e9, keen-meninsky, relaxed-nobel, admiring-murdock, the v1 builder, and cloud sessions. They
+     collided in ways a single developer does not.</p>
+  <table>
+    <thead><tr><th>What happened</th><th>What changed</th><th>Record</th></tr></thead>
+    <tbody>
+      <tr><td>Two sessions each read the backlog, each correctly saw an item unclaimed, and both built it (20 September)</td><td>Claim in the backlog, in a commit of its own, before starting: 50 of the 267 changes that reached <code>main</code> from 20 September on mention a claim</td><td class="src">v1 <code>CLAUDE.md</code>, <code>TIMELINE.md</code></td></tr>
+      <tr><td>Two sessions ran the evaluation harness at once for eight minutes, each having said in a message it would warn first</td><td>A claim in a file the other session can see; a message is not a claim</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
+      <tr><td>Sessions working on <code>sv</code> collided five times in one day; the move to the top of the repository would touch every session's work</td><td>For the move: every session's view written down first, one session claims it, a freeze, and one pull request</td><td class="src"><code>docs/BACKLOG.md</code>, #210 → #224</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Counts are faults written down in the repository, not a census: something caught and fixed
+     without a note is not here. "A person using it" is the usability figure's 13 for v1 and 9 + 7 + 2 for
+     <code>sv</code>. Review: seven <code>sv</code> findings (#73, #82, #124, #128, #132, #134, #169) and one v1
+     cross-review that found nine. Harness: the first hour's five (<code>af6b83f</code>), two in <code>d50ce89</code>,
+     and the test names in <code>00456fe</code>. Breaking a guard: three in v1's <code>CLAUDE.md</code>, three
+     guards in <code>0cd3a74</code>, and #148. Accident: the three times the wrong citations were found. Sources
+     are named in each row; v1's files are read at tag <code>v1-final</code>.</p>
+</div>
+<script>
+  const rows = [
+    ["A person using it", "the owner, or someone watching them", 13, 18],
+    ["Another session's review", "reading merged work, reproducing it", 9, 7],
+    ["v1's evaluation harness", "five apps rebuilt from saved answers", 8, 0],
+    ["Breaking a guard on purpose", "then counting what goes red", 3, 4],
+    ["By accident", "noticed while doing something else", 0, 3],
+  ];
+  const host = document.getElementById("rows");
+  rows.forEach(([name, how, v1, sv]) => {
+    const label = document.createElement("div"); label.className = "label";
+    label.innerHTML = `<b></b><span></span>`; label.querySelector("b").textContent = name; label.querySelector("span").textContent = how;
+    const units = document.createElement("div"); units.className = "units";
+    for (let i = 0; i < v1; i++) { const d = document.createElement("span"); d.className = "u"; d.style.background = "var(--v1)"; units.appendChild(d); }
+    for (let i = 0; i < sv; i++) { const d = document.createElement("span"); d.className = "u"; d.style.background = "var(--sv)"; units.appendChild(d); }
+    const n = document.createElement("div"); n.className = "n";
+    n.textContent = [v1 ? `v1 ${v1}` : "", sv ? `sv ${sv}` : ""].filter(Boolean).join(" · ");
+    host.append(label, units, n);
+  });
+</script>
+</body>
+</html>
