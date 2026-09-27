@@ -30,8 +30,8 @@ another session is not a claim.
 - **Promote `sv` to the top of the repository, and keep v1 for the paper.** **The owner's decision,
   26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
   lost, and its code stays preserved exactly for the paper. **When** is for the sessions to work out
-  together — this entry is the place. **Not claimed.** Add your view under "Thoughts", below, under
-  your own name and as its own commit, before anybody claims the move.
+  together — this entry is the place. **[taken: the v1 builder, "Vibe-coding builder", 26 Sep 2026]**
+  The owner asked for the move to be claimed once every session was clear; see "The move is claimed", below.
 
   **Rules that hold whatever the plan:**
   - **Never rewrite history.** No `filter-repo`, no squashing old commits, no force-push to `main`.
@@ -99,6 +99,39 @@ another session is not a claim.
     collision relaxed-nobel found (`BACKLOG.md` and `DESIGN.md` in both `docs/` and `agnostic/docs/`)
     goes with it — an inference from the list above, not something either session said.
   - **`v1-paper` is made** (see the rules above). **Still open:** who claims the move, and when.
+
+  **The move is claimed**, 26 September 2026, by the v1 builder, on the owner's instruction. Every session
+  was asked to finish and merge what it had and to open nothing new; each has said it is clear (no open
+  pull request was left at the check just before this commit; the two cloud sessions cannot reply, so that
+  part is unconfirmed).
+  - **Freeze, until the move lands:** no new pull request touching `agnostic/`, `CLAUDE.md`, `.github/` or
+    the root files. This claim is the last change before it.
+  - **Parked, not merged:** seven v1-era branches touch only v1's files and stay on GitHub exactly as they
+    are, unmerged and undeleted; whoever revisits one rebases it onto the `v1` branch. Tips: `claude/attention-recipe`
+    `683153f` (4 commits), `claude/authz-role-names` `5c2bfc1` (2), `claude/ci-hang` `2e43900` (13),
+    `claude/generated-code-escaping` `b1934d5` (3), `claude/query-recipe` `9f4e664` (1),
+    `claude/report-table-escaping` `bd16ab8` (3), `claude/rust-ci` `a5a263f` (1). The other open branches touch
+    only `agnostic/` and merge as usual afterwards.
+  - **Checklist, from the sessions' notes (nothing here is done yet):**
+    1. Copy `workspace/` (2.1 GB) and `.env` out of the owner's checkout first; nobody runs `git clean -x` there.
+       The checkout itself is on `claude/ci-hang`, one of the parked branches.
+    2. Tag `v1-final` at the last commit before the move; make its GitHub Release. `v1-paper` (`7fa07d6`)
+       exists, with Zenodo version DOI 10.5281/zenodo.22984709 from the release `v1-paper-doi`. The paper cites
+       that version DOI, not the concept DOI (…708), which follows the latest release and will become `sv`'s.
+       Put the DOI in `ARCHIVED.md` on the `v1` branch.
+    3. Create the `v1` branch, add `ARCHIVED.md` there only (how to run v1: Node 26, `npm ci`, a real copy of
+       `templates/secure-web-app/node_modules`, `SECUREVIBE_HOME`, the copied `.env`, the nine known failing tests).
+    4. One pull request: remove `server/`, `shared/`, `web/`, `templates/`, `evals/`, `self-assessment/`,
+       `artifacts/`, v1's `docs/` except `docs/paper/`, and the root npm files; move `agnostic/` up one level;
+       fix the seven paths counted from a crate folder and `tools/coverage.py` and `tools/pwned_passwords.py`
+       (`ROOT = AGNOSTIC.parent`; the second has no test, so run it once afterwards); decide `checks.yml`,
+       `rust.yml`, `codeql.yml`; write the new top-level `README.md` and `CLAUDE.md` (carrying the owner's
+       working rules, which only the old `CLAUDE.md` holds). All tests green before it merges.
+    5. Outside the repository, the owner's to approve: `~/code/my-first-app/.mcp.json` and the PATH line in
+       `~/.zshrc` both point at `sv-tool/agnostic/target/release/sv` (`sv-tool` is a detached worktree fixed at
+       one commit, so nothing breaks until it is updated, and then both paths change); and the local image
+       `securevibe/sv:local` was built from a recipe that assumes `agnostic/`.
+    6. Afterwards each session merges `main` into its branch and rewrites the memory notes that name v1 paths.
 
   - **Vibe-coding builder (built v1), 26 September 2026.** Read at `76156b3`. "Checked" below means I looked
     it up in that tree, not that I remember it.
