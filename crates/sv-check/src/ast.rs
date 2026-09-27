@@ -17,9 +17,11 @@
 //!
 //! # A language with no grammar is a language not read
 //!
-//! C++ has no grammar compiled in yet, so files in it are not scanned — and that is reported rather
-//! than left to look like a clean result, the same way the secrets scanner reports the
-//! files it skipped.
+//! `sv-scan` counts more languages than this module can parse. A language with no grammar compiled in
+//! is not scanned, and that is reported rather than left to look like a clean result, the same way the
+//! secrets scanner reports the files it skipped. Ruby, then C#, then C++ were the standing example of
+//! this in turn, each until it got a grammar; Objective-C is the one the tests below use now, so the
+//! case stays exercised rather than becoming untestable the day the list is empty.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use anyhow::{Context, Result};
@@ -168,6 +170,7 @@ fn grammar(language: &str) -> Option<Language> {
         "kotlin" => tree_sitter_kotlin_ng::LANGUAGE.into(),
         "rust" => tree_sitter_rust::LANGUAGE.into(),
         "c" => tree_sitter_c::LANGUAGE.into(),
+        "cpp" => tree_sitter_cpp::LANGUAGE.into(),
         "ruby" => tree_sitter_ruby::LANGUAGE.into(),
         "php" => tree_sitter_php::LANGUAGE_PHP.into(),
         "java" => tree_sitter_java::LANGUAGE.into(),
@@ -1109,9 +1112,9 @@ mod tests {
     #[test]
     fn a_rule_naming_a_language_with_no_grammar_is_refused_at_load() {
         // Quietly dropping it would leave a rule that claims to cover a language and never runs.
-        // C++ stands in for that here. This test has named Ruby and then C#, each until the
-        // language got a grammar, which is the right way round for a test like this to break.
-        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"cpp\""));
+        // Objective-C stands in for that here. This test has named Ruby, then C#, then C++, each until
+        // the language got a grammar, which is the right way round for a test like this to break.
+        let refused = rules_from(&ONE_RULE.replace("\"python\"", "\"objc\""));
         let error = match refused {
             Ok(_) => panic!("an unknown language must be refused"),
             Err(e) => format!("{e:#}"),
@@ -1147,7 +1150,7 @@ mod tests {
         let err = rules_from(&no_reason).err().expect("refused").to_string();
         assert!(err.contains("without saying why"), "{err}");
 
-        let no_grammar = one_rule(r#", "nothingToFind": {"cpp": "C++ has none."}"#);
+        let no_grammar = one_rule(r#", "nothingToFind": {"objc": "Objective-C has none."}"#);
         let err = rules_from(&no_grammar).err().expect("refused").to_string();
         assert!(err.contains("no grammar"), "{err}");
 
@@ -1305,11 +1308,12 @@ mod tests {
 
     #[test]
     fn a_language_with_no_grammar_yields_nothing_rather_than_pretending() {
-        // C++ is read by `sv-scan` — it counts towards what an app is written in — and has no
-        // grammar here, which is the combination that has to stay silent rather than guess.
-        assert!(scan_file(&rules(), "cpp", "app.cpp", "system(argv[1]);").is_empty());
-        assert!(!is_supported("cpp"));
-        assert!(is_supported("python") && is_supported("typescript"));
+        // Objective-C is read by `sv-scan` — it counts towards what an app is written in, through
+        // `.m`/`.mm` — and has no grammar here, which is the combination that has to stay silent
+        // rather than guess.
+        assert!(scan_file(&rules(), "objc", "app.m", "system(argv[1]);").is_empty());
+        assert!(!is_supported("objc"));
+        assert!(is_supported("python") && is_supported("typescript") && is_supported("cpp"));
     }
 
     #[test]
@@ -1533,6 +1537,18 @@ mod tests {
                 "app.c",
                 "void f(char *d) { char b[99]; sprintf(b, \"ls %s\", d); system(b); }",
                 "ast.shell-command",
+            ),
+            (
+                "cpp",
+                "app.cpp",
+                "void f(const std::string &d) { std::string cmd = \"ls \" + d; system(cmd.c_str()); }",
+                "ast.shell-command",
+            ),
+            (
+                "cpp",
+                "app.cpp",
+                "void f(sqlite3 *db, const std::string &name) { std::string q = \"select * from t where n = '\" + name + \"'\"; sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr); }",
+                "ast.sql-built-by-hand",
             ),
         ] {
             let findings = scan_file(&rules(), language, file, source);
@@ -1825,6 +1841,8 @@ mod tests {
         ("ast.file-path-from-value", "rust", "fn f(p: &str) { let t = Path::new(p); }", false),
         ("ast.file-path-from-value", "c", "void f(const char *p) { FILE *fp = fopen(p, \"r\"); }", true),
         ("ast.file-path-from-value", "c", "void f(void) { FILE *fp = fopen(\"/etc/app.conf\", \"r\"); }", false),
+        ("ast.file-path-from-value", "cpp", "void f(const std::string &p) { FILE *fp = fopen(p.c_str(), \"r\"); }", true),
+        ("ast.file-path-from-value", "cpp", "void f() { FILE *fp = fopen(\"/etc/app.conf\", \"r\"); }", false),
         ("ast.weak-hash-function", "dart", "String f(List<int> b) => md5.convert(b).toString();", true),
         ("ast.weak-hash-function", "dart", "String f(List<int> b) => sha1.convert(b).toString();", true),
         ("ast.weak-hash-function", "dart", "String f(List<int> b) => sha256.convert(b).toString();", false),
@@ -1838,6 +1856,8 @@ mod tests {
         ("ast.weak-hash-function", "c", "void f(const unsigned char *d, size_t n, unsigned char *o) { MD5(d, n, o); }", true),
         ("ast.weak-hash-function", "c", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha1(), NULL); }", true),
         ("ast.weak-hash-function", "c", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha256(), NULL); }", false),
+        ("ast.weak-hash-function", "cpp", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha1(), nullptr); }", true),
+        ("ast.weak-hash-function", "cpp", "void f(EVP_MD_CTX *c) { EVP_DigestInit_ex(c, EVP_sha256(), nullptr); }", false),
         ("ast.weak-cipher", "dart", "final e = Encrypter(AES(key, mode: AESMode.ecb));", true),
         ("ast.weak-cipher", "dart", "final c = ECBBlockCipher(AESEngine());", true),
         ("ast.weak-cipher", "dart", "final e = Encrypter(AES(key, mode: AESMode.gcm));", false),
@@ -1848,6 +1868,8 @@ mod tests {
         ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_128_ecb(), NULL, k, NULL); }", true),
         ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_des_ede3_cbc(), NULL, k, iv); }", true),
         ("ast.weak-cipher", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_gcm(), NULL, k, iv); }", false),
+        ("ast.weak-cipher", "cpp", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_128_ecb(), nullptr, k, nullptr); }", true),
+        ("ast.weak-cipher", "cpp", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_gcm(), nullptr, k, iv); }", false),
         ("ast.open-redirect", "dart", "Response f(Request r) => Response.found(r.url.queryParameters['next']!);", true),
         ("ast.open-redirect", "dart", "void f(HttpRequest r, String next) { r.response.redirect(Uri.parse(next)); }", true),
         ("ast.open-redirect", "dart", "Response f() => Response.found('/login');", false),
@@ -1925,6 +1947,8 @@ mod tests {
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: /login\\n\\n\"); }", false),
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: %s\\n\\n\", \"/login\"); }", false),
         ("ast.open-redirect", "c", "void f(const char *t) { printf(\"Content-Type: %s\\n\\n\", t); }", false),
+        ("ast.open-redirect", "cpp", "void f(const std::string &u) { printf(\"Location: %s\\r\\n\\r\\n\", u.c_str()); }", true),
+        ("ast.open-redirect", "cpp", "void f() { printf(\"Location: /login\\n\\n\"); }", false),
         // Two false alarms from the owner's first build (27 September 2026): a regular expression's
         // `exec` read as a shell command, and a test client's `.query({...})` read as SQL.
         ("ast.shell-command", "javascript", "const m = re.exec(code);", false),
@@ -1970,6 +1994,8 @@ mod tests {
         ("ast.unauthenticated-encryption", "swift", "func f() throws { let b = try AES.GCM.seal(d, using: key) }", false),
         ("ast.unauthenticated-encryption", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_cbc(), NULL, k, iv); }", true),
         ("ast.unauthenticated-encryption", "c", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_gcm(), NULL, k, iv); }", false),
+        ("ast.unauthenticated-encryption", "cpp", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_cbc(), nullptr, k, iv); }", true),
+        ("ast.unauthenticated-encryption", "cpp", "void f(EVP_CIPHER_CTX *c) { EVP_EncryptInit_ex(c, EVP_aes_256_gcm(), nullptr, k, iv); }", false),
         ("ast.unauthenticated-encryption", "rust", "fn f() { let c = Cipher::aes_256_cbc(); }", true),
         ("ast.unauthenticated-encryption", "rust", "fn f(k: &Key) { let e = cbc::Encryptor::<Aes128>::new(k, iv); }", true),
         ("ast.unauthenticated-encryption", "rust", "fn f() { let c = Cipher::aes_256_gcm(); }", false),
@@ -2029,6 +2055,8 @@ mod tests {
         ("ast.plaintext-websocket-url", "rust", "fn f() { let r = connect_async(\"wss://chat.example.com/ws\"); }", false),
         ("ast.plaintext-websocket-url", "c", "void f(void) { lws_client_connect(\"ws://chat.example.com/ws\"); }", true),
         ("ast.plaintext-websocket-url", "c", "void f(void) { lws_client_connect(\"wss://chat.example.com/ws\"); }", false),
+        ("ast.plaintext-websocket-url", "cpp", "void f() { lws_client_connect(\"ws://chat.example.com/ws\"); }", true),
+        ("ast.plaintext-websocket-url", "cpp", "void f() { lws_client_connect(\"wss://chat.example.com/ws\"); }", false),
         ("ast.plaintext-websocket-url", "shell", "websocat ws://chat.example.com/ws", true),
         ("ast.plaintext-websocket-url", "shell", "websocat wss://chat.example.com/ws", false),
         ("ast.plaintext-websocket-url", "shell", "websocat ws://localhost:8080/ws", false),
