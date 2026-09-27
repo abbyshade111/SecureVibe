@@ -172,7 +172,58 @@ pub fn scan(app_dir: &Path, signatures: &Signatures) -> Result<ScanReport> {
                 .push(evaluate(condition, sig, &report, &files));
         }
     }
+
+    // A compose file that builds two or more services from this repository's own code is the
+    // strongest evidence there is of several services. One `build:` beside a database image is the
+    // commonest single app of all, so it takes two. Read as lines rather than YAML: a service's
+    // `build:` is always indented under it, and a miss here only leaves the answer as it was.
+    if let Some(file) = compose_with_two_builds(app_dir, &report.all_paths)
+        && let Some(answer) = report
+            .answers
+            .iter_mut()
+            .find(|a| a.condition == Condition::MultipleServices)
+        && answer.value != Some(true)
+    {
+        answer.value = Some(true);
+        answer.evidence = Evidence::Source {
+            pattern: "two or more services with their own `build:`".to_owned(),
+            file,
+        };
+    }
     Ok(report)
+}
+
+/// The names Docker Compose reads a project from.
+const COMPOSE_FILES: &[&str] = &[
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "compose.yml",
+    "compose.yaml",
+];
+
+/// The first compose file in the app that builds at least two services from its own code.
+fn compose_with_two_builds(app_dir: &Path, paths: &BTreeSet<String>) -> Option<String> {
+    paths
+        .iter()
+        .filter(|p| {
+            let name = p.rsplit(['/', '\\']).next().unwrap_or(p);
+            COMPOSE_FILES.contains(&name.to_lowercase().as_str())
+        })
+        .find(|p| {
+            std::fs::read_to_string(app_dir.join(p)).is_ok_and(|text| {
+                text.lines()
+                    .filter(|line| {
+                        line.starts_with([' ', '\t'])
+                            && line
+                                .trim_start()
+                                .strip_prefix("build")
+                                .is_some_and(|rest| rest.trim_start().starts_with(':'))
+                    })
+                    .count()
+                    >= 2
+            })
+        })
+        .cloned()
 }
 
 fn evaluate(
