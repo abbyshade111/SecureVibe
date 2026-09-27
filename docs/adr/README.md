@@ -36,4 +36,4 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-015](ADR-015.md) | What the owner says can add requirements and never remove one, and silence is not a "no" |
 | [ADR-016](ADR-016.md) | The OWASP data files: one copy while both versions lived here, and two since |
 | [ADR-017](ADR-017.md) | `sv` never writes the app's code |
-| [ADR-018](ADR-018.md) | `sv` checks apps written in any language, with rules of its own among the checks (proposed; replaces ADR-012's ruling against such rules) |
+| [ADR-018](ADR-018.md) | `sv` checks apps written in any language, with rules of its own among the checks (replaces ADR-012's ruling against such rules) |
