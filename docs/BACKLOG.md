@@ -638,7 +638,7 @@ another session is not a claim.
      `express-rate-limit`, `@fastify/rate-limit`, `flask-limiter`, `slowapi` and `rack-attack` under
      `public-api`. Limiting requests is ordinary for any web app, and one of the usual ways to build the
      brute-force controls V6.3.1 asks for, so an app that adds it is handed the API requirements, over
-     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling. **Claimed on 27 September 2026 by session securevibe-e9.**
+     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling. **Claimed on 27 September 2026 by session securevibe-e9.** **Done the same day:** the five are gone from `public-api`, and two tests keep them out. See DESIGN, "A rate limiter is not an API".
   4. **Security notes the AI tool wrote are credited to the owner.** `security-notes.md` records no
      author, so the report counted all 12 answers as *documented by the owner*; the tool had written 8
      of them from the code. It marked them "Written by the AI coding tool" in the prose and warned the
@@ -693,6 +693,16 @@ another session is not a claim.
   that an item be picked; the owner is watching it and can stop it.** Plan: a `sv bundle` command first, with the
   secret rules deciding what stays out and a listing that says what was left out and why; the MCP tool and the
   "offer it once the report is written" step after that, as their own pieces.
+  **First piece done on 27 September 2026:** `sv bundle` (`crates/sv-cli/src/bundle.rs`, tests in
+  `crates/sv-cli/tests/bundle.rs`). It writes the zip beside the app, with the app's files, the report, the bill of
+  materials, a `BUNDLE.json` of SHA-256s and a plain-words `README.txt`; nothing the credential scan flagged, no
+  environment file, key store, database, link, editor folder or unreadable file goes in, and each is listed with its
+  reason. Written with no new dependency (SHA-256, CRC and a stored zip are in the crate). Reproduced on the way: a `--out`
+  reaching the app folder through a link (`/var` and `/private/var` on a Mac) slipped past the check, and a test caught it.
+  **Left, as their own pieces:** the MCP tool (the server writes only below the app today, so the zip needs its
+  own place or is skipped like the report), the offer once the report is written, `[data]` categories as a reason to leave
+  out more, the commit `sv` was built from in `BUNDLE.json` (only the version is there), and each outside tool's own
+  SARIF (only `findings.sarif` is).
 
   What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
   `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,

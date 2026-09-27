@@ -26,6 +26,7 @@ cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
 cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
 cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
 cargo run -p sv-cli -- report ./my-app --advisories ./osv  # …with known vulnerabilities in it too
+cargo run -p sv-cli -- bundle ./my-app   # the app, its report and a SHA-256 for every file, in one zip beside the app
 cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding tool (see below)
 ```
 
@@ -196,6 +197,21 @@ that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a
 If you are not a programmer and want to build an app with an AI coding tool, start with
 [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting SecureVibe to your
 tool, a prompt to start the build with, and what is and is not checked.
+
+## A zip to keep or hand on
+
+`sv bundle ./my-app` writes one zip beside the app folder (`--out FILE.zip` puts it elsewhere, but never inside the app):
+the app's files under `app/`, the report and the list of what the app ships under `report/`, a `BUNDLE.json` with which
+`sv` made it, when, and a SHA-256 for every file, and a `README.txt` in plain words. It takes the same `--run`, `--tools` and
+`--advisories` options as `sv report`.
+
+**It leaves out anything that could hold a secret, and says so.** Left out, and listed with the reason in the zip and on
+the screen: any file the credential scan flagged; environment files (`.env` and `.env.*`, but not `.env.example`); files named
+like key stores or credential files (`.pem`, `.key`, `id_rsa`, `.npmrc`…); database files (`.sqlite`, `.db`…); links, which can
+lead outside the folder; editor folders, which can hold a token; and any file the credential scan could not read, other than
+plain images and fonts. What it cannot do: tell which files hold data about the app's people. It leaves out the database files
+it recognizes by name and nothing else, so look through the zip before you hand it on. The zip is written stored (not
+compressed) by `sv` itself, so it adds no dependency.
 
 ## From inside your AI coding tool
 
