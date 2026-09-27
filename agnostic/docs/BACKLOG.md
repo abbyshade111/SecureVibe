@@ -5,6 +5,28 @@ another session is not a claim.
 
 ## Next
 
+- **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
+  2026, from the repository's *Insights → Community standards* page. Not claimed. Done today:
+  description, README, license, and the security policy (`docs/SECURITY.md`). Missing:
+  - **Code of conduct** (`CODE_OF_CONDUCT.md`). Which one is the owner's choice; the Contributor
+    Covenant is the usual default. It names a contact for reports, and that address is the owner's to give.
+  - **Contributing guide** (`CONTRIBUTING.md`): how to build and test `sv`, the checks a change must
+    pass, and the rules that already bind every session and are worth stating for people too (claim a
+    backlog item before starting it; evidence tiers are honest; American English with the Oxford comma).
+  - **Issue templates** (`.github/ISSUE_TEMPLATE/`): at least a bug report and an idea. A bug report
+    for a security tool should ask for `sv`'s version, the command, and what was not examined, and
+    should send anything that looks like a vulnerability in `sv` itself to the security policy
+    instead of a public issue.
+  - **Pull request template** (`.github/pull_request_template.md`). Worth care: every session writing
+    pull requests here fills in whatever template exists, so its sections become the shape of every
+    PR description. Keep it short: what changed, how it was verified (with what was *not* verified),
+    and the backlog entry it closes.
+
+  Two things to settle first. **Where the files go** depends on the entry below: while v1 is at the
+  top, `CONTRIBUTING.md` there describes v1; after the move, `sv`. Doing this after the move, or writing
+  it for the repository as a whole, avoids writing it twice. And **the security policy should name
+  `sv`**: it is v1's today (`docs/SECURITY.md`), and the community page counts it without reading it.
+
 - **Promote `sv` to the top of the repository, and keep v1 for the paper.** **The owner's decision,
   26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
   lost, and its code stays preserved exactly for the paper. **When** is for the sessions to work out
@@ -24,7 +46,9 @@ another session is not a claim.
     snapshot anybody can download and cite. A DOI through Zenodo, which also keeps its own copy, needs
     the owner's GitHub account, so it is theirs to set up; so is protecting the tags, which is a
     repository setting. GitHub no longer holds the event that made the repository public (it keeps 300
-    events, the oldest from 26 September), so the owner names the date.
+    events, the oldest from 26 September), so the owner named the commit. **`v1-paper` is done,
+    26 September 2026:** an annotated tag at `7fa07d6` (20 September, 20:25), the owner's choice, with
+    its Release, "v1, as described in the paper". `v1-final` waits for the move.
 
   **What the move touches, as far as is known:**
   - **Paths inside `sv`.** Seven source files find data by a path counted from their own crate
@@ -59,12 +83,92 @@ another session is not a claim.
   (the simple answer: `data/` stays whole, since `v1-final` holds v1 anyway); and whether anything in
   `artifacts/` belongs with the paper rather than with either product.
 
-  **Thoughts.** None yet.
+  **Thoughts.**
+
+  - **Vibe-coding builder (built v1), 26 September 2026.** Read at `76156b3`. "Checked" below means I looked
+    it up in that tree, not that I remember it.
+    - **Do not move v1 into a folder of `main`; keep it as the `v1` branch and the two tags, whole.**
+      Checked: v1's `server/src/config.ts` finds its root two folders up from `server/src` and then reads `data/`,
+      `workspace/` and `.env` from there. Under `v1/` its root would be `v1/`, with no `data/` in it, because
+      `data/` stays at the top. Making that work is a code change to v1, which is what "preserved exactly for
+      the paper" rules out. A complete tree on a branch runs as it always did.
+    - **The owner's own v1 data is not in git, and it is the only copy.** `workspace/` (projects, settings, the
+      audit log of what every AI call cost) and the root `.env` (the API keys) are both ignored by git. A
+      branch switch leaves them alone; `git clean -x` deletes them. This repository lives under `~/Desktop`,
+      and an iCloud eviction has already cost files once (`4b5b6e2`). So: copy `workspace/` and `.env` before
+      the move, and nobody runs `git clean -x` in the owner's checkout. To keep using v1 afterwards, make a
+      worktree of `v1` and start it with `SECUREVIBE_HOME=<the old workspace>` (checked: `config.ts` honors
+      it) and the `.env` copied in.
+    - **What a `v1` worktree also needs, none of it obvious.** Node 26 and `npm ci`. A real 57 MB copy of
+      `templates/secure-web-app/node_modules`, not a symlink: with a symlink every golden app fails the same
+      way and still reports "succeeded". Tests that start an app need to bind ports, so they fail in a
+      sandbox with `listen EPERM`. Nine server tests fail in any fresh worktree, on `main` as well (the dast
+      harness, CycloneDX, the config and secrets fixtures); a note saying so saves the next person an hour.
+      I would put these in one `ARCHIVED.md` on the `v1` branch only, so the tags stay byte-exact.
+    - **Remove v1's files from `main` in the same pull request that adds the tags, never before.**
+      `data/` is shared, and v1 pins parts of it with tests (`applicability.json` above all: a test fails
+      if a requirement is marked as checked by the static scanner but no rule covers it). While v1 is still
+      in `main`, an `sv` change to that file can break v1's suite, and I hit exactly that this week. Once v1
+      lives only on its branch it keeps its own copy of `data/`; the two copies will drift and that is fine.
+    - **The root `CLAUDE.md` is the only one there is, and it is v1's.** `agnostic/` has none. Besides v1's
+      commands it holds the owner's working rules for every session: git is pre-approved but AI spending,
+      repository settings, history rewrites and deletions are asked first; the evaluation harness and the
+      backlog are claimed in writing, not by message; say what was verified and what was not; plain language
+      for the owner. Those must be carried into the new top-level `CLAUDE.md`, or they stop reaching the
+      sessions. v1's command sections travel with v1.
+    - **v1's CI needs no decision beyond leaving it alone.** `checks.yml` already has its push, pull-request
+      and schedule triggers commented out because of the hanging test job, so v1 is checked by hand today
+      anyway. Leave it on the `v1` branch as it is. Only CodeQL's JavaScript analysis is a real question,
+      and it is the owner's: whether they want the archive kept scanned.
+    - **The evaluation harness (`evals/`) stops earning a place in `main`.** It is a regression guard for a
+      template and pipeline that will no longer change: it builds five golden apps without AI and compares
+      them with saved baselines. It stays reachable at `v1-paper` and `v1-final`, which matters, because
+      `docs/paper/METHODOLOGY.md` describes it and quotes its first run. One part could be useful to `sv`:
+      `evals/golden/*.json` are five saved sets of wizard answers, deliberately varied (sign-in or not,
+      uploads, AI, payments). I have not checked whether `sv`'s design questions can express them. The
+      baselines are v1's numbers and not comparable with anything `sv` produces.
+    - **Self-assessment (`npm run self-assess`, `self-assessment/`) does not carry over.** It runs v1's
+      pipeline on v1's own code, and `triage.json` holds the owner's decisions about v1's findings, keyed by
+      fingerprints only v1 produces. `sv` checking itself is a different job with different inputs. Keep it
+      with v1.
+    - **`data/knowledge`: who reads what.** Checked by searching for each file name in v1's `server`,
+      `shared`, `web`, `templates` and `scripts`, and in `agnostic/crates` and `agnostic/tools`.
+      - Only v1: `examples.json`, `glossary.json`, `injection-patterns.json`, `patterns.json`,
+        `remediation.json`, `requirements-plain.json`, `sbd-rules.json`, `wizard-copy.json`.
+      - Both: `applicability.json` (`sv` layers `agnostic/data/applicability-v2.json` over it) and the four
+        files in `data/frameworks`.
+      - Only `sv`: `threats.json` (v1 builds its threat model in code and never reads it).
+      - `common-passwords.txt`: v1 reads it when it runs. `sv` only mentions it in a comment
+        (`signed_in.rs`) and samples it in `tools/pwned_passwords.py`; no crate loads it.
+      - Caveat: this finds file names, so a reader that loads a whole folder would not show up. `sv` loads
+        `data/knowledge` only for `applicability.json` and `threats.json`, by name.
+      I agree that `data/` stays whole: it is 1.6 MB, and `v1-final` holds v1's copy anyway. What would help
+      is a short `data/README.md` with the three groups above, so nobody edits `wizard-copy.json` thinking
+      it affects `sv`, or `applicability.json` thinking it affects only `sv`.
+    - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
+      of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
+      untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
+      `CONTRACTS.md`, `DESIGN.md` and `SECURITY.md` all point at it as if it were current. Checked:
+      `docs/paper/` does not cite it; the paper's evidence is `docs/paper/` and the USB bundles. I cannot
+      see the bundles, so whoever holds them should check that they do not. If the owner wants it in the
+      paper folder, it needs a note saying which day it is a snapshot of.
+    - **Not settled by me:** the date `v1-paper` points at (the owner's to name), Zenodo and tag
+      protection (theirs to set up), and whether `sv` wants the golden profiles. I did not run anything;
+      this is reading the tree and what building v1 taught me.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
-  making it easy for people who aren't technical or security experts to vibe code safely." **Not
-  claimed.** The walk-through itself is short — describe the app, have the tool write
+  making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
+  on 26 September 2026 by session securevibe-e8**, at the owner's asking, now the container is done.
+  **Done on 27 September 2026:** `docs/GETTING-STARTED.md`, linked from the README. It covers Docker
+  (start it before the tool), a git folder (so the committed-secrets check runs), the `.mcp.json`
+  for Claude with the published image, the settings files for Cursor and VS Code marked *not yet
+  tried* (the owner has offered to try VS Code), the copy-and-paste path for a tool without MCP
+  (`sv init`, `check`, `questions` through Docker, each tried), a starting prompt (which tells the tool
+  to delete a capability line it is unsure of rather than leave it `false`, to keep reports out of
+  the app's folder, and to ask before rewriting code a finding may have got wrong), and a plain section
+  on what is not checked without `--run`. Its "Known problems" lists items 1 to 4 of the entry on the
+  owner's first build; each line comes out as its fix lands. The walk-through itself is short — describe the app, have the tool write
   `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
   `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
   prompt in the conversation that produced this entry. **What is not short is getting to step one**,
@@ -1067,7 +1171,8 @@ another session is not a claim.
      over: V4.4.2 for a private socket, which the anonymous check cannot ask. See DESIGN, "V4.4.3 and
      V4.4.4, a private WebSocket's session". **V4.4.2 for a private socket
      claimed on 26 September 2026 by session securevibe-e9**: the foreign-origin handshake sent with the
-     signed-in session, beside the others.
+     signed-in session, beside the others. **Done the same day**; no level changes, since V4.4.2 was already
+     counted through the anonymous probe.
      Whether the log line the log check already finds is in a common format —
      JSON, logfmt, or the common log format (V16.2.4). And small
      manifest entries naming a GraphQL path and a WebSocket path: an introspection query and a
@@ -1171,7 +1276,11 @@ another session is not a claim.
      `text/plain`, as a form, and as multipart, none of which a browser preflights; Level 1 goes from
      53 to 54 of 70; see DESIGN, "A request another site can send without asking"); V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
-     in every real browser, which a check could say directly.
+     in every real browser, which a check could say directly. **Claimed on 26 September 2026 by
+     session securevibe-e9**: the `owned` create request, sent again as the app's own page would
+     send it under that policy (with `Origin: null` and no `Referer`), when the app's pages ask for
+     `no-referrer`. A finding of its own with no requirement behind it, since nothing in ASVS asks
+     an app to accept its own forms.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which

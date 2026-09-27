@@ -631,6 +631,18 @@ const WS_WITHOUT_SESSION: Rule = Rule {
           require it.",
 };
 
+const WS_FOREIGN_ORIGIN: Rule = Rule {
+    // The anonymous probe's rule, asked here of a socket that needs a sign-in, which that probe
+    // cannot open.
+    rule_id: "probe.websocket-origin-unchecked",
+    requirement_ids: &["V4.4.2"],
+    cwe: &["CWE-1385"],
+    impact: "Browsers do not stop cross-site WebSocket connections the way they stop other \
+             cross-site requests, so another site can open this one as the signed-in visitor and \
+             read what comes back.",
+    fix: "Compare the handshake's `Origin` with the app's own origins and refuse the rest.",
+};
+
 const WS_AFTER_SIGN_OUT: Rule = Rule {
     rule_id: "probe.websocket-after-sign-out",
     requirement_ids: &["V4.4.3"],
@@ -5754,6 +5766,50 @@ fn websocket_session_checks(
         );
     }
 
+    // V4.4.2, which the anonymous probe cannot ask of a socket that needs a sign-in: the same signed-in
+    // handshake, from a site the app has never heard of. The plain one upgraded above, so a refusal
+    // is about the origin.
+    let mut foreign = ws_handshake("websocket-foreign-origin", path, &session);
+    foreign
+        .headers
+        .push(("Origin".to_owned(), STRANGER.to_owned()));
+    let foreign_status = http.send(&foreign).map(|r| r.status);
+    out.steps.push(format!(
+        "opened the WebSocket at {path} signed in, from another site: {}",
+        match foreign_status {
+            Some(101) => "accepted".to_owned(),
+            Some(status) => format!("refused ({status})"),
+            None => "no answer".to_owned(),
+        }
+    ));
+    match foreign_status {
+        Some(101) => out.findings.push(finding(
+            &WS_FOREIGN_ORIGIN,
+            "A private WebSocket is accepted from any website",
+            Severity::Medium,
+            format!(
+                "A handshake to {path} carrying the signed-in session and `Origin: {STRANGER}` was \
+                 accepted (101). A page on any site can open this connection as a signed-in visitor."
+            ),
+        )),
+        Some(status) => out.verified.push(crate::Verified::new(
+            WS_FOREIGN_ORIGIN.rule_id,
+            WS_FOREIGN_ORIGIN.requirement_ids,
+            format!(
+                "a signed-in WebSocket handshake to {path} from a site the app has never heard of, \
+                 refused ({status}) where the same handshake with no Origin was accepted"
+            ),
+        )),
+        None => say(
+            "V4.4.2",
+            format!(
+                "Whether the private WebSocket checks where a handshake comes from: the signed-in \
+                 handshake from another site to {path} got no answer."
+            ),
+            out,
+        ),
+    }
+
     // Signed out, then the old session again. Only when a real session was shown to be needed: a
     // socket that opens without one opens after sign-out too, and that shows nothing more.
     if anonymous || invented != Some(false) {
@@ -7390,6 +7446,8 @@ mod tests {
         ws_survives_sign_out: bool,
         /// The WebSocket at /ws refuses every handshake.
         ws_refuses_all: bool,
+        /// The WebSocket at /ws takes a handshake from any site, as long as the session is real.
+        ws_any_origin: bool,
         /// The WebSocket at /ws checks a session only when a cookie is sent, and lets in a
         /// handshake with none as a guest.
         ws_guest: bool,
@@ -7686,6 +7744,7 @@ mod tests {
             if upgrade && path == "/ws" {
                 let signed_out = sid.as_ref().is_some_and(|s| self.signed_out.contains(s));
                 let opens = !self.flaws.ws_refuses_all
+                    && (!foreign || self.flaws.ws_any_origin || self.flaws.ws_open)
                     && (user.is_some()
                         || self.flaws.ws_open
                         || (self.flaws.ws_any_cookie && sid.is_some())
@@ -14462,5 +14521,75 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // V4.4.2 for a private WebSocket
+
+    fn origin_found(o: &Outcome) -> bool {
+        rule_ids(o).contains(&WS_FOREIGN_ORIGIN.rule_id)
+    }
+
+    fn origin_credited(o: &Outcome) -> bool {
+        verified_ids(o).contains(&WS_FOREIGN_ORIGIN.rule_id)
+    }
+
+    #[test]
+    fn a_private_socket_that_checks_the_origin_is_credited() {
+        let o = ws_run(Flaws::default());
+        assert!(origin_credited(&o), "{:?}", o.steps);
+        assert!(!origin_found(&o));
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("signed in, from another site: refused")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_private_socket_that_takes_any_origin_is_found() {
+        let o = ws_run(Flaws {
+            ws_any_origin: true,
+            ..Default::default()
+        });
+        assert!(origin_found(&o), "{:?}", o.steps);
+        assert!(!origin_credited(&o));
+        // Only the origin is wrong: the session checks still hold.
+        assert!(ws_findings(&o).is_empty(), "{:?}", o.findings);
+    }
+
+    #[test]
+    fn a_socket_open_to_anybody_is_found_for_the_origin_too() {
+        let o = ws_run(Flaws {
+            ws_open: true,
+            ..Default::default()
+        });
+        assert!(origin_found(&o), "{:?}", o.steps);
+        assert!(!origin_credited(&o));
+    }
+
+    #[test]
+    fn with_a_bearer_session_the_origin_is_still_asked() {
+        let o = run_against(Flaws::default(), &bearer_ws_users());
+        assert!(origin_credited(&o), "{:?}", o.steps);
+        let o = run_against(
+            Flaws {
+                ws_any_origin: true,
+                ..Default::default()
+            },
+            &bearer_ws_users(),
+        );
+        assert!(origin_found(&o), "{:?}", o.steps);
+    }
+
+    #[test]
+    fn a_socket_refusing_everybody_is_not_asked_about_the_origin() {
+        let o = ws_run(Flaws {
+            ws_refuses_all: true,
+            ..Default::default()
+        });
+        assert!(!origin_found(&o) && !origin_credited(&o), "{:?}", o.steps);
     }
 }
