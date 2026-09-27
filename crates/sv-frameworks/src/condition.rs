@@ -81,6 +81,9 @@ conditions! {
     // what was retrieved, logging each retrieval); the vector-database ones do not. Asked apart
     // since 27 September 2026, when one question led a tool to count web search as a vector store.
     WebSearch => "web-search", Claim, "The AI does not search the web or read web pages.";
+    // Watermarking what the AI makes (C7.4.4) was gated on `rag`, which has nothing to do with it.
+    // Asked apart at the owner's decision, 27 September 2026.
+    GeneratesMedia => "generates-media", Claim, "The AI makes text only, not images, audio, or video.";
     Mcp => "mcp", Claim, "The AI does not use the Model Context Protocol (MCP) to talk to tools.";
     MultiTenant => "multi-tenant", Claim, "This app serves one organization, not several separate customer organizations sharing one system.";
     Training => "training", Claim, "This app does not train or fine-tune any AI model.";

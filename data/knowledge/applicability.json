@@ -265,6 +265,7 @@
     { "scope": "C7.4.2", "condition": "web-search", "notApplicableReason": "The assistant does not cite retrieved content, so there are no attributions to derive." },
     { "scope": "C7.4.3", "condition": "rag", "notApplicableReason": "The assistant does not retrieve content, so there is nothing to trace its claims to." },
     { "scope": "C7.4.3", "condition": "web-search", "notApplicableReason": "The assistant does not retrieve content, so there is nothing to trace its claims to." },
+    { "scope": "C7.4.4", "condition": "generates-media", "notApplicableReason": "The assistant makes text only, so there are no generated images, audio, or video to watermark." },
     { "scope": "C8", "condition": "ai-history", "notApplicableReason": "The assistant does not keep conversation history between visits and has no vector database, so there is no stored memory to protect." },
     { "scope": "C8.1.1", "condition": "rag", "notApplicableReason": "There is no vector database; conversation history is plain rows in the app's own database, scoped to each user." },
     { "scope": "C8.1.2", "condition": "rag", "notApplicableReason": "There is no document store with metadata tags; conversation history is plain rows in the app's own database." },

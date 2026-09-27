@@ -108,42 +108,45 @@ health = "/"              # a path that returns 200 once the app is up
 categories = []
 
 [capabilities]
-auth = false                  # does anyone sign in?
-oauth = false                 # sign-in through Google/Microsoft/etc.
-authorization-server = false  # do OTHER apps sign their users in through THIS one?
-jwt = false                   # self-contained tokens (JWT) rather than opaque session ids
-uploads = false               # can anyone upload a file?
-payments = false              # does it take money?
-email = false                 # does it send email?
-public-api = false            # can other programs connect with an API key?
-scheduler = false             # are there background or scheduled jobs?
-multi-tenant = false          # do separate customer organizations share one system?
-webrtc = false                # real-time audio or video calls
-out-of-band-auth = false      # sign-in codes sent by phone, SMS or push notification
-shared-hostname = false       # do other applications share this app's address?
-multiple-services = false     # does this run as more than one service talking over a network?
-external-apis = []            # host names it calls, e.g. ["api.stripe.com"]
+# Every answer below starts commented out, so a line nobody answered is read as unanswered, never as a
+# quiet "no". For each one you can answer, remove the `#` and replace `?` with true or false.
+# auth = ?                    # does anyone sign in?
+# oauth = ?                   # sign-in through Google/Microsoft/etc.
+# authorization-server = ?    # do OTHER apps sign their users in through THIS one?
+# jwt = ?                     # self-contained tokens (JWT) rather than opaque session ids
+# uploads = ?                 # can anyone upload a file?
+# payments = ?                # does it take money?
+# email = ?                   # does it send email?
+# public-api = ?              # can other programs connect with an API key?
+# scheduler = ?               # are there background or scheduled jobs?
+# multi-tenant = ?            # do separate customer organizations share one system?
+# webrtc = ?                  # real-time audio or video calls
+# out-of-band-auth = ?        # sign-in codes sent by phone, SMS or push notification
+# shared-hostname = ?         # do other applications share this app's address?
+# multiple-services = ?       # does this run as more than one service talking over a network?
+# external-apis = ["api.example.com"]   # host names it calls; [] if it calls none
 tls = "terminated-upstream"   # off | self | terminated-upstream
 
 [repository]
 # How the code is developed and shipped. Ten AISVS Appendix C requirements turn on the first one.
-ci-cd = false             # GitHub Actions, GitLab CI, Jenkins or similar
-hosted-scm = false        # hosted source control with branch protection or a merge queue
-outside-contributors = false  # code contributions from people outside the team
-iac = false               # Terraform, CloudFormation or CI workflow files in the repository
+# ci-cd = ?                   # GitHub Actions, GitLab CI, Jenkins or similar
+# hosted-scm = ?              # hosted source control with branch protection or a merge queue
+# outside-contributors = ?    # code contributions from people outside the team
+# iac = ?                     # Terraform, CloudFormation or CI workflow files in the repository
 
 [capabilities.ai]
-enabled = false
-can-act = false           # may it change data, not just answer?
-stores-history = false    # is conversation history kept between visits?
-moderation = false
-rag = false               # does it search documents of the app's own: a document store, search index, or vector database?
-web-search = false        # does it search the web or read web pages? (a web search is this, not rag)
-mcp = false               # does it reach tools over the Model Context Protocol?
-training = false          # does this app train or fine-tune a model?
-self-hosted = false       # does it host or deploy model files itself, rather than calling a vendor's API?
-multi-agent = false       # several AI agents that must identify each other?
-multimodal = false        # does it take images, video or audio, rather than typed text only?
+# enabled = ?                 # does the app have an AI feature at all?
+# can-act = ?                 # may it change data, not just answer?
+# stores-history = ?          # is conversation history kept between visits?
+# moderation = ?
+# rag = ?                     # does it search documents of the app's own: a document store, search index, or vector database?
+# web-search = ?              # does it search the web or read web pages? (a web search is this, not rag)
+# generates-media = ?        # does it make images, audio, or video? (matters only at level 3)
+# mcp = ?                     # does it reach tools over the Model Context Protocol?
+# training = ?                # does this app train or fine-tune a model?
+# self-hosted = ?             # does it host or deploy model files itself, rather than calling a vendor's API?
+# multi-agent = ?             # several AI agents that must identify each other?
+# multimodal = ?              # does it take images, video or audio, rather than typed text only?
 
 # Numbers you state as policy, which the checks hold the running app to.
 # Leave one out and nothing is claimed about it either way.
@@ -211,19 +214,20 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
   requirements are judged to apply, so answer for the app as it actually is, not as it is meant
   to become.
 
-  Two rules:
+  Three rules:
 
-  1. If you are unsure whether a capability is present, say true. A capability claimed but absent
+  1. Every capability line starts commented out, with `?` where the answer goes. Remove the `#` and
+     write true or false for each one you can answer. A line left commented out is read as
+     "nobody answered": every requirement that turns on it is reported as not assessed, never as
+     resolved, which is the honest answer when nobody knows.
+
+  2. If you are unsure whether a capability is present, say true. A capability claimed but absent
      costs a requirement that did not need meeting. A capability present but denied is the one
-     mistake that matters — it is how a real requirement gets marked "not applicable".
+     mistake that matters: it is how a real requirement gets marked "not applicable". Never write
+     false to get a line out of the way.
 
-  2. Do not describe the app you were asked to build. Describe the code that is there. If the
+  3. Do not describe the app you were asked to build. Describe the code that is there. If the
      payment flow was planned and never written, payments is false.
-
-  3. Leave nothing out. A line you delete is not read as "no" — it is read as "nobody answered",
-     and every requirement that turned on it is reported as not assessed rather than resolved.
-     If you genuinely do not know, leaving it out is the honest thing to do; guessing "false" is
-     not.
 
 `sv` does not take this file at its word. It looks for each claim in the code and reports what it
 finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable. A claim of "no" never
