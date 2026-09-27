@@ -1,0 +1,30 @@
+name: Idea
+description: Something sv could check, report, or make easier.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Ideas already planned are in [docs/BACKLOG.md](https://github.com/abbyshade111/SecureVibe/blob/main/docs/BACKLOG.md); it is worth a look first.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like sv to do, and who it would help.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: What goes wrong, or is hard, without it. An example from a real app helps most.
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirements it speaks to, if you know them
+      description: For example "ASVS V8.3.1" or "AISVS C7.2.1". Leave it empty if you are not sure.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: How sv would know
+      description: What it would look at or try, and what it would see when the thing is there and when it is not. sv never reports something as checked unless it really looked, so this is the heart of an idea.

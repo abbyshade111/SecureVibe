@@ -1,0 +1,10 @@
+# The choices shown when somebody opens a new issue. A problem that could be a security hole in `sv`
+# itself must not be written in public, so the first link sends it to the private route instead.
+blank_issues_enabled: true
+contact_links:
+  - name: A security problem in sv itself
+    url: https://github.com/abbyshade111/SecureVibe/security/advisories/new
+    about: Report it privately here, not as a public issue. SECURITY.md says what counts.
+  - name: Getting started
+    url: https://github.com/abbyshade111/SecureVibe/blob/main/docs/GETTING-STARTED.md
+    about: Setting sv up alongside your AI coding tool, step by step.

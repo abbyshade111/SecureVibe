@@ -1,0 +1,54 @@
+name: Bug report
+description: sv did something wrong, missed something, or reported something that is not there.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. **If this could be a security hole in `sv` itself** (it read or wrote outside the folder it was given, opened a network connection, ran code it was not asked to, or showed a whole key or password), please do not report it here: use the private form linked from the new-issue page, as [SECURITY.md](https://github.com/abbyshade111/SecureVibe/blob/main/SECURITY.md) explains.
+
+        **Never paste a real key, password, or `.env` file** into an issue, not even one that already leaked.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what `sv` said or did, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: The command, or the MCP tool
+      description: For example `sv report ./my-app --run`, or "securevibe_check, from Claude Code".
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Which sv
+      description: The commit you built it from (`git rev-parse HEAD` in your copy), or the container image's fingerprint (`docker image inspect --format '{{.Id}}' ghcr.io/abbyshade111/securevibe-sv`).
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem
+      options:
+        - It missed a real problem in my app
+        - It reported a problem that is not there
+        - A report says something is checked that was not, or the reverse
+        - It crashed or stopped with an error
+        - The report or a message is hard to understand
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: not-examined
+    attributes:
+      label: What the report said it did not examine
+      description: The report lists what it could not check (a language it cannot read, a step that did not run, a tool that is not installed). Paste that part if it is there; it often explains the problem.
+  - type: textarea
+    id: example
+    attributes:
+      label: A small example, if you have one
+      description: A few lines of code, or a tiny app, that shows it. Leave out anything secret.
