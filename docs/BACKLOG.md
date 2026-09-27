@@ -15,7 +15,8 @@ another session is not a claim.
   "least-privilege-workflows" tells the tool to keep each workflow's `permissions:` block small, and
   cites AC.7.4 for it: the same subject, a different ask. The citation goes; the rule keeps AC.12.2
   and AC.12.3, which it does follow from. **Claimed on 27 September 2026 by session securevibe-e9**,
-  at the owner's asking.
+  at the owner's asking. **Done the same day;** see DESIGN, "Appendix C as rules the AI coding tool follows
+  while it codes".
 
 - **Records that disagree with what was built, or are missing, found by the ADR analysis.** Found on 27 September 2026 by
   session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one

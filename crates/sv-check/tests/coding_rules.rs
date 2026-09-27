@@ -25,8 +25,8 @@ fn with_nothing_known_about_the_app_every_rule_is_given() {
 #[test]
 fn a_rule_is_left_out_only_when_everything_it_cites_does_not_apply() {
     let r = rules();
-    // No pipeline: every AC.12 requirement, and AC.7.4, is set aside.
-    let no_pipeline = |id: &str| id.starts_with("AC.12.") || id == "AC.7.4";
+    // No pipeline: every AC.12 requirement is set aside.
+    let no_pipeline = |id: &str| id.starts_with("AC.12.");
     let given = ids(&r.for_app(Some(&no_pipeline)));
     assert!(
         !given.contains(&"no-untrusted-code-with-secrets".to_owned()),
