@@ -368,6 +368,7 @@ fn finding(
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        in_test_module: false,
         rule_id: rule_id.into(),
         title,
         severity,

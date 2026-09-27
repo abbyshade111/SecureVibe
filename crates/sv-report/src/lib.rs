@@ -549,6 +549,21 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
     )
 }
 
+/// What the reports say above the findings in test or sample code.
+pub const TEST_CODE_SECTION: &str = "Listed apart because they are in code that tests the app or \
+     shows how to use it, not in the app itself: a folder or file named for tests, fixtures, or \
+     examples, or Rust code built only for its tests. They still count toward the requirements they \
+     are about. Test code can hold a real key, and sample code gets copied, so read each one before \
+     deciding it does not matter.";
+
+/// The findings in the app itself, then those in test or sample code, each in the report's order.
+/// Every report lists the two apart, the app's first: on `sv`'s own code, three findings in four
+/// were in its tests, and mixed together they buried the rest. Both still count toward the
+/// requirements they are about; this changes where a finding is listed, never whether it counts.
+pub fn app_then_tests(report: &Report) -> (Vec<&sv_check::Finding>, Vec<&sv_check::Finding>) {
+    report.findings.iter().partition(|f| !f.in_test_code())
+}
+
 /// What the reports say beside a finding, besides the finding itself: how sure `sv` is, whether it
 /// is in test code, and which other tools reported the same thing. One wording for every report, so
 /// the owner and the AI coding tool read the same caution. None of it lowers or hides the finding.

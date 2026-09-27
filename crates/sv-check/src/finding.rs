@@ -110,6 +110,10 @@ pub struct Finding {
     /// report fills it in.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub fingerprint: String,
+    /// On a line Rust builds only for its tests, inside a file that is otherwise the app's own: see
+    /// `mark_rust_test_code`. False until the report looks.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub in_test_module: bool,
 }
 
 impl Finding {
@@ -129,8 +133,85 @@ impl Finding {
     /// app itself. Said beside it, never used to hide it: test code can hold a real key, and sample
     /// code gets copied.
     pub fn in_test_code(&self) -> bool {
-        is_test_path(&self.location.file)
+        self.in_test_module || is_test_path(&self.location.file)
     }
+}
+
+/// Marks the findings that sit inside Rust test code in a file that is otherwise the app's own: a
+/// `#[cfg(test)]` module, a `#[test]` function, or a file that starts `#![cfg(test)]`. Rust keeps its
+/// unit tests in the same file as the code they test, so the file's name cannot say which is which.
+pub fn mark_rust_test_code(app_dir: &std::path::Path, findings: &mut [Finding]) {
+    let mut read: std::collections::HashMap<String, Vec<(usize, usize)>> =
+        std::collections::HashMap::new();
+    for f in findings {
+        if !f.location.file.ends_with(".rs") {
+            continue;
+        }
+        let lines = read.entry(f.location.file.clone()).or_insert_with(|| {
+            std::fs::read_to_string(app_dir.join(&f.location.file))
+                .map(|source| rust_test_lines(&source))
+                .unwrap_or_default()
+        });
+        f.in_test_module = lines
+            .iter()
+            .any(|(first, last)| (*first..=*last).contains(&f.location.line));
+    }
+}
+
+/// The lines, 1-indexed and inclusive, that Rust compiles only for its tests.
+pub fn rust_test_lines(source: &str) -> Vec<(usize, usize)> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
+        .is_err()
+    {
+        return Vec::new();
+    }
+    let Some(tree) = parser.parse(source, None) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let mut stack = vec![tree.root_node()];
+    while let Some(node) = stack.pop() {
+        let text: String = source[node.byte_range()]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
+        match node.kind() {
+            "inner_attribute_item" if text == "#![cfg(test)]" => {
+                return vec![(1, usize::MAX)];
+            }
+            "attribute_item" if marks_test(&text) => {
+                // The attribute applies to the next item; other attributes and comments may sit between.
+                let mut next = node.next_named_sibling();
+                while let Some(n) = next {
+                    if !matches!(
+                        n.kind(),
+                        "attribute_item" | "line_comment" | "block_comment"
+                    ) {
+                        break;
+                    }
+                    next = n.next_named_sibling();
+                }
+                if let Some(item) = next {
+                    out.push((node.start_position().row + 1, item.end_position().row + 1));
+                }
+            }
+            _ => {
+                let mut cursor = node.walk();
+                stack.extend(node.named_children(&mut cursor));
+            }
+        }
+    }
+    out
+}
+
+/// `#[cfg(test)]`, `#[test]`, or a test runner's own, such as `#[tokio::test]`, whitespace removed.
+fn marks_test(attribute: &str) -> bool {
+    attribute == "#[cfg(test)]"
+        || attribute == "#[test]"
+        || (attribute.starts_with("#[")
+            && (attribute.ends_with("::test]") || attribute.contains("::test(")))
 }
 
 /// A path that belongs to tests, fixtures, or samples, by the conventions of the languages `sv`
@@ -269,6 +350,7 @@ fn placeholder() -> Finding {
         fix: String::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        in_test_module: false,
     }
 }
 
@@ -301,6 +383,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            in_test_module: false,
         }
     }
 
@@ -442,6 +525,101 @@ mod tests {
         }
     }
 
+    /// Which of the lines Rust builds only for its tests, as `rust_test_lines` says.
+    fn test_lines(source: &str) -> Vec<usize> {
+        let ranges = rust_test_lines(source);
+        (1..=source.lines().count())
+            .filter(|n| ranges.iter().any(|(a, b)| (*a..=*b).contains(n)))
+            .collect()
+    }
+
+    #[test]
+    fn rust_code_built_only_for_its_tests_is_recognized() {
+        let module = "fn hash(b: &[u8]) {}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n}\nfn after() {}\n";
+        assert_eq!(
+            test_lines(module),
+            vec![3, 4, 5, 6],
+            "the module, attribute to closing brace"
+        );
+
+        let function = "fn app() {}\n#[test]\nfn works() {\n    app();\n}\n";
+        assert_eq!(test_lines(function), vec![2, 3, 4, 5]);
+
+        let runner = "fn app() {}\n#[tokio::test]\nasync fn works() {}\n#[tokio::test(flavor = \"multi_thread\")]\nasync fn also() {}\n";
+        assert_eq!(test_lines(runner), vec![2, 3, 4, 5]);
+
+        // Another attribute or a comment between the marker and the item does not lose the item.
+        let between =
+            "#[cfg(test)]\n// the tests\n#[allow(dead_code)]\nmod tests {\n}\nfn app() {}\n";
+        assert_eq!(test_lines(between), vec![1, 2, 3, 4, 5]);
+
+        let nested = "mod inner {\n    fn app() {}\n    #[cfg( test )]\n    mod tests {}\n}\n";
+        assert_eq!(
+            test_lines(nested),
+            vec![3, 4],
+            "inside another module, spaces and all"
+        );
+
+        let whole = "#![cfg(test)]\nfn helper() {}\n";
+        assert_eq!(
+            test_lines(whole),
+            vec![1, 2],
+            "a file built only for tests is all test code"
+        );
+    }
+
+    #[test]
+    fn rust_code_that_only_looks_like_a_test_is_the_apps_own() {
+        for source in [
+            "#[cfg(not(test))]\nmod real {}\n",
+            "#[cfg(feature = \"test\")]\nmod real {}\n",
+            "#[cfg(test_utils)]\nmod real {}\n",
+            "#[derive(Debug)]\nstruct Test;\nfn test() {}\n",
+            "const S: &str = \"#[cfg(test)]\";\nfn app() {}\n",
+            "// #[cfg(test)]\nmod real {}\n",
+            "#[testing]\nfn real() {}\n",
+        ] {
+            assert!(
+                test_lines(source).is_empty(),
+                "{source:?} is the app's own code"
+            );
+        }
+    }
+
+    #[test]
+    fn findings_inside_rust_tests_are_marked_and_the_rest_are_not() {
+        let dir = std::env::temp_dir().join(format!("sv-rust-tests-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "fn app() {}\n\n#[cfg(test)]\nmod tests {\n    fn t() {}\n}\n",
+        )
+        .unwrap();
+        // Same line numbers in a file that is not Rust, and a Rust file that cannot be read.
+        std::fs::write(
+            dir.join("src/app.py"),
+            "#[cfg(test)]\nmod tests {\n\n\n\n}\n",
+        )
+        .unwrap();
+        let mut findings = vec![
+            at("r", "src/lib.rs", 1, &[], Severity::High),
+            at("r", "src/lib.rs", 5, &[], Severity::High),
+            at("r", "src/app.py", 5, &[], Severity::High),
+            at("r", "src/gone.rs", 5, &[], Severity::High),
+            at("r", "src/lib.rs", 0, &[], Severity::High),
+        ];
+        mark_rust_test_code(&dir, &mut findings);
+        let marked: Vec<bool> = findings.iter().map(|f| f.in_test_module).collect();
+        assert_eq!(marked, vec![false, true, false, false, false]);
+        assert!(
+            findings[1].in_test_code(),
+            "and the reports read it as test code"
+        );
+        assert!(!findings[0].in_test_code());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn how_sure_is_said_in_the_owners_words() {
         let mut f = at("ast.a", "a.py", 1, &[], Severity::High);
@@ -491,6 +669,7 @@ mod tests {
         let finding = Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            in_test_module: false,
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),
             severity: Severity::Critical,

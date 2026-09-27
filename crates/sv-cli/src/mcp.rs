@@ -765,8 +765,17 @@ fn summary(report: &sv_report::Report) -> String {
     if report.findings.is_empty() {
         out.push_str("\nNo findings. That is not the same as secure: see what was not examined.\n");
     } else {
+        let (app, tests) = sv_report::app_then_tests(report);
         out.push_str(&format!("\n{} FINDINGS:\n", report.findings.len()));
-        for f in &report.findings {
+        if !tests.is_empty() {
+            out.push_str(&format!(
+                "({} in the app itself first, then {} in test or sample code. Those still count; \
+                 fix a key or a copied pattern there as you would in the app.)\n",
+                app.len(),
+                tests.len()
+            ));
+        }
+        for f in app.into_iter().chain(tests) {
             out.push_str(&format!(
                 "- [{}, {}] {} — {}:{}{}\n  fix: {}\n",
                 f.severity.name(),
@@ -1026,6 +1035,32 @@ mod tests {
             result["structuredContent"]["counts"],
             serde_json::to_value(&report.counts).unwrap()
         );
+    }
+
+    #[test]
+    fn the_ai_tool_reads_the_apps_own_findings_before_those_in_its_tests() {
+        let root = std::env::temp_dir().join(format!("sv-mcp-tests-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        // The test module comes first in the file, so the listing's order is not the file's.
+        std::fs::write(
+            root.join("src/lib.rs"),
+            "#[cfg(test)]\nmod tests {\n    fn old(b: &[u8]) -> [u8; 16] { md5::compute(b).0 }\n}\n\npub fn digest(b: &[u8]) -> [u8; 16] { md5::compute(b).0 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("securevibe.toml"),
+            "manifest-version = 1\n[app]\nname = \"Hashes\"\n[stack]\nlanguages = [\"rust\"]\n",
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_check", json!({}));
+        std::fs::remove_dir_all(&root).ok();
+        let said = text(&result);
+        assert!(said.contains("then 1 in test or sample code"), "{said}");
+        let app = said.find("src/lib.rs:6").expect(said);
+        let test = said.find("src/lib.rs:3").expect(said);
+        assert!(app < test, "{said}");
     }
 
     #[test]

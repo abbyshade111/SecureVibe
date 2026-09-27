@@ -592,42 +592,64 @@ pub fn security(report: &Report) -> String {
         return out;
     }
 
-    out.push_str(&format!(
-        "## {} thing{} to fix\n\nWorst first.\n\n",
-        report.findings.len(),
-        if report.findings.len() == 1 { "" } else { "s" }
-    ));
-
-    for finding in &report.findings {
+    let (app, tests) = crate::app_then_tests(report);
+    if app.is_empty() {
+        out.push_str(
+            "## Nothing was found in the app itself\n\nEverything below is in test or sample \
+             code. Read that together with the section above: it means the checks that ran found \
+             nothing in the app's own code, not that the app is secure.\n\n",
+        );
+    } else {
         out.push_str(&format!(
-            "### [{}] {}\n\n",
-            finding.severity.name(),
-            finding.title
+            "## {} thing{} to fix\n\nWorst first.\n\n",
+            app.len(),
+            if app.len() == 1 { "" } else { "s" }
         ));
+        for finding in app {
+            finding_section(&mut out, report, finding);
+        }
+    }
+    if !tests.is_empty() {
         out.push_str(&format!(
-            "**Where:** `{}` line {}\n\n",
-            finding.location.file, finding.location.line
+            "## {} in test or sample code\n\n{}\n\n",
+            tests.len(),
+            crate::TEST_CODE_SECTION
         ));
-        if let Some(accepted) = crate::accepted_note(report, finding) {
-            out.push_str(&format!("**{accepted}**\n\n"));
-        }
-        for note in crate::finding_notes(finding) {
-            out.push_str(&format!("*{note}*\n\n"));
-        }
-        out.push_str(&format!("{}\n\n", finding.description));
-        out.push_str(&format!("**Why it matters.** {}\n\n", finding.impact));
-        out.push_str(&format!("**What to do.** {}\n\n", finding.fix));
-        if !finding.requirement_ids.is_empty() {
-            out.push_str(&format!(
-                "Evidence about: {}\n\n",
-                finding.requirement_ids.join(", ")
-            ));
-        }
-        if !finding.cwe.is_empty() {
-            out.push_str(&format!("Known as: {}\n\n", finding.cwe.join(", ")));
+        for finding in tests {
+            finding_section(&mut out, report, finding);
         }
     }
     out
+}
+
+fn finding_section(out: &mut String, report: &Report, finding: &sv_check::Finding) {
+    out.push_str(&format!(
+        "### [{}] {}\n\n",
+        finding.severity.name(),
+        finding.title
+    ));
+    out.push_str(&format!(
+        "**Where:** `{}` line {}\n\n",
+        finding.location.file, finding.location.line
+    ));
+    if let Some(accepted) = crate::accepted_note(report, finding) {
+        out.push_str(&format!("**{accepted}**\n\n"));
+    }
+    for note in crate::finding_notes(finding) {
+        out.push_str(&format!("*{note}*\n\n"));
+    }
+    out.push_str(&format!("{}\n\n", finding.description));
+    out.push_str(&format!("**Why it matters.** {}\n\n", finding.impact));
+    out.push_str(&format!("**What to do.** {}\n\n", finding.fix));
+    if !finding.requirement_ids.is_empty() {
+        out.push_str(&format!(
+            "Evidence about: {}\n\n",
+            finding.requirement_ids.join(", ")
+        ));
+    }
+    if !finding.cwe.is_empty() {
+        out.push_str(&format!("Known as: {}\n\n", finding.cwe.join(", ")));
+    }
 }
 
 #[cfg(test)]
