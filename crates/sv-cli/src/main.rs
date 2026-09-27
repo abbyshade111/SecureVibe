@@ -195,7 +195,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     // manifest's claims against it. Corroboration only ever moves toward more requirements
     // applying: a claim of "no" cannot survive the code saying otherwise.
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let report = scan_app(&app_dir, &signatures, &manifest.not_the_app().0)?;
+    let report = scan_for(&manifest, &app_dir, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
 
@@ -703,7 +703,7 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
         let frameworks = load_frameworks(&data)?;
         let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
         let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-        let scan_report = scan_app(app_dir, &signatures, &manifest.not_the_app().0)?;
+        let scan_report = scan_for(&manifest, app_dir, &signatures)?;
         let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
         let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
         Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
@@ -855,7 +855,7 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     let frameworks = load_frameworks(&data)?;
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan_app(app_dir, &signatures, &manifest.not_the_app().0)?;
+    let scan_report = scan_for(&manifest, app_dir, &signatures)?;
     let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
     let catalog = sv_check::notes::Catalog::load(&notes_path())?;
@@ -1834,6 +1834,16 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
     gaps
 }
 
+/// The scan every command reads the app with: the folders the manifest says are not the app are
+/// left out of what counts as evidence about it. One place, so no command reads them as the app.
+fn scan_for(
+    manifest: &Manifest,
+    app_dir: &Path,
+    signatures: &Signatures,
+) -> Result<sv_scan::ScanReport> {
+    scan_app(app_dir, signatures, &manifest.not_the_app().0)
+}
+
 /// What the report says about `[repository] not-the-app`: the folders it set apart, any it named that
 /// are not there, and any entry refused. Said in the report because the list changes what counts as
 /// evidence, and a list nobody sees could hide the app's own code from the check.
@@ -1898,7 +1908,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let frameworks = load_frameworks(&data)?;
     let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan_app(app_dir, &signatures, &manifest.not_the_app().0)?;
+    let scan_report = scan_for(&manifest, app_dir, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
     // Shared with v1, beside the applicability rules, so a threat is corrected in one place.

@@ -78,7 +78,7 @@ fn an_example_app_cannot_overrule_the_manifest_once_it_is_named() {
     assert!(!security.contains("in test or sample code"), "{security}");
     std::fs::remove_dir_all(&whole).ok();
 
-    let named = app("named", "not-the-app = [\"demo\"]");
+    let named = app("named", "not-the-app = [\"demo\", \"nowhere\"]");
     let scope = sv(&["scope"], &named);
     assert!(!scope.contains(OVERRULED), "{scope}");
     let (security, json) = report(&named);
@@ -106,6 +106,10 @@ fn an_example_app_cannot_overrule_the_manifest_once_it_is_named() {
     // And the report says which folders were set apart.
     assert!(security.contains("not-the-app"), "{security}");
     assert!(security.contains("`demo`"), "{security}");
+    assert!(
+        security.contains("Named but not found: `nowhere`."),
+        "{security}"
+    );
     std::fs::remove_dir_all(&named).ok();
 }
 
