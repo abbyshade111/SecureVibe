@@ -790,6 +790,8 @@ another session is not a claim.
     contract, and worth its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
+    **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
+    off items in the backlog, your choice").
 
 - **Ten requirements a person must answer, and nothing anywhere tells them how.** Found on
   26 September 2026 while drawing the coverage maps. **Claimed on 26 September 2026 by session
