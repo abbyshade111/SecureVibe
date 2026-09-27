@@ -54,11 +54,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Rust is the only language scanned. JavaScript, TypeScript and Python appear in this repository only as
-        # scanner fixtures (excluded below) and as the Python tools in tools/. The JavaScript leg of v1's day, when
-        # v1's server and web app were here, went with v1 to the `v1` branch: with the fixtures excluded, CodeQL
-        # would find no JavaScript to analyze and fail.
-        language: ['rust']
+        # Every language this repository runs, and only what it runs. Rust is `sv` itself. JavaScript is the three
+        # helpers `sv --run` starts beside the app under test (crates/sv-run/assets/*.mjs: a browser driver, a stand-in
+        # AI model service, and a stand-in sign-in provider); they are real code, not test inputs, and went unscanned
+        # until 27 September 2026 because this comment said the only JavaScript was in fixtures. Python is the scripts
+        # in tools/. The fixtures and the sample apps in examples/ are excluded below, so each leg sees only these.
+        language: ['rust', 'javascript-typescript', 'python']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -77,6 +78,10 @@ jobs:
               # among them (semgrep-aisvs/app/assistant.js, user input in a system prompt) was flagged on
               # 25 September 2026 for exactly the fault it was written to contain.
               - crates/sv-check/tests/fixtures/**
+              # The sample apps `sv` is tried on. Some leave a protection out on purpose (oidc-notes reads a
+              # list of checks to skip from flaws.json), so that a report shows what `sv` finds when one is
+              # missing; they are inputs for `sv`, like the fixtures, not code this repository runs.
+              - examples/**
               # Build output.
               - target/**
 

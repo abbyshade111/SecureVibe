@@ -1,4 +1,4 @@
-# Keeps the workflow steps and the Rust packages up to date. (v1's npm packages were watched here until v1 moved to its
+# Keeps the workflow steps, the Rust packages, and the container's base images up to date. (v1's npm packages were watched here until v1 moved to its
 # own branch; the Rust packages were not watched until 26 September 2026.)
 # The workflow steps are pinned to commit fingerprints; these updates move the fingerprint and the version comment
 # together, so pinning never means falling behind on security fixes.
@@ -31,3 +31,16 @@ updates:
     groups:
       all-packages:
         patterns: ['*']
+
+  # The two base images in the Dockerfile (the Rust toolchain that builds `sv`, and the Debian it runs on), pinned
+  # there to a fingerprint, which is what this moves: their names carry no version to bump. A new base image is how
+  # security fixes to the system underneath `sv` reach the published container; CI builds and drives the image on
+  # every pull request, so a proposed update is tested before it can be merged.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
