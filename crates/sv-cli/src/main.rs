@@ -1949,6 +1949,11 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     findings.extend(findings_from_advisories);
     findings.extend(secrets.findings.iter().cloned());
     findings.extend(config.findings.iter().cloned());
+    // The bill of materials speaks for itself here as it does in `sv check`: incomplete is a finding
+    // against V15.1.2, complete is evidence for it, and exactly one of the two says anything. The
+    // report used to read only its gaps, so a lockfile it could take nothing from was left to the
+    // lockfile check, which saw a lockfile and passed it.
+    findings.extend(sbom::incompleteness_finding(&bill_of_materials));
     findings.extend(code.findings.iter().cloned());
 
     // The language's own tool, where there is one and it is here. A tool that is not installed is
@@ -2302,6 +2307,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // fails closed on its own coverage, so the list is short on an app `sv` could not read fully —
     // which is the honest shape for it to have.
     let mut verified = config.passed.clone();
+    verified.extend(sbom::completeness_verified(&bill_of_materials));
     verified.extend(secrets.verified.iter().cloned());
     verified.extend(code.verified.iter().cloned());
     verified.extend(probe_verified.iter().cloned());
