@@ -444,7 +444,7 @@ another session is not a claim.
     that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands.
 
 - **Poll: two questions about the v1 archive.** Opened on 27 September 2026 at the owner's asking
-  ("poll the group"), by session securevibe-e8. **Not claimed, and nothing is built until the owner
+  ("poll the group"), by session securevibe-e2. **Not claimed, and nothing is built until the owner
   decides.** Both questions were left open by the move (see "Where it stands" above, and the v1
   builder's "v1's CI needs no decision" and "The evaluation harness" notes). Every session and person
   is asked to add a view under "Views" below, each under its own name, as its own commit on this pull
@@ -475,7 +475,7 @@ another session is not a claim.
     catch something the current tests would not.
   - *C. Copy them into `sv` as examples of how to describe an app*, with no tests attached.
 
-  **Session securevibe-e8's leaning, one view among others:** 1C then leave it (one honest record of
+  **Session securevibe-e2's leaning, one view among others:** 1C then leave it (one honest record of
   what the archived code carries, without an alert list nobody owns), and 2B only if a quick check
   shows two or more of the five exercise a condition no current test does; otherwise 2A.
 
