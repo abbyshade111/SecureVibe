@@ -951,22 +951,28 @@ jobs:
     runs-on: ubuntu-latest
     steps: *steps
 ";
-        for (name, text) in [
-            ("anchor", anchored),
-            ("broken", "on: [push\njobs:\n  test: {\n"),
-            ("two", "on: [push]\n---\njobs: {}\n"),
-            // A tag can change what a value means; only this guard refuses one on its own.
-            ("tag", "on: !custom [push]\npermissions: { contents: read }\njobs: {}\n"),
+        // Each with the reason it gives, because the reason is the only part of some guards that
+        // nothing else repeats: a tag or an alias already fails the one-value-per-node reading, and
+        // the guard for them exists so the owner is told what to change.
+        for (name, text, why) in [
+            ("anchor", anchored, "anchor, alias, or tag"),
+            ("broken", "on: [push\njobs:\n  test: {\n", "not YAML the grammar can read"),
+            ("two", "on: [push]\n---\njobs: {}\n", "more than one YAML document"),
+            // A tag can change what a value means.
+            (
+                "tag",
+                "on: !custom [push]\npermissions: { contents: read }\njobs: {}\n",
+                "anchor, alias, or tag",
+            ),
         ] {
             let report = run(name, &[("ci.yml", text), ("clean.yml", SAFE)], &[]);
             assert!(credited(&report).is_empty(), "{name}: {:?}", report.passed);
             let mut ids = unassessed(&report);
             ids.sort();
             assert_eq!(ids, vec![CHECKOUT_TOKEN, FORK_CODE], "{name}");
-            assert!(
-                report.not_assessed[0].1.contains("ci.yml"),
-                "{name}: says which file"
-            );
+            let reason = &report.not_assessed[0].1;
+            assert!(reason.contains("ci.yml"), "{name}: says which file: {reason}");
+            assert!(reason.contains(why), "{name}: says why: {reason}");
         }
     }
 
