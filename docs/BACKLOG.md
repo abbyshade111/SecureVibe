@@ -1791,6 +1791,8 @@ another session is not a claim.
   deployment that the repository does not hold. What is left is the weaker half of what was written:
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
+  **A corroborator for `web-search`** (the answer added on 27 September 2026, which nothing reads from
+  the code yet): **claimed on 27 September 2026 by session securevibe-e8.**
 
 - ~~**A `.tsx` file is read with a grammar that has no JSX, and counts as read.**~~ Done on 25 September
   2026. `<button onClick={() => eval(q)}>` in a `.tsx` file was not found, and the report then listed
