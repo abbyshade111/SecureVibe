@@ -322,7 +322,8 @@ another session is not a claim.
   `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
   prompt in the conversation that produced this entry. **VS Code, tried by the owner on 27 September
   2026:** it worked start to finish — Copilot's agent asked every question from `securevibe_questions`,
-  patched the path findings and re-ran the check to confirm. The one stumble was setup: a hand-made
+  patched the path findings and re-ran the check to confirm, with `sv` installed directly (the container
+  form is untried in VS Code). The one stumble was setup: a hand-made
   `.vscode/mcp.json` was not listed under *MCP: List Servers*, so the guide now has VS Code write it
   (*MCP: Add Server…*). Cursor is still untried. **What is not short is getting to step one**,
   and a page of instructions cannot fix that on its own. Found by trying it the same day, as the owner,

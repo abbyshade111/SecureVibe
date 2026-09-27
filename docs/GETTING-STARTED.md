@@ -71,7 +71,8 @@ test that talks to it the way the tool does, not yet in the app itself.
 
 **Tried on 27 September 2026, by the owner, start to finish:** Copilot's agent called SecureVibe's
 tools, asked every question from `securevibe_questions` one at a time, wrote a fix for the path
-findings `securevibe_check` reported, and checked the fix by running the check again.
+findings `securevibe_check` reported, and checked the fix by running the check again. That was with
+`sv` installed directly; the container settings below have not been tried in VS Code yet.
 
 You need the GitHub Copilot Chat extension, with the chat in **Agent** mode (the mode that can use
 other programs), and VS Code 1.102 or newer. If you use a paid Copilot plan, each request may count
@@ -100,7 +101,7 @@ The file it writes looks like this:
   "args": ["mcp", "--root", "${workspaceFolder}"] } } }
 ```
 
-For the container instead, `command` is the full path to `docker` and `args` are
+For the container instead (not yet tried in VS Code), `command` is the full path to `docker` and `args` are
 `["run", "-i", "--rm", "--network", "none", "-v", "${workspaceFolder}:${workspaceFolder}",
 "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "${workspaceFolder}"]`.
 
