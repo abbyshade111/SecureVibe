@@ -34,7 +34,10 @@ another session is not a claim.
   pull request's code (AC.12.1), a checkout without `persist-credentials: false` (AC.12.2), secrets
   reachable from a job that runs a fork's code (AC.12.3), and a missing or broad `permissions:` block
   (AC.7.4). Findings when present; credit only for a workflow read in full and found clean, per rule,
-  as the other static rules do. Not claimed.
+  as the other static rules do. **Claimed on 27 September 2026 by session securevibe-e8.** One change
+  of scope on reading the requirements: AC.7.4 asks that changes to trigger settings get dual control
+  and a security-team review, which a workflow file cannot show, so a missing `permissions:` block is
+  not cited as AC.7.4.
 
 - **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
   owner on 27 September 2026: Appendix C is better used as a reference while coding than as report
