@@ -24,7 +24,9 @@ another session is not a claim.
     snapshot anybody can download and cite. A DOI through Zenodo, which also keeps its own copy, needs
     the owner's GitHub account, so it is theirs to set up; so is protecting the tags, which is a
     repository setting. GitHub no longer holds the event that made the repository public (it keeps 300
-    events, the oldest from 26 September), so the owner names the date.
+    events, the oldest from 26 September), so the owner named the commit. **`v1-paper` is done,
+    26 September 2026:** an annotated tag at `7fa07d6` (20 September, 20:25), the owner's choice, with
+    its Release, "v1, as described in the paper". `v1-final` waits for the move.
 
   **What the move touches, as far as is known:**
   - **Paths inside `sv`.** Seven source files find data by a path counted from their own crate
