@@ -2498,6 +2498,11 @@ another session is not a claim.
 
 ## Decided, not yet written down as ADRs
 
+**Claimed on 27 September 2026 by session securevibe-e8:** write the three below as decision records
+in a `docs/adr/` of `sv`'s own, check each against the code and history before writing it, and point
+the nine references to v1's ADR-012 (in `docs/DESIGN.md` and four crates) at where it now lives, since
+`main` no longer holds it.
+
 - Corroboration only ever moves toward more requirements applying, never fewer (`sv-manifest::resolve`).
 - The OWASP data files are shared with v1, not copied.
 - `sv` never writes application code, so v1's generation agent and its fence have no successor here.
