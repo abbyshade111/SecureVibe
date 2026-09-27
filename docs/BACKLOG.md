@@ -9,6 +9,12 @@ another session is not a claim.
 
 ## Next
 
+- **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
+  ADR-018, the template's three, and the decisions not yet written as ADRs: when each was made, whether it held,
+  what later evidence says about it, and how v1's decisions carried into `sv`. A written analysis and a figure in
+  `docs/paper/`. Touches only `docs/paper/`.
+
 - **False alarms, part 1: fewer of them reach the owner.** Asked for by the owner on 27 September
   2026, after an investigation by session securevibe-e2 of how `sv` handles findings that are wrong.
   Today there is no way to set a finding aside, the same line can be reported by two tools as two
