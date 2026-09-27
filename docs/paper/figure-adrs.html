@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision Records</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --band: #eeede8;
+    --v1: #2a78d6; --sv: #eb6834; --off: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --band: #2a2926;
+      --v1: #3987e5; --sv: #d95926; --off: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --band: #2a2926;
+    --v1: #3987e5; --sv: #d95926; --off: #e66767;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 160px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 0 0 8px; align-items: center; }
+  .legend svg { vertical-align: middle; margin-right: 5px; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 900px; table-layout: fixed; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
+  td.id b { display: inline-block; width: 64px; color: var(--text-muted); font-weight: 600; }
+  td.tl { padding: 0 8px; }
+  td.tl svg { display: block; width: 100%; height: 26px; }
+  td.fate { color: var(--text-secondary); font-size: .78rem; }
+  tr.sep td { border-top: 2px solid var(--grid); }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+  @media (max-width: 600px) { td, th { white-space: normal !important; overflow-wrap: anywhere; } }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>The decision records, and whether they matched what was built</h1>
+  <p class="sub">Every record in both versions, from the day it was written to 27 September. v1 wrote its
+     decisions down first; <code>sv</code> made them in the code and wrote them down on its last day. The full
+     account is <code>ADRS.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>10 of 13</b><span>v1 records written on 16 September, before the first surviving commit</span></div>
+    <div class="stat"><b>2</b><span>v1 records out of date within two days, because the project did more than they said</span></div>
+    <div class="stat"><b>5 days</b><span><code>main</code> did the opposite of ADR-012 before ADR-018 replaced it</span></div>
+    <div class="stat"><b>8</b><span>inconsistencies found, now in the backlog to be fixed</span></div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="wrap">
+    <table id="t">
+      <colgroup><col style="width:30%"><col style="width:44%"><col style="width:26%"></colgroup>
+      <thead><tr><th>Record</th><th id="axis">September</th><th>What became of it in <code>sv</code></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <p class="note">Sources: the records themselves (v1's at tag <code>v1-final</code>, <code>sv</code>'s on
+     <code>main</code>) and each file's git history; the dates they went out of step are the commits named in
+     <code>ADRS.md</code>: <code>27b85e2</code> and <code>7ecb4c3</code> on 18 September, <code>sv</code>'s first
+     rules of its own on 23 September, and <code>2ef4149</code> on 25 September. The shaded band is the two days
+     before the surviving record; v1's first ten records survive only through the restore commit. v1 moved to its
+     own branch at 21:22 on 26 September, and its records stayed as they were. The citation fault in ADR-001 is
+     not a matter of dates and is shown only in <code>ADRS.md</code>.</p>
+</div>
+<script>
+  // Days are fractional, Eastern time: 18.4 is 18 September at about 09:30.
+  const D0 = 16, D1 = 28;
+  // segments: [from, to, kind]  kind: rec = record matches practice, dec = decided, not yet written,
+  // off = record disagrees with practice.  marks: [day, kind]  kind: w written, a amended, x superseded in part.
+  const rows = [
+    ["v1", "ADR-001", "TypeScript everywhere", [[16, 28, "rec"]], [[16, "w"]], "Reversed without a record: written in Rust"],
+    ["v1", "ADR-002", "Server-rendered generated apps", [[16, 28, "rec"]], [[16, "w"]], "Not applicable: builds no apps"],
+    ["v1", "ADR-003", "No native modules", [[16, 28, "rec"]], [[16, "w"]], "Not applicable"],
+    ["v1", "ADR-004", "Hardened template; AI only extends", [[16, 28, "rec"]], [[16, "w"]], "Replaced by ADR-017"],
+    ["v1", "ADR-005", "Local UI: token, host check, CSRF", [[16, 28, "rec"]], [[16, "w"]], "Not applicable: no UI"],
+    ["v1", "ADR-006", "Evidence tiers; AI never verifies", [[16, 28, "rec"]], [[16, "w"]], "Kept, and cited"],
+    ["v1", "ADR-007", "Built-in scanners, outside tools when present", [[16, 28, "rec"]], [[16, "w"]], "Kept in spirit"],
+    ["v1", "ADR-008", "AI provider abstraction", [[16, 18.42, "rec"], [18.42, 28, "off"]], [[16, "w"]], "Not applicable: no AI calls"],
+    ["v1", "ADR-009", "AISVS Appendix C applied to itself", [[16, 28, "rec"]], [[16, "w"]], "Kept in part"],
+    ["v1", "ADR-010", "Permission model, no container, open network", [[16, 18.41, "rec"], [18.41, 28, "off"]], [[16, "w"]], "Reversed without a record: Docker"],
+    ["v1", "ADR-014", "Unscannable files are refused", [[20.53, 28, "rec"]], [[20.53, "w"], [20.6, "a"]], "Not carried"],
+    ["v1", "ADR-012", "Other languages: tiers, no rules of its own", [[20.68, 23, "rec"], [23, 27.57, "off"], [27.57, 28, "rec"]], [[20.68, "w"], [27.57, "x"]], "Superseded in part by ADR-018"],
+    ["v1", "ADR-013", "PDF reports", [[25.66, 25.67, "rec"], [25.67, 28, "off"]], [[25.66, "w"], [25.67, "a"]], "Not carried"],
+    ["sv", "ADR-015", "Owner can add requirements, never remove", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[26.4, "a"], [27.55, "w"]], "Written 27 Sep; narrowed 26 Sep"],
+    ["sv", "ADR-016", "OWASP data: one copy, then two", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[27.55, "w"], [27.6, "a"]], "Written 27 Sep; amended same day"],
+    ["sv", "ADR-017", "sv never writes the app's code", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[27.55, "w"]], "Written 27 Sep"],
+    ["sv", "ADR-018", "Any language, with rules of its own", [[23, 27.57, "dec"], [27.57, 28, "rec"]], [[27.57, "w"]], "Written and accepted 27 Sep"],
+  ];
+  const NS = "http://www.w3.org/2000/svg", H = 26;
+  let W = 1000;
+  const PAD = 9;
+  const x = (d) => PAD + ((d - D0) / (D1 - D0)) * (W - 2 * PAD);
+  const el = (p, tag, a) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); p.appendChild(e); return e; };
+  const defs = (svg) => { svg.insertAdjacentHTML("afterbegin",
+    '<defs><pattern id="off" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--surface-1)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--off)" stroke-width="3"/></pattern></defs>'); };
+  const drawRow = (svg, ver, segs, marks) => {
+    const c = ver === "v1" ? "var(--v1)" : "var(--sv)";
+    el(svg, "rect", { x: 0, y: 0, width: x(18.4), height: H, fill: "var(--band)" });
+    for (let d = D0; d <= D1; d++) el(svg, "line", { x1: x(d), x2: x(d), y1: 0, y2: H, stroke: "var(--grid)", "stroke-width": 1 });
+    el(svg, "line", { x1: x(26.89), x2: x(26.89), y1: 2, y2: H - 2, stroke: "var(--text-muted)", "stroke-width": 1.5, "stroke-dasharray": "2 2" });
+    segs.forEach(([a, b, k]) => {
+      if (k === "rec") el(svg, "rect", { x: x(a), y: 9, width: Math.max(2, x(b) - x(a)), height: 8, fill: c, rx: 2 });
+      if (k === "off") el(svg, "rect", { x: x(a), y: 7, width: x(b) - x(a), height: 12, fill: "url(#off)", stroke: "var(--off)", "stroke-width": 1, rx: 2 });
+      if (k === "dec") el(svg, "line", { x1: x(a), x2: x(b), y1: 13, y2: 13, stroke: c, "stroke-width": 3, "stroke-dasharray": "6 4" });
+    });
+    [...marks].sort((m, n) => (m[1] === "w") - (n[1] === "w")).forEach(([d, k]) => {
+      if (k === "w") el(svg, "circle", { cx: x(d), cy: 13, r: 6, fill: c, stroke: "var(--surface-1)", "stroke-width": 2 });
+      if (k === "a") el(svg, "path", { d: `M${x(d) + 7} 6 l6 7 l-6 7 l-6 -7 z`, fill: "var(--surface-1)", stroke: c, "stroke-width": 2 });
+      if (k === "x") { el(svg, "path", { d: `M${x(d) - 6} 7 l12 12 M${x(d) + 6} 7 l-12 12`, stroke: "var(--text-primary)", "stroke-width": 2.5 }); }
+    });
+  };
+  const tbody = document.querySelector("#t tbody");
+  rows.forEach(([ver, id, title, segs, marks, fate], i) => {
+    const tr = document.createElement("tr"); if (i === 13) tr.className = "sep";
+    const a = document.createElement("td"); a.className = "id"; a.innerHTML = "<b></b><span></span>";
+    a.querySelector("b").textContent = id; a.querySelector("b").style.color = ver === "v1" ? "var(--v1)" : "var(--sv)";
+    a.querySelector("span").textContent = title;
+    const b = document.createElement("td"); b.className = "tl";
+    const svg = document.createElementNS(NS, "svg"); svg.dataset.row = i;
+    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", `${id}: ${title}. ${fate}.`);
+    b.appendChild(svg);
+    const f = document.createElement("td"); f.className = "fate"; f.textContent = fate;
+    tr.append(a, b, f); tbody.appendChild(tr);
+  });
+  // Draw every timeline at its real width, so circles stay round; again whenever the width changes.
+  const drawAll = () => {
+    document.querySelectorAll("td.tl svg").forEach((svg) => {
+      W = Math.max(200, svg.getBoundingClientRect().width);
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = "";
+      const [ver, , , segs, marks] = rows[+svg.dataset.row];
+      defs(svg); drawRow(svg, ver, segs, marks);
+    });
+    const ax = document.getElementById("axis");
+    ax.innerHTML = '<div style="position:relative;height:14px"></div>';
+    const box = ax.firstChild;
+    [16, 18, 20, 22, 24, 26, 27].forEach((d) => {
+      const s = document.createElement("span"); s.textContent = String(d);
+      s.style.cssText = `position:absolute;left:${x(d + 0.5)}px;transform:translateX(-50%)`;
+      box.appendChild(s);
+    });
+  };
+  drawAll();
+  window.addEventListener("resize", drawAll);
+  // Legend drawn with the same shapes.
+  const lg = document.getElementById("legend");
+  const item = (html, label) => { const s = document.createElement("span"); s.innerHTML = html + label; lg.appendChild(s); };
+  item('<svg width="28" height="14"><rect x="2" y="4" width="24" height="6" rx="2" fill="var(--text-secondary)"/></svg>', "record matches what was built");
+  item('<svg width="28" height="14"><line x1="2" x2="26" y1="7" y2="7" stroke="var(--text-secondary)" stroke-width="3" stroke-dasharray="6 4"/></svg>', "decided in the code, not yet written");
+  item('<svg width="28" height="14"><defs><pattern id="offl" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--off)" stroke-width="3"/></pattern></defs><rect x="2" y="2" width="24" height="10" rx="2" fill="url(#offl)" stroke="var(--off)"/></svg>', "record disagrees with what was built");
+  item('<svg width="16" height="16"><circle cx="8" cy="8" r="5" fill="var(--text-secondary)"/></svg>', "written");
+  item('<svg width="16" height="16"><path d="M8 2 l5 6 l-5 6 l-5 -6 z" fill="none" stroke="var(--text-secondary)" stroke-width="2"/></svg>', "amended");
+  item('<svg width="16" height="16"><path d="M3 3 l10 10 M13 3 l-10 10" stroke="var(--text-primary)" stroke-width="2"/></svg>', "superseded in part");
+  item('<span style="display:inline-block;width:12px;height:12px;background:var(--v1);border-radius:2px;margin-right:4px;vertical-align:-1px"></span>', "v1");
+  item('<span style="display:inline-block;width:12px;height:12px;background:var(--sv);border-radius:2px;margin-right:4px;vertical-align:-1px"></span>', "<code>sv</code>");
+</script>
+</body>
+</html>
