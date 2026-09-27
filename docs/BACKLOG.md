@@ -674,6 +674,9 @@ another session is not a claim.
 
   **Friction for somebody who is not technical** (see the walk-through entry above):
 
+  **Items 6, 7, and 8 claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking
+  ("continue to work off items in the backlog, your choice").
+
   6. **The tool told the owner to run `sv`, and there was no `sv`.** The MCP results say to run
      `sv report --run --tools` at a terminal; the owner got `command not found`, ran it by its full
      path, and then added the build folder to their shell's PATH in `~/.zshrc` at the tool's
