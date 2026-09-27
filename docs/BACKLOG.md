@@ -9,6 +9,33 @@ another session is not a claim.
 
 ## Next
 
+- **Appendix C out of the report's headline numbers, into a section of its own.** Asked for by the
+  owner on 27 September 2026, once the coding rules gave Appendix C a place at the start of the
+  build. Measured the same day: Appendix C is 44 of the 284 requirements that apply to
+  `examples/flask-booking` and 33 of 163 for a bare manifest, every one *not verified* because no
+  check reaches it, so about a sixth of every report's "not verified" is about how an organization
+  runs its AI tooling rather than about the app. Removing them outright would read as coverage, and
+  the rules are not evidence, so instead:
+  - They leave the headline counts and the list of unverified requirements, unless something found
+    a problem with one or has evidence for it, which then counts as any other requirement does.
+  - One section, "How the app was built with AI (OWASP AISVS Appendix C)", says how many are given
+    to the AI coding tool as rules (and that the rules are not evidence), how many are the owner's
+    decisions (still in the questions), how many do not apply and why, and how many are left with
+    nothing reaching them.
+  - `compliance.md` and `report.json` still list every one of them, under that section, for anybody
+    assessing against AISVS.
+
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+
+- **Read the app's GitHub Actions workflows for what Appendix C warns about.** Found on 27 September
+  2026 while moving Appendix C out of the headline numbers: the coding rules tell the tool not to
+  write these, and `sv` could see whether it did. When `.github/workflows/` exists, a static rule
+  over each workflow file for a `pull_request_target` or `workflow_run` trigger that checks out the
+  pull request's code (AC.12.1), a checkout without `persist-credentials: false` (AC.12.2), secrets
+  reachable from a job that runs a fork's code (AC.12.3), and a missing or broad `permissions:` block
+  (AC.7.4). Findings when present; credit only for a workflow read in full and found clean, per rule,
+  as the other static rules do. Not claimed.
+
 - **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
   owner on 27 September 2026: Appendix C is better used as a reference while coding than as report
   lines. Its 68 requirements are written for an auditor ("Verify that…"), and no check in `sv`
