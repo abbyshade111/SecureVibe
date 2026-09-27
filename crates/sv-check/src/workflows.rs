@@ -227,7 +227,9 @@ fn value(node: Node, source: &str) -> Result<Value, String> {
                             [] => Value::Null,
                             [one] => value(*one, source)?,
                             _ => {
-                                return Err(format!("a list item on line {line} could not be read"));
+                                return Err(format!(
+                                    "a list item on line {line} could not be read"
+                                ));
                             }
                         });
                     }
@@ -956,8 +958,16 @@ jobs:
         // the guard for them exists so the owner is told what to change.
         for (name, text, why) in [
             ("anchor", anchored, "anchor, alias, or tag"),
-            ("broken", "on: [push\njobs:\n  test: {\n", "not YAML the grammar can read"),
-            ("two", "on: [push]\n---\njobs: {}\n", "more than one YAML document"),
+            (
+                "broken",
+                "on: [push\njobs:\n  test: {\n",
+                "not YAML the grammar can read",
+            ),
+            (
+                "two",
+                "on: [push]\n---\njobs: {}\n",
+                "more than one YAML document",
+            ),
             // A tag can change what a value means.
             (
                 "tag",
@@ -971,7 +981,10 @@ jobs:
             ids.sort();
             assert_eq!(ids, vec![CHECKOUT_TOKEN, FORK_CODE], "{name}");
             let reason = &report.not_assessed[0].1;
-            assert!(reason.contains("ci.yml"), "{name}: says which file: {reason}");
+            assert!(
+                reason.contains("ci.yml"),
+                "{name}: says which file: {reason}"
+            );
             assert!(reason.contains(why), "{name}: says why: {reason}");
         }
     }
