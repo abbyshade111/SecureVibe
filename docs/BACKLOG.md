@@ -9,6 +9,13 @@ another session is not a claim.
 
 ## Next
 
+- **Clean up after the move.** **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's
+  asking. Found by a review of `main` after the move: the rule against printing or committing a key is
+  missing from the new `CLAUDE.md`; CodeQL scans only Rust, while `crates/sv-run/assets/*.mjs` is real,
+  unscanned JavaScript; `data/knowledge/threats.json` names two `agnostic/` paths; Dependabot does not
+  watch the `Dockerfile`; and the security policy stayed with v1, so `sv` has none. The owner chose
+  GitHub's private vulnerability reporting as the way to report a problem in `sv`.
+
 - **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
   2026, from the repository's *Insights → Community standards* page. Not claimed. Done today:
   description, README, license, and the security policy (`docs/SECURITY.md`). Missing:
@@ -542,7 +549,7 @@ another session is not a claim.
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
      rebuild `sv`'s environment by hand to find which. The last lines of the runner's output belong in
-     the report whenever the suite fails.
+     the report whenever the suite fails. **Claimed on 27 September 2026 by session securevibe-e9.**
 
   **Friction for somebody who is not technical** (see the walk-through entry above):
 
@@ -559,6 +566,7 @@ another session is not a claim.
      no database. The question should say what it means by search.
   9. **The terminal summary does not say whether `--run` started the app.** The tool had to infer it
      from the counts. One line — started, answered N requests, or could not start and why — would do.
+     **Claimed on 27 September 2026 by session securevibe-e9.**
 
   **What worked, for the record:** the `.mcp.json` connection worked first time in the desktop app,
   and the tool described all six tools accurately; the interview went one question at a time and kept
