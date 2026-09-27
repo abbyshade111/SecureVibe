@@ -59,6 +59,9 @@ RUST_CHECKS = {
     "config.secrets-file-committed": ("static", ["V13.3.1"]),
     "config.gitignore-covers-env": ("static", ["V13.3.1"]),
     "config.versions-pinned": ("static", ["V15.1.2"]),
+    "config.workflow-runs-fork-code": ("static", ["AC.12.1"]),
+    "config.workflow-checkout-keeps-token": ("static", ["AC.12.2"]),
+    "config.workflow-secrets-with-fork-code": ("static", ["AC.12.3"]),
     "sbom": ("static", ["V15.1.2"]),
     "secrets.credential-assignment": ("static", ["V13.3.1", "V13.2.3", "SBD-AC-05"]),
     "advisories": ("advisories", ["V15.2.1"]),
@@ -167,6 +170,10 @@ RUST_CHECKS = {
     "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1"]),
     "probe.clear-site-data": ("signed-in", ["V14.3.1"]),
 }
+
+# Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
+# credits nothing, because what would settle the requirement is not in anything the check reads.
+RUST_FINDINGS_ONLY = {"config.workflow-secrets-with-fork-code"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the two ids `sv init` prints as
@@ -291,6 +298,8 @@ def evidence():
     for check, (tier, ids) in RUST_CHECKS.items():
         for q in ids:
             ev[q][tier].append(check)
+            if check in RUST_FINDINGS_ONLY:
+                FINDINGS_ONLY[q].add(("sv", check))
     return ev
 
 
@@ -486,22 +495,29 @@ def main():
     settled_ai = sorted((q for q in list(aisvs) + list(appendix) if settles(q)),
                         key=lambda q: [int(x) for x in re.findall(r"\d+", q)])
 
+    def sv_finding_only(q):
+        """`sv`'s own checks that only ever raise q as a finding."""
+        return {r for tool, r in FINDINGS_ONLY.get(q, ()) if tool == "sv"}
+
     def credited_by_other(q):
         return any(c for tier, checks in ev[q].items() for c in checks
-                   if not (tier == "tools"
-                           and any(tool == c for tool, _ in FINDINGS_ONLY.get(q, ()))
-                           and c not in CREDITED_BY_TOOL[q]))
+                   if c not in sv_finding_only(q)
+                   and not (tier == "tools"
+                            and any(tool == c for tool, _ in FINDINGS_ONLY.get(q, ()))
+                            and c not in CREDITED_BY_TOOL[q]))
 
     only = [q for q in settled_ai if q in FINDINGS_ONLY and not credited_by_other(q)]
-    w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: the rules")
-    w("about applications that call a model, semgrep's and CodeQL's, can show the control missing, and finding nothing does not")
-    w("show it present, so a clean run credits none of them. Each needs `--tools`.\n")
+    w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: a check can")
+    w("show the control missing, and finding nothing does not show it present, so a clean run credits")
+    w("none of them. The rules about applications that call a model are semgrep's and CodeQL's, and")
+    w("need `--tools`.\n")
     for q in settled_ai:
         rules = sorted(FINDINGS_ONLY.get(q, ()))
         # A tool whose rules only ever find this failing does not settle it, whichever tool it is.
         finding_only_tools = {tool for tool, _ in rules} - CREDITED_BY_TOOL[q]
         names = [c for tier, checks in ev[q].items() for c in checks
-                 if not (tier == "tools" and c in finding_only_tools)]
+                 if not (tier == "tools" and c in finding_only_tools)
+                 and c not in sv_finding_only(q)]
         parts = []
         if names:
             parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"

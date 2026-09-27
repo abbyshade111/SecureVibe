@@ -25,6 +25,7 @@ tree-sitter-cpp.workspace = true
 tree-sitter-swift.workspace = true
 tree-sitter-dart.workspace = true
 tree-sitter-bash.workspace = true
+tree-sitter-yaml.workspace = true
 sv-frameworks = { path = "../sv-frameworks" }
 sv-scan = { path = "../sv-scan" }
 sv-manifest = { path = "../sv-manifest" }
