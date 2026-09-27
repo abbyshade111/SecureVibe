@@ -24,11 +24,13 @@ on:
   push:
     paths:
       - 'agnostic/**'
+      - '.dockerignore'
       - 'data/**'
       - '.github/workflows/rust.yml'
   pull_request:
     paths:
       - 'agnostic/**'
+      - '.dockerignore'
       - 'data/**'
       - '.github/workflows/rust.yml'
   workflow_dispatch:
@@ -67,3 +69,61 @@ jobs:
         # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
         # where there is none they assert the honest-absence path instead and say which branch they took.
         run: cargo test --workspace
+
+  image:
+    # The container for somebody who is not going to install Rust (agnostic/Dockerfile). Built from
+    # scratch here, where Docker Hub is reachable, and driven over MCP the way an AI coding tool
+    # would drive it: tools/image_smoke.py asserts the committed-secrets check really ran, in the
+    # image and in a native sv, before comparing what the two found. The runner is an ordinary user,
+    # so the file the image writes has to come out owned by that user, and a run as root over the
+    # runner's folder is what shows `safe.directory` is needed. Built, not published.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the image
+        run: docker build -f agnostic/Dockerfile -t securevibe/sv .
+
+      - name: Build sv natively, to compare with
+        working-directory: agnostic
+        run: rustup toolchain install stable --profile minimal && rustup default stable && cargo build --release -p sv-cli
+
+      - name: Drive the image as an AI coding tool would
+        working-directory: agnostic
+        run: python3 tools/image_smoke.py securevibe/sv --native target/release/sv
+
+  publish:
+    # Publishes the image to GitHub's container registry, at the owner's decision (26 September
+    # 2026), as ghcr.io/abbyshade111/securevibe-sv: `latest`, and the commit it was built from. Only
+    # for a push to main, and only once `test` and `image` have passed on that same commit, so what
+    # is published is what the smoke test drove. It is the one job that may write packages; every
+    # other job keeps the read-only permission above. No third-party action: `docker login` with the
+    # workflow's own token, which lasts for this run only.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/abbyshade111/securevibe-sv
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the image
+        # The source label ties the package to this repository on GitHub, so it is listed there and
+        # takes its access from it.
+        run: >
+          docker build -f agnostic/Dockerfile
+          --label org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          --label org.opencontainers.image.revision=${{ github.sha }}
+          -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
+
+      - name: Publish it
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+          docker logout ghcr.io
