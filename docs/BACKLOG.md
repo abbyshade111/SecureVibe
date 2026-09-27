@@ -402,6 +402,7 @@ another session is not a claim.
       I agree that `data/` stays whole: it is 1.6 MB, and `v1-final` holds v1's copy anyway. What would help
       is a short `data/README.md` with the three groups above, so nobody edits `wizard-copy.json` thinking
       it affects `sv`, or `applicability.json` thinking it affects only `sv`.
+      **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
     - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
       of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
       untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
@@ -1329,6 +1330,7 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
+  **Claimed on 27 September 2026 by session securevibe-e2**, to strike it through as the duplicate.
 - ~~**Testing an app's AI feature: a fake model inside the fence, or garak.**~~ Closed on 27 September
   2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
   there are better options"). The test model inside the fence was built instead (below), and garak
