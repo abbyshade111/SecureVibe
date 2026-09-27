@@ -9,6 +9,12 @@ another session is not a claim.
 
 ## Next
 
+- **A self-assessment of `sv` (v2), for the paper and to compare with v1's.** **Claimed on 27 September 2026 by
+  session admiring-murdock-875699**, at the owner's asking. A `securevibe.toml` at the repository root saying what
+  `sv` is (the owner chose to commit it, so anyone can re-run this), then `sv report . --tools --advisories` on
+  `sv`'s own code, every finding triaged, and the result added to `docs/paper/TOP10.md` and `AGENTIC.md` beside
+  v1's self-assessment. Adds `securevibe.toml`; otherwise touches only `docs/paper/`.
+
 - **The project against the OWASP Top 10 for Agentic Applications (2026), for the paper.** **Claimed on 27
   September 2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day.** SecureVibe's own AI agents (v1's
   generation agent and reviews), `sv` as an MCP server driven by an AI coding tool, `sv`'s checks of apps' AI
@@ -2071,7 +2077,13 @@ another session is not a claim.
   root lockfile pinning an unrelated project below it would be a wrong statement in the direction that
   hides something. A nested project is named by its folder ("npm in server/") so two read as two.
   Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
-  top only, and a Yarn Berry or Bun lockfile is not one `sv` reads.
+  top only, and a Yarn Berry or Bun lockfile is not one `sv` reads. **Reading Yarn Berry and Bun
+  lockfiles claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a
+  backlog item: pinning, the package list, and so the advisory check, for both. **Done the same day:** `bun.lock` and
+  `bun.lockb` count as lockfiles (every Bun app had been told it had none); `bun.lock` and Berry's
+  `yarn.lock` are read for the package list, and so for known vulnerabilities; `bun.lockb`, binary,
+  says it cannot be read and names the text lockfile. Checked against lockfiles Bun 1.4.2 and Yarn
+  4.18.1 wrote. See DESIGN, "Yarn Berry and Bun".
 
 - ~~**Ground the Secure by Design levels in ASVS.**~~ Done on 25 September 2026, with the owner's
   agreement to the design. `data/sbd-asvs-crosswalk.json` maps each of the thirty-six controls to the
