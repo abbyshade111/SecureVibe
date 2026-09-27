@@ -123,6 +123,19 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("uv.lock") => read("uv.lock").as_deref().map(from_package_table_toml),
         Some("Pipfile.lock") => read("Pipfile.lock").as_deref().map(from_pipfile_lock),
         Some("yarn.lock") => read("yarn.lock").as_deref().map(from_yarn_lock),
+        Some("bun.lock") => read("bun.lock").as_deref().map(from_bun_lock),
+        Some("bun.lockb") => {
+            sbom.unread.push((
+                eco.name.clone(),
+                format!(
+                    "`bun.lockb` is Bun's binary lockfile, which `sv` cannot read, so nothing from {} is \
+                     listed. Bun 1.2 and later write a text `bun.lock` instead (`bun install \
+                     --save-text-lockfile` makes one), and `sv` reads that",
+                    eco.name
+                ),
+            ));
+            return;
+        }
         Some("gradle.lockfile") => read("gradle.lockfile").as_deref().map(from_gradle_lockfile),
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
@@ -278,12 +291,19 @@ fn from_pipfile_lock(text: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Yarn's classic lockfile: a header line naming one or more ranges, then an indented `version "x"`.
+/// Yarn's lockfile, classic or Berry: a header line naming one or more ranges, then an indented
+/// version.
 ///
 /// The header is the *range* that was asked for, which is not the package name — `lodash@^4.17.0` and
-/// `lodash@~4.17.20` are two headers for one package. The name is everything before the last `@`, so a
-/// scoped package like `@babel/core@^7` keeps its scope.
+/// `lodash@~4.17.20` are two headers for one package. Classic Yarn (v1) writes `version "4.17.21"`,
+/// and the name is everything before the last `@`, so a scoped package like `@babel/core@^7` keeps its
+/// scope. Yarn 2 and later ("Berry", which starts the file with `__metadata:`) write `version: 4.17.21`
+/// and put a protocol in each range, `lodash@npm:^4.17.0`, so there the name ends at the first `@`
+/// after any scope, and only packages from the registry are listed: the app itself
+/// (`@workspace:`), and anything linked from a folder, are not packages anyone publishes advisories
+/// about.
 fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
+    let berry = text.lines().any(|l| l.trim_end() == "__metadata:");
     let mut out: Vec<(String, String)> = Vec::new();
     let mut pending: Option<String> = None;
     for line in text.lines() {
@@ -294,13 +314,30 @@ fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
             // A header may list several ranges separated by commas; they are all the same package.
             let first = line.trim_end_matches(':').split(',').next().unwrap_or(line);
             let spec = first.trim().trim_matches('"');
-            pending = spec
-                .rfind('@')
-                .filter(|i| *i > 0)
-                .map(|i| spec[..i].to_owned());
+            pending = if berry {
+                let at = spec
+                    .char_indices()
+                    .skip(1)
+                    .find(|(_, c)| *c == '@')
+                    .map(|(i, _)| i);
+                at.filter(|i| {
+                    let protocol = &spec[i + 1..];
+                    protocol.starts_with("npm:") || protocol.starts_with("patch:")
+                })
+                .map(|i| spec[..i].to_owned())
+            } else {
+                spec.rfind('@')
+                    .filter(|i| *i > 0)
+                    .map(|i| spec[..i].to_owned())
+            };
             continue;
         }
-        if let Some(rest) = line.trim().strip_prefix("version ")
+        let version = if berry {
+            line.trim().strip_prefix("version:")
+        } else {
+            line.trim().strip_prefix("version ")
+        };
+        if let Some(rest) = version
             && let Some(name) = pending.take()
         {
             out.push((name, rest.trim().trim_matches('"').to_owned()));
@@ -308,6 +345,64 @@ fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
     }
     out.sort();
     out.dedup();
+    out
+}
+
+/// Bun's text lockfile (Bun 1.2 and later): JSON that allows a comma before a closing bracket.
+/// `packages` maps each install path to an array whose first entry is `name@version`. An entry
+/// whose version names a protocol (`workspace:`, `file:`, `github:`, and the like) is not a package
+/// from the registry, and is left out as Yarn's are.
+fn from_bun_lock(text: &str) -> Vec<(String, String)> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&without_trailing_commas(text)) else {
+        return Vec::new();
+    };
+    let mut out: Vec<(String, String)> = v
+        .get("packages")
+        .and_then(|p| p.as_object())
+        .into_iter()
+        .flat_map(|p| p.values())
+        .filter_map(|entry| entry.get(0)?.as_str())
+        .filter_map(|spec| {
+            let at = spec.rfind('@').filter(|i| *i > 0)?;
+            let (name, version) = (&spec[..at], &spec[at + 1..]);
+            (!name.is_empty() && !version.is_empty() && !version.contains(':'))
+                .then(|| (name.to_owned(), version.to_owned()))
+        })
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// JSON with every comma that stands just before a `}` or `]` removed, outside strings.
+fn without_trailing_commas(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let (mut in_string, mut escaped) = (false, false);
+    for (i, &c) in chars.iter().enumerate() {
+        if in_string {
+            out.push(c);
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+        } else if c == ','
+            && chars[i + 1..]
+                .iter()
+                .find(|n| !n.is_whitespace())
+                .is_some_and(|n| *n == '}' || *n == ']')
+        {
+            continue;
+        }
+        out.push(c);
+    }
     out
 }
 
@@ -814,6 +909,157 @@ mod tests {
                 .any(|c| c.purl() == "pkg:npm/@babel/core@7.23.0")
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    const YARN_BERRY: &str = r#"# This file is generated by running "yarn install" inside your project.
+# Manual changes might be lost - proceed with caution!
+
+__metadata:
+  version: 8
+  cacheKey: 10c0
+
+"@babel/core@npm:^7.0.0":
+  version: 7.23.0
+  resolution: "@babel/core@npm:7.23.0"
+  dependencies:
+    "@babel/code-frame": "npm:^7.22.13"
+  checksum: 10c0/0a1b2c
+  languageName: node
+  linkType: hard
+
+"lodash@npm:^4.17.0, lodash@npm:~4.17.20":
+  version: 4.17.21
+  resolution: "lodash@npm:4.17.21"
+  checksum: 10c0/3d4e5f
+  languageName: node
+  linkType: hard
+
+"my-app@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "my-app@workspace:."
+  dependencies:
+    lodash: "npm:^4.17.0"
+  languageName: unknown
+  linkType: soft
+
+"local-lib@file:../lib::locator=my-app%40workspace%3A.":
+  version: 1.0.0
+  resolution: "local-lib@file:../lib#../lib::hash=1a2b3c&locator=my-app%40workspace%3A."
+  languageName: node
+  linkType: hard
+
+"resolve@patch:resolve@npm%3A^1.22.0#optional!builtin<compat/resolve>":
+  version: 1.22.8
+  resolution: "resolve@patch:resolve@npm%3A1.22.8#optional!builtin<compat/resolve>::version=1.22.8&hash=c3c19d"
+  languageName: node
+  linkType: hard
+"#;
+
+    #[test]
+    fn a_yarn_berry_lockfile_lists_what_came_from_the_registry_and_nothing_else() {
+        let dir = scratch("yarn-berry");
+        fs::write(dir.join("package.json"), r#"{"name":"my-app"}"#).unwrap();
+        fs::write(dir.join("yarn.lock"), YARN_BERRY).unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        // Not the app itself, not a folder it links, not `__metadata`'s own version, and the
+        // patched `resolve` once, by its own name.
+        assert_eq!(
+            purls,
+            vec![
+                "pkg:npm/@babel/core@7.23.0",
+                "pkg:npm/lodash@4.17.21",
+                "pkg:npm/resolve@1.22.8",
+            ],
+            "{sbom:?}"
+        );
+        assert!(sbom.unread.is_empty(), "{:?}", sbom.unread);
+    }
+
+    const BUN_LOCK: &str = r#"{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "my-app",
+      "dependencies": {
+        "@babel/core": "^7.0.0",
+        "lodash": "^4.17.0",
+      },
+    },
+    "packages/ui": {
+      "name": "ui",
+    },
+  },
+  "packages": {
+    "@babel/core": ["@babel/core@7.23.0", "", { "dependencies": { "debug": "^4.1.0" } }, "sha512-AAAA=="],
+    "lodash": ["lodash@4.17.21", "", {}, "sha512-BBBB=="],
+    "ui": ["ui@workspace:packages/ui"],
+    "some-git": ["some-git@github:owner/repo#1a2b3c", {}],
+    "debug/ms": ["ms@2.1.2", "", {}, "sha512-CCCC=="],
+  },
+}
+"#;
+
+    #[test]
+    fn a_bun_lockfile_is_read_with_its_trailing_commas() {
+        let dir = scratch("bun");
+        fs::write(dir.join("package.json"), r#"{"name":"my-app"}"#).unwrap();
+        fs::write(dir.join("bun.lock"), BUN_LOCK).unwrap();
+        let eco = sv_scan::ecosystems::detect(&dir);
+        let pinning = eco.first().map(|e| sv_scan::ecosystems::pinning(&dir, e));
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        // Bun's lockfile pins: a Bun app is not told it has none.
+        assert_eq!(
+            pinning,
+            Some(sv_scan::ecosystems::Pinning::Lockfile("bun.lock".into()))
+        );
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        // A package installed under another one is listed by its own name; a workspace member and a
+        // GitHub dependency are not registry packages.
+        assert_eq!(
+            purls,
+            vec![
+                "pkg:npm/@babel/core@7.23.0",
+                "pkg:npm/lodash@4.17.21",
+                "pkg:npm/ms@2.1.2",
+            ],
+            "{sbom:?}"
+        );
+        assert!(sbom.unread.is_empty(), "{:?}", sbom.unread);
+    }
+
+    #[test]
+    fn bun_s_binary_lockfile_pins_and_says_it_cannot_be_read() {
+        let dir = scratch("bun-binary");
+        fs::write(dir.join("package.json"), r#"{"name":"my-app"}"#).unwrap();
+        fs::write(dir.join("bun.lockb"), [0x23, 0x21, 0x2f, 0x00, 0xff, 0x01]).unwrap();
+        let eco = sv_scan::ecosystems::detect(&dir);
+        let pinning = eco.first().map(|e| sv_scan::ecosystems::pinning(&dir, e));
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            pinning,
+            Some(sv_scan::ecosystems::Pinning::Lockfile("bun.lockb".into()))
+        );
+        assert!(sbom.components.is_empty());
+        assert!(
+            sbom.unread.iter().any(|(eco, why)| eco == "npm"
+                && why.contains("binary")
+                && why.contains("bun.lock")),
+            "{:?}",
+            sbom.unread
+        );
+    }
+
+    #[test]
+    fn only_a_comma_before_a_closing_bracket_and_outside_a_string_is_dropped() {
+        assert_eq!(
+            without_trailing_commas(r#"{"a": [1, 2,], "b": "x,}", "c": "q\",]",}"#),
+            r#"{"a": [1, 2], "b": "x,}", "c": "q\",]"}"#
+        );
+        assert_eq!(without_trailing_commas("[1 ,\n ]"), "[1 \n ]");
     }
 
     #[test]

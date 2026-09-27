@@ -2064,7 +2064,11 @@ another session is not a claim.
   Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
   top only, and a Yarn Berry or Bun lockfile is not one `sv` reads. **Reading Yarn Berry and Bun
   lockfiles claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a
-  backlog item: pinning, the package list, and so the advisory check, for both.
+  backlog item: pinning, the package list, and so the advisory check, for both. **Done the same day:** `bun.lock` and
+  `bun.lockb` count as lockfiles (every Bun app had been told it had none); `bun.lock` and Berry's
+  `yarn.lock` are read for the package list, and so for known vulnerabilities; `bun.lockb`, binary,
+  says it cannot be read and names the text lockfile. Checked against lockfiles Bun 1.4.2 and Yarn
+  4.18.1 wrote. See DESIGN, "Yarn Berry and Bun".
 
 - ~~**Ground the Secure by Design levels in ASVS.**~~ Done on 25 September 2026, with the owner's
   agreement to the design. `data/sbd-asvs-crosswalk.json` maps each of the thirty-six controls to the
