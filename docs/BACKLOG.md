@@ -1522,6 +1522,10 @@ another session is not a claim.
   refused the admin page by the server, whatever the browser was told. Citing it would cost nothing
   and settle a Level 1 requirement, but it is a citation being stretched, so somebody should decide
   rather than it being slipped in.
+  **The owner's decision, 27 September 2026: supporting evidence only.** The admin page refused to
+  an ordinary user is shown beside V8.3.1 and strengthens the owner's answer, but does not settle
+  it: one page refused is not every rule enforced on the server, and actions sent straight to an
+  API are not tried. The same standing as V2.3.1's refused skips.
 
   **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
   V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
@@ -1730,7 +1734,9 @@ another session is not a claim.
      a `flow` entry naming the steps and what the last one shows when it really finished; A goes
      through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
      stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
-     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     a finding. (Asked again on 27 September 2026 whether two refused skips should settle it; the
+     owner's answer: no, it stays a person's check. Trying a repeated step is the way to strengthen
+     it, not a lower bar.) **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
      and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
@@ -1985,6 +1991,10 @@ another session is not a claim.
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
   which is a question with two defensible answers. **Claimed on 27 September 2026 by session
   securevibe-e8.** Also covers "HTML's embedded scripts" in the C++ entry: the same work.
+  **The owner's decision, 27 September 2026 (asked through another session): read them the way a
+  browser does**, since what matters is what the browser runs, and the standards give one answer
+  each: the HTML standard ends an unquoted attribute value at whitespace or `>`, and the URL
+  standard strips tabs and newlines before the scheme is read. Low priority; the claim above stands.
 
 - ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
   one of the nine rules either taught each language or saying why there is nothing to find in it
