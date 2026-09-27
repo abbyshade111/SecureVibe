@@ -1438,11 +1438,77 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
                                 pass --advisories DIR.",
         },
     )?;
+    let command = format!("sv bundle {}", args.join(" "));
+    let outcome = write_bundle(&app_abs, &zip_abs, &report, command.trim())?;
+    println!("{}", outcome.summary());
+    Ok(())
+}
 
+/// What `sv bundle` and the MCP tool made.
+struct BundleOutcome {
+    zip: PathBuf,
+    kilobytes: usize,
+    files: usize,
+    included: usize,
+    left_out: Vec<(String, String)>,
+    categories: Vec<String>,
+}
+
+impl BundleOutcome {
+    /// What is said to the person, on the screen and in the AI tool alike.
+    fn summary(&self) -> String {
+        let mut text = format!(
+            "Wrote {} ({} files, {} KB).\n  {} of the app's files, the report, and a SHA-256 for every file in BUNDLE.json.\n",
+            self.zip.display(),
+            self.files,
+            self.kilobytes,
+            self.included
+        );
+        if self.left_out.is_empty() {
+            text.push_str("Nothing was left out.\n");
+        } else {
+            text.push_str(&format!(
+                "\nLeft out on purpose, so the zip carries no secret ({}):\n",
+                self.left_out.len()
+            ));
+            for (path, reason) in &self.left_out {
+                text.push_str(&format!("  {path}: {reason}\n"));
+            }
+        }
+        if !self.categories.is_empty() {
+            text.push_str(&format!(
+                "\nsecurevibe.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
+                self.categories.join(", ")
+            ));
+        }
+        text.push_str(
+            "\nsv cannot tell which files hold data about your app's people. It leaves out the database files it \
+             recognizes by name, and nothing else: look through the zip before you hand it on.",
+        );
+        text
+    }
+}
+
+/// Makes the zip from a report already built. `zip_abs` has been resolved and is outside the app; the caller
+/// checked. Shared by `sv bundle` and the MCP tool, so what an AI tool is told is what the command says.
+fn write_bundle(
+    app_abs: &Path,
+    zip_abs: &Path,
+    report: &sv_report::Report,
+    command: &str,
+) -> Result<BundleOutcome> {
+    let name = app_abs
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "app".to_owned());
+    let folder = bundle::safe_name(&name);
     // What goes in, decided from what the credential scan found and could not read.
     let rules = SecretRules::load(&secret_rules_path())?;
-    let scan = scan_dir(&rules, &app_abs);
-    let plan = bundle::plan(&app_abs, &scan);
+    let scan = scan_dir(&rules, app_abs);
+    let plan = bundle::plan(app_abs, &scan);
+    let categories = Manifest::load(&app_abs.join("securevibe.toml"))
+        .map(|m| m.data.categories)
+        .unwrap_or_default();
 
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
     for rel in &plan.include {
@@ -1450,9 +1516,9 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
         entries.push((format!("{folder}/app/{rel}"), bytes));
     }
     let scratch = bundle::scratch_dir();
-    let written = write_report_files(&report, &scratch);
+    let written = write_report_files(report, &scratch);
     let sbom_json =
-        serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom::build(&app_abs)))? + "\n";
+        serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom::build(app_abs)))? + "\n";
     let report_files: Result<Vec<(String, Vec<u8>)>> = written.and_then(|names| {
         names
             .iter()
@@ -1477,16 +1543,19 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
             .map(|d| d.as_secs())
             .unwrap_or(0),
     );
-    let command = format!("sv bundle {}", args.join(" "));
     let listing = bundle::listing(
-        env!("CARGO_PKG_VERSION"),
-        &made_at,
-        command.trim(),
-        &name,
+        &bundle::Made {
+            sv_version: env!("CARGO_PKG_VERSION"),
+            commit: env!("SV_GIT_COMMIT"),
+            made_at: &made_at,
+            command,
+            app_name: &name,
+            categories: &categories,
+        },
         &entries,
         &plan,
     );
-    let readme = bundle::readme(&name, &made_at, plan.include.len(), &plan);
+    let readme = bundle::readme(&name, &made_at, plan.include.len(), &plan, &categories);
     entries.push((
         format!("{folder}/BUNDLE.json"),
         (serde_json::to_string_pretty(&listing)? + "\n").into_bytes(),
@@ -1498,34 +1567,15 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
-    std::fs::write(&zip_abs, &bytes).with_context(|| format!("writing {}", zip_abs.display()))?;
-
-    println!(
-        "Wrote {} ({} files, {} KB).",
-        zip_abs.display(),
-        entries.len(),
-        bytes.len() / 1024
-    );
-    println!(
-        "  {} of the app's files, the report, and a SHA-256 for every file in BUNDLE.json.",
-        plan.include.len()
-    );
-    if plan.left_out.is_empty() {
-        println!("Nothing was left out.");
-    } else {
-        println!(
-            "\nLeft out on purpose, so the zip carries no secret ({}):",
-            plan.left_out.len()
-        );
-        for (path, reason) in &plan.left_out {
-            println!("  {path}: {reason}");
-        }
-    }
-    println!(
-        "\nsv cannot tell which files hold data about your app's people. It leaves out the database files it \
-         recognizes by name, and nothing else: look through the zip before you hand it on."
-    );
-    Ok(())
+    std::fs::write(zip_abs, &bytes).with_context(|| format!("writing {}", zip_abs.display()))?;
+    Ok(BundleOutcome {
+        zip: zip_abs.to_path_buf(),
+        kilobytes: bytes.len() / 1024,
+        files: entries.len(),
+        included: plan.include.len(),
+        left_out: plan.left_out,
+        categories,
+    })
 }
 
 /// Writes the reports.

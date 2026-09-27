@@ -48,7 +48,7 @@ fn a_whole_session_over_stdio() {
     let ids: Vec<i64> = replies.iter().map(|r| r["id"].as_i64().unwrap()).collect();
     assert_eq!(ids, [1, 2, 3, 4]);
     assert_eq!(replies[0]["result"]["serverInfo"]["name"], "securevibe");
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 6);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 7);
     let check = &replies[2]["result"];
     assert_eq!(check["isError"], false, "{check}");
     assert!(

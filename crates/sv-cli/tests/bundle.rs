@@ -461,3 +461,86 @@ fn an_app_with_nothing_to_leave_out_says_so() {
     .into_owned();
     assert!(readme.contains("Nothing was left out."));
 }
+
+#[test]
+fn the_listing_names_the_commit_sv_was_built_from() {
+    let made = make("commit");
+    let commit = made.listing["commit"].as_str().unwrap();
+    let head = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output();
+    match head {
+        Ok(out) if out.status.success() => assert_eq!(
+            commit,
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "the listing names another commit than the checkout this was built from"
+        ),
+        _ => assert!(commit == "unknown" || commit.len() == 40, "{commit}"),
+    }
+    assert_eq!(
+        made.listing["made-by"],
+        format!("sv {}", env!("CARGO_PKG_VERSION"))
+    );
+}
+
+#[test]
+fn the_data_the_owner_says_the_app_holds_is_named_and_not_pretended_away() {
+    let root = scratch("categories");
+    let dir = app(&root);
+    let manifest = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    assert!(
+        !manifest.contains("[data]"),
+        "the example grew a [data] section; merge rather than append"
+    );
+    std::fs::write(
+        dir.join("securevibe.toml"),
+        format!("{manifest}\n[data]\ncategories = [\"health\"]\n"),
+    )
+    .unwrap();
+    let zip = root.join("out").join("notes.zip");
+    let out = sv(&[
+        "bundle",
+        dir.to_str().unwrap(),
+        "--out",
+        zip.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(
+        out.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        stdout.contains("securevibe.toml says this app holds: health"),
+        "{stdout}"
+    );
+    let (entries, bad) = read_zip(&zip);
+    assert_eq!(bad, None);
+    let listing: Value = serde_json::from_slice(
+        &entries
+            .iter()
+            .find(|(n, _)| n.ends_with("BUNDLE.json"))
+            .unwrap()
+            .1,
+    )
+    .unwrap();
+    assert_eq!(
+        listing["data-categories-in-securevibe-toml"],
+        serde_json::json!(["health"])
+    );
+    let readme = String::from_utf8_lossy(
+        &entries
+            .iter()
+            .find(|(n, _)| n.ends_with("README.txt"))
+            .unwrap()
+            .1,
+    )
+    .into_owned();
+    assert!(
+        readme.contains("says this app holds: health") && readme.contains("not left out"),
+        "{readme}"
+    );
+    // And the honest half: nothing is left out on the strength of a category, since sv cannot tell which files.
+    assert!(entries.iter().any(|(n, _)| n.ends_with("app/src/main.py")));
+}
