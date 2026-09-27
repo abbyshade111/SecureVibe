@@ -9,6 +9,91 @@ another session is not a claim.
 
 ## Next
 
+- **Records that disagree with what was built, found by the ADR analysis.** Found on 27 September 2026 by
+  session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
+  to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** Items 1 to 4 are in v1's
+  records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
+  `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
+  the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.
+  1. **v1's ADR-012 cites "ADR-011's sibling change", and no record carries the number ADR-011.** The file named
+     `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
+     ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
+     nobody read").
+  2. **v1's ADR-010 says generated code's network access is not restricted, and rejects `sandbox-exec`.** Two
+     days later the network fence (`27b85e2`, 18 September) used `sandbox-exec` on macOS and a network namespace
+     on Linux, and v1's `docs/CONTRACTS.md` describes it. ADR-010 was never updated, and v1's `README.md` still
+     says "Network access is **not** restricted — the reports say so."
+  3. **v1's ADR-008 lists three AI providers** (`anthropic`, `null`, `scripted`). OpenAI and Google providers
+     were added on 18 September (`7ecb4c3`, `71fae08`), with a choice of service per step (`4b947ac`), and the
+     record was not updated.
+  4. **v1's ADR-013 contradicts itself on paper size.** Its decision says the PDF writer "lays it out on A4
+     pages". Its cost section, updated by `2ef4149`, says US Letter is the default and A4 is a setting.
+  5. **`sv`'s `README.md` says "`sv` opens no network connection", and ADR-017 and `CLAUDE.md` say it opens
+     none "of its own".** `sv probe <address>` has `curl` make a handful of read-only requests to the address the
+     owner types (`crates/sv-cli/src/main.rs`, `cmd_probe`). That is deliberate, and it is the only exception,
+     but none of the three says so. Name the exception in each.
+  6. **`DESIGN.md` says v1's evidence rule carries over "word for word" as "AI review alone is `ai-assessed`,
+     never `pass`".** `sv`'s reports have neither status (they say *checked*, *needs attention*, *stated*, and so
+     on), and `sv` has no AI review. Restate the rule in `sv`'s own terms: an AI tool's word is `stated`, the
+     weakest tier, and nothing a model says makes a requirement *checked*.
+
+- **What `sv` cannot see when it checks itself, found by the v2 self-assessment.** Found on 27 September 2026
+  (`docs/paper/SELF-ASSESSMENT-V2.md`, "Three things `sv` could do about this"). **Not claimed.**
+  1. **Test fixtures and example apps are read as part of the app.** On `sv`'s own repository they overruled the
+     manifest 19 times and added 547 findings. A manifest could name folders that are fixtures or examples: still
+     read, but unable to overrule the manifest, and with their findings listed apart.
+  2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
+     product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
+  3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
+     never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
+     incident (#77).
+
+- **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
+  ADR-018, the template's three, and the decisions not yet written as ADRs: when each was made, whether it held,
+  what later evidence says about it, and how v1's decisions carried into `sv`. A written analysis and a figure in
+  `docs/paper/`. Touches only `docs/paper/`.
+
+- **False alarms, part 1: fewer of them reach the owner.** Asked for by the owner on 27 September
+  2026, after an investigation by session securevibe-e2 of how `sv` handles findings that are wrong.
+  Today there is no way to set a finding aside, the same line can be reported by two tools as two
+  findings, a finding in test code looks like one in the app, and each finding's `confidence` is
+  recorded and never shown. With an AI coding tool in the loop a false alarm is not noise: the tool
+  rewrites correct code until the warning stops (see "Two false alarms rated high changed correct
+  code"). Three changes, none of which hides a finding: findings from different tools on the same file,
+  line, and kind of weakness (CWE) become one finding naming every tool that raised it; a finding in
+  test code or sample files says so; and a finding `sv` is not sure of is shown as a *possible* problem,
+  apart from a *confirmed* one, both still counted as needing attention. **The owner's decision, 27
+  September 2026: go ahead.** **Claimed the same day by session securevibe-e2.**
+
+- **False alarms, part 2: a person's record that a finding is a false alarm, or an accepted risk.**
+  From the same investigation. **The owner's decisions, 27 September 2026, each as recommended:**
+  1. Build it: a section in `securevibe.toml` where a finding is set aside with a verdict, who decided,
+     the date, and a written reason.
+  2. Two verdicts: *false alarm* (the code is fine) and *accepted risk* (a real problem the owner
+     chooses to live with for now).
+  3. The AI coding tool may propose one, and only a person's word counts. An entry the tool wrote is
+     shown as the tool's opinion, the finding still counts, and the interview asks the owner to confirm
+     it. (The rules the tool follows already say it must never weaken a check.)
+  4. A false-alarm verdict lapses when the flagged line changes; an accepted risk after 90 days; a
+     lapsed entry is listed, never dropped quietly. A key or password found by the secrets scan may be
+     set aside as a false alarm, but only with a stricter reason.
+  5. Part 1 first.
+  In the report, a finding set aside moves to its own section with its reason; its requirement goes
+  back to *not verified*, never to *checked*, since dismissing a finding does not show the protection
+  is there; an accepted risk stays under *needs attention*, labeled as known and accepted. The SARIF
+  `sv` writes marks it as suppressed, with the reason, so GitHub's Security tab agrees with the report.
+  Findings are matched by rule, file, and a fingerprint of the flagged line's text, never the text
+  itself, so a flagged key is never copied into the file. **Claimed the same day by session
+  securevibe-e2**, to follow part 1.
+
+- **False alarms, part 3: each one a report against the rule.** From the same investigation, and
+  wanted by the owner on 27 September 2026. A false alarm set aside in one app is usually a rule that
+  will misfire in the next. An issue template for a false alarm (the rule, what it matched, and why it
+  is wrong, with the code shown only if the owner chooses), and a line beside each setting-aside in
+  the report pointing to it, so a rule that keeps misfiring gets narrowed, with a test, rather than
+  set aside app after app. Not claimed.
+
 - **Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).** **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a
   marker per send, confirmed by the admin, after both sessions are shown signed in. See DESIGN, "Admin
