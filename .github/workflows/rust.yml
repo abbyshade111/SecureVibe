@@ -34,6 +34,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # The token stays out of the checked-out folder, so nothing that runs later in the job
+        # (a build script, a test, a package from outside) can read it. `sv check` reports this (AC.12.2).
+        with:
+          persist-credentials: false
 
       # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
       # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
@@ -64,6 +68,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build the image
         run: docker build -t securevibe/sv .
@@ -92,6 +98,8 @@ jobs:
       IMAGE: ghcr.io/abbyshade111/securevibe-sv
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build the image
         # The source label ties the package to this repository on GitHub, so it is listed there and
