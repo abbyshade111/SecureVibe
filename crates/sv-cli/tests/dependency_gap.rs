@@ -178,3 +178,102 @@ fn an_app_with_a_lockfile_gets_no_dependency_gap_at_all() {
         "a fully locked app should have no dependency gap: {dependency:?}"
     );
 }
+
+/// V15.1.2 as the report states it, for an app holding these files and the smallest manifest there
+/// is, with the bill of materials `sv sbom` writes for it.
+fn inventory_line(name: &str, files: &[(&str, &str)]) -> (serde_json::Value, String) {
+    let dir = std::env::temp_dir().join(format!("sv-inventory-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("securevibe.toml"),
+        "manifest-version = 1\n\n[app]\nname = \"Inventory\"\n",
+    )
+    .unwrap();
+    for (file, contents) in files {
+        std::fs::write(dir.join(file), contents).unwrap();
+    }
+    let out_dir = dir.join("report");
+    let report = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["report", dir.to_str().unwrap(), "--out", out_dir.to_str().unwrap()])
+        .output()
+        .expect("sv runs");
+    assert!(
+        report.status.success(),
+        "sv report failed: {}",
+        String::from_utf8_lossy(&report.stderr)
+    );
+    let json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(out_dir.join("report.json")).unwrap())
+            .unwrap();
+    let sbom = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["sbom", dir.to_str().unwrap()])
+        .output()
+        .expect("sv runs");
+    std::fs::remove_dir_all(&dir).ok();
+    let line = json["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "V15.1.2")
+        .cloned()
+        .expect("V15.1.2 applies to this app");
+    (line, String::from_utf8_lossy(&sbom.stdout).into_owned())
+}
+
+fn checked_by(line: &serde_json::Value) -> Vec<String> {
+    line["checked_by"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["check_id"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+#[test]
+fn a_lockfile_nothing_could_be_read_from_does_not_credit_the_inventory() {
+    // The report marked V15.1.2 checked here, because a lockfile was present, while listing the
+    // same ecosystem as an empty gap. The inventory it credited was one nobody had seen.
+    let (line, sbom) = inventory_line(
+        "garbled",
+        &[
+            (
+                "pyproject.toml",
+                "[tool.poetry]\nname = \"x\"\n[tool.poetry.dependencies]\nflask = \"^3.0\"\n",
+            ),
+            ("poetry.lock", "this is not a lockfile\n"),
+            ("app.py", "from flask import Flask\n"),
+        ],
+    );
+    assert!(
+        sbom.contains("securevibe:unread"),
+        "the fixture is not the unreadable-lockfile case at all: {sbom}"
+    );
+    assert_eq!(line["status"], "needs-attention", "{line}");
+    assert!(
+        line["findings"].as_array().unwrap().iter().any(|f| f == "sbom.incomplete"),
+        "{line}"
+    );
+    assert!(checked_by(&line).is_empty(), "nothing may claim it: {line}");
+}
+
+#[test]
+fn a_lockfile_read_in_full_is_credited_by_both_checks() {
+    // The control: the fix must not take the credit from an app that earned it.
+    let (line, sbom) = inventory_line(
+        "locked",
+        &[
+            ("package.json", PACKAGE_JSON),
+            (
+                "package-lock.json",
+                r#"{"packages":{"":{"name":"shop"},"node_modules/express":{"version":"4.19.2"},"node_modules/react":{"version":"18.0.0"}}}"#,
+            ),
+            ("server.js", SERVER_JS),
+        ],
+    );
+    assert!(sbom.contains("pkg:npm/express@4.19.2"), "{sbom}");
+    assert_eq!(line["status"], "checked", "{line}");
+    let mut by = checked_by(&line);
+    by.sort();
+    assert_eq!(by, vec!["config.versions-pinned", "sbom"], "{line}");
+}

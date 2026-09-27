@@ -361,6 +361,32 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
         ));
     }
 
+    // A lockfile `sv` could take nothing from is a lockfile nobody here has seen pin anything: a
+    // format it cannot read, or one that parsed and held no packages. Counting its presence as a
+    // pass credited V15.1.2, an inventory of what is installed, for an app whose inventory the
+    // same run reported as empty (found 27 September 2026, with a `poetry.lock` holding no packages).
+    // The bill of materials is what read it, so it is what is asked.
+    let bill_of_materials = crate::sbom::build(app_dir);
+    let mut unread: Vec<&str> = judged
+        .iter()
+        .filter(|(e, _)| e.lockfile.is_some())
+        .flat_map(|(e, _)| {
+            bill_of_materials
+                .unread
+                .iter()
+                .filter(move |(name, _)| *name == e.name)
+                .map(|(_, why)| why.as_str())
+        })
+        .collect();
+    unread.dedup();
+    if !unread.is_empty() {
+        return Outcome::NotAssessed(format!(
+            "A lockfile is there, and `sv` could not read the versions from it: {}. Whether this app \
+             pins what it installs is still an open question, not a passed check.",
+            unread.join("; ")
+        ));
+    }
+
     Outcome::Passed(&["V15.1.2"])
 }
 
@@ -431,6 +457,35 @@ mod tests {
         fs::remove_dir_all(&dir).ok();
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn a_lockfile_nothing_could_be_read_from_is_not_a_pass() {
+        // A lockfile being there is not the same as its versions being known: with nothing taken
+        // from it, a pass credited an inventory the same run reported as empty.
+        let dir = scratch("garbled-lock");
+        fs::write(
+            dir.join("pyproject.toml"),
+            "[tool.poetry]\nname = \"x\"\n[tool.poetry.dependencies]\nflask = \"^3.0\"\n",
+        )
+        .unwrap();
+        fs::write(dir.join("poetry.lock"), "this is not a lockfile\n").unwrap();
+        let outcome = versions_pinned(&dir);
+
+        // And the control, in the same folder: a lockfile the bill of materials can read passes.
+        fs::write(
+            dir.join("poetry.lock"),
+            "[[package]]\nname = \"flask\"\nversion = \"3.0.0\"\n",
+        )
+        .unwrap();
+        let readable = versions_pinned(&dir);
+        fs::remove_dir_all(&dir).ok();
+
+        match outcome {
+            Outcome::NotAssessed(why) => assert!(why.contains("could not read"), "{why}"),
+            other => panic!("expected not assessed, got {other:?}"),
+        }
+        assert_eq!(readable, Outcome::Passed(&["V15.1.2"]));
     }
 
     fn git_repo(name: &str) -> Option<std::path::PathBuf> {
