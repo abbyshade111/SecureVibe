@@ -674,9 +674,15 @@ mod tests {
 
     #[test]
     fn an_ecosystem_with_a_lockfile_passes() {
+        // A lockfile with a package in it. This used `{}`, which is the case a lockfile nobody can
+        // read anything from, and which now leaves the question open instead of passing it.
         let dir = scratch("locked");
         fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
-        fs::write(dir.join("package-lock.json"), "{}").unwrap();
+        fs::write(
+            dir.join("package-lock.json"),
+            r#"{"packages":{"":{"name":"x"},"node_modules/express":{"version":"4.19.2"}}}"#,
+        )
+        .unwrap();
         assert!(
             check_dir(&dir)
                 .passed
