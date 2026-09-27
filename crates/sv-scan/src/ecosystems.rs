@@ -28,6 +28,10 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
             "npm-shrinkwrap.json",
             "yarn.lock",
             "pnpm-lock.yaml",
+            // Bun's lockfile: text since Bun 1.2, binary (`bun.lockb`) before it. Both pin; left out,
+            // every Bun app was told it had no lockfile, which was untrue.
+            "bun.lock",
+            "bun.lockb",
         ],
     },
     EcosystemDef {

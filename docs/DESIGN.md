@@ -2456,6 +2456,30 @@ the caller. Deleting the inner one failed no test at all, because the outer one 
 guard that survives being deleted. It went, and the remaining one is asserted by the message it produces
 rather than by the fact that something was reported.
 
+### Yarn Berry and Bun
+
+Two more lockfiles, each read without a new dependency.
+
+**Bun** was not a lockfile `sv` knew at all, so every Bun app was told it had no lockfile: a wrong
+statement, in the direction that sends an owner to fix something that is not broken. `bun.lock`, the text
+lockfile Bun has written since 1.2, is JSON that allows a comma before a closing bracket. Those commas are
+taken out, outside strings only, and the file is read as JSON. Each entry under `packages` begins with
+`name@version`, and the name is taken from there rather than from the key, because a package installed
+under another one is keyed by its path (`debug/ms`). The older `bun.lockb` is binary. It still pins, so
+the app is not told it has no lockfile, but nothing can be listed from it, and the report says so and
+names the text lockfile that `bun install --save-text-lockfile` writes instead.
+
+**Yarn Berry** (Yarn 2 and later) keeps the name `yarn.lock`, so it was already counted as pinning, but
+its list came back empty: it writes `version: 4.17.21` where classic Yarn writes `version "4.17.21"`. A
+file that starts with `__metadata:` is now read as Berry. Its ranges carry a protocol,
+`lodash@npm:^4.17.0`, so the name ends at the first `@` after a scope. Only `npm:` and `patch:` entries are
+registry packages; the app's own `@workspace:` entry and anything linked from a folder are not, and are
+left out, as Bun's `workspace:` and `github:` entries are.
+
+Both were checked against lockfiles the real tools wrote, not only against hand-written ones: Bun 1.4.2
+installed 41 packages and `sv sbom` listed 41, and Yarn 4.18.1's lockfile has 41 entries, one of them the
+app itself, and `sv sbom` listed 40.
+
 ### Severity from the advisory, not from a guess
 
 `sv audit` used to decide seriousness by looking for the word CRITICAL and for a substring of a v3.1
