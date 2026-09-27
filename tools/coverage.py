@@ -116,6 +116,7 @@ RUST_CHECKS = {
     "probe.sign-out-control-hidden": ("signed-in", ["V7.4.4"]),
     "probe.text-rendered-as-markup": ("signed-in", ["V3.2.2"]),
     "probe.storage-kept-after-sign-out": ("signed-in", ["V14.3.1"]),
+    "probe.account-details-sent-elsewhere": ("signed-in", ["V14.2.3"]),
     "probe.preflight-skipped": ("signed-in", ["V3.5.2"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
     "probe.password-altered": ("signed-in", ["V6.2.8"]),

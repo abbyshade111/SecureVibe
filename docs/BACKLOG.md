@@ -1871,7 +1871,12 @@ another session is not a claim.
   enforced, not only sent). **V14.2.3 claimed on 27 September 2026 by session securevibe-e2**, at the
   owner's asking to pick a backlog item: the real browser records every request a signed-in page
   tries to send to another host (the fence stops it leaving), and the test account's details found in
-  one are a finding. To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
+  one are a finding. **Done the same day:** the browser driver's `outside` action lists those requests, and the
+  test account's email address (as written, encoded into a web address, base64, or SHA-256), password
+  (as written or base64), and session cookie found in one are a finding, never printed. Only ever a
+  finding: scripts a page loads from other sites cannot arrive inside the fence, so what they send is
+  not seen, and the run lists the sites the pages tried to reach so the owner can look. See DESIGN,
+  "What the signed-in pages send to other sites". To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
   ciphers the live site offers, where semgrep today sees only TLS settings written in code; a scan
   is dozens of handshakes, so what `sv probe`'s four-request cap means for it needs deciding first.
 

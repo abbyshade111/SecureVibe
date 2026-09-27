@@ -3672,6 +3672,32 @@ included, is set aside as nobody's in particular and not credited. Removing each
 one was caught; the one that first looked uncaught was a mutation that changed nothing (the job has
 exactly as many answers as the length it was relaxed to).
 
+### What the signed-in pages send to other sites (V14.2.3)
+
+V14.2.3 asks that sensitive data is not sent to untrusted parties, such as the services that track
+visitors. The real browser already opens every private page signed in as the first test user, so it
+also records every request those pages try to send to a host other than the app's own. The fence stops
+each one from leaving; Chromium records the request before it tries (`Network.requestWillBeSent`), so
+the address, the body, and the headers are all there to read. The driver's `outside` action hands the
+list back, capped at 200 requests.
+
+`sv` looks in that list for the test account's own details, in the forms a tracker is actually sent
+them: the email address as written in any case, encoded into a web address, in base64, or as the
+SHA-256 hash of the lowercased address, which is how the large advertising services ask for it; the
+password as written or in base64; and the session cookie, when it is long enough (twelve characters)
+that turning up by chance is not a possibility. Any of these found is a finding against V14.2.3, rated
+high for a password or a session cookie and medium for an email address. The finding names what was
+sent, how it was written, the host, and the page, and never the value itself.
+
+It is only ever a finding. **Code a page loads from another site cannot arrive inside the fence**, so a
+tracker's script from its own server never runs, and whatever it would have sent is never seen. What
+is seen is what the app's own code sends: a tracking pixel written into the page, a request made by
+the app's own scripts, and an analytics library bundled into them. So the run lists every other site
+the pages tried to reach, scripts included, and the hand check for V14.2.3 says the rest is still the
+owner's to look at. A server that sends to another site itself is not seen this way either. And base64
+is matched only when the detail was encoded on its own: inside a larger encoded object its letters
+shift with its position, and it is not found.
+
 ## MITRE ATLAS: adopt in part, as references on the AI threats
 
 The owner asked whether MITRE ATLAS, the catalog of attacks on AI systems, is worth bringing into the

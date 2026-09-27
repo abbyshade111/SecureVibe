@@ -79,7 +79,7 @@
     {
       "id": "V14.2.3",
       "title": "Nothing sensitive is handed to an outside service",
-      "how": "Open the app in a browser with the network panel recording, sign in, and use it normally. Look at every request going somewhere that is not your own address — analytics, error reporting, fonts, chat widgets. Check what is in each, including the address of the page, which often carries names or record numbers."
+      "how": "Open the app in a browser with the network panel recording, sign in, and use it normally. Look at every request going somewhere that is not your own address — analytics, error reporting, fonts, chat widgets. Check what is in each, including the address of the page, which often carries names or record numbers. With `browser` under [stack.run.users], `sv report --run` looks through what the signed-in pages send to other sites for the test account's email address, password, and session cookie; but code a page loads from another site cannot run inside the fence, so what analytics and chat widgets send is still yours to look at."
     },
     {
       "id": "V14.2.4",

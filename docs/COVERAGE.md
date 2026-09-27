@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 132 (38%) | 6 | 207 |
+| OWASP ASVS 5.0 | 345 | 132 (38%) | 7 | 206 |
 | OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -71,7 +71,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11 Cryptography | 24 | 8 | 1 | 15 |
 | V12 Secure Communication | 12 | 6 | 1 | 5 |
 | V13 Configuration | 21 | 7 | 1 | 13 |
-| V14 Data Protection | 13 | 3 | 0 | 10 |
+| V14 Data Protection | 13 | 3 | 1 | 9 |
 | V15 Secure Coding and Architecture | 21 | 8 | 0 | 13 |
 | V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
@@ -225,7 +225,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (6)
+### Supporting only (7)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -235,6 +235,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
 ### Level 1 with no check at all (13)
 

@@ -10,7 +10,7 @@
 //! as it did for the plain requests, or the checks here say why they were not made.
 
 use crate::finding::Severity;
-use crate::signed_in::{Http, Outcome, Rule, Session, finding};
+use crate::signed_in::{Account, Http, Outcome, Rule, Session, finding};
 use serde_json::{Value, json};
 use sv_manifest::{BrowserSection, UsersSection};
 
@@ -38,6 +38,9 @@ pub enum Action {
     Act(String),
     /// Sets cookies for the app partway through, as the job's own are set at its start: `{}`.
     SetCookies(Vec<(String, String)>),
+    /// Every request the tab tried to send to a host other than the app's since the job began:
+    /// answers `{"requests": [{"url", "method", "type", "page", "body", "headers"}]}`.
+    Outside,
 }
 
 impl Action {
@@ -50,6 +53,7 @@ impl Action {
             Action::Wait(ms) => json!({ "wait": ms }),
             Action::Act(expression) => json!({ "act": expression }),
             Action::SetCookies(cookies) => json!({ "cookies": cookies }),
+            Action::Outside => json!({ "outside": true }),
         }
     }
 }
@@ -75,6 +79,19 @@ pub(crate) const TEXT_AS_MARKUP: Rule = Rule {
     fix: "Show typed text as text: let the template language escape it (and never switch that \
           off for it), and in the browser set `textContent`, not `innerHTML`. If the text really is \
           meant to carry formatting, pass it through a well-known HTML sanitizer first.",
+};
+
+pub(crate) const DETAILS_SENT_ELSEWHERE: Rule = Rule {
+    rule_id: "probe.account-details-sent-elsewhere",
+    requirement_ids: &["V14.2.3"],
+    cwe: &["CWE-359"],
+    impact: "A signed-in page sends the person's own account details to another website, such as \
+             an analytics or advertising service, where they are collected outside the app's \
+             control and its privacy promises.",
+    fix: "Keep account details out of everything a page sends to other sites: no email address, \
+          password, or session cookie in a tracking pixel's address, an analytics event, or a \
+          request body, hashed or not. If a service must tell people apart, give it an identifier \
+          that means nothing outside the app, and say so in the privacy notice.",
 };
 
 /// The mark put in the typed text, so it can be found again: made from the run's own randomness,
@@ -206,6 +223,7 @@ pub(crate) fn checks(
     http: &mut dyn Http,
     users: &UsersSection,
     session: &Session,
+    account: &Account,
     works: bool,
     token: &str,
     out: &mut Outcome,
@@ -261,6 +279,10 @@ pub(crate) fn checks(
         actions.push(Action::Wait(700));
         actions.push(Action::Eval(markup_question(token)));
     }
+    // Last, what every page above tried to send elsewhere, after a moment for a beacon sent as a
+    // page settles.
+    actions.push(Action::Wait(500));
+    actions.push(Action::Outside);
     let job = Job {
         cookies: session.cookies().to_vec(),
         actions,
@@ -276,6 +298,9 @@ pub(crate) fn checks(
 
     // The control first: the browser has to be signed in, as the plain requests were.
     let pages = &users.private;
+    let mut answers = answers;
+    let sent = answers.pop().unwrap_or(Value::Null);
+    let _wait = answers.pop();
     let mut answers = answers.into_iter();
     let mut signed_in = true;
     let mut visits = Vec::new();
@@ -325,6 +350,247 @@ pub(crate) fn checks(
             out,
         );
     }
+    details_sent_elsewhere(account, session.cookies(), &sent, out);
+}
+
+/// One of the test account's details, in one of the forms a page might send it in.
+struct Needle {
+    /// What it is, in the owner's words: "email address", "password", "session cookie".
+    what: &'static str,
+    /// How it was written: "as written", "in base64", "as a SHA-256 hash".
+    how: &'static str,
+    text: String,
+    /// Email addresses are matched without regard to case, as the services that take them do.
+    any_case: bool,
+}
+
+/// The forms each detail is looked for in. A tracker is sent an email address as it is, encoded
+/// into a web address (which `readable` undoes on the other side), in base64, or hashed with
+/// SHA-256 after lower-casing, which is how the big advertising services ask for it.
+fn needles(account: &Account, cookies: &[(String, String)]) -> Vec<Needle> {
+    use sha2::{Digest, Sha256};
+    let email = account.user.trim().to_lowercase();
+    let hash: String = Sha256::digest(email.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let mut out = vec![
+        Needle {
+            what: "email address",
+            how: "as written",
+            text: email.clone(),
+            any_case: true,
+        },
+        Needle {
+            what: "email address",
+            how: "as a SHA-256 hash",
+            text: hash,
+            any_case: true,
+        },
+        Needle {
+            what: "password",
+            how: "as written",
+            text: account.password.clone(),
+            any_case: false,
+        },
+    ];
+    for (what, value) in [("email address", &email), ("password", &account.password)] {
+        for text in [
+            base64(value.as_bytes(), false),
+            base64(value.as_bytes(), true),
+        ] {
+            out.push(Needle {
+                what,
+                how: "in base64",
+                text,
+                any_case: false,
+            });
+        }
+    }
+    // A cookie value short enough to turn up by chance is no evidence of anything.
+    for (_, value) in cookies.iter().filter(|(_, v)| v.len() >= 12) {
+        out.push(Needle {
+            what: "session cookie",
+            how: "as written",
+            text: value.clone(),
+            any_case: false,
+        });
+    }
+    out
+}
+
+/// Base64 without padding, in the standard alphabet or the one made for web addresses.
+fn base64(bytes: &[u8], url_safe: bool) -> String {
+    let alphabet: &[u8; 64] = if url_safe {
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    } else {
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    };
+    let mut out = String::new();
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16)
+            | (u32::from(*chunk.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*chunk.get(2).unwrap_or(&0));
+        for i in 0..=chunk.len() {
+            out.push(alphabet[((n >> (18 - 6 * i)) & 0x3f) as usize] as char);
+        }
+    }
+    out
+}
+
+/// A web address or form body as a person would read it: `%40` back to `@`, and `+` to a space.
+fn readable(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => out.push(b' '),
+            b'%' if i + 2 < bytes.len() => {
+                let hex = |c: u8| (c as char).to_digit(16).map(|d| d as u8);
+                match (hex(bytes[i + 1]), hex(bytes[i + 2])) {
+                    (Some(high), Some(low)) => {
+                        out.push(high << 4 | low);
+                        i += 2;
+                    }
+                    _ => out.push(b'%'),
+                }
+            }
+            b => out.push(b),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The host a request went to, without the user name, password, or port an address can carry.
+fn host_of(url: &str) -> &str {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
+    let host = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    host.split(':').next().unwrap_or(host)
+}
+
+/// V14.2.3: the requests the signed-in pages tried to send to other hosts, looked through for the
+/// test account's own details. Only ever a finding: the fence keeps a script a page loads from
+/// another host from arriving, so whatever such a script would have sent is never seen, and a
+/// clean list says nothing about it.
+fn details_sent_elsewhere(
+    account: &Account,
+    cookies: &[(String, String)],
+    sent: &Value,
+    out: &mut Outcome,
+) {
+    let Some(requests) = field(sent, "requests").as_array() else {
+        out.steps.push(
+            "could not list what the signed-in pages tried to send to other sites: the browser did \
+             not say"
+                .to_owned(),
+        );
+        return;
+    };
+    let text = |r: &Value, key: &str| field(r, key).as_str().unwrap_or("").to_owned();
+    let mut hosts: Vec<String> = Vec::new();
+    for r in requests {
+        let host = host_of(field(r, "url").as_str().unwrap_or("")).to_owned();
+        if !host.is_empty() && !hosts.contains(&host) {
+            hosts.push(host);
+        }
+    }
+    if hosts.is_empty() {
+        out.steps.push(
+            "no signed-in page tried to reach another site from the browser; a server that sends \
+             to one itself is not seen this way"
+                .to_owned(),
+        );
+        return;
+    }
+    out.steps.push(format!(
+        "the signed-in pages tried to reach {} other site{}, which the fence stopped: {}. Code a \
+         page loads from another site cannot arrive inside the fence, so what it would send is \
+         not seen",
+        hosts.len(),
+        if hosts.len() == 1 { "" } else { "s" },
+        hosts.join(", ")
+    ));
+
+    let needles = needles(account, cookies);
+    // (what, how, host, page), once each.
+    let mut seen: Vec<(&str, &str, String, String)> = Vec::new();
+    for r in requests {
+        let raw = format!(
+            "{}\n{}\n{}",
+            text(r, "url"),
+            text(r, "body"),
+            text(r, "headers")
+        );
+        let decoded = readable(&raw);
+        let (raw_lower, decoded_lower) = (raw.to_lowercase(), decoded.to_lowercase());
+        for n in &needles {
+            let found = |hay: &str, lower: &str| {
+                if n.any_case {
+                    lower.contains(&n.text.to_lowercase())
+                } else {
+                    hay.contains(&n.text)
+                }
+            };
+            let how = if found(&raw, &raw_lower) {
+                n.how
+            } else if found(&decoded, &decoded_lower) {
+                if n.how == "as written" {
+                    "encoded into a web address"
+                } else {
+                    n.how
+                }
+            } else {
+                continue;
+            };
+            let key = (
+                n.what,
+                how,
+                host_of(field(r, "url").as_str().unwrap_or("")).to_owned(),
+                text(r, "page"),
+            );
+            if !seen.contains(&key) {
+                seen.push(key);
+            }
+        }
+    }
+    if seen.is_empty() {
+        return;
+    }
+    let severe = seen
+        .iter()
+        .any(|(what, ..)| *what == "password" || *what == "session cookie");
+    // Never the value itself: the host, the page, what it was, and how it was written.
+    let lines: Vec<String> = seen
+        .iter()
+        .map(|(what, how, host, page)| {
+            format!(
+                "its {what}, {how}, to {host}{}",
+                if page.is_empty() {
+                    String::new()
+                } else {
+                    format!(" from {page}")
+                }
+            )
+        })
+        .collect();
+    out.findings.push(finding(
+        &DETAILS_SENT_ELSEWHERE,
+        "A signed-in page sends the account's own details to another site",
+        if severe {
+            Severity::High
+        } else {
+            Severity::Medium
+        },
+        format!(
+            "Signed in as a test user in a real browser, the app's pages tried to send {}. The \
+             fence stopped the requests, so nothing left the machine; on the live site they would \
+             arrive.",
+            lines.join("; ")
+        ),
+    ));
 }
 
 fn sign_out_visible(users: &UsersSection, visits: &[(&str, Value)], out: &mut Outcome) {
@@ -699,6 +965,8 @@ mod tests {
         /// is ever stored), "no-control" (no sign-out control to click), "still-in" (the private
         /// page still opens afterwards), or "unreadable".
         storage: &'static str,
+        /// What the pages try to send to other sites: see `outside_requests`.
+        sends: &'static str,
     }
 
     impl Default for App {
@@ -710,8 +978,88 @@ mod tests {
                 absent: false,
                 gives_up_after: None,
                 storage: "cleared",
+                sends: "nothing",
             }
         }
+    }
+
+    /// The test account the pages are signed in as, and what its details look like encoded, worked
+    /// out once outside the code under test, so a mistake there cannot agree with itself here.
+    fn account() -> Account {
+        Account {
+            user: "sv-a-1f2e3d@example.test".into(),
+            password: "Sv-0123456789ab-aZ9!".into(),
+        }
+    }
+    const EMAIL_SHA256: &str = "8801c30c52e07651f48f42ebcdfa47adc3265d41c83b90e4ee87862699be19d6";
+    const PASSWORD_BASE64: &str = "U3YtMDEyMzQ1Njc4OWFiLWFaOSE=";
+    const OTHER_EMAIL_SHA256: &str =
+        "943a46cf601d39994759063fb2bcf62be6246c445ce1e90085d3b9386032c563";
+    const LONG_COOKIE: &str = "s3ss10n-7f6e5d4c3b2a";
+
+    /// The requests the fake browser says the pages tried to send elsewhere, by scenario.
+    fn outside_requests(scenario: &str) -> Value {
+        let r = |url: &str, page: &str, body: &str, headers: &str| {
+            json!({ "url": url, "method": if body.is_empty() { "GET" } else { "POST" },
+                    "type": "Other", "page": page, "body": body, "headers": headers })
+        };
+        let requests = match scenario {
+            "nothing" => vec![],
+            "unanswered" => return json!({}),
+            "hosts-only" => vec![
+                r(
+                    "https://cdn.tracker.example/t.js",
+                    "/account",
+                    "",
+                    "accept: */*",
+                ),
+                r(
+                    "https://fonts.example/css?family=Inter",
+                    "/settings",
+                    "",
+                    "",
+                ),
+            ],
+            "email-pixel" => vec![r(
+                "https://pixel.tracker.example/p.gif?ev=view&em=sv-a-1f2e3d%40example.test",
+                "/account",
+                "",
+                "",
+            )],
+            "email-upper" => vec![r(
+                "https://collect.example/e",
+                "/settings",
+                r#"{"user":"SV-A-1F2E3D@Example.Test"}"#,
+                "content-type: application/json",
+            )],
+            "email-hash" => vec![r(
+                "https://ads.example/tr",
+                "/account",
+                &format!(r#"{{"ud":{{"em":"{EMAIL_SHA256}"}}}}"#),
+                "",
+            )],
+            "password-base64" => vec![r(
+                "https://collect.example/e",
+                "/account",
+                &format!("d={PASSWORD_BASE64}"),
+                "",
+            )],
+            "cookie" => vec![r(
+                "https://errors.example/report",
+                "/settings",
+                "",
+                &format!("x-session: {LONG_COOKIE}"),
+            )],
+            "short-cookie" => vec![r("https://errors.example/report?s=abc", "/account", "", "")],
+            "someone-else" => vec![r(
+                "https://ads.example/tr",
+                "/account",
+                &format!(r#"{{"em":"{OTHER_EMAIL_SHA256}","user":"sv-b-9a8b7c@example.test"}}"#),
+                "",
+            )],
+            other => panic!("no scenario {other}"),
+        };
+        json!({ "requests": requests })
     }
 
     struct Fake {
@@ -783,6 +1131,7 @@ mod tests {
                                            "as_text": as_text, "present": present } })
                     }
                     Action::Wait(_) | Action::Act(_) | Action::SetCookies(_) => json!({}),
+                    Action::Outside => outside_requests(a.sends),
                 })
                 .collect();
             if let Some(n) = a.gives_up_after {
@@ -987,7 +1336,15 @@ mod tests {
             jobs: Vec::new(),
         };
         let mut out = Outcome::default();
-        checks(&mut fake, users, &signed_in(), true, "t0k", &mut out);
+        checks(
+            &mut fake,
+            users,
+            &signed_in(),
+            &account(),
+            true,
+            "t0k",
+            &mut out,
+        );
         (out, fake.jobs)
     }
 
@@ -1084,13 +1441,29 @@ mod tests {
             jobs: Vec::new(),
         };
         let mut o = Outcome::default();
-        checks(&mut fake, &u, &signed_in(), false, "t0k", &mut o);
+        checks(
+            &mut fake,
+            &u,
+            &signed_in(),
+            &account(),
+            false,
+            "t0k",
+            &mut o,
+        );
         assert!(fake.jobs.is_empty());
         assert!(o.verified.is_empty() && unassessed(&o, "V3.2.2").is_some());
 
         // A token in JSON, which a browser cannot be handed.
         let mut o = Outcome::default();
-        checks(&mut fake, &u, &Session::default(), true, "t0k", &mut o);
+        checks(
+            &mut fake,
+            &u,
+            &Session::default(),
+            &account(),
+            true,
+            "t0k",
+            &mut o,
+        );
         assert!(fake.jobs.is_empty());
         assert!(unassessed(&o, "V7.4.4").unwrap().contains("no cookie"));
 
@@ -1165,7 +1538,9 @@ mod tests {
         assert_eq!(credited(&o), vec![HIDDEN_SIGN_OUT.rule_id]);
         assert!(unassessed(&o, "V3.2.2").is_none());
         let actions = &jobs[0].actions;
-        assert_eq!(actions.len(), 4);
+        // Two pages, each opened and asked about; then what they tried to send elsewhere.
+        assert_eq!(actions.len(), 6);
+        assert_eq!(actions[4..], [Action::Wait(500), Action::Outside]);
         assert!(!actions.iter().any(|a| matches!(a, Action::Fill { .. })));
         assert_eq!(jobs[0].cookies, vec![("sid".to_owned(), "abc".to_owned())]);
 
@@ -1180,6 +1555,177 @@ mod tests {
             "{:?}",
             o.verified
         );
+    }
+
+    fn sent_elsewhere(o: &Outcome) -> Option<&crate::finding::Finding> {
+        o.findings
+            .iter()
+            .find(|f| f.rule_id == DETAILS_SENT_ELSEWHERE.rule_id)
+    }
+
+    #[test]
+    fn account_details_sent_to_another_site_are_found_in_every_form_and_never_repeated() {
+        let a = account();
+        for (scenario, what, severity, host, page) in [
+            (
+                "email-pixel",
+                "its email address, encoded into a web address",
+                Severity::Medium,
+                "pixel.tracker.example",
+                "/account",
+            ),
+            (
+                "email-upper",
+                "its email address, as written",
+                Severity::Medium,
+                "collect.example",
+                "/settings",
+            ),
+            (
+                "email-hash",
+                "its email address, as a SHA-256 hash",
+                Severity::Medium,
+                "ads.example",
+                "/account",
+            ),
+            (
+                "password-base64",
+                "its password, in base64",
+                Severity::High,
+                "collect.example",
+                "/account",
+            ),
+        ] {
+            let o = run(App {
+                sends: scenario,
+                ..Default::default()
+            });
+            let f = sent_elsewhere(&o).unwrap_or_else(|| panic!("{scenario}: {:?}", o.findings));
+            assert_eq!(f.severity, severity, "{scenario}");
+            assert_eq!(f.requirement_ids, vec!["V14.2.3".to_owned()]);
+            assert!(
+                f.description
+                    .contains(&format!("{what}, to {host} from {page}")),
+                "{scenario}: {}",
+                f.description
+            );
+            // What was sent is named, never repeated.
+            for secret in [
+                a.user.as_str(),
+                a.password.as_str(),
+                EMAIL_SHA256,
+                PASSWORD_BASE64.trim_end_matches('='),
+                "1f2e3d",
+            ] {
+                assert!(
+                    !f.description
+                        .to_lowercase()
+                        .contains(&secret.to_lowercase()),
+                    "{scenario} repeats what was sent: {}",
+                    f.description
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_session_cookie_sent_elsewhere_is_found_when_it_is_long_enough_to_mean_something() {
+        let mut session = Session::default();
+        session.absorb(&ProbeResponse {
+            id: String::new(),
+            status: 200,
+            headers: vec![(
+                "set-cookie".into(),
+                format!("sid={LONG_COOKIE}; Path=/; HttpOnly"),
+            )],
+            body: String::new(),
+        });
+        let mut fake = Fake {
+            app: App {
+                sends: "cookie",
+                ..Default::default()
+            },
+            jobs: Vec::new(),
+        };
+        let mut o = Outcome::default();
+        let u = users(Some("/notes"), None);
+        checks(&mut fake, &u, &session, &account(), true, "t0k", &mut o);
+        let f = sent_elsewhere(&o).expect("the session cookie, sent in a header");
+        assert_eq!(f.severity, Severity::High);
+        assert!(
+            f.description
+                .contains("its session cookie, as written, to errors.example")
+        );
+        assert!(!f.description.contains(LONG_COOKIE));
+
+        // `abc` turns up in addresses by chance, and proves nothing.
+        let o = run(App {
+            sends: "short-cookie",
+            ..Default::default()
+        });
+        assert!(sent_elsewhere(&o).is_none(), "{:?}", o.findings);
+    }
+
+    #[test]
+    fn other_sites_reached_without_the_accounts_details_are_listed_and_are_not_a_finding() {
+        // The control: the same machinery, fed requests that carry someone else's details.
+        let o = run(App {
+            sends: "someone-else",
+            ..Default::default()
+        });
+        assert!(sent_elsewhere(&o).is_none(), "{:?}", o.findings);
+
+        let o = run(App {
+            sends: "hosts-only",
+            ..Default::default()
+        });
+        assert!(sent_elsewhere(&o).is_none(), "{:?}", o.findings);
+        let step = o
+            .steps
+            .iter()
+            .find(|s| s.contains("other site"))
+            .expect("the sites are listed");
+        assert!(
+            step.contains("2 other sites") && step.contains("cdn.tracker.example, fonts.example"),
+            "{step}"
+        );
+        assert!(step.contains("cannot arrive inside the fence"), "{step}");
+        // Nothing here is ever credited: not seeing a leak is not the app keeping data in.
+        assert!(!credited(&o).contains(&DETAILS_SENT_ELSEWHERE.rule_id));
+
+        let o = run(App::default());
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("no signed-in page tried to reach another site")),
+            "{:?}",
+            o.steps
+        );
+
+        let o = run(App {
+            sends: "unanswered",
+            ..Default::default()
+        });
+        assert!(sent_elsewhere(&o).is_none());
+        assert!(
+            o.steps.iter().any(|s| s.starts_with("could not list")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn web_addresses_and_base64_are_read_as_the_standards_write_them() {
+        assert_eq!(readable("a%40b.test+x%2Fy"), "a@b.test x/y");
+        // Not an escape, and not the end of the text either: left as it is.
+        assert_eq!(readable("50%zz and 7%"), "50%zz and 7%");
+        assert_eq!(readable("caf%C3%A9 é%4"), "café é%4");
+        assert_eq!(base64(b"foobar", false), "Zm9vYmFy");
+        assert_eq!(base64(b"fooba", false), "Zm9vYmE");
+        assert_eq!(base64(&[0xfb, 0xff], false), "+/8");
+        assert_eq!(base64(&[0xfb, 0xff], true), "-_8");
+        assert_eq!(host_of("https://u:p@ads.example:8443/p?x=1"), "ads.example");
+        assert_eq!(host_of("wss://live.example/socket"), "live.example");
     }
 
     #[test]

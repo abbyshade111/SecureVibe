@@ -14,6 +14,9 @@
 //       whether it found what to do; when it did, waits for wherever that leads.
 //   {"wait": 500}                         -> {}
 //   {"cookies": [[name, value]]}          -> {} (sets them for the app, as the job's own do)
+//   {"outside": true}                     -> {"requests": [{"url", "method", "type", "page", "body", "headers"}]}
+//       every request the tab tried to send to a host other than the app's, since the job began.
+//       The fence stops each one leaving; the browser records it before it tries.
 
 const job = JSON.parse(Buffer.from(process.env.SV_JOB || '', 'base64').toString('utf8'));
 const DEVTOOLS = 'http://127.0.0.1:9223';
@@ -87,6 +90,48 @@ listeners.add((d) => {
   if (d.method === 'Page.loadEventFired') loaded = true;
 });
 
+// Requests to any host but the app's, in the order the tab tried them. Capped, so a page that
+// sends without end cannot fill the output; each field is cut short for the same reason.
+const APP_HOST = new URL(job.app).host;
+const OUTSIDE_MAX = 200;
+const outside = [];
+const bodyOf = (request) => {
+  if (typeof request.postData === 'string') return request.postData;
+  if (Array.isArray(request.postDataEntries)) {
+    return request.postDataEntries
+      .map((e) => (e.bytes ? Buffer.from(e.bytes, 'base64').toString('utf8') : ''))
+      .join('');
+  }
+  return '';
+};
+listeners.add((d) => {
+  if (d.sessionId !== sessionId || d.method !== 'Network.requestWillBeSent') return;
+  const request = d.params.request;
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+  if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol) || url.host === APP_HOST) return;
+  if (outside.length >= OUTSIDE_MAX) return;
+  let page = '';
+  try {
+    page = new URL(d.params.documentURL).pathname;
+  } catch {}
+  outside.push({
+    url: request.url.slice(0, 8192),
+    method: request.method,
+    type: d.params.type || '',
+    page,
+    body: bodyOf(request).slice(0, 65536),
+    headers: Object.entries(request.headers || {})
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n')
+      .slice(0, 8192),
+  });
+});
+
 async function settle() {
   const until = Date.now() + LOAD_MS;
   while (!loaded && Date.now() < until) await sleep(50);
@@ -148,6 +193,8 @@ for (const action of job.actions || []) {
         await page('Network.setCookie', { name, value, url: job.app, path: '/' });
       }
       results.push({});
+    } else if ('outside' in action) {
+      results.push({ requests: outside });
     } else if ('wait' in action) {
       await sleep(Math.min(action.wait, 5000));
       results.push({});
