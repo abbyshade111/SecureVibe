@@ -2860,6 +2860,17 @@ every answered section documented regardless of who (four). The end-to-end test,
 `the_report_credits_only_what_the_owner_wrote_to_the_owner`, builds a report with one section of each
 kind and reads the status the owner would see.
 
+**A byline alone is not an answer** (added the same day by session securevibe-e9). The tool's own
+line, *Written by the AI coding tool from the code; review before relying on it.*, has no colon, so it
+is not a `Written by:` line, and at seventy-odd characters it passes the floor an answer must reach.
+A section holding nothing else read as the tool's answer, *stated by the AI coding tool*, when
+nothing had been answered. A line entirely in italics or bold that begins "Written by" now says who
+and not what, as the `Written by:` line does, and is left out when the answer is measured; it is
+still never read for who. A sentence of an answer that merely begins "Written by" is not in emphasis
+from end to end, and stays the answer. Breaking the fix, the emphasis requirement, and the
+underscore form of emphasis each turns two tests red, one of them through the binary with `sv notes`
+and `sv report`.
+
 ### A person confirming what the AI coding tool said (27 September 2026)
 
 Asked for by the owner after the VS Code run: when the owner does not know an answer, the tool answers

@@ -86,6 +86,10 @@ pub struct AiClaims {
     /// store or vector database of the app's own.
     #[serde(default)]
     pub web_search: Option<bool>,
+    /// Does the AI make images, audio, or video? Decides whether what it makes must be watermarked
+    /// (AISVS C7.4.4).
+    #[serde(default)]
+    pub generates_media: Option<bool>,
     #[serde(default)]
     pub mcp: Option<bool>,
     #[serde(default)]
@@ -873,6 +877,7 @@ impl Manifest {
             (Condition::AiModeration, about_ai(c.ai.moderation)),
             (Condition::Rag, about_ai(c.ai.rag)),
             (Condition::WebSearch, about_ai(c.ai.web_search)),
+            (Condition::GeneratesMedia, about_ai(c.ai.generates_media)),
             (Condition::Mcp, about_ai(c.ai.mcp)),
             (Condition::Training, about_ai(c.ai.training)),
             (Condition::Level2, Some(self.target_level() == 2)),
@@ -1110,6 +1115,55 @@ mod tests {
     }
 
     #[test]
+    fn the_starter_file_answers_no_capability_for_the_tool() {
+        // The owner's decision, 27 September 2026: every capability line in the starter file starts
+        // commented out, because a tool that leaves a line as it found it had answered "no" to it,
+        // and whole sets of requirements were switched off on nobody's word.
+        let m: Manifest =
+            toml::from_str(crate::spec::STARTER_MANIFEST).expect("the starter parses");
+        let (ctx, _) = resolve(&m, &|_| None);
+        let claims: Vec<Condition> = Condition::ALL
+            .iter()
+            .copied()
+            .filter(|c| c.source() == sv_frameworks::Source::Claim)
+            .collect();
+        assert!(
+            claims.len() > 20,
+            "the setup must reach the claims: {}",
+            claims.len()
+        );
+        // What the starter still states outright, on purpose: TLS has a default mode, and the
+        // internet and level answers come from other lines.
+        let stated_on_purpose = [Condition::Tls, Condition::Internet, Condition::Level2];
+        for c in claims {
+            if stated_on_purpose.contains(&c) {
+                continue;
+            }
+            assert_eq!(
+                ctx.get(c),
+                None,
+                "{} is answered by the starter file itself; it must start unanswered",
+                c.name()
+            );
+        }
+        // And a line uncommented without an answer is refused, not read as anything.
+        let careless = crate::spec::STARTER_MANIFEST.replacen("# auth = ?", "auth = ?", 1);
+        assert!(
+            toml::from_str::<Manifest>(&careless).is_err(),
+            "`auth = ?` must not parse"
+        );
+    }
+
+    #[test]
+    fn media_the_ai_makes_is_its_own_answer() {
+        let m: Manifest =
+            toml::from_str("[capabilities.ai]\nenabled = true\ngenerates-media = true\n").unwrap();
+        let (ctx, _) = resolve(&m, &|_| None);
+        assert_eq!(ctx.get(Condition::GeneratesMedia), Some(true));
+        assert_eq!(ctx.get(Condition::Rag), None, "nor is it read as retrieval");
+    }
+
+    #[test]
     fn a_web_search_is_its_own_answer_and_not_a_document_store() {
         let m: Manifest =
             toml::from_str("[capabilities.ai]\nenabled = true\nrag = false\nweb-search = true\n")
@@ -1132,6 +1186,7 @@ mod tests {
             Condition::AiActions,
             Condition::Rag,
             Condition::WebSearch,
+            Condition::GeneratesMedia,
             Condition::Mcp,
             Condition::Training,
             Condition::SelfHostedModel,

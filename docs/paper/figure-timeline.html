@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Timeline</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --v1: #2a78d6;     /* v1, the template builder */
+    --sv: #eb6834;     /* sv, the any-language checker */
+    --bar: #8a8983;    /* commits per day, both versions together */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --v1: #3987e5; --sv: #d95926; --bar: #8f8e86;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --v1: #3987e5; --sv: #d95926; --bar: #8f8e86;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 30px 0 8px; }
+  .sub { color: var(--text-secondary); margin: 0 0 22px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 26px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 150px; }
+  .stat b { display: block; font-size: 1.8rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin: 0 0 6px; }
+  .swatch { width: 14px; height: 8px; border-radius: 4px; display: inline-block; margin-right: 6px; vertical-align: 1px; }
+  .chart { position: relative; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 640px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .day { fill: var(--text-muted); font-size: 11px; }
+  svg .lane { fill: var(--text-primary); font-size: 13px; font-weight: 600; }
+  svg .lane-sub { fill: var(--text-muted); font-size: 11px; }
+  svg .num { fill: #fff; font-size: 11px; font-weight: 700; }
+  svg .val { fill: var(--text-primary); font-size: 11px; }
+  .hit { cursor: default; }
+  .hit:hover .bar-rect, .hit:focus .bar-rect { opacity: .75; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface-2); color: var(--text-primary);
+    border: 1px solid var(--grid); border-radius: 8px; padding: 6px 10px; font-size: .8rem; line-height: 1.4;
+    max-width: 260px; display: none; box-shadow: 0 2px 8px rgb(0 0 0 / .12); }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.when { white-space: nowrap; color: var(--text-secondary); }
+  .mk { display: inline-block; width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: .72rem;
+    font-weight: 700; text-align: center; line-height: 20px; }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>How the project unfolded, 16–27 September 2026</h1>
+  <p class="sub">Two versions over twelve days: v1, which builds an app from a fixed template and checks it, and
+     <code>sv</code>, which checks an app written in any language by anyone. On 26 September <code>sv</code>
+     replaced v1 at the top of the repository. The detail is in <code>TIMELINE.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>882</b><span>commits in the surviving record, 18–27 September</span></div>
+    <div class="stat"><b>214</b><span>pull requests merged, from 23 September on</span></div>
+    <div class="stat"><b>333</b><span>commits on 26 September alone, the busiest day</span></div>
+    <div class="stat"><b>2</b><span>days before the record, lost to an iCloud eviction and reconstructed</span></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--v1)"></span>v1, the template builder</span>
+    <span><span class="swatch" style="background:var(--sv)"></span><code>sv</code>, the any-language checker</span>
+    <span><span class="swatch" style="background:var(--bar)"></span>commits per day, both together</span>
+  </div>
+
+  <div class="chart" id="chart">
+    <svg viewBox="0 0 870 372" role="img" aria-labelledby="fig-title fig-desc">
+      <title id="fig-title">Project timeline, 16 to 27 September 2026</title>
+      <desc id="fig-desc">Two lanes, v1 from 16 to 26 September and sv from 22 to 27 September, with eight numbered
+        milestones explained in the table below, and a bar chart of commits per day beneath them.</desc>
+      <defs>
+        <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="var(--text-muted)" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+      <g id="plot"></g>
+    </svg>
+    <div class="tip" id="tip" role="status"></div>
+  </div>
+
+  <h2>The milestones</h2>
+  <table>
+    <thead><tr><th></th><th>When</th><th>What happened</th><th>Record</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mk" style="background:var(--v1)">1</span></td><td class="when">17 Sep</td><td>The foundation is built in a day: wizard, pipeline, scanners, compliance engine, reports, the template, and the evaluation harness. That history was later lost; this is reconstructed from the first session's transcript.</td><td class="when"><code>TIMELINE.md</code>, Day 0</td></tr>
+      <tr><td><span class="mk" style="background:var(--v1)">2</span></td><td class="when">18 Sep 09:32</td><td>An iCloud eviction destroys the working copy's history. The project restarts as one commit of 687 files, which is where the surviving record begins.</td><td class="when"><code>c85c174</code></td></tr>
+      <tr><td><span class="mk" style="background:var(--v1)">3</span></td><td class="when">19–20 Sep</td><td>Two people other than the owner use v1. What they hit, the test suites never found.</td><td class="when"><code>ae25cdc</code></td></tr>
+      <tr><td><span class="mk" style="background:var(--v1)">4</span></td><td class="when">20 Sep 20:25</td><td>The repository is made public. This commit is v1 as the paper describes it.</td><td class="when"><code>7fa07d6</code>, tag <code>v1-paper</code></td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">5</span></td><td class="when">22 Sep 21:58</td><td><code>sv</code> begins: a language-agnostic second version, in Rust. Its first finding is that 39% of the exclusions it inherited from v1 do not hold for an arbitrary app.</td><td class="when"><code>2ff6beb</code></td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">6</span></td><td class="when">24 Sep 18:26</td><td><code>sv</code> reaches <code>main</code> in one pull request: the checks, the network fence, the corroborators, and the reports. From 23 September, changes arrive as pull requests from several sessions working in parallel.</td><td class="when">#35</td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">7</span></td><td class="when">25 Sep</td><td><code>sv</code> is offered to AI coding tools over MCP, and starts asking a running app questions only a running app can answer. On 26 September a mail server, a test sign-in provider, a real browser, and a test model follow, all inside the fence.</td><td class="when">#65, #74</td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">8</span></td><td class="when">26 Sep 21:22</td><td><code>sv</code> moves to the top of the repository and v1 moves to the <code>v1</code> branch, without rewriting history. v1 was tagged <code>v1-paper</code> (with a Zenodo DOI) and <code>v1-final</code> before the move.</td><td class="when">#224</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Commits per day</h2>
+  <table>
+    <thead><tr><th>Day</th><th>Commits</th><th>How they arrived</th></tr></thead>
+    <tbody id="daytable"></tbody>
+  </table>
+
+  <p class="note">Commits are counted by the day they were committed, in Eastern time (the owner's), across all
+     branches that reached <code>main</code>, as of <code>c5ae4f9</code> at 10:52 on 27 September; that day is
+     partial. 16 and 17 September have no surviving commits: their work is known from the ADRs and the first
+     session's transcript, not from the repository. Each of the 882 commits is listed in <code>TIMELINE.md</code>,
+     day by day, from the evening of 20 September as the changes that reached <code>main</code>.</p>
+</div>
+
+<script>
+(() => {
+  // Commits per day, in Eastern time, at c5ae4f9. Recompute with:
+  // TZ=America/New_York git log --date=local --since="2026-09-DD 00:00" --until="2026-09-DD 23:59:59" --format=%h c5ae4f9 | wc -l
+  const days = [
+    { d: 16, n: null, how: "Before the record: ADRs dated this day survive; no commits do." },
+    { d: 17, n: null, how: "Before the record: the foundation, reconstructed from the first session's transcript." },
+    { d: 18, n: 40,  how: "Pushed straight to main, plus 3 pull requests." },
+    { d: 19, n: 50,  how: "Pushed straight to main, plus 1 pull request." },
+    { d: 20, n: 48,  how: "Pushed straight to main. Made public at 20:25." },
+    { d: 21, n: 0,   how: "No commits." },
+    { d: 22, n: 21,  how: "sv begins; pushed straight to main." },
+    { d: 23, n: 33,  how: "Pull requests begin (#19)." },
+    { d: 24, n: 146, how: "37 pull requests. sv reaches main (#35)." },
+    { d: 25, n: 184, how: "57 pull requests." },
+    { d: 26, n: 333, how: "106 pull requests. sv moves to the top (#224)." },
+    { d: 27, n: 27,  how: "To 10:52 only. 11 pull requests." },
+  ];
+  const X0 = 130, W = 60, col = (day, hour = 0) => X0 + (day - 16) * W + (hour / 24) * W;
+  const NS = "http://www.w3.org/2000/svg";
+  const plot = document.getElementById("plot");
+  const el = (tag, attrs, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text != null) e.textContent = text;
+    plot.appendChild(e); return e;
+  };
+
+  // Day columns and labels.
+  days.forEach(({ d }) => {
+    el("line", { x1: col(d), y1: 30, x2: col(d), y2: 360, stroke: "var(--grid)", "stroke-width": 1 });
+    el("text", { x: col(d, 12), y: 20, "text-anchor": "middle", class: "day" }, `${d} Sep`);
+  });
+  el("line", { x1: col(28), y1: 30, x2: col(28), y2: 360, stroke: "var(--grid)", "stroke-width": 1 });
+
+  // Row: before the record.
+  el("text", { x: 0, y: 52, class: "lane-sub" }, "before the record");
+  el("rect", { x: col(16) + 2, y: 40, width: 2 * W - 4, height: 18, rx: 4, fill: "url(#hatch)", opacity: .7 });
+  el("text", { x: col(18) + 6, y: 53, class: "lane-sub" }, "← lost to an iCloud eviction, reconstructed");
+
+  // Lanes.
+  const lane = (y, color, from, to, label, sub) => {
+    el("text", { x: 0, y: y + 5, class: "lane" }, label);
+    el("text", { x: 0, y: y + 20, class: "lane-sub" }, sub);
+    el("rect", { x: from, y: y - 5, width: to - from, height: 10, rx: 4, fill: color });
+  };
+  lane(100, "var(--v1)", col(16), col(26, 21.37), "v1", "builds from a template");
+  lane(160, "var(--sv)", col(22, 21.97), col(27, 10.87), "sv", "checks any language");
+  // sv carries on past the end of the record.
+  el("path", { d: `M${col(27, 10.87) + 4} 155 l10 5 l-10 5 z`, fill: "var(--sv)" });
+  // The move: v1 ends, sv takes the top.
+  el("path", { d: `M${col(26, 21.37)} 106 L${col(26, 21.37)} 150`, stroke: "var(--text-muted)",
+    "stroke-width": 1.5, "stroke-dasharray": "3 3", fill: "none" });
+  el("text", { x: col(26, 21.37) - 6, y: 131, "text-anchor": "end", class: "lane-sub" }, "v1 → v1 branch");
+
+  // Numbered milestones (explained in the table).
+  const marks = [
+    [1, 100, col(17, 10.6), "var(--v1)"], [2, 100, col(18, 9.53), "var(--v1)"],
+    [3, 100, col(19, 23), "var(--v1)"],   [4, 100, col(20, 20.42), "var(--v1)"],
+    [5, 160, col(22, 21.97), "var(--sv)"], [6, 160, col(24, 18.43), "var(--sv)"],
+    [7, 160, col(25, 12), "var(--sv)"],   [8, 160, col(26, 21.37), "var(--sv)"],
+  ];
+  marks.forEach(([n, y, x, c]) => {
+    el("circle", { cx: x, cy: y, r: 10, fill: c, stroke: "var(--surface-1)", "stroke-width": 2 });
+    el("text", { x, y: y + 4, "text-anchor": "middle", class: "num" }, String(n));
+  });
+
+  // Commits per day.
+  const BASE = 360, H = 140, MAX = 333, BW = 34;
+  el("text", { x: 0, y: BASE - H + 5, class: "lane" }, "commits");
+  el("text", { x: 0, y: BASE - H + 20, class: "lane-sub" }, "per day");
+  el("line", { x1: X0, y1: BASE, x2: col(28), y2: BASE, stroke: "var(--text-muted)", "stroke-width": 1 });
+  const tip = document.getElementById("tip"), chart = document.getElementById("chart");
+  days.forEach(({ d, n, how }) => {
+    const cx = col(d, 12), g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "hit"); g.setAttribute("tabindex", "0");
+    const label = n == null ? `${d} September: no surviving commits. ${how}` : `${d} September: ${n} commits. ${how}`;
+    g.setAttribute("aria-label", label);
+    plot.appendChild(g);
+    const add = (tag, attrs, text) => { const e = el(tag, attrs, text); g.appendChild(e); return e; };
+    add("rect", { x: cx - W / 2, y: BASE - H - 10, width: W, height: H + 10, fill: "transparent" });
+    if (n == null) {
+      add("rect", { x: cx - BW / 2, y: BASE - 24, width: BW, height: 24, rx: 4, fill: "url(#hatch)", opacity: .7, class: "bar-rect" });
+    } else if (n > 0) {
+      const h = Math.max(2, (n / MAX) * H);
+      // Rounded top, square foot on the baseline.
+      add("path", { d: `M${cx - BW / 2} ${BASE} V${BASE - h + 4} q0 -4 4 -4 H${cx + BW / 2 - 4} q4 0 4 4 V${BASE} Z`,
+        fill: "var(--bar)", class: "bar-rect" });
+      if (n === MAX) add("text", { x: cx, y: BASE - h - 6, "text-anchor": "middle", class: "val" }, String(n));
+    } else {
+      add("text", { x: cx, y: BASE - 6, "text-anchor": "middle", class: "lane-sub" }, "0");
+    }
+    const show = (ev) => {
+      tip.textContent = label; tip.style.display = "block";
+      const r = chart.getBoundingClientRect(), b = g.getBoundingClientRect();
+      const left = Math.min(Math.max(0, b.left - r.left + b.width / 2 - 130 + chart.scrollLeft), chart.scrollWidth - 270);
+      tip.style.left = left + "px"; tip.style.top = (b.top - r.top - 58) + "px";
+    };
+    g.addEventListener("mouseenter", show); g.addEventListener("focus", show);
+    g.addEventListener("mouseleave", () => tip.style.display = "none");
+    g.addEventListener("blur", () => tip.style.display = "none");
+  });
+
+  // The same numbers as a table.
+  const tbody = document.getElementById("daytable");
+  days.forEach(({ d, n, how }) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="when">${d} Sep</td><td class="n">${n == null ? "—" : n}</td><td></td>`;
+    tr.lastChild.textContent = how;
+    tbody.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

@@ -9,6 +9,11 @@ another session is not a claim.
 
 ## Next
 
+- **Bring the paper's timeline up to date, and draw it.** **Claimed on 27 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking. **Done the same day.** `docs/paper/TIMELINE.md` stops at 20 September; extend
+  it through 27 September from the repository's history, and add a one-page diagram of the whole project
+  (`docs/paper/figure-timeline.html`) beside the existing figures. Touches only `docs/paper/`.
+
 - **Clean up after the move.** **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's
   asking. Found by a review of `main` after the move: the rule against printing or committing a key is
   missing from the new `CLAUDE.md`; CodeQL scans only Rust, while `crates/sv-run/assets/*.mjs` is real,
@@ -663,7 +668,12 @@ another session is not a claim.
      entry on confirming what the AI coding tool said): each answer starts with `Written by: owner`
      or `Written by: AI coding tool`, and an answer without the line counts as the tool's. Session
      securevibe-e9 had built the same thing with an `Answered by:` line and withdraws it unpublished,
-     since it added nothing that one does not.
+     since it added nothing that one does not. One thing it does not do: a section holding nothing but the tool's own
+     line, *Written by the AI coding tool from the code; review before relying on it.*, has no colon,
+     so it is not a `Written by:` line; it is long enough to pass the forty-character floor, and the
+     section reads as *stated by the AI coding tool* with no answer in it. Reproduced on `main` with
+     `sv notes` and `sv report`. **Claimed on 27 September 2026 by session securevibe-e9**, at the
+     owner's asking: such a line says who, not what, and should not count toward an answer's length. **Done the same day;** see DESIGN, "Who wrote each section of the security notes", on a byline alone.
   5. **When the app's own tests fail under `--run`, their output is lost.** Only the exit code is kept
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
@@ -683,6 +693,11 @@ another session is not a claim.
   `rag` rule for all of C7.4 still covers C7.4.4 (watermarking generated media), which has nothing to
   do with retrieval and probably belongs with `multimodal-ai`; and no package names `web-search` yet,
   so nothing corroborates the answer from the code.
+  **The owner's decision, 27 September 2026:** a question of its own, "does the AI make images, audio,
+  or video?" (`generates-media`), which alone decides C7.4.4. **Claimed the same day by session
+  securevibe-e8.** **Done the same day**, with one fact found while building it: C7.4.4 is a level 3
+  requirement, so the answer decides nothing for an app held to level 1 or 2, and the starter file
+  says so.
 
   6. **The tool told the owner to run `sv`, and there was no `sv`.** The MCP results say to run
      `sv report --run --tools` at a terminal; the owner got `command not found`, ran it by its full
@@ -788,6 +803,13 @@ another session is not a claim.
     **Done the same day.** See DESIGN, "Checks made by hand, and what was seen".
   - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
     contract, and worth its own decision.
+    **The owner's decision, 27 September 2026: comment the capability lines out**, so a line nobody
+    answered is unanswered, not a quiet "no". **Claimed the same day by session securevibe-e8.** **Done the
+    same day:** every capability line in the starter file reads `# name = ?`, a `?` left in an
+    uncommented line is refused rather than read, and the instructions say to answer each line or
+    leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
+    categories = []` still reads as "no personal data", which only lowers the target level; that is
+    a quiet "no" of the same kind, left for its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
