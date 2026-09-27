@@ -65,6 +65,26 @@ another session is not a claim.
      confirm too, with their name in the report. A second person is stronger evidence than the owner, and
      the manifest already has a `by` field to carry it.
 
+  **Found the same day, from the owner's own files, and the first thing to fix:** the security notes
+  have no way to say who wrote a section, and `sv` credits every written section as *documented by the
+  owner* ("you answered this in security-notes.md"). In the owner's VS Code run, the tool wrote 9 of the
+  13 sections itself, from the code, and marked each with its own line, *Written by the AI coding tool
+  from the code; review before relying on it.* `sv` never sees that line: `notes::read_answers` drops
+  every line wrapped in `*` as one of its own italic lines, so the tool's disclaimer is thrown away and
+  the section under it reported as the owner's, the highest tier short of *checked*. Reproduced with a
+  copy of the owner's files: V8.1.1, written by the tool, reads *documented by the owner*. The same rule
+  drops a bold line such as `**Decided by the owner (2026-09-26):**`, since bold is also wrapped in `*`.
+  The interview tells the tool to write a decision only once the owner agrees; this tool wrote the
+  sections and said so, which is more honest than the report it fed. What to settle: a marker `sv`
+  defines and reads (the counterpart of `by` in `[design]`), which tier a tool-written section gets
+  (the natural answer is *stated by the AI coding tool*, as for design answers), what an unmarked
+  section counts as (the design answers chose the tool's, because crediting the owner on nobody's say-so
+  is the direction that overstates, but every notes file written so far is unmarked), and a narrower
+  test for `sv`'s own italic lines than "starts and ends with `*`". Confirming, above, then applies to
+  notes sections as it does to design answers. In the same run, `[design]` held nine answers, all
+  `by = "ai-tool"`, under the tool's comment "The owner has not reviewed these yet": the case this item
+  is for.
+
   Related but separate: a second AI model checking the first one's claims. That is still the author's side
   of the table, so it would be its own lower tier and is not this item.
 
