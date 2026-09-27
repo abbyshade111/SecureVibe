@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Top 10 Map</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --v1: #2a78d6; --sv: #eb6834; --dev: #6b6a64;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --v1: #3987e5; --sv: #d95926; --dev: #a9a89f;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --v1: #3987e5; --sv: #d95926; --dev: #a9a89f;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 170px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 0 0 8px; align-items: center; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 760px; table-layout: fixed; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
+  td.cat b { display: inline-block; width: 46px; color: var(--text-muted); font-weight: 600; }
+  .marks { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .m { width: 12px; height: 12px; box-sizing: border-box; display: inline-block; }
+  .inc { border-radius: 50%; }
+  .ctl { border-radius: 50%; border: 2px solid; background: transparent; }
+  .chk { border-radius: 2px; }
+  .open { border-radius: 50%; border: 2px dashed; background: transparent; }
+  .none { color: var(--text-muted); }
+  tr.hi td { background: var(--surface-2); }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+  @media (max-width: 600px) { td, th { white-space: normal !important; overflow-wrap: anywhere; } }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>The project against the OWASP Top 10 for Agentic Applications</h1>
+  <p class="sub">SecureVibe is agentic three times over: v1's own AI agents, <code>sv</code> driven by an AI coding
+     tool over MCP, and a project built by several AI sessions at once. <code>sv</code> also checks the AI features of
+     other apps. The list defines its risks in words, not CWEs, so every placement is a judgement. The full account,
+     with a source for every mark, is <code>AGENTIC.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>16</b><span>incidents: things that went wrong, from all three lenses</span></div>
+    <div class="stat"><b>8 of 16</b><span>fall under ASI09 (trust) and ASI07 (agents not hearing each other); no attack is recorded</span></div>
+    <div class="stat"><b>15 · 7</b><span>defenses built in, and checks <code>sv</code> makes of other apps' AI features</span></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="m inc" style="background:var(--text-secondary)"></span> incident</span>
+    <span><span class="m ctl" style="border-color:var(--text-secondary)"></span> defense built in</span>
+    <span><span class="m open" style="border-color:var(--text-secondary)"></span> recorded, left open</span>
+    <span><span class="m chk" style="background:var(--text-secondary)"></span> a check <code>sv</code> makes</span>
+    <span style="margin-left:8px"><span class="m chk" style="background:var(--v1)"></span> v1</span>
+    <span><span class="m chk" style="background:var(--sv)"></span> <code>sv</code></span>
+    <span><span class="m chk" style="background:var(--dev)"></span> building it with several AI sessions</span>
+  </div>
+  <div class="wrap">
+    <table id="map">
+      <colgroup><col style="width:30%"><col style="width:17%"><col style="width:17%"><col style="width:17%"><col style="width:19%"></colgroup>
+      <thead><tr>
+        <th>OWASP agentic Top 10 (2026)</th>
+        <th>v1's own agents</th>
+        <th><code>sv</code>, driven by an AI tool</th>
+        <th><code>sv</code>'s checks of other apps</th>
+        <th>Building it with several AI sessions</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <p class="note">Sources: <code>AGENTIC.md</code> for every mark. The list and its descriptions are from the OWASP GenAI
+     Security Project's announcement of 9 December 2025, read 27 September 2026. No session is recorded doing something
+     it was not asked to do, or hiding what it did, so ASI10 has defenses and a check but no incident. The absence of
+     an incident is not proof of safety: the defenses under ASI03, ASI04, and ASI10 were never tested by an attack.</p>
+</div>
+<script>
+  // [code, name, v1 {inc, ctl}, sv {inc, ctl, open}, checks, dev {inc, ctl}]
+  const rows = [
+    ["ASI01", "Agent Goal Hijack",                   {inc: 1, ctl: 2}, {},                      3, {}],
+    ["ASI02", "Tool Misuse",                         {ctl: 1},         {inc: 1},                2, {}],
+    ["ASI03", "Identity & Privilege Abuse",          {ctl: 1},         {},                      0, {ctl: 1}],
+    ["ASI04", "Agentic Supply Chain",                {ctl: 1},         {ctl: 1},                0, {}],
+    ["ASI05", "Unexpected Code Execution",           {ctl: 2},         {inc: 2},                0, {}],
+    ["ASI06", "Memory & Context Poisoning",          {},               {inc: 1},                0, {}],
+    ["ASI07", "Insecure Inter-Agent Communication",  {},               {},                      0, {inc: 4, ctl: 1}],
+    ["ASI08", "Cascading Failures",                  {inc: 1, ctl: 1}, {inc: 1},                1, {inc: 1}],
+    ["ASI09", "Human-Agent Trust Exploitation",      {inc: 1, ctl: 1}, {inc: 2, ctl: 1, open: 1}, 0, {inc: 1, ctl: 1}],
+    ["ASI10", "Rogue Agents",                        {ctl: 1},         {},                      1, {}],
+  ];
+  const cell = (o, color, checks = 0) => {
+    const td = document.createElement("td"); const box = document.createElement("div"); box.className = "marks";
+    const add = (cls, n) => { for (let i = 0; i < (n || 0); i++) { const s = document.createElement("span"); s.className = "m " + cls;
+      if (cls === "inc" || cls === "chk") s.style.background = color; else s.style.borderColor = color; box.appendChild(s); } };
+    add("inc", o.inc); add("open", o.open); add("ctl", o.ctl); add("chk", checks);
+    if (!box.children.length) box.innerHTML = '<span class="none">—</span>';
+    const parts = [o.inc ? `${o.inc} incident${o.inc > 1 ? "s" : ""}` : "", o.open ? `${o.open} open` : "", o.ctl ? `${o.ctl} defense${o.ctl > 1 ? "s" : ""}` : "", checks ? `${checks} check${checks > 1 ? "s" : ""}` : ""].filter(Boolean);
+    if (parts.length) box.setAttribute("aria-label", parts.join(", "));
+    td.appendChild(box); return td;
+  };
+  const tbody = document.querySelector("#map tbody");
+  rows.forEach(([code, name, v1, sv, checks, dev]) => {
+    const tr = document.createElement("tr"); if (code === "ASI07" || code === "ASI09") tr.className = "hi";
+    const c0 = document.createElement("td"); c0.className = "cat"; c0.innerHTML = "<b></b><span></span>";
+    c0.querySelector("b").textContent = code; c0.querySelector("span").textContent = name;
+    tr.append(c0, cell(v1, "var(--v1)"), cell(sv, "var(--sv)"), cell({}, "var(--sv)", checks), cell(dev, "var(--dev)"));
+    tbody.appendChild(tr);
+  });
+</script>
+</body>
+</html>
