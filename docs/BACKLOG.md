@@ -688,6 +688,11 @@ another session is not a claim.
   `rag` rule for all of C7.4 still covers C7.4.4 (watermarking generated media), which has nothing to
   do with retrieval and probably belongs with `multimodal-ai`; and no package names `web-search` yet,
   so nothing corroborates the answer from the code.
+  **The owner's decision, 27 September 2026:** a question of its own, "does the AI make images, audio,
+  or video?" (`generates-media`), which alone decides C7.4.4. **Claimed the same day by session
+  securevibe-e8.** **Done the same day**, with one fact found while building it: C7.4.4 is a level 3
+  requirement, so the answer decides nothing for an app held to level 1 or 2, and the starter file
+  says so.
 
   6. **The tool told the owner to run `sv`, and there was no `sv`.** The MCP results say to run
      `sv report --run --tools` at a terminal; the owner got `command not found`, ran it by its full
@@ -793,6 +798,13 @@ another session is not a claim.
     **Done the same day.** See DESIGN, "Checks made by hand, and what was seen".
   - The starter manifest's capabilities all read `false` (above). Not changed here: it is the manifest
     contract, and worth its own decision.
+    **The owner's decision, 27 September 2026: comment the capability lines out**, so a line nobody
+    answered is unanswered, not a quiet "no". **Claimed the same day by session securevibe-e8.** **Done the
+    same day:** every capability line in the starter file reads `# name = ?`, a `?` left in an
+    uncommented line is refused rather than read, and the instructions say to answer each line or
+    leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
+    categories = []` still reads as "no personal data", which only lowers the target level; that is
+    a quiet "no" of the same kind, left for its own decision.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work

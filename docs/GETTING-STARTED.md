@@ -138,9 +138,9 @@ Open the app's folder in your AI tool and paste this, with your app described at
 >
 > We are using SecureVibe to check it as we go. Before writing any code:
 > 1. Call `securevibe_spec` and write `securevibe.toml` for this app, from what it will really do.
->    If you are not sure whether a capability applies, **delete that line rather than leaving it
->    `false`**: a line left as `false` tells SecureVibe the app does not do it, and whole sets of
->    checks are then switched off.
+>    Its capability lines start commented out: answer each one you can with true or false, and
+>    **leave a line commented out rather than guessing `false`**. A line left out is reported as not
+>    assessed; a wrong `false` switches whole sets of checks off.
 >
 > Then, as we build:
 > 2. After each feature, call `securevibe_check`. Read what it says was not examined first. Fix what
@@ -173,8 +173,6 @@ something this guide can make easy.
 
 ## Known problems while this is new
 
-Found in the first real build, and not yet fixed. Each is in `docs/BACKLOG.md`.
-
-- **A rate limiter counts as a sign of a public API**, which adds requirements an app without one does
-  not need. Harmless beyond the extra list.
-- **Security notes the AI tool wrote are counted as yours.** Only let it write a note you agree with.
+Found in the first real build. Each is in `docs/BACKLOG.md`. The two listed here before, a rate limiter
+counted as a public API and security notes the AI tool wrote counted as yours, were fixed on
+27 September 2026. Nothing from that build is known to be open.
