@@ -416,7 +416,7 @@ another session is not a claim.
 
   **Faults in `sv`:**
 
-  1. **`sv`'s own report stops its next run from checking the code.** `sv report` writes to
+  1. **`sv`'s own report stops its next run from checking the code.** **Claimed on 27 September 2026 by session securevibe-e8.** **Done the same day:** every folder `sv report` writes carries `.securevibe-report`, every walk of the app leaves a marked folder out (and `securevibe-report` by name, for reports written before the marker), and the two skip lists are one, `sv_scan::ecosystems::skip_dir`, with the credential scan still reading `.vscode` and `.idea` on purpose. `crates/sv-check/tests/own_output.rs` holds it, including the control: the same files in an unmarked folder are read and found. `sv report` writes to
      `<app>/securevibe-report` unless told otherwise (`crates/sv-cli/src/main.rs`, `out_dir`), and
      `securevibe_write_report` writes there by design (`crates/sv-cli/src/mcp.rs`). Nothing skips that
      folder: it is in neither `SKIP_DIRS` in `crates/sv-scan/src/ecosystems.rs` — shared by the code
@@ -427,7 +427,7 @@ another session is not a claim.
      only by undoing its own changes one at a time. Fix: skip `securevibe-report`, and whatever folder
      `--out` names, wherever the app is walked. Worth also making the two `SKIP_DIRS` one list, since
      two copies of it can drift.
-  2. **Two false alarms, both rated high, that made the tool change correct code.** Reproduced on
+  2. **Two false alarms, both rated high, that made the tool change correct code.** **Claimed on 27 September 2026 by session securevibe-e8.** **Done the same day:** in JavaScript and TypeScript, `ast.shell-command` counts a member call only on `child_process`, `childProcess`, `cp`, `shell`, `shelljs`, or `require('child_process')` (a bare `exec(...)` still counts), and `ast.sql-built-by-hand` only a call made directly on a name or a property, never on another call's result, which leaves out `request(app).get('/').query({...})` and, knowingly, `getDb().query(sql)` too. Text conditions such as `#not-match?` were the first idea; the engine refuses them at load, because the Rust binding parses them and does not apply them. Reproduced on
      three-line files:
      - `re.exec(code)`, a regular expression, is reported as *A shell command is built from a value*
        (V1.2.5). `ast.shell-command` matches any JavaScript call named `exec` (`^(exec|execSync)$`,

@@ -997,9 +997,8 @@ fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_str()) {
+            if sv_scan::ecosystems::skip_dir(&path) {
                 continue;
             }
             walk(root, &path, rules, scan);
@@ -1926,6 +1925,21 @@ mod tests {
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: /login\\n\\n\"); }", false),
         ("ast.open-redirect", "c", "void f(void) { printf(\"Location: %s\\n\\n\", \"/login\"); }", false),
         ("ast.open-redirect", "c", "void f(const char *t) { printf(\"Content-Type: %s\\n\\n\", t); }", false),
+        // Two false alarms from the owner's first build (27 September 2026): a regular expression's
+        // `exec` read as a shell command, and a test client's `.query({...})` read as SQL.
+        ("ast.shell-command", "javascript", "const m = re.exec(code);", false),
+        ("ast.shell-command", "javascript", "const m = /id=(\\d+)/.exec(line);", false),
+        ("ast.shell-command", "javascript", "child_process.exec('ls ' + dir);", true),
+        ("ast.shell-command", "javascript", "cp.execSync(`rm -rf ${target}`);", true),
+        ("ast.shell-command", "javascript", "require('child_process').exec(cmd);", true),
+        ("ast.shell-command", "javascript", "const { exec } = require('child_process'); exec(cmd);", true),
+        ("ast.shell-command", "typescript", "const m: RegExpExecArray | null = pattern.exec(input);", false),
+        ("ast.shell-command", "typescript", "childProcess.exec(`git log ${ref}`);", true),
+        ("ast.sql-built-by-hand", "javascript", "await request(app).get('/').query({ q: term });", false),
+        ("ast.sql-built-by-hand", "javascript", "db.query('SELECT * FROM t WHERE id = ' + id);", true),
+        ("ast.sql-built-by-hand", "javascript", "await this.pool.query(`DELETE FROM notes WHERE id = ${id}`);", true),
+        ("ast.sql-built-by-hand", "typescript", "await request(app).post('/search').query({ term });", false),
+        ("ast.sql-built-by-hand", "typescript", "await db!.query(`SELECT * FROM t WHERE name = '${name}'`);", true),
         // Encryption that keeps data secret and cannot show it was changed (V11.3.3). ECB and the
         // retired ciphers are ast.weak-cipher's; these are the modes left once those are gone.
         ("ast.unauthenticated-encryption", "python", "cipher = AES.new(key, AES.MODE_CBC, iv)", true),

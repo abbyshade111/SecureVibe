@@ -178,9 +178,8 @@ fn project_dirs(root: &Path, dir: &Path, out: &mut Vec<String>) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
         // `file_type` rather than `is_dir`, so a symlinked folder is not followed into a loop.
-        if entry.file_type().is_ok_and(|t| t.is_dir()) && !SKIP_DIRS.contains(&name.as_str()) {
+        if entry.file_type().is_ok_and(|t| t.is_dir()) && !skip_dir(&path) {
             project_dirs(root, &path, out);
         }
     }
@@ -439,7 +438,35 @@ pub const SKIP_DIRS: &[&str] = &[
     "coverage",
     ".idea",
     ".vscode",
+    // Where `sv report` writes by default. Any other folder it writes to carries REPORT_MARKER.
+    "securevibe-report",
 ];
+
+/// Editor settings, in `SKIP_DIRS` for every walk of the app's code, and not for the credential scan:
+/// a `.vscode/settings.json` can hold a token as easily as any other file.
+pub const EDITOR_DIRS: &[&str] = &[".idea", ".vscode"];
+
+/// Written by `sv report` into every folder it writes a report to, so no walk of the app reads the
+/// report as the app's own code. Found in the owner's first build (26 September 2026): the report was
+/// read back as part of the app, and while a page no code rule could fully read was there, nothing was
+/// claimed, so the requirements checked fell from 9 to 1. A folder name alone does not do it, since
+/// `--out` takes any name.
+pub const REPORT_MARKER: &str = ".securevibe-report";
+
+/// Whether a walk of the app should leave this folder out: installed dependencies, build output,
+/// version control, editor settings, or a report `sv` wrote.
+pub fn skip_dir(dir: &Path) -> bool {
+    let name = dir
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    SKIP_DIRS.contains(&name.as_ref()) || is_sv_output(dir)
+}
+
+/// A folder `sv report` wrote.
+pub fn is_sv_output(dir: &Path) -> bool {
+    dir.join(REPORT_MARKER).is_file()
+}
 
 /// Every language whose files appear in the app, from the extensions actually seen.
 pub fn languages_present(files: &[(String, String)]) -> BTreeSet<String> {
