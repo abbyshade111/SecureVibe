@@ -42,8 +42,12 @@ is really on. A page counts as unreadable only when something in it could not be
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.
 
-`sv` opens no network connection. Advisory data is something you download and point it at; the list of
-packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
+`sv` opens no network connection of its own, with one exception you ask for by name: `sv probe <address>`
+sends at most four read-only requests to the address you type, through `curl`, and asks this computer's own
+DNS resolver one question about that name. Advisory data is something you download and point it at; the list
+of packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
+Outside tools you turn on with `--tools` are other people's programs, and semgrep fetches its rules the first
+time it runs. `sv run` starts containers, and Docker downloads any image it does not have yet.
 
 `sv run` also asks the running app four questions, as somebody who has not signed in: what headers it
 sends, what it says when asked for a page that is not there, whether it accepts a site it has never heard
