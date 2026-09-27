@@ -1,5 +1,5 @@
-# Keeps the workflow steps up to date. (v1's npm packages were watched here until v1 moved to its own branch; the Rust
-# packages are not watched by Dependabot yet.)
+# Keeps the workflow steps and the Rust packages up to date. (v1's npm packages were watched here until v1 moved to its
+# own branch; the Rust packages were not watched until 26 September 2026.)
 # The workflow steps are pinned to commit fingerprints; these updates move the fingerprint and the version comment
 # together, so pinning never means falling behind on security fixes.
 
@@ -16,3 +16,18 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 30
+
+  # The Rust packages `sv` is built from (Cargo.lock).
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait before proposing a newly published version: a compromised release is usually found within days. Security
+    # fixes still arrive as their own pull requests.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      all-packages:
+        patterns: ['*']
