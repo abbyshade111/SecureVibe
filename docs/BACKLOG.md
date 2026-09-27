@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **The false-alarms test depends on which scanners the machine has installed.** Found on 27 September 2026
+  by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
+  securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
+  in `crates/sv-cli/tests/false_alarms.rs` runs `sv report --tools` with a stand-in `bandit` put in front of
+  the user's own PATH, so a real `semgrep` (or any other adapter's tool) on that PATH runs too. On the owner's
+  Mac it failed twice that way: once at the control, once finding the SQL line twice. CI has none of them
+  installed, so it passes there. Fix: shadow every other adapter's command with a stand-in that will not
+  start, read from `data/adapters.json`, and show in the report that each was kept out.
+
 - **Records that disagree with what was built, or are missing, found by the ADR analysis.** Found on 27 September 2026 by
   session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
   to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** Items 1 to 4 are in v1's
