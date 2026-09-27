@@ -34,7 +34,10 @@ another session is not a claim.
   session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
   to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** **Items 5, 6, and the
   Docker half of 8 claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking to pick the
-  next item; the Rust half of 8 needs the owner's reasons, which nothing records. Items 1 to 4 are in v1's
+  next item; the Rust half of 8 needs the owner's reasons, which nothing records. **Done the same day:** item 5 names
+  `sv probe` as the one exception in `README.md`, ADR-017, and `CLAUDE.md` (and the README adds the images
+  Docker downloads for `sv run`); item 6 restates the evidence rule in `sv`'s terms in `DESIGN.md`; and
+  ADR-019 records the container fence, replacing ADR-010's choice for `sv`. Items 1 to 4 are in v1's
   records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
   `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
   the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.

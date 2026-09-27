@@ -1329,7 +1329,8 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
 
 /// Matches the bill of materials against a local advisory database.
 ///
-/// `sv` opens no network connection, here or anywhere. Fetching the database is the owner's step, done
+/// `sv` opens no network connection here, and none of its own anywhere but `sv probe`, which the owner
+/// points at an address by name. Fetching the database is the owner's step, done
 /// deliberately: the list of packages an app depends on is business-confidential, a fetch is a dependency
 /// on somebody else's uptime, and `sv` has to work where there is no network at all.
 fn cmd_audit(args: &[String]) -> Result<()> {
