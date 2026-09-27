@@ -43,10 +43,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 54 | 8 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 67 | 5 | 0 | 14 | 30 | 24 | 1 |
+| L2 | 183 | 67 | 5 | 0 | 14 | 31 | 24 | 1 |
 | L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
 
-With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 29 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -97,7 +97,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (82)
+### Settled by asking the running app (83)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -176,6 +176,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
+| V15.3.3 | L2 | Signed in: `probe.role-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
@@ -190,7 +191,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (30)
+### Settled only by an outside tool (29)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -219,7 +220,6 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
 | V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
-| V15.3.3 | L2 | Outside tools: `brakeman`, `semgrep` |
 | V15.3.5 | L2 | Outside tools: `codeql-javascript` |
 | V15.3.6 | L2 | Outside tools: `codeql-javascript` |
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
@@ -231,7 +231,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
-| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
+| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
