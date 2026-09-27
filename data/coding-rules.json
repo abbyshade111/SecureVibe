@@ -148,8 +148,7 @@
       "rule": "Set `persist-credentials: false` on every checkout step, give each workflow the smallest `permissions:` block it needs (start from `contents: read`), and never make secrets available to a job that runs code from a fork or a first-time contributor.",
       "cites": {
         "AC.12.2": "credentials not persisted into workspaces, with persist-credentials false on checkout",
-        "AC.12.3": "secrets not exposed to workflows running code from forks or first-time contributors",
-        "AC.7.4": "workflow permissions blocks and secret-environment mappings are high-impact pipeline configurations"
+        "AC.12.3": "secrets not exposed to workflows running code from forks or first-time contributors"
       }
     },
     {
