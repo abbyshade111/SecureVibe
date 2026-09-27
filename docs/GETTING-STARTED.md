@@ -71,8 +71,9 @@ test that talks to it the way the tool does, not yet in the app itself.
 
 **Tried on 27 September 2026, by the owner, start to finish:** Copilot's agent called SecureVibe's
 tools, asked every question from `securevibe_questions` one at a time, wrote a fix for the path
-findings `securevibe_check` reported, and checked the fix by running the check again. That was with
-`sv` installed directly; the container settings below have not been tried in VS Code yet.
+findings `securevibe_check` reported, and checked the fix by running the check again. The answers were
+saved in the app's folder, and a fresh report showed them and the fix. That was with `sv` installed
+directly; the container settings below have not been tried in VS Code yet.
 
 You need the GitHub Copilot Chat extension, with the chat in **Agent** mode (the mode that can use
 other programs), and VS Code 1.102 or newer. If you use a paid Copilot plan, each request may count
