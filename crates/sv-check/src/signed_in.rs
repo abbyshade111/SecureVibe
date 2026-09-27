@@ -9126,6 +9126,39 @@ mod tests {
     }
 
     #[test]
+    fn a_refusal_to_somebody_not_signed_in_is_not_credited() {
+        // Found building this. Sign-in reports what it sent, not whether it worked, and a request
+        // from somebody who is not signed in is refused just as an ordinary user's should be. So the
+        // probe first shows both sessions signed in, and here A's password is wrong in the app.
+        fn outcome(a_password_works: bool) -> Outcome {
+            let mut app = FakeApp::new(Flaws::default());
+            let acc = accounts();
+            let password = if a_password_works {
+                acc.a.password.clone()
+            } else {
+                "not-the-password".to_owned()
+            };
+            app.users.insert(acc.a.user.clone(), (password, false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let mut out = Outcome::default();
+            admin_action_checks(&mut app, &users(), &acc, Some("/account"), &mut out);
+            out
+        }
+        // The control: the same call with A's password right is credited, so the setup works.
+        assert!(action_credited(&outcome(true)));
+        let o = outcome(false);
+        assert!(!action_credited(&o), "{:#?}", o.verified);
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1" && why.contains("shown signed in")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
     fn a_refusal_with_no_check_page_is_not_credited() {
         let o = run_against(Flaws::default(), &without_check(users()));
         assert!(action_findings(&o).is_empty());
