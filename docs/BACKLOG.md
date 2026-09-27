@@ -648,7 +648,11 @@ another session is not a claim.
      as the tool's. **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
      This also covers the "first thing to fix" in the entry on confirming what the AI coding tool said
      (pull request #235): the tool's own "Written by the AI coding tool" line being thrown away with
-     `sv`'s italic lines.
+     `sv`'s italic lines. **Done the same day by another session** (commit b1aec2f, step 1 of the
+     entry on confirming what the AI coding tool said): each answer starts with `Written by: owner`
+     or `Written by: AI coding tool`, and an answer without the line counts as the tool's. Session
+     securevibe-e9 had built the same thing with an `Answered by:` line and withdraws it unpublished,
+     since it added nothing that one does not.
   5. **When the app's own tests fail under `--run`, their output is lost.** Only the exit code is kept
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
