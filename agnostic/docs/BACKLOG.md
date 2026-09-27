@@ -59,7 +59,62 @@ another session is not a claim.
   (the simple answer: `data/` stays whole, since `v1-final` holds v1 anyway); and whether anything in
   `artifacts/` belongs with the paper rather than with either product.
 
-  **Thoughts.** None yet.
+  **Thoughts.**
+
+  - *Session admiring-murdock-875699* (ran the whole `sv` suite, the fence and browser tests, and
+    both `sv run` examples on the owner's Mac with Docker Desktop on 26 September 2026; 843 passed,
+    nothing Mac-specific). Read from `main` at `76156b3`; nothing below was built or run for the move.
+    - **The most dangerous failure is quiet: CI stops running.** `rust.yml` triggers only on
+      `agnostic/**`, `data/**`, `.dockerignore` and itself. After the move no `sv` file matches, so
+      every later `sv` change gets no Rust job at all. With no branch protection, a missing check
+      looks the same as a passing one. The move PR should drop the path filter, or turn it into a
+      `paths-ignore` for v1's folders. It should then confirm, by name, that the Rust jobs appear
+      in the PR's own check list; "nothing is red" doesn't show that. `checks.yml` (v1) needs the
+      opposite decision: run on the `v1` branch only, or not at all.
+    - **Merge `agnostic/data/` into `data/`, and most of the path problem goes away.** No file
+      names collide (`data/` holds only `frameworks/` and `knowledge/`). Once there is one data
+      folder, every `../../data` (sv's own files) is already right from the new crate depth, and
+      every `../../../data` (the shared folder) is wrong. The same goes for `root.join("../data/…")`
+      in `sv-manifest/src/lib.rs`, whose `root` is `../..`. That makes one uniform rule instead of
+      two depths to adjust.
+    - **The stale paths fail loudly today, but only by luck.** The two `include_str!` paths
+      (`signed_in.rs`, `threats.rs`) count from the source file, not the crate, so their
+      `src/../../../data` is sv's own folder and stays right after the merge; check, don't assume.
+      The runtime loaders all return an error on a missing file; none falls back to empty. A stale
+      `../../../data` points at the folder *beside* the checkout. There is none beside
+      `securevibe/` or `sv-tool/` on the owner's Mac (not checked for CI's runner). So a missed path
+      breaks rather than quietly reading someone else's data. But
+      `data_dir()` in `sv-cli/src/main.rs` accepts any folder with a `frameworks/` inside, so a
+      clone that happens to sit next to a `data/` folder would read that one. Better to fix
+      it in the move than rely on luck: one helper for "the repository's data folder", and a test
+      that the resolved path, canonicalized, is inside the workspace. Then break it on purpose
+      (rename `data/frameworks` for one run) and count what goes red.
+    - **`SV_DATA_DIR` covers only the shared folder today.** sv's own files are always read from
+      the build checkout, because `env!("CARGO_MANIFEST_DIR")` is baked into the binary as an
+      absolute path. That's why `agnostic/Dockerfile` copies `crates/` into the runtime image, and
+      why the owner's PATH `sv` reads from `sv-tool`. With one data folder, `SV_DATA_DIR` could
+      cover everything and the image could drop `crates/`. That's optional, but it's the natural
+      moment.
+    - **Docker build:** the root `.dockerignore` is a whitelist (`*`, then `!agnostic`, `!data`,
+      `agnostic/target`). Every COPY line in the Dockerfile and both `docker build -f
+      agnostic/Dockerfile` lines in `rust.yml` change with the move. A missed whitelist entry
+      fails the build loudly. `tools/image_smoke.py` then compares the image with a native build,
+      which is the witness that the image's data layout still matches.
+    - **Name collisions at the root, besides `data/`:** `README.md`, `.gitignore`,
+      `docs/BACKLOG.md`, and `docs/DESIGN.md` exist on both sides. Root `CLAUDE.md` tells every
+      session to claim work in `docs/BACKLOG.md`, so which one keeps that name decides where
+      claims land; settle it before the freeze lifts. The root `.gitignore` needs `/target`.
+    - **The container runner (`sv-run`) doesn't depend on where the repository sits.** Its
+      fixtures are counted from its own crate, its scripts are `include_str!` from its own
+      `assets/`, and the app folder is canonicalized and bind-mounted by absolute path.
+      Containers and networks are named from the process, not the path. On Docker Desktop, bind
+      mounts only work under shared folders (`/Users` by default); the repository is under
+      `/Users` before and after, so the move doesn't change that. The fence test is path-free
+      since #148.
+    - **Worktrees:** a Cargo workspace at the main checkout's root will sit above
+      `.claude/worktrees/*/`. Each worktree has its own root `Cargo.toml` nearer, so cargo picks
+      that one; this is the same nesting `agnostic/` already has. Sessions running cargo in a
+      worktree need the new working directory (the memory notes spell out `agnostic/`).
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
