@@ -3218,12 +3218,12 @@ credits the refusal.
 `manualOnly`: the actions are a sample the owner chose, which is the owner's first reason, and still
 stands. An action the ordinary user got done is a finding against both.
 
-Broken on purpose, seven ways, each caught by its own test: the admin control removed, the ordinary
+Broken on purpose, six ways, each caught by its own test: the admin control removed, the ordinary
 user's marker never looked for, the signed-in guard off, a status-only success not reported, a
 refusal with no `check` credited, and the manifest's rule that a `check` needs a `{marker}` switched
-off. The seventh was first recorded as caught by nothing. That was a mutation that did not compile,
-which the break script read as green. The script now tells a build error from a passing test, and the
-corrected mutation is caught.
+off. The fifth was first recorded as caught by nothing. It was a mutation that did not compile, which
+the break script read as green, because `cargo test` exits the same way for a build error as for a
+failing test. The script now tells the two apart, and the corrected mutation is caught.
 
 ### Two more passwords at sign-up: one far down the list, one made from your own words
 
