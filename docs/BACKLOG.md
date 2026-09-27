@@ -2062,7 +2062,9 @@ another session is not a claim.
   root lockfile pinning an unrelated project below it would be a wrong statement in the direction that
   hides something. A nested project is named by its folder ("npm in server/") so two read as two.
   Left over: the adapters still look for their tool's config (`pyproject.toml` and the like) at the
-  top only, and a Yarn Berry or Bun lockfile is not one `sv` reads.
+  top only, and a Yarn Berry or Bun lockfile is not one `sv` reads. **Reading Yarn Berry and Bun
+  lockfiles claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a
+  backlog item: pinning, the package list, and so the advisory check, for both.
 
 - ~~**Ground the Secure by Design levels in ASVS.**~~ Done on 25 September 2026, with the owner's
   agreement to the design. `data/sbd-asvs-crosswalk.json` maps each of the thirty-six controls to the
