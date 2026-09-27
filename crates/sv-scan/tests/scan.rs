@@ -966,6 +966,44 @@ fn an_app_with_a_database_beside_it_is_not_multiple_services() {
 }
 
 #[test]
+fn a_compose_file_that_builds_two_services_answers_multiple_services() {
+    // Two services built from this repository's own code, each in its own folder, beside a stock
+    // database image. Plain HTTP between them leaves nothing else to find, which is why the
+    // compose file matters.
+    let compose = "services:\n  api:\n    build:\n      context: ./api\n    ports: [\"8000:8000\"]\n  web:\n    build: ./web\n    depends_on: [api]\n  db:\n    image: postgres:16\n";
+    let report = scan_files(
+        "two-builds",
+        &[
+            ("compose.yaml", compose),
+            ("api/app.py", "print('api')\n"),
+            ("web/index.js", "console.log('web');\n"),
+        ],
+    );
+    let found = answer(&report, Condition::MultipleServices);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+    assert!(
+        matches!(&found.evidence, sv_scan::Evidence::Source { file, .. } if file == "compose.yaml"),
+        "the report must say which file showed it: {:?}",
+        found.evidence
+    );
+
+    // A second `build:` that is commented out is not a second service.
+    let commented = compose.replace(
+        "    build: ./web",
+        "    # build: ./web\n    image: web:latest",
+    );
+    let report = scan_files(
+        "one-build-one-comment",
+        &[
+            ("docker-compose.yml", commented.as_str()),
+            ("app.py", "print('api')\n"),
+        ],
+    );
+    let found = answer(&report, Condition::MultipleServices);
+    assert_ne!(found.value, Some(true), "{:?}", found.evidence);
+}
+
+#[test]
 fn a_declared_broker_client_answers_multiple_services() {
     // The dependency route, which neither witness above takes.
     let report = scan_files(

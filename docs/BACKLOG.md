@@ -1791,7 +1791,14 @@ another session is not a claim.
   in eight ecosystems and ten languages. A `docker-compose.yml` is deliberately not evidence — most
   single apps ship one with only a database in it — and a test pins that. Left over from it: reading a
   compose file for two or more services with their own `build:` would be the strongest evidence of all,
-  and needs the scanner to read YAML contents, which it does not. Services that call each other over
+  and needs the scanner to read YAML contents, which it does not. **Claimed on 27 September 2026 by session
+  securevibe-e8**, at the owner's asking ("continue to work off items in the backlog, your choice"),
+  as a narrow reading of the compose file rather than a YAML library. **Done the same day:** a `docker-compose.yml`,
+  `docker-compose.yaml`, `compose.yml`, or `compose.yaml` with two or more indented `build:` lines
+  answers `multiple-services`, naming the file; one build beside a database image still does not, and a
+  commented-out `build:` is not counted. Read as lines, so a service written on one line (`web: {build:
+  .}`) is missed, which only leaves the answer where it was. Allowing one build, never reading the file,
+  and counting a comment are each caught. Services that call each other over
   plain HTTP stay invisible. Eleven of the twelve were written on 24 September 2026;
   `shared-hostname` is recorded as uncheckable instead (`noCorroborator`), because it is a fact about
   deployment that the repository does not hold. What is left is the weaker half of what was written:
