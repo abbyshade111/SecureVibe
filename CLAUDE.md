@@ -1,142 +1,72 @@
 # SecureVibe — notes for Claude Code sessions
 
-SecureVibe is a local app that turns plain-language answers into a hardened web app (Node 26, Express 5, EJS,
-`node:sqlite`), checks it against OWASP ASVS 5.0 / AISVS 1.0 / Secure by Design, and writes compliance and security
-reports. The authoritative design docs are `docs/DESIGN.md` and `docs/CONTRACTS.md`; read the CONTRACTS section for
-whatever you touch before changing it.
+SecureVibe (`sv`) is a Rust command-line tool and MCP server that checks an app written in any language against OWASP
+ASVS 5.0, AISVS 1.0 and the Secure by Design checklist, and writes reports that say plainly what was verified and what
+was not. The person builds the app in their own AI coding tool; `sv` picks up the code and grades it. `docs/DESIGN.md`
+is the design, `docs/BACKLOG.md` is what is still to do, `docs/COVERAGE.md` counts what any check can speak to.
+
+**v1 is archived, not part of this tree.** SecureVibe v1 (the app that asked questions and wrote a Node app) lived at the top
+of this repository until 26 September 2026. It is on the `v1` branch (read `ARCHIVED.md` there) and at the tags `v1-paper`
+and `v1-final`; its Zenodo version DOI, 10.5281/zenodo.22984709, is the one the paper cites. **History is never
+rewritten** — no `filter-repo`, no squashing old commits, no force-push to `main` — because the paper, both USB bundles and
+many documents cite commit hashes. A patch to v1 is made on the `v1` branch, never here. `docs/paper/` stays here.
 
 ## Layout
 
-- `server/` — Express API, pipeline, scanners, LLM flows (`src/llm`), compliance engine, reports. Runs with `tsx`.
-- `web/` — React 19 + Vite UI. `web/dist` is what the server serves; rebuild it after UI changes (`vite build`).
-- `shared/` — zod schemas that are the contract between server and web (`shared/src/*.ts`).
-- `templates/secure-web-app/` — the app template every build starts from, with its own security test suite.
-  The template is read at build time: template changes take effect on the next build, with no server restart.
-- `data/frameworks`, `data/knowledge` — OWASP data, wizard copy, rules. `data/knowledge/wizard-copy.json` is checked
-  by `server/tests/knowledge/wizard-copy.test.ts`, which lists every question id explicitly.
-- `workspace/` — the owner's projects, `settings.json`, `llm-audit.jsonl`, `logs/`. Never edit a user's project by
-  hand except to repair data, and say so.
+- `crates/` — the Rust workspace: `sv-frameworks` (the standards and which requirements apply), `sv-manifest`,
+  `sv-scan` (language-agnostic scanners: secrets, configuration, lockfiles, tree-sitter rules), `sv-run` (starts the app
+  behind the network fence), `sv-check` (the checks), `sv-report` (the reports), `sv-cli` (the `sv` binary and its MCP server).
+- `data/` — the OWASP frameworks (`data/frameworks`), the knowledge files (`data/knowledge`) and `sv`'s own JSON beside
+  them. Crates find it through the folder they were compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`);
+  `SV_DATA_DIR` overrides the OWASP part. The Docker image keeps `crates/` at the same path for that reason.
+- `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
+- `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `atlas_references.py`,
+  `image_smoke.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
-## Commands (never `npx`; use the workspace binaries)
+## Commands
 
-- Typecheck: `cd server && ../node_modules/.bin/tsc -p tsconfig.json --noEmit` (same in `web/`).
-- Web build: `cd web && ../node_modules/.bin/vite build`.
-- Server tests (fast, sandbox-safe subset): `cd server && ../node_modules/.bin/vitest run <files>`.
-  Tests that start a server or an app need to bind ports and fail in the Claude Code sandbox with `listen EPERM`.
-  Run those, and the full suite, through the launch configs in `../.claude/launch.json` (`server-tests`,
-  `template-tests`, `preview-test`, `self-assess`, `app-tests`) via `preview_start`; each writes its result to a
-  file in the session scratchpad, and the script prints a DONE marker.
-- **To find out how something behaves inside the fence, ask in two seconds, not in a golden-app run.** A four-line
-  script under `node --permission --allow-fs-read=<dir> script.mjs` answers it directly. Generated code is checked
-  with file reads confined to the app folder and the network fenced to loopback, and things do not merely return
-  falsy there — `existsSync` on a path outside the app folder **throws** `ERR_ACCESS_DENIED` rather than returning
-  false, so a guard written as `if (!existsSync(p)) continue;` crashes instead of skipping. On 20 September 2026
-  that cost three evaluation runs and about forty minutes: the same failure was "fixed" twice by reasoning about
-  what the sandbox probably does, while the error code naming the real cause sat in the results file the whole
-  time. Read what the run said, then reproduce it with the flags, then fix it.
-- Template suite: the `template-tests` launcher copies an all-features `securevibe.features.json` into the
-  template and generates a `.env`; remove `templates/secure-web-app/.env` afterwards if the script left it.
-- Self-assessment (SecureVibe checking itself): `npm run self-assess -- --no-ai` is free; without `--no-ai` it
-  spends the owner's Anthropic credit. Never run a paid AI step without the owner asking.
-- The AI review is the only paid check. It is ordered by risk (`reviewOrder`) so a spending stop loses the least,
-  and on a rebuild it carries forward verdicts whose cited file is byte-identical (`pipeline/diff-aware.ts`).
-- A test named after a requirement is strong evidence for it, so `compliance/test-name-match.ts` compares the test
-  (name and body) with the requirement's wording and raises a finding when they share nothing. It reports and never
-  withholds credit: about a third of its flags are honest tests phrased differently, and it is blind to a swap
-  between neighbouring requirements that share vocabulary.
-- Evaluation harness: `npm run eval` builds the golden apps in `evals/golden/` without AI and compares them with
-  `evals/baselines/` (`--update` to save new baselines, `--only <name>` for one app, `--ai` costs money).
-  Prefer `--only <name>` when one app answers the question: about four and a half minutes against fourteen for all
-  five, and the harness is a shared resource two sessions have collided on. Run it
-  through the `eval-no-ai` launcher (ports); it needs to pass before a template or pipeline change is done.
-
-## Running SecureVibe
-
-- `npm start` builds the web UI on first run and prints a one-time link `http://127.0.0.1:4173/auth/token?t=…`.
-  Use `127.0.0.1`, not `localhost`: sessions are only valid on 127.0.0.1 so a session cookie never reaches app
-  previews, which run on `localhost:<port>`.
-- Builds run in a detached worker process (`server/src/cli/build-worker.ts`, see `pipeline/job.ts`), so restarting
-  SecureVibe no longer ends a build; the page reconnects to the run's `events.jsonl`. Still, prefer starting
-  SecureVibe in the user's Terminal panel (`run_in_terminal`) rather than `preview_start`, which the desktop app
-  may stop after a while. Only the user can stop that process (Ctrl-C); ask, then start it again.
-- Restarts are needed for `server/` and `shared/` changes. `web/` changes need only a `vite build`; template and
-  `data/` changes need nothing.
-
-## Money and keys
-
-- AI calls cost the owner real money. "Save credits" (Sonnet 5, low effort, one fix round) is on by default;
-  the spending cap is split 55% writing / 30% review / 15% fixes so a build never passes it. The two steps that
-  decide nothing (`classify`, `summarize` — see `SMALL_STEPS`) always run on the cheapest model of their service.
-- The owner's API keys live in `.env` (root) and are written there by Settings → "Your AI service". Never print,
-  log, echo or commit a key. Each AI step uses the service Settings gives it (`settings.aiService` plus
-  `settings.aiServiceFor` for writing / reviewing / questions): ask for a provider with
-  `getProvider(purpose)` or `ctx.providerFor(purpose)`, never a single shared one. The OpenAI/Google providers
-  are fetch-based (`llm/rest.ts`) and tested with a fake fetch. `workspace/llm-audit.jsonl` records every call and its cost; the Dashboard reads it.
-- The scripted provider (`server/tests/fixtures/llm/*.json`) replays recorded answers so every AI flow is testable
-  for free; add a fixture for any new flow. Tests run against a temporary `SECUREVIBE_HOME` (`tests/setup-home.ts`)
-  so they never write into the owner's workspace.
+- Formatting, lints and tests, as CI runs them (`.github/workflows/rust.yml`):
+  `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`.
+- `docs/COVERAGE.md` is generated: after changing a rule, an adapter map or a hard-coded citation, run
+  `python3 tools/coverage.py`; a test fails while the document is out of date.
+- `tools/pwned_passwords.py` has no test and needs the network: run it outside the Claude Code sandbox, whose proxy cuts
+  the reads short.
+- Tests that start the app under test need a container backend (Docker or Colima); without one they assert the
+  honest-absence path and say which branch they took.
+- Rust builds inside the Claude Code sandbox cannot write `~/.cargo`; the error names a cache path and is misleading.
+  Run cargo in the user's Terminal panel.
 
 ## Rules that hold everywhere
 
-- Evidence tiers are honest: AI review alone is "ai-assessed", never "pass". A "not sure" human answer adds no
-  evidence. Do not make a check look stronger than it is. A checker that knows which requirements it verifies says
-  so in `Evidence.requirementIds`; automating a manual check means producing real evidence for it, never lowering
-  the bar for what counts as verified.
-- **Break your own rule and watch what catches it.** A new check is not known to work because it passes; it is known
-  to work when the thing it guards is broken and it fails. Disable the guard, run the suite, read which tests go
-  red, then put it back. This takes a minute and it has found something every time it has been done here: the SQL
-  keyword guard failed with `near "from": syntax error` as intended, but the sensitive-field rule was caught by
-  exactly **one** fixture, because nearly every sensitive field in the fixtures is text and text is encrypted, so
-  the engine was already refusing it — the case the rule existed for was exercised by nothing, and a rule with one
-  accidental witness is a rule that survives being deleted.
-  Three things follow, and each one has already cost a run:
-  - **Count what caught it.** One test failing where you expected several means the coverage is accidental. Add the
-    fixture that makes it deliberate.
-  - **A check that runs against one set of answers checks a fraction of what the recipes can write**, and the
-    fraction it misses is the part that varies, which is the part most likely to be wrong. The recipe static scan
-    ran against one profile for weeks; the file containing the fault was never emitted there, so it was never
-    scanned, and it reached two golden apps.
-  - **A test whose setup can fail quietly is worse than no test.** A search test that falls back to a different
-    record when its write is refused ends up searching for something nobody has, and then passes whatever the app
-    does — including with the ownership clause deleted. Assert the setup worked, and assert the thing you are
-    looking for is really findable, before asserting it is not leaked.
-- The generation agent is fenced (allow-listed paths, validated tool inputs, screened tool output). The second
-  opinion and the follow-up questions may only change answers from their allow-lists, and only toward the safer
-  side. Keep it that way.
-- Generated code runs under Node's permission model (file system limited to the project folder) and behind the
-  OS network fence (`pipeline/net-fence.ts`: loopback only on macOS via sandbox-exec, Linux via a network
-  namespace). A child that must reach outside hosts needs `network: 'any'`; the reports say which applied.
-- Every new question in the wizard needs: the `shared/src/profile.ts` field, the wizard-copy entry, the fixtures
-  that build profiles (`tests/fixtures/**`), and the id lists in `wizard-copy.test.ts`.
-- Uploaded apps (`origin.kind === 'uploaded'`) are only ever scanned, never run.
-- A template change reaches existing apps through "Update to the latest template" (`generator/upgrade.ts`): it
-  replaces only template files the app never changed. Keep template files free of per-app content so that stays
-  true, and never make the upgrade touch `.env`, data or certificates.
+- **Evidence is honest.** Something not assessed is never a pass and never a failure, and a check that could not run says
+  so in the report. Do not make a check look stronger than it is; automating a manual check means producing real evidence
+  for it, never lowering the bar for what counts as verified.
+- **Break your own rule and watch what catches it.** A new check is not known to work because it passes; it is known to
+  work when the thing it guards is broken and it fails. Disable the guard, run the tests, read which ones go red, put it
+  back. Count what caught it: one test failing where you expected several means the coverage is accidental, so add the fixture
+  that makes it deliberate. A check that runs against one set of inputs checks a fraction of what can be written. A test
+  whose setup can fail quietly is worse than no test: assert the setup worked, and that the thing you are looking for is
+  really findable, before asserting it is not leaked.
+- `sv` opens no network connection of its own; advisory data is something the user downloads and points it at. Keep it that way.
+- A citation is a claim: cite a requirement only when the check really speaks to it.
 
 ## Working style the owner expects
 
-- Plain language in the UI and reports: the owner is not a programmer. No jargon without an explanation.
+- Plain language in reports and documents: the owner is not a programmer. No jargon without an explanation.
 - One spelling standard: American English (color, behavior, organization, recognize) with the Oxford comma, in
-  everything a person reads: the UI, the reports, the wizard copy, the knowledge files, comments. Identifiers and
-  JSON keys keep their names (`notSure.behaviour` is a key, not prose). Swept on 24 September 2026.
+  everything a person reads. Identifiers and JSON keys keep their names.
 - Say what was verified and what was not. Report test results as they are.
-- Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once
-  its checks are green, without asking first. Say what went in afterwards; a short, honest account of each change
-  is the point, not a request for permission. The owner asked for this on 18 September 2026, because pausing at
-  each of those steps was catching nothing and stopping work that had already been agreed.
-- Still ask first, every time: anything that spends the owner's AI credit, anything that changes the repository's
-  settings or visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money
-  or are hard to undo, and the pre-approval above does not reach them.
-- The evaluation harness is a shared resource, and claiming it works the same way: say so where the other session
-  can see it, not only in a message. On 20 September 2026 both sessions ran it at once for eight minutes, having each
-  said in a message that they would say something first. A message is not a claim, for the same reason as below.
-- Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a
-  message to another session does not count: a session that is not running never receives it, and a session that
-  is will not see it again after its context is summarised. On 20 September 2026 two sessions each read the
-  backlog, each correctly concluded the query recipe was unclaimed, and both built it.
+- Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once its checks
+  are green, without asking first. Say what went in afterwards; a short, honest account of each change is the point, not a
+  request for permission. The owner asked for this on 18 September 2026.
+- Still ask first, every time: anything that spends the owner's money, anything that changes the repository's settings or
+  visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money or are hard to undo, and
+  the pre-approval above does not reach them.
+- Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a message
+  to another session does not count: a session that is not running never receives it, and one that is will not see it again
+  after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item
+  unclaimed, and both built it.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
-  `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different
-  identity, so git calls the branch unmerged while every line of it is already there — and the reverse, a branch
-  git calls merged, can still be the only copy of something if history was rewritten under it. Only the file
-  comparison answers "would deleting this lose anything". On 19 September 2026 all three branches from a stacked
-  pull request read as unmerged and all three were entirely contained in `main`.
+  `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git
+  calls the branch unmerged while every line of it is already there.
+- Never edit a user's own data or an app someone gave you to check by hand, except to repair data, and say so.

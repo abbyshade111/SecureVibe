@@ -1,3 +1,0 @@
-# Validation
-
-Fixture validation docs.
