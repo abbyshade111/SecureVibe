@@ -9,7 +9,7 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the six tools are offered, and `securevibe_spec` answers;
+- the seven tools are offered, and `securevibe_spec` answers;
 - `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
   anything is compared.** The first local test compared the image with the native `sv` on an app with
   no securevibe.toml: neither ran the check, "no answer" matched "no answer", and the control passed
@@ -17,6 +17,7 @@ to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --ne
 - the same, run as root against a folder root does not own, which is what `safe.directory` is for:
   git refuses such a repository, and the check would then quietly be not assessed;
 - `securevibe_notes_file` writes into the owner's folder, as a file the owner owns;
+- `securevibe_bundle` writes a zip beside the app, as a file the owner owns, and the committed `.env` is not in it;
 - the container really has no network.
 
 With `--native`, the image's findings must be the native `sv`'s, once both are known to have run.
@@ -31,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -39,6 +41,7 @@ EXAMPLE = ROOT / "examples" / "tested-notes"
 TOOLS = [
     "securevibe_check",
     "securevibe_write_report",
+    "securevibe_bundle",
     "securevibe_explain",
     "securevibe_questions",
     "securevibe_notes_file",
@@ -114,9 +117,10 @@ def main():
             ("tools/call", {"name": "securevibe_spec", "arguments": {}}),
             check_call,
             ("tools/call", {"name": "securevibe_notes_file", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "securevibe_bundle", "arguments": {"path": "app"}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
-        check(names == TOOLS, f"six tools offered: {names}")
+        check(names == TOOLS, f"seven tools offered: {names}")
         spec = replies[1]["result"]["content"][0]["text"]
         check("[capabilities]" in spec, "securevibe_spec answers with the manifest spec")
 
@@ -136,6 +140,20 @@ def main():
         check(notes.exists(), "security-notes.md is written into the owner's folder")
         if notes.exists():
             check(notes.stat().st_uid == os.getuid(), "and the owner owns it")
+
+        bundle_reply = replies[4]["result"]
+        check(bundle_reply["isError"] is False, "securevibe_bundle answers: " + bundle_reply["content"][0]["text"][:120])
+        bundle = root / "app-securevibe-bundle.zip"
+        check(bundle.exists(), "the bundle is written beside the app, not inside it")
+        if bundle.exists():
+            check(bundle.stat().st_uid == os.getuid(), "the owner owns the bundle")
+            with zipfile.ZipFile(bundle) as z:
+                members = z.namelist()
+                check(z.testzip() is None, "every entry in the bundle passes its CRC")
+                check("app/report/report.html" in members and "app/BUNDLE.json" in members, "the bundle holds the report and its listing")
+                check(not any(m.endswith("/.env") for m in members), "the committed .env is not in the bundle")
+                leaked = [m for m in members if b"not-a-real-key" in z.read(m)]
+                check(not leaked, f"and what it held is in no entry, whatever the entry is called: {leaked}")
 
         if not args.no_git and os.getuid() != 0:
             # Run as root, over a repository root does not own: git refuses it unless the image

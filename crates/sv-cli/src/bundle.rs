@@ -354,29 +354,42 @@ pub fn utc_time(seconds: u64) -> String {
     )
 }
 
+/// What the listing and the README are told about how the bundle was made.
+pub struct Made<'a> {
+    pub sv_version: &'a str,
+    /// The commit `sv` was built from, or `unknown` when it was built outside a checkout.
+    pub commit: &'a str,
+    pub made_at: &'a str,
+    pub command: &'a str,
+    pub app_name: &'a str,
+    /// What `securevibe.toml` says about the data the app holds.
+    pub categories: &'a [String],
+}
+
 /// The listing that travels with the zip: which `sv` made it, when, and a SHA-256 for every file, so what was
 /// checked can be matched to what is inside.
-pub fn listing(
-    sv_version: &str,
-    made_at: &str,
-    command: &str,
-    app_name: &str,
-    files: &[(String, Vec<u8>)],
-    plan: &Plan,
-) -> serde_json::Value {
+pub fn listing(made: &Made, files: &[(String, Vec<u8>)], plan: &Plan) -> serde_json::Value {
     serde_json::json!({
-        "made-by": format!("sv {sv_version}"),
-        "made-at": made_at,
-        "command": command,
-        "app": app_name,
-        "note": "The report describes the app as it stood when this was made. The files under app/ are what the report was made from, less the files listed under left-out.",
+        "made-by": format!("sv {}", made.sv_version),
+        "commit": made.commit,
+        "made-at": made.made_at,
+        "command": made.command,
+        "app": made.app_name,
+        "data-categories-in-securevibe-toml": made.categories,
+        "note": "The report describes the app as it stood when this was made. The files under app/ are what the report was made from, less the files listed under left-out. The data categories are the owner's statement: sv cannot tell which files hold that data, and leaves out only the database files it recognizes by name.",
         "files": files.iter().map(|(path, data)| serde_json::json!({"path": path, "bytes": data.len(), "sha256": sha256(data)})).collect::<Vec<_>>(),
         "left-out": plan.left_out.iter().map(|(path, reason)| serde_json::json!({"path": path, "reason": reason})).collect::<Vec<_>>(),
     })
 }
 
 /// The page a person reads first, in plain words.
-pub fn readme(app_name: &str, made_at: &str, included: usize, plan: &Plan) -> String {
+pub fn readme(
+    app_name: &str,
+    made_at: &str,
+    included: usize,
+    plan: &Plan,
+    categories: &[String],
+) -> String {
     let mut text = format!(
         "This is a bundle of {app_name}, made by sv on {made_at}.\n\n\
          app/      the application's own files ({included} of them)\n\
@@ -401,6 +414,12 @@ pub fn readme(app_name: &str, made_at: &str, included: usize, plan: &Plan) -> St
             text.push_str(&format!("  {path}: {reason}\n"));
         }
         text.push('\n');
+    }
+    if !categories.is_empty() {
+        text.push_str(&format!(
+            "securevibe.toml says this app holds: {}. Those files are not left out, because sv cannot tell which they are.\n\n",
+            categories.join(", ")
+        ));
     }
     text.push_str(
         "What sv cannot promise. It looked for credentials in every file it could read as text, and left out any\n\

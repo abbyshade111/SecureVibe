@@ -43,7 +43,8 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     write one from it. securevibe_check never says a requirement passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
     only the person can answer; securevibe_questions lists them, for you to ask them one at a \
-    time. It does not start \
+    time. When the report is written, offer the person a zip of the whole result to keep or hand on \
+    (securevibe_bundle), only if they want one. It does not start \
     the app or run other security tools; for those, ask the person to run `sv report --run --tools` \
     in a terminal.";
 
@@ -150,6 +151,7 @@ impl Server {
             "securevibe_explain" => explain(&args),
             "securevibe_check" => self.check(&args),
             "securevibe_write_report" => self.write_report(&args),
+            "securevibe_bundle" => self.bundle(&args),
             "securevibe_questions" => self.questions(&args),
             "securevibe_notes_file" => self.notes_file(&args),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
@@ -270,6 +272,67 @@ impl Server {
         }))
     }
 
+    /// One zip beside the app: the app, its report and a SHA-256 for every file, with anything that could hold a
+    /// secret left out and listed (see `bundle.rs`). Written beside the app and never inside it, and only where
+    /// this server may write at all: below the folder it was started for.
+    fn bundle(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let name = crate::bundle::safe_name(
+            &app_dir
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "app".to_owned()),
+        );
+        // Beside the app means in its parent, which has to be inside the root: when the app is the root itself,
+        // the parent is somewhere this server was not started for.
+        let parent = app_dir.parent().map(Path::to_path_buf).unwrap_or_default();
+        anyhow::ensure!(
+            app_dir != self.root && parent.starts_with(&self.root),
+            "the bundle is written beside the app, and beside {} would be outside {}, the folder this server \
+             was started for. Start the server for the folder that holds the app, or ask the person to run \
+             `sv bundle` in a terminal.",
+            app_dir.display(),
+            self.root.display()
+        );
+        // Resolved through links, so a `-securevibe-bundle.zip` that is a link to somewhere else is refused
+        // before anything is written.
+        let zip = crate::bundle::resolve_for_writing(
+            &parent.join(format!("{name}-securevibe-bundle.zip")),
+        );
+        anyhow::ensure!(
+            zip.starts_with(&self.root) && !zip.starts_with(&app_dir),
+            "the bundle would be written to {}, which is outside {} or inside the app",
+            zip.display(),
+            self.root.display()
+        );
+        // A link is followed by the write, and a link to a file that does not exist yet resolves to nothing above:
+        // it is refused by what it is, as the notes file is.
+        if let Ok(meta) = std::fs::symlink_metadata(&zip) {
+            anyhow::ensure!(
+                !meta.file_type().is_symlink(),
+                "{} is a link to somewhere else, so it is not written",
+                zip.display()
+            );
+        }
+        let report = self.report_for(&app_dir)?;
+        let outcome = crate::write_bundle(
+            &app_dir,
+            &zip,
+            &report,
+            "sv bundle (asked for through the MCP server)",
+        )?;
+        Ok(json!({
+            "content": [{ "type": "text", "text": outcome.summary() }],
+            "structuredContent": {
+                "zip": outcome.zip.display().to_string(),
+                "files": outcome.files,
+                "appFiles": outcome.included,
+                "leftOut": outcome.left_out.iter().map(|(path, reason)| json!({"path": path, "reason": reason})).collect::<Vec<_>>(),
+            },
+            "isError": false,
+        }))
+    }
+
     fn write_report(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
         let out = args
@@ -313,7 +376,7 @@ impl Server {
             "content": [{
                 "type": "text",
                 "text": format!(
-                    "Wrote {} files to {}: {}. report.html is the one for a person to open.\n\n{}",
+                    "Wrote {} files to {}: {}. report.html is the one for a person to open. To keep the app and its report together or hand them on, securevibe_bundle makes one zip; offer it only if the person wants it.\n\n{}",
                     files.len(),
                     out_dir.display(),
                     written.join(", "),
@@ -367,6 +430,13 @@ fn tools() -> Value {
                 }
             },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_bundle",
+            "title": "Bundle the app and its report",
+            "description": "Write one zip beside the app (never inside it) holding the app's files, the full report, the bill of materials and a SHA-256 for every file, for the person to keep or hand on. It leaves out anything that could hold a secret (files the credential scan flagged, environment files, keys, databases, links, editor folders, files it could not read) and lists each with the reason. Offer it once the report is written, only if the person wants it. It cannot tell which files hold data about the app's people.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
         },
         {
             "name": "securevibe_explain",
@@ -1044,6 +1114,7 @@ mod tests {
             [
                 "securevibe_check",
                 "securevibe_write_report",
+                "securevibe_bundle",
                 "securevibe_explain",
                 "securevibe_questions",
                 "securevibe_notes_file",
@@ -1075,5 +1146,132 @@ mod tests {
         assert!(t.contains("level 2, as V14.1.1"), "{t}");
         assert!(t.contains("V14.1.2"), "{t}");
         assert!(explain(&json!({"id": "not-a-requirement"})).is_err());
+    }
+
+    /// A folder holding one app, with a secret in it and a manifest, for the bundle tool.
+    fn bundle_root(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("sv-mcp-bundle-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::copy(
+            examples().join("tested-notes").join("securevibe.toml"),
+            root.join("app").join("securevibe.toml"),
+        )
+        .unwrap();
+        std::fs::write(root.join("app").join("main.py"), "print('hi')\n").unwrap();
+        std::fs::write(
+            root.join("app").join(".env"),
+            "TOKEN=only-in-the-env-file-4471\n",
+        )
+        .unwrap();
+        root
+    }
+
+    #[test]
+    fn the_bundle_tool_is_offered_and_the_report_points_to_it() {
+        let root = bundle_root("offered");
+        let server = Server::new(&root).unwrap();
+        let listed = server
+            .handle(&json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}))
+            .unwrap();
+        let names: Vec<&str> = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["name"].as_str().unwrap())
+            .collect();
+        assert!(names.contains(&"securevibe_bundle"), "{names:?}");
+        let written = call(&server, "securevibe_write_report", json!({ "path": "app" }));
+        assert!(
+            text(&written).contains("securevibe_bundle")
+                && text(&written).contains("only if the person wants it"),
+            "{}",
+            text(&written)
+        );
+        assert!(INSTRUCTIONS.contains("securevibe_bundle"));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_bundle_is_written_beside_the_app_inside_the_root_and_holds_no_secret() {
+        let root = bundle_root("beside");
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_bundle", json!({ "path": "app" }));
+        assert_eq!(result["isError"], false, "{}", text(&result));
+        let zip = root
+            .canonicalize()
+            .unwrap()
+            .join("app-securevibe-bundle.zip");
+        assert_eq!(
+            result["structuredContent"]["zip"],
+            zip.display().to_string()
+        );
+        let bytes = std::fs::read(&zip).unwrap();
+        assert!(bytes.starts_with(b"PK"), "not a zip");
+        assert!(
+            !bytes.windows(4).any(|w| w == b"4471"),
+            "the secret is in the bundle"
+        );
+        assert!(
+            !root.join("app").join("app-securevibe-bundle.zip").exists(),
+            "written inside the app"
+        );
+        assert!(
+            result["structuredContent"]["leftOut"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|l| l["path"] == ".env")
+        );
+        assert!(
+            text(&result).contains("Left out on purpose"),
+            "{}",
+            text(&result)
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_bundle_is_refused_when_beside_the_app_would_be_outside_the_root() {
+        // The server was started for the app itself, so beside it is a folder it was not started for.
+        let root = bundle_root("root");
+        let server = Server::new(&root.join("app")).unwrap();
+        let result = call(&server, "securevibe_bundle", json!({}));
+        assert_eq!(result["isError"], true, "{}", text(&result));
+        assert!(text(&result).contains("outside"), "{}", text(&result));
+        assert!(
+            !root.join("app-securevibe-bundle.zip").exists(),
+            "written anyway"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_bundle_is_not_written_through_a_link_out_of_the_root() {
+        let root = bundle_root("link");
+        let elsewhere =
+            std::env::temp_dir().join(format!("sv-mcp-bundle-elsewhere-{}", std::process::id()));
+        std::fs::remove_dir_all(&elsewhere).ok();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(
+            elsewhere.join("stolen.zip"),
+            root.join("app-securevibe-bundle.zip"),
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_bundle", json!({ "path": "app" }));
+        let landed = elsewhere.join("stolen.zip").exists();
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&elsewhere).ok();
+        #[cfg(unix)]
+        {
+            assert!(
+                !landed,
+                "the bundle was written outside the root through a link"
+            );
+            assert_eq!(result["isError"], true, "{}", text(&result));
+        }
     }
 }
