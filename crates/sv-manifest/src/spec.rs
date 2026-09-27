@@ -95,8 +95,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   first user: that the sign-out control on each private page can really be seen; that clicking it,
 #   with a sign-in made for the purpose, empties what the app kept in the browser's storage; and,
 #   with `text-form`, that text typed into that page's form is shown as text and not run as code on
-#   the page that shows it (`shows`, or wherever the form leads when that is left out).
-#   `browser = {}` asks the first two.
+#   the page that shows it (`shows`, or wherever the form leads when that is left out). It also
+#   lists what the signed-in pages try to send to other sites, and looks in it for the test
+#   account's own details. `browser = {}` asks all but the typed text.
 # private-websocket = "/ws"
 #   A WebSocket that only a signed-in user should be able to open. The handshake is sent with the
 #   first user's session, then with no session, with one the probes made up, and after signing out.
