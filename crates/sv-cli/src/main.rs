@@ -208,6 +208,9 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         },
         manifest.target_level()
     );
+    if let Some(why) = manifest.level_from_unanswered_data() {
+        println!("{why}");
+    }
     if !report.ecosystems.is_empty() {
         let names: Vec<&str> = report.ecosystems.iter().map(|e| e.name.as_str()).collect();
         println!(
@@ -615,7 +618,7 @@ fn notes_facts(
 
     sv_check::notes::Facts {
         app_name: app_name.to_owned(),
-        data_categories: manifest.data.categories.clone(),
+        data_categories: manifest.data.listed().to_vec(),
         outside_services,
         ecosystems: scan_report
             .ecosystems
@@ -1647,7 +1650,7 @@ fn write_bundle(
     let scan = scan_dir(&rules, app_abs);
     let plan = bundle::plan(app_abs, &scan);
     let categories = Manifest::load(&app_abs.join("securevibe.toml"))
-        .map(|m| m.data.categories)
+        .map(|m| m.data.listed().to_vec())
         .unwrap_or_default();
 
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
@@ -2616,6 +2619,12 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         ),
         None => Default::default(),
     };
+    if let Some(why) = manifest.level_from_unanswered_data() {
+        gaps.push(sv_report::Gap {
+            what: "What information the app holds about people".to_owned(),
+            why: why.to_owned(),
+        });
+    }
     let not_counted: Vec<&(String, String)> = confirmed_design
         .not_counted
         .iter()

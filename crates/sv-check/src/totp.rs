@@ -65,7 +65,10 @@ pub fn base32(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    /// RFC 6238 appendix B: the SHA-1 test secret and its eight-digit codes.
+    /// RFC 6238 appendix B: the SHA-1 test secret and its eight-digit codes. Published in the
+    /// standard so that every implementation can be checked against the same answers; it guards
+    /// nothing. CodeQL reports it as a hard-coded cryptographic value (alert 82, dismissed as
+    /// used in tests, 27 September 2026).
     const RFC_SECRET: &[u8] = b"12345678901234567890";
 
     #[test]

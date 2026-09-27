@@ -892,15 +892,15 @@ fn a_vue_component_is_read_like_a_page() {
 
 #[test]
 fn a_page_holding_something_the_extractor_cannot_take_still_silences_them() {
-    // The half that keeps the other half honest. An unquoted attribute value ends at whitespace by
-    // one reading and at the tag by another, so this extractor will not guess — and while anything
-    // is left in the page, the page is unread. Declaring it read is the exact failure the whole
-    // arrangement guards against.
+    // The half that keeps the other half honest. A named character reference this does not know,
+    // inside a handler, may be one a browser turns into a letter of the program — so the extractor
+    // will not guess, and while anything is left in the page, the page is unread. Declaring it read
+    // is the exact failure the whole arrangement guards against.
     let dir = scratch("html-left-behind");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("index.html"),
-        "<html><body><a href=javascript:go(location.hash)>go</a></body></html>\n",
+        "<html><body><a onclick=\"x&alpha;(location.hash)\">go</a></body></html>\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
@@ -1019,15 +1019,63 @@ fn a_script_the_grammar_cannot_read_still_silences_them() {
 }
 
 #[test]
-fn a_scheme_written_around_a_tab_still_silences_them() {
-    // Second witness for noticing a disguised scheme, of a different shape: the consequence for the
-    // app rather than what the extractor returns. A browser reads `java<tab>script:` and runs it;
-    // this does not read it, and a page holding one must not be counted as examined.
+fn a_scheme_written_around_a_tab_is_read_the_way_a_browser_reads_it() {
+    // A browser removes tabs and newlines from a URL before it reads the scheme, so
+    // `java<tab>script:` runs. This was once named and left unread; it is now read, and what is in
+    // it reaches the rules. Written with a character reference, because that is how it hides in a
+    // page: the tab only exists once the reference is put back.
     let dir = scratch("html-disguised");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("index.html"),
-        "<html><body><a href=\"java\tscript:eval(location.hash)\">go</a></body></html>\n",
+        "<html>\n<body>\n<a href=\"java&#9;script:eval(location.hash)\">go</a>\n</body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let findings = scan.findings.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(unread.is_empty(), "{unread:?}");
+    let found = findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("the eval behind the tab: {findings:?}"));
+    assert_eq!(found.location.line, 3);
+}
+
+#[test]
+fn an_unquoted_handler_is_read_and_what_is_in_it_reported() {
+    // Before the tokenizer this page was counted as read with nothing taken out of it: the handler
+    // pattern wanted quotes, and nothing else looked. A false clean, for the whole app.
+    let dir = scratch("html-unquoted");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body>\n<img/onerror=eval(location.hash) src=x>\n</body></html>\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
+    let findings = scan.findings.clone();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(unread.is_empty(), "{unread:?}");
+    let found = findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .unwrap_or_else(|| panic!("the eval in the handler: {findings:?}"));
+    assert_eq!(found.location.line, 2);
+}
+
+#[test]
+fn a_scheme_written_around_another_control_character_still_silences_them() {
+    // Second witness for noticing a disguised scheme, of a different shape: the consequence for the
+    // app rather than what the extractor returns. By the URL standard a browser does not run
+    // `java<U+0001>script:`, but that is a reading, and being wrong about it would be a false clean.
+    let dir = scratch("html-control");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        "<html><body><a href=\"java&#1;script:eval(location.hash)\">go</a></body></html>\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);

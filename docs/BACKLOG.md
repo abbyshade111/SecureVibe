@@ -9,8 +9,39 @@ another session is not a claim.
 
 ## Next
 
+- **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
+  owner on 27 September 2026: Appendix C is better used as a reference while coding than as report
+  lines. Its 68 requirements are written for an auditor ("Verify that…"), and no check in `sv`
+  reaches any of them. About 20 are things the tool itself can do or avoid while writing code: keep
+  `.env` values out of the chat (AC.3.1), treat fetched pages and tool results as data and never as
+  instructions (AC.3.3, AC.3.4), run the check after each feature (AC.4.2), say when it touched
+  sign-in, access, cryptography, CI, or deployment files (AC.4.4), add only packages that exist
+  (AC.13.3), never merge or deploy its own work (AC.8.1), write GitHub Actions without
+  `pull_request_target` checkouts or persisted credentials (AC.12.1–AC.12.3). About 15 are the owner's
+  decisions, already asked through `securevibe_questions` and the security notes, and about 30 are
+  organization or pipeline infrastructure the applicability rules already set aside for most apps.
+
+  The plan, agreed with the owner the same day:
+  - A data file of those rules, each an imperative sentence citing the Appendix C requirements it
+    comes from, about 1,200 tokens in all rather than the appendix's 5,800.
+  - Filtered by the app: a rule is given only when a requirement it cites applies, so CI rules reach
+    only an app with a pipeline.
+  - `sv rules` writes them into `AGENTS.md` between markers, so a later run refreshes that section and
+    leaves everything else in the file alone; other tools are pointed at it, each tried before it is
+    written down.
+  - An MCP tool, `securevibe_guidance`, gives the rules for one topic when the tool is about to do that
+    work (a CI workflow, a new dependency, content fetched from outside), and the server's opening
+    instructions name it.
+  - **Credit where it is due:** every copy of the rules names OWASP AISVS 1.0 Appendix C, links to it,
+    carries its license (CC BY-SA 4.0), and says the text was adapted. The share-alike terms reach the
+    rules text, not the owner's code.
+  - **It credits nothing.** Handing the tool a rule is not evidence the rule was kept, so no requirement
+    changes status because the rules were written.
+
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+
 - **Figures for the paper: security across both versions, usability, and cost.** **Claimed on 27 September
-  2026 by session admiring-murdock-875699**, at the owner's asking. New `docs/paper/figure-*.html` beside the
+  2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day.** New `docs/paper/figure-*.html` beside the
   existing three, built only from numbers already in the repository (git history, `docs/COVERAGE.md`,
   `docs/paper/`), each with its source stated. Touches only `docs/paper/`.
 
@@ -172,6 +203,12 @@ another session is not a claim.
   (Run afterwards, 27 September 2026, by securevibe-e8 on `main` at `d6e781c`: 1,074 passed; the one failure,
   `the_fence_really_blocks_outbound_traffic`, needs outbound network, which that sandbox has none of.) After
   it merges, run `tools/pwned_passwords.py` once outside the sandbox (it has no test).
+  **All of the owner's part is done, the owner said on 27 September 2026:** `pwned_passwords.py` was run
+  after the move, the USB bundles are up to date, the community standards page shows every item done,
+  and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
+  Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
+  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  bypass).
   Text below that says `agnostic/…` was written before the move.
 
   **Rules that hold whatever the plan:**
@@ -815,6 +852,16 @@ another session is not a claim.
     leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
+    **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
+    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
+    all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
+    report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
+    an answer, "nothing about people", and still gets level 1. Only apps for `just-me` or `my-team`
+    can change level this way; `customers`, the default, and `public` were level 2 already, and the
+    note is not shown for them. Unanswered and answered-with-nothing, the starter file writing `[]`
+    again, the note missing, and the note blamed on a public app are each caught by one or two
+    tests.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
@@ -1197,10 +1244,12 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
-- **Testing an app's AI feature: a fake model inside the fence, or garak.** Asked by the owner on
+- ~~**Testing an app's AI feature: a fake model inside the fence, or garak.**~~ Closed on 27 September
+  2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
+  there are better options"). The test model inside the fence was built instead (below), and garak
+  would have needed a hole in the fence and the app's own API credit. Kept for the record. Asked by the owner on
   26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
-  answered by session securevibe-e9. **For a later decision by the owner; not claimed.** Other sessions
-  are welcome to add their thoughts under "Thoughts" below, each under its own name, as its own commit.
+  answered by session securevibe-e9.
 
   **What garak could reach.** garak (NVIDIA's model scanner) sends attack prompts to a chat endpoint
   and scores the replies; pointed at the app's own chat route, through a manifest entry in the shape
@@ -1931,10 +1980,24 @@ another session is not a claim.
   the rest of `SKIP_DIRS` are not handed to it, because no check in `sv` reads them. If built output
   can be what ships, that is a question about `SKIP_DIRS` for every check at once, not about semgrep.
 
-- **Script in a page written the way a browser reads it and a parser does not.** An unquoted
-  attribute value, and a scheme written around a control character, are both named as left behind —
-  correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
-  which is a question with two defensible answers.
+- ~~**Script in a page written the way a browser reads it and a parser does not.**~~ Done on 27
+  September 2026 by session securevibe-e8. The premise was wrong in a way that mattered: where an
+  unquoted value ends is not a question with two answers, because the HTML standard ends it at whitespace
+  or `>`. And "each keeps a page unread" was not true of all of them. Checked against pages a browser
+  runs, three were counted as read with nothing taken out: an unquoted handler
+  (`<button onclick=eval(location.hash)>`), a `/` between attributes (`<img/onerror="…">`), and
+  `href="java&#9;script:…"`, where the entity became a tab only after the disguise check had looked. All
+  three were false cleans. `html_fragments` now walks start tags the way a browser's tokenizer does and
+  reads each value the way the URL standard does (put back character references, strip the ends, remove
+  tabs and newlines, then read the scheme). What is still named rather than read, and why, is in
+  DESIGN, "A page of markup is not a hole in the coverage".
+
+  Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace suite.
+  Broke eight things on purpose and watched each go red: unquoted values dropped, tabs kept in a URL, the
+  `javascript:` count switched off, raw-text bodies read as tags, `/` not a separator, the near-scheme
+  check switched off, numeric references not decoded, and unknown named references ignored. The last one
+  was caught by nothing at first, because its only fixture (`&alpha;()`) was also refused by the grammar.
+  A second fixture, `x&alpha;(1)`, parses when the reference is left as written, and now catches it.
 
 - ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
   one of the nine rules either taught each language or saying why there is nothing to find in it
@@ -2277,7 +2340,10 @@ another session is not a claim.
   silences everything" test loses its fixture). `docs/COVERAGE.md` needed no regeneration: cpp adds no
   ASVS requirement no other language already reaches for these twelve rules.
 
-  **Left: HTML's embedded scripts**, which is a different, unstarted half of this entry.
+  **HTML's embedded scripts** had been read since 25 September (DESIGN, "A page of markup is not a hole
+  in the coverage"). The part still named rather than read, which was unquoted values and disguised
+  schemes, was done on 27 September 2026 under its own entry, "Script in a page written the way a browser
+  reads it".
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in
   all. `ast.file-path-from-value` (V5.3.2), `ast.weak-hash-function` (V11.4.1), `ast.weak-cipher`

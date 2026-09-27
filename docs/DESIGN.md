@@ -517,11 +517,38 @@ statements that parse on their own once their HTML entities and percent escapes 
 `<script src="app.js">` with nothing between its tags holds no code at all: the file it names is
 parsed like any other.
 
-A `javascript:` URL is read only from a quoted attribute, where its end is not in doubt. An unquoted
-value ends at whitespace by one reading and at the tag by another, and guessing between them is how a
-fragment ends up half a statement — so those are named rather than read. So is a scheme written around
-a control character: a browser runs `java<tab>script:`, this does not read it, and every occurrence of
-the scheme is counted against what was taken so one written that way cannot slip past as ordinary text.
+**Tags are read the way a browser reads them**, because a page is written for a browser and anything
+read differently is a place for code to hide. The first version took only quoted values and named
+the rest as left behind, on the view that where an unquoted value ends was a question with two
+answers. It is not: the HTML standard's tokenizer ends it at whitespace or at `>`, and every browser
+follows it. Checking that first version against pages a browser runs found two it counted as read
+with nothing taken out of them, which is a false clean: `<button onclick=eval(location.hash)>` (an
+unquoted handler), and `<img/onerror="…">` (a `/` between attributes, which a browser treats as a
+space). A third, `href="java&#9;script:…"`, was meant to be named and was not, because the entity
+became a tab only after the check for a disguised scheme had looked.
+
+So `html_fragments` now walks the start tags the way the tokenizer does. A quoted value ends at its
+quote, an unquoted one at whitespace or `>`, and `/` separates attributes. A comment holds no tags,
+and neither do the bodies of `<script>`, `<style>`, `<textarea>`, `<title>`, and `<xmp>`. Each value
+has its character references put back, both numeric (`&#9;`, `&#x6A;`, with or without the `;`) and
+named ones for every ASCII character (`&Tab;`, `&colon;`). Then it is checked for a URL the way the
+URL standard does it: strip control characters and spaces from both ends, remove every tab and
+newline, and only then read the scheme. `java<tab>script:` is therefore read as the program it is.
+
+Some things are still named rather than read, each for its own reason:
+
+- **A named reference this does not know, inside code.** Most such names are ones a browser leaves
+  alone too, but a few hundred stand for letters JavaScript accepts in a name.
+- **A value that becomes the scheme only once some other control character is removed**
+  (`java\x01script:`). By the URL standard a browser does not run it. The cost of being wrong about
+  that reading is a false clean, though, so the page stays unread.
+- **A quote or a tag never closed.**
+- **A `javascript:` anywhere this did not read**: text, a comment, or a template language's own
+  syntax. Every occurrence of the scheme is still counted against the attribute values and script
+  bodies that were read.
+
+The last check is the safety net under the rest. Before the tokenizer it caught a second way of
+writing a URL; now it catches a place the tokenizer does not model.
 
 A finding in a page names the line **in the page**. The fragment's offset is added back before the
 finding is written, because a reader sent to line 3 of something they cannot see is worse off than one
