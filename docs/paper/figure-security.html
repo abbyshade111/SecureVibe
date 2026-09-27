@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Across Versions</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --empty: #e3e2dd;
+    --v1: #2a78d6;     /* v1, the template builder */
+    --sv: #eb6834;     /* sv, the any-language checker */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #3a3935;
+      --v1: #3987e5; --sv: #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #3a3935;
+    --v1: #3987e5; --sv: #d95926;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 34px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 180px; }
+  .stat b { display: block; font-size: 1.8rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin: 6px 0; }
+  .swatch { width: 14px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  .chart { position: relative; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 600px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .muted { fill: var(--text-muted); font-size: 11px; }
+  svg .strong { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  svg .ink { fill: var(--text-primary); }
+  .tip { position: absolute; pointer-events: none; background: var(--surface-2); color: var(--text-primary);
+    border: 1px solid var(--grid); border-radius: 8px; padding: 6px 10px; font-size: .8rem; line-height: 1.4;
+    max-width: 300px; display: none; box-shadow: 0 2px 8px rgb(0 0 0 / .12); }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 14px; }
+  code { font-size: .92em; }
+  @media (max-width: 600px) {
+    td, th { white-space: normal !important; overflow-wrap: anywhere; }
+    .rows { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Security across both versions</h1>
+  <p class="sub">v1 could produce strong evidence only for apps it had built itself. <code>sv</code> was designed
+     around that limit: it runs any app, in any of 14 languages, inside a network fence, and asks the running app
+     the questions only a running app can answer.</p>
+
+  <div class="hero">
+    <div class="stat"><b style="color:var(--v1)">104 → 0</b><span>ASVS requirements v1 verified on the same code, built by v1 and then uploaded</span></div>
+    <div class="stat"><b style="color:var(--sv)">132</b><span>of 345 ASVS requirements some <code>sv</code> check can settle (38%), for an app in any language</span></div>
+    <div class="stat"><b style="color:var(--sv)">53 → 132</b><span>how far <code>sv</code>'s reach grew in 34 hours, 25–26 September</span></div>
+  </div>
+
+  <h2>1. v1: strong evidence came only from running the app</h2>
+  <p class="lede">The comparison of 20 September, from <code>figure-three-arms.html</code>. Arms A and B are the
+     same code. v1 ran an app it had built, and only scanned one it had not, so the uploaded copy lost every test
+     and runtime probe. Those were the only sources of strong evidence.</p>
+  <div class="chart"><svg id="arms" viewBox="0 0 870 150" role="img" aria-label="Verified ASVS requirements per arm: A 104 of 159, B 0 of 149, C 0 of 106."></svg></div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--v1)"></span>verified (strong or medium evidence)</span>
+    <span><span class="swatch" style="background:var(--empty)"></span>everything else: AI review only, partial, failed, or never assessed</span>
+  </div>
+
+  <h2>2. <code>sv</code>: what its checks can reach, as it grew</h2>
+  <p class="lede">ASVS 5.0 requirements that at least one <code>sv</code> check can settle, measured after each
+     change to <code>main</code> that moved the count. Read from each version of <code>docs/COVERAGE.md</code>,
+     which the build regenerates from the checks' own citations. Hover a step for the change behind it.</p>
+  <div class="chart" id="growth-wrap">
+    <svg id="growth" viewBox="0 0 870 300" role="img" aria-label="Step chart: ASVS requirements sv can settle, from 53 at 11:16 on 25 September to 132 by 20:10 on 26 September, with one drop from 129 to 125 when semgrep was counted honestly."></svg>
+    <div class="tip" id="tip" role="status"></div>
+  </div>
+
+  <h2>3. <code>sv</code>: where that reach stands</h2>
+  <p class="lede">Every requirement in each framework, from <code>docs/COVERAGE.md</code> at <code>c5ae4f9</code>.
+     "Can settle" means a check can mark it checked or needing attention: usually one automated check on part of
+     the requirement, not a pass. The Secure by Design checklist asks about policy and design, which no check can
+     settle, by design.</p>
+  <div class="chart"><svg id="frameworks" viewBox="0 0 870 200" role="img" aria-label="Stacked bars per framework: ASVS 132 can settle, 5 supporting, 208 nothing; AISVS 15, 0, 176; AISVS Appendix C 0, 0, 68; Secure by Design 0, 6, 30."></svg></div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--sv)"></span>can settle</span>
+    <span><span class="swatch" style="background:repeating-linear-gradient(45deg,var(--sv) 0 2px,transparent 2px 5px);border:1px solid var(--sv)"></span>supporting only: a person still answers</span>
+    <span><span class="swatch" style="background:var(--empty)"></span>no check names it: only the app's own tests can</span>
+  </div>
+
+  <table>
+    <thead><tr><th>ASVS level</th><th>Requirements</th><th>Can settle</th><th>Signed in</th><th>Outside tools</th><th>The running app</th><th>Reads the code</th><th>Live site</th><th>Known vulns</th></tr></thead>
+    <tbody>
+      <tr><td>L1</td><td class="n">70</td><td class="n"><b>54</b> (77%)</td><td class="n">31</td><td class="n">21</td><td class="n">3</td><td class="n">8</td><td class="n">2</td><td class="n">1</td></tr>
+      <tr><td>L2</td><td class="n">183</td><td class="n"><b>67</b> (37%)</td><td class="n">30</td><td class="n">24</td><td class="n">14</td><td class="n">5</td><td class="n">1</td><td class="n">0</td></tr>
+      <tr><td>L3</td><td class="n">92</td><td class="n"><b>11</b> (12%)</td><td class="n">1</td><td class="n">2</td><td class="n">5</td><td class="n">1</td><td class="n">2</td><td class="n">0</td></tr>
+    </tbody>
+  </table>
+  <p class="note">A requirement reached by more than one kind of check is counted under each, so a row's kinds can
+     add to more than its "can settle". "Signed in" means the running app, driven through test accounts.</p>
+
+  <h2>4. The two versions side by side</h2>
+  <table>
+    <thead><tr><th></th><th style="color:var(--v1)">v1</th><th style="color:var(--sv)"><code>sv</code></th></tr></thead>
+    <tbody>
+      <tr><td>What it checks</td><td>Apps it builds from its own template (TypeScript), plus uploaded code, which it only scans</td><td>Any app, written by anyone, in any of 14 languages it can parse</td></tr>
+      <tr><td>Runs the app?</td><td>Only apps it built: "Uploaded apps are only ever scanned, never run"</td><td>Yes, inside Docker on a network with no way out, when the app says how to start</td></tr>
+      <tr><td>Strongest evidence</td><td>The template's tests and runtime probes</td><td>The app's own tests that name a requirement, and questions asked of the running app, signed in as test users</td></tr>
+      <tr><td>AI's part</td><td>Writes the code, and a paid AI review that only ever counts as "AI-assessed"</td><td>None of its own. The owner's AI coding tool writes the app and can call <code>sv</code> over MCP. <code>sv</code> makes no AI calls, and tests an app's AI feature with a fake model it runs itself.</td></tr>
+      <tr><td>Evidence rule</td><td colspan="2">The same in both: AI judgment alone is never a pass, and "not sure" adds nothing.</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Sources: <code>docs/paper/figure-three-arms.html</code> and <code>requirements.csv</code> for
+     section 1; every version of <code>docs/COVERAGE.md</code> on <code>main</code> for sections 2 and 3; v1's
+     <code>CLAUDE.md</code> at tag <code>v1-final</code>, <code>README.md</code>, and <code>crates/sv-check/src/ai.rs</code>
+     for section 4. The two versions' numbers answer different questions: v1's are results for one app, and
+     <code>sv</code>'s are what its checks can reach across all apps. They are shown side by side, not compared.</p>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (svg, tag, attrs, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text != null) e.textContent = text;
+    svg.appendChild(e); return e;
+  };
+  // Rounded on the right, square on the left (the baseline).
+  const barPath = (x, y, w, h, r = 4) => w <= r
+    ? `M${x} ${y} h${w} v${h} h${-w} Z`
+    : `M${x} ${y} H${x + w - r} q${r} 0 ${r} ${r} V${y + h - r} q0 ${r} ${-r} ${r} H${x} Z`;
+
+  // 1. The three arms.
+  const arms = document.getElementById("arms");
+  const armData = [["A", "SecureFit, built by v1", 104, 159], ["B", "the same code, uploaded", 0, 149], ["C", "a Python app, uploaded", 0, 106]];
+  const X0 = 230, SCALE = 560 / 159;
+  armData.forEach(([id, name, v, n], i) => {
+    const y = 14 + i * 44;
+    mk(arms, "text", { x: 0, y: y + 11, class: "strong" }, `Arm ${id}`);
+    mk(arms, "text", { x: 0, y: y + 26, class: "muted" }, name);
+    mk(arms, "path", { d: barPath(X0, y, n * SCALE, 22), fill: "var(--empty)" });
+    if (v > 0) mk(arms, "path", { d: barPath(X0, y, v * SCALE - 2, 22), fill: "var(--v1)" });
+    mk(arms, "text", { x: X0 + n * SCALE + 8, y: y + 16, class: "ink" }, `${v} of ${n}`);
+  });
+
+  // 2. Growth of sv's reach.
+  /* Every change to main that moved docs/COVERAGE.md's ASVS or AISVS count, Eastern time. Regenerate with
+     git log --first-parent origin/main -- agnostic/docs/COVERAGE.md docs/COVERAGE.md, reading the Summary table of each version. */
+  const data = [{"t": "09-25 11:16","c": "4113885","pr": "#72","asvs": 53,"aisvs": 1,"what": "sv: a generated coverage document for ASVS, AISVS, and Secure by Design"},{"t": "09-25 12:04","c": "bf11aa3","pr": "#74","asvs": 61,"aisvs": 1,"what": "sv: Level 1 checks against the running app (passwords, default accounts, session"},{"t": "09-25 15:55","c": "fae8a4d","pr": "#83","asvs": 61,"aisvs": 8,"what": "sv: semgrep's AI rules count against AISVS, and never for it"},{"t": "09-25 16:30","c": "b0280f6","pr": "#89","asvs": 68,"aisvs": 8,"what": "sv: five more Level 1 questions for the running app, two for semgrep"},{"t": "09-25 16:41","c": "ff2dd6b","pr": "#91","asvs": 70,"aisvs": 8,"what": "sv: can a password be changed, and does that need the current one"},{"t": "09-25 17:08","c": "7542161","pr": "#93","asvs": 73,"aisvs": 8,"what": "sv: account deletion ends every session, password hints, ws:// addresses"},{"t": "09-25 20:05","c": "f445ba2","pr": "#104","asvs": 74,"aisvs": 8,"what": "Policy numbers: hold the app to the guessing limit you state"},{"t": "09-25 20:16","c": "d6e853d","pr": "#105","asvs": 77,"aisvs": 8,"what": "Three more Level 2 questions for the running app"},{"t": "09-25 20:48","c": "7a27906","pr": "#107","asvs": 81,"aisvs": 8,"what": "An upload entry, and four Level 1 questions about files"},{"t": "09-25 21:21","c": "416b16a","pr": "#108","asvs": 83,"aisvs": 8,"what": "Read what the app wrote down about what the probes did"},{"t": "09-25 22:13","c": "6edcb33","pr": "#112","asvs": 86,"aisvs": 8,"what": "sv probe: ask the live site the questions only it can answer"},{"t": "09-25 23:11","c": "4829746","pr": "#115","asvs": 90,"aisvs": 8,"what": "What a log line and a download carry: four Level 2 questions"},{"t": "09-25 23:20","c": "68097c6","pr": "#113","asvs": 94,"aisvs": 8,"what": "Four more Level 1 questions, from the sweep"},{"t": "09-26 00:00","c": "e4c8393","pr": "#118","asvs": 98,"aisvs": 8,"what": "GraphQL, WebSocket, and a log line's format: four Level 2 questions"},{"t": "09-26 00:41","c": "a1a85e5","pr": "#120","asvs": 100,"aisvs": 8,"what": "A mail server inside the fence, and password reset"},{"t": "09-26 01:25","c": "5c1ee77","pr": "#121","asvs": 104,"aisvs": 8,"what": "Signing in with an emailed code: four Level 2 questions"},{"t": "09-26 08:05","c": "7850ee0","pr": "#123","asvs": 105,"aisvs": 8,"what": "Ask sign-up about breached passwords (V6.2.12) and context-specific words (V6.2."},{"t": "09-26 08:22","c": "9898363","pr": "#125","asvs": 105,"aisvs": 8,"what": "Try skipping a step of a multi-step flow (V2.3.1)"},{"t": "09-26 08:42","c": "f8c9264","pr": "#126","asvs": 110,"aisvs": 8,"what": "CodeQL as an outside tool: following a value to where it is used"},{"t": "09-26 08:54","c": "07b5a99","pr": "#129","asvs": 111,"aisvs": 8,"what": "Check two-factor codes: once only, and only while current (V6.5.1, V6.5.5)"},{"t": "09-26 09:07","c": "901e8e6","pr": "#130","asvs": 112,"aisvs": 8,"what": "Check whether the guessing limit believes a made-up address (V15.3.4)"},{"t": "09-26 09:46","c": "988fcc7","pr": "#136","asvs": 114,"aisvs": 8,"what": "Session timeouts, waited out with sv run --slow (V7.3.1, V7.3.2)"},{"t": "09-26 10:03","c": "860a0f6","pr": "#138","asvs": 119,"aisvs": 8,"what": "sv: check \"Sign in with Google\" against a test provider inside the fence"},{"t": "09-26 10:12","c": "92f9494","pr": "#139","asvs": 121,"aisvs": 8,"what": "sv probe: Encrypted Client Hello and the HSTS preload list (V12.1.5, V3.7.4)"},{"t": "09-26 10:31","c": "74fe88c","pr": "#142","asvs": 121,"aisvs": 8,"what": "sv: check pages in a real browser inside the fence (V3.2.2, V7.4.4)"},{"t": "09-26 10:51","c": "c22f983","pr": "#145","asvs": 121,"aisvs": 8,"what": "sv: sign out in the real browser and check its storage is emptied (V14.3.1)"},{"t": "09-26 11:42","c": "7e5a519","pr": "#155","asvs": 122,"aisvs": 8,"what": "Check the activation code emailed at sign-up (V6.4.1)"},{"t": "09-26 11:53","c": "d83350f","pr": "#157","asvs": 123,"aisvs": 8,"what": "sv: ask whether a JSON request can skip the CORS preflight (V3.5.2)"},{"t": "09-26 12:15","c": "169bcf8","pr": "#159","asvs": 123,"aisvs": 8,"what": "Wait out an emailed sign-in code's ten minutes with --slow (V6.5.5)"},{"t": "09-26 12:24","c": "419e852","pr": "#160","asvs": 129,"aisvs": 8,"what": "Ask six more questions of any running app"},{"t": "09-26 15:31","c": "a4fa068","pr": "#164","asvs": 125,"aisvs": 2,"what": "Semgrep: count only the rules its packs load (with e8's recommendation and claim"},{"t": "09-26 15:47","c": "faabe34","pr": "#168","asvs": 126,"aisvs": 2,"what": "sv: ask whether a sign-in checks which provider it came from (V10.2.2)"},{"t": "09-26 16:02","c": "652ae40","pr": "#172","asvs": 127,"aisvs": 2,"what": "sv: find ws:// addresses written into the code, as sv's own rule (V4.4.1)"},{"t": "09-26 16:17","c": "f019542","pr": "#173","asvs": 127,"aisvs": 6,"what": "Run semgrep's AI pack for apps that may call a model"},{"t": "09-26 16:33","c": "107c3e1","pr": "#176","asvs": 129,"aisvs": 6,"what": "Ask whether a private WebSocket needs a real session (V4.4.3, V4.4.4)"},{"t": "09-26 17:49","c": "1f0da09","pr": "#189","asvs": 129,"aisvs": 10,"what": "Ask an app's AI feature through a test model inside the fence"},{"t": "09-26 18:13","c": "9116a57","pr": "#194","asvs": 129,"aisvs": 12,"what": "Read the AI feature's own log lines (C12.1.3, C12.2.1)"},{"t": "09-26 18:24","c": "cefe215","pr": "#196","asvs": 130,"aisvs": 12,"what": "sv: find encryption that cannot show it was changed, as sv's own rule (V11.3.3)"},{"t": "09-26 18:44","c": "6a7d3e9","pr": "#199","asvs": 130,"aisvs": 13,"what": "Hold the AI feature to a stated rate limit (C11.2.2)"},{"t": "09-26 19:00","c": "55122dc","pr": "#201","asvs": 130,"aisvs": 14,"what": "Try the AI feature's kill switch on a second copy of the app (C9.6.1)"},{"t": "09-26 19:17","c": "0521739","pr": "#202","asvs": 130,"aisvs": 15,"what": "Check MCP tool results through a test MCP server (C10.4.1, C10.4.2)"},{"t": "09-26 20:10","c": "153836a","pr": "#211","asvs": 132,"aisvs": 15,"what": "Adopt p/default for semgrep, and fix two template lines behind its false alarms"},{"t": "09-26 21:22","c": "278575a","pr": "#224","asvs": 132,"aisvs": 15,"what": "Promote sv to the top of the repository; v1 moves to the v1 branch"}];
+  const svg = document.getElementById("growth");
+  const L = 60, R = 840, T = 20, B = 250, YMAX = 150;
+  const hours = (t) => { const [md, hm] = t.split(" "); const d = +md.split("-")[1]; const [h, m] = hm.split(":").map(Number); return (d - 25) * 24 + h + m / 60 - 11; };
+  const HMAX = 35;
+  const x = (h) => L + (h / HMAX) * (R - L), y = (v) => B - (v / YMAX) * (B - T);
+  [0, 50, 100, 150].forEach((v) => {
+    mk(svg, "line", { x1: L, x2: R, y1: y(v), y2: y(v), stroke: "var(--grid)" });
+    mk(svg, "text", { x: L - 8, y: y(v) + 4, "text-anchor": "end", class: "muted" }, v);
+  });
+  [[0, "25 Sep 11:00"], [13, "midnight"], [24, "26 Sep 11:00"], [35, "22:00"]].forEach(([h, lab]) => {
+    mk(svg, "text", { x: x(h), y: B + 18, "text-anchor": h === 0 ? "start" : h === 35 ? "end" : "middle", class: "muted" }, lab);
+  });
+  mk(svg, "text", { x: L, y: 12, class: "muted" }, "ASVS requirements some check can settle (of 345)");
+  let d = "";
+  data.forEach((p, i) => {
+    const px = x(hours(p.t)), py = y(p.asvs);
+    d += i === 0 ? `M${px} ${py}` : ` H${px} V${py}`;
+  });
+  d += ` H${x(HMAX)}`;
+  mk(svg, "path", { d, fill: "none", stroke: "var(--sv)", "stroke-width": 2, "stroke-linejoin": "round" });
+  // Annotations: the start, the honest correction, the end.
+  const note = (p, label, dy, anchor = "start") => {
+    const px = x(hours(p.t)), py = y(p.asvs);
+    mk(svg, "line", { x1: px, y1: py, x2: px, y2: py + dy + (dy < 0 ? 4 : -12), stroke: "var(--text-muted)", "stroke-width": 1 });
+    label.split("\n").forEach((line, k) => mk(svg, "text", { x: px + (anchor === "end" ? -4 : 4), y: py + dy + k * 14, "text-anchor": anchor, class: k ? "muted" : "strong" }, line));
+  };
+  const find = (pr) => data.find((p) => p.pr === pr);
+  note(find("#72"), "53 when first counted\n#72, 25 Sep 11:16", -40);
+  note(find("#164"), "129 → 125: semgrep counted only\nthrough rules it actually runs (#164)", 44, "end");
+  note(find("#211"), "132\n#211", -34, "end");
+  // Hover targets on every step.
+  const tip = document.getElementById("tip"), wrap = document.getElementById("growth-wrap");
+  data.forEach((p, i) => {
+    const px = x(hours(p.t)), py = y(p.asvs);
+    const prev = i ? data[i - 1].asvs : null;
+    const delta = prev == null ? "first measured" : (p.asvs - prev >= 0 ? `+${p.asvs - prev}` : `${p.asvs - prev}`);
+    const label = `${p.t.replace("09-", "Sep ")} · ${p.asvs} (${delta}) · AISVS ${p.aisvs}\n${p.pr} ${p.what}`;
+    mk(svg, "circle", { cx: px, cy: py, r: 3, fill: "var(--sv)", stroke: "var(--surface-1)", "stroke-width": 1.5 });
+    const hit = mk(svg, "circle", { cx: px, cy: py, r: 10, fill: "transparent", tabindex: 0, "aria-label": label });
+    const show = () => {
+      tip.textContent = label; tip.style.whiteSpace = "pre-line"; tip.style.display = "block";
+      const r = wrap.getBoundingClientRect(), b = hit.getBoundingClientRect();
+      tip.style.left = Math.min(Math.max(0, b.left - r.left - 150), r.width - 310) + "px";
+      tip.style.top = (b.top - r.top + 22) + "px";
+    };
+    hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+    hit.addEventListener("mouseleave", () => tip.style.display = "none");
+    hit.addEventListener("blur", () => tip.style.display = "none");
+  });
+  mk(svg, "text", { x: R, y: B + 36, "text-anchor": "end", class: "muted" },
+    `AISVS, over the same hours: 1 → 8, down to 2 with the same correction, then up to 15 as the AI-feature checks landed.`);
+
+  // 3. Frameworks.
+  const fw = document.getElementById("frameworks");
+  fw.innerHTML = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface-1)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--sv)" stroke-width="2"/></pattern></defs>`;
+  const rows = [["OWASP ASVS 5.0", 345, 132, 5], ["OWASP AISVS 1.0", 191, 15, 0], ["AISVS Appendix C", 68, 0, 0], ["Secure by Design 0.5.0", 36, 0, 6]];
+  const FX = 200, FW = 430, FS = FW / 345;
+  rows.forEach(([name, n, s, sup], i) => {
+    const yy = 12 + i * 46;
+    mk(fw, "text", { x: 0, y: yy + 15, class: "strong" }, name);
+    mk(fw, "path", { d: barPath(FX, yy, n * FS, 22), fill: "var(--empty)" });
+    let cx = FX;
+    if (s) { mk(fw, "rect", { x: cx, y: yy, width: s * FS - 2, height: 22, fill: "var(--sv)" }); cx += s * FS; }
+    if (sup) { mk(fw, "rect", { x: cx, y: yy, width: Math.max(3, sup * FS - 2), height: 22, fill: "url(#hatch)", stroke: "var(--sv)", "stroke-width": 1 }); }
+    const pct = Math.round((s / n) * 100);
+    mk(fw, "text", { x: FX + n * FS + 8, y: yy + 16, class: "ink" }, `${s} of ${n}` + (sup ? ` · ${sup} supporting` : "") + ` (${pct}%)`);
+  });
+})();
+</script>
+</body>
+</html>

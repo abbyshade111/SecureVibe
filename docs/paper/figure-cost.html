@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cost and Speed</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --empty: #e3e2dd;
+    --v1: #2a78d6; --sv: #eb6834;
+    --v1-600: #184f95; --v1-450: #2a78d6; --v1-300: #6da7ec; --v1-200: #9ec5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #3a3935;
+      --v1: #3987e5; --sv: #d95926;
+      --v1-600: #86b6ef; --v1-450: #3987e5; --v1-300: #256abf; --v1-200: #184f95;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #3a3935;
+    --v1: #3987e5; --sv: #d95926;
+    --v1-600: #86b6ef; --v1-450: #3987e5; --v1-300: #256abf; --v1-200: #184f95;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 32px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 8px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 180px; }
+  .stat b { display: block; font-size: 1.8rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .chart { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 600px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .muted { fill: var(--text-muted); font-size: 11px; }
+  svg .strong { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  svg .ink { fill: var(--text-primary); }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 14px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); margin: 6px 0; }
+  .swatch { width: 14px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  @media (max-width: 600px) {
+    td, th { white-space: normal !important; overflow-wrap: anywhere; }
+    .rows { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Cost and speed</h1>
+  <p class="sub">What the AI cost in v1, where the money went, what made it cheaper, and what made the work
+     faster in both versions. In the comparison, cost did not buy verification; running the app did.</p>
+
+  <div class="hero">
+    <div class="stat"><b style="color:var(--v1)">$4.28</b><span>median v1 build with AI writing the code (8 builds, 44.9 min median)</span></div>
+    <div class="stat"><b style="color:var(--v1)">$0.00</b><span>for the free 4-minute check that verified 104 of 159 ASVS requirements</span></div>
+    <div class="stat"><b style="color:var(--v1)">97%</b><span>of v1's AI input tokens served from the prompt cache</span></div>
+    <div class="stat"><b style="color:var(--sv)">$0</b><span>AI spend by <code>sv</code> itself: it makes no AI calls</span></div>
+  </div>
+
+  <h2>1. v1: what a run cost, and how long it took</h2>
+  <p class="lede">51 successful runs, 18–20 September. Median per run type. Cost and time are two charts on
+     their own scales.</p>
+  <div class="chart"><svg id="runs" viewBox="0 0 870 190" role="img" aria-label="Median cost and time per v1 run type."></svg></div>
+
+  <h2>2. v1: where the money went</h2>
+  <p class="lede">$63.46 across 823 AI calls. Two steps were 98% of the bill.</p>
+  <div class="chart"><svg id="steps" viewBox="0 0 870 72" role="img" aria-label="AI review 60 percent, generate 38 percent, fix 1.3 percent, everything else 0.7 percent."></svg></div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--v1-600)"></span>AI review · $37.88 · 386 calls</span>
+    <span><span class="swatch" style="background:var(--v1-450)"></span>writing code · $24.29 · 372 calls</span>
+    <span><span class="swatch" style="background:var(--v1-300)"></span>fixes · $0.85 · 48 calls</span>
+    <span><span class="swatch" style="background:var(--v1-200)"></span>plan, peer review, refine, summarize · $0.44 · 17 calls</span>
+  </div>
+
+  <h2>3. v1: what made it cheaper</h2>
+  <table>
+    <thead><tr><th>Measure</th><th>What it did</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Prompt caching</td><td>The writing agent and the reviewer read the same app files again and again, so the files are cached once and read back cheaply</td><td class="n">84.6M of 87.1M input tokens from cache</td></tr>
+      <tr><td>"Save credits" on by default</td><td>Sonnet rather than Opus, low reasoning effort, one fix round</td><td class="n">692 of 823 calls on Sonnet</td></tr>
+      <tr><td>Cheapest model for steps that decide nothing</td><td><code>classify</code> and <code>summarize</code> always use the service's cheapest model</td><td class="n"><code>summarize</code>: $0.00 in total</td></tr>
+      <tr><td>The cap split before it is spent</td><td>55% writing, 30% review, 15% fixes, so writing cannot use up the review's share</td><td class="n"><code>BUDGET_SHARES</code></td></tr>
+      <tr><td>Review ordered by risk</td><td>Highest-consequence requirements first, so a review stopped by the cap loses the least</td><td class="n"><code>reviewOrder</code></td></tr>
+      <tr><td>Verdicts carried forward</td><td>On a rebuild, reused only when the cited file is byte-identical</td><td class="n"><code>pipeline/diff-aware.ts</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Both versions: what made the work faster</h2>
+  <p class="lede">Each bar is the time after, as a share of the time before. Units differ, so every row is on its own scale.</p>
+  <div class="chart"><svg id="speed" viewBox="0 0 870 210" role="img" aria-label="Four speed-ups: signed-in checks 12 to 4.3 seconds; five golden apps 25 to 13 minutes; one golden app 14 to 4.5 minutes; a sandbox question 13 minutes to 2 seconds."></svg></div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--v1)"></span>v1</span>
+    <span><span class="swatch" style="background:var(--sv)"></span><code>sv</code></span>
+    <span><span class="swatch" style="background:var(--empty)"></span>the time before</span>
+  </div>
+
+  <p class="note">Sources: <code>docs/paper/OPTIMIZATION.md</code> (from v1's <code>workspace/llm-audit.jsonl</code>
+     and the runs' own start and finish times) for sections 1–3 and the v1 rows of section 4. The <code>sv</code>
+     row is from commit <code>f9be70c</code>: one sidecar container instead of 26 throwaway ones, three runs each
+     way on <code>examples/notes-with-users</code>. The sandbox row is v1's <code>CLAUDE.md</code> rule to ask a
+     four-line script rather than run a golden app. v1's $63.46 is what building SecureVibe cost over three days,
+     not what an owner pays. <code>sv</code> makes no AI calls (it has no HTTP client among its dependencies), so its
+     cost is the owner's own AI coding tool, which <code>sv</code> does not see.</p>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (svg, tag, attrs, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text != null) e.textContent = text;
+    svg.appendChild(e); return e;
+  };
+  const bar = (x, y, w, h, r = 4) => w <= r ? `M${x} ${y} h${Math.max(w, 1)} v${h} h${-Math.max(w, 1)} Z`
+    : `M${x} ${y} H${x + w - r} q${r} 0 ${r} ${r} V${y + h - r} q0 ${r} ${-r} ${r} H${x} Z`;
+
+  // 1. Run types: cost (left) and time (right), each its own scale.
+  const runs = document.getElementById("runs");
+  const rows = [
+    ["Full build, AI writing code", 8, 4.28, 44.9],
+    ["Full build, no AI", 9, 0, 4.1],
+    ["Check only, AI review on", 6, 2.38, 12.0],
+    ["Check only, no AI", 28, 0, 0.6],
+  ];
+  const LX = 220, CW = 250, TX = 590, TW = 200;
+  mk(runs, "text", { x: LX, y: 14, class: "muted" }, "median cost, $");
+  mk(runs, "text", { x: TX, y: 14, class: "muted" }, "median time, minutes");
+  rows.forEach(([name, n, cost, mins], i) => {
+    const y = 26 + i * 40;
+    mk(runs, "text", { x: 0, y: y + 12, class: "strong" }, name);
+    mk(runs, "text", { x: 0, y: y + 26, class: "muted" }, `${n} runs`);
+    const cw = (cost / 4.28) * CW;
+    if (cost > 0) mk(runs, "path", { d: bar(LX, y, cw, 20), fill: "var(--v1)" });
+    mk(runs, "text", { x: LX + cw + 6, y: y + 14, class: "ink" }, cost ? `$${cost.toFixed(2)}` : "$0.00");
+    const tw = Math.max(2, (mins / 44.9) * TW);
+    mk(runs, "path", { d: bar(TX, y, tw, 20), fill: "var(--v1)" });
+    mk(runs, "text", { x: TX + tw + 6, y: y + 14, class: "ink" }, mins < 1 ? `${mins} (36 s)` : `${mins}`);
+  });
+
+  // 2. Where the money went: one 100% bar.
+  const steps = document.getElementById("steps");
+  const parts = [[37.88, "var(--v1-600)", "AI review 60%"], [24.29, "var(--v1-450)", "writing 38%"], [0.85, "var(--v1-300)", ""], [0.44, "var(--v1-200)", ""]];
+  const total = 63.46, SX = 0, SW = 860;
+  let cx = SX;
+  parts.forEach(([v, c, lab]) => {
+    const w = (v / total) * SW;
+    mk(steps, "rect", { x: cx, y: 22, width: Math.max(1.5, w - 2), height: 26, fill: c, rx: 3 });
+    if (lab) mk(steps, "text", { x: cx, y: 14, class: "strong" }, lab);
+    cx += w;
+  });
+  mk(steps, "text", { x: SW, y: 64, "text-anchor": "end", class: "muted" }, "fixes 1.3% and everything else 0.7%, at the right edge");
+
+  // 4. Speed-ups: after as a share of before.
+  const speed = document.getElementById("speed");
+  const sp = [
+    ["sv", "Signed-in checks on a running app", "11–13 s", "4.3 s", 4.3 / 12, "one sidecar, not 26 containers"],
+    ["v1", "Five golden apps rebuilt", "25 min", "13 min", 13 / 25, "two at a time, one compile cache"],
+    ["v1", "One golden app, when one answers", "14 min", "4.5 min", 4.5 / 14, "--only <name>"],
+    ["v1", "\"What does the sandbox do?\"", "13 min", "2 s", 2 / 780, "a four-line script under the same flags"],
+  ];
+  const BX = 300, BW = 360;
+  sp.forEach(([who, name, before, after, share, how], i) => {
+    const y = 12 + i * 48;
+    mk(speed, "text", { x: 0, y: y + 12, class: "strong" }, name);
+    mk(speed, "text", { x: 0, y: y + 27, class: "muted" }, how);
+    mk(speed, "path", { d: bar(BX, y, BW, 22), fill: "var(--empty)" });
+    mk(speed, "path", { d: bar(BX, y, Math.max(3, share * BW), 22), fill: who === "sv" ? "var(--sv)" : "var(--v1)" });
+    mk(speed, "text", { x: BX + BW + 10, y: y + 16, class: "ink" }, `${before} → ${after}`);
+  });
+})();
+</script>
+</body>
+</html>
