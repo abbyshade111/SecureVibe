@@ -9,7 +9,7 @@ another session is not a claim.
 
 ## Next
 
-- **Records that disagree with what was built, found by the ADR analysis.** Found on 27 September 2026 by
+- **Records that disagree with what was built, or are missing, found by the ADR analysis.** Found on 27 September 2026 by
   session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
   to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** Items 1 to 4 are in v1's
   records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
@@ -36,6 +36,20 @@ another session is not a claim.
      never `pass`".** `sv`'s reports have neither status (they say *checked*, *needs attention*, *stated*, and so
      on), and `sv` has no AI review. Restate the rule in `sv`'s own terms: an AI tool's word is `stated`, the
      weakest tier, and nothing a model says makes a requirement *checked*.
+  7. **v1's ADR-001 cites a requirement that does not fit it.** It gives V15.1.2 (keep an inventory of
+     third-party libraries, such as an SBOM) for the choice of "TypeScript everywhere with a single npm install".
+     A language choice is not an inventory. ADR-007 cites the same requirement correctly, since it ships the SBOM.
+     The other 15 citations in v1's records fit their decisions (checked against `data/frameworks` on
+     27 September 2026).
+  8. **`sv`'s two largest technical choices have no record, and each reverses a v1 decision.**
+     - **Rust.** v1's ADR-001 chose "TypeScript everywhere". `DESIGN.md` says only "Written in Rust.", and no
+       reason is recorded anywhere.
+     - **Running apps in Docker behind an `--internal` network.** v1's ADR-010 rejected Docker because it "is not
+       available on the target machine". `DESIGN.md` argues the fence at length and says what changed ("A container
+       backend is available on this machine as of 22 September 2026"). No record names it as replacing ADR-010's
+       choice, and ADR-010 itself says nothing of it.
+
+     Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
 
 - **What `sv` cannot see when it checks itself, found by the v2 self-assessment.** Found on 27 September 2026
   (`docs/paper/SELF-ASSESSMENT-V2.md`, "Three things `sv` could do about this"). **Not claimed.**
@@ -49,7 +63,7 @@ another session is not a claim.
      incident (#77).
 
 - **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
-  admiring-murdock-875699**, at the owner's asking. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
+  admiring-murdock-875699**, at the owner's asking. **Done the same day:** `docs/paper/ADRS.md`; its inconsistencies are the entry above. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
   ADR-018, the template's three, and the decisions not yet written as ADRs: when each was made, whether it held,
   what later evidence says about it, and how v1's decisions carried into `sv`. A written analysis and a figure in
   `docs/paper/`. Touches only `docs/paper/`.
