@@ -195,7 +195,12 @@ fn inventory_line(name: &str, files: &[(&str, &str)]) -> (serde_json::Value, Str
     }
     let out_dir = dir.join("report");
     let report = Command::new(env!("CARGO_BIN_EXE_sv"))
-        .args(["report", dir.to_str().unwrap(), "--out", out_dir.to_str().unwrap()])
+        .args([
+            "report",
+            dir.to_str().unwrap(),
+            "--out",
+            out_dir.to_str().unwrap(),
+        ])
         .output()
         .expect("sv runs");
     assert!(
@@ -251,7 +256,11 @@ fn a_lockfile_nothing_could_be_read_from_does_not_credit_the_inventory() {
     );
     assert_eq!(line["status"], "needs-attention", "{line}");
     assert!(
-        line["findings"].as_array().unwrap().iter().any(|f| f == "sbom.incomplete"),
+        line["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f == "sbom.incomplete"),
         "{line}"
     );
     assert!(checked_by(&line).is_empty(), "nothing may claim it: {line}");
