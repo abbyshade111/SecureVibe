@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_check::advisories;
 use sv_check::ast;
-use sv_check::config::check_dir;
+use sv_check::config::check_dir_in;
 use sv_check::probes;
 use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
@@ -1117,11 +1117,14 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     if !app_dir.is_dir() {
         bail!("{} is not a folder", app_dir.display());
     }
+    // One walk of the folder, shared by every check below (DESIGN, "One walk of the app").
+    let listing = sv_scan::files::Listing::of(&app_dir);
     let rules = SecretRules::load(&secret_rules_path())?;
-    let scan = scan_dir(&rules, &app_dir);
-    let config = check_dir(&app_dir);
+    let scan = sv_check::secrets::scan_listing(&rules, &listing);
+    let bill_of_materials = sbom::build_in(&listing);
+    let config = check_dir_in(&listing, &bill_of_materials);
     let ast_rules = ast::AstRules::load(&ast_rules_path())?;
-    let code = ast::scan_dir(&ast_rules, &app_dir);
+    let code = ast::scan_listing(&ast_rules, &listing);
 
     println!(
         "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.\n\
@@ -1159,6 +1162,41 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
         if scan.coverage.skipped.len() > 10 {
             println!("  … and {} more", scan.coverage.skipped.len() - 10);
+        }
+    }
+
+    if !listing.links.is_empty() {
+        println!(
+            "\n{} symbolic link{} not followed, so whatever {} point{} at was not read:",
+            listing.links.len(),
+            if listing.links.len() == 1 { " was" } else { "s were" },
+            if listing.links.len() == 1 { "it" } else { "they" },
+            if listing.links.len() == 1 { "s" } else { "" }
+        );
+        for link in listing.links.iter().take(10) {
+            println!("  {link}");
+        }
+        if listing.links.len() > 10 {
+            println!("  … and {} more", listing.links.len() - 10);
+        }
+    }
+
+    if !code.unread_files.is_empty() {
+        println!(
+            "\nNot read — {} in a language the rules read {} not opened, so no rule can say it found\n\
+             nothing wrong:",
+            if code.unread_files.len() == 1 {
+                "a file".to_owned()
+            } else {
+                format!("{} files", code.unread_files.len())
+            },
+            if code.unread_files.len() == 1 { "was" } else { "were" }
+        );
+        for (file, why) in code.unread_files.iter().take(10) {
+            println!("  {file} — {why}");
+        }
+        if code.unread_files.len() > 10 {
+            println!("  … and {} more", code.unread_files.len() - 10);
         }
     }
 
@@ -1219,7 +1257,6 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
 
     let mut findings = scan.findings;
     findings.extend(config.findings);
-    let bill_of_materials = sbom::build(&app_dir);
     findings.extend(sbom::incompleteness_finding(&bill_of_materials));
     findings.extend(code.findings.clone());
     findings.sort_by(|a, b| {
@@ -1848,7 +1885,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let frameworks = load_frameworks(&data)?;
     let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan(app_dir, &signatures)?;
+    // One walk of the folder, shared by every check in this report (DESIGN, "One walk of the app").
+    let listing = sv_scan::files::Listing::of(app_dir);
+    let scan_report = sv_scan::scan_listing(&listing, &signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
     // Shared with v1, beside the applicability rules, so a threat is corrected in one place.
@@ -1856,16 +1895,17 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         sv_report::threats::ThreatRules::load(&data.join("knowledge").join("threats.json"))?
             .with_atlas()?;
 
-    let secret_rules = SecretRules::load(&secret_rules_path())?;
-    let secrets = scan_dir(&secret_rules, app_dir);
-    let config = check_dir(app_dir);
-    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
-    let code = ast::scan_dir(&ast_rules, app_dir);
     // The report used to reason about dependencies from the scan alone, which knows only whether a
     // lockfile is missing. The bill of materials knows what actually came out of each ecosystem,
     // and that is the difference between "this list is approximate" and "this list is empty".
-    // Building it reads manifests and lockfiles; it opens no network connection.
-    let bill_of_materials = sbom::build(app_dir);
+    // Building it reads manifests and lockfiles; it opens no network connection. Built once, here,
+    // and handed to the lockfile check and the findings below.
+    let bill_of_materials = sbom::build_in(&listing);
+    let secret_rules = SecretRules::load(&secret_rules_path())?;
+    let secrets = sv_check::secrets::scan_listing(&secret_rules, &listing);
+    let config = check_dir_in(&listing, &bill_of_materials);
+    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
+    let code = ast::scan_listing(&ast_rules, &listing);
     let mut findings_from_advisories = Vec::new();
 
     // Known vulnerabilities, when the owner has pointed at a local advisory database, held to the
@@ -1967,9 +2007,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
         let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
         let not_holding = adapters.not_holding(|condition| ctx.get(condition));
-        let outcome = sv_check::adapters::run_all(
+        let outcome = sv_check::adapters::run_all_in(
             &adapters,
-            app_dir,
+            &listing,
             &languages,
             &not_holding,
             &sv_check::adapters::scratch_dir(),
@@ -2103,7 +2143,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         // credit one on the strength of a name somebody chose for other reasons.
                         let known: std::collections::BTreeSet<&str> =
                             frameworks.requirements.keys().map(String::as_str).collect();
-                        let named = sv_check::suite::tests_naming_requirements(app_dir, &known);
+                        let named =
+                            sv_check::suite::tests_naming_requirements_in(&listing, &known);
                         let describe = |id: &str| {
                             frameworks
                                 .requirements
@@ -2218,6 +2259,52 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         });
     }
     gaps.extend(tool_gaps);
+    if !listing.links.is_empty() {
+        let shown: Vec<&str> = listing.links.iter().take(5).map(String::as_str).collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} symbolic link{} in the app, not followed",
+                listing.links.len(),
+                if listing.links.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "a link can lead outside the app, or back into it in a loop, so nothing here \
+                 followed {}: {}{}. What it points at was not read by any check.",
+                if listing.links.len() == 1 { "it" } else { "them" },
+                shown.join(", "),
+                if listing.links.len() > 5 {
+                    format!(", and {} more", listing.links.len() - 5)
+                } else {
+                    String::new()
+                }
+            ),
+        });
+    }
+    if !code.unread_files.is_empty() {
+        let shown: Vec<String> = code
+            .unread_files
+            .iter()
+            .take(5)
+            .map(|(file, why)| format!("{file} ({why})"))
+            .collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} file{} in a language the rules read, not opened",
+                code.unread_files.len(),
+                if code.unread_files.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "{}{}. While part of the app went unread, no rule that reads code can say it found \
+                 nothing wrong.",
+                shown.join("; "),
+                if code.unread_files.len() > 5 {
+                    format!("; and {} more", code.unread_files.len() - 5)
+                } else {
+                    String::new()
+                }
+            ),
+        });
+    }
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),

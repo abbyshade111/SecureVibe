@@ -965,6 +965,10 @@ pub struct AstScan {
     /// listed the requirement against `eval` as checked. Findings from such a file still stand; what
     /// it cannot do is support a claim that something is absent.
     pub unparsed_files: Vec<String>,
+    /// Files in a language `sv` reads that were not read at all, with the reason: over the size
+    /// limit, not text, or unreadable. Like `unparsed_files`, these keep every rule from claiming
+    /// anything is absent; unlike a skipped folder, which is a choice, an unread file is a hole.
+    pub unread_files: Vec<(String, String)>,
     /// Rules that met a language `sv` reads but the rule has not been taught, and so claim nothing.
     ///
     /// A shell-command rule with no Rust query that met a Rust file has not ruled out a shell
@@ -1117,8 +1121,57 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
 /// Languages present but unread are recorded rather than skipped quietly. A Ruby app scanned by a tool
 /// with no Ruby grammar produces no findings, and "no findings" is what a clean app produces too.
 pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
+    scan_listing(rules, &sv_scan::files::Listing::of(app_dir))
+}
+
+/// `scan_dir`, over a listing already made.
+pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstScan {
     let mut scan = AstScan::default();
-    walk(app_dir, app_dir, rules, &mut scan);
+    for entry in &listing.files {
+        let Some(language) = entry.language else {
+            continue;
+        };
+        if !is_supported(language) {
+            // Present, and not read. The rules have nothing to say about this file and the report
+            // should say that rather than let its silence be read as approval.
+            //
+            // Except for a page that holds no code. `html` covers `.html`, `.vue` and `.svelte`,
+            // and almost every web application has at least one — so counting every page as unread
+            // silenced every rule for nearly every real app, which is a great deal of silence
+            // bought by a file that in most cases hides nothing at all.
+            if language == "html" {
+                match entry.read_text() {
+                    Ok(source) => read_page(rules, &entry.relative, &source, &mut scan),
+                    // A page that cannot be opened is the one case where nothing at all is known
+                    // about it.
+                    Err(_) => {
+                        scan.unread_languages.insert("html".to_owned());
+                    }
+                }
+                continue;
+            }
+            scan.unread_languages.insert(language.to_owned());
+            continue;
+        }
+        let source = match entry.read_text() {
+            Ok(source) => source,
+            Err(why) => {
+                scan.unread_files
+                    .push((entry.relative.clone(), why.explain().to_owned()));
+                continue;
+            }
+        };
+        scan.files_parsed += 1;
+        *scan
+            .parsed_by_language
+            .entry(language.to_owned())
+            .or_default() += 1;
+        let read = read_file(rules, language, &entry.relative, &source);
+        if read.parse_error {
+            scan.unparsed_files.push(entry.relative.clone());
+        }
+        scan.findings.extend(read.findings);
+    }
     scan.findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -1165,7 +1218,10 @@ fn untaught(rules: &AstRules, scan: &AstScan) -> Vec<Untaught> {
 /// parsed. And a rule says nothing while a language that *was* read is one it was never taught:
 /// the parser having read the Swift does not mean this rule looked in it.
 fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
-    if !scan.unread_languages.is_empty() || !scan.unparsed_files.is_empty() {
+    if !scan.unread_languages.is_empty()
+        || !scan.unparsed_files.is_empty()
+        || !scan.unread_files.is_empty()
+    {
         return Vec::new();
     }
     let mut out = Vec::new();
@@ -1238,13 +1294,8 @@ fn and_list(items: &[String]) -> String {
 /// came out is one nothing is hiding in; a page with a `javascript:` URL still silences every rule,
 /// because the extractor did not take that and saying otherwise would be the whole failure this
 /// guards against.
-fn read_page(rules: &AstRules, root: &std::path::Path, path: &std::path::Path, scan: &mut AstScan) {
-    let Ok(source) = std::fs::read_to_string(path) else {
-        // A page that cannot be opened is the one case where nothing at all is known about it.
-        scan.unread_languages.insert("html".to_owned());
-        return;
-    };
-    let page = html_fragments(&source);
+fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan) {
+    let page = html_fragments(source);
     if page.left_behind.is_some() {
         scan.unread_languages.insert("html".to_owned());
         return;
@@ -1254,11 +1305,6 @@ fn read_page(rules: &AstRules, root: &std::path::Path, path: &std::path::Path, s
         return;
     }
 
-    let relative = path
-        .strip_prefix(root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string();
     scan.files_parsed += 1;
     for fragment in &page.fragments {
         // Counted under the language actually parsed. A page holding JavaScript is a file in which
@@ -1267,67 +1313,12 @@ fn read_page(rules: &AstRules, root: &std::path::Path, path: &std::path::Path, s
             .parsed_by_language
             .entry(fragment.language.to_owned())
             .or_default() += 1;
-        for mut finding in scan_file(rules, fragment.language, &relative, &fragment.code) {
+        for mut finding in scan_file(rules, fragment.language, relative, &fragment.code) {
             // Back to the line in the page. Without this a reader is sent to line 3 of something
             // that does not exist as a file.
             finding.location.line += fragment.line_offset;
             scan.findings.push(finding);
         }
-    }
-}
-
-fn walk(root: &std::path::Path, dir: &std::path::Path, rules: &AstRules, scan: &mut AstScan) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if sv_scan::ecosystems::skip_dir(&path) {
-                continue;
-            }
-            walk(root, &path, rules, scan);
-            continue;
-        }
-        let Some(extension) = path.extension().and_then(|e| e.to_str()) else {
-            continue;
-        };
-        let Some(language) = sv_scan::ecosystems::language_of(&extension.to_lowercase()) else {
-            continue;
-        };
-        if !is_supported(language) {
-            // Present, and not read. The rules have nothing to say about this file and the report
-            // should say that rather than let its silence be read as approval.
-            //
-            // Except for a page that holds no code. `html` covers `.html`, `.vue` and `.svelte`,
-            // and almost every web application has at least one — so counting every page as unread
-            // silenced every rule for nearly every real app, which is a great deal of silence
-            // bought by a file that in most cases hides nothing at all.
-            if language == "html" {
-                read_page(rules, root, &path, scan);
-                continue;
-            }
-            scan.unread_languages.insert(language.to_owned());
-            continue;
-        }
-        let Ok(source) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let relative = path
-            .strip_prefix(root)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-        scan.files_parsed += 1;
-        *scan
-            .parsed_by_language
-            .entry(language.to_owned())
-            .or_default() += 1;
-        let read = read_file(rules, language, &relative, &source);
-        if read.parse_error {
-            scan.unparsed_files.push(relative);
-        }
-        scan.findings.extend(read.findings);
     }
 }
 

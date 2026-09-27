@@ -126,8 +126,19 @@ pub fn file_name(path: &str) -> &str {
 /// build output are skipped (`SKIP_DIRS`), because a `package.json` inside `node_modules` belongs to
 /// somebody else's project.
 pub fn detect(app_dir: &Path) -> Vec<DetectedEcosystem> {
-    let mut dirs = Vec::new();
-    project_dirs(app_dir, app_dir, &mut dirs);
+    detect_in(&crate::files::Listing::of(app_dir))
+}
+
+/// `detect`, from a listing already made. The bill of materials, the dependency reader, and the
+/// pinning check all come through here, and each used to walk the folder again for it.
+pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
+    let app_dir = listing.root.as_path();
+    let mut dirs: Vec<String> = ECOSYSTEMS
+        .iter()
+        .flat_map(|e| listing.dirs_holding(e.manifest))
+        .collect();
+    dirs.sort();
+    dirs.dedup();
     // Root first, then by depth and path, so "the first manifest" in a message is the one a reader
     // would look at first.
     dirs.sort_by(|a, b| {
@@ -164,28 +175,6 @@ fn join(rel_dir: &str, name: &str) -> String {
         name.to_owned()
     } else {
         format!("{rel_dir}/{name}")
-    }
-}
-
-/// Every folder, relative to the app folder, that holds a manifest `sv` knows.
-fn project_dirs(root: &Path, dir: &Path, out: &mut Vec<String>) {
-    if ECOSYSTEMS.iter().any(|e| dir.join(e.manifest).exists()) {
-        let rel = dir
-            .strip_prefix(root)
-            .unwrap_or(dir)
-            .to_string_lossy()
-            .replace('\\', "/");
-        out.push(rel);
-    }
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        // `file_type` rather than `is_dir`, so a symlinked folder is not followed into a loop.
-        if entry.file_type().is_ok_and(|t| t.is_dir()) && !skip_dir(&path) {
-            project_dirs(root, &path, out);
-        }
     }
 }
 
@@ -370,9 +359,14 @@ pub fn pinning(app_dir: &Path, eco: &DetectedEcosystem) -> Pinning {
 /// Maven has no lockfile to be missing and Gradle's is optional, so for both the versions are read
 /// instead; reporting either for the missing file alone would be a wrong statement, not a finding.
 pub fn unpinned(app_dir: &Path) -> Vec<DetectedEcosystem> {
-    detect(app_dir)
+    unpinned_in(&crate::files::Listing::of(app_dir))
+}
+
+/// `unpinned`, from a listing already made.
+pub fn unpinned_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
+    detect_in(listing)
         .into_iter()
-        .filter(|e| pinning(app_dir, e).is_unpinned())
+        .filter(|e| pinning(&listing.root, e).is_unpinned())
         .collect()
 }
 

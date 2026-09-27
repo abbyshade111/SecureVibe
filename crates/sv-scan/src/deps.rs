@@ -17,8 +17,14 @@ pub struct Declared {
 }
 
 pub fn read(app_dir: &Path) -> Vec<Declared> {
+    read_in(&super::files::Listing::of(app_dir))
+}
+
+/// `read`, from a listing already made.
+pub fn read_in(listing: &super::files::Listing) -> Vec<Declared> {
+    let app_dir = listing.root.as_path();
     let mut out = BTreeSet::new();
-    for eco in super::ecosystems::detect(app_dir) {
+    for eco in super::ecosystems::detect_in(listing) {
         let path = app_dir.join(&eco.manifest);
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
