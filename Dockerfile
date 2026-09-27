@@ -16,8 +16,13 @@
 # in here would mean handing `sv` the Docker socket, and with it the owner's machine. Run it without a
 # network (`--network none`) and the promise that `sv` opens no connection is enforced, not only kept.
 # See docs/BACKLOG.md, "Packaging `sv` for somebody who is not technical".
+#
+# Both base images are pinned to an exact fingerprint (the `@sha256:` part) as well as a name, as the
+# workflow steps are: a name like `trixie-slim` can be moved to point at a different image, a fingerprint
+# cannot. Dependabot proposes a new fingerprint each week (.github/dependabot.yml), which is how security
+# fixes to the system underneath `sv` still arrive, and CI builds and drives the image before it merges.
 
-FROM rust:1-slim-trixie AS build
+FROM rust:1-slim-trixie@sha256:4cd829461bd5c4d511c32e269da9cb8929223b666519d8004e35fc8d1d771ab7 AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
@@ -25,7 +30,7 @@ COPY data ./data
 COPY examples ./examples
 RUN cargo build --release --locked -p sv-cli
 
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 # git answers whether a secrets file was ever committed. It refuses a repository owned by another
 # user, which a mounted folder often is on Linux, and then that check is quietly not assessed.
 RUN apt-get update \
