@@ -288,7 +288,8 @@ another session is not a claim.
   will misfire in the next. An issue template for a false alarm (the rule, what it matched, and why it
   is wrong, with the code shown only if the owner chooses), and a line beside each setting-aside in
   the report pointing to it, so a rule that keeps misfiring gets narrowed, with a test, rather than
-  set aside app after app. Not claimed.
+  set aside app after app. **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's
+  asking.
 
 - ~~**Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).**~~ **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a
