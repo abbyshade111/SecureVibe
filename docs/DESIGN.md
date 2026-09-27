@@ -3186,6 +3186,45 @@ skip judged by status alone, the redirect address ignored, a working skip credit
 flow tried anyway. The flow is also in the default test fixture, so every signed-in test runs it and
 the checks after it are shown not to be disturbed by it.
 
+### Admin actions, sent straight to the app (27 September 2026)
+
+The owner gave two reasons the admin page is only support for V8.3.1: one page refused is not every
+rule enforced, and nothing was ever sent straight to the app's API. This answers the second.
+`[[stack.run.users.admin-actions]]` lists requests only an admin should be able to make, in the same
+shape as every other request there, and each is sent twice: by the first ordinary user, then by the
+admin.
+
+**What decides the outcome is the action's effect, not its status.** Many apps answer a refused form
+with a redirect to the sign-in page, and a successful one with a redirect too. Some answer a refusal
+with 200. So each request carries a marker of its own (`{marker}`), and `check` names a page, read by
+the admin, where the marker shows once the action has been done. The ordinary user's marker on that
+page is a finding. The admin's marker, with the ordinary user's absent, is a refusal confirmed by its
+control. Neither marker there means the admin could not do it either, and the refusal says nothing.
+Without `check`, only a success status to the ordinary user is reported, at medium confidence and
+saying it was judged by status alone, and nothing is credited, because a refusal cannot be told from a
+request that did nothing.
+
+**Both sessions are shown signed in first**, by opening a private page with each. This was found by
+building it, not by planning it: the probe first ran after the password-change checks, and with a
+seed and no sign-up those change the first user's own password. Sign-in reports what it sent, not
+whether it worked, so the ordinary user was signed out without anything saying so. Signed out, the
+ordinary user was refused, by a correct app and by an open one alike, and the correct app's refusal was
+credited for the wrong reason. It came to light only because the test for the open app found nothing.
+The probe now runs before the password changes, and the signed-in guard has a witness of its own: the
+same call with the ordinary user's password wrong in the app credits nothing, and with it right
+credits the refusal.
+
+**What it earns.** A refused action cites V8.2.1 and V8.3.1, like the admin page, and V8.3.1 stays on
+`manualOnly`: the actions are a sample the owner chose, which is the owner's first reason, and still
+stands. An action the ordinary user got done is a finding against both.
+
+Broken on purpose, seven ways, each caught by its own test: the admin control removed, the ordinary
+user's marker never looked for, the signed-in guard off, a status-only success not reported, a
+refusal with no `check` credited, and the manifest's rule that a `check` needs a `{marker}` switched
+off. The seventh was first recorded as caught by nothing. That was a mutation that did not compile,
+which the break script read as green. The script now tells a build error from a passing test, and the
+corrected mutation is caught.
+
 ### Two more passwords at sign-up: one far down the list, one made from your own words
 
 The password checks already sign up with a control — an ordinary strong password that has to work

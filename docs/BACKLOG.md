@@ -9,7 +9,10 @@ another session is not a claim.
 
 ## Next
 
-- **Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).** Proposed on 27 September
+- **Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).** **The admin actions are
+  done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a
+  marker per send, confirmed by the admin, after both sessions are shown signed in. See DESIGN, "Admin
+  actions, sent straight to the app". Still open: the role-field probe below. Proposed on 27 September
   2026 by session securevibe-e8, at the owner's asking. **Claimed the same day by session securevibe-e8**,
   at the owner's asking, for the admin actions; the role-field probe below is not part of the claim.
   Today V8.3.1 (authorization enforced
