@@ -2392,6 +2392,32 @@ is what made it safe to add. Left over: the report still does not carry the SBOM
 finding or run the advisory comparison — the other half of the backlog entry this shares a root with, and
 its own piece of work.
 
+### A lockfile nobody could read is not an inventory (27 September 2026)
+
+The gaps were only half of what the bill of materials knows, and the other half was missing. `sv check`
+already reported it: incomplete is a finding against V15.1.2 (`sbom.incomplete`), complete is evidence
+for it, and exactly one of the two speaks. `sv report` read the gaps and left both of those out, so
+V15.1.2 was decided by `config.versions-pinned` alone, and that check passed any lockfile it found.
+
+Put together, on an app whose `poetry.lock` held nothing `sv` could read, the report marked V15.1.2
+*checked* ("an inventory catalog of all third-party libraries is maintained"). Beside it, the gaps said
+"everything Python installs" was an empty list, and threat T-27 counted the credit as *checked in part*.
+`sv check` on the same folder printed the pass and the `sbom.incomplete` finding one under the other.
+
+Two changes, one for each half:
+
+- **The report carries the bill of materials' finding and credit,** as `sv check` does. A finding
+  outranks a pass, so the requirement reads *needs attention*.
+- **The lockfile check asks the bill of materials** before passing. A lockfile it could take nothing
+  from leaves the question *not assessed*, with the bill of materials' own reason. That covers a
+  format `sv` cannot read, and a file that parsed and held no packages. A lockfile being there is not
+  the same as its versions being known.
+
+Its old test passed with `{}` as the `package-lock.json`, which is exactly the case this refuses; it now
+holds a package. Breaking each of the three changes on purpose turns a test red: the report's finding
+(one test), the report's credit (the control, where a readable lockfile must be credited by both
+checks), and the lockfile check (two tests).
+
 ## Matching the list against advisories
 
 `sv audit ./app --advisories ./osv` compares what the app ships with a local OSV database.

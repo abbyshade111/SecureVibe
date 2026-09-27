@@ -9,7 +9,9 @@ another session is not a claim.
 
 ## Next
 
-- **The report credits V15.1.2 for a lockfile it could not read.** Found on 27 September 2026 by session
+- ~~**The report credits V15.1.2 for a lockfile it could not read.**~~ **Done on 27 September 2026:** the
+  report carries the bill of materials' finding and credit, and the lockfile check is not assessed when
+  nothing could be read from the lockfile. See DESIGN, "A lockfile nobody could read is not an inventory". Found on 27 September 2026 by session
   securevibe-e8 while tidying this backlog. **Claimed the same day by session securevibe-e8**, at the
   owner's asking. Reproduced: an app with `pyproject.toml`, a
   `poetry.lock` that holds no packages `sv` can read, and a two-line `securevibe.toml`. `sv report` marks
