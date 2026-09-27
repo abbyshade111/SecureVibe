@@ -1147,6 +1147,37 @@ the owner's disk, gone when the container goes, and read out with `exec` like ev
 relative `test-report` resolves there, and `sv init` says so, because an owner who writes
 `reports/junit.xml` by habit would otherwise hit exactly the same wall.
 
+### What a failing suite printed
+
+A suite that fails under `--run` is worth what its runner's report says still passed, and its exit
+code says only that something did not. Which test, and why, is in the last lines the runner prints,
+where every common runner puts its summary. On the owner's first build from scratch one test failed
+under `sv`'s Node 22 image and not under the owner's Node 26, and the report could not say which: the
+AI coding tool rebuilt `sv`'s environment by hand to find it. So when the suite fails, the report
+(all three pages, and `report.json` as `test_output`) and `sv run`'s terminal output carry the last
+30 lines it printed, under a sentence saying how many there were in all.
+
+- **As a terminal showed them.** Color codes and other control sequences are taken out, a line a
+  runner redrew in place (a progress bar) is its last state, and blank lines at the end do not count
+  as the end.
+- **Never a credential.** A runner that prints its environment, or a request it made, prints the keys
+  in it, and a report may be handed to somebody. Everything the credential rules match, and any value
+  given to a name that says it is a credential (`API_KEY=…`, `"password": "…"`, quoted or not,
+  whatever its entropy), is cut to what a finding shows of it, its first four characters. A cut that
+  was not needed costs a reader four characters; one that was missed cannot be taken back. The
+  sentence says how many were cut. Placeholders (`changeme`, `${TOKEN}`) are left, because cutting one
+  hides the mistake it points at.
+- **Text, whatever it holds.** The HTML page escapes it, and the Markdown fence is longer than any run
+  of backticks in it, so a runner's own markup or code fence cannot end the block around it.
+- **Nothing for a suite that passed**, even one that printed a failure on its way to passing.
+
+Tested with each of twelve breaks (a rule's matches not cut, named values not cut, placeholders cut,
+the first lines kept, colors kept, redraws kept, trailing blanks kept, a passing suite's output kept,
+the HTML not escaped, a fixed fence, the block left out, the count of cuts dropped), each caught by
+two tests; and end to end with `sv run` and `sv report --run` on a Python app whose suite prints 45
+lines, a key among them, and fails: the last 30 were shown, and the key's tail was in none of the
+five report files.
+
 ### Saying a check looked and found nothing
 
 A finding is a claim about something that is there. `Verified` is the mirror: a claim about something

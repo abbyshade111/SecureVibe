@@ -50,6 +50,7 @@ fn inputs<'a>(
         generated: None,
         run_note: None,
         run_steps: Vec::new(),
+        test_output: None,
         frameworks,
         buckets,
         claims: &[],
@@ -615,6 +616,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         generated: None,
         run_note: None,
         run_steps: Vec::new(),
+        test_output: None,
         frameworks: &f,
         buckets: &buckets,
         claims: &[],
@@ -1642,4 +1644,109 @@ mod only_you {
             "the where-to-look lines never reach the page"
         );
     }
+}
+
+#[test]
+fn a_failing_suite_shows_its_last_lines_in_every_format() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.test_output = Some(sv_check::suite::FailingOutput {
+        exit_code: 1,
+        // Markup, and a fence of its own, which must reach the reader as text.
+        text: "<script>x</script>\n```\nnot ok 3 - refuses a stranger".to_owned(),
+        lines_kept: 3,
+        lines_total: 212,
+        redacted: 1,
+    });
+    let report = build(i);
+    let html = sv_report::html::page(&report);
+    let compliance = sv_report::markdown::compliance(&report);
+    for rendered in [&html, &compliance] {
+        assert!(
+            rendered.contains("The app's own tests failed when `sv` ran them (exit 1)")
+                || rendered.contains("The app&#39;s own tests failed")
+                || rendered.contains("The app&#x27;s own tests failed"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("last 3 of the 212 lines"), "{rendered}");
+        assert!(rendered.contains("One value that looked like a credential is cut short."));
+        assert!(rendered.contains("not ok 3 - refuses a stranger"));
+    }
+    assert!(
+        html.contains("<pre>&lt;script&gt;x&lt;/script&gt;"),
+        "{html}"
+    );
+    assert!(!html.contains("<script>x</script>"));
+    // The output's own three backticks do not close the block around it.
+    assert!(
+        compliance.contains("````text\n<script>x</script>\n```\nnot ok 3"),
+        "{compliance}"
+    );
+    // And in the JSON, for a tool reading the report.
+    let json = serde_json::to_value(&report).expect("serializes");
+    assert_eq!(json["test_output"]["lines_total"], 212);
+}
+
+#[test]
+fn a_passing_or_unrun_suite_adds_nothing_to_the_pages() {
+    let f = frameworks();
+    let buckets = Buckets::default();
+    let report = build(inputs(&f, &buckets, vec![], &[]));
+    assert!(!sv_report::markdown::compliance(&report).contains("own tests failed"));
+    assert!(!sv_report::html::page(&report).contains("own tests failed"));
+}
+
+fn failing(
+    text: &str,
+    lines_kept: usize,
+    lines_total: usize,
+    redacted: usize,
+) -> sv_check::suite::FailingOutput {
+    sv_check::suite::FailingOutput {
+        exit_code: 1,
+        text: text.to_owned(),
+        lines_kept,
+        lines_total,
+        redacted,
+    }
+}
+
+#[test]
+fn the_sentence_before_the_output_says_how_much_of_it_there_is() {
+    let intro = |t| sv_report::test_output_intro(&t);
+    assert!(intro(failing("", 0, 0, 0)).ends_with("It printed nothing."));
+    assert!(intro(failing("a\nb", 2, 2, 0)).ends_with("This is everything it printed (2 lines)."));
+    assert!(intro(failing("a", 1, 1, 0)).ends_with("(1 line)."));
+    assert!(intro(failing("x", 30, 90, 0)).contains("the last 30 of the 90 lines"));
+    assert!(
+        intro(failing("x", 1, 1, 1))
+            .ends_with("One value that looked like a credential is cut short.")
+    );
+    assert!(
+        intro(failing("x", 1, 1, 3))
+            .ends_with("3 values that looked like credentials are cut short.")
+    );
+}
+
+#[test]
+fn the_output_is_text_in_both_pages_whatever_it_holds() {
+    let f = frameworks();
+    let buckets = Buckets::default();
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.test_output = Some(failing("expected a < b && c\n````\ndone", 3, 3, 0));
+    let report = build(i);
+    let html = sv_report::html::page(&report);
+    assert!(
+        html.contains("<pre>expected a &lt; b &amp;&amp; c"),
+        "{html}"
+    );
+    let compliance = sv_report::markdown::compliance(&report);
+    assert!(
+        compliance.contains("`````text\nexpected a < b && c\n````\ndone\n`````"),
+        "{compliance}"
+    );
 }

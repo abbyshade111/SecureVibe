@@ -247,6 +247,7 @@ mod tests {
             generated: None,
             run_note: None,
             run_steps: Vec::new(),
+            test_output: None,
             counts,
             requirements: Vec::new(),
             excluded: Vec::new(),

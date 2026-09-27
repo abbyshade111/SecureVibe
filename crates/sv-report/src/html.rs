@@ -137,6 +137,15 @@ pub fn page(report: &Report) -> String {
         }
         b.push_str("</ol>\n</details>\n");
     }
+    if let Some(t) = &report.test_output {
+        b.push_str(&format!(
+            "<p>{}</p>\n",
+            escape(&crate::test_output_intro(t))
+        ));
+        if !t.text.is_empty() {
+            b.push_str(&format!("<pre>{}</pre>\n", escape(&t.text)));
+        }
+    }
     b.push_str(&format!(
         "<p class=\"lede\">{} requirements apply to this app. \
          <strong>{} have been looked at by something</strong> and <strong>{} have not</strong>.</p>\n",
