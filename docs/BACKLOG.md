@@ -9,6 +9,107 @@ another session is not a claim.
 
 ## Next
 
+- **A review of `sv` on 27 September 2026: faults, and what could be faster.** By session securevibe-e8, at
+  the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
+  entry points, the runner, every walker, the checks' hot loops, the MCP server, `Cargo.toml`, the
+  `Dockerfile`, and CI, on `main` at `4bee715`; then a release build timed on the Flask example and on this
+  repository, and one fixture built to settle a question the code could not. **Not claimed; each numbered
+  item can be claimed on its own.** Every item names where it is and how it was seen; a guess is marked as one.
+  Looked at and found sound, for the record: the MCP server's confinement of paths to its root (tested both
+  ways of escaping), the fence being verified rather than assumed, the adapters and the bundle refusing
+  symbolic links, and no panic anywhere on this repository's own 58,000 lines.
+
+  **Faults, most serious first.**
+  1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
+     a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
+     `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
+     again at every level of the loop, about thirty times, under paths four hundred characters long
+     (`src/loop/src/loop/…/vendor-link/settings.py`). It finished in a second only because the operating
+     system stops following links after thirty-two levels; nothing in `sv` did. `adapters.rs:730` and
+     `bundle.rs:315` already refuse links, each with its reason; `ast.rs` (the code rules), `secrets.rs`,
+     `sv-scan/src/lib.rs` (the corroborators), `suite.rs`, and `ecosystems.rs` do not. Reading outside the
+     app is the promise `sv` makes about the folder it is given, broken by any link the app's author or its
+     AI tool left. Fix: one rule where `skip_dir` lives, applied by every walker: a link is not followed,
+     and is listed once as not read, so a linked `vendor/` is a named gap rather than a silent one. Test
+     with this fixture, and count: five walkers should go red when the rule is removed.
+  2. **`sv run` has no time limit, and an interrupted run leaves its containers behind.** Every Docker
+     call goes through `output_of` (`sv-run/src/lib.rs:327`), which waits forever; the app's own test
+     suite is `docker exec sh -c <test>` (`docker.rs:424`) with nothing bounding it, so a suite that hangs
+     hangs `sv report --run` with it. Cleanup is `Teardown`'s `Drop` (`docker.rs:1123`), which runs on
+     every return path and not when the process is killed by Ctrl-C, since a signal ends a Rust process
+     without unwinding: the app, the sidecar, the stand-ins, and the `--internal` network stay, under
+     names that carry the process id, so they accumulate. The second half is reasoned from the code, not
+     reproduced. Fix: a stated cap on the test command (`timeout` inside the container, say ten minutes,
+     with the cap in the report when it fires, since a suite that was cut short credits nothing), a
+     wall-clock limit per Docker call, and a Ctrl-C handler that runs the teardown; failing that, a
+     `sv run --clean` that removes everything named `sv-…`.
+  3. **No size limit in the code-rule walker or the corroborator walker.** `secrets.rs` stops at 2 MB
+     (`MAX_FILE_BYTES`) and says so. `ast.rs:1313` reads any file whole and hands it to tree-sitter, so a
+     50 MB minified bundle or a generated file is parsed in full; `sv-scan/src/lib.rs:490` reads every
+     source file whole and keeps all of them in memory for the run (`files.push((language, relative,
+     contents))`). Fix: the same cap, reported as *not read, too large* rather than skipped, which is the
+     honesty rule; and the corroborators reading one file at a time.
+  4. **Options are read as folders.** `sv check --help` says "--help is not a folder"; `sv scope
+     --nonsense` says "no securevibe.toml in --nonsense"; there is no `sv --version` at all (the version
+     appears only in a bundle's listing). `main.rs` dispatches on the first word and hands the second to
+     the command as a path. Fix: a word starting with `-` is an option, an unknown one is an error that
+     names the command's options, `--help` works after any command, and `sv --version` prints the version
+     and the commit the build was made from, which the bundle already knows how to find.
+  5. **A bad edit to a compiled-in data file makes `sv run` panic.** `signed_in.rs:1135-1153` uses
+     `expect` while reading `data/breached-password-evidence.json`, which is compiled in with
+     `include_str!`; the file is checked by a test, so this reaches an owner only from a source build with
+     the file broken. Low. A panic in a probe run should be *not assessed* with the reason, like every
+     other failure there.
+
+  **What could be faster.** Timed with a release build: `sv check` on the five-file Flask example takes
+  about a second, `sv check .` on this repository about three, `sv report` on the example about one. None
+  is slow for a person at a terminal. Two of them are slow for an AI tool calling the MCP server after
+  every change, and the first is the reason.
+  6. **Everything is loaded and compiled again on every command and every MCP call.** `assemble_report`
+     (`main.rs:1848-1863`) loads the four framework files (234 KB of JSON), both rule files, and the
+     adapters (371 KB), and compiles every tree-sitter query (twelve rules across fourteen languages) and
+     every regex, each time it runs; `securevibe_explain` reloads the frameworks per call (`mcp.rs:632`).
+     The `Server` struct holds only its root. Fix: load once per process, in `Server` for the MCP server
+     and at the top of `main` for the CLI, and measure the difference; most of the second above is this.
+  7. **The app folder is walked six times per report, the bill of materials is built two or three
+     times, and every source file is lowercased once per signature.** The walks: secrets, the code
+     rules, the corroborators, the tools' file list, the test finder, and the ecosystems. `sbom::build`
+     runs in `versions_pinned` (through `check_dir`) and again in `assemble_report`; `sv check` builds it a
+     third time (`main.rs:1222`). In `sv-scan/src/lib.rs:298`, `contents.to_lowercase()` sits inside the
+     loop over signatures, so with about thirty signatures the whole source is lowercased about thirty
+     times. Fix: one walk that yields the file list once and is handed to each check, one bill of
+     materials passed down, and one lowercasing per file. This is the change that would matter on a large
+     app; measure on one before and after.
+  8. **Regexes compiled inside hot loops.** `logs.rs` compiles four patterns per log line
+     (`common_format`, `timestamp`, `has_place`, lines 231-320), `ai.rs:1080` one per (line, word) pair,
+     `secrets.rs:268` and `:331` one per file, `signed_in.rs:4336-4355` one per page. `probes.rs:1222`
+     shows the fix: a `LazyLock` static, compiled once.
+  9. **The reports are large for what they say.** For the five-file example: `compliance.md` 160 KB,
+     `report.html` 191 KB, `report.json` 367 KB, because each of about six hundred requirements carries
+     its full text in every rendering, applicable or not. For a person the HTML is fine. For the AI tool
+     reading `report.json`, and for anyone diffing two reports, the text once per id, or the
+     not-applicable rows collapsed, would cut most of it. The owner's call on what the reading experience
+     should be.
+  10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
+      1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
+      the size; the Docker image and the "download later" packaging item both carry the binary. Measure
+      size and speed before and after, since `lto` can also lengthen CI's build.
+
+  **Smaller.**
+  11. **The runtime image runs as root.** `Dockerfile` sets no `USER`; the image reads mounted folders
+      and writes reports into them. A non-root user, or `--user` in the documented `docker run` line,
+      keeps a mistake from writing into the owner's folder as root. (`safe.directory` for git is already
+      handled.)
+  12. **`sv` holds apps to V15.2.1 and does not hold itself.** CI has no `cargo audit` or `cargo deny`
+      step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
+      comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
+      `cargo audit`, belongs with the weekly review entry above.
+  13. **`signed_in.rs` is 15,351 lines**, with 231 tests and one fake app carrying about eighty flaw
+      switches; `ai.rs` is 3,338. A session touching one check reads all of it, and every session's
+      change to a check lands in the same file, which is where this week's merge conflicts were. Split by
+      check (sign-in, sessions, admin, passwords, uploads, flows, codes) with the fake app as a test
+      module of its own. No behavior changes; the 231 tests are the guard.
+
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
