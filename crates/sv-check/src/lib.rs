@@ -11,6 +11,7 @@ pub mod ai;
 pub mod ast;
 pub mod browser;
 pub mod config;
+pub mod confirm;
 pub mod cvss;
 pub mod design;
 pub mod finding;

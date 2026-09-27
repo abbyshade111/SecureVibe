@@ -502,9 +502,12 @@ impl Day {
     /// Today, by this computer's clock. `None` if the clock reads before 1970, which is a clock
     /// that is wrong rather than a date to judge anything by.
     pub fn today() -> Option<Day> {
-        let since = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()?;
+        Day::of(std::time::SystemTime::now())
+    }
+
+    /// The day a moment falls on, such as a file's modification time. `None` before 1970.
+    pub fn of(time: std::time::SystemTime) -> Option<Day> {
+        let since = time.duration_since(std::time::UNIX_EPOCH).ok()?;
         Some(Day(i64::try_from(since.as_secs() / 86_400).ok()?))
     }
 

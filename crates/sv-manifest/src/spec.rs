@@ -174,9 +174,17 @@ multimodal = false        # does it take images, video or audio, rather than typ
 #               out entirely comes to the same thing.
 # An answer without `by` counts as the AI tool's: write by = "owner" only for an answer the
 # owner gave. Run `sv report` to see the questions that apply to this app; there are at most sixteen.
+#
+# A person can confirm what the AI tool answered, after looking for themselves, and it then counts as
+# much as their own word, shown as "stated by the AI coding tool, confirmed by a person":
+#   confirmed = { by = "owner" (or their name), on = "YYYY-MM-DD", how = "what they looked at and saw",
+#                 answer and where = the answer confirmed, repeated so a later change is noticed }
+# It stops counting after 90 days, when the answer changes, or when the `where` file changes after `on`.
+# The AI tool can never confirm its own answer.
 [design]
 # "V8.3.1" = { answer = "yes", where = "server/auth.py", by = "owner" }
 # "V2.2.2" = { answer = "not-sure", by = "ai-tool" }
+# "V15.3.1" = { answer = "yes", where = "views/index.ejs", by = "ai-tool", confirmed = { by = "owner", on = "2026-09-27", answer = "yes", where = "views/index.ejs", how = "Opened a product page and its source; only the fields shown are sent." } }
 
 # Checks made by hand: the ones no tool can make, such as the certificate on the live site or two
 # people booking the same slot. `sv questions` lists them, with how to make each one. Record what
@@ -190,6 +198,8 @@ multimodal = false        # does it take images, video or audio, rather than typ
 #   how = one sentence of what was done and what was seen. Required: it is the evidence, and the
 #         report prints it.
 #   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's.
+#   confirmed = { by, on, how, result } — a person making a check the AI tool made, and seeing the
+#         same; as for [design], it counts as much as their own check made by hand.
 [checked-by-hand]
 # "V12.2.2" = { result = "done", on = "2026-09-26", by = "owner", how = "Opened the live site; the padlock shows a trusted certificate for the right name, valid to December." }
 "#;
