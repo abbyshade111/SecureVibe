@@ -1065,8 +1065,8 @@ const NO_BRUTE_FORCE_LIMIT: Rule = Rule {
     rule_id: "probe.failed-sign-ins-unlimited",
     requirement_ids: &["V6.3.1"],
     cwe: &["CWE-307"],
-    impact: "Someone can try passwords as fast as the network allows, so a weak or leaked password              is found in minutes rather than never. This is how most accounts are actually taken.",
-    fix: "Count failed sign-ins per account and per address, and once the number you stated is           reached, slow the next attempt down or refuse it for a while. Refusing for a while beats           locking the account outright, which lets somebody lock a real person out on purpose.",
+    impact: "Someone can try passwords as fast as the network allows, so a weak or leaked password is found in minutes rather than never. This is how most accounts are actually taken.",
+    fix: "Count failed sign-ins per account and per address, and once the number you stated is reached, slow the next attempt down or refuse it for a while. Refusing for a while beats locking the account outright, which lets somebody lock a real person out on purpose.",
 };
 
 const SIGN_OUT_ON_GET: Rule = Rule {

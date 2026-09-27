@@ -235,6 +235,8 @@ pub struct Report {
     /// wall of semicolons before they met a single finding. A list can be skimmed, and the HTML
     /// report folds it away until somebody wants it.
     pub run_steps: Vec<String>,
+    /// The last lines the app's own test runner printed, when its suite failed under `--run`.
+    pub test_output: Option<sv_check::suite::FailingOutput>,
     pub counts: Counts,
     pub requirements: Vec<RequirementLine>,
     pub excluded: Vec<ExcludedRequirement>,
@@ -291,6 +293,34 @@ pub struct TestToWrite {
     pub description: String,
 }
 
+/// The sentence before a failing suite's output, the same in every format.
+pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
+    let what = if t.lines_total == 0 {
+        "It printed nothing.".to_owned()
+    } else if t.lines_kept == t.lines_total {
+        format!(
+            "This is everything it printed ({} line{}).",
+            t.lines_total,
+            if t.lines_total == 1 { "" } else { "s" }
+        )
+    } else {
+        format!(
+            "These are the last {} of the {} lines it printed, where test runners put which tests \
+             failed and why.",
+            t.lines_kept, t.lines_total
+        )
+    };
+    let redacted = match t.redacted {
+        0 => String::new(),
+        1 => " One value that looked like a credential is cut short.".to_owned(),
+        n => format!(" {n} values that looked like credentials are cut short."),
+    };
+    format!(
+        "The app's own tests failed when `sv` ran them (exit {}). {what}{redacted}",
+        t.exit_code
+    )
+}
+
 /// Everything the renderers need, gathered from the crates that produced it.
 pub struct Inputs<'a> {
     pub app_name: &'a str,
@@ -299,6 +329,8 @@ pub struct Inputs<'a> {
     pub run_note: Option<String>,
     /// One entry per thing the checks did while the app ran. See `Report::run_steps`.
     pub run_steps: Vec<String>,
+    /// See `Report::test_output`.
+    pub test_output: Option<sv_check::suite::FailingOutput>,
     pub frameworks: &'a Frameworks,
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
@@ -686,6 +718,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         generated: inputs.generated,
         run_note: inputs.run_note,
         run_steps: inputs.run_steps,
+        test_output: inputs.test_output,
         counts,
         requirements,
         excluded,

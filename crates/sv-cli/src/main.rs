@@ -945,16 +945,19 @@ fn cmd_run(args: &[String]) -> Result<()> {
                 Some(result) if result.exit_code == 0 => {
                     println!("\nThe app's own tests passed.")
                 }
-                Some(result) => println!(
-                    "\nThe app's own tests failed (exit {}):\n{}",
-                    result.exit_code,
-                    result
-                        .output
-                        .lines()
-                        .take(15)
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                ),
+                Some(result) => {
+                    // The end of the output, where runners say which tests failed, and with any
+                    // credential a runner printed cut short, as in the report.
+                    let rules = SecretRules::load(&secret_rules_path())?;
+                    if let Some(t) =
+                        sv_check::suite::failing_output(result.exit_code, &result.output, &rules)
+                    {
+                        println!("\n{}", sv_report::test_output_intro(&t));
+                        if !t.text.is_empty() {
+                            println!("{}", t.text);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1597,6 +1600,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let mut probe_verified = Vec::new();
     let mut tool_verified = Vec::new();
     let mut test_verified = Vec::new();
+    let mut test_output = None;
     let mut findings = Vec::new();
     findings.extend(findings_from_advisories);
     findings.extend(secrets.findings.iter().cloned());
@@ -1776,6 +1780,11 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         let (credited, mismatches) =
                             sv_check::suite::credit(&named, suite_outcome, &describe);
 
+                        test_output = sv_check::suite::failing_output(
+                            result.exit_code,
+                            &result.output,
+                            &secret_rules,
+                        );
                         if result.exit_code != 0 {
                             gaps.push(sv_report::Gap {
                                 what: "anything the failing tests would have shown".to_owned(),
@@ -2168,6 +2177,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         generated: None,
         run_note,
         run_steps,
+        test_output,
         frameworks: &frameworks,
         buckets: &buckets,
         claims: &resolved,

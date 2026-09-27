@@ -31,6 +31,61 @@ use crate::verified::Verified;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+/// How many of a failing suite's last lines are kept for the report.
+pub const FAILING_OUTPUT_LINES: usize = 30;
+
+/// The end of what a failing suite printed, as it read in a terminal.
+///
+/// When the suite fails, its exit code says only that something did; which test, and why, is in the
+/// last lines a runner prints, where every common runner puts its summary. Without them the owner
+/// has to rebuild `sv`'s environment to find out, which is what the first build from scratch cost.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct FailingOutput {
+    pub exit_code: i32,
+    /// The lines kept: colors and redrawn progress lines taken out, credentials redacted.
+    pub text: String,
+    pub lines_kept: usize,
+    pub lines_total: usize,
+    /// How many credentials were cut out of what is kept.
+    pub redacted: usize,
+}
+
+/// The last `FAILING_OUTPUT_LINES` lines of a failing suite's output; `None` when it passed.
+pub fn failing_output(
+    exit_code: i32,
+    output: &str,
+    rules: &crate::secrets::SecretRules,
+) -> Option<FailingOutput> {
+    if exit_code == 0 {
+        return None;
+    }
+    // Color codes and other terminal control sequences, which a report would show as noise.
+    let control =
+        regex::Regex::new(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]")
+            .expect("static pattern");
+    let plain = control.replace_all(output, "");
+    // A line a runner redrew in place (a progress bar) reads as its last state, as in a terminal.
+    let lines: Vec<&str> = plain
+        .lines()
+        .map(|l| l.trim_end_matches('\r'))
+        .map(|l| l.rsplit('\r').next().unwrap_or(l))
+        .collect();
+    let end = lines
+        .iter()
+        .rposition(|l| !l.trim().is_empty())
+        .map_or(0, |i| i + 1);
+    let lines = &lines[..end];
+    let kept = &lines[lines.len().saturating_sub(FAILING_OUTPUT_LINES)..];
+    let (text, redacted) = crate::secrets::redact_text(rules, &kept.join("\n"));
+    Some(FailingOutput {
+        exit_code,
+        text,
+        lines_kept: kept.len(),
+        lines_total: lines.len(),
+        redacted,
+    })
+}
+
 /// A line in a test file that names one or more requirements.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NamedTest {
@@ -797,5 +852,124 @@ mod tests {
         let describe = |_: &str| Some("Verify that each password is hashed".to_owned());
         let (_, findings) = credit(&tests, SuiteOutcome::Passed, &describe);
         assert!(findings.is_empty(), "{findings:?}");
+    }
+}
+
+#[cfg(test)]
+mod failing_output_tests {
+    use super::*;
+    use crate::secrets::SecretRules;
+
+    fn rules() -> SecretRules {
+        SecretRules::load(
+            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../data/secret-rules.json"),
+        )
+        .expect("rules load")
+    }
+
+    /// Assembled at run time, so the source holds nothing shaped like a key.
+    fn key_shaped() -> String {
+        ["sk", "ant", "api03", "q7Rv2LmX9pTn4KzW8bYc1HdF"].join("-")
+    }
+
+    #[test]
+    fn a_passing_suite_keeps_no_output() {
+        assert_eq!(failing_output(0, "1 passing", &rules()), None);
+    }
+
+    #[test]
+    fn a_failing_suite_keeps_its_last_lines_where_the_summary_is() {
+        let output: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+        let t = failing_output(1, &format!("{output}\n\n  \n"), &rules()).expect("kept");
+        assert_eq!(t.exit_code, 1);
+        assert_eq!((t.lines_kept, t.lines_total), (FAILING_OUTPUT_LINES, 50));
+        let lines: Vec<&str> = t.text.lines().collect();
+        assert_eq!(lines.first(), Some(&"line 21"));
+        assert_eq!(
+            lines.last(),
+            Some(&"line 50"),
+            "trailing blank lines are not the end"
+        );
+    }
+
+    #[test]
+    fn a_short_output_is_kept_whole() {
+        let t = failing_output(2, "not ok 1 - sign-in\n# fail 1\n", &rules()).expect("kept");
+        assert_eq!(t.text, "not ok 1 - sign-in\n# fail 1");
+        assert_eq!((t.lines_kept, t.lines_total), (2, 2));
+        let t = failing_output(1, "", &rules()).expect("kept");
+        assert_eq!((t.text.as_str(), t.lines_total), ("", 0));
+    }
+
+    #[test]
+    fn colors_and_redrawn_progress_lines_read_as_they_did_in_the_terminal() {
+        let output = "\x1b[31m✖ 1 failing\x1b[0m\r\n 10%\r 50%\r100% done\n\x1b]0;title\x07end\n";
+        let t = failing_output(1, output, &rules()).expect("kept");
+        assert_eq!(t.text, "✖ 1 failing\n100% done\nend");
+    }
+
+    #[test]
+    fn a_credential_the_runner_printed_is_cut_short() {
+        let key = key_shaped();
+        let output = format!(
+            "Error: request failed with {key}\nANTHROPIC_API_KEY={key}\n\
+             DB_PASSWORD=Tr0ub4dor-and-3\n{{\"client_secret\": \"a9Fq2mWz7Lr\"}}\n\
+             1 failing\n"
+        );
+        let t = failing_output(1, &output, &rules()).expect("kept");
+        // The failure message names which one by position, and prints neither it nor the output
+        // holding it: a test about keeping credentials out of output does not print one either.
+        for (i, value) in [key.as_str(), "Tr0ub4dor-and-3", "a9Fq2mWz7Lr"]
+            .iter()
+            .enumerate()
+        {
+            assert!(!t.text.contains(value), "value {i} was not cut short");
+        }
+        assert_eq!(t.redacted, 4);
+        // What a finding would show of it, so it can be recognized and nothing more.
+        assert!(t.text.contains("[redacted: sk-a…"));
+        assert!(t.text.contains("DB_PASSWORD=[redacted: Tr0u…"));
+        assert!(t.text.ends_with("1 failing"));
+    }
+
+    #[test]
+    fn a_summary_right_after_the_last_kept_line_is_not_lost_to_blank_lines() {
+        let output: String = (1..=31).map(|n| format!("case {n}\n")).collect();
+        let t = failing_output(1, &format!("{output}\n\n\n"), &rules()).expect("kept");
+        let lines: Vec<&str> = t.text.lines().collect();
+        assert_eq!(lines.len(), FAILING_OUTPUT_LINES);
+        assert_eq!((lines[0], lines[29]), ("case 2", "case 31"));
+    }
+
+    #[test]
+    fn a_runner_that_colors_its_failures_reads_as_plain_text() {
+        // Jest's own shape: bold, then red, around the name of the failing test.
+        let output = "\x1b[1m\x1b[31m  ● sign-in › refuses a wrong password\x1b[39m\x1b[22m\n";
+        let t = failing_output(1, output, &rules()).expect("kept");
+        assert_eq!(t.text, "  ● sign-in › refuses a wrong password");
+    }
+
+    #[test]
+    fn a_progress_bar_reads_as_where_it_stopped() {
+        let output = "[##    ] 33%\r[####  ] 66%\r[######] 100%\nFAILED tests/test_login.py\n";
+        let t = failing_output(1, output, &rules()).expect("kept");
+        assert_eq!(t.text, "[######] 100%\nFAILED tests/test_login.py");
+    }
+
+    #[test]
+    fn a_suite_that_passed_while_printing_failures_keeps_nothing() {
+        // A runner that retried a flaky test prints the failure and still exits 0; the suite passed.
+        let output = "FAILED test_upload (attempt 1)\nPASSED test_upload (attempt 2)\n";
+        assert_eq!(failing_output(0, output, &rules()), None);
+    }
+
+    #[test]
+    fn a_placeholder_or_an_ordinary_line_is_left_alone() {
+        let output =
+            "API_KEY=your-key-here\nexpected 200, got 401 at token check\ntoken: ${TOKEN}\n";
+        let t = failing_output(1, output, &rules()).expect("kept");
+        assert_eq!(t.redacted, 0, "{}", t.text);
+        assert_eq!(t.text, output.trim_end());
     }
 }

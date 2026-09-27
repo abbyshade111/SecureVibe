@@ -427,14 +427,14 @@ impl Backend for DockerBackend {
                 (None, _) => (
                     None,
                     Some(
-                        "securevibe.toml declares no test-report, so only the exit code is known                          and a suite with one failing test credits nothing"
+                        "securevibe.toml declares no test-report, so only the exit code is known and a suite with one failing test credits nothing"
                             .to_owned(),
                     ),
                 ),
                 (Some(path), Some(false)) => (
                     None,
                     Some(format!(
-                        "a report left over from an earlier run could not be removed from {path},                          so anything found there now cannot be trusted to be this run's"
+                        "a report left over from an earlier run could not be removed from {path}, so anything found there now cannot be trusted to be this run's"
                     )),
                 ),
                 (Some(path), _) => match self.docker(&["exec", &app, "cat", "--", path]) {

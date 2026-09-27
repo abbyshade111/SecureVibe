@@ -149,6 +149,15 @@ pub fn compliance(report: &Report) -> String {
         }
         out.push_str("\n</details>\n\n");
     }
+    if let Some(t) = &report.test_output {
+        out.push_str(&format!("{}\n\n", crate::test_output_intro(t)));
+        if !t.text.is_empty() {
+            // A fence longer than any run of backticks in the output, so nothing in it ends it.
+            let longest = t.text.split(|c| c != '`').map(str::len).max().unwrap_or(0);
+            let fence = "`".repeat(longest.max(2) + 1);
+            out.push_str(&format!("{fence}text\n{}\n{fence}\n\n", t.text));
+        }
+    }
     out.push_str(&format!(
         "{} requirements apply to this app. Of those, **{} have been looked at by something** and \
          **{} have not**.\n\n",

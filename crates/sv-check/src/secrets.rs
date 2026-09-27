@@ -306,6 +306,59 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
     out
 }
 
+/// `text` with every credential in it cut down to what a finding would show of it, and how many
+/// were.
+///
+/// For text `sv` passes on rather than scans: a failing test suite's last lines go into a report
+/// that may be handed to somebody, and a runner that prints its environment, or a request it made,
+/// prints the keys in it. Every rule's matches are cut, and so is any value given to a name that
+/// says it is a credential (`API_KEY=…`, `"password": "…"`), quoted or not, whatever its entropy:
+/// a redaction that is not needed costs a reader four characters, and one that is missed cannot
+/// be taken back.
+pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
+    let mut spans: Vec<(usize, usize)> = Vec::new();
+    for (_, re) in &rules.rules {
+        for m in re.find_iter(text) {
+            if !looks_like_placeholder(m.as_str()) {
+                spans.push((m.start(), m.end()));
+            }
+        }
+    }
+    let named = Regex::new(
+        r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"',;&]+))"#,
+    )
+    .expect("static pattern");
+    for caps in named.captures_iter(text) {
+        let name = caps.get(1).map_or("", |m| m.as_str());
+        let Some(value) = caps.get(2).or(caps.get(3)).or(caps.get(4)) else {
+            continue;
+        };
+        if is_secret_name(name) && !looks_like_placeholder(value.as_str()) {
+            spans.push((value.start(), value.end()));
+        }
+    }
+    spans.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in spans {
+        match merged.last_mut() {
+            Some(last) if start <= last.1 => last.1 = last.1.max(end),
+            _ => merged.push((start, end)),
+        }
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+    for (start, end) in &merged {
+        out.push_str(&text[at..*start]);
+        out.push_str(&format!(
+            "[redacted: {}]",
+            Secret::redact(&text[*start..*end]).as_str()
+        ));
+        at = *end;
+    }
+    out.push_str(&text[at..]);
+    (out, merged.len())
+}
+
 fn line_of(text: &str, byte_offset: usize) -> usize {
     text[..byte_offset.min(text.len())]
         .bytes()
@@ -451,6 +504,28 @@ mod tests {
     /// assembled before it is scanned.
     fn credential_shaped(parts: &[&str], separator: &str) -> String {
         parts.join(separator)
+    }
+
+    #[test]
+    fn redacting_cuts_a_known_key_anywhere_and_a_value_by_its_name() {
+        let key = credential_shaped(&["sk", "ant", "api03", "Zp8Kd3Wq1Ls6Vn0Rt4Yb"], "-");
+        let text = format!(
+            "Authorization failed for {key} at /v1/messages\n\
+             password: 'S3cr3t-Value-99'\n\
+             SECRET_KEY=changeme\n"
+        );
+        let (out, n) = redact_text(&rules(), &text);
+        assert_eq!(n, 2);
+        // No message prints `out`: were a cut missed, it would hold the credential.
+        assert!(!out.contains(&key), "the key was not cut short");
+        assert!(
+            !out.contains("S3cr3t-Value-99"),
+            "the password was not cut short"
+        );
+        assert!(out.contains("Authorization failed for [redacted: sk-a…"));
+        assert!(out.contains("password: '[redacted: S3cr…"));
+        // A placeholder is not a credential, and cutting it would hide the mistake it points at.
+        assert!(out.contains("SECRET_KEY=changeme"));
     }
 
     fn rules() -> SecretRules {
