@@ -208,93 +208,86 @@ pub struct HtmlScan {
 
 /// Takes the script out of a page.
 ///
-/// Handles the two places code really lives in markup: a `<script>` element, and an `on…=` handler
-/// attribute. A `<script src=…>` with nothing between its tags holds no code — the file it names is
-/// parsed like any other. Anything else code-shaped is left behind by name rather than ignored.
+/// Handles the three places code really lives in markup: a `<script>` element, an `on…=` handler
+/// attribute, and a `javascript:` URL in any attribute. A `<script src=…>` with nothing between its
+/// tags holds no code — the file it names is parsed like any other. Anything else code-shaped is
+/// left behind by name rather than ignored.
+///
+/// Tags are read the way a browser's tokenizer reads them (WHATWG HTML, "tokenization"), because a
+/// page is written for a browser and anything this reads differently is a place to hide in. An
+/// unquoted value ends at whitespace or `>`; `/` separates attributes as a space does; a comment and
+/// the body of a `<textarea>` hold no tags.
 pub fn html_fragments(source: &str) -> HtmlScan {
     let mut out = HtmlScan::default();
-    let lower = source.to_lowercase();
+    let markup = match read_markup(source) {
+        Ok(markup) => markup,
+        Err(reason) => {
+            out.left_behind = Some(reason);
+            return out;
+        }
+    };
+    let line_of = |at: usize| source[..at].matches('\n').count();
 
     // Script elements.
-    let mut at = 0usize;
-    while let Some(found) = lower[at..].find("<script") {
-        let tag_start = at + found;
-        let Some(tag_end) = lower[tag_start..].find('>').map(|i| tag_start + i) else {
-            out.left_behind = Some("a `<script` tag that is never closed".to_owned());
-            return out;
-        };
-        let attributes = &lower[tag_start..tag_end];
-        let body_start = tag_end + 1;
-        let Some(close) = lower[body_start..].find("</script").map(|i| body_start + i) else {
-            out.left_behind = Some("a `<script>` with no `</script>` after it".to_owned());
-            return out;
-        };
-        let body = &source[body_start..close];
+    let mut accounted = 0usize;
+    for script in &markup.scripts {
+        let body = &source[script.body.clone()];
+        accounted += count_schemes(body);
         if !body.trim().is_empty() {
-            // `lang="ts"` is how a Vue component says so; `type="text/typescript"` is the older way.
-            let language = if attributes.contains("lang=\"ts\"")
-                || attributes.contains("lang='ts'")
-                || attributes.contains("typescript")
-            {
-                "typescript"
-            } else {
-                "javascript"
-            };
             out.fragments.push(Fragment {
-                language,
+                language: script.language,
                 code: body.to_owned(),
-                line_offset: source[..body_start].matches('\n').count(),
+                line_offset: line_of(script.body.start),
             });
         }
-        at = close;
     }
 
-    // Handler attributes. The value is a statement, which parses as JavaScript on its own.
-    let handler = regex::Regex::new("(?i)[\\s\"']on[a-z]+\\s*=\\s*(\"[^\"]*\"|'[^']*')")
-        .expect("a fixed pattern compiles");
-    for m in handler.captures_iter(source) {
-        let quoted = m.get(1).expect("the group is not optional");
-        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
-        out.fragments.push(Fragment {
-            language: "javascript",
-            code: unescape_html(inner),
-            line_offset: source[..quoted.start()].matches('\n').count(),
-        });
-    }
-
-    // A URL that is a program. Taken when it sits in a quoted attribute, where its end is not in
-    // doubt, and named otherwise: an unquoted value ends at whitespace by one reading and at the
-    // tag by another, and guessing between them is how a fragment ends up half a statement.
-    let url = regex::Regex::new("(?i)=\\s*(\"[^\"]*\"|'[^']*')").expect("a fixed pattern compiles");
-    let mut quoted_urls = 0usize;
-    for m in url.captures_iter(source) {
-        let quoted = m.get(1).expect("the group is not optional");
-        let inner = &quoted.as_str()[1..quoted.as_str().len() - 1];
-        let decoded = unescape_html(inner);
-        let Some(program) = strip_javascript_scheme(&decoded) else {
-            // A browser reads `java<tab>script:` as the scheme; this does not, and a value that
-            // becomes one once its control characters are taken out is named rather than read.
-            // Reading it would mean deciding what the rest of it means too.
-            if looks_like_a_disguised_scheme(&decoded) {
-                out.left_behind =
-                    Some("a `javascript:` URL with characters written into the scheme".to_owned());
-                return out;
+    // Attributes: a handler is a statement, which parses as JavaScript on its own, and a URL may be
+    // a program.
+    for attribute in &markup.attributes {
+        let raw = &source[attribute.value.clone()];
+        accounted += count_schemes(raw);
+        let (value, unread_reference) = decode_character_references(raw);
+        let handler = is_handler(&attribute.name);
+        let program = javascript_url_program(&value);
+        if unread_reference && (handler || program.is_some()) {
+            // A named reference this does not know may be one a browser turns into a character of
+            // the program, and a guessed program is worse than a page named as unread.
+            out.left_behind =
+                Some("a character reference inside code that this does not decode".to_owned());
+            return out;
+        }
+        if handler {
+            if !value.trim().is_empty() {
+                out.fragments.push(Fragment {
+                    language: "javascript",
+                    code: value,
+                    line_offset: line_of(attribute.value.start),
+                });
             }
-            continue;
-        };
-        quoted_urls += 1;
-        out.fragments.push(Fragment {
-            language: "javascript",
-            code: percent_decode(program),
-            line_offset: source[..quoted.start()].matches('\n').count(),
-        });
+        } else if let Some(program) = program {
+            out.fragments.push(Fragment {
+                language: "javascript",
+                code: percent_decode(&program),
+                line_offset: line_of(attribute.value.start),
+            });
+        } else if looks_like_a_disguised_scheme(&value) {
+            out.left_behind = Some(
+                "a value that is nearly a `javascript:` URL, spelled with a character a browser \
+                 does not remove"
+                    .to_owned(),
+            );
+            return out;
+        }
     }
-    // Every occurrence has to be accounted for. One that the pattern above did not take is one
-    // written some way this does not read — unquoted, or with the scheme spelled around a newline,
-    // both of which a browser accepts — and the page keeps its silence rather than pretend.
-    if lower.matches("javascript:").count() > quoted_urls {
+
+    // Every occurrence has to be accounted for. One outside every attribute value and script body
+    // read above sits somewhere this does not model — text, a comment, a template language's own
+    // syntax — and the page keeps its silence rather than pretend.
+    if count_schemes(source) > accounted {
         out.left_behind = Some(
-            "a `javascript:` URL that is not in a quoted attribute, so where it ends is a guess"
+            "a `javascript:` outside any attribute or script this read, so what it belongs to is \
+             a guess"
                 .to_owned(),
         );
         return out;
@@ -321,24 +314,215 @@ pub fn html_fragments(source: &str) -> HtmlScan {
     out
 }
 
-/// The program in a `javascript:` URL, if that is what this attribute value is.
-///
-/// Leading whitespace is skipped because a browser does. The scheme is matched only when it is
-/// written plainly: a browser also accepts `java\tscript:` and other spellings with control
-/// characters inside the word, and a reader of this code should not have to wonder whether those
-/// were handled — they are not, and the count above turns each one into a page that stays unread.
-fn strip_javascript_scheme(value: &str) -> Option<&str> {
-    let trimmed = value.trim_start();
-    let head: String = trimmed.chars().take("javascript:".len()).collect();
-    head.eq_ignore_ascii_case("javascript:")
-        .then(|| &trimmed["javascript:".len()..])
+/// An attribute of a start tag: its name in lower case, and where its value sits in the page.
+struct Attribute {
+    name: String,
+    value: std::ops::Range<usize>,
 }
 
-/// Whether a value is a `javascript:` URL written so that only a browser would see it.
+/// A `<script>` element's body, and the language its tag says it holds.
+struct Script {
+    language: &'static str,
+    body: std::ops::Range<usize>,
+}
+
+#[derive(Default)]
+struct Markup {
+    attributes: Vec<Attribute>,
+    scripts: Vec<Script>,
+}
+
+/// Elements whose body is text to a browser, not tags. A `<textarea>` holding `<a onclick=…>` shows
+/// those characters; it does not make a link.
+const RAW_TEXT: [&str; 5] = ["script", "style", "textarea", "title", "xmp"];
+
+/// ASCII whitespace as the HTML tokenizer means it.
+fn is_html_space(byte: u8) -> bool {
+    matches!(byte, b'\t' | b'\n' | 0x0C | b'\r' | b' ')
+}
+
+/// Every start tag's attributes, and every script body, read the way a browser's tokenizer does.
 ///
-/// A browser drops ASCII control characters and whitespace from inside a scheme, so
-/// `java&#9;script:` runs. This does not read those, and the point of noticing them is to keep the
-/// page unread rather than to pretend the value was ordinary.
+/// Every delimiter here is ASCII, so byte positions are always character boundaries, and the page
+/// is lowered with `to_ascii_lowercase` for the same reason: full Unicode lowering can change a
+/// string's length and move every position after it.
+fn read_markup(source: &str) -> Result<Markup, String> {
+    let bytes = source.as_bytes();
+    let lower = source.to_ascii_lowercase();
+    let len = bytes.len();
+    let mut markup = Markup::default();
+    let mut at = 0usize;
+    while let Some(found) = source[at..].find('<') {
+        let open = at + found;
+        if lower[open..].starts_with("<!--") {
+            // A comment ends at the first `-->`; one never closed runs to the end of the page.
+            match lower[open + 4..].find("-->") {
+                Some(i) => at = open + 4 + i + 3,
+                None => break,
+            }
+            continue;
+        }
+        let next = bytes.get(open + 1).copied();
+        if matches!(next, Some(b'!' | b'?' | b'/')) {
+            // A declaration, a processing instruction, or an end tag: nothing a browser runs.
+            match source[open..].find('>') {
+                Some(i) => at = open + i + 1,
+                None => break,
+            }
+            continue;
+        }
+        if !next.is_some_and(|b| b.is_ascii_alphabetic()) {
+            // A `<` that starts no tag is text.
+            at = open + 1;
+            continue;
+        }
+
+        let mut i = open + 1;
+        while i < len && !is_html_space(bytes[i]) && bytes[i] != b'/' && bytes[i] != b'>' {
+            i += 1;
+        }
+        let name = lower[open + 1..i].to_owned();
+        let first_attribute = markup.attributes.len();
+        loop {
+            while i < len && (is_html_space(bytes[i]) || bytes[i] == b'/') {
+                i += 1;
+            }
+            if i >= len {
+                return Err(format!("a `<{name}` tag that is never closed"));
+            }
+            if bytes[i] == b'>' {
+                i += 1;
+                break;
+            }
+            // A name may begin with `=`; after its first character, `=` ends it.
+            let name_start = i;
+            i += 1;
+            while i < len && !is_html_space(bytes[i]) && !matches!(bytes[i], b'/' | b'>' | b'=') {
+                i += 1;
+            }
+            let attribute_name = lower[name_start..i].to_owned();
+            let mut j = i;
+            while j < len && is_html_space(bytes[j]) {
+                j += 1;
+            }
+            if j >= len || bytes[j] != b'=' {
+                // No value; what follows is the next attribute.
+                i = j;
+                continue;
+            }
+            j += 1;
+            while j < len && is_html_space(bytes[j]) {
+                j += 1;
+            }
+            let value = match bytes.get(j) {
+                Some(&quote @ (b'"' | b'\'')) => {
+                    let Some(close) = source[j + 1..].find(quote as char) else {
+                        return Err(format!("a `<{name}` tag with a quote that is never closed"));
+                    };
+                    i = j + 1 + close + 1;
+                    j + 1..j + 1 + close
+                }
+                _ => {
+                    // Unquoted: the value ends at whitespace or at the end of the tag, and every
+                    // other character — quotes, `=`, `/` — is part of it.
+                    let start = j;
+                    while j < len && !is_html_space(bytes[j]) && bytes[j] != b'>' {
+                        j += 1;
+                    }
+                    i = j;
+                    start..j
+                }
+            };
+            markup.attributes.push(Attribute {
+                name: attribute_name,
+                value,
+            });
+        }
+        at = i;
+
+        if !RAW_TEXT.contains(&name.as_str()) {
+            continue;
+        }
+        // The body runs to the first end tag of the same name, and only a real one: `</scripts`
+        // does not end a script.
+        let closing = format!("</{name}");
+        let mut search = at;
+        let close = loop {
+            match lower[search..].find(&closing) {
+                Some(i) => {
+                    let after = search + i + closing.len();
+                    if bytes
+                        .get(after)
+                        .is_none_or(|&b| is_html_space(b) || b == b'/' || b == b'>')
+                    {
+                        break Some(search + i);
+                    }
+                    search = after;
+                }
+                None => break None,
+            }
+        };
+        let Some(close) = close else {
+            if name == "script" {
+                return Err("a `<script>` with no `</script>` after it".to_owned());
+            }
+            // The rest of the page is that element's text.
+            break;
+        };
+        if name == "script" {
+            // `lang="ts"` is how a Vue component says so; `type="text/typescript"` is the older way.
+            let typescript = markup.attributes[first_attribute..].iter().any(|a| {
+                let value = lower[a.value.clone()].trim();
+                (a.name == "lang" && value == "ts") || value.contains("typescript")
+            });
+            markup.scripts.push(Script {
+                language: if typescript {
+                    "typescript"
+                } else {
+                    "javascript"
+                },
+                body: at..close,
+            });
+        }
+        at = close;
+    }
+    Ok(markup)
+}
+
+/// Whether an attribute is an event handler, whose value a browser runs as a statement.
+fn is_handler(name: &str) -> bool {
+    name.strip_prefix("on")
+        .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_alphabetic()))
+}
+
+/// How many times the scheme is written, plainly, in some text.
+fn count_schemes(text: &str) -> usize {
+    text.to_ascii_lowercase().matches("javascript:").count()
+}
+
+/// The program in a `javascript:` URL, if that is what this attribute value is.
+///
+/// A browser's URL parser (WHATWG URL) first strips leading and trailing control characters and
+/// spaces, then removes every tab and newline anywhere in the value, and only then reads the
+/// scheme. So `java&#9;script:` runs, and so does `javascript:go(\n)` as `go()`. This does the same
+/// two steps, in that order, and nothing more.
+fn javascript_url_program(value: &str) -> Option<String> {
+    let trimmed = value.trim_matches(|c: char| c <= ' ');
+    let cleaned: String = trimmed
+        .chars()
+        .filter(|c| !matches!(c, '\t' | '\n' | '\r'))
+        .collect();
+    let head = cleaned.get(.."javascript:".len())?;
+    head.eq_ignore_ascii_case("javascript:")
+        .then(|| cleaned["javascript:".len()..].to_owned())
+}
+
+/// Whether a value that is not a `javascript:` URL is nearly one.
+///
+/// A browser removes tabs and newlines from inside a scheme and nothing else, so `java\u{1}script:`
+/// does not run. That is this reading of the URL specification, though, and the cost of being wrong
+/// about it is a false clean: a value that becomes the scheme once every control character is taken
+/// out keeps the page unread rather than be passed on the strength of a reading.
 fn looks_like_a_disguised_scheme(value: &str) -> bool {
     let collapsed: String = value
         .chars()
@@ -346,6 +530,7 @@ fn looks_like_a_disguised_scheme(value: &str) -> bool {
         .filter(|c| !c.is_whitespace() && !c.is_control())
         .collect();
     collapsed.len() >= "javascript:".len()
+        && collapsed.is_char_boundary("javascript:".len())
         && collapsed[.."javascript:".len()].eq_ignore_ascii_case("javascript:")
 }
 
@@ -389,15 +574,110 @@ fn parses_cleanly(language: &str, code: &str) -> bool {
     }
 }
 
-/// The five entities that can hide a quote or a bracket in an attribute value.
-fn unescape_html(text: &str) -> String {
-    text.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        // Last, so it cannot go back over an entity it has just written.
-        .replace("&amp;", "&")
+/// Puts back the character references a browser decodes in an attribute value.
+///
+/// Numeric references (`&#9;`, `&#x6A;`, with or without the `;`) are decoded exactly. Named ones
+/// are decoded for every name that stands for an ASCII character, which covers every name that can
+/// spell a scheme or a statement. The second half of the answer says whether a named reference was
+/// left as written: most such names are ones a browser leaves alone too, but a few hundred stand for
+/// a letter JavaScript accepts in a name, so where it matters the caller treats it as unread.
+///
+/// Not modeled: the legacy references a browser still decodes without a `;` (`&amp`, `&lt`) — left
+/// as written, where they make a statement the grammar refuses rather than a different statement.
+fn decode_character_references(text: &str) -> (String, bool) {
+    let mut out = String::with_capacity(text.len());
+    let mut unread = false;
+    let mut rest = text;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        rest = &rest[amp..];
+        let after = &rest[1..];
+        if let Some(number) = after.strip_prefix('#') {
+            let (digits, radix) = match number.strip_prefix(['x', 'X']) {
+                Some(hex) => (hex, 16),
+                None => (number, 10),
+            };
+            let count = digits
+                .bytes()
+                .take_while(|b| {
+                    if radix == 16 {
+                        b.is_ascii_hexdigit()
+                    } else {
+                        b.is_ascii_digit()
+                    }
+                })
+                .count();
+            if count > 0 {
+                // Zero, a surrogate, or past the end of Unicode is U+FFFD to a browser.
+                let decoded = u32::from_str_radix(&digits[..count], radix)
+                    .ok()
+                    .filter(|&n| n != 0)
+                    .and_then(char::from_u32)
+                    .unwrap_or('\u{FFFD}');
+                out.push(decoded);
+                rest = &digits[count..];
+                rest = rest.strip_prefix(';').unwrap_or(rest);
+                continue;
+            }
+        } else {
+            let length = after
+                .bytes()
+                .take_while(|b| b.is_ascii_alphanumeric())
+                .count();
+            if length > 0 && after[length..].starts_with(';') {
+                if let Some(decoded) = named_reference(&after[..length]) {
+                    out.push(decoded);
+                    rest = &after[length + 1..];
+                    continue;
+                }
+                unread = true;
+            }
+        }
+        out.push('&');
+        rest = after;
+    }
+    out.push_str(rest);
+    (out, unread)
+}
+
+/// The named references that stand for an ASCII character, plus the no-break space.
+fn named_reference(name: &str) -> Option<char> {
+    Some(match name {
+        "lt" | "LT" => '<',
+        "gt" | "GT" => '>',
+        "quot" | "QUOT" => '"',
+        "apos" => '\'',
+        "amp" | "AMP" => '&',
+        "Tab" => '\t',
+        "NewLine" => '\n',
+        "colon" => ':',
+        "lpar" => '(',
+        "rpar" => ')',
+        "sol" => '/',
+        "bsol" => '\\',
+        "semi" => ';',
+        "comma" => ',',
+        "period" => '.',
+        "excl" => '!',
+        "quest" => '?',
+        "num" => '#',
+        "percnt" => '%',
+        "equals" => '=',
+        "plus" => '+',
+        "lsqb" | "lbrack" => '[',
+        "rsqb" | "rbrack" => ']',
+        "lcub" | "lbrace" => '{',
+        "rcub" | "rbrace" => '}',
+        "grave" | "DiacriticalGrave" => '`',
+        "ast" | "midast" => '*',
+        "dollar" => '$',
+        "commat" => '@',
+        "Hat" => '^',
+        "lowbar" | "UnderBar" => '_',
+        "verbar" | "vert" | "VerticalLine" => '|',
+        "nbsp" | "NonBreakingSpace" => '\u{A0}',
+        _ => return None,
+    })
 }
 
 /// Whether `sv` can read this language at all.
@@ -1454,15 +1734,15 @@ mod tests {
         );
 
         let unquoted = html_fragments("<a href=javascript:go()>go</a>");
-        assert!(
-            unquoted.left_behind.is_some(),
-            "where an unquoted value ends is a guess, so this one is named: {unquoted:?}"
+        assert_eq!(
+            unquoted.fragments[0].code, "go()",
+            "an unquoted value ends at the end of the tag: {unquoted:?}"
         );
 
         let split_scheme = html_fragments("<a href=\"java\tscript:go()\">go</a>");
-        assert!(
-            split_scheme.left_behind.is_some(),
-            "a browser reads this and this does not, so it is named: {split_scheme:?}"
+        assert_eq!(
+            split_scheme.fragments[0].code, "go()",
+            "a browser removes the tab before it reads the scheme, and so does this: {split_scheme:?}"
         );
 
         let not_code = html_fragments(
@@ -1486,6 +1766,103 @@ mod tests {
             1,
             "the second one is the one with code"
         );
+    }
+
+    #[test]
+    fn a_page_is_read_the_way_a_browser_reads_it() {
+        // Each of these runs in a browser. Before this reading, the first four were a page counted
+        // as read with nothing taken out of it: a false clean.
+        for (page, code) in [
+            (
+                "<button onclick=eval(location.hash)>x</button>",
+                "eval(location.hash)",
+            ),
+            (
+                "<img/onerror=\"eval(location.hash)\" src=x>",
+                "eval(location.hash)",
+            ),
+            (
+                "<a href=\"java&#9;script:eval(location.hash)\">go</a>",
+                "eval(location.hash)",
+            ),
+            ("<a href=\"java&Tab;script:go()\">go</a>", "go()"),
+            ("<a href=\"&#x6A;avascript&colon;go()\">go</a>", "go()"),
+            ("<a href=\"&#106avascript:go()\">go</a>", "go()"),
+            ("<a href=\"\u{1} javascript:go()\">go</a>", "go()"),
+            ("<a href=\"javascript:go(\n)\">go</a>", "go()"),
+            ("<body onload=init()>", "init()"),
+            ("<a href='javascript:go()'>go</a>", "go()"),
+            ("<a href = javascript:go()>go</a>", "go()"),
+            ("<a title=\"x>y\" onclick=\"go()\">go</a>", "go()"),
+            ("<script data-note=\"a>b\">go()</script>", "go()"),
+        ] {
+            let scan = html_fragments(page);
+            assert!(scan.left_behind.is_none(), "{page:?} is read: {scan:?}");
+            let codes: Vec<&str> = scan.fragments.iter().map(|f| f.code.as_str()).collect();
+            assert_eq!(codes, vec![code], "{page:?}");
+        }
+
+        // Where an unquoted value ends is not a guess: at whitespace, and what follows is the next
+        // attribute. `b` is a name with no value, not the rest of the program.
+        let split = html_fragments("<a href=javascript:a b>go</a>");
+        assert_eq!(split.fragments.len(), 1, "{split:?}");
+        assert_eq!(split.fragments[0].code, "a");
+
+        // And the other side: things that look like code and are not.
+        for page in [
+            "<a title=\"use javascript: sparingly\">x</a>",
+            "<textarea><a onclick=go(1 2)></textarea>",
+            "<title><a onclick=go(1 2)></title>",
+            "<script>location = \"javascript:void(0)\"</script>",
+        ] {
+            let scan = html_fragments(page);
+            assert!(scan.left_behind.is_none(), "{page:?}: {scan:?}");
+            assert!(
+                scan.fragments.iter().all(|f| f.code != "go(1 2)"),
+                "{page:?} holds no code a browser runs: {scan:?}"
+            );
+        }
+
+        // What still keeps a page unread, each for its own reason.
+        for (page, why) in [
+            ("<p>try javascript:go() in the bar</p>", "text"),
+            ("<!-- <a href=javascript:go()> -->", "a comment"),
+            (
+                "<a href=\"java\u{1}script:go()\">go</a>",
+                "a control character in the scheme",
+            ),
+            (
+                "<a onclick=\"&alpha;()\">go</a>",
+                "a reference this does not decode",
+            ),
+            // The one above is also refused by the grammar, so on its own it does not show the
+            // reference check does anything. This one parses with the reference left as written —
+            // `x & alpha; (1)` — while a browser runs `xα(1)`, a different program.
+            (
+                "<a onclick=\"x&alpha;(1)\">go</a>",
+                "a reference this does not decode, in code that parses without it",
+            ),
+            ("<a href=\"javascript:go()>go</a>", "a quote never closed"),
+            ("<a href=javascript:go()", "a tag never closed"),
+            ("<script>go()</scripts>", "a script never closed"),
+        ] {
+            let scan = html_fragments(page);
+            assert!(scan.left_behind.is_some(), "{why}: {page:?} {scan:?}");
+        }
+    }
+
+    #[test]
+    fn an_unquoted_handler_reaches_the_rules() {
+        // The whole chain, not only the extraction: the page this was written for is the one where
+        // a handler with no quotes was a page declared read and clean.
+        let page =
+            "<html>\n<body>\n<button onclick=eval(location.hash)>go</button>\n</body>\n</html>\n";
+        let extracted = html_fragments(page);
+        assert!(extracted.left_behind.is_none(), "{extracted:?}");
+        let fragment = &extracted.fragments[0];
+        let findings = scan_file(&rules(), fragment.language, "index.html", &fragment.code);
+        assert_eq!(ids(&findings), vec!["ast.dynamic-code-execution"]);
+        assert_eq!(findings[0].location.line + fragment.line_offset, 3);
     }
 
     #[test]

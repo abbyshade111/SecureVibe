@@ -116,6 +116,13 @@ fn every_citation() -> Vec<(String, String, String)> {
         out.push((format!("threats.json {threat}"), requirement, because));
     }
 
+    // The rules the AI coding tool is given, from Appendix C: plain instructions against auditor's
+    // wording, so each carries a phrase naming what the two share, read here against the requirement
+    // and against the rule below.
+    for (rule, requirement, because) in coding_rule_citations() {
+        out.push((format!("coding-rules.json {rule}"), requirement, because));
+    }
+
     for requirement in sv_check::secrets::ASSIGNMENT_REQUIREMENTS {
         out.push((
             "secrets.rs secrets.credential-assignment".to_owned(),
@@ -125,6 +132,24 @@ fn every_citation() -> Vec<(String, String, String)> {
     }
 
     out
+}
+
+/// Every (rule, cited requirement, `because`) in the coding rules.
+fn coding_rule_citations() -> Vec<(String, String, String)> {
+    coding_rules()
+        .rules
+        .into_iter()
+        .flat_map(|r| {
+            let id = r.id;
+            r.cites
+                .into_iter()
+                .map(move |(requirement, because)| (id.clone(), requirement, because))
+        })
+        .collect()
+}
+
+fn coding_rules() -> sv_check::coding_rules::CodingRules {
+    sv_check::coding_rules::CodingRules::load(&data("coding-rules.json")).expect("the rules load")
 }
 
 /// The threat model shared with v1: every (threat, cited requirement, `because`) in it.
@@ -465,6 +490,29 @@ fn every_threat_bridge_shares_vocabulary_with_the_threat_too() {
 }
 
 #[test]
+fn every_coding_rule_bridge_shares_vocabulary_with_the_rule_too() {
+    // As for the threats: a phrase that matched only the requirement could join any rule to it.
+    let mut wrong = Vec::new();
+    let mut pairs = 0;
+    for rule in coding_rules().rules {
+        for (id, because) in &rule.cites {
+            pairs += 1;
+            if shares_no_words(because, &rule.rule) {
+                wrong.push(format!(
+                    "{} ~ {id}: `{because}` shares nothing with `{}`",
+                    rule.id, rule.rule
+                ));
+            }
+        }
+    }
+    assert!(
+        pairs >= 30,
+        "only {pairs} citations read, so this is not reading the file"
+    );
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
 fn a_threat_cited_against_the_wrong_subject_is_caught() {
     // Breaking the guard proves it fails; this proves it fails on the kind of mistake the other
     // four citation surfaces really made — a citation pointing at a different subject. T-01's
@@ -505,6 +553,11 @@ fn every_bridge_phrase_has_a_word_the_comparison_can_use() {
     for (threat, id, because) in threat_citations() {
         if !has_a_word(&because) {
             empty.push(format!("threats.json {threat} ~ {id}: `{because}`"));
+        }
+    }
+    for (rule, id, because) in coding_rule_citations() {
+        if !has_a_word(&because) {
+            empty.push(format!("coding-rules.json {rule} ~ {id}: `{because}`"));
         }
     }
     assert!(

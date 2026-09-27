@@ -9,6 +9,33 @@ another session is not a claim.
 
 ## Next
 
+- **Appendix C out of the report's headline numbers, into a section of its own.** Asked for by the
+  owner on 27 September 2026, once the coding rules gave Appendix C a place at the start of the
+  build. Measured the same day: Appendix C is 44 of the 284 requirements that apply to
+  `examples/flask-booking` and 33 of 163 for a bare manifest, every one *not verified* because no
+  check reaches it, so about a sixth of every report's "not verified" is about how an organization
+  runs its AI tooling rather than about the app. Removing them outright would read as coverage, and
+  the rules are not evidence, so instead:
+  - They leave the headline counts and the list of unverified requirements, unless something found
+    a problem with one or has evidence for it, which then counts as any other requirement does.
+  - One section, "How the app was built with AI (OWASP AISVS Appendix C)", says how many are given
+    to the AI coding tool as rules (and that the rules are not evidence), how many are the owner's
+    decisions (still in the questions), how many do not apply and why, and how many are left with
+    nothing reaching them.
+  - `compliance.md` and `report.json` still list every one of them, under that section, for anybody
+    assessing against AISVS.
+
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+
+- **Read the app's GitHub Actions workflows for what Appendix C warns about.** Found on 27 September
+  2026 while moving Appendix C out of the headline numbers: the coding rules tell the tool not to
+  write these, and `sv` could see whether it did. When `.github/workflows/` exists, a static rule
+  over each workflow file for a `pull_request_target` or `workflow_run` trigger that checks out the
+  pull request's code (AC.12.1), a checkout without `persist-credentials: false` (AC.12.2), secrets
+  reachable from a job that runs a fork's code (AC.12.3), and a missing or broad `permissions:` block
+  (AC.7.4). Findings when present; credit only for a workflow read in full and found clean, per rule,
+  as the other static rules do. Not claimed.
+
 - **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
   owner on 27 September 2026: Appendix C is better used as a reference while coding than as report
   lines. Its 68 requirements are written for an auditor ("Verify that…"), and no check in `sv`
@@ -38,10 +65,14 @@ another session is not a claim.
   - **It credits nothing.** Handing the tool a rule is not evidence the rule was kept, so no requirement
     changes status because the rules were written.
 
-  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking. **Done the same
+  day:** 18 rules in `data/coding-rules.json`, `sv rules`, and `securevibe_guidance`, credited and
+  licensed on every copy. See DESIGN, "Appendix C as rules the AI coding tool follows while it codes".
+  Left open: trying which tools read `AGENTS.md` on their own, and whether a `@AGENTS.md` line in
+  `CLAUDE.md` is followed, before the walk-through says so.
 
 - **Figures for the paper: security across both versions, usability, and cost.** **Claimed on 27 September
-  2026 by session admiring-murdock-875699**, at the owner's asking. New `docs/paper/figure-*.html` beside the
+  2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day.** New `docs/paper/figure-*.html` beside the
   existing three, built only from numbers already in the repository (git history, `docs/COVERAGE.md`,
   `docs/paper/`), each with its source stated. Touches only `docs/paper/`.
 
@@ -203,6 +234,12 @@ another session is not a claim.
   (Run afterwards, 27 September 2026, by securevibe-e8 on `main` at `d6e781c`: 1,074 passed; the one failure,
   `the_fence_really_blocks_outbound_traffic`, needs outbound network, which that sandbox has none of.) After
   it merges, run `tools/pwned_passwords.py` once outside the sandbox (it has no test).
+  **All of the owner's part is done, the owner said on 27 September 2026:** `pwned_passwords.py` was run
+  after the move, the USB bundles are up to date, the community standards page shows every item done,
+  and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
+  Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
+  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  bypass).
   Text below that says `agnostic/…` was written before the move.
 
   **Rules that hold whatever the plan:**
@@ -898,6 +935,16 @@ another session is not a claim.
     leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
+    **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
+    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
+    all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
+    report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
+    an answer, "nothing about people", and still gets level 1. Only apps for `just-me` or `my-team`
+    can change level this way; `customers`, the default, and `public` were level 2 already, and the
+    note is not shown for them. Unanswered and answered-with-nothing, the starter file writing `[]`
+    again, the note missing, and the note blamed on a public app are each caught by one or two
+    tests.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
@@ -1280,10 +1327,12 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
-- **Testing an app's AI feature: a fake model inside the fence, or garak.** Asked by the owner on
+- ~~**Testing an app's AI feature: a fake model inside the fence, or garak.**~~ Closed on 27 September
+  2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
+  there are better options"). The test model inside the fence was built instead (below), and garak
+  would have needed a hole in the fence and the app's own API credit. Kept for the record. Asked by the owner on
   26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
-  answered by session securevibe-e9. **For a later decision by the owner; not claimed.** Other sessions
-  are welcome to add their thoughts under "Thoughts" below, each under its own name, as its own commit.
+  answered by session securevibe-e9.
 
   **What garak could reach.** garak (NVIDIA's model scanner) sends attack prompts to a chat endpoint
   and scores the replies; pointed at the app's own chat route, through a manifest entry in the shape
@@ -2014,10 +2063,24 @@ another session is not a claim.
   the rest of `SKIP_DIRS` are not handed to it, because no check in `sv` reads them. If built output
   can be what ships, that is a question about `SKIP_DIRS` for every check at once, not about semgrep.
 
-- **Script in a page written the way a browser reads it and a parser does not.** An unquoted
-  attribute value, and a scheme written around a control character, are both named as left behind —
-  correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
-  which is a question with two defensible answers.
+- ~~**Script in a page written the way a browser reads it and a parser does not.**~~ Done on 27
+  September 2026 by session securevibe-e8. The premise was wrong in a way that mattered: where an
+  unquoted value ends is not a question with two answers, because the HTML standard ends it at whitespace
+  or `>`. And "each keeps a page unread" was not true of all of them. Checked against pages a browser
+  runs, three were counted as read with nothing taken out: an unquoted handler
+  (`<button onclick=eval(location.hash)>`), a `/` between attributes (`<img/onerror="…">`), and
+  `href="java&#9;script:…"`, where the entity became a tab only after the disguise check had looked. All
+  three were false cleans. `html_fragments` now walks start tags the way a browser's tokenizer does and
+  reads each value the way the URL standard does (put back character references, strip the ends, remove
+  tabs and newlines, then read the scheme). What is still named rather than read, and why, is in
+  DESIGN, "A page of markup is not a hole in the coverage".
+
+  Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace suite.
+  Broke eight things on purpose and watched each go red: unquoted values dropped, tabs kept in a URL, the
+  `javascript:` count switched off, raw-text bodies read as tags, `/` not a separator, the near-scheme
+  check switched off, numeric references not decoded, and unknown named references ignored. The last one
+  was caught by nothing at first, because its only fixture (`&alpha;()`) was also refused by the grammar.
+  A second fixture, `x&alpha;(1)`, parses when the reference is left as written, and now catches it.
 
 - ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
   one of the nine rules either taught each language or saying why there is nothing to find in it
@@ -2360,7 +2423,10 @@ another session is not a claim.
   silences everything" test loses its fixture). `docs/COVERAGE.md` needed no regeneration: cpp adds no
   ASVS requirement no other language already reaches for these twelve rules.
 
-  **Left: HTML's embedded scripts**, which is a different, unstarted half of this entry.
+  **HTML's embedded scripts** had been read since 25 September (DESIGN, "A page of markup is not a hole
+  in the coverage"). The part still named rather than read, which was unquoted values and disguised
+  schemes, was done on 27 September 2026 under its own entry, "Script in a page written the way a browser
+  reads it".
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in
   all. `ast.file-path-from-value` (V5.3.2), `ast.weak-hash-function` (V11.4.1), `ast.weak-cipher`
@@ -2510,6 +2576,11 @@ another session is not a claim.
   files as resources rather than paths) and progress notifications for a long check.
 
 ## Decided, not yet written down as ADRs
+
+**Claimed on 27 September 2026 by session securevibe-e8:** write the three below as decision records
+in a `docs/adr/` of `sv`'s own, check each against the code and history before writing it, and point
+the nine references to v1's ADR-012 (in `docs/DESIGN.md` and four crates) at where it now lives, since
+`main` no longer holds it.
 
 - Corroboration only ever moves toward more requirements applying, never fewer (`sv-manifest::resolve`).
 - The OWASP data files are shared with v1, not copied.

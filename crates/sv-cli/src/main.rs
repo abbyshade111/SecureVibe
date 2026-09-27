@@ -29,6 +29,7 @@ fn main() -> Result<()> {
         Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
         Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
         Some("questions") => cmd_questions(args.get(1).map(PathBuf::from)),
+        Some("rules") => cmd_rules(&args[1..]),
         Some("probe") => cmd_probe(&args[1..]),
         Some("run") => cmd_run(&args[1..]),
         Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
@@ -56,6 +57,7 @@ fn print_help() {
          sv scope [PATH]    show which requirements apply to the app, and why\n  \
          sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
          sv questions [PATH]\n                     the questions only a person can answer, for your AI coding\n                     tool to ask you: paste them into its chat\n  \
+         sv rules [PATH] [--print]\n                     write the security rules your AI coding tool follows while it\n                     codes into AGENTS.md (--print shows them instead)\n  \
          sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n  \
          sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n  \
          sv check [PATH]    credentials left in the code, and how it is set up\n  \
@@ -206,6 +208,9 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         },
         manifest.target_level()
     );
+    if let Some(why) = manifest.level_from_unanswered_data() {
+        println!("{why}");
+    }
     if !report.ecosystems.is_empty() {
         let names: Vec<&str> = report.ecosystems.iter().map(|e| e.name.as_str()).collect();
         println!(
@@ -613,7 +618,7 @@ fn notes_facts(
 
     sv_check::notes::Facts {
         app_name: app_name.to_owned(),
-        data_categories: manifest.data.categories.clone(),
+        data_categories: manifest.data.listed().to_vec(),
         outside_services,
         ecosystems: scan_report
             .ecosystems
@@ -656,6 +661,142 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
          with `Written by: owner`. That is not the same as checked: nothing here reads whether your \
          answer is right, or whether the app does what it says. One your AI coding tool wrote, or \
          one that does not say who wrote it, counts for less, as *stated by the AI coding tool*."
+    );
+    Ok(())
+}
+
+pub(crate) fn coding_rules_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/coding-rules.json")
+}
+
+/// The coding rules for an app, and how many were left out as not applying to it.
+pub(crate) struct RulesForApp {
+    pub rules: sv_check::coding_rules::CodingRules,
+    /// The ids of the rules given, in the file's order.
+    pub given: Vec<String>,
+    pub withheld: usize,
+    /// Whether securevibe.toml was there to filter by. Without it every rule is given.
+    pub filtered: bool,
+}
+
+impl RulesForApp {
+    pub fn markdown(&self, topic: Option<&str>) -> String {
+        let given: Vec<&sv_check::coding_rules::Rule> = self
+            .rules
+            .rules
+            .iter()
+            .filter(|r| self.given.contains(&r.id) && topic.is_none_or(|t| r.topic == t))
+            .collect();
+        self.rules
+            .markdown(&given, if topic.is_none() { self.withheld } else { 0 })
+    }
+}
+
+/// Reads the coding rules and leaves out those whose every cited requirement does not apply to the
+/// app. Prints nothing, because the MCP server's stdout is the protocol.
+pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    let manifest_path = app_dir.join("securevibe.toml");
+    let excluded: Option<std::collections::BTreeSet<String>> = if manifest_path.exists() {
+        let manifest = Manifest::load(&manifest_path)?;
+        let data = data_dir()?;
+        let frameworks = load_frameworks(&data)?;
+        let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+        let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+        let scan_report = scan(app_dir, &signatures)?;
+        let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+        let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
+        Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
+    } else {
+        None
+    };
+    let is_excluded = |id: &str| excluded.as_ref().is_some_and(|set| set.contains(id));
+    let given: Vec<String> = rules
+        .for_app(
+            excluded
+                .as_ref()
+                .map(|_| &is_excluded as &dyn Fn(&str) -> bool),
+        )
+        .into_iter()
+        .map(|r| r.id.clone())
+        .collect();
+    let withheld = rules.rules.len() - given.len();
+    Ok(RulesForApp {
+        filtered: excluded.is_some(),
+        rules,
+        given,
+        withheld,
+    })
+}
+
+/// Writes the coding rules into the app's `AGENTS.md`, between `sv`'s markers, or prints them.
+fn cmd_rules(args: &[String]) -> Result<()> {
+    let mut app_dir = PathBuf::from(".");
+    let mut print = false;
+    for arg in args {
+        match arg.as_str() {
+            "--print" => print = true,
+            other if other.starts_with("--") => bail!("unknown option: {other}"),
+            other => app_dir = PathBuf::from(other),
+        }
+    }
+    if !app_dir.is_dir() {
+        bail!("{} is not a folder", app_dir.display());
+    }
+    let found = coding_rules_for(&app_dir)?;
+    let section = found.markdown(None);
+    if print {
+        print!("{section}");
+        return Ok(());
+    }
+    let path = app_dir.join("AGENTS.md");
+    let existing = match std::fs::read_to_string(&path) {
+        Ok(text) => Some(text),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
+    };
+    let text = found
+        .rules
+        .into_agents_file(existing.as_deref(), &section)
+        .with_context(|| format!("{} was left as it was", path.display()))?;
+    std::fs::write(&path, text).with_context(|| format!("writing {}", path.display()))?;
+    println!(
+        "Wrote {} security rule{} for your AI coding tool into {}{}.",
+        found.given.len(),
+        if found.given.len() == 1 { "" } else { "s" },
+        path.display(),
+        match &existing {
+            Some(text) if text.contains(sv_check::coding_rules::BEGIN) => {
+                ", replacing only the section `sv` wrote there"
+            }
+            Some(_) => ", after what was already in it, which is unchanged",
+            None => "",
+        }
+    );
+    if !found.filtered {
+        println!(
+            "There is no securevibe.toml yet, so every rule is included. Run `sv rules` again once \
+             it is written, and the rules that do not apply to this app are left out."
+        );
+    } else if found.withheld > 0 {
+        println!(
+            "{} left out, because what {} about does not apply to this app.",
+            if found.withheld == 1 {
+                "1 rule is".to_owned()
+            } else {
+                format!("{} rules are", found.withheld)
+            },
+            if found.withheld == 1 {
+                "it is"
+            } else {
+                "they are"
+            }
+        );
+    }
+    println!(
+        "\nThey are instructions for the tool, not a check: following them is not evidence that the \
+         app meets anything. They are adapted from OWASP AISVS 1.0 Appendix C, under CC BY-SA 4.0; \
+         the file says so, with a link."
     );
     Ok(())
 }
@@ -1509,7 +1650,7 @@ fn write_bundle(
     let scan = scan_dir(&rules, app_abs);
     let plan = bundle::plan(app_abs, &scan);
     let categories = Manifest::load(&app_abs.join("securevibe.toml"))
-        .map(|m| m.data.categories)
+        .map(|m| m.data.listed().to_vec())
         .unwrap_or_default();
 
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
@@ -2478,6 +2619,12 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         ),
         None => Default::default(),
     };
+    if let Some(why) = manifest.level_from_unanswered_data() {
+        gaps.push(sv_report::Gap {
+            what: "What information the app holds about people".to_owned(),
+            why: why.to_owned(),
+        });
+    }
     let not_counted: Vec<&(String, String)> = confirmed_design
         .not_counted
         .iter()
