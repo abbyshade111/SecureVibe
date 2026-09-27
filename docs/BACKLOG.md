@@ -1965,7 +1965,8 @@ another session is not a claim.
 - **Script in a page written the way a browser reads it and a parser does not.** An unquoted
   attribute value, and a scheme written around a control character, are both named as left behind —
   correct, and each keeps a page unread. Reading them means deciding where an unquoted value ends,
-  which is a question with two defensible answers.
+  which is a question with two defensible answers. **Claimed on 27 September 2026 by session
+  securevibe-e8.** Also covers "HTML's embedded scripts" in the C++ entry: the same work.
 
 - ~~**Dart and Swift.**~~ Done on 25 September 2026 by session securevibe-e8. Both grammars, with every
   one of the nine rules either taught each language or saying why there is nothing to find in it
