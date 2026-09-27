@@ -38,9 +38,13 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch cancels a run still going, except on main. There every run finishes,
+# because the last job publishes the image: several sessions merge to main within minutes of each
+# other, and with cancelling on, the first publish after the publish job went in was cancelled by
+# the next merge before it could start.
 concurrency:
   group: rust-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
