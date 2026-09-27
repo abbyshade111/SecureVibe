@@ -5,6 +5,28 @@ another session is not a claim.
 
 ## Next
 
+- **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
+  2026, from the repository's *Insights → Community standards* page. Not claimed. Done today:
+  description, README, license, and the security policy (`docs/SECURITY.md`). Missing:
+  - **Code of conduct** (`CODE_OF_CONDUCT.md`). Which one is the owner's choice; the Contributor
+    Covenant is the usual default. It names a contact for reports, and that address is the owner's to give.
+  - **Contributing guide** (`CONTRIBUTING.md`): how to build and test `sv`, the checks a change must
+    pass, and the rules that already bind every session and are worth stating for people too (claim a
+    backlog item before starting it; evidence tiers are honest; American English with the Oxford comma).
+  - **Issue templates** (`.github/ISSUE_TEMPLATE/`): at least a bug report and an idea. A bug report
+    for a security tool should ask for `sv`'s version, the command, and what was not examined, and
+    should send anything that looks like a vulnerability in `sv` itself to the security policy
+    instead of a public issue.
+  - **Pull request template** (`.github/pull_request_template.md`). Worth care: every session writing
+    pull requests here fills in whatever template exists, so its sections become the shape of every
+    PR description. Keep it short: what changed, how it was verified (with what was *not* verified),
+    and the backlog entry it closes.
+
+  Two things to settle first. **Where the files go** depends on the entry below: while v1 is at the
+  top, `CONTRIBUTING.md` there describes v1; after the move, `sv`. Doing this after the move, or writing
+  it for the repository as a whole, avoids writing it twice. And **the security policy should name
+  `sv`**: it is v1's today (`docs/SECURITY.md`), and the community page counts it without reading it.
+
 - **Promote `sv` to the top of the repository, and keep v1 for the paper.** **The owner's decision,
   26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
   lost, and its code stays preserved exactly for the paper. **When** is for the sessions to work out
@@ -63,8 +85,8 @@ another session is not a claim.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
-  making it easy for people who aren't technical or security experts to vibe code safely." **Not
-  claimed.** The walk-through itself is short — describe the app, have the tool write
+  making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
+  on 26 September 2026 by session securevibe-e8**, at the owner's asking, now the container is done. The walk-through itself is short — describe the app, have the tool write
   `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
   `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
   prompt in the conversation that produced this entry. **What is not short is getting to step one**,
