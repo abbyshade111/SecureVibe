@@ -19,11 +19,11 @@ another session is not a claim.
   JavaScript and Python as well as Rust, with `examples/` excluded like the fixtures; the two paths are
   fixed; the `Dockerfile`'s base images are pinned to fingerprints, which Dependabot now moves weekly (their
   names carry no version, so without a fingerprint it would have had nothing to update); and `SECURITY.md`
-  at the root is `sv`'s policy. **The owner's, and not done:** private vulnerability reporting is switched
-  off (GitHub's API said `"enabled": false` on 27 September 2026), so the policy's link finds no form until
-  it is turned on under *Settings → Code security → Private vulnerability reporting*. The new CodeQL legs
-  have not run yet: the first run on `main` may raise alerts in `crates/sv-run/assets/`, whose stand-in
-  services misbehave on purpose; each is to be read and dismissed with its reason, or fixed.
+  at the root is `sv`'s policy. The owner turned private vulnerability reporting on the same day (GitHub's
+  API said `"enabled": false` before, `true` after). The new CodeQL legs passed on the pull request with no
+  new alert; alerts on `main` were not readable from the session, and any that appear in
+  `crates/sv-run/assets/`, whose stand-in services misbehave on purpose, are each to be read and dismissed
+  with its reason, or fixed.
 
 - **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
   2026, from the repository's *Insights → Community standards* page. Not claimed. Done: description,
@@ -59,7 +59,7 @@ another session is not a claim.
   `knowledge/`), which is why the shared files are now reached by `../../data` from a crate like sv's own; the two
   Python tools that set `ROOT = AGNOSTIC.parent` now use the repository root; the workflows, `.dockerignore` and
   `.gitignore` follow. **Not done, and the owner's:** `~/code/my-first-app/.mcp.json` and the PATH line in `~/.zshrc`
-  (both point at `sv-tool/agnostic/target/release/sv`), the local image `securevibe/sv:local`, a Dependabot entry for
+  (both point at `sv-tool/agnostic/target/release/sv`; updated, the owner said on 27 September 2026), the local image `securevibe/sv:local`, a Dependabot entry for
   the Rust packages (there was none; added in #226), and turning the freeze off once this merges. **Not verified by me before
   opening this pull request:** a local `cargo test`, which the permission check stopped; CI is the first full run.
   (Run afterwards, 27 September 2026, by securevibe-e8 on `main` at `d6e781c`: 1,074 passed; the one failure,
