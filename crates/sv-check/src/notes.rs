@@ -908,9 +908,8 @@ mod tests {
             format!("{disclaimer}\n\nWritten by: AI coding tool"),
             "_Written by the AI coding tool from the code, to be reviewed by the owner._"
                 .to_owned(),
-            format!(
-                "**Written by the AI coding tool from what the code does today.**\n\nWritten by: owner"
-            ),
+            "**Written by the AI coding tool from what the code does today.**\n\nWritten by: owner"
+                .to_owned(),
         ] {
             let answers = with_answer(&body);
             assert!(
