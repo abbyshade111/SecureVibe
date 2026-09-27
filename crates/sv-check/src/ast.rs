@@ -1080,6 +1080,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 .or_else(|| m.captures().first().map(|c| c.node));
             let Some(node) = node else { continue };
             out.push(Finding {
+                also_reported_by: Vec::new(),
                 rule_id: compiled.rule.id.clone(),
                 title: compiled.rule.title.clone(),
                 severity: compiled.rule.severity,

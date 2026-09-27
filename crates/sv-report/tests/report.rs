@@ -21,6 +21,7 @@ fn frameworks() -> Frameworks {
 
 fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
+        also_reported_by: Vec::new(),
         rule_id: rule_id.into(),
         title: "something".into(),
         severity: Severity::High,

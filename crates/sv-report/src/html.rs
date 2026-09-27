@@ -243,6 +243,9 @@ pub fn page(report: &Report) -> String {
                 escape(&f.location.file),
                 f.location.line
             ));
+            for note in crate::finding_notes(f) {
+                b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&note)));
+            }
             b.push_str(&format!("<p>{}</p>\n", escape(&f.description)));
             b.push_str(&format!(
                 "<p><strong>Why it matters.</strong> {}</p>\n",

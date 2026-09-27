@@ -768,8 +768,9 @@ fn summary(report: &sv_report::Report) -> String {
         out.push_str(&format!("\n{} FINDINGS:\n", report.findings.len()));
         for f in &report.findings {
             out.push_str(&format!(
-                "- [{}] {} — {}:{}{}\n  fix: {}\n",
+                "- [{}, {}] {} — {}:{}{}\n  fix: {}\n",
                 f.severity.name(),
+                f.certainty(),
                 f.title,
                 f.location.file,
                 f.location.line,
@@ -780,6 +781,13 @@ fn summary(report: &sv_report::Report) -> String {
                 },
                 f.fix
             ));
+            // Said to the AI coding tool in so many words: it changes code until a warning stops, so
+            // a finding `sv` is not sure of has to reach it as one to check first.
+            for note in sv_report::finding_notes(f).into_iter().filter(|n| {
+                !n.starts_with("How sure: confirmed") && !n.starts_with("How sure: likely")
+            }) {
+                out.push_str(&format!("  {note}\n"));
+            }
         }
     }
     out

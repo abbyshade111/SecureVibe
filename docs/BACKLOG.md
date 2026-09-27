@@ -19,7 +19,9 @@ another session is not a claim.
   line, and kind of weakness (CWE) become one finding naming every tool that raised it; a finding in
   test code or sample files says so; and a finding `sv` is not sure of is shown as a *possible* problem,
   apart from a *confirmed* one, both still counted as needing attention. **The owner's decision, 27
-  September 2026: go ahead.** **Claimed the same day by session securevibe-e2.**
+  September 2026: go ahead.** **Claimed the same day by session securevibe-e2.** **Done the same
+  day:** see DESIGN, "False alarms: fewer reach the owner, and none is hidden". Merging is done where the
+  report is built, and not in `sv check`, which runs only `sv`'s own rules and has nothing to merge.
 
 - **False alarms, part 2: a person's record that a finding is a false alarm, or an accepted risk.**
   From the same investigation. **The owner's decisions, 27 September 2026, each as recommended:**
