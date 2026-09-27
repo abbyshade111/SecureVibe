@@ -523,9 +523,11 @@ another session is not a claim.
   - **1C.** A patch on a branch cut from `v1` (`claude/v1-codeql-once`) keeps CodeQL's results as a
     run artifact as well as sending them to the Security tab, and the workflow was started once by
     hand on that branch (run 36336131545): both legs, JavaScript and TypeScript (576 TypeScript, 8
-    JavaScript, 7 HTML, and 3 workflow files read) and Rust, finished. The findings are recorded in
-    `ARCHIVED.md` on the `v1` branch once read, since this environment could neither download the
-    artifact nor read the Security tab. Nothing scans v1 again.
+    JavaScript, 7 HTML, and 3 workflow files read) and Rust, finished. **No open alerts:** the owner
+    read the Security tab filtered to that branch, 0 open and 12 closed (matching alerts dismissed or
+    fixed before, not re-examined one by one), since this environment could neither download the
+    artifact nor read the tab. Recorded in `ARCHIVED.md` on the `v1` branch (#272). Nothing scans v1
+    again.
   - **2A.** The quick check found none of the five sets exercises a condition no current `sv` test
     does: between them they use sign-in, uploads, AI, email, payments, scheduled jobs, a public API,
     outside services, and the level-2 data categories, and `real_data.rs` already walks every
