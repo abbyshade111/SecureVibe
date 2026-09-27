@@ -77,6 +77,10 @@ conditions! {
     Webrtc => "webrtc", Claim, "This app has no real-time audio or video calls (WebRTC).";
     Jwt => "jwt", Claim, "This app does not issue self-contained tokens such as JWTs.";
     Rag => "rag", Claim, "The AI does not search a document store or vector database (no retrieval-augmented generation).";
+    // Searching the web is retrieval too, and four of the seven `rag` requirements fit it (citing
+    // what was retrieved, logging each retrieval); the vector-database ones do not. Asked apart
+    // since 27 September 2026, when one question led a tool to count web search as a vector store.
+    WebSearch => "web-search", Claim, "The AI does not search the web or read web pages.";
     Mcp => "mcp", Claim, "The AI does not use the Model Context Protocol (MCP) to talk to tools.";
     MultiTenant => "multi-tenant", Claim, "This app serves one organization, not several separate customer organizations sharing one system.";
     Training => "training", Claim, "This app does not train or fine-tune any AI model.";

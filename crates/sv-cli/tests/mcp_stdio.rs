@@ -48,7 +48,20 @@ fn a_whole_session_over_stdio() {
     let ids: Vec<i64> = replies.iter().map(|r| r["id"].as_i64().unwrap()).collect();
     assert_eq!(ids, [1, 2, 3, 4]);
     assert_eq!(replies[0]["result"]["serverInfo"]["name"], "securevibe");
+<<<<<<< Updated upstream
     assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 7);
+=======
+    // What the tool is told to have the person run names this very `sv` by its full path, so it
+    // works at a terminal whether or not `sv` was ever put on the search path (the owner's first
+    // build met `command not found`).
+    let program = std::fs::canonicalize(env!("CARGO_BIN_EXE_sv")).unwrap();
+    let instructions = replies[0]["result"]["instructions"].as_str().unwrap();
+    assert!(
+        instructions.contains(&format!("`{} report ", program.display())),
+        "{instructions}"
+    );
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 6);
+>>>>>>> Stashed changes
     let check = &replies[2]["result"];
     assert_eq!(check["isError"], false, "{check}");
     assert!(

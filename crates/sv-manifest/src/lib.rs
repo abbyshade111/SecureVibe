@@ -82,6 +82,10 @@ pub struct AiClaims {
     pub moderation: Option<bool>,
     #[serde(default)]
     pub rag: Option<bool>,
+    /// Does the AI search the web or read web pages? Retrieval, like `rag`, but with no document
+    /// store or vector database of the app's own.
+    #[serde(default)]
+    pub web_search: Option<bool>,
     #[serde(default)]
     pub mcp: Option<bool>,
     #[serde(default)]
@@ -868,6 +872,7 @@ impl Manifest {
             (Condition::AiHistory, about_ai(c.ai.stores_history)),
             (Condition::AiModeration, about_ai(c.ai.moderation)),
             (Condition::Rag, about_ai(c.ai.rag)),
+            (Condition::WebSearch, about_ai(c.ai.web_search)),
             (Condition::Mcp, about_ai(c.ai.mcp)),
             (Condition::Training, about_ai(c.ai.training)),
             (Condition::Level2, Some(self.target_level() == 2)),
@@ -1105,6 +1110,20 @@ mod tests {
     }
 
     #[test]
+    fn a_web_search_is_its_own_answer_and_not_a_document_store() {
+        let m: Manifest =
+            toml::from_str("[capabilities.ai]\nenabled = true\nrag = false\nweb-search = true\n")
+                .expect("manifest parses");
+        let (ctx, _) = resolve(&m, &|_| None);
+        assert_eq!(ctx.get(Condition::WebSearch), Some(true));
+        assert_eq!(ctx.get(Condition::Rag), Some(false));
+        // Left out, it is unanswered, never a quiet no.
+        let silent: Manifest = toml::from_str("[capabilities.ai]\nenabled = true\n").unwrap();
+        let (ctx, _) = resolve(&silent, &|_| None);
+        assert_eq!(ctx.get(Condition::WebSearch), None);
+    }
+
+    #[test]
     fn ai_sub_claims_are_settled_by_there_being_no_ai() {
         let mut m = Manifest::default();
         m.capabilities.ai.enabled = Some(false);
@@ -1112,6 +1131,7 @@ mod tests {
         for c in [
             Condition::AiActions,
             Condition::Rag,
+            Condition::WebSearch,
             Condition::Mcp,
             Condition::Training,
             Condition::SelfHostedModel,

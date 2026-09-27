@@ -898,3 +898,67 @@ fn nobody_has_said_whether_this_app_is_an_authorization_server() {
         );
     }
 }
+
+#[test]
+fn a_web_search_brings_in_what_fits_it_and_not_the_vector_store() {
+    // Found in the owner's first build (27 September 2026): one `rag` question, "does it search a
+    // document store or vector database?", led a tool to count a web search as one, which brought
+    // in the vector-database requirements for an app with no database. Four of the seven `rag`
+    // requirements do fit a web search, so the answer is asked apart rather than the question
+    // narrowed, which would have dropped those four.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    let with = |rag: bool, web: bool| {
+        let mut ctx = ConditionContext::default();
+        for c in Condition::ALL
+            .iter()
+            .filter(|c| c.source() == Source::Claim)
+        {
+            ctx.set(*c, false);
+        }
+        ctx.set(Condition::Ai, true);
+        ctx.set(Condition::Rag, rag);
+        ctx.set(Condition::WebSearch, web);
+        bucket(&f, &config, &ctx, 3)
+    };
+    let fits_both = ["C7.4.1", "C7.4.2", "C7.4.3", "C12.1.4"];
+    let store_only = ["C8.1.1", "C8.1.2", "C8.2.1", "C5.2.2", "C5.2.3"];
+    for id in fits_both.iter().chain(store_only.iter()) {
+        assert!(
+            f.get(id).is_some(),
+            "{id} must be a real requirement for this to mean anything"
+        );
+    }
+
+    let web = with(false, true);
+    for id in fits_both {
+        assert!(
+            web.applicable.iter().any(|a| a == id),
+            "{id} fits a web search"
+        );
+    }
+    for id in store_only {
+        assert!(
+            web.not_applicable.iter().any(|na| na.id == id),
+            "{id} is about a store of the app's own, and a web search has none"
+        );
+    }
+
+    // The trap in adding rules at a narrower scope: the most specific scope wins, so a web-search
+    // rule at C7.4.1 alone would have hidden the `rag` rule written for all of C7.4.
+    let store = with(true, false);
+    for id in fits_both.iter().chain(store_only.iter()) {
+        assert!(
+            store.applicable.iter().any(|a| a == *id),
+            "{id} still applies to an app with a document store"
+        );
+    }
+
+    let neither = with(false, false);
+    for id in fits_both.iter().chain(store_only.iter()) {
+        assert!(
+            neither.not_applicable.iter().any(|na| na.id == *id),
+            "{id} with no retrieval at all"
+        );
+    }
+}

@@ -43,10 +43,68 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     write one from it. securevibe_check never says a requirement passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
     only the person can answer; securevibe_questions lists them, for you to ask them one at a \
+<<<<<<< Updated upstream
     time. When the report is written, offer the person a zip of the whole result to keep or hand on \
     (securevibe_bundle), only if they want one. It does not start \
     the app or run other security tools; for those, ask the person to run `sv report --run --tools` \
     in a terminal.";
+=======
+    time. It does not start \
+    the app or run other security tools; for those, ask the person to run ";
+
+/// Set in the container image (see the Dockerfile), where `sv` cannot start the app at all.
+const IN_CONTAINER: &str = "SV_IN_CONTAINER";
+
+/// How the person runs `sv report` at a terminal, written so that it works as typed.
+///
+/// Found in the owner's first build (27 September 2026): these instructions said "run `sv report
+/// --run --tools`", the owner got `command not found`, because the `sv` answering here had never
+/// been put on the terminal's search path. So the command names this very program by its full
+/// path, which works whether or not it is on the path. In the container, `--run` cannot work at all
+/// (starting the app would mean handing the container control of Docker), so the command is for
+/// `sv` installed on the computer itself, and says so.
+pub(crate) fn at_a_terminal(app: &str, flags: &str) -> String {
+    terminal_command(
+        app,
+        flags,
+        std::env::var_os(IN_CONTAINER).is_some(),
+        std::env::current_exe().and_then(|p| p.canonicalize()).ok(),
+    )
+}
+
+fn terminal_command(
+    app: &str,
+    flags: &str,
+    in_container: bool,
+    program: Option<PathBuf>,
+) -> String {
+    let command = |program: &str| format!("`{} report {} {flags}`", quoted(program), quoted(app));
+    if in_container {
+        return format!(
+            "{} in a terminal, with `sv` installed on the computer itself rather than this \
+             container, which cannot start the app (docs/GETTING-STARTED.md says how to install it)",
+            command("sv")
+        );
+    }
+    match program {
+        Some(program) => format!("{} in a terminal", command(&program.to_string_lossy())),
+        None => format!("{} in a terminal", command("sv")),
+    }
+}
+
+/// A path as a shell reads it: as it is when it holds nothing a shell treats specially, otherwise
+/// in single quotes.
+fn quoted(text: &str) -> String {
+    if text
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "/._-~+:,@".contains(c))
+    {
+        text.to_owned()
+    } else {
+        format!("'{}'", text.replace('\'', "'\\''"))
+    }
+}
+>>>>>>> Stashed changes
 
 pub struct Server {
     /// The folder every path is resolved against, canonical.
@@ -139,7 +197,10 @@ impl Server {
             "protocolVersion": version,
             "capabilities": { "tools": { "listChanged": false } },
             "serverInfo": { "name": "securevibe", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": INSTRUCTIONS,
+            "instructions": format!(
+                "{INSTRUCTIONS}{}.",
+                at_a_terminal("<the app's folder>", "--run --tools")
+            ),
         })
     }
 
@@ -197,13 +258,19 @@ impl Server {
                 run_the_app: false,
                 slow: false,
                 run_tools: false,
-                why_not_run: "The MCP server never starts the app; the person can, with \
-                              `sv report --run` in a terminal.",
-                why_no_tools: "The MCP server never runs other people's tools; the person can, \
-                               with `sv report --tools` in a terminal.",
+                why_not_run: format!(
+                    "The MCP server never starts the app; the person can, with {}.",
+                    at_a_terminal(&app_dir.to_string_lossy(), "--run")
+                ),
+                why_no_tools: format!(
+                    "The MCP server never runs other people's tools; the person can, with {}.",
+                    at_a_terminal(&app_dir.to_string_lossy(), "--tools")
+                ),
                 advisories: None,
-                why_no_advisories: "The MCP server does not read an advisory database; the \
-                                    person can, with `sv report --advisories DIR` in a terminal.",
+                why_no_advisories: format!(
+                    "The MCP server does not read an advisory database; the person can, with {}.",
+                    at_a_terminal(&app_dir.to_string_lossy(), "--advisories DIR")
+                ),
             },
         )
     }
@@ -841,10 +908,10 @@ mod tests {
                 run_the_app: false,
                 slow: false,
                 run_tools: false,
-                why_not_run: "",
-                why_no_tools: "",
+                why_not_run: String::new(),
+                why_no_tools: String::new(),
                 advisories: None,
-                why_no_advisories: "",
+                why_no_advisories: String::new(),
             },
         )
         .unwrap();
@@ -989,6 +1056,43 @@ mod tests {
                 .unwrap()
                 .len()
                 > 10
+        );
+    }
+
+    #[test]
+    fn the_command_to_run_names_this_sv_by_its_full_path() {
+        // The owner's first build: "run `sv report --run --tools`" met `command not found`.
+        let program = PathBuf::from("/Users/me/sv-tool/target/release/sv");
+        let text = terminal_command("/Users/me/code/app", "--run", false, Some(program));
+        assert_eq!(
+            text,
+            "`/Users/me/sv-tool/target/release/sv report /Users/me/code/app --run` in a terminal"
+        );
+    }
+
+    #[test]
+    fn a_path_with_a_space_is_quoted_so_it_still_works_as_typed() {
+        let program = PathBuf::from("/Users/me/My Tools/sv");
+        let text = terminal_command("/Users/me/it's here", "--run", false, Some(program));
+        assert!(
+            text.contains("`'/Users/me/My Tools/sv' report '/Users/me/it'\\''s here' --run`"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn in_the_container_the_command_is_for_sv_on_the_computer() {
+        let text = terminal_command(
+            "/Users/me/code/app",
+            "--run",
+            true,
+            Some(PathBuf::from("/usr/local/bin/sv")),
+        );
+        assert!(
+            text.starts_with("`sv report /Users/me/code/app --run`")
+                && text.contains("installed on the computer itself")
+                && !text.contains("/usr/local/bin"),
+            "the container's own path means nothing outside it: {text}"
         );
     }
 
