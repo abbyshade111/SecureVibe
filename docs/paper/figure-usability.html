@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usability Across Versions</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --v1: #2a78d6; --sv: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --v1: #3987e5; --sv: #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --v1: #3987e5; --sv: #d95926;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 32px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 20px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 180px; }
+  .stat b { display: block; font-size: 1.8rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 0 0 8px; }
+  .group { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+  .group h3 { font-size: .85rem; margin: 0 0 2px; }
+  .group p { font-size: .78rem; color: var(--text-muted); margin: 0 0 8px; }
+  .units { display: flex; flex-wrap: wrap; gap: 4px; }
+  .unit { width: 16px; height: 16px; border-radius: 4px; }
+  .count { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+  blockquote { margin: 18px 0; padding: 10px 16px; border-left: 3px solid var(--sv); background: var(--surface-2);
+    border-radius: 0 8px 8px 0; font-size: .92rem; }
+  blockquote cite { display: block; color: var(--text-muted); font-size: .78rem; font-style: normal; margin-top: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.src { white-space: nowrap; color: var(--text-secondary); }
+  .note { color: var(--text-muted); font-size: .82rem; margin-top: 14px; }
+  @media (max-width: 600px) {
+    td, th { white-space: normal !important; overflow-wrap: anywhere; }
+    .rows { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>What people hit that the tests did not</h1>
+  <p class="sub">Every problem below was found by a person using the software or watching it used. The automated
+     suites were green each time. In <code>sv</code>'s case the person was the owner, building a real app from an
+     empty folder with an AI coding tool, which is the use <code>sv</code> is for.</p>
+
+  <div class="hero">
+    <div class="stat"><b style="color:var(--v1)">13 · 0</b><span>v1 problems found by people, and by 1,290 automated tests (1,075 server and 215 template)</span></div>
+    <div class="stat"><b style="color:var(--sv)">9 → 1 → 23</b><span>requirements <code>sv</code> checked on the owner's app: the fault, then the fix</span></div>
+    <div class="stat"><b style="color:var(--sv)">8 of 12</b><span>"owner's" security notes that the AI tool had actually written</span></div>
+  </div>
+
+  <div class="groups" role="img" aria-label="Problems found by use: v1, 13; sv first build, 5 faults and 4 frictions; sv from an empty folder, 7 blockers; sv in VS Code, 2.">
+    <div class="group"><h3 style="color:var(--v1)">v1, 19–20 September</h3><p>the owner and a second person, using it</p><div class="units" data-n="13" data-c="--v1"></div><div class="count">13</div></div>
+    <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, first build: faults</h3><p>in <code>sv</code>, found in the owner's session</p><div class="units" data-n="5" data-c="--sv"></div><div class="count">5</div></div>
+    <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, first build: friction</h3><p>for somebody who is not technical</p><div class="units" data-n="4" data-c="--sv"></div><div class="count">4</div></div>
+    <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, from an empty folder</h3><p>each one stopped the attempt</p><div class="units" data-n="7" data-c="--sv"></div><div class="count">7</div></div>
+    <div class="group"><h3 style="color:var(--sv)"><code>sv</code> in VS Code</h3><p>it worked start to finish; these were the stumbles</p><div class="units" data-n="2" data-c="--sv"></div><div class="count">2</div></div>
+  </div>
+
+  <blockquote>"With an AI in the loop a false alarm is not noise: it changes the code."
+    <cite>docs/BACKLOG.md: two false alarms rated high led the owner's AI tool to rewrite working code until the warnings stopped (fixed in #220).</cite></blockquote>
+
+  <h2>v1: found by use (13)</h2>
+  <p class="lede">From <code>figure-how-found.html</code>, where each is set out with who found it. Ten were
+     found by the owner and three by the second person.</p>
+  <table>
+    <thead><tr><th>What the person was doing</th><th>What happened</th></tr></thead>
+    <tbody>
+      <tr><td>Uploading an app</td><td>A .zip went in as a single file, and would have been checked as compressed bytes and reported clean</td></tr>
+      <tr><td>Checking uploaded code</td><td>Forced through the whole design wizard first</td></tr>
+      <tr><td>Starting a check</td><td>The button stayed disabled with no reason shown</td></tr>
+      <tr><td>Re-checking an upload</td><td>No way to get there from the results page</td></tr>
+      <tr><td>Watching a paid run</td><td>No cost shown until money had been spent</td></tr>
+      <tr><td>Comparing two versions</td><td>Five identical findings with no file name to tell them apart</td></tr>
+      <tr><td>Reading the report</td><td>"0 of 106 requirements verified" on code that was never read</td></tr>
+      <tr><td>Resuming after credit ran out</td><td>Resume worked, and nothing linked to it</td></tr>
+      <tr><td>Asking the assistant</td><td>No page, no progress, no sign the request arrived</td></tr>
+      <tr><td>Describing a record type</td><td>A red error before anything was typed</td></tr>
+      <tr><td>Answering a follow-up question</td><td>Several answers applied; only one could be given</td></tr>
+      <tr><td>Running one scan</td><td>"Run this one" opened the build page instead</td></tr>
+      <tr><td>Reading the security page</td><td>A card named only "running the scans"</td></tr>
+    </tbody>
+  </table>
+
+  <h2><code>sv</code>: the owner's first build from scratch (9)</h2>
+  <p class="lede">26 September: a catalog site built from an empty folder in Claude Code, with <code>sv</code>
+     connected over MCP. Another session read the whole 886-message conversation and reproduced each item before
+     recording it. All nine were fixed by the next morning.</p>
+  <table>
+    <thead><tr><th></th><th>What went wrong</th><th>Fixed in</th></tr></thead>
+    <tbody>
+      <tr><td>Fault</td><td><code>sv</code> read its own report folder as the app's code on the next run: requirements checked fell from 9 to 1, twice, and the tool found the cause only by undoing its own changes one at a time</td><td class="src">#220</td></tr>
+      <tr><td>Fault</td><td>Two false alarms rated high (a regular expression's <code>exec</code>, a test's <code>query</code>) made the tool change correct code</td><td class="src">#220</td></tr>
+      <tr><td>Fault</td><td>A rate limiter was taken as evidence of a public API, in an app with no sign-in</td><td class="src">#240</td></tr>
+      <tr><td>Fault</td><td>Security notes the AI tool wrote were credited to the owner: 8 of the 12</td><td class="src">#239</td></tr>
+      <tr><td>Fault</td><td>When the app's own tests failed under <code>--run</code>, their output was lost</td><td class="src">#229</td></tr>
+      <tr><td>Friction</td><td>Told to run <code>sv</code>, the owner got "command not found"</td><td class="src">#248</td></tr>
+      <tr><td>Friction</td><td>The app was never put in git, so the committed-secrets check could not run</td><td class="src">#248</td></tr>
+      <tr><td>Friction</td><td>A question about retrieval led the tool to count a web search as a vector database</td><td class="src">#248, #249</td></tr>
+      <tr><td>Friction</td><td>The summary did not say whether <code>--run</code> had started the app</td><td class="src">#234</td></tr>
+    </tbody>
+  </table>
+
+  <h2><code>sv</code>: getting to step one (7), and VS Code (2)</h2>
+  <p class="lede">Found by trying it as the owner would, the same day. The walk-through itself was short; getting
+     to its first step was not.</p>
+  <table>
+    <thead><tr><th>What stopped it</th><th>Where it stands</th></tr></thead>
+    <tbody>
+      <tr><td>Step one was "install Rust": <code>sv</code> had to be built from source</td><td>A container image, published from CI (#205, #208); a download per platform is still to come</td></tr>
+      <tr><td>A built <code>sv</code> cannot be moved: it reads its data files from the folder it was built in</td><td>Recorded; the container carries its data with it</td></tr>
+      <tr><td>The README's MCP command (<code>claude mcp add</code>) does not exist in the desktop app</td><td>A <code>.mcp.json</code> in the app's folder works instead (walk-through, #218)</td></tr>
+      <tr><td>The <code>--root</code> folder had to exist already, and nothing said so until the tool was refused</td><td>Recorded</td></tr>
+      <tr><td>The starter manifest answered "no" to every capability: "the most dangerous line in the product"</td><td>Starter answers now start unanswered (#252)</td></tr>
+      <tr><td>The deepest checks need Docker</td><td>Said plainly in the walk-through</td></tr>
+      <tr><td>The README said four MCP tools when there were six</td><td>Recorded</td></tr>
+      <tr><td>VS Code: a hand-made <code>.vscode/mcp.json</code> was not listed</td><td>The guide has VS Code write the file itself (#235)</td></tr>
+      <tr><td>VS Code: 9 of 13 notes written by the tool were reported as the owner's</td><td>Notes say who wrote them (#239), and a person can confirm what the tool wrote (#242)</td></tr>
+    </tbody>
+  </table>
+
+  <blockquote>18 of the 40 requirements checked on the owner's app came from tests the AI tool wrote and labelled
+    itself. They run and pass, "but it is the author vouching for its own work through the name."
+    <cite>docs/BACKLOG.md, the owner's first build: recorded "to keep in mind rather than fix".</cite></blockquote>
+
+  <p class="note">Sources: <code>docs/paper/figure-how-found.html</code> and v1 commit <code>ae25cdc</code> for v1.
+     For <code>sv</code>: <code>docs/BACKLOG.md</code>, the entries "What the owner's first build from scratch found
+     in <code>sv</code>" and the walk-through, plus <code>docs/GETTING-STARTED.md</code> and the pull requests named.
+     The backlog dates some of these 27 September, a day later than the git merge times, which are Eastern. The
+     v1 list is a selection: <code>ae25cdc</code> also records a missing "copy this app" and mixed spelling. None
+     of the sources says a test caught any of these.</p>
+</div>
+<script>
+  document.querySelectorAll(".units").forEach((u) => {
+    for (let i = 0; i < +u.dataset.n; i++) {
+      const s = document.createElement("span");
+      s.className = "unit"; s.style.background = `var(${u.dataset.c})`;
+      u.appendChild(s);
+    }
+  });
+</script>
+</body>
+</html>
