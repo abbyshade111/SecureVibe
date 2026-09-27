@@ -981,7 +981,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             description: r.description,
         })
         .collect();
-    process_lines.sort_by(|a, b| natural(&a.id).cmp(&natural(&b.id)));
+    process_lines.sort_by_key(|a| natural(&a.id));
     let ai_process = AiProcess {
         lines: process_lines,
         not_applicable: excluded
