@@ -495,13 +495,16 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
-## Thirteen languages, and why the fourteenth silences everything
+## Fourteen languages, and why the fifteenth silences everything
 
 The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
-Kotlin, Rust, C, Dart and Swift. Each one is worth more than one more entry suggests, because of how the fail-closed
+Kotlin, Rust, C, C++, Dart and Swift. Each one is worth more than one more entry suggests, because of how the fail-closed
 rule works: **no rule may speak while a language present in the app goes unparsed.** One Ruby file used
 to silence every rule for the whole app — correct behavior on an app `sv` could not read, and a lot of
-silence. Every language added is one fewer kind of app that gets nothing.
+silence. Every language added is one fewer kind of app that gets nothing. Objective-C is the fifteenth
+now, recognized by `.m`/`.mm` and deliberately left without a grammar: the test for "a language present
+and unread silences every rule" needs a real example, and the list it draws from is meant to keep
+shrinking, one language at a time, rather than being emptied by construction.
 
 ### A page of markup is not a hole in the coverage
 
@@ -673,6 +676,31 @@ using XML, say, is called absent.
 A shell file whose parse holds an error silences every rule's claim for the app, the same as any other
 language. The Bash grammar reads Bash; a `.sh` file written in zsh's own syntax may not parse, and the
 report then names it.
+
+### C++
+
+C++ was the standing example of a recognized-but-unparsed language until 27 September 2026; the fixture
+that needed one moved to Objective-C, above. Given the choice, C++ was assessed against what AI coding
+tools actually produce and judged to matter least of the candidates for a web application, behind Dart,
+Swift, and shell, which is why it came last.
+
+tree-sitter-cpp turned out to need nothing new. Dumping the parse tree for `fopen`, `system`, `MD5`, and
+a `printf`-style `Location:` header showed the same `call_expression`, `argument_list`, `identifier`, and
+`string_literal` nodes tree-sitter-c already produces — C++'s grammar is C's plus more, not a different
+one for the part these rules look at — so every rule reuses C's query and function names outright:
+`fopen`/`unlink`/`remove` for a path, `MD5`/`EVP_sha1` for a hash, `EVP_aes_128_ecb` for a cipher,
+`printf`/`fprintf` for a header, and the same four reasons (no `eval`, no object deserializer, no
+backticks, no pipe syntax) for the rules that have nothing to find here. The 998-line data change is
+almost entirely that: one more key per rule, copied from `"c"`.
+
+What copying does not reach, stated rather than found by surprise later: a call written with a scope —
+`std::system(cmd)`, `::remove(path)`, `Logger::log(msg)` — parses as a `qualified_identifier`, not the
+plain `identifier` these queries match, so it is not seen. Neither is `std::cout << "Location: " << u`,
+which is a chain of `binary_expression` nodes and never a call at all — the open-redirect rule only
+reaches the printf-style form a C program would use. Both are real C++ idioms and both are silent gaps,
+the same kind the file-path rule already has in every language ("cannot tell a request value from an
+internal one"): written down so a clean scan is read for what it covers, not for what a reader might
+assume "C++ support" means.
 
 ## The language's own tool
 

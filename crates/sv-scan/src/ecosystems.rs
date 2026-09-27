@@ -400,6 +400,10 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
         "swift" => "swift",
         "sh" | "bash" => "shell",
         "cc" | "cpp" | "cxx" | "hpp" | "hh" => "cpp",
+        // Recognized so an app written in it is not silently skipped, and deliberately left without a
+        // grammar in ast.rs: the language sv-check's own tests use to prove that combination still
+        // behaves. Whoever gives it a grammar moves those tests to the next one without.
+        "m" | "mm" => "objc",
         "html" | "htm" | "vue" | "svelte" => "html",
         _ => return None,
     })
