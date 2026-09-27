@@ -23,6 +23,7 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        in_test_module: false,
         rule_id: rule_id.into(),
         title: "something".into(),
         severity: Severity::High,
@@ -2106,4 +2107,121 @@ mod appendix_c {
         assert!(!sv_report::markdown::compliance(&report).contains("How the app is built with AI"));
         assert!(!sv_report::html::page(&report).contains("How the app is built with AI"));
     }
+}
+
+#[test]
+fn findings_in_test_code_are_listed_after_the_apps_own_and_still_count() {
+    // On `sv`'s own code, three findings in four were in its tests. They are listed apart, after
+    // the app's own, in every report; they are never dropped, and a requirement only a test-code
+    // finding is about still needs attention.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let mut in_app = finding("ast.app", &["V1.3.1"]);
+    in_app.title = "Found in the app".into();
+    in_app.severity = Severity::Low;
+    let mut by_path = finding("ast.path", &["V1.2.1"]);
+    by_path.title = "Found in a test file".into();
+    by_path.severity = Severity::Critical;
+    by_path.location.file = "tests/test_app.py".into();
+    let mut by_module = finding("ast.module", &["V1.2.1"]);
+    by_module.title = "Found in a Rust test module".into();
+    by_module.location.file = "src/lib.rs".into();
+    by_module.in_test_module = true;
+    let report = build(inputs(&f, &buckets, vec![by_path, in_app, by_module], &[]));
+
+    let status = |id: &str| {
+        report
+            .requirements
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .status
+    };
+    assert_eq!(
+        status("V1.2.1"),
+        Status::NeedsAttention,
+        "test code still counts"
+    );
+    assert_eq!(status("V1.3.1"), Status::NeedsAttention);
+
+    let (app, tests) = sv_report::app_then_tests(&report);
+    assert_eq!(app.len(), 1);
+    assert_eq!(tests.len(), 2);
+
+    let markdown = sv_report::markdown::security(&report);
+    let html = sv_report::html::page(&report);
+    for (name, page, fix, apart) in [
+        (
+            "markdown",
+            &markdown,
+            "## 1 thing to fix",
+            "## 2 in test or sample code",
+        ),
+        (
+            "html",
+            &html,
+            "<h2>1 thing to fix</h2>",
+            "<h2>2 in test or sample code</h2>",
+        ),
+    ] {
+        // Read from the list on: the short version above it names the worst findings too.
+        let list = &page[page
+            .find(fix)
+            .unwrap_or_else(|| panic!("{name} has {fix:?}"))..];
+        let at = |needle: &str| {
+            list.find(needle)
+                .unwrap_or_else(|| panic!("{name} has {needle:?}"))
+        };
+        assert!(at(fix) < at("Found in the app"), "{name}");
+        assert!(
+            at("Found in the app") < at(apart),
+            "{name}: the app's own first"
+        );
+        assert!(at(apart) < at("Found in a test file"), "{name}");
+        assert!(at(apart) < at("Found in a Rust test module"), "{name}");
+    }
+
+    // The short version names the app's own first, even below a critical in a test, and says how
+    // many are in test code.
+    let (worst, _) = sv_report::bluf::worst_findings(&report);
+    assert_eq!(worst[0].title, "Found in the app");
+    let headline = sv_report::bluf::headline(&report);
+    assert!(
+        headline.contains("2 of them are in test or sample code"),
+        "{headline}"
+    );
+}
+
+#[test]
+fn when_every_finding_is_in_test_code_the_report_does_not_read_as_clean() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let mut only = finding("ast.path", &["V1.2.1"]);
+    only.location.file = "tests/test_app.py".into();
+    let report = build(inputs(&f, &buckets, vec![only], &[]));
+    let markdown = sv_report::markdown::security(&report);
+    assert!(
+        markdown.contains("## Nothing was found in the app itself"),
+        "{markdown}"
+    );
+    assert!(
+        markdown.contains("not that the app is secure"),
+        "{markdown}"
+    );
+    assert!(
+        markdown.contains("## 1 in test or sample code"),
+        "{markdown}"
+    );
+    assert!(!markdown.contains("## Nothing was found\n"), "{markdown}");
+    assert!(
+        sv_report::bluf::headline(&report).contains("It is in test or sample code"),
+        "{}",
+        sv_report::bluf::headline(&report)
+    );
 }

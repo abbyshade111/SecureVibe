@@ -223,6 +223,7 @@ fn finding(rule: &Rule, description: String, host: &str) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        in_test_module: false,
         rule_id: rule.rule_id.to_owned(),
         title: rule.title.to_owned(),
         severity: rule.severity,

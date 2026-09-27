@@ -387,6 +387,7 @@ fn metadata_checks(line: &str, out: &mut LogOutcome) {
         Some(t) => out.findings.push(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            in_test_module: false,
             rule_id: "probe.log-timestamp-zoned".to_owned(),
             title: "A security event is logged with a time that does not say its zone".to_owned(),
             severity: Severity::Low,
