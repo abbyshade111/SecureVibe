@@ -59,7 +59,78 @@ another session is not a claim.
   (the simple answer: `data/` stays whole, since `v1-final` holds v1 anyway); and whether anything in
   `artifacts/` belongs with the paper rather than with either product.
 
-  **Thoughts.** None yet.
+  **Thoughts.**
+
+  - **Vibe-coding builder (built v1), 26 September 2026.** Read at `76156b3`. "Checked" below means I looked
+    it up in that tree, not that I remember it.
+    - **Do not move v1 into a folder of `main`; keep it as the `v1` branch and the two tags, whole.**
+      Checked: v1's `server/src/config.ts` finds its root two folders up from `server/src` and then reads `data/`,
+      `workspace/` and `.env` from there. Under `v1/` its root would be `v1/`, with no `data/` in it, because
+      `data/` stays at the top. Making that work is a code change to v1, which is what "preserved exactly for
+      the paper" rules out. A complete tree on a branch runs as it always did.
+    - **The owner's own v1 data is not in git, and it is the only copy.** `workspace/` (projects, settings, the
+      audit log of what every AI call cost) and the root `.env` (the API keys) are both ignored by git. A
+      branch switch leaves them alone; `git clean -x` deletes them. This repository lives under `~/Desktop`,
+      and an iCloud eviction has already cost files once (`4b5b6e2`). So: copy `workspace/` and `.env` before
+      the move, and nobody runs `git clean -x` in the owner's checkout. To keep using v1 afterwards, make a
+      worktree of `v1` and start it with `SECUREVIBE_HOME=<the old workspace>` (checked: `config.ts` honors
+      it) and the `.env` copied in.
+    - **What a `v1` worktree also needs, none of it obvious.** Node 26 and `npm ci`. A real 57 MB copy of
+      `templates/secure-web-app/node_modules`, not a symlink: with a symlink every golden app fails the same
+      way and still reports "succeeded". Tests that start an app need to bind ports, so they fail in a
+      sandbox with `listen EPERM`. Nine server tests fail in any fresh worktree, on `main` as well (the dast
+      harness, CycloneDX, the config and secrets fixtures); a note saying so saves the next person an hour.
+      I would put these in one `ARCHIVED.md` on the `v1` branch only, so the tags stay byte-exact.
+    - **Remove v1's files from `main` in the same pull request that adds the tags, never before.**
+      `data/` is shared, and v1 pins parts of it with tests (`applicability.json` above all: a test fails
+      if a requirement is marked as checked by the static scanner but no rule covers it). While v1 is still
+      in `main`, an `sv` change to that file can break v1's suite, and I hit exactly that this week. Once v1
+      lives only on its branch it keeps its own copy of `data/`; the two copies will drift and that is fine.
+    - **The root `CLAUDE.md` is the only one there is, and it is v1's.** `agnostic/` has none. Besides v1's
+      commands it holds the owner's working rules for every session: git is pre-approved but AI spending,
+      repository settings, history rewrites and deletions are asked first; the evaluation harness and the
+      backlog are claimed in writing, not by message; say what was verified and what was not; plain language
+      for the owner. Those must be carried into the new top-level `CLAUDE.md`, or they stop reaching the
+      sessions. v1's command sections travel with v1.
+    - **v1's CI needs no decision beyond leaving it alone.** `checks.yml` already has its push, pull-request
+      and schedule triggers commented out because of the hanging test job, so v1 is checked by hand today
+      anyway. Leave it on the `v1` branch as it is. Only CodeQL's JavaScript analysis is a real question,
+      and it is the owner's: whether they want the archive kept scanned.
+    - **The evaluation harness (`evals/`) stops earning a place in `main`.** It is a regression guard for a
+      template and pipeline that will no longer change: it builds five golden apps without AI and compares
+      them with saved baselines. It stays reachable at `v1-paper` and `v1-final`, which matters, because
+      `docs/paper/METHODOLOGY.md` describes it and quotes its first run. One part could be useful to `sv`:
+      `evals/golden/*.json` are five saved sets of wizard answers, deliberately varied (sign-in or not,
+      uploads, AI, payments). I have not checked whether `sv`'s design questions can express them. The
+      baselines are v1's numbers and not comparable with anything `sv` produces.
+    - **Self-assessment (`npm run self-assess`, `self-assessment/`) does not carry over.** It runs v1's
+      pipeline on v1's own code, and `triage.json` holds the owner's decisions about v1's findings, keyed by
+      fingerprints only v1 produces. `sv` checking itself is a different job with different inputs. Keep it
+      with v1.
+    - **`data/knowledge`: who reads what.** Checked by searching for each file name in v1's `server`,
+      `shared`, `web`, `templates` and `scripts`, and in `agnostic/crates` and `agnostic/tools`.
+      - Only v1: `examples.json`, `glossary.json`, `injection-patterns.json`, `patterns.json`,
+        `remediation.json`, `requirements-plain.json`, `sbd-rules.json`, `wizard-copy.json`.
+      - Both: `applicability.json` (`sv` layers `agnostic/data/applicability-v2.json` over it) and the four
+        files in `data/frameworks`.
+      - Only `sv`: `threats.json` (v1 builds its threat model in code and never reads it).
+      - `common-passwords.txt`: v1 reads it when it runs. `sv` only mentions it in a comment
+        (`signed_in.rs`) and samples it in `tools/pwned_passwords.py`; no crate loads it.
+      - Caveat: this finds file names, so a reader that loads a whole folder would not show up. `sv` loads
+        `data/knowledge` only for `applicability.json` and `threats.json`, by name.
+      I agree that `data/` stays whole: it is 1.6 MB, and `v1-final` holds v1's copy anyway. What would help
+      is a short `data/README.md` with the three groups above, so nobody edits `wizard-copy.json` thinking
+      it affects `sv`, or `applicability.json` thinking it affects only `sv`.
+    - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
+      of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
+      untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
+      `CONTRACTS.md`, `DESIGN.md` and `SECURITY.md` all point at it as if it were current. Checked:
+      `docs/paper/` does not cite it; the paper's evidence is `docs/paper/` and the USB bundles. I cannot
+      see the bundles, so whoever holds them should check that they do not. If the owner wants it in the
+      paper folder, it needs a note saying which day it is a snapshot of.
+    - **Not settled by me:** the date `v1-paper` points at (the owner's to name), Zenodo and tag
+      protection (theirs to set up), and whether `sv` wants the golden profiles. I did not run anything;
+      this is reading the tree and what building v1 taught me.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
