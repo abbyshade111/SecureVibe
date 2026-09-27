@@ -32,7 +32,9 @@ another session is not a claim.
 
 - **Records that disagree with what was built, or are missing, found by the ADR analysis.** Found on 27 September 2026 by
   session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
-  to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** Items 1 to 4 are in v1's
+  to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** **Items 5, 6, and the
+  Docker half of 8 claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking to pick the
+  next item; the Rust half of 8 needs the owner's reasons, which nothing records. Items 1 to 4 are in v1's
   records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
   `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
   the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.
