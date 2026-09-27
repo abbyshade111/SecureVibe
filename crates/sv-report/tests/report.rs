@@ -1473,6 +1473,67 @@ mod only_you {
     }
 
     #[test]
+    fn the_questions_most_at_stake_come_first() {
+        // The person may stop at any point, and on the Flask example there were fifty-five
+        // questions, in the order the catalogs happened to list them.
+        let f = frameworks();
+        let (notes, design, human) = catalogs();
+        let every: Vec<String> = notes
+            .sections
+            .iter()
+            .map(|s| s.id.clone())
+            .chain(design.questions.iter().map(|q| q.id.clone()))
+            .chain(human.checks.iter().map(|c| c.id.clone()))
+            .filter(|id| f.get(id).is_some())
+            .collect();
+        let level = |id: &str| f.get(id).map_or(0, |r| r.level);
+        // Two level-1 design questions, the first of them answered by the tool alone, so it has
+        // to move behind the second.
+        let ones: Vec<&str> = design
+            .questions
+            .iter()
+            .map(|q| q.id.as_str())
+            .filter(|id| level(id) == 1)
+            .collect();
+        assert!(
+            ones.len() >= 2,
+            "the setup needs two level-1 design questions"
+        );
+        let buckets = Buckets {
+            applicable: every.clone(),
+            ..Default::default()
+        };
+        let stated = [Verified::new(
+            "design.stated-by-ai",
+            &[ones[0]],
+            "securevibe.toml".to_owned(),
+        )];
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.human = Some((&notes, &design, &human));
+        i.stated = &stated;
+        let report = build(i);
+        let asked: Vec<&str> = report
+            .questions_for_you
+            .iter()
+            .map(|q| q.id.as_str())
+            .collect();
+        let first: Vec<bool> = asked.iter().map(|id| level(id) == 1).collect();
+        assert!(
+            first.contains(&true) && first.contains(&false),
+            "the setup must hold level-1 questions and others to show an order: {asked:?}"
+        );
+        assert!(
+            first.windows(2).all(|w| w[0] || !w[1]),
+            "every level-1 question comes before every other one: {asked:?}"
+        );
+        let at = |id: &str| asked.iter().position(|a| *a == id).unwrap();
+        assert!(
+            at(ones[0]) > at(ones[1]),
+            "a question only the tool has answered comes after an unanswered one at its level"
+        );
+    }
+
+    #[test]
     fn asking_credits_nothing() {
         // Writing the questions down is not an answer to any of them.
         let with = interview_report(&[], &[]);

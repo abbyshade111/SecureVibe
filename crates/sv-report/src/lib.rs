@@ -822,12 +822,24 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         .filter(|r| matches!(r.status, Status::NotVerified | Status::Stated))
         .map(|r| r.id.clone())
         .collect();
-    let questions_for_you = match inputs.human {
+    let mut questions_for_you = match inputs.human {
         Some((notes, design, human)) => {
             sv_check::human::checklist(notes, design, human, &open_to_a_person)
         }
         None => Vec::new(),
     };
+    // Most at stake first, because the person may stop at any point and what is left is asked next
+    // time: on the Flask example the interview held fifty-five questions. Level 1 is the baseline
+    // every app needs, so it comes first; within a level, a question nobody has answered comes
+    // before one only the AI coding tool has, which needs confirming rather than answering. The
+    // sort is stable, so the catalogs' own order holds inside each group.
+    questions_for_you.sort_by_key(|item| {
+        let line = requirements.iter().find(|r| r.id == item.id);
+        (
+            stake(line.map_or(0, |r| r.level)),
+            line.is_some_and(|r| r.status == Status::Stated),
+        )
+    });
 
     Report {
         app_name: inputs.app_name.to_owned(),
@@ -949,4 +961,11 @@ fn question_for(condition: Condition) -> &'static str {
     // which is the wrong voice for a list of open questions. Turning it round here keeps one
     // wording in the data and the right one in the report.
     condition.default_not_applicable_reason()
+}
+
+/// Where a requirement's level puts its question in the interview: level 1, the baseline every app
+/// needs, first, and everything else after. The catalogs hold only levels 1 and 2 (16 and 51
+/// questions on 27 September 2026), so a finer order would have nothing to sort.
+fn stake(level: u8) -> u8 {
+    u8::from(level != 1)
 }

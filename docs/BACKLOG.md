@@ -792,6 +792,10 @@ another session is not a claim.
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
     off items in the backlog, your choice").
+    **Done the same day:** the questions come level 1 first, since the catalogs hold only levels 1 and 2
+    (16 and 51 questions), and within a level an unanswered question comes before one only the AI
+    coding tool has answered, which needs confirming rather than answering. The interview says so. No
+    sort, no tie-break, and level 1 put last are each caught by one test that reads the whole order.
 
 - **Ten requirements a person must answer, and nothing anywhere tells them how.** Found on
   26 September 2026 while drawing the coverage maps. **Claimed on 26 September 2026 by session
