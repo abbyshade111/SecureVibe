@@ -51,6 +51,7 @@ fn inputs<'a>(
         run_note: None,
         run_steps: Vec::new(),
         test_output: None,
+        run_status: None,
         frameworks,
         buckets,
         claims: &[],
@@ -617,6 +618,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         run_note: None,
         run_steps: Vec::new(),
         test_output: None,
+        run_status: None,
         frameworks: &f,
         buckets: &buckets,
         claims: &[],
@@ -1749,4 +1751,123 @@ fn the_output_is_text_in_both_pages_whatever_it_holds() {
         compliance.contains("`````text\nexpected a < b && c\n````\ndone\n`````"),
         "{compliance}"
     );
+}
+
+#[test]
+fn whether_the_app_was_started_is_one_plain_line() {
+    use sv_report::RunStatus;
+    let started = |asked, signed_in, tests: &str| RunStatus::Started {
+        image: "python:3.12-slim".into(),
+        asked,
+        answered: 27,
+        signed_in,
+        tests: tests.into(),
+    };
+    assert_eq!(
+        started(29, true, "passed").line(),
+        "The app was started with python:3.12-slim and answered 27 of the 29 requests sent to it \
+         without signing in, and was then asked more as test users signed in to it. Its own tests \
+         passed."
+    );
+    let line = started(1, false, "failed").line();
+    assert!(
+        line.contains("27 of the 1 request sent to it without signing in."),
+        "{line}"
+    );
+    assert!(line.ends_with("Its own tests failed; the report shows the last lines they printed."));
+    assert!(
+        started(29, false, "not-declared")
+            .line()
+            .ends_with("so its own tests were not run.")
+    );
+    assert_eq!(
+        RunStatus::CouldNotStart {
+            why: "No container backend.".into()
+        }
+        .line(),
+        "--run was given, and the app could not be started. No container backend."
+    );
+    assert_eq!(
+        RunStatus::NotAsked {
+            why: "Pass --run.".into()
+        }
+        .line(),
+        "The app was not started. Pass --run."
+    );
+    // The same fact for a tool reading report.json, by name rather than by sentence.
+    let json = serde_json::to_value(started(29, true, "passed")).unwrap();
+    assert_eq!(json["state"], "started");
+    assert_eq!(
+        (json["asked"].as_u64(), json["answered"].as_u64()),
+        (Some(29), Some(27))
+    );
+    assert_eq!(
+        serde_json::to_value(RunStatus::NotAsked { why: String::new() }).unwrap()["state"],
+        "not-asked"
+    );
+}
+
+#[test]
+fn a_suite_that_exited_zero_passed() {
+    assert_eq!(sv_report::RunStatus::tests_state(Some(0)), "passed");
+    assert_eq!(sv_report::RunStatus::tests_state(None), "not-declared");
+}
+
+#[test]
+fn a_suite_that_exited_otherwise_failed() {
+    for code in [1, 2, 127, -1] {
+        assert_eq!(
+            sv_report::RunStatus::tests_state(Some(code)),
+            "failed",
+            "{code}"
+        );
+    }
+}
+
+#[test]
+fn the_line_follows_the_suite_exit_code() {
+    use sv_report::RunStatus;
+    let line = |exit| {
+        RunStatus::Started {
+            image: "node:22-alpine".into(),
+            asked: 3,
+            answered: 3,
+            signed_in: false,
+            tests: RunStatus::tests_state(exit).into(),
+        }
+        .line()
+    };
+    assert!(
+        line(Some(0)).ends_with("Its own tests passed."),
+        "{}",
+        line(Some(0))
+    );
+    assert!(
+        line(Some(1)).contains("Its own tests failed"),
+        "{}",
+        line(Some(1))
+    );
+    assert!(
+        line(None).contains("declares no test command"),
+        "{}",
+        line(None)
+    );
+}
+
+#[test]
+fn the_signed_in_questions_are_mentioned_only_when_they_were_asked() {
+    use sv_report::RunStatus;
+    let line = |signed_in| {
+        RunStatus::Started {
+            image: "node:22-alpine".into(),
+            asked: 3,
+            answered: 2,
+            signed_in,
+            tests: "passed".into(),
+        }
+        .line()
+    };
+    assert!(line(true).contains("as test users signed in to it"));
+    assert!(!line(false).contains("signed in to it"), "{}", line(false));
+    assert!(line(false).contains("answered 2 of the 3 requests sent to it without signing in."));
 }
