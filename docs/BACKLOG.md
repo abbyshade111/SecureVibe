@@ -577,7 +577,9 @@ another session is not a claim.
      no database. The question should say what it means by search.
   9. **The terminal summary does not say whether `--run` started the app.** The tool had to infer it
      from the counts. One line — started, answered N requests, or could not start and why — would do.
-     **Claimed on 27 September 2026 by session securevibe-e9.**
+     **Claimed on 27 September 2026 by session securevibe-e9.** **Done the same day:** the first line after the files
+     written says which of the three happened, and `report.json` carries it as `run_status`. See
+     DESIGN, "Whether the app was started, in one line".
 
   **What worked, for the record:** the `.mcp.json` connection worked first time in the desktop app,
   and the tool described all six tools accurately; the interview went one question at a time and kept
