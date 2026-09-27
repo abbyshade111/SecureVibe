@@ -647,9 +647,10 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
         }
     );
     println!(
-        "\nAnswering one makes its requirement *documented* in the report. That is not the same as \
-         checked: nothing here reads whether your answer is right, or whether the app does what it \
-         says."
+        "\nAnswering one makes its requirement *documented* in the report, when the answer starts \
+         with `Written by: owner`. That is not the same as checked: nothing here reads whether your \
+         answer is right, or whether the app does what it says. One your AI coding tool wrote, or \
+         one that does not say who wrote it, counts for less, as *stated by the AI coding tool*."
     );
     Ok(())
 }
@@ -725,7 +726,7 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     let existing = std::fs::read_to_string(&out_path).ok();
     let already = existing
         .as_deref()
-        .map(|text| sv_check::notes::read_answers(text).documented().len())
+        .map(|text| sv_check::notes::read_answers(text).answered().len())
         .unwrap_or(0);
 
     let describe = |id: &str| {
@@ -2001,7 +2002,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // `sv notes`, which is the common case and not a gap: the report then says the file exists to
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
-    let documented = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
+    let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
             &sv_check::notes::read_answers(&text),
@@ -2028,9 +2029,34 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     ),
                 });
             }
-            Vec::new()
+            sv_check::notes::Evidence::default()
         }
     };
+    if !notes.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "who wrote {} section{} of {}",
+                notes.unreadable.len(),
+                if notes.unreadable.len() == 1 { "" } else { "s" },
+                notes_catalog.file
+            ),
+            why: format!(
+                "Each section says who wrote it on one line, `{} {}` or `{} {}`, and {} names \
+                 somebody else or says both, so nothing was made of it: {}.",
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_OWNER,
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_AI_TOOL,
+                if notes.unreadable.len() == 1 {
+                    "this one"
+                } else {
+                    "these"
+                },
+                notes.unreadable.join(", ")
+            ),
+        });
+    }
+    let documented = notes.documented;
 
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
@@ -2183,6 +2209,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         .stated
         .iter()
         .chain(hand.stated.iter())
+        .chain(notes.stated.iter())
         .cloned()
         .collect();
 
@@ -2326,9 +2353,10 @@ fn cmd_report(args: &[String]) -> Result<()> {
     }
     if c.stated > 0 {
         println!(
-            "A further {} your AI coding tool answered yes to, or checked by hand, in \
-             securevibe.toml, or that do not say who answered. That is the word of the tool that \
-             wrote the code, weaker still than yours: each one is still listed as a test to write.",
+            "A further {} your AI coding tool answered yes to or checked by hand in \
+             securevibe.toml, or wrote in security-notes.md, or that do not say who answered. That \
+             is the word of the tool that wrote the code, weaker still than yours: each one is \
+             still listed as a test to write.",
             c.stated
         );
     }

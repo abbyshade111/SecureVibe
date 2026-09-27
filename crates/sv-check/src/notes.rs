@@ -26,6 +26,23 @@
 //! requirement documented the moment the file was written. So the reader strips what `sv` itself
 //! wrote — the heading, the quoted question, the facts, the placeholder — and asks whether anything
 //! is left. `the_template_alone_documents_nothing` is the test that holds it to that.
+//!
+//! # Who wrote it
+//!
+//! The AI coding tool usually writes this file, and it can write a section too: asked, it describes
+//! from the code what the app does. That is the tool's word, not a decision the owner made, so it is
+//! not *documented*. Each section says who wrote it on one line, `Written by: owner` or `Written by:
+//! AI coding tool`, and nothing else is read for it: not "Decided by the owner", not a disclaimer in
+//! italics. **A section without that line counts as the tool's** (the owner's decision, 27 September
+//! 2026), for the reason a design answer without `by` does: the file is usually the tool's writing,
+//! and crediting the owner on nobody's say-so is the direction that overstates. The tool's sections
+//! are *stated by the AI coding tool*, as its design answers are, and are asked again in the
+//! interview. A `Written by:` naming anyone else is unreadable and named, not guessed at.
+//!
+//! Found in the owner's first run in VS Code: the tool wrote nine sections from the code and marked
+//! each with its own italic line, which the reader then threw away along with `sv`'s own italic
+//! lines, so the report called all nine *documented by the owner*. The reader now drops only the two
+//! italic lines `sv` itself writes, so a person's bold or italic line survives a rewrite as well.
 
 use crate::Verified;
 use anyhow::{Context, Result};
@@ -35,6 +52,70 @@ use std::path::Path;
 
 /// The placeholder `sv` writes under each question, and the one line the reader must never count.
 pub const PLACEHOLDER: &str = "_Nobody has written this yet._";
+
+/// The italic line `sv` writes above the facts it found.
+const FACTS_LINE: &str = "*What `sv` found:*";
+
+/// The line a section says who wrote it on, and the two things it may say.
+pub const WRITTEN_BY: &str = "Written by:";
+pub const BY_OWNER: &str = "owner";
+pub const BY_AI_TOOL: &str = "AI coding tool";
+
+/// Who wrote a section, from its `Written by:` line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Writer {
+    Owner,
+    AiTool,
+    /// No `Written by:` line: counts as the tool's.
+    Unmarked,
+    /// A `Written by:` that is neither word, or two that disagree.
+    Unreadable,
+}
+
+/// The value of a `Written by:` line, with any bold or italic markers around it ignored.
+fn written_by(line: &str) -> Option<String> {
+    let plain: String = line.chars().filter(|c| *c != '*' && *c != '_').collect();
+    let plain = plain.trim();
+    let head = plain.get(..WRITTEN_BY.len())?;
+    head.eq_ignore_ascii_case(WRITTEN_BY).then(|| {
+        plain[WRITTEN_BY.len()..]
+            .trim()
+            .trim_end_matches('.')
+            .trim()
+            .to_owned()
+    })
+}
+
+fn writer_of(body: &str) -> Writer {
+    let mut found: Option<Writer> = None;
+    for line in body.lines() {
+        let Some(value) = written_by(line) else {
+            continue;
+        };
+        let this = if value.eq_ignore_ascii_case(BY_OWNER) {
+            Writer::Owner
+        } else if value.eq_ignore_ascii_case(BY_AI_TOOL) || value.eq_ignore_ascii_case("ai-tool") {
+            Writer::AiTool
+        } else {
+            return Writer::Unreadable;
+        };
+        match &found {
+            Some(earlier) if *earlier != this => return Writer::Unreadable,
+            _ => found = Some(this),
+        }
+    }
+    found.unwrap_or(Writer::Unmarked)
+}
+
+/// A section's prose without its `Written by:` line, which says who and not what.
+fn prose(body: &str) -> String {
+    body.lines()
+        .filter(|line| written_by(line).is_none())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_owned()
+}
 
 /// Under this many characters of the owner's own prose, a section says nothing.
 ///
@@ -213,6 +294,13 @@ pub fn write_template(
          not the same as checked: nothing here reads whether your answer is right, or whether the \
          app does what it says.\n\n",
     );
+    out.push_str(&format!(
+        "Start each answer with a line saying who wrote it: `{WRITTEN_BY} {BY_OWNER}` for your own \
+         decision, or one your AI coding tool wrote that you have read and agree with; \
+         `{WRITTEN_BY} {BY_AI_TOOL}` for one the tool wrote from the code that you have not agreed \
+         to. The tool's counts for less, as *stated by the AI coding tool*, and an answer without \
+         the line counts as the tool's.\n\n"
+    ));
 
     let mut wrote_any = false;
     for section in &catalog.sections {
@@ -283,7 +371,8 @@ fn push_section(
     }
     let bullets = facts.for_section(section);
     if !bullets.is_empty() {
-        out.push_str("*What `sv` found:*\n\n");
+        out.push_str(FACTS_LINE);
+        out.push_str("\n\n");
         for bullet in bullets {
             out.push_str(&format!("- {bullet}\n"));
         }
@@ -316,13 +405,36 @@ impl Answers {
             .map(|(_, body)| body.as_str())
     }
 
-    /// The requirements this file documents: a section with enough of the owner's own prose under it.
-    pub fn documented(&self) -> BTreeSet<String> {
+    /// Every section with enough prose under it to be an answer, and who wrote it.
+    pub fn answered(&self) -> Vec<(String, Writer)> {
         self.sections
             .iter()
-            .filter(|(_, body)| body.trim().chars().count() >= LEAST_ANSWER_CHARS)
-            .map(|(id, _)| id.clone())
+            .filter(|(_, body)| prose(body).chars().count() >= LEAST_ANSWER_CHARS)
+            .map(|(id, body)| (id.clone(), writer_of(body)))
             .collect()
+    }
+
+    fn answered_by(&self, keep: impl Fn(&Writer) -> bool) -> BTreeSet<String> {
+        self.answered()
+            .into_iter()
+            .filter(|(_, who)| keep(who))
+            .map(|(id, _)| id)
+            .collect()
+    }
+
+    /// The requirements this file documents: a section the owner wrote, or read and agreed to.
+    pub fn documented(&self) -> BTreeSet<String> {
+        self.answered_by(|who| *who == Writer::Owner)
+    }
+
+    /// The sections the AI coding tool wrote, or that do not say who did.
+    pub fn stated(&self) -> BTreeSet<String> {
+        self.answered_by(|who| matches!(who, Writer::AiTool | Writer::Unmarked))
+    }
+
+    /// The sections whose `Written by:` line could not be read.
+    pub fn unreadable(&self) -> BTreeSet<String> {
+        self.answered_by(|who| *who == Writer::Unreadable)
     }
 }
 
@@ -346,7 +458,7 @@ pub fn read_answers(text: &str) -> Answers {
             in_facts = false;
             continue;
         }
-        let Some((_, body)) = current.as_mut() else {
+        let Some((id, body)) = current.as_mut() else {
             continue;
         };
         let trimmed = line.trim();
@@ -354,9 +466,15 @@ pub fn read_answers(text: &str) -> Answers {
         if trimmed.starts_with('>') || trimmed == PLACEHOLDER {
             continue;
         }
-        if trimmed.starts_with('*') && trimmed.ends_with('*') && trimmed.len() > 2 {
-            // An italic line `sv` wrote. The facts follow as bullets, so remember which.
-            in_facts = trimmed.contains("What `sv` found");
+        // The two italic lines `sv` writes, and only those: a person's bold or italic line, or the
+        // AI coding tool's, is part of their answer and survives a rewrite.
+        if trimmed == FACTS_LINE {
+            // The facts follow as bullets.
+            in_facts = true;
+            continue;
+        }
+        if trimmed.ends_with('*') && trimmed.starts_with(&format!("*{id} asks for this: ")) {
+            in_facts = false;
             continue;
         }
         if in_facts && trimmed.starts_with("- ") {
@@ -387,23 +505,50 @@ fn section_id(line: &str) -> Option<String> {
     looks_like_id.then(|| id.to_owned())
 }
 
-/// Evidence for every requirement the notes document.
+/// What the notes are worth, section by section.
+#[derive(Debug, Default)]
+pub struct Evidence {
+    /// Sections the owner wrote, or read and agreed to: *documented by the owner*.
+    pub documented: Vec<Verified>,
+    /// Sections the AI coding tool wrote, or that do not say who did: *stated by the AI coding tool*.
+    pub stated: Vec<Verified>,
+    /// Sections whose `Written by:` line names somebody else, or disagrees with itself.
+    pub unreadable: Vec<String>,
+}
+
+/// Evidence for every requirement the notes answer.
 ///
 /// One `Verified` per section rather than one for the file, because the report shows the scope
 /// beside each requirement and "the owner answered this question" is the scope that belongs there.
-pub fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Vec<Verified> {
-    answers
-        .documented()
-        .into_iter()
-        .filter_map(|id| {
-            let section = catalog.section(&id)?;
-            Some(Verified::new(
-                "notes.documented",
+pub fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Evidence {
+    let mut out = Evidence::default();
+    for (id, who) in answers.answered() {
+        let Some(section) = catalog.section(&id) else {
+            continue;
+        };
+        let place = format!("{file}, under \"{} — {}\"", section.id, section.title);
+        match who {
+            Writer::Owner => {
+                out.documented
+                    .push(Verified::new("notes.documented", &[id.as_str()], place))
+            }
+            Writer::AiTool | Writer::Unmarked => out.stated.push(Verified::new(
+                "notes.stated-by-ai",
                 &[id.as_str()],
-                format!("{file}, under \"{} — {}\"", section.id, section.title),
-            ))
-        })
-        .collect()
+                format!(
+                    "{place}: {}. This is the word of the tool that wrote the code, not a decision \
+                     you made; read it, and mark it `{WRITTEN_BY} {BY_OWNER}` if you agree.",
+                    if who == Writer::AiTool {
+                        "your AI coding tool wrote it"
+                    } else {
+                        "it does not say who wrote it, so it counts as your AI coding tool's"
+                    }
+                ),
+            )),
+            Writer::Unreadable => out.unreadable.push(id),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -451,21 +596,27 @@ mod tests {
             sign_in: Some(true),
             ..Facts::default()
         };
+        let describe = |id: &str| {
+            Some(format!(
+                "Verify that the documentation for {id} defines what it should, at some length."
+            ))
+        };
         let template = write_template(
             &catalog(),
             &applicable(&["V6.1.1", "V8.1.1"]),
             &facts,
             None,
-            &no_descriptions(),
+            &describe,
         );
         assert!(
-            template.contains("V6.1.1"),
-            "the template must ask: {template}"
+            template.contains("V6.1.1") && template.contains("asks for this"),
+            "the template must ask, and quote the requirement: {template}"
         );
-        let documented = read_answers(&template).documented();
+        let answers = read_answers(&template);
         assert!(
-            documented.is_empty(),
-            "a template nobody has written in documents nothing, got {documented:?}"
+            answers.answered().is_empty(),
+            "a template nobody has written in answers nothing, got {:?}",
+            answers.answered()
         );
     }
 
@@ -480,8 +631,8 @@ mod tests {
         );
         let written = template.replacen(
             PLACEHOLDER,
-            "Five failed sign-ins from one address in fifteen minutes starts a one-minute delay \
-             that doubles each time, and no account is ever locked.",
+            "Written by: owner\n\nFive failed sign-ins from one address in fifteen minutes \
+             starts a one-minute delay that doubles each time, and no account is ever locked.",
             1,
         );
         let documented = read_answers(&written).documented();
@@ -506,8 +657,8 @@ mod tests {
 
     #[test]
     fn writing_the_file_again_keeps_what_the_owner_wrote() {
-        let answer = "Administrators may open every page. Everyone else may read and change only \
-                      the notes they created.";
+        let answer = "Written by: owner\n\nAdministrators may open every page. Everyone else may \
+                      read and change only the notes they created.";
         let first = write_template(
             &catalog(),
             &applicable(&["V6.1.1", "V8.1.1"]),
@@ -623,17 +774,19 @@ mod tests {
         );
         let written = template.replacen(
             PLACEHOLDER,
-            "Five failed sign-ins in fifteen minutes start a delay that doubles, and no account \
-             is locked.",
+            "Written by: owner\n\nFive failed sign-ins in fifteen minutes start a delay that \
+             doubles, and no account is locked.",
             1,
         );
         let evidence = evidence(&catalog(), &read_answers(&written), "security-notes.md");
-        assert_eq!(evidence.len(), 1);
-        assert_eq!(evidence[0].requirement_ids, vec!["V6.1.1".to_owned()]);
+        assert!(evidence.stated.is_empty() && evidence.unreadable.is_empty());
+        let documented = evidence.documented;
+        assert_eq!(documented.len(), 1);
+        assert_eq!(documented[0].requirement_ids, vec!["V6.1.1".to_owned()]);
         assert!(
-            evidence[0].scope.contains("security-notes.md"),
+            documented[0].scope.contains("security-notes.md"),
             "the scope must say where the answer is: {:?}",
-            evidence[0].scope
+            documented[0].scope
         );
     }
 
@@ -653,5 +806,170 @@ mod tests {
             template.contains("Verify that application documentation defines…"),
             "{template}"
         );
+    }
+
+    /// A notes file with one section answered by `answer`, as it reads back.
+    fn with_answer(answer: &str) -> Answers {
+        let template = write_template(
+            &catalog(),
+            &applicable(&["V8.1.1"]),
+            &Facts {
+                data_categories: vec!["contact".into()],
+                ..Facts::default()
+            },
+            None,
+            &|_: &str| Some("Verify that authorization documentation defines rules.".to_owned()),
+        );
+        read_answers(&template.replacen(PLACEHOLDER, answer, 1))
+    }
+
+    const RULES: &str = "There is one kind of user, an anonymous visitor, who may read every page \
+                         and change nothing at all.";
+
+    #[test]
+    fn an_answer_that_does_not_say_who_wrote_it_counts_as_the_ai_tools() {
+        // The owner's decision, 27 September 2026: the file is usually the tool's writing, and
+        // crediting the owner on nobody's say-so is the direction that overstates.
+        let answers = with_answer(RULES);
+        assert!(
+            answers.documented().is_empty(),
+            "an unmarked section is not the owner's: {:?}",
+            answers.answered()
+        );
+        assert_eq!(answers.stated(), applicable(&["V8.1.1"]));
+        let evidence = evidence(&catalog(), &answers, "security-notes.md");
+        assert_eq!(evidence.stated.len(), 1);
+        assert_eq!(evidence.stated[0].check_id, "notes.stated-by-ai");
+        assert!(
+            evidence.stated[0]
+                .scope
+                .contains("does not say who wrote it"),
+            "{:?}",
+            evidence.stated[0].scope
+        );
+    }
+
+    #[test]
+    fn the_ai_tools_own_disclaimer_is_not_the_owners_word() {
+        // The owner's VS Code run: the tool marked what it wrote in its own words, in italics, and
+        // the reader threw that line away with `sv`'s own italic lines and credited the owner.
+        let answer = format!(
+            "*Written by the AI coding tool from the code; review before relying on it.*\n\n{RULES}"
+        );
+        let answers = with_answer(&answer);
+        assert!(answers.documented().is_empty(), "{:?}", answers.answered());
+        assert_eq!(answers.stated(), applicable(&["V8.1.1"]));
+        // And the disclaimer is the tool's writing, kept when the file is written again.
+        let template = write_template(
+            &catalog(),
+            &applicable(&["V8.1.1"]),
+            &Facts::default(),
+            None,
+            &no_descriptions(),
+        );
+        let written = template.replacen(PLACEHOLDER, &answer, 1);
+        let again = write_template(
+            &catalog(),
+            &applicable(&["V8.1.1"]),
+            &Facts::default(),
+            Some(&written),
+            &no_descriptions(),
+        );
+        assert!(
+            again.contains("*Written by the AI coding tool from the code;"),
+            "rewriting must not drop a line somebody else wrote: {again}"
+        );
+    }
+
+    #[test]
+    fn the_ai_tools_marker_is_stated_and_says_so() {
+        let answers = with_answer(&format!("Written by: AI coding tool\n\n{RULES}"));
+        assert!(answers.documented().is_empty());
+        let evidence = evidence(&catalog(), &answers, "security-notes.md");
+        assert_eq!(evidence.stated.len(), 1);
+        assert!(
+            evidence.stated[0]
+                .scope
+                .contains("your AI coding tool wrote it"),
+            "{:?}",
+            evidence.stated[0].scope
+        );
+    }
+
+    #[test]
+    fn the_owners_marker_documents_in_any_emphasis() {
+        for marker in [
+            "Written by: owner",
+            "**Written by:** owner",
+            "*Written by: Owner.*",
+            "written by: OWNER",
+        ] {
+            let answers = with_answer(&format!("{marker}\n\n{RULES}"));
+            assert_eq!(
+                answers.documented(),
+                applicable(&["V8.1.1"]),
+                "{marker:?} is the owner's line"
+            );
+            assert!(answers.stated().is_empty(), "{marker:?}");
+        }
+    }
+
+    #[test]
+    fn the_owners_own_bold_line_survives_a_rewrite() {
+        let answer =
+            format!("Written by: owner\n\n**Decided by the owner (2026-09-26):**\n\n{RULES}");
+        let first = write_template(
+            &catalog(),
+            &applicable(&["V8.1.1"]),
+            &Facts::default(),
+            None,
+            &no_descriptions(),
+        );
+        let written = first.replacen(PLACEHOLDER, &answer, 1);
+        let again = write_template(
+            &catalog(),
+            &applicable(&["V8.1.1"]),
+            &Facts::default(),
+            Some(&written),
+            &no_descriptions(),
+        );
+        assert!(
+            again.contains("**Decided by the owner (2026-09-26):**"),
+            "{again}"
+        );
+        assert_eq!(read_answers(&again).documented(), applicable(&["V8.1.1"]));
+    }
+
+    #[test]
+    fn a_writer_that_is_neither_word_is_unreadable_not_guessed() {
+        for answer in [
+            format!("Written by: Sam from the security team\n\n{RULES}"),
+            format!("Written by: owner\n\n{RULES}\n\nWritten by: AI coding tool"),
+        ] {
+            let answers = with_answer(&answer);
+            assert_eq!(answers.unreadable(), applicable(&["V8.1.1"]), "{answer:?}");
+            assert!(answers.documented().is_empty() && answers.stated().is_empty());
+            let evidence = evidence(&catalog(), &answers, "security-notes.md");
+            assert_eq!(evidence.unreadable, vec!["V8.1.1".to_owned()]);
+        }
+    }
+
+    #[test]
+    fn the_marker_alone_is_not_an_answer() {
+        // "Written by: …" is who, not what. The line is long enough to lift a stray word over the
+        // floor on its own, which is what this holds: with nothing else, the section is empty.
+        for marker in ["Written by: owner", "Written by: AI coding tool"] {
+            let answer = format!("{marker}\n\nSee the code for details.");
+            assert!(
+                answer.chars().count() >= LEAST_ANSWER_CHARS,
+                "the setup must reach the floor"
+            );
+            let answers = with_answer(&answer);
+            assert!(
+                answers.answered().is_empty(),
+                "{marker}: {:?}",
+                answers.answered()
+            );
+        }
     }
 }
