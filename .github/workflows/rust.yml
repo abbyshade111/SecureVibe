@@ -1,38 +1,20 @@
-# The Rust checks for the language-agnostic variant in `agnostic/`.
+# The Rust checks for `sv`, which is what this repository is. (Until 26 September 2026 the repository held SecureVibe v1
+# at its top and `sv` under `agnostic/`; v1 now lives on the `v1` branch and at the tags `v1-paper` and `v1-final`.)
 #
-# A separate workflow from `checks.yml` on purpose, for three reasons:
+# It runs on every push and pull request: the tests read `data/`, `docs/` and `examples/` as well as the crates, and a
+# change to any of them can break a guard, so nothing is filtered out by path. `sv` reads the OWASP data in `data/`,
+# and its suite asserts things about it: that exactly two `never` rules survive the overlay, that the set of
+# conditions no rule keys on is the one we think, and that every condition named in the data files exists in the
+# Rust enum.
 #
-#  * It is scoped to `agnostic/**` by the paths filter below, so a change that touches only v1 never starts it.
-#    v2 costs main nothing it would not otherwise spend.
-#  * `checks.yml` is started by hand only, because its test job hangs until something kills it. These checks take
-#    seconds and share nothing with that job, so they can run automatically without inheriting the problem.
-#  * The tests it runs are the ones that catch v1 and v2 drifting apart. `sv` reads the same
-#    `data/frameworks` and `data/knowledge` files v1 does, and its suite asserts things about them: that exactly
-#    two `never` rules survive the v2 overlay, that the set of conditions no rule keys on is the one we think,
-#    and that every condition named in the data files exists in the Rust enum. Those guards existed before this
-#    workflow and never ran unless somebody remembered to run them, which is the same as not having them.
-#
-# `data/**` is in the paths filter as well: a v1 change to the shared OWASP data is exactly the case these
-# guards are for, and it would otherwise be the one change that skips them.
-#
-# Every step is pinned to an exact commit fingerprint rather than a version name, as `checks.yml` is: a version
-# name can be moved to point at different code, a fingerprint cannot.
+# Every step is pinned to an exact commit fingerprint rather than a version name: a version name can be moved to
+# point at different code, a fingerprint cannot.
 
-name: Rust (agnostic)
+name: Rust
 
 on:
   push:
-    paths:
-      - 'agnostic/**'
-      - '.dockerignore'
-      - 'data/**'
-      - '.github/workflows/rust.yml'
   pull_request:
-    paths:
-      - 'agnostic/**'
-      - '.dockerignore'
-      - 'data/**'
-      - '.github/workflows/rust.yml'
   workflow_dispatch:
 
 permissions:
@@ -50,9 +32,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: agnostic
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -75,7 +54,7 @@ jobs:
         run: cargo test --workspace
 
   image:
-    # The container for somebody who is not going to install Rust (agnostic/Dockerfile). Built from
+    # The container for somebody who is not going to install Rust (the Dockerfile). Built from
     # scratch here, where Docker Hub is reachable, and driven over MCP the way an AI coding tool
     # would drive it: tools/image_smoke.py asserts the committed-secrets check really ran, in the
     # image and in a native sv, before comparing what the two found. The runner is an ordinary user,
@@ -87,14 +66,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build the image
-        run: docker build -f agnostic/Dockerfile -t securevibe/sv .
+        run: docker build -t securevibe/sv .
 
       - name: Build sv natively, to compare with
-        working-directory: agnostic
         run: rustup toolchain install stable --profile minimal && rustup default stable && cargo build --release -p sv-cli
 
       - name: Drive the image as an AI coding tool would
-        working-directory: agnostic
         run: python3 tools/image_smoke.py securevibe/sv --native target/release/sv
 
   publish:
@@ -120,7 +97,7 @@ jobs:
         # The source label ties the package to this repository on GitHub, so it is listed there and
         # takes its access from it.
         run: >
-          docker build -f agnostic/Dockerfile
+          docker build
           --label org.opencontainers.image.source=https://github.com/${{ github.repository }}
           --label org.opencontainers.image.revision=${{ github.sha }}
           -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .

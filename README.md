@@ -1,158 +1,280 @@
-# SecureVibe
+# SecureVibe (`sv`)
 
-> **What this is, and is not.** A research project accompanying a paper on whether a secure foundation makes
-> vibe coding safer for people who are not programmers. It is not a supported product, it has no release
-> process, and it has been used in earnest by three people. The reports it writes are careful about what they
-> have and have not verified — `docs/` records where it has been found wrong, including by its own checks.
-> MIT licensed: use it, change it, build on it.
->
-> **The commit messages are a candid working record and are meant to be read.** They say what was wrong as well
-> as what changed: a scanner that turned out to have read nothing for weeks, a report that gave an app a
-> damning verdict on code nobody had looked at, two days of history destroyed by a file-sync service, and a
-> fair number of mistakes made while fixing those. They have not been tidied. A project about honest reporting
-> that quietly rewrote its own history would be arguing against itself, and the failures are the useful part.
+SecureVibe checks an app against the OWASP standards and writes reports that say plainly what was verified and
+what was not. You write the app in whatever AI coding tool you like, in any language; you have the back-and-forth
+with your own AI tool until the app is what you wanted, and then `sv` picks up the code and grades it.
 
+**SecureVibe v1**, the earlier version that asked you to fill in a form and then wrote a Node app for you, is
+archived, not deleted: it lives on the `v1` branch (see `ARCHIVED.md` there) and at the tags `v1-paper` and
+`v1-final`. Its Zenodo version DOI, the one to cite, is 10.5281/zenodo.22984709. Until 26 September 2026 this
+repository held v1 at its top and `sv` under `agnostic/`; no history was rewritten, so every commit hash cited
+elsewhere still resolves.
 
-**Describe the app you want. Get a working, security-hardened web application — plus the evidence.**
+## Where it is
 
-SecureVibe is a local-first "vibe-coding" tool for people who are not security experts. It walks you through a few
-plain-language questions about the application you want (who uses it, what information it handles, where it will run),
-designs it using the **OWASP Secure by Design Framework**, writes the code with Claude on top of a hardened, tested
-starter application, and then verifies the result against **OWASP ASVS 5.0** (application security) and
-**OWASP AISVS 1.0** (AI security). You get three things:
-
-1. **Your application's source code** — runs on your own computer with `npm install`, `npm run setup`, `npm start`.
-2. **A compliance report** — how the design followed the Secure by Design process, and the status of every applicable
-   ASVS / AISVS requirement, with evidence, findings and recommendations.
-3. **A security report** — findings from static analysis, dependency analysis, secret scanning, a runtime scan of your
-   app, its own security tests and an AI security review. Every finding explains what it is, why it matters, where it
-   is and how to fix it.
-
-Already have an app (written by hand or with another AI tool)? Choose **Check an app you already have** on the home
-page and upload its folder: SecureVibe scans the code (without running it) and writes the same reports.
-
-Other pages: **Dashboard** (AI spending, builds, security log, open findings), **Human checks** (a step-by-step guide
-through the requirements only a person can confirm, from the Reports section) and **Preview your app** (runs a built
-app with throw-away data so you can try it).
-
-The same three artifacts are produced for SecureVibe itself: see [`artifacts/self-assessment/`](artifacts/self-assessment/).
-
-## Requirements
-
-* **Node.js 22.13 or newer** (tested on Node 26) — [nodejs.org](https://nodejs.org)
-* An **Anthropic API key** for AI generation and AI review ([console.anthropic.com](https://console.anthropic.com)).
-  You pay Anthropic for what you use; SecureVibe shows an estimate and lets you set a spending cap before every build.
-  **Save credits** (Settings, on by default) builds with Claude Sonnet 5 at the lowest effort with one round of fixes;
-  a typical app then costs roughly $2–4, and the default $5 cap is shared between writing the app (up to 55%), the code
-  review and the fixes, so a build always finishes within it.
-  Without a key SecureVibe runs in **Preview without AI** mode: you can complete the design and build the hardened
-  starter app, but nothing is customized or reviewed by AI, and the reports say so.
-* Internet access the first time you build (to download packages). Later builds can work offline.
-
-## Run it
+The compliance engine, the scanners, the container runner, the checks and the reports all run. What is not
+built is listed in `docs/BACKLOG.md`, and the reports say plainly which parts of an app nothing has examined. Which
+requirements of ASVS, AISVS, and the Secure by Design checklist any check can speak to at all, and what
+each check needs to run, is counted in `docs/COVERAGE.md`.
 
 ```bash
-npm install
-npm start
+cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
+cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
+cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and ask it questions
+cargo run -p sv-cli -- check ./my-app    # credentials, configuration, and rules that read the code
+cargo run -p sv-cli -- sbom ./my-app     # what the app ships, as CycloneDX JSON
+cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulnerabilities
+cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
+cargo run -p sv-cli -- report ./my-app --advisories ./osv  # …with known vulnerabilities in it too
+cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding tool (see below)
 ```
 
-`npm start` builds the web interface on first run, starts the server on `http://127.0.0.1:4173`, and prints a link that
-contains an access token. Open that link (SecureVibe tries to open it for you); use it exactly as printed, with
-`127.0.0.1` rather than `localhost`. The link works for as long as SecureVibe keeps running, so you can open it again in
-a new tab, but keep it private. The token protects the tool from other web pages on your computer talking to it.
+The rules that read code understand Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, Kotlin,
+Rust, C, Dart, Swift, and shell scripts. A language
+outside that list is not guessed at: while a file `sv` cannot parse is present, no code rule claims
+anything about the app at all, and the report says which language stopped it. The same holds one rule at
+a time: a rule that has not been taught a language in your app claims nothing, and the report names the
+rule and the language. A script written into a web page —
+in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
+is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
-To use AI features, set your key before starting, either in the environment or in a `.env` file next to this README
-(it is git-ignored; SecureVibe reads only its own keys from it and never writes the key into reports or logs):
+Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
+running reports *not assessed* — never a pass, and never a failure.
+
+`sv` opens no network connection. Advisory data is something you download and point it at; the list of
+packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
+
+`sv run` also asks the running app four questions, as somebody who has not signed in: what headers it
+sends, what it says when asked for a page that is not there, whether it accepts a site it has never heard
+of, and whether it echoes requests back. What those questions cannot reach — anything behind a login — is
+printed as *not assessed* before any finding, because a suite that only tries the front door and says
+nothing reads exactly like one that found nothing wrong.
+
+If your app has its own tests, they can count too — but only for requirements they name. Write the id
+into the test, in its name or in a comment on the line above it:
+
+```python
+def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
+```
+
+When the suite passes, `sv` reports those requirements as checked by your own tests and says which file
+and line to go and look at. If your runner can write a JUnit XML report, point `test-report` at it and
+the tests that passed still count even when others in the suite failed — without one, `sv` sees a single
+exit code and one broken test costs the credit of every other test. There is no clever matching behind this, on purpose: guessing that
+`test_login` is about a particular authentication requirement would credit it on the strength of a name
+somebody chose for other reasons. A test that names nothing is not evidence about anything in particular,
+which is a perfectly fair thing for a test to be — most tests are.
+
+`sv report` writes the whole thing out (add `--run` to start the app behind the fence and include what
+it answers, and `--tools` to run the security tool your language already has): one HTML file you can open by double-clicking it, the same
+thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
+what was **not** examined, say what each check covered when it found nothing wrong, and nothing in them
+says a requirement passed — `sv` is not able to establish
+that, so it does not claim it.
+
+They also list the tests worth writing: every requirement that applies and has no evidence yet, and no
+test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
+the one way to give evidence about any requirement, including the many no check here can reach.
+
+The reports also have a threat model: what could go wrong with an app like this one, by the part of it
+each threat concerns (sign-in, stored data, the AI model, uploads, payments, and so on), with what the
+checks showed about each: found, checked in part, not verified, or not known to apply until a question
+in securevibe.toml is answered. It is made from rules, not by asking an AI, and it never calls a threat
+handled, because a threat is only as settled as the requirements that answer it. See
+`docs/THREAT-MODELING.md`.
+
+### The questions no tool can answer
+
+Nineteen of the requirements at level 1 and 2 ask for a written decision and nothing else: what counts
+as valid input, who may do what, how long somebody stays signed in, how soon a library with a known
+vulnerability gets updated. Nothing can read those out of the code, because what they ask for is a
+decision somebody made.
+
+`sv notes` writes `security-notes.md` beside your app: one question per requirement, in plain words,
+with what `sv` already found underneath it — the outside services by the package that showed each one,
+the kinds of data you said the app holds. You write the answer. Running it again keeps everything you
+have written.
+
+An answer makes that requirement **documented by the owner** in the report. That is its own line in
+the table and never *checked*: nothing reads whether your answer is right, or whether the app does
+what it says. A check that found a problem always wins over what the notes say, and an answer cannot
+settle a threat in the threat model — otherwise an app could talk its way out of one by describing
+itself.
+
+Some requirements are about where the app is *served from* rather than what is in it, and no amount
+of reading the code settles them. `sv probe https://your-app.example.com` asks your own live site the
+four that matter most: is the certificate one browsers trust, is plain HTTP still served, does it
+tell browsers to stick to HTTPS, and do its cookies carry the `__Host-` prefix.
+
+It is deliberately narrow about what it will do. The address has to be typed at the terminal, never
+read from a file. It fetches headers only, sends no cookies and no credentials, makes at most four
+requests, and will not follow a redirect to any host but the one you named. It cannot sign in and
+cannot change anything.
+
+Ninety-odd of the requirements that apply to a typical app cannot be settled by any tool at all, and
+the report now has a section for them: **what only you can check**, with a line each saying what
+doing something about it involves — write it down in the notes, answer it in `[design]`, or go and
+look at the live site and here is what at. Nothing on that list is counted as met. Doing the thing is
+what would change that, not reading about it.
+
+One thing you can state as a number, and `sv` will hold your app to it: how many wrong passwords in
+a row it should allow before pushing back. Put `failed-sign-ins = 5` under `[policy]` in
+`securevibe.toml` and the checks make six wrong attempts and watch what the app does. That settles
+V6.3.1, one of the Level 1 requirements, and it is a real check rather than your word: an app that
+only gives way after twenty attempts, when you said five, is reported. Say nothing and nothing is
+claimed either way.
+
+Sixteen more ask how the app is built rather than what is in it: is input checked on the server as
+well as in the browser, do the app's own parts prove who they are to each other. You answer those in
+the `[design]` section of `securevibe.toml` with yes, no, or not sure, and where in the code it is
+done.
+
+Answering yes makes the requirement **attested by the owner** — the weakest thing the report says,
+and deliberately so. It is your word about the app, not a check of it, so the requirement stays on
+the list of tests to write, and it cannot settle a threat. Answering **no** is the more useful
+answer: the report says plainly that the control is missing, on your own say-so. If `where` names a
+file that is not there any more, the report says that too, rather than keeping a pointer that leads
+nowhere.
+
+For an app that calls an AI model, semgrep's rules about such apps are read against AISVS too: user
+input placed in the system instructions, no limit on how long an answer may be, a model called in a
+loop with no way out, an MCP tool that hands the model a password. Each of those, when found, marks
+the AISVS requirement it breaks as needing attention. Finding none marks nothing as checked, because
+the absence of one way to get it wrong is not the control AISVS asks for.
+
+The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
+design review rather than scanning — whether trust zones are enforced, whether an incident response plan
+is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
+the reports say exactly that rather than counting them as things that were looked at. Its ids are written
+`SBD-AC-01` to keep them apart from AISVS Appendix C, which numbers its own requirements `AC.1.1`.
+The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
+thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
+
+## Signing in
+
+`sv run` asks the running app questions as somebody who has not signed in — and, when
+`securevibe.toml` says how, as signed-in users too. Under `[stack.run.users]` you say how accounts are
+made (a `seed` command run inside the app's container, or the app's own `signup`), how to sign in and
+out, which pages are private or admin-only, and how one user creates something another must not read.
+`sv` makes two ordinary accounts and, if you list admin pages, an admin, each with a password made for
+that run, and then asks:
+
+- can somebody who has not signed in open a private page? (V8.2.1)
+- can an ordinary user open an admin page? (V8.2.1)
+- can one user read what another created? (V8.2.2)
+- is a request from another website accepted with the user's cookies? (V3.5.1)
+- does signing in issue a new session, and does signing out end it? (V7.2.4, V7.4.1)
+- is the session cookie out of reach of scripts and other sites? (V3.3.4, V3.3.2)
+- is the session id long enough to guess, and different each time? (V7.2.3; only ever a finding)
+- does a known default account, such as `admin` / `admin`, sign in? (V6.3.2; only ever a finding)
+- is a password accepted in the address rather than the body? (V14.2.1; only ever a finding)
+- is the password field on the sign-in and sign-up pages masked, and can a password be pasted into it?
+  (V6.2.6; V6.2.7, only ever a finding)
+- does visiting the sign-out address, rather than submitting its form, sign the user out? (V3.5.3; only
+  ever a finding)
+- with `change-password` set: can the password be changed, and does that need the current one?
+  (V6.2.2, V6.2.3)
+- with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
+  only ever done to an account made for it)
+- is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a
+  finding)
+
+When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
+asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone
+(V6.2.5), a common one beside a random one of the same shape (V6.2.4), and one of 83 characters
+(V6.2.9), which is then tried with only its first 72, and the strong one with its capitals swapped, to
+see that the password is checked exactly as typed (V6.2.8). Each is compared with an
+ordinary strong password signed up first, and whether a password was accepted is told by signing in
+with it.
+
+Each question first shows the thing it depends on actually worked — the session opens a private page,
+the owner can read back what they made, the admin can open the admin page — and when it cannot show
+that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a complete example.
+
+## Building an app from scratch with `sv` alongside
+
+If you are not a programmer and want to build an app with an AI coding tool, start with
+[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting SecureVibe to your
+tool, a prompt to start the build with, and what is and is not checked.
+
+## From inside your AI coding tool
+
+`sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
+mid-conversation and work through the findings with you. Build it once (`cargo build --release -p
+sv-cli`), then register it — for Claude Code:
 
 ```bash
-echo 'ANTHROPIC_API_KEY=your-key' > .env
-npm start
+claude mcp add securevibe -- /path/to/securevibe/target/release/sv mcp --root ~/code
 ```
 
-Without a key SecureVibe runs in preview mode: the wizard, the hardened starter app (with pages for every record you
-describe), all scanners and both reports still work; only Claude-written features and AI review are skipped, and the
-reports say so. Set `SECUREVIBE_AI=off` (in the environment or `.env`) to use preview mode even when a key is
-configured, or switch AI off and on at any time with **Use AI** at the top of the Settings page.
+or, for a tool configured with JSON:
 
-Useful commands:
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | Development mode (server + web hot reload) |
-| `npm test` | SecureVibe's own test suite |
-| `npm run self-assess` | Produces SecureVibe's own compliance + security reports in `artifacts/self-assessment/` (runs the test suite first; add `-- --no-ai` to skip the paid AI review). Reviewed scanner decisions live in `self-assessment/triage.json`. |
-| `npm run verify -- <appDir> <profile.json>` | Re-verifies an app you edited by hand (no regeneration) |
-| `npm run -w server smoke:api` | One small API call to confirm your key works (run this first) |
-| `npm run -w server doctor` | Preflight checks in the terminal |
-| `npm run -w server reports:rerender -- <projectId> [runId]` | Rebuilds a run's reports from its saved results after a SecureVibe update (no checks re-run, no AI cost) |
-
-**Extra scanners (optional):** if semgrep, gitleaks, trivy or osv-scanner are installed (for example
-`brew install semgrep gitleaks trivy osv-scanner`), every build also runs them and their results appear in the security
-report. semgrep and trivy download their rules and vulnerability data from the internet when they run.
-
-**Tidying up:** on **My apps**, **Archive** hides an app you may want later (restore it from "Show archived apps");
-**Delete** removes it and everything built for it from this computer, after you type its name to confirm.
-
-**Reading your reports:** on **My apps**, click **Reports** next to an app. Pick any earlier build under
-**Reports from**, then **Open** or **Download**. Each report is also a PDF file that SecureVibe writes itself, with no
-browser or print window involved, on US Letter or A4 paper as chosen in Settings; it shows Western European letters and leaves out emoji, so the web version stays the
-complete one. The compliance report ends with the full text of every architecture decision record (ADR), and each
-ADR id in the report links to it.
-
-## How a build works
-
-1. **You answer plain-language questions** (about 10 minutes). Every question says why it is asked and what it changes.
-   "Not sure" always picks the safer option and records that assumption.
-2. **SecureVibe designs the app** following the ten Secure by Design steps: security requirements, architecture and
-   trust zones, principles and patterns, the 36-control review checklist, an AI second opinion, risk triage, a STRIDE
-   threat model when extra care is needed, design documents, and a hand-off to code generation.
-3. **You approve the build.** SecureVibe copies the hardened starter app, generates strong secrets, creates your first
-   admin account, and asks Claude to write your features inside strict rules (it cannot touch the security code, add
-   packages, or run arbitrary commands).
-4. **Everything is verified**: install, type-check, lint, the app's own security tests, static analysis, secret scan,
-   dependency scan (with a software bill of materials), a runtime scan that probes every page and API as an anonymous
-   user, the wrong role and a non-owner, an AI review that must cite verbatim code, and a fix round for high-priority
-   findings.
-5. **Reports are written** for you, for a developer and for a security reviewer. A requirement is only "verified" with
-   real evidence (a test, a runtime probe, or independent static checks). AI opinions are shown separately and never
-   count as verified. Anything that could not be checked is listed with instructions for a person.
-
-## What it can build (version 1)
-
-Web applications that run on your computer or your local network: Node.js + Express + SQLite, server-rendered pages
-with a JSON API, optional user accounts and roles (with two-factor authentication for administrators), file uploads,
-an AI assistant powered by Claude, email notifications, scheduled jobs and connections to other web services.
-Putting an app on the internet is a separate step; SecureVibe produces a "Going online safely" checklist for it.
-
-Not in version 1: mobile apps, microservices, cloud deployment, social/OAuth sign-in, retrieval-augmented AI.
-
-## Where things are
-
-```
-securevibe/
-  workspace/projects/<id>/app/        your generated application (also app-v1/, app-v2/ … for earlier builds)
-  workspace/projects/<id>/reports/    overview, compliance report, security report, design document, SBOM, SARIF, zip
-  workspace/projects/<id>/design/     design artifacts (Secure by Design steps 1–8)
-  workspace/llm-audit.jsonl           audit log of every AI call (never contains your API key)
-  artifacts/self-assessment/          SecureVibe's own reports
-  docs/                               design, contracts, architecture, threat model, incident response, ADRs
+```json
+{ "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-## Security notes
+It offers six tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_check` (what
+applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
+its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
+`securevibe_questions` (the questions only you can answer, for the tool to ask you one at a time), and
+`securevibe_notes_file` (the `security-notes.md` your written decisions go in).
 
-* SecureVibe binds to `127.0.0.1` only. Its UI requires the startup token, checks the `Host` and `Origin` headers, uses
-  a strict Content Security Policy and a CSRF token.
-* Generated code and its tests run under Node's permission model (file access limited to the project folder) with a
-  minimal environment, timeouts and process-group cleanup. Network access is **not** restricted — the reports say so.
-* Your API key is read from the environment or `.env` only. It is never stored in project data, logs or reports.
-* SecureVibe is an AI coding tool and applies OWASP AISVS Appendix C to itself: provenance metadata for every generated
-  file, prompt/response logging with correlation ids, hash-pinned prompts, an instruction hierarchy for untrusted content,
-  schema-validated model output, execution budgets, and explicit human approval before any build. It records honestly that
-  AI-generated code has **not** been reviewed by a qualified human engineer until you mark such a review as done.
+A `.mcp.json` in the app's folder, with the JSON above, works in tools that have no `claude` command,
+such as the Claude desktop app.
 
-See [`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/CONTRACTS.md`](docs/CONTRACTS.md) for the full design.
+### Without installing Rust: the container
 
-## License and attribution
+`sv` is published as an image, so the only thing to install is Docker (on a Mac, Docker Desktop or
+Colima):
 
-MIT. Framework content: OWASP ASVS 5.0.0, OWASP AISVS 1.0 and the OWASP Secure by Design Framework v0.5 are
-© OWASP Foundation, licensed under CC BY-SA 4.0. SecureVibe embeds their requirement texts for verification purposes.
+```bash
+docker pull ghcr.io/abbyshade111/securevibe-sv
+```
+
+It is built from the `Dockerfile` by CI on every change to `main`, once the image has passed its
+test, and tagged `latest` and with the commit it came from. To build it yourself instead, from the
+repository root: `docker build -t ghcr.io/abbyshade111/securevibe-sv .`
+
+Then the tool starts it in its `.mcp.json`. Use your own folder in all three places, and the full path
+to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/bin`:
+
+```json
+{ "mcpServers": { "securevibe": {
+  "command": "/opt/homebrew/bin/docker",
+  "args": ["run", "-i", "--rm", "--network", "none",
+           "-v", "/Users/you/code:/Users/you/code",
+           "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "/Users/you/code"] } } }
+```
+
+- The folder is mounted at the same path inside, so the paths in findings are your own.
+- `--network none` means the container has no network at all, so the promise that `sv` opens no
+  connection is enforced rather than only kept.
+- On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
+  files it writes are yours rather than root's.
+- Docker (or Colima) has to be running when the tool starts, or the securevibe tools are simply absent.
+- The container never runs `sv report --run`: starting the app means starting containers, which from
+  inside a container would mean handing it control of Docker on your machine. Run that step with a
+  native `sv` at a terminal.
+
+`tools/image_smoke.py` drives the image as an AI tool would, and CI runs it on every change.
+
+Two limits are deliberate. It only reads apps under the folder given to `--root`; a path outside it is
+refused, `..` and symbolic links included. And it never starts your app or runs other people's security
+tools — each of those runs code, and that stays your decision at a terminal (`sv report --run --tools`).
+The results say both were not done, the same way the written report does.
+
+## Building
+
+Rust 1.95 or newer.
+
+```bash
+cargo test
+```
+
+The OWASP data files (`data/frameworks`, `data/knowledge`) and `sv`'s own data files live together in `data/`.
+`SV_DATA_DIR` overrides the location of the OWASP data.
+
+## Reading order
+
+`docs/DESIGN.md` explains the two changes from v1 (the design was written when the two were side by side), why deleting the wizard was the hard part, and what the
+first run against real data turned up.

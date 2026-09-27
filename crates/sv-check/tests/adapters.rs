@@ -1,0 +1,938 @@
+//! What the adapters must never do.
+//!
+//! These tools are the only part of `sv` whose results come from somebody else's code, and they are
+//! the only part that can be absent. Both are ways of arriving at a report that looks like a clean
+//! scan and is not one.
+
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use sv_check::adapters::{self, Adapters, Outcome};
+
+fn data() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json")
+}
+
+fn adapters() -> Adapters {
+    Adapters::load(&data()).expect("the adapter file loads")
+}
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("sv-adapters-{name}"));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn a_tool_that_is_not_installed_is_not_run_rather_than_clean() {
+    // The reason this is a data file with a gap attached rather than a shell script. A script that
+    // skips a missing binary produces a report identical to one where the tool ran and found
+    // nothing, and the second is the one everybody assumes.
+    let dir = scratch("absent");
+    let file = std::fs::read_to_string(data()).unwrap();
+    let doctored = file.replace(
+        "\"command\": \"bandit\"",
+        "\"command\": \"sv-no-such-tool-9f2a\"",
+    );
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let adapters = Adapters::load(&path).expect("still valid");
+    let bandit = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "bandit")
+        .expect("bandit is listed");
+
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    std::fs::remove_dir_all(&dir).ok();
+
+    match outcome {
+        Outcome::NotRun { why } => {
+            assert!(
+                why.contains("not installed"),
+                "it must say the tool is missing: {why}"
+            );
+            assert!(
+                why.contains("pip install bandit"),
+                "and how to get it: {why}"
+            );
+        }
+        Outcome::Ran { findings, .. } => {
+            panic!("a missing tool reported as having run, with {findings:?}")
+        }
+    }
+}
+
+#[test]
+fn a_tool_that_writes_no_report_is_not_run_either() {
+    // Second witness, of a different shape: the binary is there and does nothing useful. `true`
+    // exists on every machine this runs on, exits zero, and writes no report — which is exactly the
+    // shape of brakeman meeting a Ruby app that is not Rails. A zero exit is not a result.
+    let dir = scratch("silent");
+    let file = std::fs::read_to_string(data()).unwrap();
+    let doctored = file
+        .replace("\"command\": \"bandit\"", "\"command\": \"true\"")
+        .replace("\"command\": \"gosec\"", "\"command\": \"true\"");
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let adapters = Adapters::load(&path).unwrap();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    std::fs::remove_dir_all(&dir).ok();
+
+    match outcome {
+        Outcome::NotRun { why } => assert!(
+            why.contains("no report"),
+            "the reason must say the report is missing: {why}"
+        ),
+        Outcome::Ran { findings, .. } => {
+            panic!("a tool that wrote nothing reported as having run, with {findings:?}")
+        }
+    }
+}
+
+#[test]
+fn a_rule_the_map_does_not_name_carries_no_requirement() {
+    // Crediting every requirement a tool knows about to every one of its findings would make one
+    // bandit hit look like evidence about injection, secrets and weak hashing at once.
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let report = sarif(
+        "Bandit",
+        &[("B608", "error", "Possible SQL injection", "app.py", 12)],
+    );
+    let mapped = adapters::parse_sarif(bandit, &report).unwrap();
+    // V1.2.4 is parameterized database queries. This test asserted V1.2.1 — output encoding for an
+    // HTTP response — for as long as the map said so, which is how a wrong citation survives: the
+    // test is written from the map rather than from the requirement.
+    assert_eq!(mapped[0].requirement_ids, vec!["V1.2.4".to_owned()]);
+
+    let report = sarif("Bandit", &[("B999", "error", "Something new", "app.py", 3)]);
+    let unmapped = adapters::parse_sarif(bandit, &report).unwrap();
+    assert!(
+        unmapped[0].requirement_ids.is_empty(),
+        "an unmapped rule must claim nothing: {:?}",
+        unmapped[0].requirement_ids
+    );
+    // It still has to be reported. A finding nobody has mapped is still a finding.
+    assert_eq!(unmapped.len(), 1);
+    assert!(unmapped[0].rule_id.contains("B999"));
+}
+
+#[test]
+fn the_findings_carry_where_they_came_from() {
+    // A reader has to be able to tell `sv`'s own rules from somebody else's, because they are worth
+    // different amounts and are fixed by reading different documentation.
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let report = sarif(
+        "Bandit",
+        &[("B608", "error", "Possible SQL injection", "src/db.py", 42)],
+    );
+    let findings = adapters::parse_sarif(bandit, &report).unwrap();
+    let f = &findings[0];
+    assert_eq!(f.rule_id, "bandit.B608");
+    assert_eq!(f.location.file, "src/db.py");
+    assert_eq!(f.location.line, 42);
+    assert!(f.impact.contains("Bandit"), "{}", f.impact);
+    assert_eq!(
+        f.confidence,
+        sv_check::Confidence::Medium,
+        "somebody else's rule fired; `sv` did not judge it right"
+    );
+}
+
+#[test]
+fn an_adapter_naming_something_other_than_a_program_is_refused_at_load() {
+    // The commands come from this repository rather than from the app, so this is not the last line
+    // of defense. A security tool that can be made to run something else by an edit to a data file
+    // would still be a poor advertisement.
+    let dir = scratch("injection");
+    for bad in [
+        "bandit; rm -rf /",
+        "../../../bin/sh",
+        "bandit && curl example.test",
+        "bandit $(whoami)",
+    ] {
+        let file = std::fs::read_to_string(data()).unwrap();
+        let doctored = file.replace(
+            "\"command\": \"bandit\"",
+            &format!("\"command\": \"{bad}\""),
+        );
+        let path = dir.join("adapters.json");
+        std::fs::write(&path, doctored).unwrap();
+        assert!(
+            Adapters::load(&path).is_err(),
+            "loading accepted a command of {bad:?}"
+        );
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn an_unknown_placeholder_is_refused_rather_than_passed_through() {
+    // `{dir}` and `{output}` are the two this code fills. Anything else would reach the tool as a
+    // literal brace, which is a silently wrong argument rather than an error.
+    let dir = scratch("placeholder");
+    let file = std::fs::read_to_string(data()).unwrap();
+    // Targets the placeholder itself rather than its neighbors: the JSON has been reformatted
+    // once already, and a test that matches on surrounding whitespace stops doctoring anything
+    // while still passing.
+    let doctored = file.replace("\"{dir}\"", "\"{app_folder}\"");
+    assert_ne!(doctored, file, "the doctoring matched nothing");
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let err = Adapters::load(&path).unwrap_err().to_string();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(err.contains("{app_folder}"), "{err}");
+}
+
+#[test]
+fn every_adapter_names_a_language_and_a_way_to_install_it() {
+    for adapter in adapters().all() {
+        assert!(
+            !adapter.install.is_empty(),
+            "{} has no install line",
+            adapter.id
+        );
+        assert!(
+            !adapter.language.is_empty(),
+            "{} names no language",
+            adapter.id
+        );
+        assert!(
+            adapter.run.args.iter().any(|a| a.contains("{output}")),
+            "{} never asks for a report file, so nothing could be read back",
+            adapter.id
+        );
+        assert!(
+            adapter
+                .run
+                .args
+                .iter()
+                .any(|a| a.contains("sarif") || a.contains("{output}")),
+            "{} is not asked for SARIF",
+            adapter.id
+        );
+    }
+}
+
+#[test]
+fn every_requirement_an_adapter_maps_to_is_one_that_exists() {
+    // The same guard the reports put on `sv`'s own checks, applied to the mapping table. A tool's
+    // rule pointing at a requirement that does not exist does nothing, silently.
+    let frameworks = sv_frameworks::Frameworks::load(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/frameworks"),
+    )
+    .expect("the OWASP data loads");
+    let adapters = adapters();
+    let mut unknown = Vec::new();
+    let mut mapped = 0;
+    for adapter in adapters.all() {
+        for (rule, mapped_rule) in &adapter.rules {
+            for id in &mapped_rule.requirements {
+                mapped += 1;
+                if !frameworks.requirements.contains_key(id) {
+                    unknown.push(format!("{}:{rule} -> {id}", adapter.id));
+                }
+            }
+        }
+    }
+    assert!(
+        mapped > 20,
+        "the table is too small to be checking anything"
+    );
+    assert!(
+        unknown.is_empty(),
+        "adapter rules point at requirements that are in no loaded framework: {unknown:?}"
+    );
+}
+
+#[test]
+fn a_tool_that_reaches_the_network_says_so() {
+    // `sv` itself opens no connection. One of these does, the first time it runs, and somebody who
+    // chose this tool for an air-gapped review should not find that out from a firewall log.
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep");
+    if let Some(semgrep) = semgrep {
+        assert!(semgrep.network, "semgrep fetches its rules and must say so");
+        assert!(
+            semgrep.note.contains("network"),
+            "and the note must explain it: {}",
+            semgrep.note
+        );
+    }
+    for adapter in adapters.all().iter().filter(|a| !a.network) {
+        assert!(
+            !adapter.run.args.iter().any(|a| a.starts_with("http")),
+            "{} does not declare network use but names a URL",
+            adapter.id
+        );
+    }
+}
+
+/// A minimal SARIF 2.1.0 document, in the shape these tools really emit.
+fn sarif(tool: &str, results: &[(&str, &str, &str, &str, u64)]) -> String {
+    let rules: Vec<serde_json::Value> = results
+        .iter()
+        .map(|(id, _, text, _, _)| {
+            serde_json::json!({
+                "id": id,
+                "shortDescription": { "text": text },
+                "fullDescription": { "text": format!("More about {id}.") }
+            })
+        })
+        .collect();
+    let items: Vec<serde_json::Value> = results
+        .iter()
+        .map(|(id, level, text, file, line)| {
+            serde_json::json!({
+                "ruleId": id,
+                "level": level,
+                "message": { "text": text },
+                "locations": [{
+                    "physicalLocation": {
+                        "artifactLocation": { "uri": file },
+                        "region": { "startLine": line }
+                    }
+                }]
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "version": "2.1.0",
+        "runs": [{
+            "tool": { "driver": { "name": tool, "rules": rules } },
+            "results": items
+        }]
+    })
+    .to_string()
+}
+
+#[test]
+fn a_tool_that_is_there_and_will_not_start_is_told_apart_from_a_missing_one() {
+    // Found by running this rather than by reasoning about it: semgrep is installed on the machine
+    // that wrote this and cannot start under the sandbox, and the first version reported it as
+    // missing and told the owner to install a tool they already had. `false` is on every machine
+    // this runs on and exits non-zero, which is the same shape.
+    let dir = scratch("broken");
+    let file = std::fs::read_to_string(data()).unwrap();
+    let doctored = file.replace("\"command\": \"bandit\"", "\"command\": \"false\"");
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let adapters = Adapters::load(&path).unwrap();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+
+    assert_eq!(
+        adapters::presence(bandit),
+        adapters::Presence::Broken {
+            detail: "it exited with an error and said nothing".to_owned()
+        }
+    );
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    std::fs::remove_dir_all(&dir).ok();
+    match outcome {
+        Outcome::NotRun { why } => {
+            assert!(why.contains("would not start"), "{why}");
+            assert!(
+                !why.contains("pip install"),
+                "telling somebody to install a tool they have is worse than saying nothing: {why}"
+            );
+        }
+        Outcome::Ran { .. } => panic!("a tool that will not start reported as having run"),
+    }
+}
+
+#[test]
+fn a_tool_reporting_an_absolute_path_has_it_made_relative() {
+    // Tools report where they looked, which is absolute when they were given an absolute path.
+    // `sv`'s own findings are relative, and a report is something an owner may send on: the layout
+    // of their home directory is not part of what they meant to share.
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let report = sarif(
+        "Bandit",
+        &[(
+            "B608",
+            "error",
+            "Possible SQL injection",
+            "/Users/somebody/projects/notes/app.py",
+            12,
+        )],
+    );
+    let findings = adapters::parse_sarif_relative_to(
+        bandit,
+        &report,
+        std::path::Path::new("/Users/somebody/projects/notes"),
+    )
+    .unwrap();
+    assert_eq!(findings[0].location.file, "app.py");
+    assert!(
+        !findings[0].location.file.contains("somebody"),
+        "the owner's directory layout must not survive into the report"
+    );
+}
+
+#[test]
+fn a_path_that_is_not_under_the_app_folder_is_left_alone() {
+    // Second witness of a different shape: stripping a prefix that is not there must not mangle the
+    // path. A tool that reports a file outside the folder is telling us something, and a truncated
+    // path would be worse than a long one.
+    let adapters = adapters();
+    let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    let report = sarif("Bandit", &[("B608", "error", "x", "/elsewhere/lib.py", 1)]);
+    let findings = adapters::parse_sarif_relative_to(
+        bandit,
+        &report,
+        std::path::Path::new("/Users/somebody/notes"),
+    )
+    .unwrap();
+    assert_eq!(findings[0].location.file, "/elsewhere/lib.py");
+}
+
+// ---- Brakeman, against its own output ----
+
+/// A real SARIF report from Brakeman 8.0.6, run over `tests/fixtures/brakeman/app` — a small Rails
+/// app with one of each kind of fault in it — and kept beside the app, so what is checked here is what
+/// the tool really writes rather than what its documentation was read to say.
+fn brakeman_real_run() -> Vec<sv_check::Finding> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/brakeman/brakeman-8.0.6.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let brakeman = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "brakeman")
+        .expect("brakeman is listed");
+    adapters::parse_sarif(brakeman, &sarif).expect("the real report parses")
+}
+
+#[test]
+fn every_rule_brakeman_really_reported_is_mapped() {
+    // The mapping was written from documented warning codes and never seen in a real run, and it
+    // was mostly wrong. An unmapped id is not wrong, only uninformative — but every id in a real run
+    // over faults that all have a requirement should land on one.
+    let findings = brakeman_real_run();
+    assert!(findings.len() >= 15, "only {} findings", findings.len());
+    let unmapped: Vec<&str> = findings
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+}
+
+#[test]
+fn each_brakeman_finding_lands_on_the_requirement_it_is_about() {
+    // Each of these was a line of the fixture written to produce exactly that fault. The first three
+    // were each mapped to the wrong requirement until the real run: 0002 as SQL, 0013 as OS command
+    // injection, 0016 as SQL.
+    let findings = brakeman_real_run();
+    let first = |rule: &str| {
+        findings
+            .iter()
+            .find(|f| f.rule_id == format!("brakeman.{rule}"))
+            .unwrap_or_else(|| panic!("{rule} is in the real run"))
+    };
+    for (rule, requirement) in [
+        ("BRAKE0002", "V1.2.1"),
+        ("BRAKE0013", "V1.3.2"),
+        ("BRAKE0016", "V5.3.2"),
+        ("BRAKE0000", "V1.2.4"),
+        ("BRAKE0014", "V1.2.5"),
+        ("BRAKE0025", "V1.5.2"),
+        ("BRAKE0070", "V15.3.3"),
+        ("BRAKE0071", "V12.3.2"),
+        ("BRAKE0084", "V1.3.7"),
+        ("BRAKE0126", "V11.3.1"),
+    ] {
+        let found = first(rule);
+        assert_eq!(
+            found.requirement_ids,
+            vec![requirement.to_owned()],
+            "{rule}"
+        );
+    }
+    // And the location is where the fault was written, not somewhere near it.
+    let sql = first("BRAKE0000");
+    assert_eq!(sql.location.file, "app/controllers/users_controller.rb");
+    assert_eq!(sql.location.line, 5, "the find_by_sql line");
+}
+
+// ---- Semgrep, against its own output ----
+
+/// A real SARIF report from Semgrep 1.178.0, run over `tests/fixtures/semgrep/app` — a Flask app and a
+/// Go program with one of each kind of fault in them. How the run was made, and why its rule ids have
+/// the registry's form, is in the fixture's README.
+fn semgrep_real_run() -> Vec<sv_check::Finding> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-1.178.0.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let semgrep = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed");
+    adapters::parse_sarif(semgrep, &sarif).expect("the real report parses")
+}
+
+#[test]
+fn every_security_rule_semgrep_really_reported_is_mapped() {
+    // Before this map, every semgrep finding carried no requirement at all. Semgrep's own
+    // best-practice and correctness rules fire here too, and stay unmapped: a missing timeout is not
+    // a security requirement.
+    let findings = semgrep_real_run();
+    assert!(findings.len() >= 30, "only {} findings", findings.len());
+    let (security, other): (Vec<_>, Vec<_>) = findings
+        .iter()
+        .partition(|f| f.rule_id.contains(".security."));
+    assert!(
+        security.len() >= 25,
+        "only {} security findings",
+        security.len()
+    );
+    let unmapped: Vec<&str> = security
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+    assert!(!other.is_empty(), "the fixture is meant to include some");
+    for f in other {
+        assert!(f.requirement_ids.is_empty(), "{} is mapped", f.rule_id);
+    }
+}
+
+#[test]
+fn each_semgrep_finding_lands_on_the_requirement_it_is_about() {
+    // Each is a line of the fixture written to produce exactly that fault. The two tainted-SQL rules
+    // are the ones semgrep itself tags with the wrong CWE (type conversion, and mass assignment), so
+    // the map's two keys refused them and a reviewed override put them back.
+    let findings = semgrep_real_run();
+    let first = |rule: &str| {
+        findings
+            .iter()
+            .find(|f| f.rule_id == format!("semgrep.{rule}"))
+            .unwrap_or_else(|| panic!("{rule} is in the real run"))
+    };
+    for (rule, requirement) in [
+        (
+            "python.lang.security.audit.eval-detected.eval-detected",
+            "V1.3.2",
+        ),
+        (
+            "python.lang.security.audit.formatted-sql-query.formatted-sql-query",
+            "V1.2.4",
+        ),
+        (
+            "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+            "V1.2.4",
+        ),
+        (
+            "python.django.security.injection.tainted-sql-string.tainted-sql-string",
+            "V1.2.4",
+        ),
+        (
+            "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+            "V1.2.5",
+        ),
+        (
+            "python.lang.security.deserialization.pickle.avoid-pickle",
+            "V1.5.2",
+        ),
+        (
+            "python.flask.security.open-redirect.open-redirect",
+            "V3.7.2",
+        ),
+        (
+            "python.flask.security.injection.ssrf-requests.ssrf-requests",
+            "V1.3.6",
+        ),
+        (
+            "python.flask.security.injection.path-traversal-open.path-traversal-open",
+            "V5.3.2",
+        ),
+        (
+            "python.requests.security.disabled-cert-validation.disabled-cert-validation",
+            "V12.3.2",
+        ),
+        (
+            "python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+            "V11.4.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.use_of_weak_crypto.use-of-DES",
+            "V11.3.2",
+        ),
+        (
+            "go.lang.security.audit.crypto.use_of_weak_crypto.use-of-md5",
+            "V11.4.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.math_random.math-random-used",
+            "V11.5.1",
+        ),
+        (
+            "go.lang.security.audit.crypto.missing-ssl-minversion.missing-ssl-minversion",
+            "V12.1.1",
+        ),
+        (
+            "go.lang.security.audit.database.string-formatted-query.string-formatted-query",
+            "V1.2.4",
+        ),
+    ] {
+        assert_eq!(
+            first(rule).requirement_ids,
+            vec![requirement.to_owned()],
+            "{rule}"
+        );
+    }
+    // And the location is where the fault was written.
+    let eval = first("python.lang.security.audit.eval-detected.eval-detected");
+    assert_eq!(eval.location.file, "app/app.py");
+    assert_eq!(eval.location.line, 16, "the eval line");
+}
+
+/// The rules the kept semgrep run says it loaded, and the requirements a clean run over an app in
+/// these languages would be credited with.
+fn semgrep_clean_run_evidence(languages: &[&str]) -> Vec<String> {
+    let sarif = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-1.178.0.sarif"),
+    )
+    .unwrap();
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
+    adapters::clean_run_evidence(semgrep, &adapters::loaded_rules(&sarif), &languages)
+}
+
+#[test]
+fn a_clean_semgrep_run_credits_only_rules_it_ran_for_the_app_s_languages() {
+    // With the map filled, crediting every mapped requirement on a clean run would have marked 39
+    // requirements checked for any app at all, including zip slip, whose only rule is Go's, on an
+    // app with no Go in it. The same loaded rules, read against the app's languages:
+    assert_eq!(
+        semgrep_clean_run_evidence(&["python"]),
+        [
+            "V1.2.4", "V1.2.5", "V1.3.2", "V1.3.6", "V1.5.2", "V11.4.1", "V12.3.2", "V3.7.2",
+            "V5.3.2"
+        ]
+    );
+    assert_eq!(
+        semgrep_clean_run_evidence(&["go"]),
+        ["V1.2.4", "V11.3.2", "V11.4.1", "V11.5.1", "V12.1.1"]
+    );
+}
+
+#[test]
+fn rules_that_ran_for_none_of_the_app_s_languages_credit_nothing() {
+    // The kept run loaded Python and Go rules. A Ruby app it ran over has been examined by none.
+    let evidence = semgrep_clean_run_evidence(&["ruby"]);
+    assert!(evidence.is_empty(), "{evidence:?}");
+}
+
+#[test]
+fn a_semgrep_report_that_lists_no_rules_credits_nothing() {
+    // A run whose report does not say what it loaded has not shown it looked for anything.
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    let evidence = adapters::clean_run_evidence(
+        semgrep,
+        &std::collections::BTreeSet::new(),
+        &["python".to_owned()],
+    );
+    assert!(evidence.is_empty(), "{evidence:?}");
+}
+
+#[test]
+fn a_one_language_tool_is_still_credited_with_everything_it_maps() {
+    // Bandit runs every one of its checks over Python whatever its report lists, so the narrowing
+    // is for the tool that covers many languages and runs a pack.
+    one_language_tools_keep_their_whole_map(&["bandit"]);
+}
+
+#[test]
+fn so_are_gosec_and_brakeman() {
+    one_language_tools_keep_their_whole_map(&["gosec", "brakeman"]);
+}
+
+fn one_language_tools_keep_their_whole_map(ids: &[&str]) {
+    let adapters = adapters();
+    for id in ids {
+        let tool = adapters.all().iter().find(|a| a.id == *id).unwrap();
+        let evidence = adapters::clean_run_evidence(
+            tool,
+            &std::collections::BTreeSet::new(),
+            std::slice::from_ref(&tool.language),
+        );
+        let mut mapped: Vec<String> = tool
+            .rules
+            .values()
+            .flat_map(|r| r.requirements.iter().cloned())
+            .collect();
+        mapped.sort();
+        mapped.dedup();
+        assert!(!mapped.is_empty(), "{id}");
+        assert_eq!(evidence, mapped, "{id}");
+    }
+}
+
+/// A real SARIF report from Semgrep 1.176.0 run with the registry pack `p/security-audit` itself —
+/// the adapter's own command — over the same app, on 26 September 2026. Rules that produced nothing
+/// are kept by id only; the fixture's README says why and how it was made.
+fn semgrep_registry_sarif() -> serde_json::Value {
+    let text = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semgrep/semgrep-registry-1.176.0.sarif"),
+    )
+    .unwrap();
+    serde_json::from_str(&text).unwrap()
+}
+
+#[test]
+fn every_rule_the_registry_pack_really_reported_is_mapped() {
+    // The map's ids were reproduced from a checkout of the rules, never seen from the registry, until
+    // this run. Every rule it reported is a security rule, and each must carry its requirement.
+    let sarif = semgrep_registry_sarif();
+    let adapters = adapters();
+    let semgrep = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed");
+    let findings = adapters::parse_sarif(semgrep, &sarif.to_string()).expect("the report parses");
+    assert_eq!(findings.len(), 13, "the fixture's run reported 13");
+    let unmapped: Vec<&str> = findings
+        .iter()
+        .filter(|f| f.requirement_ids.is_empty())
+        .map(|f| f.rule_id.as_str())
+        .collect();
+    assert!(unmapped.is_empty(), "reported and not mapped: {unmapped:?}");
+}
+
+#[test]
+fn the_map_spells_every_rule_the_way_the_registry_does() {
+    // The registry lowercases a rule file's path and keeps the rule's own id as written. The map had
+    // three keys with capitals in the path, and a finding from any of them would have carried no
+    // requirement. Checked against every rule the pack loaded, not only the ones that fired.
+    let sarif = semgrep_registry_sarif();
+    let loaded: Vec<&str> = sarif["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect();
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(data()).unwrap()).unwrap();
+    let map = data["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "semgrep")
+        .unwrap()["rules"]
+        .as_object()
+        .unwrap();
+    let exact = loaded.iter().filter(|id| map.contains_key(**id)).count();
+    assert!(
+        exact >= 150,
+        "only {exact} of the pack's rules are in the map"
+    );
+    let misspelled: Vec<(&String, &&str)> = map
+        .keys()
+        .filter_map(|k| {
+            loaded
+                .iter()
+                .find(|id| id.eq_ignore_ascii_case(k) && **id != k)
+                .map(|id| (k, id))
+        })
+        .collect();
+    assert!(
+        misspelled.is_empty(),
+        "map key / registry id: {misspelled:?}"
+    );
+}
+
+fn semgrep_packs() -> serde_json::Value {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/semgrep-packs.json");
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+#[test]
+fn the_pack_snapshot_is_the_registry_run_it_came_from() {
+    // `tools/coverage.py` counts semgrep only through rules in this snapshot, so a snapshot that had
+    // drifted from the run it records would make the count wrong in either direction.
+    let sarif = semgrep_registry_sarif();
+    let mut from_run: Vec<String> = sarif["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap().to_owned())
+        .collect();
+    from_run.sort();
+    let packs = semgrep_packs();
+    let recorded: Vec<String> = packs["packs"]["p/security-audit"]["rules"]
+        .as_array()
+        .expect("p/security-audit is recorded")
+        .iter()
+        .map(|r| r.as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(recorded.len(), 225);
+    assert_eq!(recorded, from_run);
+    assert_eq!(packs["packs"]["p/security-audit"]["semgrep"], "1.176.0");
+}
+
+#[test]
+fn every_pack_the_semgrep_adapter_runs_has_been_measured() {
+    // A pack added to the adapter without measuring what it loads would leave the coverage count
+    // unable to say what semgrep reaches. `coverage.py` refuses it too; this says so in the suite.
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(data()).unwrap()).unwrap();
+    let semgrep = data["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "semgrep")
+        .unwrap();
+    // The packs it runs for every app, and those it adds for an app a condition may hold for.
+    let lists = std::iter::once(&semgrep["run"]["args"]).chain(
+        semgrep["conditional_args"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|c| &c["args"]),
+    );
+    let mut run: Vec<&str> = Vec::new();
+    for list in lists {
+        let args: Vec<&str> = list
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a.as_str().unwrap())
+            .collect();
+        run.extend(args.windows(2).filter(|w| w[0] == "--config").map(|w| w[1]));
+    }
+    assert!(!run.is_empty(), "the adapter names no pack");
+    assert!(
+        run.contains(&"p/ai-best-practices"),
+        "the conditional pack was not read: {run:?}"
+    );
+    let packs = semgrep_packs();
+    for pack in run {
+        assert!(
+            packs["packs"][pack]["rules"].is_array(),
+            "the adapter runs {pack}, which data/semgrep-packs.json has not measured"
+        );
+    }
+}
+
+// ---- Arguments that depend on the app
+
+fn semgrep_of(adapters: &Adapters) -> &sv_check::adapters::Adapter {
+    adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .expect("semgrep is listed")
+}
+
+#[test]
+fn semgrep_runs_the_ai_pack_unless_the_app_is_known_not_to_call_a_model() {
+    // Asked for by the owner on 26 September 2026: `p/ai-best-practices` holds the rules about code
+    // that calls a model, and runs only for an app that may. Unsettled is not "no": the pack's rules
+    // only ever find something, so leaving it out where nobody has said would hide, not protect.
+    let adapters = adapters();
+    let semgrep = semgrep_of(&adapters);
+    let packs = |args: &[String]| -> Vec<String> {
+        args.windows(2)
+            .filter(|w| w[0] == "--config")
+            .map(|w| w[1].clone())
+            .collect()
+    };
+    let unsettled = semgrep.run_args(&BTreeSet::new());
+    assert_eq!(
+        packs(&unsettled),
+        ["p/security-audit", "p/default", "p/ai-best-practices"]
+    );
+    let not_ai = semgrep.run_args(&BTreeSet::from(["ai".to_owned()]));
+    assert_eq!(packs(&not_ai), ["p/security-audit", "p/default"]);
+    // Before the `--`, so a file called `--config` in the app is still a file.
+    for args in [&unsettled, &not_ai] {
+        let dashes = args.iter().position(|a| a == "--").expect("a --");
+        assert_eq!(args[dashes + 1..], ["{files}"], "{args:?}");
+        // After the `--`, a pack's name would be read as a file to scan.
+        assert!(
+            !args[dashes..].iter().any(|a| a.starts_with("p/")),
+            "{args:?}"
+        );
+        assert!(args[..dashes].iter().any(|a| a == "--sarif"), "{args:?}");
+    }
+    // A condition nothing depends on changes nothing.
+    assert_eq!(
+        semgrep.run_args(&BTreeSet::from(["payments".to_owned()])),
+        unsettled
+    );
+}
+
+#[test]
+fn conditional_arguments_are_refused_when_they_cannot_be_placed_or_named() {
+    let dir = scratch("conditional");
+    let file = std::fs::read_to_string(data()).unwrap();
+    for (what, from, to) in [
+        (
+            "an unknown condition",
+            "\"condition\": \"ai\"",
+            "\"condition\": \"uses-ai\"",
+        ),
+        (
+            "a placeholder",
+            "\"p/ai-best-practices\"",
+            "\"{dir}/rules.yaml\"",
+        ),
+    ] {
+        let doctored = file.replace(from, to);
+        assert_ne!(doctored, file, "{what}: the doctoring matched nothing");
+        let path = dir.join("adapters.json");
+        std::fs::write(&path, doctored).unwrap();
+        assert!(Adapters::load(&path).is_err(), "{what} was accepted");
+    }
+    // Without a `--` there is nowhere to put them that keeps an app's file names from being read
+    // as options.
+    let semgrep_run = "\"--quiet\",\n          \"--\",\n          \"{files}\"";
+    assert!(
+        file.contains(semgrep_run),
+        "semgrep's run has changed shape"
+    );
+    let doctored = file.replace(semgrep_run, "\"--quiet\",\n          \"{files}\"");
+    let path = dir.join("adapters.json");
+    std::fs::write(&path, doctored).unwrap();
+    let refused = Adapters::load(&path);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        refused.is_err_and(|e| e.to_string().contains("no `--`")),
+        "a run with no `--` was accepted"
+    );
+}
+
+#[test]
+fn only_a_known_no_leaves_the_ai_pack_out() {
+    // Unsettled is the common case: most manifests never say whether the app calls a model. Treating
+    // that as "no" would skip the only rules that look for these mistakes in exactly the apps where
+    // nobody checked.
+    let adapters = adapters();
+    let ai = sv_frameworks::Condition::from_name("ai").unwrap();
+    let answer = |value: Option<bool>| move |c| if c == ai { value } else { None };
+    assert!(adapters.not_holding(answer(None)).is_empty());
+    assert!(adapters.not_holding(answer(Some(true))).is_empty());
+    assert_eq!(
+        adapters.not_holding(answer(Some(false))),
+        BTreeSet::from(["ai".to_owned()])
+    );
+}

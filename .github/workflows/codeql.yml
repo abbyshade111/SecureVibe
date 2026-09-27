@@ -1,7 +1,7 @@
 # CodeQL, set up as a committed workflow ("advanced setup") rather than GitHub's default setup.
 #
 # The reason is the fixtures. SecureVibe tests its own scanners on deliberately vulnerable applications
-# (server/tests/fixtures/scanners-static/dirty-app and its neighbours, agnostic/crates/sv-scan/tests/fixtures),
+# (crates/sv-scan/tests/fixtures and crates/sv-check/tests/fixtures),
 # and with default setup every one of their faults is a real alert in the Security tab: eighteen were dismissed
 # by hand on 22 September 2026, sixteen of them from v1's fixtures. A dismissal is a click that lives only in
 # GitHub's web page and comes back for every branch and every new fixture; the list below is one reviewable line
@@ -54,12 +54,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Python appears in this repository only as scanner fixtures, so it is not scanned.
-        # Rust has never been scanned here (default setup did not, and agnostic/crates has only ever been seen by
-        # cargo), so that leg is the one nobody has evidence for yet: if the Rust pack or build-mode none is not
-        # available on these runners it fails alone (fail-fast is off) and the JavaScript results still land.
-        # Its first real run will also raise real findings on the crates, which are to be triaged, not dismissed.
-        language: ['javascript-typescript', 'rust']
+        # Rust is the only language scanned. JavaScript, TypeScript and Python appear in this repository only as
+        # scanner fixtures (excluded below) and as the Python tools in tools/. The JavaScript leg of v1's day, when
+        # v1's server and web app were here, went with v1 to the `v1` branch: with the fixtures excluded, CodeQL
+        # would find no JavaScript to analyze and fail.
+        language: ['rust']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -70,21 +69,16 @@ jobs:
           config: |
             paths-ignore:
               # Deliberately vulnerable inputs for SecureVibe's own scanner tests. They exist to be found by
-              # sv-scan and the v1 scanners; an alert on one of them is the fixture doing its job. Do not
-              # "fix" them and do not un-exclude them.
-              - server/tests/fixtures/**
-              - agnostic/crates/sv-scan/tests/fixtures/**
+              # sv-scan; an alert on one of them is the fixture doing its job. Do not "fix" them and do not
+              # un-exclude them.
+              - crates/sv-scan/tests/fixtures/**
               # The same for the adapter tests: apps written with one of each fault for bandit, gosec,
               # Brakeman and semgrep to find, kept beside those tools' real reports. The first JavaScript
               # among them (semgrep-aisvs/app/assistant.js, user input in a system prompt) was flagged on
               # 25 September 2026 for exactly the fault it was written to contain.
-              - agnostic/crates/sv-check/tests/fixtures/**
-              # Saved wizard answers and baseline numbers for the evaluation harness: data, not code.
-              - evals/**
-              # Build output and packages.
-              - '**/node_modules/**'
-              - web/dist/**
-              - agnostic/target/**
+              - crates/sv-check/tests/fixtures/**
+              # Build output.
+              - target/**
 
       - uses: github/codeql-action/analyze@3ea06614dafe36dec890db3446326e0d40ce53d4 # v3.38.1
         with:

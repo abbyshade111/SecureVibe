@@ -1,15 +1,14 @@
-# No trailing slash: a symlink named node_modules (as a worktree uses) is a file to git, and "node_modules/" only
-# matches directories, so one was committed twice by accident. Without the slash it matches both.
-node_modules
-dist/
+# Rust build output, and the caches of the Python tools.
+/target
+__pycache__/
+
+# Never committed: a person's own copies of anything secret, and the folders SecureVibe v1 used for its own data
+# (v1 lives on the `v1` branch; a checkout of it keeps `workspace/` and `.env` beside the code).
 workspace/
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
-coverage/
-web/dist/
 .claude/
-# evaluation harness: results are per-machine records, baselines are shared
-evals/results/
+node_modules

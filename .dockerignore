@@ -1,9 +1,12 @@
-# For agnostic/Dockerfile, whose build context is the repository root: only `agnostic/` and the shared
-# `data/` go in. At the root because the classic builder (Colima's Docker has no BuildKit) reads only
-# this file, never one beside the Dockerfile.
+# For the Dockerfile at the repository root, whose build context is the repository: only the Rust workspace, the
+# data it reads and the examples go in. At the root because the classic builder (Colima's Docker has no
+# BuildKit) reads only this file, never one beside the Dockerfile.
 *
-!agnostic
+!Cargo.toml
+!Cargo.lock
+!crates
 !data
-agnostic/target
-**/node_modules
+!examples
+target
+**/target
 **/.env
