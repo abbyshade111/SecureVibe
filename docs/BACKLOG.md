@@ -615,14 +615,17 @@ another session is not a claim.
      `express-rate-limit`, `@fastify/rate-limit`, `flask-limiter`, `slowapi` and `rack-attack` under
      `public-api`. Limiting requests is ordinary for any web app, and one of the usual ways to build the
      brute-force controls V6.3.1 asks for, so an app that adds it is handed the API requirements, over
-     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling.
+     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling. **Claimed on 27 September 2026 by session securevibe-e9.**
   4. **Security notes the AI tool wrote are credited to the owner.** `security-notes.md` records no
      author, so the report counted all 12 answers as *documented by the owner*; the tool had written 8
      of them from the code. It marked them "Written by the AI coding tool" in the prose and warned the
      owner itself, which `sv` cannot see. The interview already tells the tool to write a note only once
      the owner agrees; this run shows an instruction is not enough. Design answers solved the same
      problem with `by`, and notes need the same, with an answer that does not say who wrote it counting
-     as the tool's.
+     as the tool's. **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+     This also covers the "first thing to fix" in the entry on confirming what the AI coding tool said
+     (pull request #235): the tool's own "Written by the AI coding tool" line being thrown away with
+     `sv`'s italic lines.
   5. **When the app's own tests fail under `--run`, their output is lost.** Only the exit code is kept
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
