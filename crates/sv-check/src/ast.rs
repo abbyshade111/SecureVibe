@@ -1127,7 +1127,7 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
 /// `scan_dir`, over a listing already made.
 pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstScan {
     let mut scan = AstScan::default();
-    for entry in &listing.files {
+    for entry in listing.app_files() {
         let Some(language) = entry.language else {
             continue;
         };

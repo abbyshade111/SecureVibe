@@ -16,11 +16,14 @@
 //!   kind comes from the directory entry itself, before anything resolves the link.
 //! - Every regular file is listed with its size, so a check can refuse one over [`MAX_FILE_BYTES`]
 //!   and say so, instead of parsing a 50 MB bundle or holding it in memory.
+//! - Editor folders (`.idea`, `.vscode`) are entered, and their files marked `editor`. The
+//!   credential scan reads them, because a settings file holds a token as easily as any other file;
+//!   every other check takes `app_files`, which leaves them out, as the old walks did.
 //!
 //! Every check keeps a function that takes the app folder and walks it, for a caller that has only
 //! one thing to ask; `sv report` and `sv check` build the listing once and hand it to each.
 
-use crate::ecosystems::{language_of, skip_dir};
+use crate::ecosystems::{EDITOR_DIRS, language_of, skip_dir};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -41,6 +44,8 @@ pub struct Entry {
     pub extension: Option<String>,
     /// The language `sv` names for that extension, when it names one.
     pub language: Option<&'static str>,
+    /// Under an editor settings folder: read for credentials and by nothing else.
+    pub editor: bool,
 }
 
 /// Why a listed file was not read.
@@ -94,9 +99,9 @@ impl Entry {
 #[derive(Debug, Default, Clone)]
 pub struct Listing {
     pub root: PathBuf,
-    /// Every regular file outside the skipped folders, by relative path.
+    /// Every regular file outside the skipped folders, by relative path, editor folders included.
     pub files: Vec<Entry>,
-    /// Every folder entered, relative to the root, not counting the root itself.
+    /// Every folder entered, relative to the root, not counting the root itself or editor folders.
     pub dirs: Vec<String>,
     /// Symbolic links met and not followed, files and folders alike.
     pub links: Vec<String>,
@@ -110,7 +115,7 @@ impl Listing {
             root: root.to_path_buf(),
             ..Default::default()
         };
-        walk(root, root, &mut listing);
+        walk(root, root, false, &mut listing);
         listing.files.sort_by(|a, b| a.relative.cmp(&b.relative));
         listing.dirs.sort();
         listing.links.sort();
@@ -118,19 +123,23 @@ impl Listing {
         listing
     }
 
+    /// The app's own files: everything listed except what sits in an editor settings folder.
+    pub fn app_files(&self) -> impl Iterator<Item = &Entry> {
+        self.files.iter().filter(|f| !f.editor)
+    }
+
     /// Every path in the app, files and folders, as the corroborators look configuration up.
     pub fn all_paths(&self) -> BTreeSet<String> {
         self.dirs
             .iter()
             .cloned()
-            .chain(self.files.iter().map(|f| f.relative.clone()))
+            .chain(self.app_files().map(|f| f.relative.clone()))
             .collect()
     }
 
     /// The folders, relative to the root (the root is `""`), that hold a file of this name.
     pub fn dirs_holding(&self, name: &str) -> BTreeSet<String> {
-        self.files
-            .iter()
+        self.app_files()
             .filter(|f| f.file_name() == name)
             .map(|f| match f.relative.rsplit_once('/') {
                 Some((dir, _)) => dir.to_owned(),
@@ -141,7 +150,7 @@ impl Listing {
 
     /// The files whose extension names a language `sv` reads.
     pub fn code_files(&self) -> impl Iterator<Item = &Entry> {
-        self.files.iter().filter(|f| f.language.is_some())
+        self.app_files().filter(|f| f.language.is_some())
     }
 }
 
@@ -152,7 +161,7 @@ fn relative(root: &Path, path: &Path) -> String {
         .replace('\\', "/")
 }
 
-fn walk(root: &Path, dir: &Path, out: &mut Listing) {
+fn walk(root: &Path, dir: &Path, in_editor: bool, out: &mut Listing) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         out.unopened.push(relative(root, dir));
         return;
@@ -167,11 +176,17 @@ fn walk(root: &Path, dir: &Path, out: &mut Listing) {
             continue;
         }
         if kind.is_some_and(|k| k.is_dir()) {
-            if skip_dir(&path) {
+            let editor = in_editor
+                || path
+                    .file_name()
+                    .is_some_and(|n| EDITOR_DIRS.contains(&n.to_string_lossy().as_ref()));
+            if skip_dir(&path) && !editor {
                 continue;
             }
-            out.dirs.push(relative(root, &path));
-            walk(root, &path, out);
+            if !editor {
+                out.dirs.push(relative(root, &path));
+            }
+            walk(root, &path, editor, out);
             continue;
         }
         // A regular file, or something whose kind could not be read: listed, with whatever is known.
@@ -188,6 +203,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Listing) {
             size,
             extension,
             language,
+            editor: in_editor,
         });
     }
 }
@@ -244,7 +260,8 @@ mod tests {
         std::fs::create_dir_all(root.join("my-reports")).unwrap();
         std::fs::write(root.join("my-reports/report.html"), "<html>").unwrap();
         std::fs::write(
-            root.join("my-reports").join(crate::ecosystems::REPORT_MARKER),
+            root.join("my-reports")
+                .join(crate::ecosystems::REPORT_MARKER),
             "sv\n",
         )
         .unwrap();
@@ -262,7 +279,37 @@ mod tests {
         );
         assert_eq!(listing.dirs, vec![".github", ".github/workflows"]);
         let all = listing.all_paths();
-        assert!(all.contains("Dockerfile") && all.contains(".github"), "{all:?}");
+        assert!(
+            all.contains("Dockerfile") && all.contains(".github"),
+            "{all:?}"
+        );
+    }
+
+    #[test]
+    fn editor_folders_are_read_for_credentials_and_by_nothing_else() {
+        let root = scratch("editor");
+        std::fs::create_dir_all(root.join(".vscode")).unwrap();
+        std::fs::write(root.join(".vscode/settings.json"), "{}").unwrap();
+        std::fs::write(root.join(".vscode/tasks.js"), "eval(x)\n").unwrap();
+        std::fs::write(root.join("app.py"), "x\n").unwrap();
+        let listing = Listing::of(&root);
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(
+            names(&listing.files),
+            vec![".vscode/settings.json", ".vscode/tasks.js", "app.py"],
+            "the credential scan sees everything"
+        );
+        assert_eq!(
+            listing
+                .app_files()
+                .map(|f| f.relative.as_str())
+                .collect::<Vec<_>>(),
+            vec!["app.py"],
+            "every other check sees the app"
+        );
+        assert_eq!(listing.code_files().count(), 1);
+        assert!(listing.dirs.is_empty());
+        assert!(!listing.all_paths().contains(".vscode/tasks.js"));
     }
 
     #[test]
@@ -274,19 +321,22 @@ mod tests {
         std::fs::write(root.join("package.json"), "{}").unwrap();
 
         let listing = Listing::of(&root);
-        std::fs::remove_dir_all(&root).ok();
-
         let ts = listing
             .files
             .iter()
             .find(|f| f.relative == "server/App.TS")
             .unwrap();
+        // Read while the fixture is still there: the first version of this test removed the folder
+        // first and then blamed the listing for the file it could not open.
+        let text = ts.read_text();
+        std::fs::remove_dir_all(&root).ok();
+
         assert_eq!(ts.size, Some(11));
         assert_eq!(ts.extension.as_deref(), Some("ts"), "lowercased");
         assert_eq!(ts.language, Some("typescript"));
         assert_eq!(ts.file_name(), "App.TS");
         assert!(!ts.too_large());
-        assert_eq!(ts.read_text().unwrap(), "let x = 1;\n");
+        assert_eq!(text.unwrap(), "let x = 1;\n");
         assert_eq!(
             listing.dirs_holding("package.json"),
             ["", "server"].into_iter().map(String::from).collect()
@@ -302,6 +352,7 @@ mod tests {
             size: Some(MAX_FILE_BYTES + 1),
             extension: Some("js".into()),
             language: Some("javascript"),
+            editor: false,
         };
         assert!(entry.too_large());
         // The path does not exist, so a read that got that far would fail with `Unreadable`.

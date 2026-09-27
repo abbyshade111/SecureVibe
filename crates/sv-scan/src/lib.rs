@@ -192,7 +192,7 @@ pub fn scan_listing(listing: &files::Listing, signatures: &Signatures) -> Result
     // The first file each signature's patterns matched: (the pattern as written, the file).
     let mut source_hits: Vec<Option<(String, String)>> = vec![None; signatures.signatures.len()];
 
-    for entry in &listing.files {
+    for entry in listing.app_files() {
         let Some(ext) = &entry.extension else {
             continue;
         };

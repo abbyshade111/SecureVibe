@@ -146,7 +146,7 @@ pub fn tests_naming_requirements_in(
     known: &BTreeSet<&str>,
 ) -> Vec<NamedTest> {
     let mut out = Vec::new();
-    for entry in &listing.files {
+    for entry in listing.app_files() {
         if !looks_like_a_test_path(&entry.relative) {
             continue;
         }

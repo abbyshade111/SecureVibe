@@ -1169,8 +1169,16 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         println!(
             "\n{} symbolic link{} not followed, so whatever {} point{} at was not read:",
             listing.links.len(),
-            if listing.links.len() == 1 { " was" } else { "s were" },
-            if listing.links.len() == 1 { "it" } else { "they" },
+            if listing.links.len() == 1 {
+                " was"
+            } else {
+                "s were"
+            },
+            if listing.links.len() == 1 {
+                "it"
+            } else {
+                "they"
+            },
             if listing.links.len() == 1 { "s" } else { "" }
         );
         for link in listing.links.iter().take(10) {
@@ -1190,7 +1198,11 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             } else {
                 format!("{} files", code.unread_files.len())
             },
-            if code.unread_files.len() == 1 { "was" } else { "were" }
+            if code.unread_files.len() == 1 {
+                "was"
+            } else {
+                "were"
+            }
         );
         for (file, why) in code.unread_files.iter().take(10) {
             println!("  {file} — {why}");
@@ -2143,8 +2155,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         // credit one on the strength of a name somebody chose for other reasons.
                         let known: std::collections::BTreeSet<&str> =
                             frameworks.requirements.keys().map(String::as_str).collect();
-                        let named =
-                            sv_check::suite::tests_naming_requirements_in(&listing, &known);
+                        let named = sv_check::suite::tests_naming_requirements_in(&listing, &known);
                         let describe = |id: &str| {
                             frameworks
                                 .requirements
@@ -2270,7 +2281,11 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             why: format!(
                 "a link can lead outside the app, or back into it in a loop, so nothing here \
                  followed {}: {}{}. What it points at was not read by any check.",
-                if listing.links.len() == 1 { "it" } else { "them" },
+                if listing.links.len() == 1 {
+                    "it"
+                } else {
+                    "them"
+                },
                 shown.join(", "),
                 if listing.links.len() > 5 {
                     format!(", and {} more", listing.links.len() - 5)
@@ -2291,7 +2306,11 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             what: format!(
                 "{} file{} in a language the rules read, not opened",
                 code.unread_files.len(),
-                if code.unread_files.len() == 1 { "" } else { "s" }
+                if code.unread_files.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
             ),
             why: format!(
                 "{}{}. While part of the app went unread, no rule that reads code can say it found \
