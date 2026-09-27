@@ -10,7 +10,9 @@ another session is not a claim.
 ## Next
 
 - **Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).** Proposed on 27 September
-  2026 by session securevibe-e8, at the owner's asking; not claimed. Today V8.3.1 (authorization enforced
+  2026 by session securevibe-e8, at the owner's asking. **Claimed the same day by session securevibe-e8**,
+  at the owner's asking, for the admin actions; the role-field probe below is not part of the claim.
+  Today V8.3.1 (authorization enforced
   on the server, not in the browser) has supporting evidence only: an ordinary user is refused each admin
   *page*. The owner's reasons that this does not settle it were that one page refused is not every rule
   enforced, and that actions sent straight to an API are not tried (DESIGN, "The admin page, as support
