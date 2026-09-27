@@ -7,7 +7,8 @@ files are the record and the reader can recompute anything in them.
 
 | file | what it is |
 |---|---|
-| `TIMELINE.md` | All 116 commits, 18–20 September 2026, with times and subjects, grouped by day. |
+| `TIMELINE.md` | The surviving record, 18–27 September 2026, by day: all 116 commits to 17:32 on 20 September, then each of the 267 changes that reached `main` (214 of them pull requests), with times and subjects. |
+| `figure-timeline.html` | The whole project on one page: v1 and `sv` as two lanes, eight numbered milestones, and commits per day, with the same numbers as tables beneath. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
 | `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |
