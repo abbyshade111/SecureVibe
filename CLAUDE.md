@@ -17,7 +17,8 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   `sv-scan` (language-agnostic scanners: secrets, configuration, lockfiles, tree-sitter rules), `sv-run` (starts the app
   behind the network fence), `sv-check` (the checks), `sv-report` (the reports), `sv-cli` (the `sv` binary and its MCP server).
 - `data/` — the OWASP frameworks (`data/frameworks`), the knowledge files (`data/knowledge`) and `sv`'s own JSON beside
-  them. Crates find it through the folder they were compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`);
+  them. `data/README.md` says what each file is and what reads it; add a line there with any new file.
+  Crates find it through the folder they were compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`);
   `SV_DATA_DIR` overrides the OWASP part. The Docker image keeps `crates/` at the same path for that reason.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `atlas_references.py`,

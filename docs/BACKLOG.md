@@ -403,6 +403,14 @@ another session is not a claim.
       is a short `data/README.md` with the three groups above, so nobody edits `wizard-copy.json` thinking
       it affects `sv`, or `applicability.json` thinking it affects only `sv`.
       **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
+      **Done the same day:** `data/README.md` lists every file in `data/`, what it is, and what reads it,
+      checked by searching the crates and `tools/` for each name. Since v1 moved to its own branch with its
+      own `data/`, the groups are no longer "only v1, both, only `sv`": `applicability.json` affects only
+      `sv` now, and eight files in `data/knowledge` are read by nothing on `main` (kept, since deleting
+      them is the owner's call). Two files are compiled into `sv` (`atlas-references.json`,
+      `breached-password-evidence.json`) and say so. `crates/sv-cli/tests/data_readme.rs` fails when a
+      file is added without a line or a line names a file that is gone; hidden files such as `.DS_Store`
+      are skipped.
     - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
       of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
       untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
@@ -1322,7 +1330,8 @@ another session is not a claim.
   sentence covering two ecosystems will be wrong about one of them again. **Claimed on 25 September
   2026 by session securevibe-e9.**
 
-- **AISVS, beyond applicability.** One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
+- ~~**AISVS, beyond applicability.**~~ A duplicate of the struck entry of the same name below, done on
+  25 September 2026; struck on 27 September 2026 by session securevibe-e2. One AISVS requirement has a check (C9.5.4). semgrep's `ai.*` rules
   (user input in a system prompt, model output executed, MCP servers) could be mapped to AISVS the way
   its security rules were to ASVS, with the citation guard reading each back, and `sv`'s own code rules
   could look for the same. Most of AISVS is about training and operating models and stays out of reach.
@@ -1331,6 +1340,8 @@ another session is not a claim.
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
   **Claimed on 27 September 2026 by session securevibe-e2**, to strike it through as the duplicate.
+  **Done the same day:** the done copy lists eight AISVS requirements semgrep's AI rules now name, which
+  is what this one asked.
 - ~~**Testing an app's AI feature: a fake model inside the fence, or garak.**~~ Closed on 27 September
   2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
   there are better options"). The test model inside the fence was built instead (below), and garak
