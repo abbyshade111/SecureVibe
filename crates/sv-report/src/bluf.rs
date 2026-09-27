@@ -295,6 +295,7 @@ mod tests {
 
     fn a_finding(rule: &str) -> sv_check::Finding {
         sv_check::Finding {
+            also_reported_by: Vec::new(),
             rule_id: rule.into(),
             title: "Something".into(),
             severity: Severity::High,

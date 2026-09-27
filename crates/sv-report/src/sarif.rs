@@ -47,6 +47,11 @@ pub fn render(report: &Report) -> String {
                     _ => "note",
                 },
                 "message": { "text": format!("{} {}", f.title, f.description) },
+                "properties": {
+                    "certainty": f.certainty(),
+                    "inTestCode": f.in_test_code(),
+                    "alsoReportedBy": f.also_reported_by,
+                },
                 "locations": [{
                     "physicalLocation": {
                         "artifactLocation": { "uri": f.location.file },
