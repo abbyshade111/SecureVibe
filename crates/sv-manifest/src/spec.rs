@@ -63,6 +63,12 @@ health = "/"              # a path that returns 200 once the app is up
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 # private = ["/account"]    # pages only a signed-in user should see
 # admin = ["/admin"]        # pages only an admin should see (needs `seed`)
+# admin-actions = [{ path = "/admin/announce", form = { text = "{marker}", csrf_token = "{csrf}" }, check = "/announcements" }]
+#   Requests only an admin should be able to make (needs `seed`). Each is sent by the first ordinary
+#   user and then by the admin, so list only what is safe to do twice in a test copy of the app. Put
+#   `{marker}` in a field and name in `check` a page where that text shows once the action has been
+#   done, within the page's first 4,000 characters: that is how `sv` tells whose request worked.
+#   Without `check`, only an ordinary user's request answered as a success is reported.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
 # change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 # delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
