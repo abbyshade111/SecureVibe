@@ -81,7 +81,30 @@ another session is not a claim.
   (the simple answer: `data/` stays whole, since `v1-final` holds v1 anyway); and whether anything in
   `artifacts/` belongs with the paper rather than with either product.
 
-  **Thoughts.** None yet.
+  **Thoughts.**
+
+  - *Session relaxed-nobel-27acfa.* In favor, and with the plan's order. Three things the list above
+    does not name yet, found while working in `agnostic/` today:
+    1. **`docs/` collides by file name.** `agnostic/docs/` and the root `docs/` both hold `BACKLOG.md`
+       and `DESIGN.md`. `data/` merges cleanly (no two files share a name), and so does everything
+       else except `README.md` and `.gitignore`, which the plan already covers. For `docs/`, the
+       simplest honest move is to keep v1's two under a name that says so (`docs/v1/`, beside
+       `docs/paper/`), since `v1-final` holds them anyway and the paper may cite their paths.
+    2. **Two Python tools find the shared folder the same way the Rust does.** `tools/coverage.py` and
+       `tools/pwned_passwords.py` set `ROOT = AGNOSTIC.parent` and read `data/knowledge` from there;
+       after the move `ROOT` is the repository itself. `coverage.py --check` runs in the Rust test
+       suite (`coverage_doc.rs`), so a wrong path fails the build, which is the test watching this.
+       `pwned_passwords.py` has no test and would only fail when somebody runs it.
+    3. **The evaluation harness still earns its place while `templates/` is used.** It was the only
+       check able to confirm today's template change (semgrep option B changed two lines of v1's
+       template). If `templates/` is archived with v1, the harness goes with it; if `sv` keeps using
+       the template's built apps as its measuring targets, the harness stays, and so does `server/`,
+       which builds them.
+
+    **Timing of my own work:** option B, the one open pull request here that touches `agnostic/` and
+    `templates/`, is on its checks now and lands within the hour. After it I will open nothing else
+    that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
+    after that.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
@@ -254,7 +277,30 @@ another session is not a claim.
   developer account. Homebrew is the usual way command-line tools are installed without that warning
   — believed rather than checked, and it asks the owner to use Homebrew.
 
-  **Thoughts.** None yet.
+  **Thoughts.**
+
+  - *Session relaxed-nobel-27acfa.* In favor, and with the plan's order. Three things the list above
+    does not name yet, found while working in `agnostic/` today:
+    1. **`docs/` collides by file name.** `agnostic/docs/` and the root `docs/` both hold `BACKLOG.md`
+       and `DESIGN.md`. `data/` merges cleanly (no two files share a name), and so does everything
+       else except `README.md` and `.gitignore`, which the plan already covers. For `docs/`, the
+       simplest honest move is to keep v1's two under a name that says so (`docs/v1/`, beside
+       `docs/paper/`), since `v1-final` holds them anyway and the paper may cite their paths.
+    2. **Two Python tools find the shared folder the same way the Rust does.** `tools/coverage.py` and
+       `tools/pwned_passwords.py` set `ROOT = AGNOSTIC.parent` and read `data/knowledge` from there;
+       after the move `ROOT` is the repository itself. `coverage.py --check` runs in the Rust test
+       suite (`coverage_doc.rs`), so a wrong path fails the build, which is the test watching this.
+       `pwned_passwords.py` has no test and would only fail when somebody runs it.
+    3. **The evaluation harness still earns its place while `templates/` is used.** It was the only
+       check able to confirm today's template change (semgrep option B changed two lines of v1's
+       template). If `templates/` is archived with v1, the harness goes with it; if `sv` keeps using
+       the template's built apps as its measuring targets, the harness stays, and so does `server/`,
+       which builds them.
+
+    **Timing of my own work:** option B, the one open pull request here that touches `agnostic/` and
+    `templates/`, is on its checks now and lands within the hour. After it I will open nothing else
+    that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
+    after that.
 
 - **What the owner's first build from scratch found in `sv`.** 26 September 2026: the owner built
   an app from an empty folder in Claude Code with `sv` connected over MCP — a catalog site with a weekly
