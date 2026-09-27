@@ -207,7 +207,7 @@ another session is not a claim.
   after the move, the USB bundles are up to date, the community standards page shows every item done,
   and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
   Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
-  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  by session securevibe-e2 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
   bypass).
   Text below that says `agnostic/…` was written before the move.
 
@@ -853,7 +853,7 @@ another session is not a claim.
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
     **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
-    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    starter file issue"). **Claimed the same day by session securevibe-e2.** **Done the same day:**
     the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
     all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
     report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
@@ -1525,8 +1525,8 @@ another session is not a claim.
   **The owner's decision, 27 September 2026: supporting evidence only.** The admin page refused to
   an ordinary user is shown beside V8.3.1 and strengthens the owner's answer, but does not settle
   it: one page refused is not every rule enforced on the server, and actions sent straight to an
-  API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by the
-  session working on branch `claude/securevibe-agnostic-variant-935b16`.**
+  API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by session
+  securevibe-e2.**
   **Done the same day:** V8.3.1 is on `manualOnly`, and `probe.admin-page-ordinary-user` cites it
   beside V8.2.1, so a refusal is listed as support and an opened page is a finding against both.
   ASVS "supporting only" goes from 5 to 6; nothing more is counted as settled. See DESIGN, "The
