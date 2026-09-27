@@ -15,10 +15,19 @@ another session is not a claim.
   unscanned JavaScript; `data/knowledge/threats.json` names two `agnostic/` paths; Dependabot does not
   watch the `Dockerfile`; and the security policy stayed with v1, so `sv` has none. The owner chose
   GitHub's private vulnerability reporting as the way to report a problem in `sv`.
+  **Done in the same pull request as this note:** the key rule is back in `CLAUDE.md`; CodeQL now scans
+  JavaScript and Python as well as Rust, with `examples/` excluded like the fixtures; the two paths are
+  fixed; the `Dockerfile`'s base images are pinned to fingerprints, which Dependabot now moves weekly (their
+  names carry no version, so without a fingerprint it would have had nothing to update); and `SECURITY.md`
+  at the root is `sv`'s policy. **The owner's, and not done:** private vulnerability reporting is switched
+  off (GitHub's API said `"enabled": false` on 27 September 2026), so the policy's link finds no form until
+  it is turned on under *Settings → Code security → Private vulnerability reporting*. The new CodeQL legs
+  have not run yet: the first run on `main` may raise alerts in `crates/sv-run/assets/`, whose stand-in
+  services misbehave on purpose; each is to be read and dismissed with its reason, or fixed.
 
 - **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
-  2026, from the repository's *Insights → Community standards* page. Not claimed. Done today:
-  description, README, license, and the security policy (`docs/SECURITY.md`). Missing:
+  2026, from the repository's *Insights → Community standards* page. Not claimed. Done: description,
+  README, license, and the security policy (`SECURITY.md`, `sv`'s own since 27 September 2026). Missing:
   - **Code of conduct** (`CODE_OF_CONDUCT.md`). Which one is the owner's choice; the Contributor
     Covenant is the usual default. It names a contact for reports, and that address is the owner's to give.
   - **Contributing guide** (`CONTRIBUTING.md`): how to build and test `sv`, the checks a change must
@@ -33,10 +42,8 @@ another session is not a claim.
     PR description. Keep it short: what changed, how it was verified (with what was *not* verified),
     and the backlog entry it closes.
 
-  Two things to settle first. **Where the files go** depends on the entry below: while v1 is at the
-  top, `CONTRIBUTING.md` there describes v1; after the move, `sv`. Doing this after the move, or writing
-  it for the repository as a whole, avoids writing it twice. And **the security policy should name
-  `sv`**: it is v1's today (`docs/SECURITY.md`), and the community page counts it without reading it.
+  **Ready to start:** the move has landed, so the files describe `sv` and go at the root (or in
+  `.github/`). The security policy names `sv` now; the issue template's security link can point at it.
 
 - **Promote `sv` to the top of the repository, and keep v1 for the paper.** **The owner's decision,
   26 September 2026:** `sv` is the stronger product and becomes what `main` is; v1 is archived, not
@@ -53,8 +60,10 @@ another session is not a claim.
   Python tools that set `ROOT = AGNOSTIC.parent` now use the repository root; the workflows, `.dockerignore` and
   `.gitignore` follow. **Not done, and the owner's:** `~/code/my-first-app/.mcp.json` and the PATH line in `~/.zshrc`
   (both point at `sv-tool/agnostic/target/release/sv`), the local image `securevibe/sv:local`, a Dependabot entry for
-  the Rust packages (there was none), and turning the freeze off once this merges. **Not verified by me before
-  opening this pull request:** a local `cargo test`, which the permission check stopped; CI is the first full run. After
+  the Rust packages (there was none; added in #226), and turning the freeze off once this merges. **Not verified by me before
+  opening this pull request:** a local `cargo test`, which the permission check stopped; CI is the first full run.
+  (Run afterwards, 27 September 2026, by securevibe-e8 on `main` at `d6e781c`: 1,074 passed; the one failure,
+  `the_fence_really_blocks_outbound_traffic`, needs outbound network, which that sandbox has none of.) After
   it merges, run `tools/pwned_passwords.py` once outside the sandbox (it has no test).
   Text below that says `agnostic/…` was written before the move.
 

@@ -918,22 +918,19 @@ mod failing_output_tests {
              1 failing\n"
         );
         let t = failing_output(1, &output, &rules()).expect("kept");
-        for secret in [key.as_str(), "Tr0ub4dor-and-3", "a9Fq2mWz7Lr"] {
-            assert!(
-                !t.text.contains(secret),
-                "{secret} is still in:\n{}",
-                t.text
-            );
+        // The failure message names which one by position, and prints neither it nor the output
+        // holding it: a test about keeping credentials out of output does not print one either.
+        for (i, value) in [key.as_str(), "Tr0ub4dor-and-3", "a9Fq2mWz7Lr"]
+            .iter()
+            .enumerate()
+        {
+            assert!(!t.text.contains(value), "value {i} was not cut short");
         }
-        assert_eq!(t.redacted, 4, "{}", t.text);
+        assert_eq!(t.redacted, 4);
         // What a finding would show of it, so it can be recognized and nothing more.
-        assert!(t.text.contains("[redacted: sk-a…"), "{}", t.text);
-        assert!(
-            t.text.contains("DB_PASSWORD=[redacted: Tr0u…"),
-            "{}",
-            t.text
-        );
-        assert!(t.text.ends_with("1 failing"), "{}", t.text);
+        assert!(t.text.contains("[redacted: sk-a…"));
+        assert!(t.text.contains("DB_PASSWORD=[redacted: Tr0u…"));
+        assert!(t.text.ends_with("1 failing"));
     }
 
     #[test]

@@ -515,18 +515,17 @@ mod tests {
              SECRET_KEY=changeme\n"
         );
         let (out, n) = redact_text(&rules(), &text);
-        assert_eq!(n, 2, "{out}");
+        assert_eq!(n, 2);
+        // No message prints `out`: were a cut missed, it would hold the credential.
+        assert!(!out.contains(&key), "the key was not cut short");
         assert!(
-            !out.contains(&key) && !out.contains("S3cr3t-Value-99"),
-            "{out}"
+            !out.contains("S3cr3t-Value-99"),
+            "the password was not cut short"
         );
-        assert!(
-            out.contains("Authorization failed for [redacted: sk-a…"),
-            "{out}"
-        );
-        assert!(out.contains("password: '[redacted: S3cr…"), "{out}");
+        assert!(out.contains("Authorization failed for [redacted: sk-a…"));
+        assert!(out.contains("password: '[redacted: S3cr…"));
         // A placeholder is not a credential, and cutting it would hide the mistake it points at.
-        assert!(out.contains("SECRET_KEY=changeme"), "{out}");
+        assert!(out.contains("SECRET_KEY=changeme"));
     }
 
     fn rules() -> SecretRules {

@@ -47,6 +47,10 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   that makes it deliberate. A check that runs against one set of inputs checks a fraction of what can be written. A test
   whose setup can fail quietly is worse than no test: assert the setup worked, and that the thing you are looking for is
   really findable, before asserting it is not leaked.
+- **Never print, log, echo, or commit a key**, the owner's or anyone's: not in a report, a test's output, a commit, or a
+  message. `sv`'s secrets scan shows the first four characters and the length (`Secret::redact`), never the key; keep it
+  that way. Test data that must look like a key is built from pieces at run time (see `.github/workflows/codeql.yml`), so
+  the file holds none and GitHub's push protection has nothing to refuse.
 - `sv` opens no network connection of its own; advisory data is something the user downloads and points it at. Keep it that way.
 - A citation is a claim: cite a requirement only when the check really speaks to it.
 
