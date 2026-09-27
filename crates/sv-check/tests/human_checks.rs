@@ -258,8 +258,8 @@ fn a_where_to_look_line_says_where_rather_than_repeating_the_question() {
 /// it is added. Level 3 is left out, as the checklist leaves it out (`every_check_is_at_level_one_or_two`).
 #[test]
 fn every_requirement_only_a_person_can_settle_is_explained_somewhere() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../data/knowledge/applicability.json");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/knowledge/applicability.json");
     let applicability: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     let manual: Vec<String> = applicability["manualOnly"]

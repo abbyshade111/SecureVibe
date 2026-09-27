@@ -149,8 +149,7 @@ struct Threat {
 }
 
 fn threats() -> Vec<Threat> {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/knowledge/threats.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/knowledge/threats.json");
     let file: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).expect("the threats read"))
             .expect("the threats parse");
