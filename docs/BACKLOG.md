@@ -38,7 +38,11 @@ another session is not a claim.
   - **It credits nothing.** Handing the tool a rule is not evidence the rule was kept, so no requirement
     changes status because the rules were written.
 
-  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking. **Done the same
+  day:** 18 rules in `data/coding-rules.json`, `sv rules`, and `securevibe_guidance`, credited and
+  licensed on every copy. See DESIGN, "Appendix C as rules the AI coding tool follows while it codes".
+  Left open: trying which tools read `AGENTS.md` on their own, and whether a `@AGENTS.md` line in
+  `CLAUDE.md` is followed, before the walk-through says so.
 
 - **Figures for the paper: security across both versions, usability, and cost.** **Claimed on 27 September
   2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day.** New `docs/paper/figure-*.html` beside the
