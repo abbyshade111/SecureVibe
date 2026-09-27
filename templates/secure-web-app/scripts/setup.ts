@@ -34,8 +34,8 @@ function adminExists(): boolean {
 function readEnvValue(key: string): string | undefined {
   const file = resolve(APP_ROOT, '.env');
   if (!existsSync(file)) return undefined;
-  const m = readFileSync(file, 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'));
-  return m?.[1]?.trim() || undefined;
+  const line = readFileSync(file, 'utf8').split('\n').find((l) => l.startsWith(`${key}=`));
+  return line?.slice(key.length + 1).trim() || undefined;
 }
 
 runStep('Secrets', 'gen-secrets.ts');

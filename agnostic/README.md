@@ -187,6 +187,12 @@ Each question first shows the thing it depends on actually worked — the sessio
 the owner can read back what they made, the admin can open the admin page — and when it cannot show
 that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a complete example.
 
+## Building an app from scratch with `sv` alongside
+
+If you are not a programmer and want to build an app with an AI coding tool, start with
+[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting SecureVibe to your
+tool, a prompt to start the build with, and what is and is not checked.
+
 ## From inside your AI coding tool
 
 `sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
