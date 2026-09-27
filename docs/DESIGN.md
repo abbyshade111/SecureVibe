@@ -4341,8 +4341,9 @@ the app's own code off the list. Unlike a finding set aside, the list does not n
 hides nothing, since every finding in those folders is still listed and counted. What it can take away is
 evidence that more requirements apply, which is why the report shows it.
 
-Not done: `sv`'s own `securevibe.toml` does not use it yet. That file is the one the v2 self-assessment was
-run with, and changing it changes what a rerun of that assessment shows, so it is the owner's call.
+`sv`'s own `securevibe.toml` uses it, at the owner's asking: `crates/*/tests`, `examples`, `tools`, and
+`docs`, the four the v2 self-assessment left out of its "product code only" run. That file is the one the
+self-assessment's repository run used, so a rerun of that run now differs from what the assessment records.
 
 ## Appendix C as rules the AI coding tool follows while it codes (27 September 2026)
 
