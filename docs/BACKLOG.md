@@ -663,7 +663,12 @@ another session is not a claim.
      entry on confirming what the AI coding tool said): each answer starts with `Written by: owner`
      or `Written by: AI coding tool`, and an answer without the line counts as the tool's. Session
      securevibe-e9 had built the same thing with an `Answered by:` line and withdraws it unpublished,
-     since it added nothing that one does not.
+     since it added nothing that one does not. One thing it does not do: a section holding nothing but the tool's own
+     line, *Written by the AI coding tool from the code; review before relying on it.*, has no colon,
+     so it is not a `Written by:` line; it is long enough to pass the forty-character floor, and the
+     section reads as *stated by the AI coding tool* with no answer in it. Reproduced on `main` with
+     `sv notes` and `sv report`. **Claimed on 27 September 2026 by session securevibe-e9**, at the
+     owner's asking: such a line says who, not what, and should not count toward an answer's length.
   5. **When the app's own tests fail under `--run`, their output is lost.** Only the exit code is kept
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
