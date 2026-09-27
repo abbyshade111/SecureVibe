@@ -716,8 +716,13 @@ mod tests {
             .join("today")
             .join("report.html");
         let landed = wrote.exists();
+        // Marked as sv's own, so the next check does not read the report as the app's code.
+        let marked = wrote
+            .with_file_name(sv_scan::ecosystems::REPORT_MARKER)
+            .is_file();
         std::fs::remove_dir_all(&root).ok();
         assert_eq!(result["isError"], false, "{}", text(&result));
+        assert!(marked, "the report folder carries no marker");
         assert!(
             landed,
             "a plain nested out folder has to work: {}",

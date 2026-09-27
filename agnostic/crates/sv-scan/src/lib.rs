@@ -405,12 +405,11 @@ fn walk(
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
             // Only the genuinely uninteresting directories are skipped. `.github` is a dot-directory
             // and is exactly where a CI pipeline lives, so a blanket dot-skip would answer "no
             // CI/CD" for every repository that has one.
-            if ecosystems::SKIP_DIRS.contains(&name.as_str()) {
+            if ecosystems::skip_dir(&path) {
                 continue;
             }
             let relative = path

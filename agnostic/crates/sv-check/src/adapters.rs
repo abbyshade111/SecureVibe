@@ -726,13 +726,12 @@ pub fn code_files(app_dir: &Path) -> Vec<String> {
         };
         for entry in entries.flatten() {
             let path = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
             // Not followed: a link can lead out of the app, and the tool would read what it found.
             let Ok(kind) = entry.file_type() else {
                 continue;
             };
             if kind.is_dir() {
-                if !sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_str()) {
+                if !sv_scan::ecosystems::skip_dir(&path) {
                     walk(root, &path, out);
                 }
             } else if kind.is_file()

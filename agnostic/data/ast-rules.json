@@ -78,8 +78,8 @@
       "literalArgumentIsSafe": true,
       "queries": {
         "python": "[(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)\n              arguments: (argument_list . (_) @arg))\n       (call function: (identifier) @fn arguments: (argument_list . (_) @arg))] @hit",
-        "javascript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
-        "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
+        "javascript": "[(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
+        "typescript": "[(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg))\n       (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)\n                        arguments: (arguments . (_) @arg))] @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
         "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
@@ -113,7 +113,9 @@
         "swift": "^(system|popen|arguments)$",
         "go": "^exec$",
         "rust": "(^|::)Command$",
-        "shell": "^-c$"
+        "shell": "^-c$",
+        "javascript": "^(exec|execSync|child_process|childProcess|cp|shell|shelljs|require\\(\\s*['\"](node:)?child_process['\"]\\s*\\))$",
+        "typescript": "^(exec|execSync|child_process|childProcess|cp|shell|shelljs|require\\(\\s*['\"](node:)?child_process['\"]\\s*\\))$"
       },
       "looksFor": "a command line built from a value and handed to a shell to run",
       "looksForIn": {
@@ -137,8 +139,8 @@
       "literalArgumentIsSafe": true,
       "queries": {
         "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit",
-        "javascript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
-        "typescript": "(call_expression function: (member_expression property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression) (non_null_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit",
         "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg)) @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",

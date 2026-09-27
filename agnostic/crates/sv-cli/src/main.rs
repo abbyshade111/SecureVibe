@@ -1381,6 +1381,13 @@ fn cmd_audit(args: &[String]) -> Result<()> {
 /// Writes the five renderings of a report into `out_dir`, and says which were written.
 fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
     std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    // Marks the folder as `sv`'s own output, so the next check of the app does not read the report
+    // as the app's code, whatever the folder is called (`sv_scan::ecosystems::REPORT_MARKER`).
+    std::fs::write(
+        out_dir.join(sv_scan::ecosystems::REPORT_MARKER),
+        "This folder holds a report written by sv. sv leaves it out when it checks the app.\n",
+    )
+    .with_context(|| format!("writing {}", sv_scan::ecosystems::REPORT_MARKER))?;
     let written = [
         ("report.html", sv_report::html::page(report)),
         ("compliance.md", sv_report::markdown::compliance(report)),

@@ -1640,8 +1640,12 @@ session. In order:
 Only the handshake is judged, and it is the handshake that carries the session; what the socket does
 once open is not asked. The anonymous V4.4.2 check still sends its foreign-origin handshake with no
 session, so for a private socket it now reports *not assessed*: the plain handshake is refused, so
-there is no accepted handshake to compare the foreign one with. Asking V4.4.2 with the session is left
-over.
+there is no accepted handshake to compare the foreign one with. So the signed-in check asks V4.4.2
+itself: once the signed-in handshake has upgraded, the same handshake from a site the app has never
+heard of must be refused, and upgrading is a finding under the anonymous probe's rule. The fake app's
+socket that checks the session and not the origin is its witness, beside the one open to anybody;
+end to end, a scratch app that never read `Origin` was found and a copy that refused a foreign one was
+credited.
 
 Verified end to end with a scratch Python app answering the handshake itself: the careful one was
 credited for V4.4.4 and said V4.4.3 was partial; one that lets a handshake with no cookie in raised
@@ -3505,6 +3509,37 @@ and every one was caught; the last, crediting on fewer than three refusals, only
 redirect-only-multipart case was added. Not run against a real app in Docker: the transport already
 frames a body by its length, and the multipart header is an ordinary header value.
 
+## An app that refuses its own forms (no requirement)
+
+Found on the way to the browser checks: under `Referrer-Policy: no-referrer`, the Fetch standard has
+a browser send `Origin: null`, and no `Referer`, with every request that is not a GET or a HEAD,
+including the app's own forms. An app that also refuses `Origin: null`, which a strict cross-site
+defense reasonably might, refuses its own forms in every real browser. A test client that sends no
+`Origin` at all never sees it, and the usual fix someone reaches for is to switch the defense off.
+Nothing in ASVS asks an app to accept its own forms, so this is a finding with no requirement behind
+it (`probe.own-forms-refused`, Low), and it credits nothing.
+
+After the cross-site checks, signed in as the first user, the page the `owned` create request is
+made from (its own path, else the first of the `private` pages that answers) is read for its
+`Referrer-Policy` header, taking the last value a browser knows, as a list is read. Only when that
+is `no-referrer` is the create request sent again as a browser would then send it: the page's token
+in it, `Origin: null`, no `Referer`. The same request is sent straight after without an `Origin`, as
+the other checks send it, for the control.
+
+- **Refused (4xx) with `Origin: null`, and taken without it**, is the finding, naming the page and
+  both answers.
+- **Taken** is a line in the steps, and nothing else.
+- **Anything else**, the control refused too included, is a line in the steps saying it shows
+  nothing about the `Origin`.
+- **Not read:** a `<meta name="referrer">` in the page, or a `referrerpolicy` on the form itself.
+  Either would make a browser send the same thing, and neither is seen here.
+
+Tested against the fake app with the policy and a refusal of `Origin: null` together (found), each
+alone (nothing), and a create request without its token (the control refused too, nothing); and
+against a one-form app whose policy is a list ending in `same-origin` (not asked). Each of six breaks
+(the check not run, the `Origin` left alone, the control ignored, the token left out, the policy not
+required, the first value of a list taken) turns two or three tests red.
+
 ## Counting semgrep by what it runs
 
 `docs/COVERAGE.md` credited semgrep with every requirement its map names, about a thousand rules'
@@ -3574,6 +3609,39 @@ Four breaks, each caught: leaving the pack out when nobody has settled `ai`; put
 the `--`, which passed every test until the test was made to look for it; an unmeasured conditional
 pack, which the measured-packs test did not read until it was extended; and an unknown condition in
 the data.
+
+
+### `p/default` beside `p/security-audit`
+
+Adopted on 26 September 2026 (session relaxed-nobel-27acfa), the owner's choice among four measured
+options (backlog, "Semgrep's pack reaches 31 of the 50 requirements its map names"). `p/security-audit`
+holds semgrep's pattern rules; `p/default` holds the rules that follow data from a request to where it
+is used. With the first alone, the fixture app's planted SQL injection, request forgery, path
+traversal, and command injection went unreported. With both, `sv report --tools` on the fixture gives
+28 semgrep findings, each with its requirement (`tainted-sql-string` against V1.2.4, `ssrf-requests`
+against V1.3.6, `path-traversal-open` against V5.3.2, `subprocess-injection` against V1.2.5). It costs
+about two seconds an app. The pack is measured in `data/semgrep-packs.json` (1,074 rules), and the
+coverage count now reaches 46 of the 50 requirements the map names. Only C2.1.6, C7.1.2, C7.3.1, and
+V11.3.3 are left, and V11.3.3 has its own backlog item as a rule of `sv`'s own.
+
+Its false alarms on apps built by v1 fell on three lines of the template, all
+`detect-non-literal-regexp`: a regular expression built from a string at run time. Two were fixed at
+the source rather than hidden. `scripts/setup.ts` reads a `.env` value by its line, and the API-key
+middleware matches route patterns segment by segment (`src/lib/route-path.ts`, always present, with
+its own test), matching the same paths as before except a parameter mid-segment, which no route uses.
+The third, in `src/features/ai/screening.ts`, compiles the prompt-injection ruleset from
+`data/injection-patterns.json`, which SecureVibe copies into the app and whoever runs the server may
+update. A pattern there is not something a visitor can shape, and turning it into code would lose the
+point of the file, so it stays, and an app with the AI feature shows that one false alarm. Hiding it
+with a suppression comment would make `sv` report that semgrep was told to look away, which is worse.
+
+Checked by building the five golden apps with the changed template (all built, 0 regressed; each app
+has four more passing tests, the route-pattern ones) and running the three packs over them: `p/default`'s
+false alarms went from eight to two, both the prompt-screening line, in the two apps with the AI
+feature. The template's suite passes with every feature on (228 passed, 0 failed) when run the way
+SecureVibe runs it, `tests/**/*.test.ts`. Its own `npm test` runs only `tests/security/` and
+`tests/features/`, so the root-level tests, the new one among them, are not part of it; that gap is
+older than this change and is its own piece of work.
 
 ## Which provider a sign-in came from (V10.2.2)
 
@@ -3694,3 +3762,24 @@ committed to git. It asserts the committed-secrets check ran before comparing th
 agreement. It runs once more as root over a folder root does not own, because git refuses such a
 repository and the check would otherwise be quietly *not assessed*. That is the witness for
 `safe.directory`, and it can only exist on Linux, which is where CI runs it.
+
+## Two faults the owner's first build found
+
+**`sv`'s own report was read as the app.** `sv report` writes into the app's folder by default, and
+nothing skipped that folder, so the next check read `report.html` as code. While a page no code rule
+could fully read was present, no code rule claimed anything, and the requirements checked fell from 9
+to 1. Every folder the report is written to now carries `.securevibe-report`, and every walk of the
+app leaves such a folder out; a folder name alone would not do, since `--out` takes any name. The two
+lists of folders to skip, which had drifted, are one (`sv_scan::ecosystems::skip_dir`); the credential
+scan keeps reading editor settings, since a token can sit there.
+
+**Two false alarms rated high changed correct code.** With an AI tool in the loop a false alarm is not
+noise: the tool rewrites working code until the warning stops. `RegExp.prototype.exec` was read as a
+shell command and a test client's `.query({...})` as SQL, because both JavaScript rules matched any call
+with the name. The shell rule now needs the call to be made on `child_process` or one of its usual
+names (a bare `exec` still counts); the SQL rule only matches a call made on a name or a property, not
+on another call's result. The price of the second is `getDb().query(sql)`, which is no longer found.
+
+Six guards were broken in turn, each caught: the marker ignored, the default folder name dropped, the
+credential scan skipping editor folders, the report left unmarked, the shell rule taking any receiver,
+and the SQL rule taking a call's result.
