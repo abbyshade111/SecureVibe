@@ -256,6 +256,8 @@ mod tests {
             undecided: Vec::new(),
             claims: Vec::new(),
             findings: Vec::new(),
+            set_aside: Vec::new(),
+            reviews_not_counted: Vec::new(),
             out_of_scope: Vec::new(),
             satisfied_elsewhere: Vec::new(),
             checklist_above_level: Vec::new(),
@@ -296,6 +298,7 @@ mod tests {
     fn a_finding(rule: &str) -> sv_check::Finding {
         sv_check::Finding {
             also_reported_by: Vec::new(),
+            fingerprint: String::new(),
             rule_id: rule.into(),
             title: "Something".into(),
             severity: Severity::High,

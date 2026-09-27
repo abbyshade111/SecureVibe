@@ -42,7 +42,9 @@ another session is not a claim.
   `sv` writes marks it as suppressed, with the reason, so GitHub's Security tab agrees with the report.
   Findings are matched by rule, file, and a fingerprint of the flagged line's text, never the text
   itself, so a flagged key is never copied into the file. **Claimed the same day by session
-  securevibe-e2**, to follow part 1.
+  securevibe-e2**, to follow part 1. **Done the same day:** see DESIGN, "False alarms: a person's record that a
+  finding is wrong, or accepted". One choice beyond the five decisions: a key or password cannot be an
+  accepted risk, since a real one is replaced and one that is not real is a false alarm.
 
 - **False alarms, part 3: each one a report against the rule.** From the same investigation, and
   wanted by the owner on 27 September 2026. A false alarm set aside in one app is usually a rule that

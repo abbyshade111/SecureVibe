@@ -22,6 +22,7 @@ fn frameworks() -> Frameworks {
 fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: rule_id.into(),
         title: "something".into(),
         severity: Severity::High,
@@ -46,6 +47,8 @@ fn inputs<'a>(
     verified: &'a [Verified],
 ) -> Inputs<'a> {
     Inputs {
+        set_aside: Vec::new(),
+        reviews_not_counted: Vec::new(),
         app_name: "Test",
         target_level: 1,
         generated: None,
@@ -117,6 +120,44 @@ fn a_satisfied_check_never_hides_a_finding_about_the_same_requirement() {
     ));
     assert_eq!(report.requirements[0].status, Status::NeedsAttention);
     assert_eq!(report.counts.checked, 0);
+}
+
+#[test]
+fn a_finding_set_aside_as_a_false_alarm_never_leaves_its_requirement_checked() {
+    // A rule saw something on the line and a person says it was wrong. That word takes the finding
+    // off the list; it does not show the protection is there, so another check's clean run cannot
+    // turn the requirement into "checked". An accepted risk is still a finding, and still counts.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let passed = vec![Verified::new(
+        "config.something",
+        &["V1.2.1", "V1.3.1"],
+        "the files this check reads".to_owned(),
+    )];
+    let set_aside = |verdict: &str, id: &str| sv_check::review::SetAside {
+        finding: finding("ast.sql", &[id]),
+        verdict: verdict.to_owned(),
+        why: "looked at it".to_owned(),
+        by: "owner".to_owned(),
+        on: "2026-09-27".to_owned(),
+    };
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.set_aside = vec![set_aside(sv_check::review::FALSE_ALARM, "V1.2.1")];
+    let report = build(i);
+    let status = |id: &str| {
+        report
+            .requirements
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .status
+    };
+    assert_eq!(status("V1.2.1"), Status::NotVerified);
+    // The control: the same clean run still checks a requirement nothing was set aside for.
+    assert_eq!(status("V1.3.1"), Status::Checked);
 }
 
 #[test]
@@ -614,6 +655,8 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
     let buckets = bucket(&f, &config, &ConditionContext::default(), 3);
     let manual_only = buckets.manual_only(&config);
     build(Inputs {
+        set_aside: Vec::new(),
+        reviews_not_counted: Vec::new(),
         app_name: "Chain",
         target_level: 3,
         generated: None,

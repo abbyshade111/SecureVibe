@@ -181,6 +181,7 @@ pub fn evaluate(
 fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: "hand.problem".to_owned(),
         title: format!(
             "Checked by hand, and it failed: {}",
