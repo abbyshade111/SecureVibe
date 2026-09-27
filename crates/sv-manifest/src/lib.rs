@@ -713,6 +713,36 @@ pub struct DesignAnswer {
     /// tool and an answer must not be credited to the owner on nobody's say-so.
     #[serde(default)]
     pub by: Option<String>,
+    /// A person confirming the AI tool's answer, with what they looked at. See `sv-check::confirm`.
+    #[serde(default)]
+    pub confirmed: Option<Confirmed>,
+}
+
+/// A person confirming what the AI coding tool said. See `sv-check::confirm`.
+///
+/// It names the answer it confirms (`answer` and `where`, or `result`), so an answer changed later
+/// is not carried by a confirmation of the old one.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Confirmed {
+    /// `owner`, or the name of whoever confirmed it. Never the AI coding tool.
+    #[serde(default)]
+    pub by: Option<String>,
+    /// The day it was confirmed, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub on: Option<String>,
+    /// What the person looked at or tried, and saw, in a sentence.
+    #[serde(default)]
+    pub how: Option<String>,
+    /// For a design answer: the answer confirmed.
+    #[serde(default)]
+    pub answer: Option<String>,
+    /// For a design answer: its `where` when confirmed.
+    #[serde(default)]
+    pub r#where: Option<String>,
+    /// For a check made by hand: the result confirmed.
+    #[serde(default)]
+    pub result: Option<String>,
 }
 
 /// One check made by hand, and what was seen. See `sv-check::hand`.
@@ -735,6 +765,9 @@ pub struct HandCheck {
     /// What was done and what was seen, in a sentence.
     #[serde(default)]
     pub how: Option<String>,
+    /// A person confirming a check the AI tool made. See `sv-check::confirm`.
+    #[serde(default)]
+    pub confirmed: Option<Confirmed>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

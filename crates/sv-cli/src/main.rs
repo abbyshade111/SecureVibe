@@ -2278,7 +2278,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             )
         })
         .collect();
-    let design = sv_check::design::evaluate(
+    let mut design = sv_check::design::evaluate(
         &design_questions,
         &design_answers,
         &|id| buckets.applicable.iter().any(|a| a == id),
@@ -2347,7 +2347,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             )
         })
         .collect();
-    let hand = match sv_check::advisories::Day::today() {
+    let mut hand = match sv_check::advisories::Day::today() {
         Some(today) => sv_check::hand::evaluate(
             &human_checks,
             &hand_answers,
@@ -2405,6 +2405,117 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             ),
         });
     }
+    // A person confirming what the AI tool said moves it up to their tier, shown as confirmed. What
+    // does not hold stays the tool's word and is named with its reason. See `sv_check::confirm`.
+    let confirmation = |c: &sv_manifest::Confirmed| sv_check::confirm::Confirmation {
+        by: c.by.clone(),
+        on: c.on.clone(),
+        how: c.how.clone(),
+        answer: c.answer.clone(),
+        location: c.r#where.clone(),
+        result: c.result.clone(),
+    };
+    let design_confirmations: std::collections::BTreeMap<
+        String,
+        (sv_check::confirm::Confirmation, String, Option<String>),
+    > = manifest
+        .design
+        .iter()
+        .filter_map(|(id, a)| {
+            let c = a.confirmed.as_ref()?;
+            Some((
+                id.clone(),
+                (confirmation(c), a.answer.clone(), a.r#where.clone()),
+            ))
+        })
+        .collect();
+    let hand_confirmations: std::collections::BTreeMap<
+        String,
+        (sv_check::confirm::Confirmation, String),
+    > = manifest
+        .checked_by_hand
+        .iter()
+        .filter_map(|(id, a)| {
+            let c = a.confirmed.as_ref()?;
+            Some((id.clone(), (confirmation(c), a.result.clone())))
+        })
+        .collect();
+    let modified = |path: &str| {
+        std::fs::metadata(app_dir.join(path))
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(sv_check::advisories::Day::of)
+    };
+    let (confirmed_design, confirmed_hand) = match sv_check::advisories::Day::today() {
+        Some(today) => (
+            sv_check::confirm::apply(
+                &mut design.stated,
+                sv_check::confirm::DESIGN_CONFIRMED,
+                &|id| {
+                    let (c, answer, location) = design_confirmations.get(id)?;
+                    Some((
+                        c,
+                        sv_check::confirm::Current::Design {
+                            answer,
+                            location: location.as_deref(),
+                            modified: location.as_deref().and_then(modified),
+                        },
+                    ))
+                },
+                today,
+            ),
+            sv_check::confirm::apply(
+                &mut hand.stated,
+                sv_check::confirm::HAND_CONFIRMED,
+                &|id| {
+                    let (c, result) = hand_confirmations.get(id)?;
+                    Some((c, sv_check::confirm::Current::Hand { result }))
+                },
+                today,
+            ),
+        ),
+        None => Default::default(),
+    };
+    let not_counted: Vec<&(String, String)> = confirmed_design
+        .not_counted
+        .iter()
+        .chain(confirmed_hand.not_counted.iter())
+        .collect();
+    if !not_counted.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} confirmation{} of what your AI coding tool said",
+                not_counted.len(),
+                if not_counted.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "securevibe.toml records {} in a way that does not count, so the tool's word is \
+                 all there is and the question is asked again: {}.",
+                if not_counted.len() == 1 {
+                    "this confirmation"
+                } else {
+                    "these confirmations"
+                },
+                not_counted
+                    .iter()
+                    .map(|(id, why)| format!("{id} ({why})"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        });
+    }
+    let attested: Vec<sv_check::Verified> = design
+        .attested
+        .iter()
+        .chain(confirmed_design.confirmed.iter())
+        .cloned()
+        .collect();
+    let by_hand: Vec<sv_check::Verified> = hand
+        .by_owner
+        .iter()
+        .chain(confirmed_hand.confirmed.iter())
+        .cloned()
+        .collect();
     let stated: Vec<sv_check::Verified> = design
         .stated
         .iter()
@@ -2435,9 +2546,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         named_in_tests,
         not_for_tests,
         documented: &documented,
-        attested: &design.attested,
+        attested: &attested,
         stated: &stated,
-        by_hand: &hand.by_owner,
+        by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((&threat_rules, &ctx)),
     });
@@ -2564,16 +2675,18 @@ fn cmd_report(args: &[String]) -> Result<()> {
     );
     if c.attested > 0 {
         println!(
-            "A further {} you answered yes to in the [design] section of securevibe.toml. That is \
-             your word about how the app is built, which is the weakest thing this report says: \
-             each one is still listed as a test to write.",
+            "A further {} you answered yes to in the [design] section of securevibe.toml, or \
+             confirmed after your AI coding tool did. That is your word about how the app is built, \
+             which is the weakest thing this report says: each one is still listed as a test to \
+             write.",
             c.attested
         );
     }
     if c.by_hand > 0 {
         println!(
-            "A further {} you checked by hand and recorded in securevibe.toml, with what you saw. \
-             That is your word, which nothing here repeated.",
+            "A further {} you checked by hand, or confirmed after your AI coding tool did, and \
+             recorded in securevibe.toml with what you saw. That is your word, which nothing here \
+             repeated.",
             c.by_hand
         );
     }
