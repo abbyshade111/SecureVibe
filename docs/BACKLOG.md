@@ -1792,7 +1792,12 @@ another session is not a claim.
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
   **A corroborator for `web-search`** (the answer added on 27 September 2026, which nothing reads from
-  the code yet): **claimed on 27 September 2026 by session securevibe-e8.**
+  the code yet): **claimed on 27 September 2026 by session securevibe-e8. Done the same day:** the
+  search services' libraries (Tavily, Exa, SerpApi, DuckDuckGo) and, in the code, `web_search` and
+  `web_fetch`, the tool types Anthropic's and OpenAI's APIs use, which is how the owner's app does it.
+  The pattern also matches an app's own function of that name; that error adds the four requirements
+  rather than removing any. Its witness is the owner's kind of call; dropping the entry, the
+  `web_search` pattern, or the witness each turns a test red.
 
 - ~~**A `.tsx` file is read with a grammar that has no JSX, and counts as read.**~~ Done on 25 September
   2026. `<button onClick={() => eval(q)}>` in a `.tsx` file was not found, and the report then listed

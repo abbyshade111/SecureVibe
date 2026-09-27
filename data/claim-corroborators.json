@@ -883,6 +883,96 @@
       }
     },
     {
+      "condition": "web-search",
+      "absenceIsEvidence": false,
+      "note": "A web search arrives as a search service's library, or as a tool named in the call to the model: Anthropic's and OpenAI's are both types spelled web_search (web_fetch for reading a page). The pattern also matches an app's own function of that name, which adds the four requirements rather than removing any.",
+      "packages": {
+        "npm": [
+          "@tavily/core",
+          "exa-js",
+          "serpapi"
+        ],
+        "Python": [
+          "tavily-python",
+          "exa-py",
+          "google-search-results",
+          "duckduckgo-search"
+        ]
+      },
+      "source": {
+        "python": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "javascript": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "typescript": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "go": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "java": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "kotlin": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "ruby": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "php": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "csharp": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ],
+        "rust": [
+          "web_search",
+          "web_fetch",
+          "tavily",
+          "duckduckgo",
+          "serpapi"
+        ]
+      }
+    },
+    {
       "condition": "mcp",
       "absenceIsEvidence": false,
       "note": "MCP arrives as a library or a server configuration file.",
