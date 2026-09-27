@@ -2776,6 +2776,47 @@ do. None ran the other way, so a requirement could be added to `manualOnly` and 
 row with nothing beside it. `every_requirement_only_a_person_can_settle_is_explained_somewhere` is
 that direction, at levels 1 and 2 like the checklist.
 
+### Who wrote each section of the security notes (27 September 2026)
+
+The owner's first run in VS Code showed the notes had the hole the design answers had closed a day
+earlier. The AI coding tool wrote nine of thirteen sections from the code and, to its credit, marked
+each with a line of its own: *Written by the AI coding tool from the code; review before relying on
+it.* `sv` never saw it. The reader dropped every line wrapped in `*` as one of `sv`'s own italic
+lines, so the disclaimer went and the section under it was reported as *documented by the owner*,
+"you answered this", the highest tier short of *checked*. The same rule would have dropped the
+owner's own `**Decided by the owner (2026-09-26):**` lines the next time `sv notes` rewrote the file.
+
+Now each answer says who wrote it, on one line:
+
+```markdown
+Written by: owner
+```
+
+- **`owner`** is the owner's decision, or one the tool wrote that the owner read and agrees with. It is
+  *documented by the owner*, as before.
+- **`AI coding tool`** is what the tool wrote from the code and the owner has not agreed to. It is
+  *stated by the AI coding tool*, the tier its design answers have, and the interview asks it again.
+- **No line counts as the tool's**, at the owner's decision the same day, for the reason a design
+  answer without `by` does: the file is usually the tool's writing, and crediting the owner on
+  nobody's say-so is the direction that overstates. Every notes file written before this is
+  unmarked, so its sections read as the tool's until somebody adds the line; the interview asks.
+- **Anything else is unreadable**, a name or two lines that disagree, and named in the report rather
+  than guessed at. Only this line is read: "Decided by the owner" in prose, or a disclaimer, is not.
+- **Bold or italic around the line is ignored**, since tools and people both add it.
+- **The line is who, not what.** It does not count toward the forty characters that make a section
+  an answer.
+- **The reader drops only the two italic lines `sv` writes** (the requirement's wording and "What
+  `sv` found"), each matched exactly, so a person's or the tool's own emphasis survives a rewrite.
+
+Eight guards were broken in turn and each was caught: an unmarked section read as the owner's (three
+tests), every italic line dropped again (three), the line counted toward the answer's length (one,
+after its first version passed with the break in: its sample was too short to reach the floor either
+way), a name read as the owner (two), two lines that disagree resolved by the first (one), the tool's
+sections left out of the report (one, the end-to-end test), the unreadable line not named (one), and
+every answered section documented regardless of who (four). The end-to-end test,
+`the_report_credits_only_what_the_owner_wrote_to_the_owner`, builds a report with one section of each
+kind and reads the status the owner would see.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

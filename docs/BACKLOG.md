@@ -78,6 +78,12 @@ another session is not a claim.
      confirm too, with their name in the report. A second person is stronger evidence than the owner, and
      the manifest already has a `by` field to carry it.
 
+  **Step 1 done the same day** (DESIGN.md, "Who wrote each section of the security notes"): each notes
+  answer starts with `Written by: owner` or `Written by: AI coding tool`; no line counts as the tool's;
+  the tool's sections are *stated by the AI coding tool* and asked again; anything else is unreadable
+  and named; only `sv`'s own two italic lines are dropped. Eight guards broken, each caught. **Still to
+  do: step 2**, the confirmation record.
+
   **Found the same day, from the owner's own files, and the first thing to fix:** the security notes
   have no way to say who wrote a section, and `sv` credits every written section as *documented by the
   owner* ("you answered this in security-notes.md"). In the owner's VS Code run, the tool wrote 9 of the

@@ -9,8 +9,11 @@
 //! Who answered is the part that has to stay honest. An answer the owner gave is recorded as theirs
 //! (`by = "owner"`) and reported as *attested by the owner*. When the owner asks the tool to answer,
 //! it answers from the code and records `by = "ai-tool"`, reported one tier lower as *stated by the
-//! AI coding tool*. The security notes have no such lower tier: a written decision nobody made is
-//! not a decision, so the tool is told to leave a section the owner did not decide unwritten.
+//! AI coding tool*. The security notes work the same way, on a `Written by:` line at the top of each
+//! answer: `owner` for the person's decision, or one the tool wrote that they read and agree with;
+//! `AI coding tool` for what the tool wrote from the code and the person has not agreed to, which is
+//! reported as *stated by the AI coding tool* and asked again. A section without the line counts as
+//! the tool's, so the tool is told to write it every time.
 //!
 //! Nothing here credits anything. This writes instructions; what the answers are worth is decided
 //! where they are read (`sv_check::design`, `sv_check::notes`).
@@ -85,9 +88,12 @@ pub fn text(report: &Report) -> String {
             "\n{}. WRITTEN DECISIONS ({}). These ask what the rules are, which only the person can \
              decide. Make or refresh security-notes.md first (securevibe_notes_file, or `sv notes` \
              in a terminal); it keeps whatever is already written. Write the person's decision, in \
-             a sentence or two of their words, under the question headed by its id. If they ask \
-             you to decide, suggest an answer and write it only once they agree; a decision nobody \
-             made is not one, and `sv` has no weaker way to record it.\n",
+             a sentence or two of their words, under the question headed by its id, and start it \
+             with the line `Written by: owner`. If they ask you to write it from the code, you may, \
+             but start it with `Written by: AI coding tool`: the report counts that for less, as \
+             stated by the AI coding tool, and asks again. Change it to `Written by: owner` only \
+             once they have read what you wrote and agree with it. A section without that line \
+             counts as yours.\n",
             if design.is_empty() { 1 } else { 2 },
             notes.len()
         ));
