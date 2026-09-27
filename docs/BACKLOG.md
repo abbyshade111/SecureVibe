@@ -2610,3 +2610,7 @@ The nine references to ADR-012, in `DESIGN.md` and in four files of three crates
 index says where it lives. **Not settled, and named in the index:** ADR-012 also ruled out SecureVibe writing
 its own static-analysis rules for other languages. `sv` has since written them for fourteen, and no record
 revisits that ruling. Whether one should is the owner's question.
+
+**The owner answered on 27 September 2026:** the ruling needs updating. A superseding record covering
+the decision that `sv` checks apps in many languages, with its own rules among the checks, is **claimed
+the same day by session securevibe-e8** and drafted as ADR-018, "proposed" until the owner accepts it.
