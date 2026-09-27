@@ -10,6 +10,7 @@ pub mod advisories;
 pub mod ai;
 pub mod ast;
 pub mod browser;
+pub mod coding_rules;
 pub mod config;
 pub mod confirm;
 pub mod cvss;

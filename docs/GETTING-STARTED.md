@@ -127,7 +127,11 @@ terminal in the app's folder and paste what it prints into the chat:
 docker run --rm ghcr.io/abbyshade111/securevibe-sv init
 docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv check .
 docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv questions .
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv rules .
 ```
+
+The last one writes the security rules for your tool into `AGENTS.md` in the app's folder, which many
+tools read on their own; see "Rules your AI coding tool follows while it codes" in the README.
 
 ## 4. Start the build with this prompt
 
@@ -141,13 +145,15 @@ Open the app's folder in your AI tool and paste this, with your app described at
 >    Its capability lines start commented out: answer each one you can with true or false, and
 >    **leave a line commented out rather than guessing `false`**. A line left out is reported as not
 >    assessed; a wrong `false` switches whole sets of checks off.
+> 2. Call `securevibe_guidance` and follow the rules it gives while you write code. Call it again
+>    with a topic before work in that area: adding a package, a CI workflow, anything with keys.
 >
 > Then, as we build:
-> 2. After each feature, call `securevibe_check`. Read what it says was not examined first. Fix what
+> 3. After each feature, call `securevibe_check`. Read what it says was not examined first. Fix what
 >    it finds that is real. If a finding looks wrong, tell me instead of rewriting working code to
 >    make it go away.
-> 3. Never tell me the app is secure. Tell me what was checked and what was not.
-> 4. When the first version works, call `securevibe_questions` and ask me the questions one at a time.
+> 4. Never tell me the app is secure. Tell me what was checked and what was not.
+> 5. When the first version works, call `securevibe_questions` and ask me the questions one at a time.
 >    Record only what I actually answer as mine.
 
 ## 5. Answer the questions
