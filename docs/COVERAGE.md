@@ -159,7 +159,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.4.1 | L1 | Signed in: `probe.logout-keeps-session` |
 | V7.4.2 | L1 | Signed in: `probe.sessions-survive-deletion` |
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
-| V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user` |
+| V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
@@ -231,7 +231,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
-| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user` |
+| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |

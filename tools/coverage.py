@@ -90,6 +90,7 @@ RUST_CHECKS = {
     "probe.source-control-exposed": ("running", ["V13.4.1"]),
     "probe.private-page-anonymous": ("signed-in", ["V8.2.1"]),
     "probe.admin-page-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
+    "probe.admin-action-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
     "probe.other-users-data": ("signed-in", ["V8.2.2"]),
     "probe.session-cookie-attributes": ("signed-in", ["V3.3.2", "V3.3.4"]),
     "probe.session-not-renewed": ("signed-in", ["V7.2.4"]),

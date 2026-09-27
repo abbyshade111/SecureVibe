@@ -302,6 +302,53 @@ fn post() -> String {
     "POST".to_owned()
 }
 
+/// A request only an admin should be able to make, such as publishing an announcement or changing
+/// another user's role.
+///
+/// The ordinary user sends it first and the admin second, and a refusal counts only when the admin's
+/// own request took effect. How the probe tells: put `{marker}` in a field, and name in `check` a page
+/// where that text appears once the action has been done. Each send carries a marker of its own, so
+/// the page says whose request worked. Without `check`, only an ordinary user's request answered
+/// with a 2xx is reported, and nothing is credited, because a refusal cannot be told from a request
+/// that did nothing. The run's container is thrown away afterwards, so an action that changes data is
+/// safe to list; it is sent twice.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct AdminAction {
+    #[serde(default = "post")]
+    pub method: String,
+    pub path: String,
+    #[serde(default)]
+    pub form: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub json: std::collections::BTreeMap<String, String>,
+    /// A page, read by the admin, where the action's `{marker}` shows once it has taken effect.
+    #[serde(default)]
+    pub check: Option<String>,
+}
+
+impl AdminAction {
+    /// The request itself, in the shape every other request here has.
+    pub fn request(&self) -> RequestTemplate {
+        RequestTemplate {
+            method: self.method.clone(),
+            path: self.path.clone(),
+            form: self.form.clone(),
+            json: self.json.clone(),
+        }
+    }
+
+    /// Whether the request carries `{marker}` anywhere it is sent.
+    pub fn carries_marker(&self) -> bool {
+        self.path.contains("{marker}")
+            || self
+                .form
+                .values()
+                .chain(self.json.values())
+                .any(|v| v.contains("{marker}"))
+    }
+}
+
 /// A resource one user creates and another must not be able to read.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
@@ -344,6 +391,10 @@ pub struct UsersSection {
     /// Pages only an admin should see. Needs `seed`, which is the only way to make an admin.
     #[serde(default)]
     pub admin: Vec<String>,
+    /// Requests only an admin should be able to make: each is sent by the first ordinary user and
+    /// then by the admin. Needs `seed`, as `admin` does.
+    #[serde(default)]
+    pub admin_actions: Vec<AdminAction>,
     #[serde(default)]
     pub owned: Option<OwnedSection>,
     /// Changes the signed-in user's password: `{password}` is the current one, `{new_password}`
@@ -495,12 +546,46 @@ impl UsersSection {
         if self.seed.is_none() && self.signup.is_none() {
             out.push("neither `seed` nor `signup` is set, so no accounts can be made".to_owned());
         }
-        if self.private.is_empty() && self.admin.is_empty() && self.owned.is_none() {
+        if self.private.is_empty()
+            && self.admin.is_empty()
+            && self.admin_actions.is_empty()
+            && self.owned.is_none()
+        {
             out.push(
                 "none of `private`, `admin` or `owned` is set, so there is nothing to ask as a \
                  signed-in user"
                     .to_owned(),
             );
+        }
+        if !self.admin_actions.is_empty() && self.seed.is_none() {
+            out.push(
+                "`admin-actions` are listed without `seed`, and an admin can only be made by `seed`"
+                    .to_owned(),
+            );
+        }
+        for action in &self.admin_actions {
+            if !action.form.is_empty() && !action.json.is_empty() {
+                out.push(format!(
+                    "the admin action `{}` has both `form` and `json`; a request sends one",
+                    action.path
+                ));
+            }
+            if let Some(check) = &action.check {
+                if !check.starts_with('/') {
+                    out.push(format!(
+                        "the admin action `{}` has `check = \"{check}\"`, which is not a path on the \
+                         app; it has to begin with `/`",
+                        action.path
+                    ));
+                }
+                if !action.carries_marker() {
+                    out.push(format!(
+                        "the admin action `{}` has a `check` page and no `{{marker}}` in the request, so \
+                         there is nothing to look for on that page",
+                        action.path
+                    ));
+                }
+            }
         }
         if !self.admin.is_empty() && self.seed.is_none() {
             out.push(
@@ -1473,6 +1558,47 @@ mod time_frame_tests {
 #[cfg(test)]
 mod reset_tests {
     use super::*;
+
+    #[test]
+    fn an_admin_action_is_read_and_checked_for_what_it_needs() {
+        let text = r#"
+manifest-version = 1
+[app]
+name = "x"
+[stack.run.users]
+login = { path = "/login", form = { email = "{user}", password = "{password}" } }
+admin = ["/admin"]
+
+[[stack.run.users.admin-actions]]
+path = "/admin/announce"
+form = { text = "{marker}" }
+check = "/announcements"
+
+[[stack.run.users.admin-actions]]
+method = "DELETE"
+path = "/admin/users/2"
+check = "announcements"
+"#;
+        let manifest: Manifest = toml::from_str(text).unwrap();
+        let users = manifest.stack.run.users.unwrap();
+        assert_eq!(users.admin_actions.len(), 2);
+        assert_eq!(
+            users.admin_actions[0].method, "POST",
+            "POST unless it says otherwise"
+        );
+        assert!(users.admin_actions[0].carries_marker());
+        let problems = users.problems().join("\n");
+        assert!(
+            problems.contains("`admin-actions` are listed without `seed`"),
+            "{problems}"
+        );
+        assert!(problems.contains("not a path on the app"), "{problems}");
+        assert!(problems.contains("no `{marker}`"), "{problems}");
+        assert!(
+            !problems.contains("/admin/announce`"),
+            "the first action is written correctly: {problems}"
+        );
+    }
 
     fn users(reset: &str) -> UsersSection {
         let text = format!(

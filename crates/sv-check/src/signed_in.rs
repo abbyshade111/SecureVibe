@@ -510,6 +510,19 @@ const ADMIN_PAGE: Rule = Rule {
           an admin request; hiding the link is not a check.",
 };
 
+const ADMIN_ACTION: Rule = Rule {
+    rule_id: "probe.admin-action-ordinary-user",
+    // Beside the admin page, and for the same reason: V8.3.1 is on `manualOnly`, so an action refused
+    // supports the owner's answer and does not settle it. One the ordinary user got done is a
+    // finding against both.
+    requirement_ids: &["V8.2.1", "V8.3.1"],
+    cwe: &["CWE-285"],
+    impact: "An ordinary account can do something only an administrator should be able to do, by \
+             sending the request itself. Hiding the button does not stop that.",
+    fix: "Check the signed-in user's role on the server when the request arrives, for every admin \
+          action, not only on the page that shows the button for it.",
+};
+
 const OTHER_USERS_DATA: Rule = Rule {
     rule_id: "probe.other-users-data",
     requirement_ids: &["V8.2.2"],
@@ -1501,6 +1514,12 @@ pub fn run_with(
     // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
     //     everything that needed A's first session.
     websocket_session_checks(http, users, &accounts.a, &mut out);
+
+    // 9c. Admin actions, sent by A and then by the admin. Late, because an action changes what the
+    //     app holds and the checks above have had what they needed; before the password changes
+    //     below, one of which can change A's own password, and before the checks that set out to be
+    //     refused and can leave the app refusing everybody, the admin included.
+    admin_action_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -6582,6 +6601,231 @@ fn admin_checks(
     }
 }
 
+/// Admin actions, sent straight to the app by the first ordinary user and then by the admin.
+///
+/// The admin-page check asks for pages; this sends the requests an admin makes, which is where an
+/// app that only hides its buttons gives itself away. Each request carries a marker of its own, and
+/// the `check` page, read by the admin, says whose request took effect. A refusal counts only when
+/// the admin's own request then did, because a refusal the admin shares says the request was wrong,
+/// not that the rule was enforced. The ordinary user goes first, so the admin's success cannot be
+/// what the ordinary user's request ran into.
+///
+/// Without `check`, a refusal cannot be told from a request that did nothing, so nothing is credited
+/// and only a 2xx to the ordinary user is reported, at medium confidence.
+fn admin_action_checks(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    if users.admin_actions.is_empty() {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            "Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no \
+             request only an admin should make was sent by an ordinary user."
+                .to_owned(),
+        ));
+        return;
+    }
+    let Some(admin_account) = accounts.admin.as_ref() else {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            "Admin actions: there is no admin account to confirm them with; an admin is made by `seed`."
+                .to_owned(),
+        ));
+        return;
+    };
+    let a = sign_in(http, users, "a-actions", &accounts.a, &mut out.steps);
+    let admin = sign_in(http, users, "admin-actions", admin_account, &mut out.steps);
+    // Both sessions have to be shown signed in before anything they are refused means anything: a
+    // request refused because nobody was signed in looks, from here, exactly like one refused
+    // because the user was not an admin. Found building this: a sign-in that quietly failed made a
+    // correct app's refusal, and an open app's, read the same.
+    let signed_in = |http: &mut dyn Http, who: &SignedIn, id: &str| {
+        confirm.is_some_and(|page| ok(&http.send(&get(id, page, &who.session))))
+    };
+    let (Some(mut a), Some(mut admin)) = (a, admin) else {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            "Admin actions: the first user and the admin could not both sign in, so none was sent."
+                .to_owned(),
+        ));
+        return;
+    };
+    if !signed_in(http, &a, "admin-actions-a-confirm")
+        || !signed_in(http, &admin, "admin-actions-admin-confirm")
+    {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            "Admin actions: the first user and the admin could not both be shown signed in (a \
+             private page did not open for each), so a refusal would say nothing and none was sent."
+                .to_owned(),
+        ));
+        return;
+    }
+
+    // Pages an anti-forgery token may come from: the ordinary user's own, then the admin's.
+    let a_pages: Vec<String> = users.private.clone();
+    let admin_pages: Vec<String> = users.admin.iter().chain(&users.private).cloned().collect();
+    let tag = accounts.spare.get(..8).unwrap_or("0");
+
+    let mut refused = 0usize;
+    let mut done_by_ordinary = Vec::new();
+    let mut answered_ordinary = Vec::new();
+    let mut unconfirmed = Vec::new();
+    let mut unjudged = Vec::new();
+    for (i, action) in users.admin_actions.iter().enumerate() {
+        let request = action.request();
+        let a_marker = format!("sv-admin-action-{tag}-{i}-a");
+        let admin_marker = format!("sv-admin-action-{tag}-{i}-admin");
+        let as_a = send_template(
+            http,
+            &format!("admin-action-{i}-a"),
+            &request,
+            &Values {
+                marker: &a_marker,
+                ..Values::default()
+            },
+            &mut a.session,
+            &a_pages,
+        )
+        .0;
+        let Some(check) = &action.check else {
+            if ok(&as_a) {
+                answered_ordinary.push(format!(
+                    "{} {} (answered {})",
+                    request.method,
+                    request.path,
+                    as_a.as_ref().map_or(0, |r| r.status)
+                ));
+            } else {
+                unjudged.push(format!("{} {}", request.method, request.path));
+            }
+            continue;
+        };
+        // Whether the check page, read by the admin, shows this marker. `None` when the page could
+        // not be read at all, which settles nothing.
+        fn shows(
+            http: &mut dyn Http,
+            check: &str,
+            marker: &str,
+            id: String,
+            session: &Session,
+        ) -> Option<bool> {
+            http.send(&get(&id, check, session))
+                .filter(|page| (200..300).contains(&page.status))
+                .map(|page| page.body.contains(marker))
+        }
+        match shows(
+            http,
+            check,
+            &a_marker,
+            format!("admin-action-{i}-check-a"),
+            &admin.session,
+        ) {
+            Some(true) => {
+                done_by_ordinary.push(format!("{} {}", request.method, request.path));
+                continue;
+            }
+            None => {
+                unconfirmed.push(format!(
+                    "{} {} (the admin could not read {check})",
+                    request.method, request.path
+                ));
+                continue;
+            }
+            Some(false) => {}
+        }
+        send_template(
+            http,
+            &format!("admin-action-{i}-admin"),
+            &request,
+            &Values {
+                marker: &admin_marker,
+                ..Values::default()
+            },
+            &mut admin.session,
+            &admin_pages,
+        );
+        if shows(
+            http,
+            check,
+            &admin_marker,
+            format!("admin-action-{i}-check-admin"),
+            &admin.session,
+        ) == Some(true)
+        {
+            refused += 1;
+        } else {
+            unconfirmed.push(format!(
+                "{} {} (the admin's own request did not show on {check} either)",
+                request.method, request.path
+            ));
+        }
+    }
+
+    if !done_by_ordinary.is_empty() {
+        out.findings.push(finding(
+            &ADMIN_ACTION,
+            "An ordinary user can do what only an admin should",
+            Severity::High,
+            format!(
+                "Signed in as an ordinary test user and sending the request directly, the app carried \
+                 out {}: the page named to show it had the ordinary user's marker on it.",
+                done_by_ordinary.join(", ")
+            ),
+        ));
+    }
+    if !answered_ordinary.is_empty() {
+        let mut f = finding(
+            &ADMIN_ACTION,
+            "An ordinary user's admin request was answered as if it worked",
+            Severity::High,
+            format!(
+                "Signed in as an ordinary test user, the app answered {} with a success status. \
+                 This is judged by the status alone, and some apps answer a refused request that \
+                 way; a `check` page for the action in securevibe.toml would show whether it took \
+                 effect.",
+                answered_ordinary.join(", ")
+            ),
+        );
+        f.confidence = Confidence::Medium;
+        out.findings.push(f);
+    }
+    if !unconfirmed.is_empty() {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            format!(
+                "Admin actions whose refusal says nothing, because the admin could not be shown to \
+                 do them either: {}.",
+                unconfirmed.join("; ")
+            ),
+        ));
+    }
+    if !unjudged.is_empty() {
+        out.not_assessed.push((
+            "V8.3.1".to_owned(),
+            format!(
+                "Admin actions refused to an ordinary user with no `check` page to show the admin's \
+                 would have worked, so the refusal cannot be told from a request that did nothing: {}.",
+                unjudged.join(", ")
+            ),
+        ));
+    }
+    if refused > 0 && done_by_ordinary.is_empty() && answered_ordinary.is_empty() {
+        out.verified.push(crate::Verified::new(
+            ADMIN_ACTION.rule_id,
+            ADMIN_ACTION.requirement_ids,
+            format!(
+                "{refused} admin action{}, sent straight to the app: refused to an ordinary user and \
+                 carried out for the admin, as the page named to show each said",
+                if refused == 1 { "" } else { "s" }
+            ),
+        ));
+    }
+}
+
 /// Returns the path of A's record when A could read it, for the logout check to reuse.
 fn owned_checks(
     http: &mut dyn Http,
@@ -7185,6 +7429,8 @@ mod tests {
         users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
         sessions: BTreeMap<String, String>,      // session id -> user ("" = not signed in)
         notes: Vec<(String, String)>,            // (owner, text)
+        /// Announcements posted, newest last.
+        announcements: Vec<String>,
         next: u32,
         /// Old passwords a change left working, under `change_keeps_old`.
         kept: BTreeMap<String, String>,
@@ -7228,6 +7474,12 @@ mod tests {
     struct Flaws {
         private_open: bool,
         admin_open: bool,
+        /// Any signed-in user can post an announcement, which only an admin should.
+        admin_action_open: bool,
+        /// An announcement refused to an ordinary user is answered 200, as some apps do.
+        admin_action_says_ok: bool,
+        /// Nobody's announcement is posted, the admin's included.
+        admin_action_broken: bool,
         /// Any signed-in user can read any record.
         idor: bool,
         /// Anybody at all can read any record.
@@ -8244,6 +8496,28 @@ mod tests {
                         Self::respond(403, vec![], "no")
                     }
                 }
+                ("POST", "/admin/announce") => {
+                    if user.is_some() && !self.flaws.no_csrf_check && (foreign || !token_ok) {
+                        return Some(Self::respond(403, vec![], "forged"));
+                    }
+                    let allowed = is_admin || (user.is_some() && self.flaws.admin_action_open);
+                    if allowed && !self.flaws.admin_action_broken {
+                        let text = form(r).get("text").cloned().unwrap_or_default();
+                        self.announcements.push(text);
+                        Self::respond(302, vec![("Location", "/announcements".into())], "")
+                    } else if self.flaws.admin_action_says_ok {
+                        Self::respond(200, vec![], "Something went wrong.")
+                    } else {
+                        Self::respond(403, vec![], "no")
+                    }
+                }
+                ("GET", "/announcements") => {
+                    if user.is_some() {
+                        Self::respond(200, vec![], &self.announcements.join("\n"))
+                    } else {
+                        Self::respond(302, vec![("Location", "/login".into())], "")
+                    }
+                }
                 ("GET", "/notes") => Self::respond(
                     200,
                     if self.flaws.no_referrer {
@@ -8587,6 +8861,16 @@ mod tests {
             token_field: None,
             private: vec!["/account".into()],
             admin: vec!["/admin".into()],
+            admin_actions: vec![sv_manifest::AdminAction {
+                method: "POST".into(),
+                path: "/admin/announce".into(),
+                form: [("text", "{marker}"), ("csrf_token", "{csrf}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+                check: Some("/announcements".into()),
+            }],
             owned: Some(sv_manifest::OwnedSection {
                 create: RequestTemplate {
                     method: "POST".into(),
@@ -8744,6 +9028,151 @@ mod tests {
         );
     }
 
+    fn without_check(mut u: UsersSection) -> UsersSection {
+        for action in &mut u.admin_actions {
+            action.check = None;
+        }
+        u
+    }
+
+    fn action_findings(o: &Outcome) -> Vec<&Finding> {
+        o.findings
+            .iter()
+            .filter(|f| f.rule_id == ADMIN_ACTION.rule_id)
+            .collect()
+    }
+
+    fn action_credited(o: &Outcome) -> bool {
+        o.verified
+            .iter()
+            .any(|v| v.check_id == ADMIN_ACTION.rule_id)
+    }
+
+    #[test]
+    fn an_admin_action_refused_to_an_ordinary_user_supports_v8_3_1() {
+        // The correct app: the ordinary user's announcement is refused and the admin's is posted,
+        // and the page named to show them says which. Supporting evidence, as the page check is.
+        let o = run_against(Flaws::default(), &users());
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == ADMIN_ACTION.rule_id)
+            .unwrap_or_else(|| panic!("no credit: {:#?}", o.not_assessed));
+        assert!(credit.requirement_ids.iter().any(|r| r == "V8.3.1"));
+        assert!(credit.scope.contains("1 admin action,"), "{}", credit.scope);
+        assert!(action_findings(&o).is_empty());
+    }
+
+    #[test]
+    fn an_admin_action_an_ordinary_user_gets_done_is_a_finding() {
+        let o = run_against(
+            Flaws {
+                admin_action_open: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found = action_findings(&o);
+        assert_eq!(found.len(), 1, "{:#?}", o.findings);
+        assert_eq!(found[0].confidence, Confidence::High);
+        assert!(found[0].requirement_ids.iter().any(|r| r == "V8.3.1"));
+        assert!(found[0].description.contains("/admin/announce"));
+        assert!(!action_credited(&o));
+    }
+
+    #[test]
+    fn a_refusal_answered_200_is_judged_by_its_effect_when_there_is_a_check() {
+        // With the check page, the misleading 200 fools nothing: the marker is not there, the
+        // admin's is, and the refusal is credited.
+        let flaws = Flaws {
+            admin_action_says_ok: true,
+            ..Default::default()
+        };
+        let checked = run_against(flaws, &users());
+        assert!(
+            action_findings(&checked).is_empty(),
+            "{:#?}",
+            checked.findings
+        );
+        assert!(action_credited(&checked));
+
+        // Without it, the status is all there is: a finding, at medium confidence, saying so, and
+        // no credit.
+        let status_only = run_against(flaws, &without_check(users()));
+        let found = action_findings(&status_only);
+        assert_eq!(found.len(), 1, "{:#?}", status_only.findings);
+        assert_eq!(found[0].confidence, Confidence::Medium);
+        assert!(found[0].description.contains("status alone"));
+        assert!(!action_credited(&status_only));
+    }
+
+    #[test]
+    fn a_refusal_the_admin_shares_says_nothing() {
+        let o = run_against(
+            Flaws {
+                admin_action_broken: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(action_findings(&o).is_empty());
+        assert!(!action_credited(&o));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1" && why.contains("admin's own request")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_refusal_to_somebody_not_signed_in_is_not_credited() {
+        // Found building this. Sign-in reports what it sent, not whether it worked, and a request
+        // from somebody who is not signed in is refused just as an ordinary user's should be. So the
+        // probe first shows both sessions signed in, and here A's password is wrong in the app.
+        fn outcome(a_password_works: bool) -> Outcome {
+            let mut app = FakeApp::new(Flaws::default());
+            let acc = accounts();
+            let password = if a_password_works {
+                acc.a.password.clone()
+            } else {
+                "not-the-password".to_owned()
+            };
+            app.users.insert(acc.a.user.clone(), (password, false));
+            let admin = acc.admin.clone().unwrap();
+            app.users.insert(admin.user, (admin.password, true));
+            let mut out = Outcome::default();
+            admin_action_checks(&mut app, &users(), &acc, Some("/account"), &mut out);
+            out
+        }
+        // The control: the same call with A's password right is credited, so the setup works.
+        assert!(action_credited(&outcome(true)));
+        let o = outcome(false);
+        assert!(!action_credited(&o), "{:#?}", o.verified);
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1" && why.contains("shown signed in")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_refusal_with_no_check_page_is_not_credited() {
+        let o = run_against(Flaws::default(), &without_check(users()));
+        assert!(action_findings(&o).is_empty());
+        assert!(!action_credited(&o));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1" && why.contains("no `check` page")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
     #[test]
     fn a_correct_app_raises_nothing_and_every_check_says_what_it_confirmed() {
         let o = run_against(Flaws::default(), &users());
@@ -8753,6 +9182,7 @@ mod tests {
             SESSION_COOKIE.rule_id,
             SESSION_RENEWAL.rule_id,
             ADMIN_PAGE.rule_id,
+            ADMIN_ACTION.rule_id,
             OTHER_USERS_DATA.rule_id,
             FORGERY.rule_id,
             LOGOUT.rule_id,
@@ -9562,6 +9992,7 @@ mod tests {
         let mut u = users();
         u.seed = None;
         u.admin = Vec::new();
+        u.admin_actions = Vec::new();
         u.signup = Some(RequestTemplate {
             method: "POST".into(),
             path: "/signup".into(),
@@ -9725,6 +10156,7 @@ mod tests {
         u.logout = None;
         u.owned = None;
         u.admin = Vec::new();
+        u.admin_actions = Vec::new();
         let o = run_against(Flaws::default(), &u);
         let said: Vec<&str> = o.not_assessed.iter().map(|(ids, _)| ids.as_str()).collect();
         for ids in ["V7.4.1", "V8.2.2, V3.5.1", "V8.2.1", "V3.3.1"] {
@@ -9825,6 +10257,7 @@ mod tests {
         let mut u = users();
         u.seed = None;
         u.admin = Vec::new();
+        u.admin_actions = Vec::new();
         u.signup = Some(RequestTemplate {
             method: "POST".into(),
             path: "/signup".into(),
