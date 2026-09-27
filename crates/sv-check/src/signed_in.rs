@@ -497,7 +497,11 @@ const PRIVATE_PAGE: Rule = Rule {
 
 const ADMIN_PAGE: Rule = Rule {
     rule_id: "probe.admin-page-ordinary-user",
-    requirement_ids: &["V8.2.1"],
+    // V8.3.1 (authorization enforced on the server) is on `manualOnly` at the owner's word, so a
+    // refusal only supports the owner's answer: one page refused is not every rule enforced, and
+    // actions sent straight to an API are not tried. An admin page that opens is a finding against
+    // both.
+    requirement_ids: &["V8.2.1", "V8.3.1"],
     cwe: &["CWE-285"],
     impact: "An ordinary account can open a page meant only for administrators, so anyone who signs \
              up can do what an administrator does there.",
@@ -8704,6 +8708,38 @@ mod tests {
 
     fn verified_ids(o: &Outcome) -> Vec<&str> {
         o.verified.iter().map(|v| v.check_id.as_str()).collect()
+    }
+
+    #[test]
+    fn the_admin_page_speaks_to_server_side_authorization_both_ways() {
+        // Refused: evidence about V8.3.1, which the report shows as supporting only, because the
+        // requirement is on `manualOnly`. Opened: a finding against it.
+        let refused = run_against(Flaws::default(), &users());
+        let evidence = refused
+            .verified
+            .iter()
+            .find(|v| v.check_id == ADMIN_PAGE.rule_id)
+            .expect("a correct app's admin page is refused and the admin's opens");
+        assert!(
+            evidence.requirement_ids.iter().any(|r| r == "V8.3.1"),
+            "{evidence:?}"
+        );
+        let opened = run_against(
+            Flaws {
+                admin_open: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let finding = opened
+            .findings
+            .iter()
+            .find(|f| f.rule_id == ADMIN_PAGE.rule_id)
+            .expect("an admin page an ordinary user opens is a finding");
+        assert!(
+            finding.requirement_ids.iter().any(|r| r == "V8.3.1"),
+            "{finding:?}"
+        );
     }
 
     #[test]

@@ -1527,6 +1527,10 @@ another session is not a claim.
   it: one page refused is not every rule enforced on the server, and actions sent straight to an
   API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by the
   session working on branch `claude/securevibe-agnostic-variant-935b16`.**
+  **Done the same day:** V8.3.1 is on `manualOnly`, and `probe.admin-page-ordinary-user` cites it
+  beside V8.2.1, so a refusal is listed as support and an opened page is a finding against both.
+  ASVS "supporting only" goes from 5 to 6; nothing more is counted as settled. See DESIGN, "The
+  admin page, as support for V8.3.1".
 
   **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
   V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a

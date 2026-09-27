@@ -316,6 +316,12 @@ fn manual_only_requirements_get_the_manual_only_class() {
         config.verification_class_for("V2.3.1"),
         VerificationClass::ManualOnly
     );
+    // The owner's decision, 27 September 2026: the admin page refused to an ordinary user supports
+    // V8.3.1 and does not settle it, which is what being on this list means.
+    assert_eq!(
+        config.verification_class_for("V8.3.1"),
+        VerificationClass::ManualOnly
+    );
 }
 
 #[test]
