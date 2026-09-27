@@ -85,6 +85,21 @@ another session is not a claim.
 
   **Thoughts.**
 
+  **Agreed so far**, 26 September 2026 — reached by message between the v1 builder and
+  relaxed-nobel-27acfa, and written here by keen-meninsky-691a27 so it reaches sessions that did not
+  see the messages:
+  - **What v1 needs to run, and what guards it, leaves `main` together** for the `v1` branch:
+    `server/`, `shared/`, `web/`, `templates/`, `evals/`, `self-assessment/`, `artifacts/`, v1's
+    `docs/` other than `docs/paper/`, and the root npm files. Both checked with `git grep` that
+    nothing in `sv`'s code, tools, data or Dockerfile refers to `templates/`; the only mentions are
+    prose in `agnostic/docs`. The one use `sv` made of v1's apps, relaxed-nobel's semgrep measurement
+    on apps v1 built, can be rerun from `v1-final`. A patch to the template after the move is a v1
+    patch, on the `v1` branch, where the evaluation harness is.
+  - **Only `data/` and `docs/paper/` stay on `main`.** With v1's `docs/` leaving, the file-name
+    collision relaxed-nobel found (`BACKLOG.md` and `DESIGN.md` in both `docs/` and `agnostic/docs/`)
+    goes with it — an inference from the list above, not something either session said.
+  - **`v1-paper` is made** (see the rules above). **Still open:** who claims the move, and when.
+
   - **Vibe-coding builder (built v1), 26 September 2026.** Read at `76156b3`. "Checked" below means I looked
     it up in that tree, not that I remember it.
     - **Do not move v1 into a folder of `main`; keep it as the `v1` branch and the two tags, whole.**
@@ -1276,7 +1291,11 @@ another session is not a claim.
      `text/plain`, as a form, and as multipart, none of which a browser preflights; Level 1 goes from
      53 to 54 of 70; see DESIGN, "A request another site can send without asking"); V8.3.1 is an owner's answer and stays one. And one found on the way: an
      app that sends `Referrer-Policy: no-referrer` and refuses `Origin: null` refuses its own forms
-     in every real browser, which a check could say directly.
+     in every real browser, which a check could say directly. **Claimed on 26 September 2026 by
+     session securevibe-e9**: the `owned` create request, sent again as the app's own page would
+     send it under that policy (with `Origin: null` and no `Referer`), when the app's pages ask for
+     `no-referrer`. A finding of its own with no requirement behind it, since nothing in ASVS asks
+     an app to accept its own forms.
   7. **Taint analysis (~5 ASVS, and most of the AISVS rules).** An adapter reading CodeQL's SARIF
      — CodeQL already runs in this repository's own CI — or semgrep's taint mode. Every rule `sv`
      writes matches a call; none follows a value from where it came in to where it is used, which
@@ -1835,6 +1854,12 @@ another session is not a claim.
   `data/semgrep-packs.json` in the same change (which needs a machine that reaches semgrep.dev), and
   fix the three lines of v1's template that make its regular-expression false alarms. **Claimed on
   26 September 2026 by session relaxed-nobel-27acfa**, at the owner's asking, template fix included.
+  **Done the same day:** `p/default` runs beside `p/security-audit` and is measured into
+  `data/semgrep-packs.json`; the coverage count reaches 46 of the 50. Two of the three template lines
+  are fixed at the source (`scripts/setup.ts`, and the API-key route matching, now
+  `src/lib/route-path.ts`). The third, the prompt-injection ruleset in `src/features/ai/screening.ts`,
+  stays, because its patterns come from the operator's own data file and not from a visitor; apps with
+  the AI feature show that one false alarm. See DESIGN, "`p/default` beside `p/security-audit`".
   The owner's condition above still holds: the license questions are looked at before B is built.
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged

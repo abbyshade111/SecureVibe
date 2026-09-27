@@ -14,6 +14,7 @@ import type { NextFunction, Request, Response, Router } from 'express';
 import { z } from 'zod';
 import { clampLimit } from '../../db/index.ts';
 import { errors } from '../../lib/errors.ts';
+import { matchesRoutePath } from '../../lib/route-path.ts';
 import { renderPage } from '../../lib/views.ts';
 import { findUserById, toSessionUser } from '../auth/repo.ts';
 import { defineRoute, listRoutes } from '../../security/routes.ts';
@@ -33,22 +34,16 @@ const FORBIDDEN_QUERY_PARAMS = ['api_key', 'apikey', 'apiKey', 'key', 'token', '
 /**
  * A key may be used on any route the registry declares as `kind: 'api'` (contract §1.12), not only on paths
  * under /api/ — `/account/export`, for example, is a JSON route too. The middleware runs before routing, so the
- * registry's path patterns are compiled once into matchers here.
+ * registry's path patterns are read once here and matched the way Express matches them.
  */
-let apiMatchers: RegExp[] | undefined;
-
-function apiRouteMatchers(): RegExp[] {
-  if (!apiMatchers) {
-    apiMatchers = listRoutes()
-      .filter((r) => r.kind === 'api')
-      .map((r) => new RegExp(`^${r.path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:[A-Za-z0-9_]+/g, '[^/]+')}/?$`));
-  }
-  return apiMatchers;
-}
+let apiPatterns: string[] | undefined;
 
 function isApiPath(path: string): boolean {
   if (path.startsWith('/api/')) return true;
-  return apiRouteMatchers().some((re) => re.test(path));
+  apiPatterns ??= listRoutes()
+    .filter((r) => r.kind === 'api')
+    .map((r) => r.path);
+  return apiPatterns.some((pattern) => matchesRoutePath(pattern, path));
 }
 
 function timingSafeEqualHex(a: string, b: string): boolean {
