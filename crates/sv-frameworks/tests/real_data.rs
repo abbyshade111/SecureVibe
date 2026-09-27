@@ -1008,3 +1008,130 @@ fn watermarking_is_asked_of_an_app_that_makes_media_and_not_of_one_that_retrieve
     );
     assert!(!applies(&with(false, false)));
 }
+
+/// Everything answered `false`, then the two MCP questions as given: an app with no AI at all, such
+/// as `sv` itself, can still serve tools over MCP.
+fn mcp_context(uses: Option<bool>, serves: Option<bool>) -> ConditionContext {
+    let mut ctx = ConditionContext::default();
+    for c in Condition::ALL
+        .iter()
+        .filter(|c| !matches!(c, Condition::Mcp | Condition::McpServer))
+    {
+        ctx.set(*c, false);
+    }
+    if let Some(v) = uses {
+        ctx.set(Condition::Mcp, v);
+    }
+    if let Some(v) = serves {
+        ctx.set(Condition::McpServer, v);
+    }
+    ctx
+}
+
+/// The Level 1 and 2 requirements of AISVS C10 for each side, and for the connection between them.
+const MCP_SERVER_SIDE: [&str; 11] = [
+    "C10.2.1", "C10.2.2", "C10.2.3", "C10.2.4", "C10.2.5", "C10.2.6", "C10.2.7", "C10.3.3",
+    "C10.4.3", "C10.4.4", "C10.4.6",
+];
+const MCP_CLIENT_SIDE: [&str; 7] = [
+    "C10.1.1", "C10.1.2", "C10.1.3", "C10.3.4", "C10.4.1", "C10.4.2", "C10.4.7",
+];
+const MCP_BOTH_SIDES: [&str; 3] = ["C10.3.1", "C10.3.2", "C10.4.5"];
+
+fn mcp_buckets(uses: Option<bool>, serves: Option<bool>) -> sv_frameworks::applicability::Buckets {
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    bucket(&f, &config, &mcp_context(uses, serves), 2)
+}
+
+fn applies(b: &sv_frameworks::applicability::Buckets, id: &str) -> bool {
+    b.applicable.iter().any(|a| a == id)
+}
+
+#[test]
+fn an_mcp_server_with_no_ai_of_its_own_is_asked_the_servers_requirements() {
+    // The fault this condition was added for: `sv`'s self-assessment found the whole of C10 hung on
+    // `mcp`, which asks whether the app's AI *uses* MCP tools, so an app that serves them, and has
+    // no AI, was never asked about its tokens, its Origin and Host checks, or its parameters.
+    let b = mcp_buckets(Some(false), Some(true));
+    for id in MCP_SERVER_SIDE.iter().chain(&MCP_BOTH_SIDES) {
+        assert!(applies(&b, id), "{id} must apply to an MCP server");
+    }
+    // And not the client's: this app launches and calls no MCP server.
+    for id in MCP_CLIENT_SIDE {
+        assert!(
+            !applies(&b, id),
+            "{id} is the client's requirement and applies to a server"
+        );
+    }
+}
+
+#[test]
+fn an_app_whose_ai_uses_mcp_tools_is_not_asked_the_servers_requirements() {
+    let b = mcp_buckets(Some(true), Some(false));
+    for id in MCP_CLIENT_SIDE.iter().chain(&MCP_BOTH_SIDES) {
+        assert!(applies(&b, id), "{id} must apply to an MCP client");
+    }
+    let excluded: Vec<&str> = b
+        .not_applicable
+        .iter()
+        .filter(|na| na.condition == Condition::McpServer)
+        .map(|na| na.id.as_str())
+        .collect();
+    for id in MCP_SERVER_SIDE {
+        assert!(
+            excluded.contains(&id),
+            "{id} is the server's and applies to a client"
+        );
+    }
+}
+
+#[test]
+fn an_app_on_both_sides_is_asked_everything_and_one_on_neither_nothing() {
+    let both = mcp_buckets(Some(true), Some(true));
+    for id in MCP_SERVER_SIDE
+        .iter()
+        .chain(&MCP_CLIENT_SIDE)
+        .chain(&MCP_BOTH_SIDES)
+    {
+        assert!(applies(&both, id), "{id} must apply when the app is both");
+    }
+    let neither = mcp_buckets(Some(false), Some(false));
+    for id in MCP_SERVER_SIDE
+        .iter()
+        .chain(&MCP_CLIENT_SIDE)
+        .chain(&MCP_BOTH_SIDES)
+    {
+        assert!(
+            !applies(&neither, id),
+            "{id} applies to an app with no MCP at all"
+        );
+    }
+}
+
+#[test]
+fn nobody_has_said_whether_this_app_serves_tools_over_mcp() {
+    // Unanswered is its own answer: not assessed, never "does not apply".
+    let b = mcp_buckets(Some(false), None);
+    for id in MCP_SERVER_SIDE {
+        assert!(
+            b.not_assessed.iter().any(|na| na.id == id),
+            "{id} should be not assessed while nothing has said whether the app is an MCP server"
+        );
+    }
+}
+
+#[test]
+fn the_connection_between_the_two_is_asked_of_either_side_alone() {
+    // C10.3.1, C10.3.2, and C10.4.5 are about the link itself, so a server alone and a client alone
+    // each get them; one rule for each side, OR-ed, is what makes that true.
+    for (uses, serves) in [(Some(true), Some(false)), (Some(false), Some(true))] {
+        let b = mcp_buckets(uses, serves);
+        for id in MCP_BOTH_SIDES {
+            assert!(
+                applies(&b, id),
+                "{id} with uses={uses:?}, serves={serves:?}"
+            );
+        }
+    }
+}
