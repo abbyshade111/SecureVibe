@@ -846,6 +846,8 @@ another session is not a claim.
     leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
+    **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
+    starter file issue"). **Claimed the same day by session securevibe-e8.**
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
