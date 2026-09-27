@@ -10,7 +10,8 @@ another session is not a claim.
 ## Next
 
 - **The report credits V15.1.2 for a lockfile it could not read.** Found on 27 September 2026 by session
-  securevibe-e8 while tidying this backlog; not claimed. Reproduced: an app with `pyproject.toml`, a
+  securevibe-e8 while tidying this backlog. **Claimed the same day by session securevibe-e8**, at the
+  owner's asking. Reproduced: an app with `pyproject.toml`, a
   `poetry.lock` that holds no packages `sv` can read, and a two-line `securevibe.toml`. `sv report` marks
   V15.1.2 (an inventory of every third-party library is maintained) **checked**, citing
   `config.versions-pinned`, which passes because a lockfile exists. The same report lists "everything
