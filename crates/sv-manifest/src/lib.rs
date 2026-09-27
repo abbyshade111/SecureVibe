@@ -637,8 +637,17 @@ pub struct RepositorySection {
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct DataSection {
+    /// What the app holds about people. `None` when nobody answered, which is not the same as
+    /// `[]`, "nothing": an unanswered list must not lower the target level.
     #[serde(default)]
-    pub categories: Vec<String>,
+    pub categories: Option<Vec<String>>,
+}
+
+impl DataSection {
+    /// The categories as written, or none when nobody answered.
+    pub fn listed(&self) -> &[String] {
+        self.categories.as_deref().unwrap_or_default()
+    }
 }
 
 /// The numbers the owner states as policy, so a probe can hold the app to them.
@@ -812,14 +821,32 @@ impl Manifest {
     }
 
     /// The ASVS target level. Sensitive data or a public audience means level 2, as in v1.
+    ///
+    /// So does not saying what data the app holds: level 1 is a claim that nothing sensitive is
+    /// held, and a list nobody filled in makes no claim. The starter file once wrote `categories =
+    /// []`, and an owner who never looked at it got level 1 as a quiet "no".
     pub fn target_level(&self) -> u8 {
-        let sensitive = self
-            .data
-            .categories
-            .iter()
-            .any(|c| SENSITIVE_DATA_CATEGORIES.contains(&c.as_str()));
+        let sensitive = match &self.data.categories {
+            None => true,
+            Some(listed) => listed
+                .iter()
+                .any(|c| SENSITIVE_DATA_CATEGORIES.contains(&c.as_str())),
+        };
         let exposed = matches!(self.app.audience, Audience::Customers | Audience::Public);
         if sensitive || exposed { 2 } else { 1 }
+    }
+
+    /// Why the level is 2 when only the unanswered data list made it so, in words for the owner;
+    /// `None` when the level rests on an answer.
+    pub fn level_from_unanswered_data(&self) -> Option<&'static str> {
+        let exposed = matches!(self.app.audience, Audience::Customers | Audience::Public);
+        (self.data.categories.is_none() && !exposed).then_some(
+            "securevibe.toml does not say what information the app holds about people (`[data] \
+             categories`), so the app is held to ASVS level 2, the level for apps that hold \
+             sensitive information such as health or financial details. List what it holds, or \
+             write `categories = []` if it holds nothing about people; if nothing on the list is \
+             sensitive, the level becomes 1.",
+        )
     }
 
     /// Every condition this manifest claims, before any corroboration. `None` means the manifest
@@ -1235,9 +1262,57 @@ mod tests {
     fn sensitive_data_raises_the_target_level() {
         let mut m = Manifest::default();
         m.app.audience = Audience::JustMe;
+        m.data.categories = Some(vec!["contact".into()]);
         assert_eq!(m.target_level(), 1);
-        m.data.categories = vec!["health".into()];
+        m.data.categories = Some(vec!["health".into()]);
         assert_eq!(m.target_level(), 2);
+    }
+
+    #[test]
+    fn data_nobody_described_is_not_a_quiet_no() {
+        // Level 1 says nothing sensitive is held. A list nobody filled in says nothing at all,
+        // so it must not buy the lower level; an explicit empty list is an answer and does.
+        let parse = |data: &str| -> Manifest {
+            toml::from_str(&format!(
+                "manifest-version = 1\n[app]\naudience = \"just-me\"\n{data}"
+            ))
+            .unwrap()
+        };
+        let silent = parse("");
+        assert_eq!(silent.data.categories, None);
+        assert_eq!(silent.target_level(), 2, "no [data] section at all");
+        assert_eq!(
+            parse("[data]\n").target_level(),
+            2,
+            "an empty [data] section"
+        );
+        let none = parse("[data]\ncategories = []\n");
+        assert_eq!(none.data.categories, Some(vec![]));
+        assert_eq!(none.target_level(), 1, "\"nothing\" is an answer");
+        // The report says why, and only when the unanswered list is the reason.
+        assert!(silent.level_from_unanswered_data().is_some());
+        assert!(none.level_from_unanswered_data().is_none());
+        let public: Manifest =
+            toml::from_str("manifest-version = 1\n[app]\naudience = \"public\"\n").unwrap();
+        assert_eq!(public.target_level(), 2);
+        assert!(
+            public.level_from_unanswered_data().is_none(),
+            "a public app is level 2 whatever it holds; blaming the data list would be untrue"
+        );
+    }
+
+    #[test]
+    fn the_starter_file_leaves_the_data_unanswered() {
+        let m: Manifest =
+            toml::from_str(crate::spec::STARTER_MANIFEST).expect("the starter file parses");
+        assert_eq!(
+            m.data.categories, None,
+            "the starter file must not answer what the app holds on the owner's behalf"
+        );
+        assert!(
+            crate::spec::STARTER_MANIFEST.contains("# categories = ?"),
+            "the unanswered line has to be there for the owner to find"
+        );
     }
 
     #[test]

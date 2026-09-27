@@ -75,7 +75,7 @@ pub fn check(manifest: &Manifest, resolved: &[ResolvedClaim]) -> Vec<Inconsisten
     let mut out = Vec::new();
     let categories: Vec<String> = manifest
         .data
-        .categories
+        .listed()
         .iter()
         .map(|c| c.to_lowercase())
         .collect();
@@ -125,7 +125,8 @@ mod tests {
         // alone changes nothing — but the app plainly holds financial data and the categories say
         // it does not, and that answer does change things.
         let mut m = Manifest::default();
-        m.app.audience = Audience::JustMe; // level 1, so the consequence is real
+        m.app.audience = Audience::JustMe;
+        m.data.categories = Some(vec![]); // level 1, so the consequence is real
         let resolved = resolved_with(&m, Condition::Payments);
         let found = check(&m, &resolved);
         assert_eq!(found.len(), 1, "{found:?}");
@@ -142,7 +143,7 @@ mod tests {
         let mut m = Manifest::default();
         m.app.audience = Audience::JustMe;
         for category in ["financial", "payment-card"] {
-            m.data.categories = vec![category.to_owned()];
+            m.data.categories = Some(vec![category.to_owned()]);
             let resolved = resolved_with(&m, Condition::Payments);
             assert!(
                 check(&m, &resolved)
@@ -158,7 +159,7 @@ mod tests {
         // An app already at level 2 gains no requirements by adding the category, and saying it
         // would is the kind of small overstatement this project keeps hunting.
         let mut m = Manifest::default();
-        m.data.categories = vec!["health".into()]; // already level 2
+        m.data.categories = Some(vec!["health".into()]); // already level 2
         assert_eq!(m.target_level(), 2);
         let resolved = resolved_with(&m, Condition::Payments);
         let found = check(&m, &resolved);

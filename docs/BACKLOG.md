@@ -847,7 +847,15 @@ another session is not a claim.
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
     **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
-    starter file issue"). **Claimed the same day by session securevibe-e8.**
+    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
+    all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
+    report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
+    an answer, "nothing about people", and still gets level 1. Only apps for `just-me` or `my-team`
+    can change level this way; `customers`, the default, and `public` were level 2 already, and the
+    note is not shown for them. Unanswered and answered-with-nothing, the starter file writing `[]`
+    again, the note missing, and the note blamed on a public app are each caught by one or two
+    tests.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
