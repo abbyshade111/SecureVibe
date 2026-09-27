@@ -2832,6 +2832,58 @@ every answered section documented regardless of who (four). The end-to-end test,
 `the_report_credits_only_what_the_owner_wrote_to_the_owner`, builds a report with one section of each
 kind and reads the status the owner would see.
 
+### A person confirming what the AI coding tool said (27 September 2026)
+
+Asked for by the owner after the VS Code run: when the owner does not know an answer, the tool answers
+from the code and it is *stated by the AI coding tool*, and the owner had no honest way to record
+that they then looked. Writing `by = "owner"` would say they gave the answer; they checked somebody
+else's. So a confirmation sits beside the tool's answer (`sv_check::confirm`):
+
+```toml
+"V8.3.1" = { answer = "yes", where = "src/app.js", by = "ai-tool",
+             confirmed = { by = "owner", on = "2026-09-27", answer = "yes", where = "src/app.js",
+                           how = "Sent a POST to the site and got 405; only GET and HEAD work." } }
+```
+
+The owner's four decisions, the same day:
+
+- **It ranks level with the owner's own record of the same kind**: a confirmed design answer with
+  *attested by the owner*, a confirmed check made by hand with *checked by hand by the owner*. Once a
+  person has looked and put their name to it, it is their word, and a sentence of what they saw is at
+  least as good as a bare yes. **It is shown as confirmed**, never as theirs: "stated by the AI coding
+  tool, confirmed by a person", then the tool's words, then the person's.
+- **The owner or anyone named may confirm**, at the same rank, the name printed. `sv` cannot tell who
+  anyone is, so a named reviewer does not outrank the owner.
+- **Never *checked***: it stays on the tests to write and settles no threat, as the tiers it joins do.
+- The nine tool-written notes sections of the owner's run were reviewed and agreed to. For the notes,
+  agreeing is `Written by: owner` (above), because a written decision the owner adopts is theirs.
+
+What keeps it honest. A confirmation failing any of these does not count, the tool's answer stays
+*stated*, and the report names the confirmation and why:
+
+- `how` is required, `on` is required and not in the future, and it lasts 90 days.
+- It repeats the answer it confirms (`answer` and `where`, or `result`), so an answer changed later is
+  not carried by a confirmation of the old one.
+- The `where` file must not have changed after `on`, judged by its modification day. A fresh copy of
+  the project looks new throughout and so asks again, which is the safe direction; a change made the
+  same day as the confirmation is not seen, because `on` is a day.
+- The AI coding tool cannot confirm its own answer.
+- Disagreeing needs nothing new: the owner answers `no` themselves, or records a check as a `problem`.
+
+It is applied after the answers are read, to the *stated* evidence only, and what it moves leaves
+*stated*, so nothing counts twice and an owner's own answer is never touched. The interview tells the
+tool to suggest something the person can see for themselves rather than ask a yes-or-no, and never
+to write a confirmation the person did not make.
+
+Fourteen guards were broken in turn and each was caught: a missing `how`, no expiry, a changed
+answer, a changed `where`, a file changed afterwards, the tool confirming itself, a future date, a
+changed `result`, a moved item left *stated* as well, confirmed design answers and confirmed checks
+each left out of the report, a confirmation that does not count left unnamed, a confirmed answer
+kept below the owner's rank, and a confirmation shown as the owner's own word. The end-to-end test,
+`the_report_shows_each_confirmation_for_what_it_is`, reads the status of each kind in the report; the
+two guards that mattered most and were first caught by one test only (the tool confirming itself,
+and a missing `how`) were given a second witness there.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

@@ -33,6 +33,12 @@ How to ask them. These are for the person you are building this app with, not fo
 - Write by = \"owner\" only for an answer the person gave or confirmed. If they ask you to answer, say
   what the code does, answer from that, and write by = \"ai-tool\". The report shows that as \"stated by
   the AI coding tool\", which is weaker than the person's own word, and says so.
+- The person can confirm what you answered, and then it counts as much as their own word. Suggest
+  something they can look at or try themselves (a page to open, a thing to try), not a yes-or-no. If
+  they do it and agree, add confirmed = { by = \"owner\", on = \"YYYY-MM-DD\", how = \"what they
+  looked at and saw\" } beside your answer, repeating the answer and `where` (or the `result`) it
+  confirms. A colleague can confirm too, with their name in `by`. Never write a confirmation the
+  person did not make: you cannot confirm your own answer.
 - Never answer yes to make the report look better. An answer is a record of how the app is, and a
   wrong yes hides the one thing the question exists to find.
 - When the person has had enough, stop. What is unanswered stays on the list for next time.
@@ -77,7 +83,10 @@ pub fn text(report: &Report) -> String {
             if status_of(report, &item.id) == Some(Status::Stated) {
                 out.push_str(
                     "   Only you, the AI coding tool, have answered this so far. Tell the person \
-                     what you answered and why, and record their answer if they give one.\n",
+                     what you answered and why, and record their answer if they give one. Or \
+                     suggest how they can see it for themselves; if they look and agree, confirm \
+                     it: confirmed = { by = \"owner\", on = \"YYYY-MM-DD\", answer = \"yes\", \
+                     where = \"...\", how = \"what they saw\" }.\n",
                 );
             }
         }
@@ -110,8 +119,10 @@ pub fn text(report: &Report) -> String {
              \"2026-09-26\", by = \"owner\", how = \"Opened the live site; the padlock shows a \
              trusted certificate.\" }}\n   `result` is done, problem, or not-yet; `on` is the day; \
              `how` is one sentence of what was done and seen, in the person's words, and is \
-             required. A check you made yourself, reading the code, is by = \"ai-tool\". A problem \
-             is worth recording: the report lists it as something to fix.\n",
+             required. A check you made yourself, reading the code, is by = \"ai-tool\"; if the \
+             person then makes it too and sees the same, add confirmed = {{ by = \"owner\", on = \
+             \"YYYY-MM-DD\", result = \"done\", how = \"what they saw\" }} beside it. A problem is \
+             worth recording: the report lists it as something to fix.\n",
             1 + usize::from(!design.is_empty()) + usize::from(!notes.is_empty()),
             by_hand.len()
         ));

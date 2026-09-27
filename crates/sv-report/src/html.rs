@@ -286,7 +286,8 @@ pub fn page(report: &Report) -> String {
                         .join("; ")
                 ),
                 Status::ByHand => format!(
-                    " \u{2014} your word, from a check you made by hand: {}",
+                    " \u{2014} {}: {}",
+                    line.whose_word(),
                     line.by_hand
                         .iter()
                         .map(|c| c.scope.clone())
@@ -295,11 +296,7 @@ pub fn page(report: &Report) -> String {
                 ),
                 Status::Attested | Status::Stated => format!(
                     " \u{2014} {}, not a check: {}",
-                    if line.status == Status::Attested {
-                        "your word"
-                    } else {
-                        "your AI coding tool's word"
-                    },
+                    line.whose_word(),
                     line.attested_by
                         .iter()
                         .map(|c| c.scope.clone())
@@ -327,7 +324,7 @@ pub fn page(report: &Report) -> String {
             b.push_str(&format!(
                 "<tr><td><code>{}</code></td><td class=\"{class}\">{}{}</td><td>{}</td></tr>\n",
                 escape(&line.id),
-                escape(line.status.label()),
+                escape(line.shown_label()),
                 escape(&detail),
                 escape(&line.description)
             ));

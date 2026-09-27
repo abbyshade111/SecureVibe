@@ -33,8 +33,9 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .join("; ")
         ),
         Status::ByHand => format!(
-            "{} \u{2014} your word, from a check you made by hand: {}",
-            line.status.label(),
+            "{} \u{2014} {}: {}",
+            line.shown_label(),
+            line.whose_word(),
             line.by_hand
                 .iter()
                 .map(|c| c.scope.clone())
@@ -43,12 +44,8 @@ fn status_cell(line: &crate::RequirementLine) -> String {
         ),
         Status::Attested | Status::Stated => format!(
             "{} \u{2014} {}, not a check: {}",
-            line.status.label(),
-            if line.status == Status::Attested {
-                "your word"
-            } else {
-                "your AI coding tool's word"
-            },
+            line.shown_label(),
+            line.whose_word(),
             line.attested_by
                 .iter()
                 .map(|c| c.scope.clone())

@@ -87,6 +87,46 @@ impl Status {
     }
 }
 
+impl RequirementLine {
+    /// True when the only thing behind an *attested* or *checked by hand* status is somebody
+    /// confirming what the AI coding tool said, rather than the owner's own record.
+    ///
+    /// Same rank, at the owner's decision (27 September 2026), and never shown as the owner's own:
+    /// the label says the tool said it first and a person confirmed it.
+    pub fn confirmed_only(&self) -> bool {
+        match self.status {
+            Status::Attested => !self
+                .attested_by
+                .iter()
+                .any(|c| c.check_id == "design.attested"),
+            Status::ByHand => self
+                .by_hand
+                .iter()
+                .all(|c| c.check_id == sv_check::confirm::HAND_CONFIRMED),
+            _ => false,
+        }
+    }
+
+    /// The status as a person reads it: the tier's label, or the confirmed version of it.
+    pub fn shown_label(&self) -> &'static str {
+        match (self.status, self.confirmed_only()) {
+            (Status::Attested, true) => "stated by the AI coding tool, confirmed by a person",
+            (Status::ByHand, true) => "checked by the AI coding tool, confirmed by a person",
+            (status, _) => status.label(),
+        }
+    }
+
+    /// Whose word the status rests on, for the line after the label.
+    pub fn whose_word(&self) -> &'static str {
+        match (self.status, self.confirmed_only()) {
+            (Status::Attested | Status::ByHand, true) => "the word of the person who confirmed it",
+            (Status::Attested, false) => "your word",
+            (Status::ByHand, false) => "your word, from a check you made by hand",
+            _ => "your AI coding tool's word",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct RequirementLine {
     pub id: String,
@@ -544,7 +584,9 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             Status::Documented
         } else if !by_hand.is_empty() {
             Status::ByHand
-        } else if attested_by.iter().any(|c| c.check_id == "design.attested") {
+        } else if attested_by.iter().any(|c| {
+            c.check_id == "design.attested" || c.check_id == sv_check::confirm::DESIGN_CONFIRMED
+        }) {
             Status::Attested
         } else if !attested_by.is_empty() {
             Status::Stated

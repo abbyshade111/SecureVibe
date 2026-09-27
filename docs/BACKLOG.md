@@ -81,8 +81,12 @@ another session is not a claim.
   **Step 1 done the same day** (DESIGN.md, "Who wrote each section of the security notes"): each notes
   answer starts with `Written by: owner` or `Written by: AI coding tool`; no line counts as the tool's;
   the tool's sections are *stated by the AI coding tool* and asked again; anything else is unreadable
-  and named; only `sv`'s own two italic lines are dropped. Eight guards broken, each caught. **Still to
-  do: step 2**, the confirmation record.
+  and named; only `sv`'s own two italic lines are dropped. Eight guards broken, each caught. **Step 2
+  done the same day** (DESIGN.md, "A person confirming what the AI coding tool said"): `confirmed = {
+  by, on, how, answer, where }` beside a design answer, or `{ by, on, how, result }` beside a check made
+  by hand; it ranks with the owner's own record, shown as confirmed; it lapses after 90 days, when the
+  answer changes, or when the `where` file changes after `on`; the tool cannot confirm itself; one that
+  does not count is named. Fourteen guards broken, each caught. **Done.**
 
   **Found the same day, from the owner's own files, and the first thing to fix:** the security notes
   have no way to say who wrote a section, and `sv` credits every written section as *documented by the
