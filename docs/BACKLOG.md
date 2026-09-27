@@ -663,7 +663,10 @@ another session is not a claim.
 
 - **A zip of the whole result, for the owner to keep or hand on.** Asked for by the owner on
   26 September 2026: the application, its scans and its report in one download, at the end of a build
-  or on request. **Not claimed; the owner decides when it is made.**
+  or on request. **Claimed on 27 September 2026 by the v1 builder ("Vibe-coding builder"), when the owner asked
+  that an item be picked; the owner is watching it and can stop it.** Plan: a `sv bundle` command first, with the
+  secret rules deciding what stays out and a listing that says what was left out and why; the MCP tool and the
+  "offer it once the report is written" step after that, as their own pieces.
 
   What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
   `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,
