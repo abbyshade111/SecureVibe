@@ -212,7 +212,10 @@ of writing them. From inside the tool, `securevibe_guidance` gives the same rule
 all of them.
 
 The rules are instructions for the tool, not a check. Following them is not evidence that the app
-meets anything, and no requirement in the report changes because of them.
+meets anything, and no requirement in the report changes because of them. The report keeps the
+Appendix C requirements nothing has reached out of its headline numbers, in a section of their own,
+"How the app is built with AI", which lists each one and says whether it is given to your tool as a
+rule, is your decision, or is reached by nothing in `sv`.
 
 **Where they come from.** The rules are adapted from
 [OWASP AI Security Verification Standard (AISVS) 1.0, Appendix C: AI-Assisted Secure Coding](https://github.com/OWASP/AISVS/blob/main/1.0/en/0x92-Appendix-C_AI_for_Code_Generation.md),

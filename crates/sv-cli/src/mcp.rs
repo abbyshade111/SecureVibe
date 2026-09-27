@@ -680,6 +680,9 @@ fn summary(report: &sv_report::Report) -> String {
         c.not_verified,
         c.not_assessed
     );
+    if !report.ai_process.lines.is_empty() {
+        out.push_str(&format!("{}\n", report.ai_process.summary()));
+    }
     if !report.gaps.is_empty() {
         out.push_str("\nNOT EXAMINED — read these before anything below:\n");
         for gap in &report.gaps {
@@ -1052,6 +1055,23 @@ mod tests {
         std::fs::remove_dir_all(&target).ok();
         assert_eq!(refused["isError"], true, "{}", text(&refused));
         assert!(!wrote, "a report was written to an absolute folder");
+    }
+
+    #[test]
+    fn the_check_says_how_appendix_c_is_counted() {
+        let server = Server::new(&examples()).unwrap();
+        let result = call(
+            &server,
+            "securevibe_check",
+            json!({ "path": "flask-booking" }),
+        );
+        let said = text(&result);
+        assert!(said.contains("OWASP AISVS Appendix C"), "{said}");
+        assert!(
+            said.contains("rules given to your AI coding tool"),
+            "{said}"
+        );
+        assert!(said.contains("not evidence"), "{said}");
     }
 
     #[test]

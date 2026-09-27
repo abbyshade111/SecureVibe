@@ -153,6 +153,13 @@ pub fn page(report: &Report) -> String {
         c.needs_attention + c.checked,
         c.not_verified
     ));
+    if c.ai_process > 0 {
+        b.push_str(&format!(
+            "<p>A further {} about how the app is built with an AI coding tool, from OWASP AISVS \
+             Appendix C, are counted apart: see <em>How the app is built with AI</em>, below.</p>\n",
+            c.ai_process
+        ));
+    }
     b.push_str(
         "<p>Nothing in this report says a requirement passed, because nothing here can establish \
          that. <em>Checked</em> means an automated check looked at it and found nothing wrong, \
@@ -330,6 +337,26 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+    }
+
+    if !report.ai_process.lines.is_empty() {
+        let p = &report.ai_process;
+        b.push_str("<h2>How the app is built with AI (OWASP AISVS Appendix C)</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape(&p.summary())));
+        b.push_str(&format!(
+            "<details>\n<summary>The {} requirements</summary>\n<table>\n\
+             <tr><th>requirement</th><th>what happens to it</th><th>what it asks for</th></tr>\n",
+            p.lines.len()
+        ));
+        for line in &p.lines {
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                escape(&line.id),
+                escape(crate::AiProcess::route_text(line.route)),
+                escape(&line.description)
+            ));
+        }
+        b.push_str("</table>\n</details>\n");
     }
 
     if !report.threats.is_empty() {

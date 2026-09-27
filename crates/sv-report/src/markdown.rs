@@ -162,6 +162,13 @@ pub fn compliance(report: &Report) -> String {
         c.needs_attention + c.checked,
         c.not_verified
     ));
+    if c.ai_process > 0 {
+        out.push_str(&format!(
+            "A further {} about how the app is built with an AI coding tool, from OWASP AISVS \
+             Appendix C, are counted apart: see \"How the app is built with AI\", below.\n\n",
+            c.ai_process
+        ));
+    }
     out.push_str(
         "There is no line in this report that says a requirement passed, because nothing here is \
          able to establish that. A requirement marked *checked* had at least one automated check look \
@@ -233,6 +240,22 @@ pub fn compliance(report: &Report) -> String {
                 "| {} | {} | {} |\n",
                 cell(&line.id),
                 cell(&status_cell(line)),
+                cell(&line.description)
+            ));
+        }
+        out.push('\n');
+    }
+
+    if !report.ai_process.lines.is_empty() {
+        let p = &report.ai_process;
+        out.push_str("## How the app is built with AI (OWASP AISVS Appendix C)\n\n");
+        out.push_str(&format!("{}\n\n", p.summary()));
+        out.push_str("| requirement | what happens to it | what it asks for |\n|---|---|---|\n");
+        for line in &p.lines {
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.id),
+                cell(crate::AiProcess::route_text(line.route)),
                 cell(&line.description)
             ));
         }
