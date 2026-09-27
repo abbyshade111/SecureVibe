@@ -107,10 +107,26 @@ fn writer_of(body: &str) -> Writer {
     found.unwrap_or(Writer::Unmarked)
 }
 
-/// A section's prose without its `Written by:` line, which says who and not what.
+/// A line wholly in emphasis that says in its own words who wrote the section, as the AI coding
+/// tool marks its work: *Written by the AI coding tool from the code; review before relying on it.*
+///
+/// Like the `Written by:` line it says who and not what, so it is no part of an answer; unlike that
+/// line, it is never read for who (the tool's own words are not a mark `sv` defines). Without this,
+/// a section holding nothing but that line, which is longer than the floor below, read as an
+/// answer. Only a line entirely in italics or bold counts, so a sentence of an answer that happens
+/// to begin "Written by" is still the answer.
+fn byline(line: &str) -> bool {
+    let t = line.trim();
+    let emphasized = t.chars().count() > 2
+        && ((t.starts_with('*') && t.ends_with('*')) || (t.starts_with('_') && t.ends_with('_')));
+    let plain: String = t.chars().filter(|c| *c != '*' && *c != '_').collect();
+    emphasized && plain.trim().to_lowercase().starts_with("written by")
+}
+
+/// A section's prose without the lines that say who wrote it, which say who and not what.
 fn prose(body: &str) -> String {
     body.lines()
-        .filter(|line| written_by(line).is_none())
+        .filter(|line| written_by(line).is_none() && !byline(line))
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -878,6 +894,60 @@ mod tests {
         assert!(
             again.contains("*Written by the AI coding tool from the code;"),
             "rewriting must not drop a line somebody else wrote: {again}"
+        );
+    }
+
+    #[test]
+    fn the_ai_tools_disclaimer_alone_is_no_answer() {
+        // Longer than the floor on its own, and nobody's decision about anything.
+        let disclaimer =
+            "*Written by the AI coding tool from the code; review before relying on it.*";
+        assert!(disclaimer.chars().count() > LEAST_ANSWER_CHARS);
+        for body in [
+            disclaimer.to_owned(),
+            format!("{disclaimer}\n\nWritten by: AI coding tool"),
+            "_Written by the AI coding tool from the code, to be reviewed by the owner._"
+                .to_owned(),
+            format!(
+                "**Written by the AI coding tool from what the code does today.**\n\nWritten by: owner"
+            ),
+        ] {
+            let answers = with_answer(&body);
+            assert!(
+                answers.answered().is_empty(),
+                "{body:?} read as {:?}",
+                answers.answered()
+            );
+        }
+        // With an answer under it, the section is the tool's, as before.
+        assert_eq!(
+            with_answer(&format!("{disclaimer}\n\n{RULES}")).stated(),
+            applicable(&["V8.1.1"])
+        );
+    }
+
+    #[test]
+    fn a_sentence_of_an_answer_that_begins_written_by_is_still_the_answer() {
+        // Only a line entirely in emphasis is a byline.
+        let answers = with_answer(
+            "Written by our accountant: records are kept for seven years, then deleted.\n\n\
+             Written by: owner",
+        );
+        assert_eq!(
+            answers.documented(),
+            applicable(&["V8.1.1"]),
+            "{:?}",
+            answers.answered()
+        );
+        let answers = with_answer(
+            "*Written by our accountant:* records are kept for seven years, then deleted.\n\n\
+             Written by: owner",
+        );
+        assert_eq!(
+            answers.documented(),
+            applicable(&["V8.1.1"]),
+            "{:?}",
+            answers.answered()
         );
     }
 
