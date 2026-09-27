@@ -1835,6 +1835,13 @@ mod tests {
                 "<a onclick=\"&alpha;()\">go</a>",
                 "a reference this does not decode",
             ),
+            // The one above is also refused by the grammar, so on its own it does not show the
+            // reference check does anything. This one parses with the reference left as written —
+            // `x & alpha; (1)` — while a browser runs `xα(1)`, a different program.
+            (
+                "<a onclick=\"x&alpha;(1)\">go</a>",
+                "a reference this does not decode, in code that parses without it",
+            ),
             ("<a href=\"javascript:go()>go</a>", "a quote never closed"),
             ("<a href=javascript:go()", "a tag never closed"),
             ("<script>go()</scripts>", "a script never closed"),
