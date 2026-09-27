@@ -92,7 +92,7 @@ pub struct DetectedEcosystem {
     ///
     /// Maven does not: versions live in `pom.xml` and there is no lockfile to look for. Without this
     /// flag `unpinned` reported every Maven project as pinning nothing, which is not a coverage gap
-    /// but a wrong statement in a report — the thing ADR-012 exists to stop. A caller that wants to
+    /// but a wrong statement in a report — the thing v1's ADR-012 exists to stop. A caller that wants to
     /// say "this app pins nothing" asks `pinning`, which reads Maven's versions instead.
     pub pins_with_lockfile: bool,
 }
