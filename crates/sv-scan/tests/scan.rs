@@ -1359,3 +1359,138 @@ app = Flask(__name__)
         "a client's dependency list was read as running an authorization server: {server_evidence}"
     );
 }
+
+// ---- a rate limiter is not an API ----
+
+/// Item 3 of the owner's first build from scratch: `express-rate-limit` and its kind answered
+/// `public-api`, so an app with no sign-in and no API at all was handed the API requirements over
+/// the manifest's own "no" (corroboration only ever adds).
+const RATE_LIMITERS: &[&str] = &[
+    "express-rate-limit",
+    "@fastify/rate-limit",
+    "flask-limiter",
+    "slowapi",
+    "rack-attack",
+];
+
+#[test]
+fn a_rate_limiter_is_not_evidence_of_a_public_api() {
+    let limited = scan_files(
+        "rate-limited",
+        &[
+            (
+                "package.json",
+                "{\"name\":\"shop\",\"dependencies\":{\"express\":\"^4.19.0\",\"express-rate-limit\":\"^7.4.0\",\"@fastify/rate-limit\":\"^10.1.0\"}}",
+            ),
+            (
+                "package-lock.json",
+                "{\"name\":\"shop\",\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            (
+                "requirements.txt",
+                "flask==3.0.0\nflask-limiter==3.8.0\nslowapi==0.1.9\n",
+            ),
+            (
+                "requirements.lock",
+                "flask==3.0.0\nflask-limiter==3.8.0\nslowapi==0.1.9\n",
+            ),
+            ("index.js", "console.log('shop');\n"),
+        ],
+    );
+    let found = answer(&limited, Condition::PublicApi);
+    assert_ne!(found.value, Some(true), "{:?}", found.evidence);
+
+    // The control: the same app with an API description package is found, so the scan above read
+    // the dependencies and had the chance to answer.
+    let described = scan_files(
+        "rate-limited-and-described",
+        &[
+            (
+                "package.json",
+                "{\"name\":\"shop\",\"dependencies\":{\"express\":\"^4.19.0\",\"express-rate-limit\":\"^7.4.0\",\"swagger-ui-express\":\"^5.0.1\"}}",
+            ),
+            (
+                "package-lock.json",
+                "{\"name\":\"shop\",\"lockfileVersion\":3,\"packages\":{}}",
+            ),
+            ("index.js", "console.log('shop');\n"),
+        ],
+    );
+    let found = answer(&described, Condition::PublicApi);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, .. } if name == "swagger-ui-express"),
+        "{:?}",
+        found.evidence
+    );
+}
+
+#[test]
+fn no_public_api_package_is_a_rate_limiter() {
+    // The data file, read directly: a rate limiter put back under `public-api`, in any ecosystem,
+    // fails here whether or not a scan test happens to use that ecosystem.
+    let text = std::fs::read_to_string(data("claim-corroborators.json")).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let entry = json["signatures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["condition"] == "public-api")
+        .expect("public-api has a corroborator");
+    let packages: Vec<&str> = entry["packages"]
+        .as_object()
+        .unwrap()
+        .values()
+        .flat_map(|list| list.as_array().unwrap().iter().filter_map(|p| p.as_str()))
+        .collect();
+    assert!(!packages.is_empty());
+    for p in &packages {
+        let lower = p.to_lowercase();
+        assert!(
+            !RATE_LIMITERS.contains(&lower.as_str())
+                && !lower.contains("rate-limit")
+                && !lower.contains("ratelimit")
+                && !lower.contains("limiter")
+                && !lower.contains("throttl"),
+            "{p} limits requests; it says nothing about who is calling"
+        );
+    }
+}
+
+#[test]
+fn a_ruby_rate_limiter_is_not_evidence_either() {
+    let gemfile = |extra: &str| {
+        format!("source 'https://rubygems.org'\ngem 'rails', '~> 7.2'\ngem 'rack-attack'\n{extra}")
+    };
+    let limited = scan_files(
+        "ruby-rate-limited",
+        &[
+            ("Gemfile", &gemfile("")),
+            (
+                "Gemfile.lock",
+                "GEM\n  specs:\n    rails (7.2.1)\n    rack-attack (6.7.0)\n",
+            ),
+            ("app.rb", "puts 'shop'\n"),
+        ],
+    );
+    let found = answer(&limited, Condition::PublicApi);
+    assert_ne!(found.value, Some(true), "{:?}", found.evidence);
+
+    // The control: Ruby's dependencies are read, and an API description gem is found.
+    let described = scan_files(
+        "ruby-rate-limited-and-described",
+        &[
+            ("Gemfile", &gemfile("gem 'rswag'\n")),
+            (
+                "Gemfile.lock",
+                "GEM\n  specs:\n    rails (7.2.1)\n    rack-attack (6.7.0)\n    rswag (2.14.0)\n",
+            ),
+            ("app.rb", "puts 'shop'\n"),
+        ],
+    );
+    let found = answer(&described, Condition::PublicApi);
+    assert!(
+        matches!(&found.evidence, Evidence::Dependency { name, .. } if name == "rswag"),
+        "{:?}",
+        found.evidence
+    );
+}

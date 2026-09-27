@@ -634,7 +634,7 @@ another session is not a claim.
      `express-rate-limit`, `@fastify/rate-limit`, `flask-limiter`, `slowapi` and `rack-attack` under
      `public-api`. Limiting requests is ordinary for any web app, and one of the usual ways to build the
      brute-force controls V6.3.1 asks for, so an app that adds it is handed the API requirements, over
-     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling. **Claimed on 27 September 2026 by session securevibe-e9.**
+     the manifest's own "no" (corroboration only ever adds). The owner's app has no sign-in at all. A rate limiter shows requests are limited, not who is calling. **Claimed on 27 September 2026 by session securevibe-e9.** **Done the same day:** the five are gone from `public-api`, and two tests keep them out. See DESIGN, "A rate limiter is not an API".
   4. **Security notes the AI tool wrote are credited to the owner.** `security-notes.md` records no
      author, so the report counted all 12 answers as *documented by the owner*; the tool had written 8
      of them from the code. It marked them "Written by the AI coding tool" in the prose and warned the
