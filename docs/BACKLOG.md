@@ -9,6 +9,65 @@ another session is not a claim.
 
 ## Next
 
+- **Records that disagree with what was built, or are missing, found by the ADR analysis.** Found on 27 September 2026 by
+  session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one
+  to be put here so it gets fixed. **Not claimed; each item can be claimed on its own.** Items 1 to 4 are in v1's
+  records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
+  `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
+  the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.
+  1. **v1's ADR-012 cites "ADR-011's sibling change", and no record carries the number ADR-011.** The file named
+     `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
+     ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
+     nobody read").
+  2. **v1's ADR-010 says generated code's network access is not restricted, and rejects `sandbox-exec`.** Two
+     days later the network fence (`27b85e2`, 18 September) used `sandbox-exec` on macOS and a network namespace
+     on Linux, and v1's `docs/CONTRACTS.md` describes it. ADR-010 was never updated, and v1's `README.md` still
+     says "Network access is **not** restricted — the reports say so."
+  3. **v1's ADR-008 lists three AI providers** (`anthropic`, `null`, `scripted`). OpenAI and Google providers
+     were added on 18 September (`7ecb4c3`, `71fae08`), with a choice of service per step (`4b947ac`), and the
+     record was not updated.
+  4. **v1's ADR-013 contradicts itself on paper size.** Its decision says the PDF writer "lays it out on A4
+     pages". Its cost section, updated by `2ef4149`, says US Letter is the default and A4 is a setting.
+  5. **`sv`'s `README.md` says "`sv` opens no network connection", and ADR-017 and `CLAUDE.md` say it opens
+     none "of its own".** `sv probe <address>` has `curl` make a handful of read-only requests to the address the
+     owner types (`crates/sv-cli/src/main.rs`, `cmd_probe`). That is deliberate, and it is the only exception,
+     but none of the three says so. Name the exception in each.
+  6. **`DESIGN.md` says v1's evidence rule carries over "word for word" as "AI review alone is `ai-assessed`,
+     never `pass`".** `sv`'s reports have neither status (they say *checked*, *needs attention*, *stated*, and so
+     on), and `sv` has no AI review. Restate the rule in `sv`'s own terms: an AI tool's word is `stated`, the
+     weakest tier, and nothing a model says makes a requirement *checked*.
+  7. **v1's ADR-001 cites a requirement that does not fit it.** It gives V15.1.2 (keep an inventory of
+     third-party libraries, such as an SBOM) for the choice of "TypeScript everywhere with a single npm install".
+     A language choice is not an inventory. ADR-007 cites the same requirement correctly, since it ships the SBOM.
+     The other 15 citations in v1's records fit their decisions (checked against `data/frameworks` on
+     27 September 2026).
+  8. **`sv`'s two largest technical choices have no record, and each reverses a v1 decision.**
+     - **Rust.** v1's ADR-001 chose "TypeScript everywhere". `DESIGN.md` says only "Written in Rust.", and no
+       reason is recorded anywhere.
+     - **Running apps in Docker behind an `--internal` network.** v1's ADR-010 rejected Docker because it "is not
+       available on the target machine". `DESIGN.md` argues the fence at length and says what changed ("A container
+       backend is available on this machine as of 22 September 2026"). No record names it as replacing ADR-010's
+       choice, and ADR-010 itself says nothing of it.
+
+     Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
+
+- **What `sv` cannot see when it checks itself, found by the v2 self-assessment.** Found on 27 September 2026
+  (`docs/paper/SELF-ASSESSMENT-V2.md`, "Three things `sv` could do about this"). **Not claimed.**
+  1. **Test fixtures and example apps are read as part of the app.** On `sv`'s own repository they overruled the
+     manifest 19 times and added 547 findings. A manifest could name folders that are fixtures or examples: still
+     read, but unable to overrule the manifest, and with their findings listed apart.
+  2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
+     product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
+  3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
+     never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
+     incident (#77).
+
+- **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking. **Done the same day:** `docs/paper/ADRS.md`; its inconsistencies are the entry above. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
+  ADR-018, the template's three, and the decisions not yet written as ADRs: when each was made, whether it held,
+  what later evidence says about it, and how v1's decisions carried into `sv`. A written analysis and a figure in
+  `docs/paper/`. Touches only `docs/paper/`.
+
 - **False alarms, part 1: fewer of them reach the owner.** Asked for by the owner on 27 September
   2026, after an investigation by session securevibe-e2 of how `sv` handles findings that are wrong.
   Today there is no way to set a finding aside, the same line can be reported by two tools as two
