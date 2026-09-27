@@ -2884,6 +2884,40 @@ kept below the owner's rank, and a confirmation shown as the owner's own word. T
 two guards that mattered most and were first caught by one test only (the tool confirming itself,
 and a missing `how`) were given a second witness there.
 
+### Three things the owner's first build tripped on (27 September 2026)
+
+Items 6, 7, and 8 of "What the owner's first build found", each a place where somebody who is not
+technical was left to work something out.
+
+**The command it told them to run did not exist.** The MCP server said "run `sv report --run --tools`
+in a terminal", and `sv` had never been put on the terminal's search path: `command not found`. Now
+the command names the program answering, by its full path (`std::env::current_exe`, canonical), and
+quotes it when it holds a space, so it works as typed whether or not `sv` is on the path. In the
+container the image sets `SV_IN_CONTAINER`, and the command is for `sv` installed on the computer
+instead, since starting the app cannot work from inside it; the container's own path would mean
+nothing outside. Guards broken and caught: the bare `sv` again (three tests, one of them driving the
+server over stdio), the container's path given (one here, and `tools/image_smoke.py` in CI), a path
+with a space left unquoted (one).
+
+**Nothing said to put the app in git.** Whether a secrets file was ever committed is *not assessed*
+outside git, honestly, and a beginner's app usually starts there. The message now says to put it in
+git, and in which order: a `.gitignore` that leaves out `.env` before the first commit, or the first
+commit saves the very file the check looks for. A repository git cannot read gets its own message,
+not that advice, because it is in git already. The two were one message before; breaking them back
+into one is caught.
+
+**One question led a tool to count a web search as a vector database.** `rag` asked "does it search a
+document store or vector database?", and the owner's app, which asks Claude to search vendor
+websites, answered yes, bringing in the vector-database requirements (C8) for an app with no
+database. Narrowing the question would have been wrong the other way: four of the seven requirements
+`rag` switches on fit a web search too, C7.4.1 to C7.4.3 (answers cite what was retrieved, from the
+retrieval itself) and C12.1.4 (each retrieval logged). So a separate answer, `web-search`, brings in
+those four and not the rest. The trap in writing it: `rules_for` takes the most specific scope that
+has rules, so a `web-search` rule at C7.4.1 alone would have hidden the `rag` rule written for all of
+C7.4, and an app with a document store would have lost C7.4.1. Each of the three is written with both
+conditions. Breaking that, dropping C12.1.4's rule, reading `web-search` as `rag`, and not reading the
+answer at all are each caught.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

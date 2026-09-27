@@ -675,7 +675,14 @@ another session is not a claim.
   **Friction for somebody who is not technical** (see the walk-through entry above):
 
   **Items 6, 7, and 8 claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking
-  ("continue to work off items in the backlog, your choice").
+  ("continue to work off items in the backlog, your choice"). **Done the same day** (DESIGN, "Three
+  things the owner's first build tripped on"): the command the MCP server gives names `sv` by its
+  full path, or `sv` on the computer when it runs in the container; the not-in-git message says to put
+  the app in git with a `.gitignore` first; and a web search is its own answer, `web-search`, which
+  brings in C7.4.1 to C7.4.3 and C12.1.4 and not the vector-database requirements. Left over: the
+  `rag` rule for all of C7.4 still covers C7.4.4 (watermarking generated media), which has nothing to
+  do with retrieval and probably belongs with `multimodal-ai`; and no package names `web-search` yet,
+  so nothing corroborates the answer from the code.
 
   6. **The tool told the owner to run `sv`, and there was no `sv`.** The MCP results say to run
      `sv report --run --tools` at a terminal; the owner got `command not found`, ran it by its full

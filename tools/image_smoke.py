@@ -129,6 +129,11 @@ def main():
             check(False, "securevibe_check answers: " + image_check["result"]["content"][0]["text"])
             sys.exit("the image cannot check an app, so nothing else is worth asking")
         check(True, "securevibe_check answers")
+        # Starting the app cannot work from the container, so what the tool is told to have the
+        # person run names `sv` on the computer itself, never the container's own path.
+        told = gaps(image_check)
+        check("installed on the computer itself" in told and "/usr/local/bin/sv" not in told,
+              "the command to start the app is for sv on the computer, not in the container")
         committed = "config.secrets-file-committed" in findings(image_check)
         if args.no_git:
             check(not committed and "git" in gaps(image_check).lower(),

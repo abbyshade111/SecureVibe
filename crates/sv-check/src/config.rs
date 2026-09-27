@@ -91,11 +91,23 @@ fn is_example_file(name: &str) -> bool {
     name.ends_with(".example") || name.ends_with(".sample") || name.ends_with(".template")
 }
 
-/// Asks git which files it is tracking. `None` when git cannot answer — not a repository, not installed.
-fn tracked_files(app_dir: &Path) -> Option<Vec<String>> {
+/// Why git could not say which files it tracks.
+enum NoHistory {
+    /// There is no `.git` here at all: the app was never put in git.
+    NotARepository,
+    /// There is one, and git could not read it: not installed, a broken link, a refused owner.
+    Unreadable,
+}
+
+/// Asks git which files it is tracking.
+fn tracked_files(app_dir: &Path) -> Result<Vec<String>, NoHistory> {
     if !app_dir.join(".git").exists() {
-        return None;
+        return Err(NoHistory::NotARepository);
     }
+    read_tracked(app_dir).ok_or(NoHistory::Unreadable)
+}
+
+fn read_tracked(app_dir: &Path) -> Option<Vec<String>> {
     let out = Command::new("git")
         .args(["-C", app_dir.to_str()?, "ls-files"])
         .output()
@@ -113,13 +125,30 @@ fn tracked_files(app_dir: &Path) -> Option<Vec<String>> {
 
 /// The check that matters most: a file whose job is holding credentials, committed to version control.
 fn secrets_file_committed(app_dir: &Path) -> Outcome {
-    let Some(tracked) = tracked_files(app_dir) else {
-        return Outcome::NotAssessed(
-            "This folder is not a git repository that `sv` could read, so it cannot say whether a \
-             secrets file was ever committed. If the app is kept in version control somewhere else, \
-             that question is still open."
-                .to_owned(),
-        );
+    let tracked = match tracked_files(app_dir) {
+        Ok(tracked) => tracked,
+        // Found in the owner's first build (27 September 2026): a beginner's app usually starts
+        // outside git, and nothing said to put it there, so this check never ran. The order in the
+        // advice matters: `git add` before a `.gitignore` commits the very file this looks for.
+        Err(NoHistory::NotARepository) => {
+            return Outcome::NotAssessed(
+                "This folder is not a git repository, so `sv` cannot say whether a secrets file \
+                 was ever committed. Putting the app in git (version control, which keeps every \
+                 saved version) makes this check run, and is worth doing anyway. Ask your AI coding \
+                 tool to do it, and to add a .gitignore that leaves out .env and other secret files \
+                 before the first commit, so that commit does not save them. If the app is already \
+                 kept in version control somewhere else, that copy's history is still unchecked."
+                    .to_owned(),
+            );
+        }
+        Err(NoHistory::Unreadable) => {
+            return Outcome::NotAssessed(
+                "This folder has a git repository that git could not read (git may not be \
+                 installed, or the repository is damaged or belongs to another user), so `sv` \
+                 cannot say whether a secrets file was ever committed."
+                    .to_owned(),
+            );
+        }
     };
 
     let committed: Vec<&String> = tracked
@@ -491,6 +520,12 @@ mod tests {
             .find(|(id, _)| id == "config.secrets-file-committed")
             .expect("must be recorded as not assessed");
         assert!(why.contains("not a git repository"), "{why}");
+        // And it says how to fix that safely: a .gitignore before the first commit, or the first
+        // commit saves the very file this check looks for.
+        assert!(
+            why.contains("Putting the app in git") && why.contains("before the first commit"),
+            "{why}"
+        );
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -511,12 +546,15 @@ mod tests {
                 .any(|p| p.check_id == "config.secrets-file-committed"),
             "a repository git cannot read must not pass: {report:?}"
         );
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.secrets-file-committed")
+            .expect("it must be recorded as not assessed");
+        // It is in git already, so the advice for an app outside git would be wrong here.
         assert!(
-            report
-                .not_assessed
-                .iter()
-                .any(|(id, _)| id == "config.secrets-file-committed"),
-            "it must be recorded as not assessed: {report:?}"
+            why.contains("could not read") && !why.contains("Putting the app in git"),
+            "{why}"
         );
         fs::remove_dir_all(&dir).ok();
     }

@@ -676,10 +676,10 @@ fn cmd_questions(path: Option<PathBuf>) -> Result<()> {
             run_the_app: false,
             slow: false,
             run_tools: false,
-            why_not_run: "",
-            why_no_tools: "",
+            why_not_run: "".to_owned(),
+            why_no_tools: "".to_owned(),
             advisories: None,
-            why_no_advisories: "",
+            why_no_advisories: "".to_owned(),
         },
     )?;
     println!(
@@ -1431,11 +1431,13 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
             run_the_app,
             slow,
             run_tools,
-            why_not_run: "`sv bundle` does not start the app unless you pass --run.",
-            why_no_tools: "`sv bundle` does not run other people's tools unless you pass --tools.",
+            why_not_run: "`sv bundle` does not start the app unless you pass --run.".to_owned(),
+            why_no_tools: "`sv bundle` does not run other people's tools unless you pass --tools."
+                .to_owned(),
             advisories: advisories_dir,
             why_no_advisories: "`sv bundle` compares against known vulnerabilities only when you \
-                                pass --advisories DIR.",
+                                pass --advisories DIR."
+                .to_owned(),
         },
     )?;
     let command = format!("sv bundle {}", args.join(" "));
@@ -1615,13 +1617,13 @@ struct ReportOptions {
     /// Run the language's own security tool. Opt-in: these are other people's programs.
     run_tools: bool,
     /// Said in the report when the app was not started, in the words of whoever built it.
-    why_not_run: &'static str,
+    why_not_run: String,
     /// Said in the report when the tools were not run.
-    why_no_tools: &'static str,
+    why_no_tools: String,
     /// A local advisory database to compare the bill of materials with. `sv` never fetches one.
     advisories: Option<PathBuf>,
     /// Said in the report when there was no database to compare with.
-    why_no_advisories: &'static str,
+    why_no_advisories: String,
 }
 
 /// Everything `sv report` knows about an app, built once for every caller.
@@ -2054,7 +2056,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         }
     } else {
         run_status = sv_report::RunStatus::NotAsked {
-            why: options.why_not_run.to_owned(),
+            why: options.why_not_run.clone(),
         };
         gaps.push(sv_report::Gap {
             what: "the running app".to_owned(),
@@ -2643,11 +2645,13 @@ fn cmd_report(args: &[String]) -> Result<()> {
             run_the_app,
             slow,
             run_tools,
-            why_not_run: "`sv report` does not start the app unless you pass --run.",
-            why_no_tools: "`sv report` does not run other people's tools unless you pass --tools.",
+            why_not_run: "`sv report` does not start the app unless you pass --run.".to_owned(),
+            why_no_tools: "`sv report` does not run other people's tools unless you pass --tools."
+                .to_owned(),
             advisories: advisories_dir,
             why_no_advisories: "`sv report` compares against known vulnerabilities only when you \
-                                pass --advisories DIR.",
+                                pass --advisories DIR."
+                .to_owned(),
         },
     )?;
 

@@ -41,4 +41,7 @@ COPY --from=build /src/crates /src/crates
 COPY --from=build /src/data /src/data
 COPY --from=build /src/examples /src/examples
 COPY --from=build /src/target/release/sv /usr/local/bin/sv
+# Tells `sv` it is in this container, so what it tells an AI coding tool to have the person run
+# (`--run`, which cannot work from in here) names `sv` installed on the computer instead.
+ENV SV_IN_CONTAINER=1
 ENTRYPOINT ["sv"]
