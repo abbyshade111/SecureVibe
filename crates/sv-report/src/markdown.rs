@@ -557,6 +557,32 @@ pub fn security(report: &Report) -> String {
         out.push('\n');
     }
 
+    let set_aside = crate::false_alarm_lines(report);
+    if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
+        out.push_str("## Set aside by a person\n\n");
+        if !set_aside.is_empty() {
+            out.push_str(
+                "Found by a check, and looked at by a person who decided each is a false alarm. \
+                 They are not counted below. A requirement one of them was about is not credited \
+                 for it: it is shown by whatever else is known about it, never as checked.\n\n",
+            );
+            for line in &set_aside {
+                out.push_str(&format!("- {line}\n"));
+            }
+            out.push('\n');
+        }
+        if !report.reviews_not_counted.is_empty() {
+            out.push_str(
+                "These entries in `[[finding-review]]` do not count, so the findings they name \
+                 still do:\n\n",
+            );
+            for line in &report.reviews_not_counted {
+                out.push_str(&format!("- {line}\n"));
+            }
+            out.push('\n');
+        }
+    }
+
     if report.findings.is_empty() {
         out.push_str(
             "## Nothing was found\n\nNo check found anything wrong. Read that together with the \
@@ -582,6 +608,9 @@ pub fn security(report: &Report) -> String {
             "**Where:** `{}` line {}\n\n",
             finding.location.file, finding.location.line
         ));
+        if let Some(accepted) = crate::accepted_note(report, finding) {
+            out.push_str(&format!("**{accepted}**\n\n"));
+        }
         for note in crate::finding_notes(finding) {
             out.push_str(&format!("*{note}*\n\n"));
         }

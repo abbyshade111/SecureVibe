@@ -216,6 +216,28 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #         same; as for [design], it counts as much as their own check made by hand.
 [checked-by-hand]
 # "V12.2.2" = { result = "done", on = "2026-09-26", by = "owner", how = "Opened the live site; the padlock shows a trusted certificate for the right name, valid to December." }
+
+# Findings a person has looked at and set aside. One [[finding-review]] each, naming the finding by
+# the rule, file, and fingerprint the report prints beside it:
+#   verdict = "false-alarm"    — the code is fine. The finding leaves the list of things to fix,
+#                                and holds until the flagged line changes.
+#   verdict = "accepted-risk"  — a real problem, lived with for now. It stays on the list, labeled,
+#                                and lapses after 90 days.
+#   why = what was looked at and what it showed, at least 40 characters (80 for a key or password,
+#         saying why it is not a real one; a key or password cannot be an accepted risk).
+#   by  = the person who decided. An entry by "ai-tool", or with no `by`, is only a proposal: the
+#         finding still counts until a person has read the code and put their own name here.
+#   on  = the day, as "YYYY-MM-DD".
+# Setting a finding aside never makes its requirement "checked": a person's word that a warning
+# was wrong does not show the protection is there.
+# [[finding-review]]
+# rule = "ast.open-redirect"
+# file = "app.py"
+# fingerprint = "3f2a9c1e0b7d4a55"
+# verdict = "false-alarm"
+# why = "The next= value is looked up in a fixed list of our own paths on the line above."
+# by = "owner"
+# on = "2026-09-27"
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.

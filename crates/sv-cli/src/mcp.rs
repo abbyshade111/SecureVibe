@@ -783,11 +783,34 @@ fn summary(report: &sv_report::Report) -> String {
             ));
             // Said to the AI coding tool in so many words: it changes code until a warning stops, so
             // a finding `sv` is not sure of has to reach it as one to check first.
+            if let Some(accepted) = sv_report::accepted_note(report, f) {
+                out.push_str(&format!("  {accepted}\n"));
+            }
             for note in sv_report::finding_notes(f).into_iter().filter(|n| {
                 !n.starts_with("How sure: confirmed") && !n.starts_with("How sure: likely")
             }) {
                 out.push_str(&format!("  {note}\n"));
             }
+        }
+    }
+    let set_aside = sv_report::false_alarm_lines(report);
+    if !set_aside.is_empty() {
+        out.push_str(&format!(
+            "\nSET ASIDE BY A PERSON as false alarms, not counted above ({}):\n",
+            set_aside.len()
+        ));
+        for line in &set_aside {
+            out.push_str(&format!("- {line}\n"));
+        }
+    }
+    if !report.reviews_not_counted.is_empty() {
+        out.push_str(
+            "\nNOT COUNTED in [[finding-review]], so the findings they name still count. A proposal \
+             of yours counts only once the owner has read the code and put their own name in `by`; \
+             never write a person's name there yourself:\n",
+        );
+        for line in &report.reviews_not_counted {
+            out.push_str(&format!("- {line}\n"));
         }
     }
     out

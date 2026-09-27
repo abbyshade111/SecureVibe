@@ -408,6 +408,8 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
     let r = rules();
     let ctx = context(&[("auth", true), ("uploads", false)]);
     sv_report::build(sv_report::Inputs {
+        set_aside: Vec::new(),
+        reviews_not_counted: Vec::new(),
         app_name: "Threats",
         target_level: 1,
         generated: None,
@@ -437,6 +439,7 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
 fn finding_on(requirement: &str) -> sv_check::Finding {
     sv_check::Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: "probe.short-password-accepted".into(),
         title: "t".into(),
         severity: sv_check::Severity::Medium,
@@ -501,6 +504,8 @@ fn without_threat_rules_the_report_has_no_threat_section() {
     let f = Frameworks::load(&data().join("frameworks")).unwrap();
     let buckets = sv_frameworks::applicability::Buckets::default();
     let report = sv_report::build(sv_report::Inputs {
+        set_aside: Vec::new(),
+        reviews_not_counted: Vec::new(),
         app_name: "None",
         target_level: 1,
         generated: None,
@@ -720,6 +725,8 @@ fn the_report_lists_atlas_references_for_a_reviewer_only_where_ai_threats_apply(
     let build = |r: &ThreatRules, ai: bool| {
         let ctx = context(&[("auth", true), ("ai", ai)]);
         sv_report::build(sv_report::Inputs {
+            set_aside: Vec::new(),
+            reviews_not_counted: Vec::new(),
             app_name: "Atlas",
             target_level: 1,
             generated: None,

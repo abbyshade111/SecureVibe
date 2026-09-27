@@ -25,6 +25,7 @@ pub mod notes;
 pub mod oidc;
 pub mod probes;
 pub mod production;
+pub mod review;
 pub mod sbom;
 pub mod secrets;
 pub mod signed_in;

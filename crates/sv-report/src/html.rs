@@ -227,6 +227,32 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    let set_aside = crate::false_alarm_lines(report);
+    if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
+        b.push_str("<h2>Set aside by a person</h2>\n");
+        if !set_aside.is_empty() {
+            b.push_str(
+                "<p>Found by a check, and looked at by a person who decided each is a false alarm. \
+                 They are not counted below, and a requirement one of them was about is never \
+                 shown as checked because of it.</p>\n<ul>\n",
+            );
+            for line in &set_aside {
+                b.push_str(&format!("<li>{}</li>\n", escape(line)));
+            }
+            b.push_str("</ul>\n");
+        }
+        if !report.reviews_not_counted.is_empty() {
+            b.push_str(
+                "<p>These entries in <code>[[finding-review]]</code> do not count, so the findings \
+                 they name still do:</p>\n<ul>\n",
+            );
+            for line in &report.reviews_not_counted {
+                b.push_str(&format!("<li>{}</li>\n", escape(line)));
+            }
+            b.push_str("</ul>\n");
+        }
+    }
+
     if !report.findings.is_empty() {
         b.push_str(&format!(
             "<h2>{} things to fix</h2>\n",
@@ -243,6 +269,9 @@ pub fn page(report: &Report) -> String {
                 escape(&f.location.file),
                 f.location.line
             ));
+            if let Some(accepted) = crate::accepted_note(report, f) {
+                b.push_str(&format!("<p><strong>{}</strong></p>\n", escape(&accepted)));
+            }
             for note in crate::finding_notes(f) {
                 b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&note)));
             }
