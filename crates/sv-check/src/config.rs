@@ -67,6 +67,10 @@ pub fn check_dir(app_dir: &Path) -> ConfigReport {
     report.record("config.gitignore-covers-env", gitignore_covers_env(app_dir));
     report.record("config.security-contact", security_contact(app_dir));
     report.record("config.versions-pinned", versions_pinned(app_dir));
+    let workflows = crate::workflows::check(app_dir);
+    report.findings.extend(workflows.findings);
+    report.passed.extend(workflows.passed);
+    report.not_assessed.extend(workflows.not_assessed);
     report
 }
 
