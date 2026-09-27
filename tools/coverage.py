@@ -91,6 +91,7 @@ RUST_CHECKS = {
     "probe.private-page-anonymous": ("signed-in", ["V8.2.1"]),
     "probe.admin-page-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
     "probe.admin-action-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
+    "probe.role-field-trusted": ("signed-in", ["V8.3.1", "V15.3.3"]),
     "probe.other-users-data": ("signed-in", ["V8.2.2"]),
     "probe.session-cookie-attributes": ("signed-in", ["V3.3.2", "V3.3.4"]),
     "probe.session-not-renewed": ("signed-in", ["V7.2.4"]),
@@ -174,7 +175,7 @@ RUST_CHECKS = {
 
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
-RUST_FINDINGS_ONLY = {"config.workflow-secrets-with-fork-code"}
+RUST_FINDINGS_ONLY = {"config.workflow-secrets-with-fork-code", "probe.role-field-trusted"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the two ids `sv init` prints as

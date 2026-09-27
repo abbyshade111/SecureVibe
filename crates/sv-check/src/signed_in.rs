@@ -523,6 +523,19 @@ const ADMIN_ACTION: Rule = Rule {
           action, not only on the page that shows the button for it.",
 };
 
+const ROLE_FIELD: Rule = Rule {
+    rule_id: "probe.role-field-trusted",
+    // V8.3.1 names exactly this: an authorization decision resting on something the client can
+    // change. V15.3.3 is mass assignment: a field set that the action was never meant to take. Only
+    // ever a finding: five guessed field names refused say nothing about a sixth.
+    requirement_ids: &["V8.3.1", "V15.3.3"],
+    cwe: &["CWE-915", "CWE-269"],
+    impact: "Anybody who signs up can make themselves an administrator by adding one field to the \
+             sign-up form, which takes a browser's developer tools and no skill.",
+    fix: "Take only the fields sign-up is meant to set (name, email, password) and ignore or refuse \
+          the rest; set a new account's role on the server, never from the request.",
+};
+
 const OTHER_USERS_DATA: Rule = Rule {
     rule_id: "probe.other-users-data",
     requirement_ids: &["V8.2.2"],
@@ -1520,6 +1533,9 @@ pub fn run_with(
     //     below, one of which can change A's own password, and before the checks that set out to be
     //     refused and can leave the app refusing everybody, the admin included.
     admin_action_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    // 9d. A role written into the sign-up form, with two accounts made for it. Before the password
+    //     changes for the same reason as the admin actions.
+    role_field_check(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -6601,6 +6617,165 @@ fn admin_checks(
     }
 }
 
+/// Fields a sign-up request might carry to make its account an admin. Values are sent as text,
+/// in a form and in JSON alike, because a template's values are text; most frameworks read `"true"`
+/// as true.
+const ROLE_FIELDS: &[(&str, &str)] = &[
+    ("role", "admin"),
+    ("roles", "admin"),
+    ("is_admin", "true"),
+    ("isAdmin", "true"),
+    ("admin", "true"),
+];
+
+/// Signs in and shows the session signed in by opening `confirm`, or says it could not.
+fn signed_in_session(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    who: &str,
+    account: &Account,
+    confirm: &str,
+    steps: &mut Vec<String>,
+) -> Option<SignedIn> {
+    let signed = sign_in(http, users, who, account, steps)?;
+    ok(&http.send(&get(&format!("private-{who}"), confirm, &signed.session))).then_some(signed)
+}
+
+/// A sign-up with a role written into it (V8.3.1, V15.3.3).
+///
+/// Two accounts are made through the app's own sign-up: one plain, and one whose request also
+/// carries `role=admin`, `is_admin=true` and the like. Both are shown signed in first, then each asks
+/// for the admin pages. A page that opens to the second and not to the first opened because of a
+/// field the browser sent, which is the decision V8.3.1 says must not rest on the client. A page the
+/// plain account opens too is the admin-page check's finding, not this one's.
+fn role_field_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V8.3.1, V15.3.3";
+    let (Some(signup), false) = (&users.signup, users.admin.is_empty()) else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "A role written into the sign-up form: this needs both `signup` and an `admin` page \
+             under [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "A role written into the sign-up form: no private page was shown open to a signed-in \
+             user, so a sign-in here could not be confirmed."
+                .to_owned(),
+        ));
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    let plain = Account {
+        user: format!("plain.{}", accounts.a.user),
+        password: format!("Pl-{}-aZ9!", &spare[2..26]),
+    };
+    let claimed = Account {
+        user: format!("role.{}", accounts.a.user),
+        password: format!("Ro-{}-aZ9!", &spare[6..30]),
+    };
+    let mut with_role = signup.clone();
+    let fields = if with_role.json.is_empty() {
+        &mut with_role.form
+    } else {
+        &mut with_role.json
+    };
+    for (name, value) in ROLE_FIELDS {
+        fields
+            .entry((*name).to_owned())
+            .or_insert_with(|| (*value).to_owned());
+    }
+    sign_up(http, users, signup, "role-plain", &plain);
+    sign_up(http, users, &with_role, "role-claimed", &claimed);
+
+    let plain_in = signed_in_session(http, users, "role-plain", &plain, confirm, &mut out.steps);
+    let claimed_in = signed_in_session(
+        http,
+        users,
+        "role-claimed",
+        &claimed,
+        confirm,
+        &mut out.steps,
+    );
+    let (Some(plain_in), Some(claimed_in)) = (plain_in, claimed_in) else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "A role written into the sign-up form: the two accounts made for it could not both be \
+             shown signed in. With the extra fields that may be the app refusing fields it does not \
+             expect, which is what V15.3.3 asks for, but nothing here showed it."
+                .to_owned(),
+        ));
+        return;
+    };
+
+    let mut opened = Vec::new();
+    let mut compared = 0usize;
+    for (i, page) in users.admin.iter().enumerate() {
+        let as_plain = http.send(&get(
+            &format!("role-admin-{i}-plain"),
+            page,
+            &plain_in.session,
+        ));
+        if ok(&as_plain) {
+            // Open to anybody signed in: the admin-page check says so, and the role field is not
+            // what opened it.
+            continue;
+        }
+        compared += 1;
+        let as_claimed = http.send(&get(
+            &format!("role-admin-{i}-claimed"),
+            page,
+            &claimed_in.session,
+        ));
+        if ok(&as_claimed) {
+            opened.push(page.clone());
+        }
+    }
+    if !opened.is_empty() {
+        out.findings.push(finding(
+            &ROLE_FIELD,
+            "A new account can make itself an admin at sign-up",
+            Severity::Critical,
+            format!(
+                "An account signed up with {} added to the form opened {}, which the same sign-up \
+                 without them did not.",
+                ROLE_FIELDS
+                    .iter()
+                    .map(|(k, v)| format!("`{k}={v}`"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                opened.join(", ")
+            ),
+        ));
+    } else if compared > 0 {
+        // Only ever a finding: five guessed names refused say nothing about a sixth, so the check is
+        // recorded as having run and credits no requirement.
+        out.verified.push(crate::Verified::new(
+            ROLE_FIELD.rule_id,
+            &[],
+            format!(
+                "an account signed up with {} role field{} added was refused {compared} admin \
+                 page{}, as a plain one was; other field names were not tried",
+                ROLE_FIELDS.len(),
+                if ROLE_FIELDS.len() == 1 { "" } else { "s" },
+                if compared == 1 { "" } else { "s" }
+            ),
+        ));
+    }
+}
+
 /// Admin actions, sent straight to the app by the first ordinary user and then by the admin.
 ///
 /// The admin-page check asks for pages; this sends the requests an admin makes, which is where an
@@ -7480,6 +7655,8 @@ mod tests {
         admin_action_says_ok: bool,
         /// Nobody's announcement is posted, the admin's included.
         admin_action_broken: bool,
+        /// Sign-up makes an admin of anybody who asks for it with `role=admin` or `is_admin=true`.
+        signup_trusts_role: bool,
         /// Any signed-in user can read any record.
         idor: bool,
         /// Anybody at all can read any record.
@@ -8405,7 +8582,10 @@ mod tests {
                         return Some(Self::respond(422, vec![], "password refused"));
                     }
                     if !self.flaws.signup_does_nothing {
-                        self.users.insert(email.clone(), (password, false));
+                        let asked_for_admin = f.get("role").is_some_and(|v| v == "admin")
+                            || f.get("is_admin").is_some_and(|v| v == "true");
+                        let admin = self.flaws.signup_trusts_role && asked_for_admin;
+                        self.users.insert(email.clone(), (password, admin));
                         if self.activation {
                             self.next += 1;
                             let code = if self.flaws.activation_short {
@@ -10789,6 +10969,111 @@ mod tests {
         ] {
             assert!(verified_ids(&o).contains(&id), "{id}: {:?}", o.steps);
         }
+    }
+
+    /// Seed for A, B and the admin; sign-up for the accounts the role-field check makes.
+    fn with_role_signup() -> UsersSection {
+        let mut u = with_signup();
+        u.seed = Some("seed".into());
+        u.admin = vec!["/admin".into()];
+        u
+    }
+
+    fn role_findings(o: &Outcome) -> Vec<&Finding> {
+        o.findings
+            .iter()
+            .filter(|f| f.rule_id == ROLE_FIELD.rule_id)
+            .collect()
+    }
+
+    #[test]
+    fn a_sign_up_that_takes_a_role_from_the_form_is_found() {
+        let o = run_against(
+            Flaws {
+                signup_trusts_role: true,
+                ..Default::default()
+            },
+            &with_role_signup(),
+        );
+        let found = role_findings(&o);
+        assert_eq!(found.len(), 1, "{:#?}\n{:#?}", o.findings, o.not_assessed);
+        assert_eq!(found[0].requirement_ids, vec!["V8.3.1", "V15.3.3"]);
+        assert!(
+            found[0].description.contains("/admin"),
+            "{}",
+            found[0].description
+        );
+        // The plain accounts are still refused: this is the role field's finding, not the page's.
+        assert!(
+            !rule_ids(&o).contains(&ADMIN_PAGE.rule_id),
+            "{:#?}",
+            o.findings
+        );
+    }
+
+    #[test]
+    fn a_sign_up_that_ignores_the_role_credits_nothing_and_says_it_ran() {
+        let o = run_against(Flaws::default(), &with_role_signup());
+        assert!(role_findings(&o).is_empty(), "{:#?}", o.findings);
+        let ran = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == ROLE_FIELD.rule_id)
+            .unwrap_or_else(|| panic!("the check did not run: {:#?}", o.not_assessed));
+        assert!(
+            ran.requirement_ids.is_empty(),
+            "only ever a finding: {ran:?}"
+        );
+    }
+
+    #[test]
+    fn the_role_field_check_needs_a_sign_up_and_an_admin_page() {
+        let o = run_against(Flaws::default(), &users());
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1, V15.3.3" && why.contains("needs both")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn accounts_that_never_sign_in_answer_nothing_about_the_role_field() {
+        // Sign-up answers as if it worked and makes nobody. Without the signed-in guard the admin
+        // page would be refused to both, which says nothing either way; with it, the check says it
+        // could not run.
+        let o = run_against(
+            Flaws {
+                signup_does_nothing: true,
+                signup_trusts_role: true,
+                ..Default::default()
+            },
+            &with_role_signup(),
+        );
+        assert!(role_findings(&o).is_empty());
+        assert!(!verified_ids(&o).contains(&ROLE_FIELD.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V8.3.1, V15.3.3" && why.contains("shown signed in")),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_admin_page_open_to_everybody_is_the_page_checks_finding_not_this_one() {
+        let o = run_against(
+            Flaws {
+                admin_open: true,
+                signup_trusts_role: true,
+                ..Default::default()
+            },
+            &with_role_signup(),
+        );
+        assert!(rule_ids(&o).contains(&ADMIN_PAGE.rule_id));
+        assert!(role_findings(&o).is_empty(), "{:#?}", o.findings);
     }
 
     #[test]
