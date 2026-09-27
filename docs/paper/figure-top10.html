@@ -29,7 +29,7 @@
   body { margin: 0; background: var(--surface-1); }
   .viz-root { background: var(--surface-1); color: var(--text-primary);
     font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    padding: 24px 16px; max-width: 980px; margin: 0 auto; }
+    padding: 24px 16px; max-width: 1100px; margin: 0 auto; }
   h1 { font-size: 1.25rem; margin: 0 0 4px; }
   .sub { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
   .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
@@ -40,10 +40,11 @@
   .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: -1px; }
   .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
   .wrap { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 760px; }
+  table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 900px; table-layout: fixed; }
   th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
   th { color: var(--text-muted); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
-  td.cat { white-space: nowrap; }
+  td.cat { display: flex; align-items: baseline; }
+  td.cat span { flex: 1; }
   td.cat b { display: inline-block; width: 34px; color: var(--text-muted); font-weight: 600; }
   .dots { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
   .d { width: 11px; height: 11px; border-radius: 50%; }
@@ -67,24 +68,25 @@
   <div class="hero">
     <div class="stat"><b>18</b><span>weaknesses found in SecureVibe's own code; the largest groups are A05 Injection (4) and A01 Access Control (3)</span></div>
     <div class="stat"><b style="color:var(--sv)">8</b><span>verdicts that failed open, all A10, in both versions, and none caught by a failing test</span></div>
-    <div class="stat"><b style="color:var(--v1)">160 of 195</b><span>findings from v1 checking itself were false alarms, including all 95 under A01</span></div>
+    <div class="stat"><b>160 · 191</b><span>false alarms when each version checked itself (of 195 and 252); v1 had 2 real findings, <code>sv</code> none</span></div>
   </div>
 
   <div class="legend">
     <span><span class="dot" style="background:var(--v1)"></span>v1</span>
     <span><span class="dot" style="background:var(--sv)"></span><code>sv</code></span>
     <span><span class="sw" style="background:var(--empty)"></span>false alarm</span>
-    <span><span class="sw" style="background:var(--v1)"></span>accepted, by design</span>
+    <span><span class="sw" style="background:var(--v1)"></span><span class="sw" style="background:var(--sv)"></span>accepted, by design</span>
     <span><span class="sw" style="background:var(--v1-dark)"></span>left open</span>
   </div>
   <div class="wrap">
     <table id="map">
-      <colgroup><col style="width:27%"><col style="width:18%"><col style="width:13%"><col style="width:22%"><col style="width:20%"></colgroup>
+      <colgroup><col style="width:22%"><col style="width:13%"><col style="width:12%"><col style="width:18%"><col style="width:18%"><col style="width:17%"></colgroup>
       <thead><tr>
         <th>OWASP Top 10:2025</th>
         <th>Weaknesses in SecureVibe's own code</th>
         <th>Verdicts that failed open</th>
         <th>v1 checking itself: 195 flags</th>
+        <th><code>sv</code> checking itself: 252 flags</th>
         <th>Found in the apps checked (arms A · B · C)</th>
       </tr></thead>
       <tbody></tbody>
@@ -97,26 +99,26 @@
      columns were chosen from what each source says happened, and <code>TOP10.md</code> marks each one. Findings in
      the apps are from the comparison of 20 September (<code>findings.csv</code>). Arm A is SecureFit built by v1, B
      is the same code uploaded, and C is a Python app uploaded; their non-security findings (documentation, missing
-     example files) are left out. The fence test (#148) is counted in both of the first two columns, as a weakness in <code>sv</code>'s own code and as a verdict that failed open. v1's self-check row "no category" is mostly missing documentation (CWE-1059) and
+     example files) are left out. <code>sv</code>'s self-check is its product code only, with every finding triaged in <code>self-assessment-v2/product-only/triage.json</code>; see <code>SELF-ASSESSMENT-V2.md</code>. The fence test (#148) is counted in both of the first two columns, as a weakness in <code>sv</code>'s own code and as a verdict that failed open. v1's self-check row "no category" is mostly missing documentation (CWE-1059) and
      slow regular expressions (CWE-1333), which are on no 2025 list.</p>
 </div>
 <script>
   const V1 = "var(--v1)", SV = "var(--sv)";
-  // [code, name, ownCode [v1, sv], failOpen [v1, sv], selfCheck [falseAlarm, accepted, open], apps [A, B, C]]
+  // [code, name, ownCode [v1, sv], failOpen [v1, sv], v1 selfCheck [falseAlarm, accepted, open], apps [A, B, C], sv selfCheck [falseAlarm, accepted, open]]
   const rows = [
-    ["A01", "Broken Access Control",               [2, 1], [0, 0], [95, 0, 0], [3, 1, 1]],
-    ["A02", "Security Misconfiguration",           [0, 0], [0, 0], [0, 0, 0],  [0, 0, 0]],
-    ["A03", "Software Supply Chain Failures",      [0, 2], [0, 0], [1, 2, 0],  [0, 0, 2]],
-    ["A04", "Cryptographic Failures",              [2, 0], [0, 0], [0, 3, 0],  [0, 1, 0]],
-    ["A05", "Injection",                           [4, 0], [0, 0], [33, 13, 2], [0, 2, 8]],
-    ["A06", "Insecure Design",                     [1, 1], [0, 0], [2, 0, 0],  [2, 1, 1]],
-    ["A07", "Authentication Failures",             [0, 0], [0, 0], [10, 3, 1], [1, 0, 0]],
-    ["A08", "Software or Data Integrity Failures", [0, 0], [0, 0], [0, 0, 3],  [0, 1, 0]],
-    ["A09", "Security Logging and Alerting Failures", [1, 1], [0, 0], [0, 0, 0], [0, 0, 0]],
-    ["A10", "Mishandling of Exceptional Conditions", [0, 0], [3, 5], [1, 0, 0], [0, 0, 0]],
-    ["—",   "No category on the 2025 lists",       [2, 1], [0, 0], [18, 0, 8], [0, 0, 0]],
+    ["A01", "Broken Access Control",               [2, 1], [0, 0], [95, 0, 0], [3, 1, 1], [159, 53, 0]],
+    ["A02", "Security Misconfiguration",           [0, 0], [0, 0], [0, 0, 0],  [0, 0, 0], [0, 0, 0]],
+    ["A03", "Software Supply Chain Failures",      [0, 2], [0, 0], [1, 2, 0],  [0, 0, 2], [0, 0, 0]],
+    ["A04", "Cryptographic Failures",              [2, 0], [0, 0], [0, 3, 0],  [0, 1, 0], [19, 1, 0]],
+    ["A05", "Injection",                           [4, 0], [0, 0], [33, 13, 2], [0, 2, 8], [0, 4, 0]],
+    ["A06", "Insecure Design",                     [1, 1], [0, 0], [2, 0, 0],  [2, 1, 1], [0, 0, 0]],
+    ["A07", "Authentication Failures",             [0, 0], [0, 0], [10, 3, 1], [1, 0, 0], [13, 3, 0]],
+    ["A08", "Software or Data Integrity Failures", [0, 0], [0, 0], [0, 0, 3],  [0, 1, 0], [0, 0, 0]],
+    ["A09", "Security Logging and Alerting Failures", [1, 1], [0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+    ["A10", "Mishandling of Exceptional Conditions", [0, 0], [3, 5], [1, 0, 0], [0, 0, 0], [0, 0, 0]],
+    ["—",   "No category on the 2025 lists",       [2, 1], [0, 0], [18, 0, 8], [0, 0, 0], [0, 0, 0]],
   ];
-  const MAXSELF = 95;
+  const MAXSELF = 212;
   const dots = (pairs) => {
     const box = document.createElement("div"); box.className = "dots";
     let total = 0;
@@ -127,32 +129,34 @@
     box.appendChild(label); return box;
   };
   const tbody = document.querySelector("#map tbody");
-  rows.forEach(([code, name, own, fail, self, apps]) => {
+  const selfCell = (self, dark) => {
+    const td = document.createElement("td");
+    const total = self[0] + self[1] + self[2];
+    if (!total) { td.innerHTML = '<span class="none">—</span>'; return td; }
+    const wrap = document.createElement("div"); wrap.style.display = "flex"; wrap.style.alignItems = "center";
+    const bar = document.createElement("div"); bar.className = "bar"; bar.style.width = Math.max(6, (total / MAXSELF) * 70) + "px";
+    [[self[0], "var(--empty)"], [self[1], dark ? "var(--sv)" : "var(--v1)"], [self[2], "var(--v1-dark)"]].forEach(([n, c]) => {
+      if (!n) return; const s = document.createElement("span"); s.style.width = (n / total * 100) + "%"; s.style.background = c; bar.appendChild(s);
+    });
+    const lab = document.createElement("span"); lab.className = "n";
+    lab.textContent = `${total}` + (self[1] || self[2] ? ` (${[self[1] ? self[1] + " accepted" : "", self[2] ? self[2] + " open" : ""].filter(Boolean).join(", ")})` : " · all false alarms");
+    wrap.append(bar, lab); td.appendChild(wrap); return td;
+  };
+  rows.forEach(([code, name, own, fail, self, apps, selfV2]) => {
     const tr = document.createElement("tr"); if (code === "A10") tr.className = "a10";
     const c0 = document.createElement("td"); c0.className = "cat"; c0.innerHTML = `<b></b><span></span>`;
     c0.querySelector("b").textContent = code; c0.querySelector("span").textContent = name;
     const c1 = document.createElement("td"); c1.appendChild(dots([[own[0], V1], [own[1], SV]]));
     const c2 = document.createElement("td"); c2.appendChild(dots([[fail[0], V1], [fail[1], SV]]));
-    const c3 = document.createElement("td");
-    const total = self[0] + self[1] + self[2];
-    if (!total) c3.innerHTML = '<span class="none">—</span>';
-    else {
-      const wrap = document.createElement("div"); wrap.style.display = "flex"; wrap.style.alignItems = "center";
-      const bar = document.createElement("div"); bar.className = "bar"; bar.style.width = Math.max(6, (total / MAXSELF) * 150) + "px";
-      [[self[0], "var(--empty)"], [self[1], "var(--v1)"], [self[2], "var(--v1-dark)"]].forEach(([n, c]) => {
-        if (!n) return; const s = document.createElement("span"); s.style.width = (n / total * 100) + "%"; s.style.background = c; bar.appendChild(s);
-      });
-      const lab = document.createElement("span"); lab.className = "n";
-      lab.textContent = `${total}` + (self[1] || self[2] ? ` (${[self[1] ? self[1] + " accepted" : "", self[2] ? self[2] + " open" : ""].filter(Boolean).join(", ")})` : " · all false alarms");
-      wrap.append(bar, lab); c3.appendChild(wrap);
-    }
+    const c3 = selfCell(self, false);
+    const c3b = selfCell(selfV2, true);
     const c4 = document.createElement("td");
     const t = apps[0] + apps[1] + apps[2];
     if (!t) c4.innerHTML = '<span class="none">—</span>';
     else {
       const box = dots([[t, V1]]); box.querySelector(".n").textContent = `${apps[0]} · ${apps[1]} · ${apps[2]}`; c4.appendChild(box);
     }
-    tr.append(c0, c1, c2, c3, c4); tbody.appendChild(tr);
+    tr.append(c0, c1, c2, c3, c3b, c4); tbody.appendChild(tr);
   });
 </script>
 </body>
