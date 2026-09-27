@@ -253,43 +253,25 @@ pub fn page(report: &Report) -> String {
         }
     }
 
-    if !report.findings.is_empty() {
+    let (app, tests) = crate::app_then_tests(report);
+    if !app.is_empty() {
         b.push_str(&format!(
-            "<h2>{} things to fix</h2>\n",
-            report.findings.len()
+            "<h2>{} thing{} to fix</h2>\n",
+            app.len(),
+            if app.len() == 1 { "" } else { "s" }
         ));
-        for f in &report.findings {
-            b.push_str(&format!(
-                "<h3 class=\"needs-attention\">[{}] {}</h3>\n",
-                escape(f.severity.name()),
-                escape(&f.title)
-            ));
-            b.push_str(&format!(
-                "<p class=\"note\"><code>{}</code> line {}</p>\n",
-                escape(&f.location.file),
-                f.location.line
-            ));
-            if let Some(accepted) = crate::accepted_note(report, f) {
-                b.push_str(&format!("<p><strong>{}</strong></p>\n", escape(&accepted)));
-            }
-            for note in crate::finding_notes(f) {
-                b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&note)));
-            }
-            b.push_str(&format!("<p>{}</p>\n", escape(&f.description)));
-            b.push_str(&format!(
-                "<p><strong>Why it matters.</strong> {}</p>\n",
-                escape(&f.impact)
-            ));
-            b.push_str(&format!(
-                "<p><strong>What to do.</strong> {}</p>\n",
-                escape(&f.fix)
-            ));
-            if !f.requirement_ids.is_empty() {
-                b.push_str(&format!(
-                    "<p class=\"note\">Evidence about: {}</p>\n",
-                    escape(&f.requirement_ids.join(", "))
-                ));
-            }
+        for f in app {
+            finding_section(&mut b, report, f);
+        }
+    }
+    if !tests.is_empty() {
+        b.push_str(&format!(
+            "<h2>{} in test or sample code</h2>\n<p>{}</p>\n",
+            tests.len(),
+            escape(crate::TEST_CODE_SECTION)
+        ));
+        for f in tests {
+            finding_section(&mut b, report, f);
         }
     }
 
@@ -647,6 +629,40 @@ pub fn page(report: &Report) -> String {
 
     b.push_str("</body>\n</html>\n");
     b
+}
+
+fn finding_section(b: &mut String, report: &Report, f: &sv_check::Finding) {
+    b.push_str(&format!(
+        "<h3 class=\"needs-attention\">[{}] {}</h3>\n",
+        escape(f.severity.name()),
+        escape(&f.title)
+    ));
+    b.push_str(&format!(
+        "<p class=\"note\"><code>{}</code> line {}</p>\n",
+        escape(&f.location.file),
+        f.location.line
+    ));
+    if let Some(accepted) = crate::accepted_note(report, f) {
+        b.push_str(&format!("<p><strong>{}</strong></p>\n", escape(&accepted)));
+    }
+    for note in crate::finding_notes(f) {
+        b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&note)));
+    }
+    b.push_str(&format!("<p>{}</p>\n", escape(&f.description)));
+    b.push_str(&format!(
+        "<p><strong>Why it matters.</strong> {}</p>\n",
+        escape(&f.impact)
+    ));
+    b.push_str(&format!(
+        "<p><strong>What to do.</strong> {}</p>\n",
+        escape(&f.fix)
+    ));
+    if !f.requirement_ids.is_empty() {
+        b.push_str(&format!(
+            "<p class=\"note\">Evidence about: {}</p>\n",
+            escape(&f.requirement_ids.join(", "))
+        ));
+    }
 }
 
 #[cfg(test)]

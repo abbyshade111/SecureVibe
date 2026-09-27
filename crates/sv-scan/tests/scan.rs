@@ -465,6 +465,11 @@ fn every_signature_speaks_a_language_and_an_ecosystem_the_scanner_knows() {
 /// not a corroborator, and a test that pastes the pattern back in cannot tell the difference.
 const WITNESSES: &[(&str, &str, &str)] = &[
     (
+        "mcp-server",
+        "server.py",
+        "from mcp.server.fastmcp import FastMCP\n\nmcp = FastMCP(\"notes\")\n\n@mcp.tool()\ndef search(query: str) -> str:\n    return query\n",
+    ),
+    (
         // The owner's first build: a weekly job asks Claude to search the vendors' own sites.
         "web-search",
         "refresh.js",
@@ -1537,4 +1542,70 @@ fn a_ruby_rate_limiter_is_not_evidence_either() {
         "{:?}",
         found.evidence
     );
+}
+
+// ---- serving tools over MCP, not using them ----
+
+#[test]
+fn an_mcp_server_in_typescript_answers_mcp_server() {
+    let report = scan_files(
+        "mcp-server-ts",
+        &[(
+            "src/index.ts",
+            "import { McpServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n\nconst server = new McpServer({ name: \"notes\", version: \"1.0.0\" });\n",
+        )],
+    );
+    let found = answer(&report, Condition::McpServer);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+}
+
+#[test]
+fn an_app_whose_ai_calls_mcp_tools_is_not_an_mcp_server() {
+    // The client's side: it launches a server and calls its tools. That answers `mcp`, and must
+    // not answer `mcp-server`, or a client would be asked about a server it does not run.
+    let report = scan_files(
+        "mcp-client-py",
+        &[(
+            "agent.py",
+            "from mcp import ClientSession, StdioServerParameters\nfrom mcp.client.stdio import stdio_client\n\nasync def run():\n    async with stdio_client(StdioServerParameters(command=\"notes\")) as (r, w):\n        async with ClientSession(r, w) as session:\n            await session.call_tool(\"search\", {\"query\": \"x\"})\n",
+        )],
+    );
+    assert_eq!(
+        answer(&report, Condition::Mcp).value,
+        Some(true),
+        "the control: it is an MCP client"
+    );
+    let server = answer(&report, Condition::McpServer);
+    assert_ne!(server.value, Some(true), "{:?}", server.evidence);
+}
+
+#[test]
+fn a_fastmcp_server_in_python_answers_mcp_server() {
+    let report = scan_files(
+        "mcp-server-py",
+        &[(
+            "tools.py",
+            "from fastmcp import FastMCP\n\napp = FastMCP(name=\"calendar\")\n\n@app.tool\ndef next_meeting() -> str:\n    return \"none\"\n",
+        )],
+    );
+    let found = answer(&report, Condition::McpServer);
+    assert_eq!(found.value, Some(true), "{:?}", found.evidence);
+}
+
+#[test]
+fn an_agent_that_connects_to_a_remote_mcp_server_is_not_one() {
+    let report = scan_files(
+        "mcp-client-sse",
+        &[(
+            "assistant.py",
+            "from mcp import ClientSession\nfrom mcp.client.sse import sse_client\n\nasync def tools():\n    async with sse_client(\"https://tools.example.test/sse\") as (r, w):\n        async with ClientSession(r, w) as s:\n            return await s.list_tools()\n",
+        )],
+    );
+    assert_eq!(
+        answer(&report, Condition::Mcp).value,
+        Some(true),
+        "the control"
+    );
+    let server = answer(&report, Condition::McpServer);
+    assert_ne!(server.value, Some(true), "{:?}", server.evidence);
 }

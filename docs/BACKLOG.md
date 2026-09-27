@@ -225,7 +225,10 @@ another session is not a claim.
      **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick another item.
   2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
      product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
-     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
+     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item. **Done
+     the same day:** findings inside Rust test code (`#[cfg(test)]`, `#[test]`, `#[tokio::test]`, and a file
+     that starts `#![cfg(test)]`) are marked as test code, and every report lists findings in test code after
+     the app's own, still counted. See DESIGN, "Findings in test code, listed after the app's own".
   3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
      never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
      incident (#77).
@@ -234,7 +237,8 @@ another session is not a claim.
      whole chapter hangs today on `mcp`, which asks whether the app's AI *uses* MCP. The server's requirements
      (C10.2.1–C10.2.7, C10.3.3, C10.4.3, C10.4.4, C10.4.6) turn on the new question, the client's stay on `mcp`,
      and the four about the transport between the two (C10.3.1, C10.3.2, C10.3.5, C10.4.5) apply when either
-     is true.
+     is true. **Done the same day;** see DESIGN, "An app that serves tools over MCP". `sv`'s own count does
+     not move until item 1 is done: a fixture's `from mcp` already brings in the whole chapter.
 
 - **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
   admiring-murdock-875699**, at the owner's asking. **Done the same day:** `docs/paper/ADRS.md`; its inconsistencies are the entry above. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
@@ -284,7 +288,8 @@ another session is not a claim.
   will misfire in the next. An issue template for a false alarm (the rule, what it matched, and why it
   is wrong, with the code shown only if the owner chooses), and a line beside each setting-aside in
   the report pointing to it, so a rule that keeps misfiring gets narrowed, with a test, rather than
-  set aside app after app. Not claimed.
+  set aside app after app. **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's
+  asking.
 
 - ~~**Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).**~~ **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a

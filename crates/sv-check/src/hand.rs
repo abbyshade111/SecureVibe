@@ -182,6 +182,7 @@ fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> F
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        in_test_module: false,
         rule_id: "hand.problem".to_owned(),
         title: format!(
             "Checked by hand, and it failed: {}",

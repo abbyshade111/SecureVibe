@@ -42,7 +42,9 @@ pub struct NextStep {
 /// The findings worth naming at the top, worst first, and how many were left out.
 pub fn worst_findings(report: &Report) -> (Vec<&sv_check::Finding>, usize) {
     let mut findings: Vec<&sv_check::Finding> = report.findings.iter().collect();
-    findings.sort_by_key(|f| severity_rank(f.severity));
+    // The app's own first: a critical in a test is named after a low in the app, since the report
+    // lists it apart, but it is still named when there is room.
+    findings.sort_by_key(|f| (f.in_test_code(), severity_rank(f.severity)));
     let shown = findings.len().min(NAMED_FINDINGS);
     let rest = findings.len() - shown;
     (findings.into_iter().take(shown).collect(), rest)
@@ -76,8 +78,20 @@ pub fn headline(report: &Report) -> String {
             report.counts.not_verified, report.counts.applicable
         );
     }
+    let in_tests = report.findings.iter().filter(|f| f.in_test_code()).count();
+    let apart = match in_tests {
+        0 => String::new(),
+        m if m == n => format!(
+            " {} in test or sample code, not the app itself.",
+            if n == 1 { "It is" } else { "All are" }
+        ),
+        m => format!(
+            " {m} of them {} in test or sample code, listed after the app's own.",
+            if m == 1 { "is" } else { "are" }
+        ),
+    };
     format!(
-        "{n} thing{} {} found, worst first.",
+        "{n} thing{} {} found, worst first.{apart}",
         if n == 1 { "" } else { "s" },
         if n == 1 { "was" } else { "were" }
     )
@@ -299,6 +313,7 @@ mod tests {
         sv_check::Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            in_test_module: false,
             rule_id: rule.into(),
             title: "Something".into(),
             severity: Severity::High,

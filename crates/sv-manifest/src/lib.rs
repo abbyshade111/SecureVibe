@@ -120,6 +120,12 @@ pub struct Capabilities {
     /// one `false`, and is then not asked about a server it does not have.
     #[serde(default)]
     pub authorization_server: Option<bool>,
+    /// Does this app *serve* tools to AI models over the Model Context Protocol, as an MCP server?
+    ///
+    /// Not under `[capabilities.ai]`: a server needs no AI of its own, and answering "no AI" must
+    /// not answer this. `mcp` there asks the other side, whether the app's AI uses MCP tools.
+    #[serde(default)]
+    pub mcp_server: Option<bool>,
     #[serde(default)]
     pub jwt: Option<bool>,
     #[serde(default)]
@@ -993,6 +999,7 @@ impl Manifest {
             (Condition::Auth, c.auth),
             (Condition::Oauth, c.oauth),
             (Condition::AuthorizationServer, authorization_server),
+            (Condition::McpServer, c.mcp_server),
             (Condition::Jwt, c.jwt),
             (Condition::Uploads, c.uploads),
             (Condition::Payments, c.payments),
@@ -1753,5 +1760,32 @@ mod silence_tests {
         // And a scan that did find it still answers yes, for the owner or not.
         let (ctx, _) = resolved_with(Some(true));
         assert_eq!(ctx.get(Condition::CiCd), Some(true));
+    }
+}
+
+#[cfg(test)]
+mod mcp_server_tests {
+    use super::*;
+
+    fn effective(toml_text: &str, condition: Condition) -> Option<bool> {
+        let m: Manifest = toml::from_str(toml_text).expect("manifest parses");
+        resolve(&m, &|_| None).0.get(condition)
+    }
+
+    #[test]
+    fn an_app_with_no_ai_can_still_serve_tools_over_mcp() {
+        // `sv` is one. Every question under [capabilities.ai] reads `false` when `enabled = false`;
+        // this one is not under it, so it keeps its answer.
+        let m = "[capabilities]\nmcp-server = true\n[capabilities.ai]\nenabled = false\n";
+        assert_eq!(effective(m, Condition::McpServer), Some(true));
+        assert_eq!(effective(m, Condition::Mcp), Some(false));
+    }
+
+    #[test]
+    fn saying_nothing_leaves_it_unanswered_whatever_the_ai_does() {
+        let m = "[capabilities.ai]\nenabled = true\nmcp = true\n";
+        assert_eq!(effective(m, Condition::McpServer), None);
+        let m = "[capabilities.ai]\nenabled = false\n";
+        assert_eq!(effective(m, Condition::McpServer), None);
     }
 }

@@ -4283,6 +4283,36 @@ A false alarm is included, with a `suppressions` entry of kind `external` giving
 so a tool reading the file, GitHub's Security tab among them, shows it as dismissed. An accepted risk
 is not suppressed, and carries `properties.acceptedRisk` with who, when, and why.
 
+## Findings in test code, listed after the app's own (27 September 2026)
+
+The v2 self-assessment (`docs/paper/SELF-ASSESSMENT-V2.md`) found that 189 of the 252 findings on
+`sv`'s own product code were in its tests, and most of those were inside Rust `#[cfg(test)]` modules,
+which live in the same file as the code they test. Mixed together, three findings in four were about
+test code, and the ones about the product were hard to find.
+
+**Rust tests are recognized inside the file.** A file's name cannot say where Rust's unit tests are,
+so `mark_rust_test_code` in `sv-check` reads each Rust file a finding is in, with the same
+tree-sitter grammar the code rules use, and marks a finding `in_test_module` when its line is inside
+an item under `#[cfg(test)]`, `#[test]`, or a test runner's own attribute such as `#[tokio::test]`,
+or anywhere in a file that starts `#![cfg(test)]`. Comments and strings that only mention
+`#[cfg(test)]`, and `#[cfg(not(test))]` or `#[cfg(feature = "test")]`, are the app's own code. A
+Rust file that cannot be read marks nothing. The folder and file names `is_test_path` already knew
+(the earlier section) still decide it for every other language.
+
+**Listed apart, and still counted.** `security.md`, the HTML page, and the MCP text list the app's own
+findings first under "things to fix", then a second list, "in test or sample code", which says why it
+is apart and that each one still needs reading. The short version names the app's findings before
+any in a test, and its headline says how many are in test code. When every finding is in test code,
+the report says "Nothing was found in the app itself" and adds, as the clean report does, that this
+is not the same as the app being secure. Nothing about a requirement's status changes: a finding in a
+test still makes its requirement need attention, because a key in a test is still a leaked key and a
+pattern in a sample still gets copied. This moves findings down the page; it does not lower the bar.
+SARIF was already marking each finding `inTestCode`, and now includes the Rust case.
+
+Not done: `sv check` (the credentials scan on its own) does not look inside Rust files for tests; its
+findings in `tests/` and the like say so, as before. Item 1 of the same backlog entry, letting a
+manifest name fixture and example folders so they cannot overrule it, is a separate piece of work.
+
 ## Appendix C as rules the AI coding tool follows while it codes (27 September 2026)
 
 Asked for by the owner: OWASP AISVS 1.0 Appendix C, *AI-Assisted Secure Coding*, is better used as a
@@ -4463,3 +4493,37 @@ split moves out only the Appendix C requirements that nothing has reached.
 findings-only (`RUST_FINDINGS_ONLY`), and `sv`'s own findings-only checks are counted among the
 Appendix C requirements that can only ever be marked *needs attention*. Appendix C goes from 0 to 3
 of 68 that a check can speak to, and one of the three is that kind.
+
+## An app that serves tools over MCP (27 September 2026)
+
+`sv`'s self-assessment (`docs/paper/SELF-ASSESSMENT-V2.md`) found that a manifest could not say
+"this app is an MCP server". AISVS C10, the Model Context Protocol chapter, hung whole on `mcp`, which
+asks whether the app's AI *uses* MCP tools. So an app that serves tools to AI models, and may have no
+AI of its own (`sv` is one), was never asked about the server's side: whether it validates the access
+token on every request, checks the Origin and Host headers, rejects parameters it does not know,
+limits payloads. That is the surface of `sv`'s one tool-misuse incident (#77).
+
+- **A question of its own,** `mcp-server` under `[capabilities]`, and deliberately not under
+  `[capabilities.ai]`, where every question reads "no" once the app says it has no AI. A server needs
+  no AI, and answering "no AI" must not answer this. `sv`'s own `securevibe.toml` answers yes.
+- **C10 split by side,** with rules at the requirement or section level, which win over the chapter's:
+  the server's requirements (C10.2, C10.3.3, C10.4.3, C10.4.4, C10.4.6) turn on `mcp-server`; the
+  client's stay on the chapter's `mcp`; and the four about the connection between the two (C10.3.1,
+  C10.3.2, C10.3.5, C10.4.5) carry one rule for each side, which are OR-ed, so they apply when either
+  is true. Unanswered stays *not assessed*.
+- **Evidence from the code,** only ever toward applying: a FastMCP or McpServer object, the SDK's
+  server module, `server.NewMCPServer(` or `mcp.NewServer(` in Go, `rmcp::handler::server` or an
+  `impl ServerHandler for` in Rust. Only the server's side is listed, so an app whose AI calls MCP tools
+  is not taken for a server. A server written by hand over JSON-RPC, as `sv`'s is, leaves nothing to
+  tell it apart, so absence settles nothing.
+
+On a bare app that answers `mcp-server = true` with no AI, the server's requirements and the shared
+ones apply and the client's are set aside, where before all of C10 was. On `sv`'s own repository the
+count does not move yet: a test fixture containing `from mcp` already switches `mcp` on for it and
+brings in the whole chapter, which is the self-assessment's first finding, and a separate entry.
+
+Tested in the applicability engine (a server with no AI, a client, both, neither, and unanswered), in
+the manifest (the answer kept when the app has no AI, and unanswered left unanswered), and in the
+scanner (FastMCP and TypeScript servers found, two Python clients not taken for one), and through the
+binary on a bare app, with its own control. Seven breaks were made in turn, and each turned two or more
+tests red.
