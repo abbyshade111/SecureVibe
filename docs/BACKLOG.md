@@ -51,6 +51,43 @@ another session is not a claim.
 
      Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
 
+- **A weekly review of the decision records, so they stop falling behind what is built.** Asked for by the owner
+  on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
+  (ADR-008, ADR-010), `main` contradicting a record for five days (ADR-012), and `sv`'s two largest choices, Rust
+  and Docker, never written down. **Not claimed.** Once a week, one session:
+  1. Reads every record in `docs/adr/`, and the index, against the code and the week's merged pull requests
+     (`git log --first-parent --since="1 week ago" origin/main`).
+  2. For each record, says in one line whether it still matches what was built. Where it does not, it either
+     amends the record in place (a dated "Later" section, as ADR-016 does) or writes a superseding record (as
+     ADR-018 does for ADR-012). Nothing in a record is quietly rewritten.
+  3. Lists decisions made in that week's code with no record, and writes the ones that would be costly to undo
+     without their reasons, such as a language, a runtime, a fence, or a rule about evidence.
+  4. Checks each record's cited requirement ids against `data/frameworks`, as the ADR analysis did.
+  5. Records the review itself in this backlog, with the date and what changed, so a skipped week is visible.
+
+  v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
+  "records that disagree with what was built" entry above describes.
+
+- **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
+  Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Not claimed.**
+  The transcript (the first session, "Vibe-coding application builder") and `securevibe-reasoning.md` in the
+  owner's paper folder show:
+  - At 19:48 Eastern on 17 September, the owner asked about optimizations "for example, build out/refine a
+    harness and/or orchestrated agentic workflow".
+  - At 19:49, Claude proposed "An evaluation harness" with "golden apps (five or six profiles covering the feature
+    combinations)".
+  - At 19:58, the owner chose it: "…and the evaluation harness and golden apps".
+  - At 20:37, the harness was designed, and at 20:42 its first run found template bugs.
+
+  Two places in `docs/paper/` say otherwise:
+  - `METHODOLOGY.md` says its first run was "on 18 September 2026". 20:42 Eastern on the 17th is 00:42 UTC on
+    the 18th, so the date is probably UTC.
+  - `TIMELINE.md`'s Day 0 table puts the harness in the commit at "~20:15" (`af6b83f`). The harness did not exist
+    until after 20:37.
+
+  Correct both to Eastern time, as the rest of `TIMELINE.md` is, and say in `TIMELINE.md` who introduced the idea
+  and who chose it, with the quotations above.
+
 - **What `sv` cannot see when it checks itself, found by the v2 self-assessment.** Found on 27 September 2026
   (`docs/paper/SELF-ASSESSMENT-V2.md`, "Three things `sv` could do about this"). **Not claimed.**
   1. **Test fixtures and example apps are read as part of the app.** On `sv`'s own repository they overruled the
