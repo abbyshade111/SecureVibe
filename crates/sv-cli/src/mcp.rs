@@ -43,13 +43,8 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     write one from it. securevibe_check never says a requirement passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
     only the person can answer; securevibe_questions lists them, for you to ask them one at a \
-<<<<<<< Updated upstream
     time. When the report is written, offer the person a zip of the whole result to keep or hand on \
     (securevibe_bundle), only if they want one. It does not start \
-    the app or run other security tools; for those, ask the person to run `sv report --run --tools` \
-    in a terminal.";
-=======
-    time. It does not start \
     the app or run other security tools; for those, ask the person to run ";
 
 /// Set in the container image (see the Dockerfile), where `sv` cannot start the app at all.
@@ -92,6 +87,16 @@ fn terminal_command(
     }
 }
 
+/// `sv <subcommand> <app>` as the person types it: this program by its full path, as for
+/// `at_a_terminal`, or plain `sv` in the container, where this program's path means nothing outside.
+fn this_sv_running(subcommand: &str, app: &str) -> String {
+    let program = match std::env::current_exe().and_then(|p| p.canonicalize()) {
+        Ok(p) if std::env::var_os(IN_CONTAINER).is_none() => p.to_string_lossy().into_owned(),
+        _ => "sv".to_owned(),
+    };
+    format!("`{} {subcommand} {}`", quoted(&program), quoted(app))
+}
+
 /// A path as a shell reads it: as it is when it holds nothing a shell treats specially, otherwise
 /// in single quotes.
 fn quoted(text: &str) -> String {
@@ -104,7 +109,6 @@ fn quoted(text: &str) -> String {
         format!("'{}'", text.replace('\'', "'\\''"))
     }
 }
->>>>>>> Stashed changes
 
 pub struct Server {
     /// The folder every path is resolved against, canonical.
@@ -357,9 +361,10 @@ impl Server {
             app_dir != self.root && parent.starts_with(&self.root),
             "the bundle is written beside the app, and beside {} would be outside {}, the folder this server \
              was started for. Start the server for the folder that holds the app, or ask the person to run \
-             `sv bundle` in a terminal.",
+             {} in a terminal.",
             app_dir.display(),
-            self.root.display()
+            self.root.display(),
+            this_sv_running("bundle", &app_dir.to_string_lossy())
         );
         // Resolved through links, so a `-securevibe-bundle.zip` that is a link to somewhere else is refused
         // before anything is written.
