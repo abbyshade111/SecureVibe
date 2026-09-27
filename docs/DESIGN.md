@@ -3116,6 +3116,18 @@ it" is a refusal, and so is a `303` back to the first step, which is an accepted
 many apps answer a skipped step. That second case was added after the first run of breaks: judging a
 skip by its status alone was caught by nothing until it existed.
 
+### The admin page, as support for V8.3.1
+
+V8.3.1 asks that access rules are enforced on the server, at a layer the browser cannot get round,
+not only by hiding buttons. The admin-page probe already shows part of that: signed in as an
+ordinary user, it asks for each admin page directly, and the server refuses while the admin's own
+session opens it. The owner's decision, 27 September 2026, was to let that count as **supporting
+evidence only**, and V8.3.1 went on `manualOnly` for it. One page refused is not every rule enforced
+on the server, and actions sent straight to an API are not tried, so the refusal stands beside the
+owner's answer to the design question and strengthens it, without settling it. An admin page that
+opens to an ordinary user is a finding against V8.3.1 as well as V8.2.1, because that shows the
+rule is not enforced on the server.
+
 Seven breaks, each caught: any status counting as finished, no control, the middle never skipped, a
 skip judged by status alone, the redirect address ignored, a working skip credited, and a one-step
 flow tried anyway. The flow is also in the default test fixture, so every signed-in test runs it and

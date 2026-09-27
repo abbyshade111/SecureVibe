@@ -238,7 +238,7 @@ another session is not a claim.
   after the move, the USB bundles are up to date, the community standards page shows every item done,
   and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
   Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
-  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  by session securevibe-e2 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
   bypass).
   Text below that says `agnostic/…` was written before the move.
 
@@ -884,7 +884,7 @@ another session is not a claim.
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
     **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
-    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    starter file issue"). **Claimed the same day by session securevibe-e2.** **Done the same day:**
     the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
     all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
     report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
@@ -1553,6 +1553,15 @@ another session is not a claim.
   refused the admin page by the server, whatever the browser was told. Citing it would cost nothing
   and settle a Level 1 requirement, but it is a citation being stretched, so somebody should decide
   rather than it being slipped in.
+  **The owner's decision, 27 September 2026: supporting evidence only.** The admin page refused to
+  an ordinary user is shown beside V8.3.1 and strengthens the owner's answer, but does not settle
+  it: one page refused is not every rule enforced on the server, and actions sent straight to an
+  API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by session
+  securevibe-e2.**
+  **Done the same day:** V8.3.1 is on `manualOnly`, and `probe.admin-page-ordinary-user` cites it
+  beside V8.2.1, so a refusal is listed as support and an opened page is a finding against both.
+  ASVS "supporting only" goes from 5 to 6; nothing more is counted as settled. See DESIGN, "The
+  admin page, as support for V8.3.1".
 
   **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
   V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
@@ -1761,7 +1770,9 @@ another session is not a claim.
      a `flow` entry naming the steps and what the last one shows when it really finished; A goes
      through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
      stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
-     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     a finding. (Asked again on 27 September 2026 whether two refused skips should settle it; the
+     owner's answer: no, it stays a person's check. Trying a repeated step is the way to strengthen
+     it, not a lower bar.) **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
      and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
@@ -2021,7 +2032,8 @@ another session is not a claim.
   three were false cleans. `html_fragments` now walks start tags the way a browser's tokenizer does and
   reads each value the way the URL standard does (put back character references, strip the ends, remove
   tabs and newlines, then read the scheme). What is still named rather than read, and why, is in
-  DESIGN, "A page of markup is not a hole in the coverage".
+  DESIGN, "A page of markup is not a hole in the coverage". This is also the owner's decision the same
+  day, asked through another session: read them the way a browser does.
 
   Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace suite.
   Broke eight things on purpose and watched each go red: unquoted values dropped, tabs kept in a URL, the
