@@ -443,6 +443,9 @@ fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
         .map(|c| c.name())
         .collect();
 
+    // `generates-media` joined on 27 September 2026, deliberately: the one requirement it decides,
+    // C7.4.4 (watermarking media the AI makes), is level 3, so it decides nothing at the levels
+    // counted here and matters only to an app held to level 3.
     assert_eq!(
         inert,
         vec![
@@ -450,6 +453,7 @@ fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
             "no-auth",
             "public-api",
             "level2",
+            "generates-media",
             "self-assessment",
         ],
         "the set of conditions that decide nothing has changed"
@@ -961,4 +965,40 @@ fn a_web_search_brings_in_what_fits_it_and_not_the_vector_store() {
             "{id} with no retrieval at all"
         );
     }
+}
+
+#[test]
+fn watermarking_is_asked_of_an_app_that_makes_media_and_not_of_one_that_retrieves() {
+    // C7.4.4 was gated on `rag` for no better reason than sitting in the retrieval section. At the
+    // owner's decision (27 September 2026) it turns on `generates-media` alone.
+    let config = v2_config();
+    let f = Frameworks::load(&data_dir().join("frameworks")).unwrap();
+    assert!(
+        f.get("C7.4.4").is_some(),
+        "the setup needs the real requirement"
+    );
+    let with = |rag: bool, media: bool| {
+        let mut ctx = ConditionContext::default();
+        for c in Condition::ALL
+            .iter()
+            .filter(|c| c.source() == Source::Claim)
+        {
+            ctx.set(*c, false);
+        }
+        ctx.set(Condition::Ai, true);
+        ctx.set(Condition::Rag, rag);
+        ctx.set(Condition::GeneratesMedia, media);
+        bucket(&f, &config, &ctx, 3)
+    };
+    let applies =
+        |b: &sv_frameworks::applicability::Buckets| b.applicable.iter().any(|a| a == "C7.4.4");
+    assert!(
+        applies(&with(false, true)),
+        "an app that makes media is asked to watermark it"
+    );
+    assert!(
+        !applies(&with(true, false)),
+        "retrieval has nothing to watermark"
+    );
+    assert!(!applies(&with(false, false)));
 }
