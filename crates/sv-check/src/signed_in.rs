@@ -467,7 +467,7 @@ pub(crate) fn finding(
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
-        in_test_module: false,
+        marked_test_code: false,
         rule_id: rule.rule_id.to_owned(),
         title: title.to_owned(),
         severity,

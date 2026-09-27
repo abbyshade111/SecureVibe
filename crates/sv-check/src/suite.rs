@@ -464,7 +464,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
-        in_test_module: false,
+        marked_test_code: false,
         rule_id: "tests.name-does-not-match-requirement".into(),
         title: format!("A test named for {requirement_id} shares no words with it"),
         severity: Severity::Info,

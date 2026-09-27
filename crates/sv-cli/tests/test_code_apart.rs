@@ -61,7 +61,7 @@ fn a_finding_inside_a_rust_test_module_is_listed_apart_and_still_counts() {
         .map(|f| {
             (
                 f["location"]["line"].as_u64().unwrap(),
-                f["in_test_module"].as_bool().unwrap_or(false),
+                f["marked_test_code"].as_bool().unwrap_or(false),
             )
         })
         .collect();

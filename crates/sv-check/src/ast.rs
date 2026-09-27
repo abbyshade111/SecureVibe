@@ -1082,7 +1082,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             out.push(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
-                in_test_module: false,
+                marked_test_code: false,
                 rule_id: compiled.rule.id.clone(),
                 title: compiled.rule.title.clone(),
                 severity: compiled.rule.severity,

@@ -225,7 +225,7 @@ pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding
             out.push(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
-                in_test_module: false,
+                marked_test_code: false,
                 rule_id: rule.id.clone(),
                 title: rule.title.clone(),
                 severity: rule.severity,
@@ -289,7 +289,7 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
         out.push(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
-            in_test_module: false,
+            marked_test_code: false,
             rule_id: "secrets.credential-assignment".into(),
             title: format!("A value that looks like a credential is written into the code (`{name}`)"),
             severity: Severity::High,

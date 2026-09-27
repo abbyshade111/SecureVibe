@@ -1538,3 +1538,84 @@ fn a_ruby_rate_limiter_is_not_evidence_either() {
         found.evidence
     );
 }
+
+#[test]
+fn folders_that_are_not_the_app_are_not_evidence_about_it() {
+    // An example app beside the real one: it declares a sign-in library, it is written in Go, and it
+    // does not pin what it installs. None of that is the app's.
+    let app = std::env::temp_dir().join(format!("sv-scan-not-the-app-{}", std::process::id()));
+    std::fs::remove_dir_all(&app).ok();
+    std::fs::create_dir_all(app.join("examples/shop")).unwrap();
+    std::fs::create_dir_all(app.join("crates/one/tests")).unwrap();
+    std::fs::write(app.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(app.join("requirements.txt"), "flask==3.0.0\n").unwrap();
+    std::fs::write(app.join("examples/shop/requirements.txt"), "flask-login\n").unwrap();
+    std::fs::write(app.join("examples/shop/main.go"), "package main\n").unwrap();
+    std::fs::write(app.join("crates/one/tests/page.dart"), "void main() {}\n").unwrap();
+    // A file whose name only starts like the folder is the app's own.
+    std::fs::write(app.join("examples.py"), "print('mine')\n").unwrap();
+    let sigs = all_signatures();
+
+    // The control: read as one app, the example is evidence, which is what went wrong on `sv`.
+    let whole = scan(&app, &sigs).unwrap();
+    assert_eq!(answer(&whole, Condition::Auth).value, Some(true));
+    assert!(whole.languages.contains("go"));
+    assert!(whole.declared.iter().any(|d| d.name == "flask-login"));
+    assert!(
+        whole
+            .unpinned
+            .iter()
+            .any(|e| e.manifest.starts_with("examples/"))
+    );
+
+    let folders = vec!["examples".to_owned(), "crates/*/tests".to_owned()];
+    let apart = sv_scan::scan_app(&app, &sigs, &folders).unwrap();
+    assert_ne!(answer(&apart, Condition::Auth).value, Some(true));
+    assert!(!apart.languages.contains("go"));
+    assert!(!apart.declared.iter().any(|d| d.name == "flask-login"));
+    assert!(
+        apart.declared.iter().any(|d| d.name == "flask"),
+        "the app's own still counts"
+    );
+    assert!(
+        !apart
+            .unpinned
+            .iter()
+            .any(|e| e.manifest.starts_with("examples/")),
+        "{:?}",
+        apart.unpinned
+    );
+    assert!(
+        !apart
+            .ecosystems
+            .iter()
+            .any(|e| e.manifest.starts_with("examples/"))
+    );
+    assert!(
+        apart.unread_extensions.is_empty(),
+        "{:?}",
+        apart.unread_extensions
+    );
+    assert!(apart.all_paths.contains("examples.py"));
+    let set_apart: Vec<&str> = apart.set_apart.iter().map(|p| p.as_str()).collect();
+    assert_eq!(set_apart, vec!["crates/one/tests", "examples"]);
+    std::fs::remove_dir_all(&app).ok();
+}
+
+#[test]
+fn a_folder_is_matched_by_whole_names() {
+    let folders = vec!["examples".to_owned(), "crates/*/tests".to_owned()];
+    for (path, inside) in [
+        ("examples", true),
+        ("examples/shop/app.py", true),
+        ("crates/sv-cli/tests/fixture.rs", true),
+        ("crates/sv-cli/tests", true),
+        ("examples.md", false),
+        ("my-examples/app.py", false),
+        ("src/examples/app.py", false),
+        ("crates/sv-cli/src/main.rs", false),
+        ("crates/tests", false),
+    ] {
+        assert_eq!(sv_scan::under_any(path, &folders), inside, "{path}");
+    }
+}

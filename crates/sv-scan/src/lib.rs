@@ -142,6 +142,10 @@ pub struct ScanReport {
     /// at all, or one only the code rules read (`ecosystems::NO_TECHNOLOGY_READER`).
     pub unread_extensions: BTreeSet<String>,
     pub answers: Vec<Answer>,
+    /// The folders the manifest says are not the app (`[repository] not-the-app`), as given.
+    pub not_the_app: Vec<String>,
+    /// The folders in the app that one of those matched, and so were not looked in for evidence.
+    pub set_apart: BTreeSet<String>,
 }
 
 impl ScanReport {
@@ -153,10 +157,32 @@ impl ScanReport {
 
 /// Reads the app's manifests and source, and answers every signature it can.
 pub fn scan(app_dir: &Path, signatures: &Signatures) -> Result<ScanReport> {
+    scan_app(app_dir, signatures, &[])
+}
+
+/// As `scan`, leaving out the folders the manifest says are not the app: a fixture's `authlib` is
+/// not evidence that the app signs people in. Only the answers change. The code rules, the
+/// credentials scan, and every other check still read those folders.
+pub fn scan_app(
+    app_dir: &Path,
+    signatures: &Signatures,
+    not_the_app: &[String],
+) -> Result<ScanReport> {
+    let ours = |path: &str| !under_any(path, not_the_app);
     let mut report = ScanReport {
-        ecosystems: ecosystems::detect(app_dir),
-        unpinned: ecosystems::unpinned(app_dir),
-        declared: deps::read(app_dir),
+        ecosystems: ecosystems::detect(app_dir)
+            .into_iter()
+            .filter(|e| ours(&e.manifest))
+            .collect(),
+        unpinned: ecosystems::unpinned(app_dir)
+            .into_iter()
+            .filter(|e| ours(&e.manifest))
+            .collect(),
+        declared: deps::read(app_dir)
+            .into_iter()
+            .filter(|d| ours(&d.manifest))
+            .collect(),
+        not_the_app: not_the_app.to_vec(),
         ..Default::default()
     };
 
@@ -468,6 +494,10 @@ fn walk(
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .to_string();
+            if under_any(&relative, &report.not_the_app) {
+                report.set_apart.insert(relative);
+                continue;
+            }
             report.all_paths.insert(relative);
             walk(root, &path, files, report)?;
             continue;
@@ -510,6 +540,20 @@ fn walk(
         }
     }
     Ok(())
+}
+
+/// Whether a path from the app folder is inside one of `folders`, where `*` stands for one whole
+/// folder name. `examples` holds `examples/shop/app.py`, and not `examples.md` or `my-examples/`.
+pub fn under_any(path: &str, folders: &[String]) -> bool {
+    let parts: Vec<&str> = path.split(['/', '\\']).filter(|p| !p.is_empty()).collect();
+    folders.iter().any(|folder| {
+        let pattern: Vec<&str> = folder.split('/').collect();
+        pattern.len() <= parts.len()
+            && pattern
+                .iter()
+                .zip(&parts)
+                .all(|(want, got)| *want == "*" || want == got)
+    })
 }
 
 /// Extensions that are probably code `sv` has no reader for. Deliberately narrow: counting every
