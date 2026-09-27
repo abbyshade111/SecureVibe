@@ -102,10 +102,13 @@ health = "/"              # a path that returns 200 once the app is up
 #   first user's session, then with no session, with one the probes made up, and after signing out.
 
 [data]
-# What kinds of information the app holds about people.
+# What kinds of information the app holds about people. Starts commented out, like the capabilities:
+# a list nobody filled in is read as unanswered, and the app is held to ASVS level 2, the level for
+# apps that hold sensitive information, until it is answered. Remove the `#` and list what it holds,
+# or write [] if it holds nothing about people at all.
 # contact | financial | payment-card | health | government-id | credentials
 # children | location | files | business-confidential | other-personal
-categories = []
+# categories = ?
 
 [capabilities]
 # Every answer below starts commented out, so a line nobody answered is read as unanswered, never as a
@@ -219,7 +222,9 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
   1. Every capability line starts commented out, with `?` where the answer goes. Remove the `#` and
      write true or false for each one you can answer. A line left commented out is read as
      "nobody answered": every requirement that turns on it is reported as not assessed, never as
-     resolved, which is the honest answer when nobody knows.
+     resolved, which is the honest answer when nobody knows. The same holds for `[data]
+     categories`: left commented out, the app is held to the higher level; `[]` says it holds
+     nothing about people, so write it only when that is true.
 
   2. If you are unsure whether a capability is present, say true. A capability claimed but absent
      costs a requirement that did not need meeting. A capability present but denied is the one

@@ -203,6 +203,12 @@ another session is not a claim.
   (Run afterwards, 27 September 2026, by securevibe-e8 on `main` at `d6e781c`: 1,074 passed; the one failure,
   `the_fence_really_blocks_outbound_traffic`, needs outbound network, which that sandbox has none of.) After
   it merges, run `tools/pwned_passwords.py` once outside the sandbox (it has no test).
+  **All of the owner's part is done, the owner said on 27 September 2026:** `pwned_passwords.py` was run
+  after the move, the USB bundles are up to date, the community standards page shows every item done,
+  and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
+  Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
+  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  bypass).
   Text below that says `agnostic/…` was written before the move.
 
   **Rules that hold whatever the plan:**
@@ -846,6 +852,16 @@ another session is not a claim.
     leave it commented out, never to guess `false`. `tls` keeps its default mode, and `[data]
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
+    **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
+    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
+    all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
+    report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
+    an answer, "nothing about people", and still gets level 1. Only apps for `just-me` or `my-team`
+    can change level this way; `customers`, the default, and `public` were level 2 already, and the
+    note is not shown for them. Unanswered and answered-with-nothing, the starter file writing `[]`
+    again, the note missing, and the note blamed on a public app are each caught by one or two
+    tests.
   - Fifty-five questions on the Flask example is a lot to be asked. The tool is told the owner may stop
     at any point; ordering them by level, or by what is most at stake, would help.
     **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's asking ("continue to work
@@ -1228,10 +1244,12 @@ another session is not a claim.
   with the same title further down, under the done items, is struck through and says it was done on
   25 September 2026 by session securevibe-e8. Check that one before taking this; this copy may be the
   original that was never struck out.
-- **Testing an app's AI feature: a fake model inside the fence, or garak.** Asked by the owner on
+- ~~**Testing an app's AI feature: a fake model inside the fence, or garak.**~~ Closed on 27 September
+  2026. **The owner's decision that day: garak is not taken up** ("I agree with the assessment that
+  there are better options"). The test model inside the fence was built instead (below), and garak
+  would have needed a hole in the fence and the app's own API credit. Kept for the record. Asked by the owner on
   26 September 2026 ("would adding a tool like garak help answer any of the AISVS requirements?") and
-  answered by session securevibe-e9. **For a later decision by the owner; not claimed.** Other sessions
-  are welcome to add their thoughts under "Thoughts" below, each under its own name, as its own commit.
+  answered by session securevibe-e9.
 
   **What garak could reach.** garak (NVIDIA's model scanner) sends attack prompts to a chat endpoint
   and scores the replies; pointed at the app's own chat route, through a manifest entry in the shape
