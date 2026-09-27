@@ -10,12 +10,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    # Wait before proposing a newly published version: a compromised release is usually found within days. This is
-    # the same idea as min-release-age in .npmrc, applied to what Dependabot offers. Security fixes still arrive as
-    # their own pull requests.
+    # Wait before proposing a newly published version: a compromised release is usually found within days. Security
+    # fixes still arrive as their own pull requests. Dependabot refuses `semver-major-days` here and for the base images
+    # below (found on 27 September 2026, when it first checked this file); the Rust packages keep it.
     cooldown:
       default-days: 7
-      semver-major-days: 30
 
   # The Rust packages `sv` is built from (Cargo.lock).
   - package-ecosystem: cargo
@@ -43,4 +42,3 @@ updates:
     open-pull-requests-limit: 5
     cooldown:
       default-days: 7
-      semver-major-days: 30
