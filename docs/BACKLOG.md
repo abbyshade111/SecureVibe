@@ -119,6 +119,7 @@ another session is not a claim.
   1. **Test fixtures and example apps are read as part of the app.** On `sv`'s own repository they overruled the
      manifest 19 times and added 547 findings. A manifest could name folders that are fixtures or examples: still
      read, but unable to overrule the manifest, and with their findings listed apart.
+     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick another item.
   2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
      product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
      **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
