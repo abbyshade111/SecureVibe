@@ -290,6 +290,10 @@ cargo test
 The OWASP data files (`data/frameworks`, `data/knowledge`) and `sv`'s own data files live together in `data/`.
 `SV_DATA_DIR` overrides the location of the OWASP data.
 
+To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md): the checks a change must pass and the rules every change
+keeps. Taking part means agreeing to the [code of conduct](CODE_OF_CONDUCT.md); a security problem in `sv` itself
+goes through [SECURITY.md](SECURITY.md), not a public issue.
+
 ## Reading order
 
 `docs/DESIGN.md` explains the two changes from v1 (the design was written when the two were side by side), why deleting the wizard was the hard part, and what the
