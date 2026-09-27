@@ -109,7 +109,6 @@ Open the app's folder in your AI tool and paste this, with your app described at
 > 3. Never tell me the app is secure. Tell me what was checked and what was not.
 > 4. When the first version works, call `securevibe_questions` and ask me the questions one at a time.
 >    Record only what I actually answer as mine.
-> 5. Keep `securevibe-report`, or any report SecureVibe writes, out of the app's folder.
 
 ## 5. Answer the questions
 
@@ -136,12 +135,6 @@ something this guide can make easy.
 
 Found in the first real build, and not yet fixed. Each is in `docs/BACKLOG.md`.
 
-- **A report written inside the app's folder breaks the next check.** SecureVibe then reads its own
-  report as your app's code, and the number of requirements it can check falls sharply. That is why
-  the prompt says to keep reports out of the app's folder.
-- **Two kinds of false alarm are rated high.** A pattern-matching call named `exec`, and a test tool's
-  `.query(...)`, are reported as a shell command and a database query. If one appears, ask the tool
-  whether it is really a shell command or a database query before it changes anything.
 - **A rate limiter counts as a sign of a public API**, which adds requirements an app without one does
   not need. Harmless beyond the extra list.
 - **Security notes the AI tool wrote are counted as yours.** Only let it write a note you agree with.

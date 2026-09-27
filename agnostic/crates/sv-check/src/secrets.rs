@@ -363,27 +363,17 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
     )]
 }
 
-/// Directories whose contents belong to somebody else, or are build output.
-const SKIP_DIRS: &[&str] = &[
-    ".git",
-    "node_modules",
-    "target",
-    "dist",
-    "build",
-    "out",
-    "vendor",
-    ".venv",
-    "venv",
-    "__pycache__",
-    ".next",
-    ".nuxt",
-    ".tox",
-    "site-packages",
-    ".gradle",
-    ".mypy_cache",
-    ".pytest_cache",
-    "coverage",
-];
+/// Whether the credential scan leaves a folder out: the app-wide list (`sv_scan::ecosystems`), less
+/// the editor folders, which can hold a token. One list rather than two copies, which had drifted.
+fn skip_dir(dir: &Path) -> bool {
+    let name = dir
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    let skipped = sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_ref())
+        && !sv_scan::ecosystems::EDITOR_DIRS.contains(&name.as_ref());
+    skipped || sv_scan::ecosystems::is_sv_output(dir)
+}
 
 /// Above this, a file is not something a person typed and reading it all costs more than it finds.
 const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
@@ -398,9 +388,8 @@ fn walk(root: &Path, dir: &Path, rules: &SecretRules, scan: &mut SecretScan) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if SKIP_DIRS.contains(&name.as_str()) {
+            if skip_dir(&path) {
                 continue;
             }
             walk(root, &path, rules, scan);

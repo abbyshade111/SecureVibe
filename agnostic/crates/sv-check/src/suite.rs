@@ -94,9 +94,8 @@ fn walk(root: &Path, dir: &Path, known: &BTreeSet<&str>, out: &mut Vec<NamedTest
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_str()) {
+            if sv_scan::ecosystems::skip_dir(&path) {
                 continue;
             }
             walk(root, &path, known, out);
