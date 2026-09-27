@@ -695,10 +695,14 @@ another session is not a claim.
   environment file, key store, database, link, editor folder or unreadable file goes in, and each is listed with its
   reason. Written with no new dependency (SHA-256, CRC and a stored zip are in the crate). Reproduced on the way: a `--out`
   reaching the app folder through a link (`/var` and `/private/var` on a Mac) slipped past the check, and a test caught it.
-  **Left, as their own pieces:** the MCP tool (the server writes only below the app today, so the zip needs its
-  own place or is skipped like the report), the offer once the report is written, `[data]` categories as a reason to leave
-  out more, the commit `sv` was built from in `BUNDLE.json` (only the version is there), and each outside tool's own
-  SARIF (only `findings.sarif` is).
+  **Second piece done the same day:** `securevibe_bundle` over MCP (beside the app, never inside it, only where the
+  server may write, a link to somewhere else refused before anything is written), offered by `securevibe_write_report`
+  and the server's instructions "only if the person wants one", so nothing makes a zip on every run; the commit `sv` was
+  built from in `BUNDLE.json` (`unknown` outside a checkout, as in the Docker image); and the data categories from
+  `securevibe.toml` named in the listing, the README and on screen, and not acted on, since `sv` cannot tell which files
+  hold them. The image smoke test asks the container for a bundle and looks for the committed `.env` in it.
+  **Left:** each outside tool's own SARIF (only `findings.sarif` is in), and a real decision about what a category could
+  leave out, if anything can be said deterministically about it.
 
   What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
   `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,
