@@ -102,6 +102,7 @@ mod tests {
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,
+            run_status: None,
             counts: Counts::default(),
             requirements: vec![],
             excluded: vec![],

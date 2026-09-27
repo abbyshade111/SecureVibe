@@ -1645,10 +1645,21 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     let mut gaps = Vec::new();
     let mut run_note = None;
     let mut run_steps: Vec<String> = Vec::new();
+    let run_status;
 
     if options.run_the_app {
         match probe_the_running_app(&manifest, app_dir, options.slow) {
             Ok((outcome, plan)) => {
+                run_status = sv_report::RunStatus::Started {
+                    image: plan.image.clone(),
+                    asked: anonymous_requests(&plan).len(),
+                    answered: outcome.probe_responses.len(),
+                    signed_in: outcome.signed_in.is_some(),
+                    tests: sv_report::RunStatus::tests_state(
+                        outcome.tests.as_ref().map(|t| t.exit_code),
+                    )
+                    .to_owned(),
+                };
                 let (running_findings, running_verified, signed_in_not_assessed) =
                     running_app_evidence(&outcome, &plan);
                 findings.extend(running_findings);
@@ -1830,12 +1841,20 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                     }),
                 }
             }
-            Err(reason) => gaps.push(sv_report::Gap {
-                what: "the running app".to_owned(),
-                why: format!("--run was given and the app could not be run. {reason}"),
-            }),
+            Err(reason) => {
+                run_status = sv_report::RunStatus::CouldNotStart {
+                    why: reason.clone(),
+                };
+                gaps.push(sv_report::Gap {
+                    what: "the running app".to_owned(),
+                    why: format!("--run was given and the app could not be run. {reason}"),
+                })
+            }
         }
     } else {
+        run_status = sv_report::RunStatus::NotAsked {
+            why: options.why_not_run.to_owned(),
+        };
         gaps.push(sv_report::Gap {
             what: "the running app".to_owned(),
             why: format!(
@@ -2178,6 +2197,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         run_note,
         run_steps,
         test_output,
+        run_status: Some(run_status),
         frameworks: &frameworks,
         buckets: &buckets,
         claims: &resolved,
@@ -2273,6 +2293,10 @@ fn cmd_report(args: &[String]) -> Result<()> {
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
     for name in &written {
         println!("  {name}");
+    }
+    // First, because the counts below mean something different depending on it.
+    if let Some(status) = &report.run_status {
+        println!("\n{}", status.line());
     }
     println!(
         "\n{} requirements apply. {} need{} attention, {} {} checked by an automated check, \

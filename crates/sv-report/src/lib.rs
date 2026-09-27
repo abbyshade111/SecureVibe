@@ -237,6 +237,8 @@ pub struct Report {
     pub run_steps: Vec<String>,
     /// The last lines the app's own test runner printed, when its suite failed under `--run`.
     pub test_output: Option<sv_check::suite::FailingOutput>,
+    /// Whether the app was started, said once and plainly. `None` only where nobody recorded it.
+    pub run_status: Option<RunStatus>,
     pub counts: Counts,
     pub requirements: Vec<RequirementLine>,
     pub excluded: Vec<ExcludedRequirement>,
@@ -293,6 +295,77 @@ pub struct TestToWrite {
     pub description: String,
 }
 
+/// Whether `--run` started the app.
+///
+/// The report's counts change a great deal with it, and a reader, or the AI coding tool reading the
+/// terminal for the owner, should not have to work out from them which happened. On the owner's
+/// first build from scratch the tool had to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum RunStatus {
+    /// Not asked for; `why` says how to ask.
+    NotAsked { why: String },
+    /// The app came up and was asked questions.
+    Started {
+        image: String,
+        /// Requests sent without signing in, and how many of them it answered.
+        asked: usize,
+        answered: usize,
+        /// Whether it was asked more as signed-in users.
+        signed_in: bool,
+        /// Its own tests: `passed`, `failed`, or `not-declared`.
+        tests: String,
+    },
+    /// Asked for, and the app could not be started or never answered.
+    CouldNotStart { why: String },
+}
+
+impl RunStatus {
+    /// `tests` for a run, from the exit code of its test command, when one was declared and run.
+    pub fn tests_state(exit_code: Option<i32>) -> &'static str {
+        match exit_code {
+            None => "not-declared",
+            Some(0) => "passed",
+            Some(_) => "failed",
+        }
+    }
+
+    /// One line, for the terminal.
+    pub fn line(&self) -> String {
+        match self {
+            RunStatus::NotAsked { why } => format!("The app was not started. {why}"),
+            RunStatus::CouldNotStart { why } => {
+                format!("--run was given, and the app could not be started. {why}")
+            }
+            RunStatus::Started {
+                image,
+                asked,
+                answered,
+                signed_in,
+                tests,
+            } => {
+                let then = if *signed_in {
+                    ", and was then asked more as test users signed in to it"
+                } else {
+                    ""
+                };
+                let tests = match tests.as_str() {
+                    "passed" => "Its own tests passed.",
+                    "failed" => {
+                        "Its own tests failed; the report shows the last lines they printed."
+                    }
+                    _ => "securevibe.toml declares no test command, so its own tests were not run.",
+                };
+                format!(
+                    "The app was started with {image} and answered {answered} of the {asked} \
+                     request{} sent to it without signing in{then}. {tests}",
+                    if *asked == 1 { "" } else { "s" }
+                )
+            }
+        }
+    }
+}
+
 /// The sentence before a failing suite's output, the same in every format.
 pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
     let what = if t.lines_total == 0 {
@@ -331,6 +404,8 @@ pub struct Inputs<'a> {
     pub run_steps: Vec<String>,
     /// See `Report::test_output`.
     pub test_output: Option<sv_check::suite::FailingOutput>,
+    /// See `Report::run_status`.
+    pub run_status: Option<RunStatus>,
     pub frameworks: &'a Frameworks,
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
@@ -719,6 +794,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         run_note: inputs.run_note,
         run_steps: inputs.run_steps,
         test_output: inputs.test_output,
+        run_status: inputs.run_status,
         counts,
         requirements,
         excluded,

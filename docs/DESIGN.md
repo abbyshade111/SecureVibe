@@ -1053,6 +1053,29 @@ handling, CSRF, anything that needs data sent into a form. An app that ran is no
 and the gap list has to say which of the two happened. The app's declared tests are folded in the same
 way, under the rule below.
 
+### Whether the app was started, in one line
+
+The counts in `sv report`'s summary move a long way with `--run` (on the owner's first build from
+scratch, requirements checked went from 9 to 23), and nothing in the summary said which had
+happened: the AI coding tool reading it for the owner worked it out from the counts. So the first
+line after the list of files written is now one of three:
+
+- *The app was not started*, and how to start it.
+- *--run was given, and the app could not be started*, and the reason the runner gave: what
+  securevibe.toml leaves out, no container backend, or the app never answering.
+- *The app was started with* its image *and answered N of the M requests sent to it without signing
+  in*, whether it was then asked more as test users, and whether its own tests passed, failed (the
+  report then shows their last lines), or were not declared.
+
+`report.json` carries the same as `run_status`, by name (`state` is `not-asked`, `could-not-start`,
+or `started`) rather than by sentence, for a tool that reads the file instead of the terminal.
+
+Tested with seven breaks (the line not printed, printed after the counts, a failed start reported as
+not asked, an exit code of zero read as failure, any exit code read as a pass, the state named the
+way Rust names it, the signed-in half dropped), each turning two to four tests red; the two states
+that need no container are tested through the binary, and the third was seen end to end: *started
+with python:3.12-slim and answered 29 of the 29 requests*, its tests failing.
+
 ### What the app's own tests are evidence about
 
 A passing test suite is the largest source of positive evidence here and the easiest place in the whole
