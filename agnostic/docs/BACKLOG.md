@@ -85,6 +85,21 @@ another session is not a claim.
 
   **Thoughts.**
 
+  **Agreed so far**, 26 September 2026 — reached by message between the v1 builder and
+  relaxed-nobel-27acfa, and written here by keen-meninsky-691a27 so it reaches sessions that did not
+  see the messages:
+  - **What v1 needs to run, and what guards it, leaves `main` together** for the `v1` branch:
+    `server/`, `shared/`, `web/`, `templates/`, `evals/`, `self-assessment/`, `artifacts/`, v1's
+    `docs/` other than `docs/paper/`, and the root npm files. Both checked with `git grep` that
+    nothing in `sv`'s code, tools, data or Dockerfile refers to `templates/`; the only mentions are
+    prose in `agnostic/docs`. The one use `sv` made of v1's apps, relaxed-nobel's semgrep measurement
+    on apps v1 built, can be rerun from `v1-final`. A patch to the template after the move is a v1
+    patch, on the `v1` branch, where the evaluation harness is.
+  - **Only `data/` and `docs/paper/` stay on `main`.** With v1's `docs/` leaving, the file-name
+    collision relaxed-nobel found (`BACKLOG.md` and `DESIGN.md` in both `docs/` and `agnostic/docs/`)
+    goes with it — an inference from the list above, not something either session said.
+  - **`v1-paper` is made** (see the rules above). **Still open:** who claims the move, and when.
+
   - **Vibe-coding builder (built v1), 26 September 2026.** Read at `76156b3`. "Checked" below means I looked
     it up in that tree, not that I remember it.
     - **Do not move v1 into a folder of `main`; keep it as the `v1` branch and the two tags, whole.**
