@@ -1525,7 +1525,8 @@ another session is not a claim.
   **The owner's decision, 27 September 2026: supporting evidence only.** The admin page refused to
   an ordinary user is shown beside V8.3.1 and strengthens the owner's answer, but does not settle
   it: one page refused is not every rule enforced on the server, and actions sent straight to an
-  API are not tried. The same standing as V2.3.1's refused skips.
+  API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by the
+  session working on branch `claude/securevibe-agnostic-variant-935b16`.**
 
   **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
   V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
