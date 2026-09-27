@@ -9,6 +9,12 @@ another session is not a claim.
 
 ## Next
 
+- **The project's vulnerabilities against the OWASP Top 10:2025, for the paper.** **Claimed on 27 September
+  2026 by session admiring-murdock-875699**, at the owner's asking. Weaknesses found in SecureVibe's own code
+  across both versions, and what it found in the apps it checked, each mapped to a Top 10:2025 category through
+  its CWE, with the source for every item. A written analysis and a figure in `docs/paper/`. Touches only
+  `docs/paper/`.
+
 - **Appendix C out of the report's headline numbers, into a section of its own.** Asked for by the
   owner on 27 September 2026, once the coding rules gave Appendix C a place at the start of the
   build. Measured the same day: Appendix C is 44 of the 284 requirements that apply to
