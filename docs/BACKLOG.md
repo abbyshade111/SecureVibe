@@ -549,7 +549,9 @@ another session is not a claim.
      (`crates/sv-run`, which says "only the exit code is known"). One test failed in `sv`'s Node 22
      image and not under the owner's Node 26, which cost every test its credit, and the tool had to
      rebuild `sv`'s environment by hand to find which. The last lines of the runner's output belong in
-     the report whenever the suite fails. **Claimed on 27 September 2026 by session securevibe-e9.**
+     the report whenever the suite fails. **Claimed on 27 September 2026 by session securevibe-e9.** **Done the same day:** the last 30 lines, as a terminal
+     showed them and with anything that looks like a credential cut short, in the report, `report.json`,
+     and `sv run`'s output. See DESIGN, "What a failing suite printed".
 
   **Friction for somebody who is not technical** (see the walk-through entry above):
 
