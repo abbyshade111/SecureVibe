@@ -237,7 +237,8 @@ another session is not a claim.
      whole chapter hangs today on `mcp`, which asks whether the app's AI *uses* MCP. The server's requirements
      (C10.2.1–C10.2.7, C10.3.3, C10.4.3, C10.4.4, C10.4.6) turn on the new question, the client's stay on `mcp`,
      and the four about the transport between the two (C10.3.1, C10.3.2, C10.3.5, C10.4.5) apply when either
-     is true.
+     is true. **Done the same day;** see DESIGN, "An app that serves tools over MCP". `sv`'s own count does
+     not move until item 1 is done: a fixture's `from mcp` already brings in the whole chapter.
 
 - **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
   admiring-murdock-875699**, at the owner's asking. **Done the same day:** `docs/paper/ADRS.md`; its inconsistencies are the entry above. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to

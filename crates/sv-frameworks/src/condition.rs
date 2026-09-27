@@ -85,6 +85,11 @@ conditions! {
     // Asked apart at the owner's decision, 27 September 2026.
     GeneratesMedia => "generates-media", Claim, "The AI makes text only, not images, audio, or video.";
     Mcp => "mcp", Claim, "The AI does not use the Model Context Protocol (MCP) to talk to tools.";
+    // Serving tools over MCP is a different job from using them, with its own requirements (the
+    // server's tokens, its Origin and Host checks, the parameters it accepts), and it needs no AI
+    // of its own: `sv` is one. Asked apart since 27 September 2026, when `sv`'s self-assessment
+    // found the server requirements were never asked of it, because `mcp` asks about the client.
+    McpServer => "mcp-server", Claim, "This app does not serve tools to AI models over the Model Context Protocol (MCP).";
     MultiTenant => "multi-tenant", Claim, "This app serves one organization, not several separate customer organizations sharing one system.";
     Training => "training", Claim, "This app does not train or fine-tune any AI model.";
     SelfAssessment => "self-assessment", Claim, "This is only evaluated when SecureVibe assesses itself.";

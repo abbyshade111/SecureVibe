@@ -1938,6 +1938,33 @@
       }
     },
     {
+      "condition": "mcp-server",
+      "absenceIsEvidence": false,
+      "note": "An MCP server shows itself where it is built: a FastMCP or McpServer object, the SDK's server module, or a type implementing rmcp's ServerHandler. Only the server's side is listed, so an app whose AI calls MCP tools (a client) does not answer this. A server written by hand over JSON-RPC, as `sv`'s own is, leaves nothing that tells it apart, which is why absence settles nothing.",
+      "source": {
+        "python": [
+          "FastMCP(",
+          "from mcp.server"
+        ],
+        "javascript": [
+          "@modelcontextprotocol/sdk/server",
+          "new McpServer("
+        ],
+        "typescript": [
+          "@modelcontextprotocol/sdk/server",
+          "new McpServer("
+        ],
+        "go": [
+          "server.NewMCPServer(",
+          "mcp.NewServer("
+        ],
+        "rust": [
+          "rmcp::handler::server",
+          "impl ServerHandler for"
+        ]
+      }
+    },
+    {
       "condition": "shared-hostname",
       "noCorroborator": true,
       "absenceIsEvidence": false,
