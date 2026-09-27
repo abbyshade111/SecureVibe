@@ -1,0 +1,62 @@
+# securevibe.toml — what `sv` itself is, so `sv report .` can check this repository the way it checks any app.
+# Written on 27 September 2026 by an AI coding session (Claude Code, session admiring-murdock-875699) from
+# `sv`'s own code, at the owner's asking, for the v2 self-assessment in docs/paper/. Read it before you trust
+# the report: every answer below is the AI tool's statement, not the owner's.
+manifest-version = 1
+
+[app]
+name = "sv (SecureVibe)"
+description = "A command-line checker that reads an app's code, can run the app in Docker behind a network fence, and reports against OWASP ASVS 5.0, AISVS 1.0, and Secure by Design. It also serves the same checks to an AI coding tool over MCP."
+# Each copy runs on the computer of the person using it and serves only them: the MCP server speaks over
+# standard input and output, and `sv` listens on no network port.
+audience = "just-me"
+deployment = "local-only"
+
+[stack]
+# Rust is `sv`. The JavaScript is the scripts `sv` runs inside its own test containers
+# (crates/sv-run/assets): a test sign-in provider, a test model, and the browser driver.
+languages = ["rust", "javascript"]
+
+[stack.run]
+# `sv` is not a web app, so there is nothing to start and send requests to. Every check that needs a
+# running app is reported as not assessed, which is the honest answer here.
+image = ""
+build = ""
+start = ""
+test = ""
+test-report = ""
+health = "/"
+
+[data]
+# `sv` keeps no information about people. It reads the code of the app it is pointed at, which may
+# contain credentials; it reports where they are, with the value cut short, and stores nothing.
+categories = []
+
+[capabilities]
+auth = false                  # nobody signs in to `sv`
+oauth = false
+authorization-server = false
+jwt = false
+uploads = false               # MCP tools take a folder path under --root, not an uploaded file
+payments = false
+email = false                 # the mail server in `sv run` is a test server inside the fence, for the app under test
+public-api = false            # no network API; the MCP server is local, over standard input and output
+scheduler = false
+multi-tenant = false
+webrtc = false
+out-of-band-auth = false
+shared-hostname = false
+multiple-services = false     # one process; the containers it starts belong to the app under test
+external-apis = []            # `sv` has no HTTP client of its own; `sv probe` contacts only the address the person types
+tls = "off"                   # it serves nothing over a network
+
+[repository]
+ci-cd = true                  # GitHub Actions: .github/workflows/rust.yml and codeql.yml
+hosted-scm = false            # hosted on GitHub, but with no branch protection or merge queue on main
+outside-contributors = false  # none so far; CONTRIBUTING.md invites them
+iac = true                    # the CI workflow files above are in the repository
+
+[capabilities.ai]
+# `sv` has no AI feature of its own. It tests other apps' AI features with a test model it runs itself,
+# and it is an MCP server that AI coding tools call; it does not reach tools over MCP.
+enabled = false
