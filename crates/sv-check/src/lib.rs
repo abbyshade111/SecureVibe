@@ -31,6 +31,7 @@ pub mod signed_in;
 pub mod suite;
 pub mod totp;
 pub mod verified;
+pub mod workflows;
 
 pub use finding::{Confidence, Finding, Location, Secret, Severity};
 pub use sbom::{Sbom, build as build_sbom, to_cyclonedx};

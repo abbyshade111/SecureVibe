@@ -16,7 +16,7 @@ another session is not a claim.
   A written analysis and a figure in `docs/paper/`. Touches only `docs/paper/`.
 
 - **The project's vulnerabilities against the OWASP Top 10:2025, for the paper.** **Claimed on 27 September
-  2026 by session admiring-murdock-875699**, at the owner's asking. Weaknesses found in SecureVibe's own code
+  2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day.** Weaknesses found in SecureVibe's own code
   across both versions, and what it found in the apps it checked, each mapped to a Top 10:2025 category through
   its CWE, with the source for every item. A written analysis and a figure in `docs/paper/`. Touches only
   `docs/paper/`.
@@ -52,7 +52,10 @@ another session is not a claim.
   as the other static rules do. **Claimed on 27 September 2026 by session securevibe-e8.** One change
   of scope on reading the requirements: AC.7.4 asks that changes to trigger settings get dual control
   and a security-team review, which a workflow file cannot show, so a missing `permissions:` block is
-  not cited as AC.7.4.
+  not cited as AC.7.4. **Done the same day:** `crates/sv-check/src/workflows.rs`, four checks, with
+  AC.12.1 and AC.12.2 credited only for workflows all read and found clean, AC.12.3 finding-only
+  (approvals are repository settings), and the token's permissions a finding citing nothing. See
+  DESIGN, "The app's GitHub Actions workflows".
 
 - **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
   owner on 27 September 2026: Appendix C is better used as a reference while coding than as report

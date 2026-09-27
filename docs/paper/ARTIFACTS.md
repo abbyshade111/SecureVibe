@@ -13,6 +13,8 @@ files are the record and the reader can recompute anything in them.
 | `figure-cost.html` | Cost and speed: v1's cost and time per run type, where its $63.46 went, what made it cheaper, and four measured speed-ups across both versions. |
 | `figure-usability.html` | What people hit that the tests did not: v1's 13, and `sv`'s 18 from the owner's first build, the start from an empty folder, and VS Code, each with its fix. |
 | `figure-how-caught.html` | How the faults the tests missed were caught: by use, by one session reviewing another, by breaking a guard on purpose, by v1's harness, or by accident; and how parallel sessions coordinated. |
+| `TOP10.md` | The project's security faults against the OWASP Top 10:2025: weaknesses in SecureVibe's own code (18), its verdicts that failed open (8, all A10), v1 checking itself (195 findings, 160 false alarms), and what it found in the apps it checked. Each item is mapped through a CWE on the category's official list, with its source. |
+| `figure-top10.html` | The same, as one grid: the ten categories against the four kinds of evidence. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
 | `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |
