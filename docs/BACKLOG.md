@@ -9,6 +9,13 @@ another session is not a claim.
 
 ## Next
 
+- **Clean up after the move.** **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's
+  asking. Found by a review of `main` after the move: the rule against printing or committing a key is
+  missing from the new `CLAUDE.md`; CodeQL scans only Rust, while `crates/sv-run/assets/*.mjs` is real,
+  unscanned JavaScript; `data/knowledge/threats.json` names two `agnostic/` paths; Dependabot does not
+  watch the `Dockerfile`; and the security policy stayed with v1, so `sv` has none. The owner chose
+  GitHub's private vulnerability reporting as the way to report a problem in `sv`.
+
 - **Fill in GitHub's community standards for the repository.** Asked for by the owner on 26 September
   2026, from the repository's *Insights → Community standards* page. Not claimed. Done today:
   description, README, license, and the security policy (`docs/SECURITY.md`). Missing:
