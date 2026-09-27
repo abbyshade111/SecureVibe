@@ -2699,6 +2699,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
 
     // The same weakness on the same line, reported by two tools, is one thing to fix.
     let mut findings = sv_check::finding::merge_same_place(findings);
+    // Rust keeps its unit tests beside the code, so the file's name cannot say which is which.
+    sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(
