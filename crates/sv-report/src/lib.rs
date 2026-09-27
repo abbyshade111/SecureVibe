@@ -253,6 +253,114 @@ pub struct Counts {
     pub not_applicable: usize,
     pub not_assessed: usize,
     pub out_of_level: usize,
+    /// Appendix C requirements that apply and that nothing has reached, counted apart from
+    /// `applicable` and `not_verified`: see `Report::ai_process`.
+    pub ai_process: usize,
+}
+
+/// The prefix of an OWASP AISVS Appendix C requirement id.
+pub const APPENDIX_C: &str = "AC.";
+
+/// OWASP AISVS Appendix C, *AI-Assisted Secure Coding*, apart from the app's own requirements.
+///
+/// Its requirements are about how the app is built with an AI coding tool: a written workflow, how
+/// the tool was chosen, what it is given, pipeline and organization infrastructure. No check in `sv`
+/// reaches them, so in the headline numbers every one read *not verified*, about a sixth of the
+/// whole on the Flask example, and made the app look further from done than anything in it was.
+/// They are listed here instead, by what happens to each: given to the AI coding tool as rules
+/// (`sv rules`, `securevibe_guidance`), which is not evidence; asked of the owner; or reached by
+/// nothing. One that a check found a problem with, or has any evidence for, stays among the app's
+/// requirements and counts as they do.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct AiProcess {
+    pub lines: Vec<AiProcessLine>,
+    /// Appendix C requirements that do not apply to this app (listed with the others that do not).
+    pub not_applicable: usize,
+    /// Appendix C requirements waiting on a question nobody has answered.
+    pub not_assessed: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AiProcessLine {
+    pub id: String,
+    pub level: u8,
+    pub description: String,
+    /// `rules-given`, `your-decision`, or `nothing-reaches-it`.
+    pub route: &'static str,
+}
+
+impl AiProcess {
+    pub fn count(&self, route: &str) -> usize {
+        self.lines.iter().filter(|l| l.route == route).count()
+    }
+
+    /// The paragraph before the list, the same in every format.
+    pub fn summary(&self) -> String {
+        let n = self.lines.len();
+        let mut out = format!(
+            "{n} requirement{} of OWASP AISVS Appendix C (AI-Assisted Secure Coding) apply to how this \
+             app is built with an AI coding tool, rather than to the app itself, and nothing has \
+             checked {}. {} listed here rather than in the counts above.",
+            if n == 1 { "" } else { "s" },
+            if n == 1 { "it" } else { "them" },
+            if n == 1 { "It is" } else { "They are" },
+        );
+        let rules = self.count("rules-given");
+        if rules > 0 {
+            out.push_str(&format!(
+                " {rules} {} what the rules given to your AI coding tool come from (`sv rules`, or \
+                 `securevibe_guidance` from inside the tool); the rules are instructions, and \
+                 following them is not evidence that {} met.",
+                if rules == 1 { "is" } else { "are" },
+                if rules == 1 { "it is" } else { "they are" }
+            ));
+        }
+        let yours = self.count("your-decision");
+        if yours > 0 {
+            out.push_str(&format!(
+                " {yours} {} your decision{}, and {} among your questions.",
+                if yours == 1 { "is" } else { "are" },
+                if yours == 1 { "" } else { "s" },
+                if yours == 1 { "is" } else { "are" }
+            ));
+        }
+        let nothing = self.count("nothing-reaches-it");
+        if nothing > 0 {
+            out.push_str(&format!(
+                " Nothing in `sv` reaches the other {nothing}: most are about a CI pipeline or an \
+                 organization's AI tooling."
+            ));
+        }
+        if self.not_applicable > 0 {
+            out.push_str(&format!(
+                " {} more do{} not apply to this app, and {} listed with the others that do not.",
+                self.not_applicable,
+                if self.not_applicable == 1 { "es" } else { "" },
+                if self.not_applicable == 1 {
+                    "is"
+                } else {
+                    "are"
+                }
+            ));
+        }
+        if self.not_assessed > 0 {
+            out.push_str(&format!(
+                " {} more wait{} on a question nobody has answered.",
+                self.not_assessed,
+                if self.not_assessed == 1 { "s" } else { "" }
+            ));
+        }
+        out
+    }
+
+    /// What a route means, for the list.
+    pub fn route_text(route: &str) -> &'static str {
+        match route {
+            "rules-given" => "given to your AI coding tool as a rule",
+            "your-decision" => "your decision, among your questions",
+            _ => "nothing in `sv` reaches it",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -281,6 +389,8 @@ pub struct Report {
     pub run_status: Option<RunStatus>,
     pub counts: Counts,
     pub requirements: Vec<RequirementLine>,
+    /// OWASP AISVS Appendix C, apart from the app's own requirements. See `AiProcess`.
+    pub ai_process: AiProcess,
     pub excluded: Vec<ExcludedRequirement>,
     pub undecided: Vec<UndecidedRequirement>,
     pub claims: Vec<ClaimLine>,
@@ -446,6 +556,8 @@ pub struct Inputs<'a> {
     pub test_output: Option<sv_check::suite::FailingOutput>,
     /// See `Report::run_status`.
     pub run_status: Option<RunStatus>,
+    /// The Appendix C requirements cited by the coding rules given to this app's AI coding tool.
+    pub coding_rules_cited: BTreeSet<String>,
     pub frameworks: &'a Frameworks,
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
@@ -704,6 +816,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         not_applicable: excluded.len(),
         not_assessed: undecided.len(),
         out_of_level: inputs.buckets.out_of_level.len(),
+        ai_process: 0,
     };
 
     // Anything a check pointed at that the buckets did not place under "applies".
@@ -841,6 +954,46 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         )
     });
 
+    // Appendix C apart, now that everything that reads the full list (the threats, the checklist,
+    // the questions) has read it: an Appendix C requirement nothing has reached leaves the app's
+    // own requirements and the counts, and is listed by what happens to it instead. One with any
+    // finding or evidence stays where it is.
+    let asked: BTreeSet<&str> = questions_for_you.iter().map(|q| q.id.as_str()).collect();
+    let (process, requirements): (Vec<RequirementLine>, Vec<RequirementLine>) = requirements
+        .into_iter()
+        .partition(|r| r.id.starts_with(APPENDIX_C) && r.status == Status::NotVerified);
+    let mut counts = counts;
+    counts.applicable -= process.len();
+    counts.not_verified -= process.len();
+    counts.ai_process = process.len();
+    let mut process_lines: Vec<AiProcessLine> = process
+        .into_iter()
+        .map(|r| AiProcessLine {
+            route: if asked.contains(r.id.as_str()) {
+                "your-decision"
+            } else if inputs.coding_rules_cited.contains(&r.id) {
+                "rules-given"
+            } else {
+                "nothing-reaches-it"
+            },
+            id: r.id,
+            level: r.level,
+            description: r.description,
+        })
+        .collect();
+    process_lines.sort_by(|a, b| natural(&a.id).cmp(&natural(&b.id)));
+    let ai_process = AiProcess {
+        lines: process_lines,
+        not_applicable: excluded
+            .iter()
+            .filter(|e| e.id.starts_with(APPENDIX_C))
+            .count(),
+        not_assessed: undecided
+            .iter()
+            .filter(|u| u.id.starts_with(APPENDIX_C))
+            .count(),
+    };
+
     Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
@@ -851,6 +1004,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         run_status: inputs.run_status,
         counts,
         requirements,
+        ai_process,
         excluded,
         undecided,
         claims,
