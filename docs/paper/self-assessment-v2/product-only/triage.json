@@ -1,0 +1,3012 @@
+{
+ "run": "docs/paper/self-assessment-v2/product-only/report.json",
+ "triaged_on": "2026-09-27",
+ "by": "Claude Code session admiring-murdock-875699",
+ "counts": {
+  "accepted": 61,
+  "false-alarm": 191
+ },
+ "findings": [
+  {
+   "rule_id": "ast.shell-command",
+   "severity": "high",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 350,
+   "cwe": [
+    "CWE-78"
+   ],
+   "verdict": "accepted",
+   "why": "Runs a fixed program (docker, or a tool from data/adapters.json) with its arguments as a list; no shell is involved."
+  },
+  {
+   "rule_id": "ast.shell-command",
+   "severity": "high",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 461,
+   "cwe": [
+    "CWE-78"
+   ],
+   "verdict": "accepted",
+   "why": "Runs a fixed program (docker, or a tool from data/adapters.json) with its arguments as a list; no shell is involved."
+  },
+  {
+   "rule_id": "ast.shell-command",
+   "severity": "high",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 484,
+   "cwe": [
+    "CWE-78"
+   ],
+   "verdict": "accepted",
+   "why": "Runs a fixed program (docker, or a tool from data/adapters.json) with its arguments as a list; no shell is involved."
+  },
+  {
+   "rule_id": "ast.shell-command",
+   "severity": "high",
+   "file": "crates/sv-run/src/docker.rs",
+   "line": 75,
+   "cwe": [
+    "CWE-78"
+   ],
+   "verdict": "accepted",
+   "why": "Runs a fixed program (docker, or a tool from data/adapters.json) with its arguments as a list; no shell is involved."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/ai.rs",
+   "line": 1940,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/ai.rs",
+   "line": 2097,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/ai.rs",
+   "line": 2665,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/ai.rs",
+   "line": 2939,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/ai.rs",
+   "line": 3024,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/browser.rs",
+   "line": 991,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/secrets.rs",
+   "line": 514,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/secrets.rs",
+   "line": 526,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 1977,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "accepted",
+   "why": "A password sv deliberately sends to the app under test (a wrong one, or a long one), not a secret of sv's."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 1984,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "accepted",
+   "why": "A password sv deliberately sends to the app under test (a wrong one, or a long one), not a secret of sv's."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 2131,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "accepted",
+   "why": "A password sv deliberately sends to the app under test (a wrong one, or a long one), not a secret of sv's."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 8654,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 8658,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 8662,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 8668,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "secrets.credential-assignment",
+   "severity": "high",
+   "file": "crates/sv-manifest/src/spec.rs",
+   "line": 73,
+   "cwe": [
+    "CWE-798",
+    "CWE-259"
+   ],
+   "verdict": "false-alarm",
+   "why": "A {new_password} placeholder in the manifest template sv prints, not a credential."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 103,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "The doc comment for sv's own ws:// rule, quoting the address it looks for."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2405,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2408,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2410,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2411,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2413,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2415,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2417,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2419,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2421,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2423,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2425,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2427,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2429,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2431,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2433,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2435,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+   "severity": "high",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 2437,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "semgrep.typescript.react.security.react-insecure-request.react-insecure-request",
+   "severity": "high",
+   "file": "crates/sv-run/assets/browser-driver.mjs",
+   "line": 38,
+   "cwe": [
+    "CWE-319: Cleartext Transmission of Sensitive Information"
+   ],
+   "verdict": "accepted",
+   "why": "The browser driver reaching Chromium's control port on 127.0.0.1 inside the fenced container."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 167,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 422,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 453,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 474,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 500,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 512,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 522,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 523,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 556,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/adapters.rs",
+   "line": 592,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/advisories.rs",
+   "line": 132,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 691,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 1240,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 1311,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 1364,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/ast.rs",
+   "line": 1366,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/coding_rules.rs",
+   "line": 74,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 200,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 431,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 469,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 484,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 493,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 494,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 504,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 512,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 533,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 543,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 544,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 563,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 569,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 577,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 586,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 593,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 602,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 608,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 617,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 623,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 624,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 631,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 640,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 653,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 661,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 686,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 713,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 729,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 735,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 752,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 759,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 770,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 778,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 788,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 794,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 807,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 814,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 820,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 834,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 849,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 860,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 866,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 879,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 894,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 895,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 897,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 925,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 927,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 930,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 932,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/config.rs",
+   "line": 951,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/design.rs",
+   "line": 89,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/human.rs",
+   "line": 48,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/notes.rs",
+   "line": 182,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 107,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 654,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 662,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 663,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 675,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 683,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 691,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 697,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 712,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 719,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 725,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 731,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 732,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 741,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 752,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 753,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 762,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 771,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 772,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 793,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 801,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 802,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 816,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 825,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 826,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 832,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 846,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 851,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 857,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 871,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 872,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 881,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 887,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 888,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 909,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 915,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 916,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 924,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 933,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 934,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 948,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 956,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 957,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 966,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 996,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 998,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 999,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1008,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1015,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1016,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1024,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1030,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1031,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/sbom.rs",
+   "line": 1043,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/secrets.rs",
+   "line": 84,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/secrets.rs",
+   "line": 467,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/suite.rs",
+   "line": 167,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 423,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 722,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 725,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 728,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 736,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 1024,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-check/src/workflows.rs",
+   "line": 1027,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/bundle.rs",
+   "line": 557,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 466,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 753,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 762,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 872,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 891,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1658,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1671,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1676,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1713,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1734,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 1747,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/main.rs",
+   "line": 2348,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 853,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 860,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 877,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 878,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 896,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 897,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 913,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 936,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1006,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1018,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1027,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1034,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1040,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1048,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1055,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1137,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1139,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1144,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1183,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1215,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1333,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1346,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1349,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1350,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1369,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1375,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1379,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1404,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1409,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1410,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1488,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1495,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1496,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1526,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1543,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1565,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1580,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1588,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1599,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-cli/src/mcp.rs",
+   "line": 1600,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-frameworks/src/applicability.rs",
+   "line": 80,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-frameworks/src/applicability.rs",
+   "line": 91,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-frameworks/src/load.rs",
+   "line": 133,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-frameworks/src/load.rs",
+   "line": 168,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-frameworks/src/load.rs",
+   "line": 211,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-manifest/src/lib.rs",
+   "line": 819,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-report/src/threats.rs",
+   "line": 203,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/deps.rs",
+   "line": 23,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/ecosystems.rs",
+   "line": 231,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 218,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 266,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 443,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 510,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 574,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 859,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 863,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 898,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 930,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 968,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 994,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/jvm.rs",
+   "line": 1013,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/lib.rs",
+   "line": 95,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/lib.rs",
+   "line": 213,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.file-path-from-value",
+   "severity": "medium",
+   "file": "crates/sv-scan/src/lib.rs",
+   "line": 490,
+   "cwe": [
+    "CWE-22",
+    "CWE-73"
+   ],
+   "verdict": "accepted",
+   "why": "sv reads files inside the app it was pointed at; that is its job. Paths from outside come only through the MCP server, which canonicalizes them, keeps them under --root, and refuses symlinks (crates/sv-cli/src/mcp.rs)."
+  },
+  {
+   "rule_id": "ast.weak-hash-function",
+   "severity": "medium",
+   "file": "crates/sv-check/src/signed_in.rs",
+   "line": 10944,
+   "cwe": [
+    "CWE-328",
+    "CWE-327"
+   ],
+   "verdict": "false-alarm",
+   "why": "In a #[cfg(test)] module inside the source file: test code and its sample inputs, not what sv runs."
+  }
+ ]
+}

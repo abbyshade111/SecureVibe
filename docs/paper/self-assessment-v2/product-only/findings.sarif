@@ -1,0 +1,4999 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: the running app — `sv report` does not start the app unless you pass --run. Without it, nothing here has asked the app anything — what it sends to a browser, what it says when something goes wrong, which sites it accepts."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: what `codeql-javascript` would have found — CodeQL (JavaScript and TypeScript) is not installed on this computer, so nothing here has checked the javascript and typescript in this app the way it would have. Install it with `download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH` and run this again."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: the check `config.secrets-file-committed` — This folder is not a git repository, so `sv` cannot say whether a secrets file was ever committed. Putting the app in git (version control, which keeps every saved version) makes this check run, and is worth doing anyway. Ask your AI coding tool to do it, and to add a .gitignore that leaves out .env and other secret files before the first commit, so that commit does not save them. If the app is already kept in version control somewhere else, that copy's history is still unchecked."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: 22 requirements that are design review, not scanning — these ask how the system was designed and how it is run — whether trust zones are enforced, whether an incident response plan is rehearsed, whether data has named owners. No check here reaches them and none ever will, so they are counted as applicable and unverified, and a person has to answer them."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: 4 requirements that ask for a written decision — No tool can answer these: they ask what your rules are, who may do what, and how long things are kept. Run `sv notes` to write security-notes.md, answer the questions in it, and they become documented. Your AI coding tool can ask you them: `sv questions` prints them for its chat."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "sv.not-examined"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Not examined: 4 questions about how this app is built — No tool can settle these — whether input is validated on the server, whether the app's own services authenticate to each other. Answer them in the [design] section of securevibe.toml: V2.2.2, V7.2.1, V8.3.1, V15.3.1. Your AI coding tool can ask you them: `sv questions` prints them for its chat."
+              }
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 350
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A shell command is built from a value A command line is assembled from something other than fixed text and handed to the shell."
+          },
+          "ruleId": "ast.shell-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 461
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A shell command is built from a value A command line is assembled from something other than fixed text and handed to the shell."
+          },
+          "ruleId": "ast.shell-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 484
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A shell command is built from a value A command line is assembled from something other than fixed text and handed to the shell."
+          },
+          "ruleId": "ast.shell-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-run/src/docker.rs"
+                },
+                "region": {
+                  "startLine": 75
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A shell command is built from a value A command line is assembled from something other than fixed text and handed to the shell."
+          },
+          "ruleId": "ast.shell-command"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ai.rs"
+                },
+                "region": {
+                  "startLine": 1940
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ai.rs"
+                },
+                "region": {
+                  "startLine": 2097
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ai.rs"
+                },
+                "region": {
+                  "startLine": 2665
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ai.rs"
+                },
+                "region": {
+                  "startLine": 2939
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ai.rs"
+                },
+                "region": {
+                  "startLine": 3024
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/browser.rs"
+                },
+                "region": {
+                  "startLine": 991
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/secrets.rs"
+                },
+                "region": {
+                  "startLine": 514
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/secrets.rs"
+                },
+                "region": {
+                  "startLine": 526
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 1977
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 1984
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 2131
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 8654
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 8658
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 8662
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 8668
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-manifest/src/spec.rs"
+                },
+                "region": {
+                  "startLine": 73
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A value that looks like a credential is written into the code (`password`) `password` is set to a value in the code itself. The name says it holds a credential, and the value is not a placeholder."
+          },
+          "ruleId": "secrets.credential-assignment"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 103
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2405
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2408
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2410
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2411
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2413
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2415
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2417
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2419
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2421
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2423
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2425
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2427
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2429
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2431
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2433
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2435
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 2437
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+          },
+          "ruleId": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-run/assets/browser-driver.mjs"
+                },
+                "region": {
+                  "startLine": 38
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Semgrep Finding: typescript.react.security.react-insecure-request.react-insecure-request Unencrypted request over HTTP detected."
+          },
+          "ruleId": "semgrep.typescript.react.security.react-insecure-request.react-insecure-request"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 167
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 422
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 453
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 474
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 500
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 512
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 522
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 523
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 556
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/adapters.rs"
+                },
+                "region": {
+                  "startLine": 592
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/advisories.rs"
+                },
+                "region": {
+                  "startLine": 132
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 691
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 1240
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 1311
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 1364
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/ast.rs"
+                },
+                "region": {
+                  "startLine": 1366
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/coding_rules.rs"
+                },
+                "region": {
+                  "startLine": 74
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 200
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 431
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 469
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 484
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 493
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 494
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 504
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 512
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 533
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 543
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 544
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 563
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 569
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 577
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 586
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 593
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 602
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 608
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 617
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 623
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 624
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 631
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 640
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 653
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 661
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 686
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 713
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 729
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 735
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 752
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 759
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 770
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 778
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 788
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 794
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 807
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 814
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 820
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 834
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 849
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 860
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 866
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 879
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 894
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 895
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 897
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 925
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 927
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 930
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 932
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/config.rs"
+                },
+                "region": {
+                  "startLine": 951
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/design.rs"
+                },
+                "region": {
+                  "startLine": 89
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/human.rs"
+                },
+                "region": {
+                  "startLine": 48
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/notes.rs"
+                },
+                "region": {
+                  "startLine": 182
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 107
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 654
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 662
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 663
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 675
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 683
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 691
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 697
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 712
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 719
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 725
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 731
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 732
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 741
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 752
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 753
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 762
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 771
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 772
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 793
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 801
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 802
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 816
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 825
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 826
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 832
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 846
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 851
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 857
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 871
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 872
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 881
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 887
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 888
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 909
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 915
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 916
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 924
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 933
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 934
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 948
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 956
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 957
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 966
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 996
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 998
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 999
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1008
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1015
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1016
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1024
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1030
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1031
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/sbom.rs"
+                },
+                "region": {
+                  "startLine": 1043
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/secrets.rs"
+                },
+                "region": {
+                  "startLine": 84
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/secrets.rs"
+                },
+                "region": {
+                  "startLine": 467
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/suite.rs"
+                },
+                "region": {
+                  "startLine": 167
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 423
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 722
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 725
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 728
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 736
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 1024
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/workflows.rs"
+                },
+                "region": {
+                  "startLine": 1027
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/bundle.rs"
+                },
+                "region": {
+                  "startLine": 557
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 466
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 753
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 762
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 872
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 891
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1658
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1671
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1676
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1713
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1734
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 1747
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/main.rs"
+                },
+                "region": {
+                  "startLine": 2348
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 853
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 860
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 877
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 878
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 896
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 897
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 913
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 936
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1006
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1018
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1027
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1034
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1040
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1048
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1055
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1137
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1139
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1144
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1183
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1215
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1333
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1346
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1349
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1350
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1369
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1375
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1379
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1404
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1409
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1410
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1488
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1495
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1496
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1526
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1543
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1565
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1580
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1588
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1599
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-cli/src/mcp.rs"
+                },
+                "region": {
+                  "startLine": 1600
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-frameworks/src/applicability.rs"
+                },
+                "region": {
+                  "startLine": 80
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-frameworks/src/applicability.rs"
+                },
+                "region": {
+                  "startLine": 91
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-frameworks/src/load.rs"
+                },
+                "region": {
+                  "startLine": 133
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-frameworks/src/load.rs"
+                },
+                "region": {
+                  "startLine": 168
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-frameworks/src/load.rs"
+                },
+                "region": {
+                  "startLine": 211
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-manifest/src/lib.rs"
+                },
+                "region": {
+                  "startLine": 819
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-report/src/threats.rs"
+                },
+                "region": {
+                  "startLine": 203
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/deps.rs"
+                },
+                "region": {
+                  "startLine": 23
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/ecosystems.rs"
+                },
+                "region": {
+                  "startLine": 231
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 218
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 266
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 443
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 510
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 574
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 859
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 863
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 898
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 930
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 968
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 994
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/jvm.rs"
+                },
+                "region": {
+                  "startLine": 1013
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/lib.rs"
+                },
+                "region": {
+                  "startLine": 95
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/lib.rs"
+                },
+                "region": {
+                  "startLine": 213
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-scan/src/lib.rs"
+                },
+                "region": {
+                  "startLine": 490
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A file is opened at a path built from a value A file path used to read, write or delete a file is built from a value rather than written out, so the file operation goes wherever that value points."
+          },
+          "ruleId": "ast.file-path-from-value"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "crates/sv-check/src/signed_in.rs"
+                },
+                "region": {
+                  "startLine": 10944
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A disallowed hash function is used MD5 or SHA-1 is used as a hash function. Both have practical collision attacks, and approved-hash rules disallow them for any cryptographic use."
+          },
+          "ruleId": "ast.weak-hash-function"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/abbyshade111/SecureVibe",
+          "name": "sv",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "If any part of the path comes from a request, a name like ../../etc/passwd reads or overwrites a file outside the folder the app meant to use."
+              },
+              "help": {
+                "text": "Keep user-submitted file names out of file paths: store files under names the app generates, and look them up by id. Where a submitted name has to be used, reduce it to a bare name (secure_filename in Flask, path.basename in Node) and check that the resolved path is still inside the folder it should be in."
+              },
+              "id": "ast.file-path-from-value",
+              "name": "ast.file-path-from-value",
+              "properties": {
+                "requirements": [
+                  "V5.3.2"
+                ],
+                "tags": [
+                  "CWE-22",
+                  "CWE-73"
+                ]
+              },
+              "shortDescription": {
+                "text": "A file is opened at a path built from a value"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "A semicolon or a backtick in the wrong place turns one command into two, and the second one is whatever the attacker wanted."
+              },
+              "help": {
+                "text": "Pass the program and its arguments as a list instead of a string, so the shell never parses them. Where a shell is genuinely needed, validate the value against a fixed set first."
+              },
+              "id": "ast.shell-command",
+              "name": "ast.shell-command",
+              "properties": {
+                "requirements": [
+                  "V1.2.5"
+                ],
+                "tags": [
+                  "CWE-78"
+                ]
+              },
+              "shortDescription": {
+                "text": "A shell command is built from a value"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Anything that relies on the hash to tell two things apart, or to prove something was not changed, can be fooled by somebody who builds a second input with the same hash. Used for passwords, both are also fast enough to guess through quickly."
+              },
+              "help": {
+                "text": "Use SHA-256 or stronger for integrity and signatures, and a password hashing function (Argon2id, scrypt, bcrypt) for passwords. If this hash is only a cache key or a file checksum with no security purpose, say so where it is used; Python lets you pass usedforsecurity=False."
+              },
+              "id": "ast.weak-hash-function",
+              "name": "ast.weak-hash-function",
+              "properties": {
+                "requirements": [
+                  "V11.4.1"
+                ],
+                "tags": [
+                  "CWE-328",
+                  "CWE-327"
+                ]
+              },
+              "shortDescription": {
+                "text": "A disallowed hash function is used"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Anyone who can read the code — or the history it is kept in — has the credential."
+              },
+              "help": {
+                "text": "Move the value into the app's environment or secret store, and change the credential: anything committed should be treated as known."
+              },
+              "id": "secrets.credential-assignment",
+              "name": "secrets.credential-assignment",
+              "properties": {
+                "requirements": [
+                  "V13.3.1",
+                  "V13.2.3",
+                  "SBD-AC-05"
+                ],
+                "tags": [
+                  "CWE-798",
+                  "CWE-259"
+                ]
+              },
+              "shortDescription": {
+                "text": "A value that looks like a credential is written into the code (`password`)"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Reported by Semgrep, which reads code the way its own community has learned to."
+              },
+              "help": {
+                "text": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections."
+              },
+              "id": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+              "name": "semgrep.javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket",
+              "properties": {
+                "requirements": [
+                  "V12.3.1",
+                  "V4.4.1"
+                ],
+                "tags": [
+                  "CWE-319: Cleartext Transmission of Sensitive Information"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Reported by Semgrep, which reads code the way its own community has learned to."
+              },
+              "help": {
+                "text": "Unencrypted request over HTTP detected."
+              },
+              "id": "semgrep.typescript.react.security.react-insecure-request.react-insecure-request",
+              "name": "semgrep.typescript.react.security.react-insecure-request.react-insecure-request",
+              "properties": {
+                "requirements": [
+                  "V12.3.1"
+                ],
+                "tags": [
+                  "CWE-319: Cleartext Transmission of Sensitive Information"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: typescript.react.security.react-insecure-request.react-insecure-request"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

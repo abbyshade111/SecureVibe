@@ -91,6 +91,17 @@
     </table>
   </div>
 
+  <h2 style="font-size:1rem;margin:26px 0 6px"><code>sv</code> (v2) checking itself: how it is built with AI tools</h2>
+  <p class="sub" style="margin-bottom:8px">The 21 AISVS Appendix C requirements that applied when <code>sv</code> was run on its own code, by
+     what happens to each (<code>SELF-ASSESSMENT-V2.md</code>). It could not ask about itself as an MCP server, the
+     surface of its one tool-misuse incident: the manifest has no way to say so.</p>
+  <div class="marks" id="appc" role="img" aria-label="2 checked automatically, 13 handed to the AI tool as rules, 1 left to the owner, 5 reached by nothing." style="gap:5px;margin-bottom:6px"></div>
+  <div class="legend" style="margin-bottom:0">
+    <span><span class="m chk" style="background:var(--sv)"></span> checked automatically: CI hardening (2)</span>
+    <span><span class="m ctl" style="border-color:var(--sv);border-radius:2px"></span> handed to the AI tool as a rule (13)</span>
+    <span><span class="m open" style="border-color:var(--sv);border-radius:2px"></span> left to the owner (1)</span>
+    <span><span class="m chk" style="background:var(--grid)"></span> reached by nothing (5)</span>
+  </div>
   <p class="note">Sources: <code>AGENTIC.md</code> for every mark. The list and its descriptions are from the OWASP GenAI
      Security Project's announcement of 9 December 2025, read 27 September 2026. No session is recorded doing something
      it was not asked to do, or hiding what it did, so ASI10 has defenses and a check but no incident. The absence of
@@ -128,6 +139,12 @@
     tr.append(c0, cell(v1, "var(--v1)"), cell(sv, "var(--sv)"), cell({}, "var(--sv)", checks), cell(dev, "var(--dev)"));
     tbody.appendChild(tr);
   });
+  (() => {
+    const box = document.getElementById("appc");
+    [["chk", "var(--sv)", 2, false], ["ctl", "var(--sv)", 13, true], ["open", "var(--sv)", 1, true], ["chk", "var(--grid)", 5, false]].forEach(([cls, c, n, ring]) => {
+      for (let i = 0; i < n; i++) { const s = document.createElement("span"); s.className = "m " + cls; s.style.borderRadius = "2px"; if (ring) s.style.borderColor = c; else s.style.background = c; box.appendChild(s); }
+    });
+  })();
 </script>
 </body>
 </html>

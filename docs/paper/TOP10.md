@@ -5,7 +5,7 @@ OWASP Top 10. There are three different things to count, kept apart below becaus
 
 1. **Weaknesses in SecureVibe's own code**: faults in v1 or `sv` that an attacker, or a mistake, could have used.
 2. **SecureVibe's verdicts failing open**: places where a check reported "clean" or "passed" when it had not looked. For a security checker this is the fault that matters most, because nothing else notices.
-3. **What SecureVibe found in other code**: in the apps it checked, and in v1 when it checked itself.
+3. **What SecureVibe found in other code**: in the apps it checked, and in each version when it checked itself.
 
 The figure is `figure-top10.html`.
 
@@ -113,6 +113,37 @@ Notes:
 - **The three open A08 findings** are install scripts allowed in dependencies. Seven of the uncategorized open
   findings are missing documentation, and one is a slow regular expression.
 
+### `sv` (v2) checking itself (27 September)
+
+`sv` run on its own product code, with every finding triaged by hand. The full account, including the run on the
+whole repository, is `SELF-ASSESSMENT-V2.md`, and every verdict is in
+`self-assessment-v2/product-only/triage.json`. `sv` records a CWE for each finding, so this mapping is also mechanical.
+
+| Category | Flagged | False alarm | Accepted, by design | Open |
+|---|---|---|---|---|
+| A01 Broken Access Control | 212 | 159 | 53 | — |
+| A04 Cryptographic Failures | 20 | 19 | 1 | — |
+| A05 Injection | 4 | — | 4 | — |
+| A07 Authentication Failures | 16 | 13 | 3 | — |
+| **Total** | **252** | **191** | **61** | **0** |
+
+Notes:
+- **The A01 row is one rule,** "a file path built from a value" (CWE-22 and CWE-73). All 212 findings also carry
+  CWE-73 (A06) and are counted once, under A01. The 159 false alarms are test code inside `sv`'s own source files.
+  The 53 accepted are `sv` reading files inside the app it was pointed at. The MCP server, the one place paths arrive
+  from outside, has none outside its tests.
+- **The A04 row** is 18 `ws://` findings in `sv`'s own `ws://` rule and its tests, one SHA-1 in a test, and the
+  browser driver talking to 127.0.0.1 inside the fence.
+- **The A05 row** is `sv` running fixed tools with their arguments as a list, which is what it is for.
+- **The A07 row** is test passwords, a template placeholder, and three passwords `sv` deliberately sends to apps under test.
+- **Run on the whole repository instead,** `sv` flagged 804 findings. The 547 extra come from its tests, its
+  deliberately vulnerable fixture apps, its example apps, and its maintenance scripts, and none of them is a weakness
+  in `sv`.
+
+Against v1's self-check: 195 findings, 2 real and fixed that evening. For `sv`: 252 findings and none real. Both are
+mostly false alarms, from the same kind of cause: v1's rules assumed an app built from its own template, and `sv`
+reads its own test code as the product.
+
 ### The apps SecureVibe checked (the comparison of 20 September)
 
 From `docs/paper/findings.csv`: 38 findings across three arms. The CSV records no CWE, so each rule's CWE is
@@ -151,8 +182,10 @@ there was confirmed by running the app.
 - **The weakness most particular to a security checker is A10: a verdict that fails open.** Eight are recorded, in
   both versions, and none was caught by a test failing. Two A09 items are the reporting cousin of the same fault,
   among them the scan that charged the owner's credit and said "skipped".
-- **Checking itself, v1 flagged the most under A01, and it was all noise.** 95 findings, every one a false alarm,
-  because the rules assumed v1's own template. Tuning the rules to the code they read removed 103 false alarms at once.
+- **Checking itself, each version flagged the most under A01, and it was noise both times.** v1: 95 findings, every
+  one a false alarm, because the rules assumed v1's own template; tuning the rules removed 103 findings at once, 90 of
+  them false alarms. `sv`: 212, 159 of them its own test code and the rest the job it is for. Neither self-check found
+  a real access-control weakness, and v2's found no real weakness at all.
 - **In the apps checked, only running the app produced access-control evidence.** Arm A's three failing
   authorization tests are the only A01 results that were not configuration. Reading the code found injection-shaped
   problems (A05) in Arms B and C that nothing confirmed.
