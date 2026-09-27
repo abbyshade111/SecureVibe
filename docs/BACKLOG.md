@@ -420,6 +420,8 @@ another session is not a claim.
       `breached-password-evidence.json`) and say so. `crates/sv-cli/tests/data_readme.rs` fails when a
       file is added without a line or a line names a file that is gone; hidden files such as `.DS_Store`
       are skipped.
+      **The owner's decision, 27 September 2026: remove the eight.** Removed the same day by session
+      securevibe-e2; v1's copies stay on the `v1` branch and at both tags, and ADR-016 has a dated note.
     - **`artifacts/self-assessment/` belongs with v1, not with the paper and not with `sv`.** It is one set
       of reports v1 wrote about itself on 20 September at 23:25 (run `r_20260920232551`), committed once and
       untouched since. It describes v1 as it was six days before the move, and the top-level `README.md`,
@@ -1863,7 +1865,10 @@ another session is not a claim.
   that production's number is the stated one, so it is partial evidence and has to say which half it
   saw. To item 6: V14.2.3 (L2 — list the requests that go to another host while signed in, and look
   in them for the test account's own details; only ever a finding) and V3.4.3 (L2 — the policy
-  enforced, not only sent). To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
+  enforced, not only sent). **V14.2.3 claimed on 27 September 2026 by session securevibe-e2**, at the
+  owner's asking to pick a backlog item: the real browser records every request a signed-in page
+  tries to send to another host (the fence stops it leaving), and the test account's details found in
+  one are a finding. To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
   ciphers the live site offers, where semgrep today sees only TLS settings written in code; a scan
   is dozens of handshakes, so what `sv probe`'s four-request cap means for it needs deciding first.
 

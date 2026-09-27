@@ -58,19 +58,8 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 | `breached-password-evidence.json` | `sv-check`, **compiled in** | Evidence that the one password `sv` tries at sign-up is in known breaches. Written by `tools/pwned_passwords.py`; rebuild `sv` after changing it. |
 | `common-passwords-breach-sample.json` | nothing at run time | How much of the common-password list is breach data, from a sample. Written by `tools/pwned_passwords.py`. |
 
-## v1's files, which nothing on `main` reads
+## v1's files
 
-SecureVibe v1 read these, and `sv` never has. Since 26 September 2026 v1 lives on the `v1` branch with its own copy
-of `data/`, so editing these changes nothing, for either program. They are kept rather than deleted; deleting
-them is the owner's decision.
-
-| File | What v1 used it for |
-|---|---|
-| `knowledge/examples.json` | Sample apps a person could build to try v1 |
-| `knowledge/glossary.json` | Plain-language definitions |
-| `knowledge/injection-patterns.json` | Prompt-injection screening rules for the apps v1 built |
-| `knowledge/patterns.json` | Secure-by-design patterns chosen from the owner's answers |
-| `knowledge/remediation.json` | Fix advice for each of its scanners' findings |
-| `knowledge/requirements-plain.json` | Each ASVS requirement in plain language |
-| `knowledge/sbd-rules.json` | How each Secure by Design control was answered from the owner's answers |
-| `knowledge/wizard-copy.json` | The wizard's wording |
+Eight more files in `data/knowledge/` were v1's and never read by `sv`: the wizard's wording, its sample apps, its
+glossary, and the like. They were removed from `main` on 27 September 2026 at the owner's decision. v1 keeps its own
+copy on the `v1` branch and at the tags `v1-paper` and `v1-final` (see `docs/adr/ADR-016.md`).
