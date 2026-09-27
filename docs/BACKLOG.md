@@ -9,6 +9,11 @@ another session is not a claim.
 
 ## Next
 
+- **Bring the paper's timeline up to date, and draw it.** **Claimed on 27 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking. `docs/paper/TIMELINE.md` stops at 20 September; extend
+  it through 27 September from the repository's history, and add a one-page diagram of the whole project
+  (`docs/paper/figure-timeline.html`) beside the existing figures. Touches only `docs/paper/`.
+
 - **Clean up after the move.** **Claimed on 27 September 2026 by session securevibe-e8**, at the owner's
   asking. Found by a review of `main` after the move: the rule against printing or committing a key is
   missing from the new `CLAUDE.md`; CodeQL scans only Rust, while `crates/sv-run/assets/*.mjs` is real,
