@@ -54,7 +54,8 @@
       "nothingToFind": {
         "c": "C has no way to run a string as C. A shell command is the shell-command rule's, and an embedded interpreter such as Lua is not looked for.",
         "go": "Go has no built-in way to run a string as code. An embedded interpreter such as yaegi would be one, and is not looked for.",
-        "rust": "Rust has no built-in way to run a string as code. An embedded interpreter such as rhai would be one, and is not looked for."
+        "rust": "Rust has no built-in way to run a string as code. An embedded interpreter such as rhai would be one, and is not looked for.",
+        "cpp": "C++ has no way to run a string as C++ code. A shell command is the shell-command rule's, and an embedded interpreter such as Lua is not looked for."
       },
       "looksFor": "code built from a value and handed to something that runs it, such as eval",
       "looksForIn": {
@@ -90,7 +91,8 @@
         "swift": "[(call_expression (simple_identifier) @fn @mod (call_suffix (value_arguments . (value_argument) @arg)))\n (assignment target: (directly_assignable_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @mod)))\n             result: (array_literal . element: (line_string_literal) @fn) @arg)\n (value_argument name: (value_argument_label (simple_identifier) @mod)\n                 value: (array_literal . element: (line_string_literal) @fn) @arg)] @hit",
         "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                  arguments: (argument_list . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (interpreted_string_literal) @fn . (_) . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (_) . (interpreted_string_literal) @fn . (_) . (_) @arg))] @hit",
         "rust": "[(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                                                                           arguments: (arguments . (string_literal))))\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                  arguments: (arguments . [(array_expression) @arg (reference_expression value: (array_expression) @arg)]))] @hit",
-        "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit"
+        "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit",
+        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(system|popen|getoutput|getstatusoutput)$",
@@ -106,7 +108,8 @@
         "swift": "^(system|popen|\"-l?c\")$",
         "go": "^(Command|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$",
         "rust": "^(new|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$",
-        "shell": "^((/usr)?/bin/)?(sh|bash|zsh|dash|ksh)$"
+        "shell": "^((/usr)?/bin/)?(sh|bash|zsh|dash|ksh)$",
+        "cpp": "^(system|popen|execl|execlp|execvp|execv)$"
       },
       "modulePatterns": {
         "dart": "^Process$",
@@ -151,7 +154,8 @@
         "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
         "dart": "(call_expression function: (member_expression property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) . (value_argument) @arg)))\n (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))] @hit",
-        "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit"
+        "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit",
+        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw)$",
@@ -167,7 +171,8 @@
         "c": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$",
         "dart": "^(rawQuery|rawInsert|rawUpdate|rawDelete|execute|mappedResultsQuery|customSelect|customStatement|customUpdate|customInsert|prepare)$",
         "swift": "^(sqlite3_exec|sqlite3_prepare|sqlite3_prepare_v2|sqlite3_prepare_v3|execute|executeQuery|executeUpdate|executeStatements)$",
-        "shell": "^(psql|mysql|mariadb|sqlite3|clickhouse-client)$"
+        "shell": "^(psql|mysql|mariadb|sqlite3|clickhouse-client)$",
+        "cpp": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
       },
       "safeArgumentPatterns": {
         "swift": "^literal\\s*:"
@@ -228,7 +233,8 @@
         "dart": "Dart's decoders, jsonDecode among them, give back maps and lists; no library call in common use builds whatever object the data names.",
         "go": "Go's decoders (encoding/json, encoding/gob, encoding/xml) fill in a type the program names; none of them builds whatever type the data asks for.",
         "rust": "serde fills in a type the program names; no deserializer in common use builds whatever type the data asks for.",
-        "shell": "A shell script has no objects to deserialize; it passes text between programs."
+        "shell": "A shell script has no objects to deserialize; it passes text between programs.",
+        "cpp": "C++ has no object deserializer in the language itself. Reading bytes into a struct is a memory-safety question, which this rule does not ask; a library such as Boost.Serialization or protobuf is not looked for."
       },
       "looksFor": "data read with a reader that can build any kind of object, such as pickle, Marshal, or PHP's unserialize"
     },
@@ -263,7 +269,8 @@
         "rust": "Rust has no backtick syntax.",
         "shell": "In a shell script backticks are command substitution, the ordinary way to use a command's output; a command built from a value is the shell-command rule's (`sh -c`).",
         "swift": "Backticks in Swift quote a name, not a command.",
-        "typescript": "Backticks in TypeScript make a template string, not a command; a command is the shell-command rule's."
+        "typescript": "Backticks in TypeScript make a template string, not a command; a command is the shell-command rule's.",
+        "cpp": "C++ has no backtick syntax."
       },
       "looksFor": "backticks that run a command built from text"
     },
@@ -297,7 +304,8 @@
         "kotlin": "(call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg))) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
-        "shell": "(command name: (command_name) @fn argument: [(string (simple_expansion (variable_name) @arg)) (simple_expansion (variable_name) @arg) (concatenation (simple_expansion (variable_name) @arg)) (string (expansion (variable_name) @arg)) (expansion (variable_name) @arg) (concatenation (expansion (variable_name) @arg))]) @hit"
+        "shell": "(command name: (command_name) @fn argument: [(string (simple_expansion (variable_name) @arg)) (simple_expansion (variable_name) @arg) (concatenation (simple_expansion (variable_name) @arg)) (string (expansion (variable_name) @arg)) (expansion (variable_name) @arg) (concatenation (expansion (variable_name) @arg))]) @hit",
+        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(open|send_file|FileResponse)$",
@@ -313,7 +321,8 @@
         "kotlin": "^(File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)$",
         "rust": "^(open|create|read|read_to_string|write|remove_file|remove_dir_all|new)$",
         "c": "^(fopen|freopen|open|unlink|remove)$",
-        "shell": "^(cat|rm|cp|mv|ln|head|tail|source|\\.|tar|chmod|chown|touch|mkdir|rmdir|tee|unlink)$"
+        "shell": "^(cat|rm|cp|mv|ln|head|tail|source|\\.|tar|chmod|chown|touch|mkdir|rmdir|tee|unlink)$",
+        "cpp": "^(fopen|freopen|open|unlink|remove)$"
       },
       "modulePatterns": {
         "javascript": "^(fs|fsp|res|response)$",
@@ -370,7 +379,8 @@
         "swift": "[(call_expression (navigation_expression target: (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @mod))\n                                      suffix: (navigation_suffix suffix: (simple_identifier) @fn)))\n (call_expression (navigation_expression target: (simple_identifier) @mod\n                                      suffix: (navigation_suffix suffix: (simple_identifier) @fn)))\n (call_expression (simple_identifier) @fn @mod)] @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
         "c": "(call_expression function: (identifier) @fn) @hit",
-        "shell": "[(command name: (command_name) @fn @arg) (command name: (command_name) @fn argument: (word) @arg)] @hit"
+        "shell": "[(command name: (command_name) @fn @arg) (command name: (command_name) @fn argument: (word) @arg)] @hit",
+        "cpp": "(call_expression function: (identifier) @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(md5|sha1|md4)$",
@@ -386,7 +396,8 @@
         "swift": "^(hash|MD5|SHA1|CC_MD5|CC_SHA1|CC_MD4)$",
         "rust": "^(compute|new|digest|new_with_prefix|chain)$",
         "c": "^(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$",
-        "shell": "^(md5sum|sha1sum|md5|openssl)$"
+        "shell": "^(md5sum|sha1sum|md5|openssl)$",
+        "cpp": "^(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$"
       },
       "modulePatterns": {
         "python": "^hashlib$",
@@ -443,7 +454,8 @@
         "swift": "(simple_identifier) @fn @hit",
         "c": "(call_expression function: (identifier) @fn) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
-        "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit"
+        "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit",
+        "cpp": "(call_expression function: (identifier) @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(ECB|MODE_ECB|TripleDES|ARC4|Blowfish|CAST5|IDEA|SEED)$",
@@ -459,7 +471,8 @@
         "swift": "^(kCCAlgorithm(DES|3DES|RC4|RC2|Blowfish|CAST)|kCCOptionECBMode|ECB|Blowfish)$",
         "c": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$",
         "rust": "^(new|new_from_slice|new_from_slices|des\\w*|aes_\\d+_ecb|rc4|rc2\\w*|bf_\\w+|cast5\\w*|idea\\w*)$",
-        "shell": "^openssl$"
+        "shell": "^openssl$",
+        "cpp": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES|algorithms)$",
@@ -514,7 +527,8 @@
         "swift": "(simple_identifier) @fn @hit",
         "c": "(call_expression function: (identifier) @fn) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
-        "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit"
+        "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit",
+        "cpp": "(call_expression function: (identifier) @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(CBC|CTR|CFB|CFB8|OFB|MODE_CBC|MODE_CTR|MODE_CFB|MODE_OFB|MODE_OPENPGP)$",
@@ -530,7 +544,8 @@
         "swift": "^(kCCModeCBC|kCCModeCTR|kCCModeCFB|kCCModeCFB8|kCCModeOFB|CBC|CTR|CFB|OFB)$",
         "c": "^(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$",
         "rust": "^(new|new_from_slices?|aes_\\d+_(cbc|ctr|cfb\\d*|ofb)|chacha20)$",
-        "shell": "^openssl$"
+        "shell": "^openssl$",
+        "cpp": "^(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES)$",
@@ -585,7 +600,8 @@
         "kotlin": "(call_expression (navigation_expression (_) (identifier) @fn)\n                 (value_arguments . (value_argument (_) @arg))) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "c": "[(call_expression function: (identifier) @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))] @hit",
-        "shell": "[(command name: (command_name) @fn . argument: (_) @mod @arg) (command name: (command_name) @fn . argument: (_) @mod . argument: (_) @arg)] @hit"
+        "shell": "[(command name: (command_name) @fn . argument: (_) @mod @arg) (command name: (command_name) @fn . argument: (_) @mod . argument: (_) @arg)] @hit",
+        "cpp": "[(call_expression function: (identifier) @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))] @hit"
       },
       "functionPatterns": {
         "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
@@ -601,7 +617,8 @@
         "kotlin": "^(sendRedirect|respondRedirect)$",
         "rust": "^(to|temporary|permanent|see_other)$",
         "c": "^(printf|fprintf|sprintf|dprintf)$",
-        "shell": "^(echo|printf)$"
+        "shell": "^(echo|printf)$",
+        "cpp": "^(printf|fprintf|sprintf|dprintf)$"
       },
       "modulePatterns": {
         "javascript": "^(res|response|reply|ctx)$",
@@ -610,7 +627,8 @@
         "dart": "(^|\\.)(Response|response|res)$",
         "rust": "(^|::)Redirect$",
         "c": "(?i)^\"\\s*location\\s*:",
-        "shell": "(?i)^[\"']?\\s*location\\s*:"
+        "shell": "(?i)^[\"']?\\s*location\\s*:",
+        "cpp": "(?i)^\"\\s*location\\s*:"
       },
       "argumentPatterns": {
         "php": "(?i)^['\"]\\s*location\\s*:",
@@ -626,7 +644,8 @@
       "looksForIn": {
         "shell": "only a Location header printed with echo or printf from a variable, the way a CGI script redirects",
         "c": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
-        "php": "a Location header set with header() from a value"
+        "php": "a Location header set with header() from a value",
+        "cpp": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects"
       }
     },
     {
@@ -665,7 +684,8 @@
         "ruby": "Ruby has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "rust": "Rust has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "swift": "Swift has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
-        "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
+        "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
+        "cpp": "C++ has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
       },
       "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter"
     },
@@ -698,7 +718,8 @@
         "swift": "(line_string_literal) @hit @arg",
         "rust": "[(string_literal) (raw_string_literal)] @hit @arg",
         "c": "(string_literal) @hit @arg",
-        "shell": "[(string) (raw_string) (word)] @hit @arg"
+        "shell": "[(string) (raw_string) (word)] @hit @arg",
+        "cpp": "(string_literal) @hit @arg"
       },
       "argumentPatterns": {
         "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
@@ -714,7 +735,8 @@
         "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
         "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
         "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
-        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]"
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]",
+        "cpp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://[A-Za-z0-9\\[]"
       },
       "safeArgumentPatterns": {
         "python": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
@@ -730,7 +752,8 @@
         "swift": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
         "rust": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
         "c": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
-        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)"
+        "shell": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)",
+        "cpp": "^[A-Za-z@$]*[r#]*[\"\\'`]?ws://(localhost|127\\.0\\.0\\.1|\\[::1\\]|0\\.0\\.0\\.0)([:/\"\\'`#]|$)"
       },
       "looksFor": "a `ws://` address to another computer written into the code",
       "looksForIn": {
