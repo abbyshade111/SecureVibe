@@ -8,7 +8,7 @@
 //! The HMAC and SHA-1 are the RustCrypto crates; this file only does what RFC 4226 and RFC 6238 add
 //! on top, and the RFC's own test values hold it.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 
 /// The length of a step, in seconds: what every authenticator app uses.

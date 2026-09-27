@@ -748,7 +748,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         let mod_index = query.capture_index_for_name("mod");
         let text_of = |m: &tree_sitter::QueryMatch, index: Option<u32>| -> Option<String> {
             let index = index?;
-            let capture = m.captures.iter().find(|c| c.index == index)?;
+            let capture = m.captures().iter().find(|c| c.index == index)?;
             capture
                 .node
                 .utf8_text(source.as_bytes())
@@ -786,15 +786,15 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             // A literal argument means the call cannot be made to do anything the author did not write.
             if compiled.rule.literal_argument_is_safe
                 && let Some(index) = arg_index
-                && let Some(capture) = m.captures.iter().find(|c| c.index == index)
+                && let Some(capture) = m.captures().iter().find(|c| c.index == index)
                 && is_literal(capture.node, source.as_bytes())
             {
                 continue;
             }
             let node = hit_index
-                .and_then(|index| m.captures.iter().find(|c| c.index == index))
+                .and_then(|index| m.captures().iter().find(|c| c.index == index))
                 .map(|c| c.node)
-                .or_else(|| m.captures.first().map(|c| c.node));
+                .or_else(|| m.captures().first().map(|c| c.node));
             let Some(node) = node else { continue };
             out.push(Finding {
                 rule_id: compiled.rule.id.clone(),
