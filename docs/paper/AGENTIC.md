@@ -101,6 +101,22 @@ nothing leaves the machine (`docs/DESIGN.md`, "A test model inside the fence").
 | ASI09 | incident | The same sandbox failure was "fixed" twice "by reasoning about what the sandbox probably does", while the error code naming the real cause sat in the results file. It cost three evaluation runs | `CLAUDE.md` |
 | ASI09 | control | Findings from the owner's first build were "checked against the code or reproduced", "not taken from the building tool's account of it". Sessions reviewing each other's merged work record what they find before anyone claims the fix | `docs/BACKLOG.md` |
 
+## 5. `sv` (v2) checking itself, through the agentic lens
+
+The v2 self-assessment (`SELF-ASSESSMENT-V2.md`) ran `sv` on its own code. It found no real vulnerability. Three of
+its results bear on agentic risk:
+
+| Risk | What the self-check showed | Record |
+|---|---|---|
+| ASI04, ASI03 | Two CI-hardening requirements from AISVS Appendix C were checked automatically. No workflow runs code from a fork with secrets (AC.12.1), and every checkout drops its credentials (AC.12.2). These are the pipeline that builds and publishes the image an AI tool installs | `self-assessment-v2/product-only/compliance.md` |
+| ASI09 | Of the 19 Appendix C requirements about building software with AI tools, 13 are handed to the AI coding tool as rules to follow, 1 is left to the owner (human review of AI-written code), and 5 are reached by nothing in `sv`: a written AI workflow, a threat model for every AI tool including MCP servers, and prompt logging among them. Rules handed to the tool are instructions, the kind of defense section 2 found failing once | `self-assessment-v2/product-only/compliance.md` |
+| ASI06 | Run on the whole repository, `sv` read its own deliberately vulnerable test fixtures as part of itself, and they overruled the manifest 19 times ("says auth is not used, but `authlib` is declared in examples/flask-booking/requirements.txt"). This is the same shape as #220, where `sv` read its own report as the app: what it read reshaped its judgement of the thing it was judging | `SELF-ASSESSMENT-V2.md` |
+
+**One thing the self-check cannot see.** The manifest can say that an app reaches tools over MCP, but not that it *is*
+an MCP server driven by an AI tool. So the one surface where `sv` had a tool-misuse incident (ASI02: the report writer
+following a symlink, #77) is not asked about by `sv`'s own self-check. That gap is recorded in `SELF-ASSESSMENT-V2.md`,
+with a proposed manifest field.
+
 ## Summary by risk
 
 | Risk | Incidents | Controls | `sv` checks |
@@ -137,6 +153,9 @@ nothing leaves the machine (`docs/DESIGN.md`, "A test model inside the fence").
 - **Tool misuse was guarded before it happened in v1, and happened once in `sv`.** v1's agent had path containment from
   the start. `sv`'s MCP report tool did not until review found the symlink, and its first test would have passed
   without the guard.
+- **`sv`'s self-check agrees with the record, and shows where its own view stops.** It found no real vulnerability.
+  It checked the CI hardening automatically, and handed most AI-process requirements to the coding tool as rules.
+  It could not ask about itself as an MCP server, which is where its one tool-misuse incident happened.
 - **ASI03, ASI04, and ASI10 have controls and no recorded incident.** That is the absence of an incident, not proof
   of safety: the controls were never tested by an attack.
 

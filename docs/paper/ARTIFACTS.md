@@ -17,6 +17,8 @@ files are the record and the reader can recompute anything in them.
 | `figure-top10.html` | The same, as one grid: the ten categories against the four kinds of evidence. |
 | `AGENTIC.md` | The project against the OWASP Top 10 for Agentic Applications (2026): v1's own AI agents, `sv` driven by an AI coding tool over MCP, `sv`'s checks of other apps' AI features, and the project built by several AI sessions at once. 16 incidents, 15 defenses, and 7 checks, each placed by judgement against the risk descriptions, with its source. |
 | `figure-agentic.html` | The same, as one grid: the ten agentic risks against the four lenses. |
+| `SELF-ASSESSMENT-V2.md` | `sv` checking itself on 27 September: how it was run, both runs (the whole repository, 804 findings; the product code, 252), every product finding triaged (191 false alarms, 61 accepted, 0 real), what it cannot see, and the comparison with v1's self-assessment. |
+| `self-assessment-v2/` | The reports `sv` wrote for both runs (`repository/`, `product-only/`), the product run's file list, and `triage.json` with a verdict and reason for each of its 252 findings. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
 | `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |
