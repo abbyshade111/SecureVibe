@@ -2225,8 +2225,32 @@ another session is not a claim.
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
   least of the candidates for web apps. Dart, Swift, and shell, which were worth more, are done (above). Since the claim became per rule, a grammar added without queries
   no longer turns silence into a clean claim; it moves the silence from the whole app to the rules not
-  yet taught that language, and the report names them. C++ is also what the two "no grammar" tests now stand on, so whoever adds it will find
-  those two failing, which is the right way round.
+  yet taught that language, and the report names them. **Claimed on 27 September 2026 by the v1 builder
+  ("Vibe-coding builder"), at the owner's asking to keep working the backlog.**
+
+  **The C++ half is done the same day.** tree-sitter-cpp needed no new query shape: dumping the parse tree
+  for `fopen`, `system`, `MD5`, and a `printf`-style `Location:` header showed the same `call_expression`,
+  `argument_list`, `identifier` and `string_literal` nodes tree-sitter-c already produces, so all twelve
+  rules reuse C's query and function names outright — see DESIGN, "C++". What that does not reach is
+  written down rather than found by surprise later: a scoped call (`std::system(cmd)`, `::remove(path)`,
+  `Logger::log(msg)`) parses as a `qualified_identifier`, not the plain `identifier` these queries match,
+  and is not seen; neither is `std::cout << "Location: " << u`, a chain of `binary_expression` nodes and
+  never a call at all. Both are real C++ idioms and both are named gaps, not silent ones.
+
+  The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
+  recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
+  device through Ruby, C#, and C++ before it — so the property "an unread language silences every rule"
+  stays exercised rather than becoming untestable the day the list of examples is empty.
+
+  Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace test suite
+  (630 tests in `sv-check` alone) pass; `every_real_rule_is_taught_every_language_it_meets_here` now
+  includes a `.cpp` file. Broke four things on purpose and watched each fail the test that should catch
+  it: a rule missing its cpp query, a flipped witness, the grammar arm removed (23 tests fail, since
+  loading the rules fails), and the Objective-C extension mapping removed (the "nothing can parse
+  silences everything" test loses its fixture). `docs/COVERAGE.md` needed no regeneration: cpp adds no
+  ASVS requirement no other language already reaches for these twelve rules.
+
+  **Left: HTML's embedded scripts**, which is a different, unstarted half of this entry.
 
 - ~~**More AST rules.**~~ Done on 25 September 2026 — four more in `data/ast-rules.json`, nine in
   all. `ast.file-path-from-value` (V5.3.2), `ast.weak-hash-function` (V11.4.1), `ast.weak-cipher`
