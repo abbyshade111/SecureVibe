@@ -465,6 +465,12 @@ fn every_signature_speaks_a_language_and_an_ecosystem_the_scanner_knows() {
 /// not a corroborator, and a test that pastes the pattern back in cannot tell the difference.
 const WITNESSES: &[(&str, &str, &str)] = &[
     (
+        // The owner's first build: a weekly job asks Claude to search the vendors' own sites.
+        "web-search",
+        "refresh.js",
+        "const reply = await anthropic.messages.create({\n  model: MODEL,\n  max_tokens: 4096,\n  tools: [{ type: \"web_search_20250305\", name: \"web_search\", allowed_domains: vendorDomains }],\n  messages,\n});\n",
+    ),
+    (
         "external-apis",
         "rates.py",
         "import requests\n\ndef latest():\n    r = requests.get(\"https://example.test/v1/rates\", timeout=5)\n    return r.json()\n",
