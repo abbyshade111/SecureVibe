@@ -4294,7 +4294,7 @@ them. Read one by one, they fall into three groups:
   AC.4.3), leave review to the owner and name the security-critical files (AC.4.1, AC.4.4, AC.4.5),
   add only packages that exist (AC.13.3), never merge, deploy, or change the guard rails on its own
   (AC.8.1–AC.8.4), write CI workflows that keep secrets from forks (AC.12.1–AC.12.3, AC.12.5,
-  AC.12.7, AC.7.1, AC.7.2, AC.7.4), say what it generated (AC.10.1), and send a leaked key to be
+  AC.12.7, AC.7.1, AC.7.2), say what it generated (AC.10.1), and send a leaked key to be
   replaced (AC.14.1, AC.14.2).
 - **About 15 are the owner's decisions** (a written workflow, how the tool was chosen, a playbook for
   an incident), and are already asked through the design questions and the security notes.
@@ -4337,6 +4337,11 @@ OWASP AISVS project and its contributors, with a link to it, licensed under CC B
 to the license, what was changed, and that the adapted text is shared under the same license, which
 does not reach the app's own code. The MCP tool's structured content carries the attribution as
 fields too. The README says the same in its own section.
+
+**Corrected the same day:** "least-privilege-workflows" first cited AC.7.4 as well. AC.7.4 names
+`permissions:` blocks, but asks that *changes* to them get dual control and a security-team review,
+not that they be small; the workflow check read it the same way and cites nothing for the token's
+permissions. The citation is gone, and the rule rests on AC.12.2 and AC.12.3.
 
 **It credits nothing.** Handing the tool a rule is not evidence that it was kept. No requirement's
 status reads the rules, the report does not mention them, and the text itself says they are
