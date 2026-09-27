@@ -3225,6 +3225,31 @@ off. The fifth was first recorded as caught by nothing. It was a mutation that d
 the break script read as green, because `cargo test` exits the same way for a build error as for a
 failing test. The script now tells the two apart, and the corrected mutation is caught.
 
+### A role written into the sign-up form (27 September 2026)
+
+V8.3.1's own example of an authorization decision the client can manipulate is a role the browser
+sends. The commonest way it happens in a small app is mass assignment (V15.3.3): sign-up copies every
+field of the request onto the new account, so `role=admin` in the form makes an admin.
+
+With `signup` and an `admin` page, the probe makes two accounts through the app's own sign-up. One is
+plain. The other's request also carries `role=admin`, `roles=admin`, `is_admin=true`, `isAdmin=true`,
+and `admin=true`, added to a copy of the owner's own sign-up request, so a JSON sign-up gets them in
+its JSON and one that emails an activation code is activated the usual way. The values are text,
+because a template's values are text; most frameworks read `"true"` as true, and one that does not
+is a gap this probe does not close.
+
+Both accounts are shown signed in by opening a private page before either asks for anything, the
+lesson of the admin actions. Then each asks for every admin page. A page that opens to the second and
+not to the first opened because of a field the browser sent, which is a critical finding against
+V8.3.1 and V15.3.3. A page the plain account opens too is left to the admin-page check, whose finding
+it is. A refusal credits nothing: five guessed names refused say nothing about a sixth. The check is
+recorded as having run, with no requirement, as SECURITY.md's is.
+
+Broken on purpose, five ways, each caught: the signed-in guard off (a sign-up that makes nobody
+would then read as a refusal), the plain control not consulted (an admin page open to everybody
+would be blamed on the role field), the fields never added, the finding not raised, and the credit
+given a requirement.
+
 ### Two more passwords at sign-up: one far down the list, one made from your own words
 
 The password checks already sign up with a control — an ordinary strong password that has to work
