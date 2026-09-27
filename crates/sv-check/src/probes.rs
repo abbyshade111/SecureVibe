@@ -205,6 +205,7 @@ struct Rule {
 fn finding(about: &Rule, title: &str, severity: Severity, description: String) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: about.rule_id.to_owned(),
         title: title.to_owned(),
         severity,

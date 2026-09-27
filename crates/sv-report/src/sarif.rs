@@ -9,14 +9,26 @@ use crate::Report;
 use serde_json::{Value, json};
 
 pub fn render(report: &Report) -> String {
+    // Every finding the file carries: those still counted, and the false alarms a person set aside,
+    // which go in marked as suppressed with the person's reason, so a tool reading the file (GitHub's
+    // Security tab among them) shows what the report shows.
+    let false_alarms: Vec<&sv_check::review::SetAside> = report
+        .set_aside
+        .iter()
+        .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
+        .collect();
+    let every: Vec<&sv_check::Finding> = report
+        .findings
+        .iter()
+        .chain(false_alarms.iter().map(|s| &s.finding))
+        .collect();
     let rules: Vec<Value> = {
-        let mut seen: Vec<&str> = report.findings.iter().map(|f| f.rule_id.as_str()).collect();
+        let mut seen: Vec<&str> = every.iter().map(|f| f.rule_id.as_str()).collect();
         seen.sort_unstable();
         seen.dedup();
         seen.into_iter()
             .map(|id| {
-                let example = report
-                    .findings
+                let example = every
                     .iter()
                     .find(|f| f.rule_id == id)
                     .expect("the id came from the findings");
@@ -35,11 +47,18 @@ pub fn render(report: &Report) -> String {
             .collect()
     };
 
-    let results: Vec<Value> = report
-        .findings
+    let results: Vec<Value> = every
         .iter()
         .map(|f| {
-            json!({
+            let set_aside = false_alarms
+                .iter()
+                .find(|s| std::ptr::eq(&s.finding, *f));
+            let accepted = report.set_aside.iter().find(|s| {
+                s.verdict == sv_check::review::ACCEPTED_RISK
+                    && s.finding.fingerprint == f.fingerprint
+                    && s.finding.rule_id == f.rule_id
+            });
+            let mut result = json!({
                 "ruleId": f.rule_id,
                 "level": match f.severity {
                     sv_check::Severity::Critical | sv_check::Severity::High => "error",
@@ -58,7 +77,21 @@ pub fn render(report: &Report) -> String {
                         "region": { "startLine": f.location.line.max(1) }
                     }
                 }]
-            })
+            });
+            if !f.fingerprint.is_empty() {
+                result["partialFingerprints"] = json!({ "svFingerprint/v1": f.fingerprint });
+            }
+            if let Some(s) = set_aside {
+                result["suppressions"] = json!([{
+                    "kind": "external",
+                    "status": "accepted",
+                    "justification": format!("False alarm, set aside by {} on {}: {}", s.by, s.on, s.why),
+                }]);
+            }
+            if let Some(s) = accepted {
+                result["properties"]["acceptedRisk"] = json!({ "by": s.by, "on": s.on, "why": s.why });
+            }
+            result
         })
         .collect();
 
@@ -115,6 +148,8 @@ mod tests {
             undecided: vec![],
             claims: vec![],
             findings: vec![],
+            set_aside: Vec::new(),
+            reviews_not_counted: Vec::new(),
             out_of_scope: vec![],
             checklist_above_level: vec![],
             tests_to_write: vec![],

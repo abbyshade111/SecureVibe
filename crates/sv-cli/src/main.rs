@@ -2698,7 +2698,15 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         .collect();
 
     // The same weakness on the same line, reported by two tools, is one thing to fix.
-    let findings = sv_check::finding::merge_same_place(findings);
+    let mut findings = sv_check::finding::merge_same_place(findings);
+    // What a person set aside, matched by the fingerprint the report prints beside each finding.
+    sv_check::review::fill_fingerprints(app_dir, &mut findings);
+    let reviewed = sv_check::review::apply(
+        &manifest.finding_review,
+        findings,
+        sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
+    );
+    let findings = reviewed.findings;
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -2716,6 +2724,8 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         buckets: &buckets,
         claims: &resolved,
         findings,
+        set_aside: reviewed.set_aside,
+        reviews_not_counted: reviewed.not_counted,
         verified: &verified,
         gaps,
         manual_only,

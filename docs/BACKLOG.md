@@ -95,6 +95,7 @@ another session is not a claim.
      read, but unable to overrule the manifest, and with their findings listed apart.
   2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
      product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
+     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
   3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
      never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
      incident (#77).
@@ -138,7 +139,9 @@ another session is not a claim.
   `sv` writes marks it as suppressed, with the reason, so GitHub's Security tab agrees with the report.
   Findings are matched by rule, file, and a fingerprint of the flagged line's text, never the text
   itself, so a flagged key is never copied into the file. **Claimed the same day by session
-  securevibe-e2**, to follow part 1.
+  securevibe-e2**, to follow part 1. **Done the same day:** see DESIGN, "False alarms: a person's record that a
+  finding is wrong, or accepted". One choice beyond the five decisions: a key or password cannot be an
+  accepted risk, since a real one is replaced and one that is not real is a false alarm.
 
 - **False alarms, part 3: each one a report against the rule.** From the same investigation, and
   wanted by the owner on 27 September 2026. A false alarm set aside in one app is usually a rule that

@@ -857,6 +857,7 @@ pub fn parse_sarif_relative_to(
                 .unwrap_or_default();
             out.push(Finding {
                 also_reported_by: Vec::new(),
+                fingerprint: String::new(),
                 rule_id: format!("{}.{}", adapter.id, rule_id),
                 title: if short.is_empty() {
                     format!("{} reported {rule_id}", adapter.name)

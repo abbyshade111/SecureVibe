@@ -896,6 +896,34 @@ pub struct Manifest {
     /// The policy numbers a probe can hold the running app to.
     #[serde(default)]
     pub policy: PolicySection,
+    /// Findings a person has looked at and set aside: a false alarm, or a risk they accept for now.
+    /// See `sv-check::review`.
+    #[serde(default, rename = "finding-review")]
+    pub finding_review: Vec<FindingReview>,
+}
+
+/// One finding set aside, as `[[finding-review]]` in securevibe.toml.
+///
+/// It names the finding by its rule, its file, and the fingerprint the report prints beside it, and
+/// says what a person decided and why. Only a person's word counts: an entry the AI coding tool
+/// wrote, or one without `by`, is shown as a proposal and the finding still counts.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct FindingReview {
+    pub rule: String,
+    pub file: String,
+    pub fingerprint: String,
+    /// `false-alarm` (the code is fine) or `accepted-risk` (a real problem, lived with for now).
+    pub verdict: String,
+    /// Why, in a sentence or more: what was looked at, and what it showed.
+    #[serde(default)]
+    pub why: String,
+    /// Who decided: `owner`, a person's name, or `ai-tool` for the tool's own proposal.
+    #[serde(default)]
+    pub by: Option<String>,
+    /// When, as YYYY-MM-DD.
+    #[serde(default)]
+    pub on: Option<String>,
 }
 
 impl Manifest {

@@ -395,6 +395,11 @@ pub struct Report {
     pub undecided: Vec<UndecidedRequirement>,
     pub claims: Vec<ClaimLine>,
     pub findings: Vec<Finding>,
+    /// Findings a person set aside: false alarms, no longer in `findings`, and accepted risks,
+    /// still in it. See `sv_check::review`.
+    pub set_aside: Vec<sv_check::review::SetAside>,
+    /// Entries in `[[finding-review]]` that do not count, each with its reason.
+    pub reviews_not_counted: Vec<String>,
     pub out_of_scope: Vec<OutOfScopeFinding>,
     /// Checks that ran, were satisfied, and whose requirements are not in the tables above —
     /// because they name no requirement at all, or name ones this app is not being assessed against.
@@ -564,6 +569,13 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
                 .to_owned(),
         );
     }
+    if !f.fingerprint.is_empty() {
+        notes.push(format!(
+            "Fingerprint: `{}`. A person who has looked and found it a false alarm, or a risk to \
+             live with for now, can set it aside under `[[finding-review]]` in securevibe.toml.",
+            f.fingerprint
+        ));
+    }
     if !f.also_reported_by.is_empty() {
         notes.push(format!(
             "Also reported by: {}. One problem, found more than once, so it is listed once.",
@@ -575,6 +587,47 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
         ));
     }
     notes
+}
+
+/// The line beside a finding a person accepted as a risk: who, when, and why. `None` for any other.
+pub fn accepted_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
+    report
+        .set_aside
+        .iter()
+        .find(|s| {
+            s.verdict == sv_check::review::ACCEPTED_RISK
+                && s.finding.fingerprint == f.fingerprint
+                && s.finding.rule_id == f.rule_id
+        })
+        .map(|s| {
+            format!(
+                "Known and accepted as a risk by {} on {}, for now: \"{}\". It still needs \
+                 attention; the acceptance lapses after 90 days.",
+                s.by, s.on, s.why
+            )
+        })
+}
+
+/// The false alarms a person set aside, one line each, for every report.
+pub fn false_alarm_lines(report: &Report) -> Vec<String> {
+    report
+        .set_aside
+        .iter()
+        .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
+        .map(|s| {
+            format!(
+                "[{}] {} ({}, line {}; `{}`). Set aside as a false alarm by {} on {}: \"{}\"",
+                s.finding.severity.name(),
+                s.finding.title,
+                s.finding.location.file,
+                s.finding.location.line,
+                s.finding.rule_id,
+                s.by,
+                s.on,
+                s.why
+            )
+        })
+        .collect()
 }
 
 /// Everything the renderers need, gathered from the crates that produced it.
@@ -595,6 +648,9 @@ pub struct Inputs<'a> {
     pub buckets: &'a Buckets,
     pub claims: &'a [ResolvedClaim],
     pub findings: Vec<Finding>,
+    /// What a person set aside, and the entries that did not count. See `Report::set_aside`.
+    pub set_aside: Vec<sv_check::review::SetAside>,
+    pub reviews_not_counted: Vec<String>,
     /// Everything that ran, looked at what it needed to, and found nothing wrong.
     pub verified: &'a [sv_check::Verified],
     /// What was not examined, and why — from every checker that knows it fell short.
@@ -721,9 +777,16 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         // one found, and the report must never let the happier of two answers hide the other. An
         // answer in the notes comes last of the three, because it is the owner's word about the app
         // rather than anything read from it.
+        // A finding set aside as a false alarm stops counting, and says nothing for the requirement
+        // either: the rule saw something there, and a person's word that it was wrong does not show
+        // the protection is in place. So no other check's clean run can make it *checked*.
+        let set_aside_here = inputs.set_aside.iter().any(|s| {
+            s.verdict == sv_check::review::FALSE_ALARM
+                && s.finding.requirement_ids.iter().any(|r| r == id)
+        });
         let status = if !findings.is_empty() {
             Status::NeedsAttention
-        } else if !checked_by.is_empty() {
+        } else if !checked_by.is_empty() && !set_aside_here {
             Status::Checked
         } else if !documented_by.is_empty() {
             Status::Documented
@@ -1042,6 +1105,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         undecided,
         claims,
         findings,
+        set_aside: inputs.set_aside,
+        reviews_not_counted: inputs.reviews_not_counted,
         out_of_scope,
         satisfied_elsewhere,
         checklist_above_level,

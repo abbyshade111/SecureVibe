@@ -39,6 +39,10 @@ How to ask them. These are for the person you are building this app with, not fo
   looked at and saw\" } beside your answer, repeating the answer and `where` (or the `result`) it
   confirms. A colleague can confirm too, with their name in `by`. Never write a confirmation the
   person did not make: you cannot confirm your own answer.
+- A finding you think is a false alarm: read the code first, and tell the person what you found. You
+  may write it under [[finding-review]] with by = \"ai-tool\" as a proposal; it counts for nothing
+  until the person has looked and put their own name in `by`. Never write their name yourself, and
+  never change correct code only to make a warning go away.
 - Never answer yes to make the report look better. An answer is a record of how the app is, and a
   wrong yes hides the one thing the question exists to find.
 - They are in order of what is most at stake: level 1, the baseline every app needs, first. When the

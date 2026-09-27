@@ -68,6 +68,7 @@ const NOT_PRELOADED: Rule = Rule {
 fn finding(rule: &Rule, host: &str, description: String) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: rule.rule_id.to_owned(),
         title: rule.title.to_owned(),
         severity: Severity::Low,

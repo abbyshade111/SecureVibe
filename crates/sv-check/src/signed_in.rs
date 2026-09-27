@@ -466,6 +466,7 @@ pub(crate) fn finding(
 ) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: rule.rule_id.to_owned(),
         title: title.to_owned(),
         severity,

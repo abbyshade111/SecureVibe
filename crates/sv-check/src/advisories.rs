@@ -422,6 +422,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
     };
     Finding {
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(
             "{} {} has a known vulnerability: {names}",

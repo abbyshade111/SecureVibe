@@ -106,6 +106,10 @@ pub struct Finding {
     /// the owner reads it once. See `merge_same_place`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub also_reported_by: Vec<String>,
+    /// What an owner's review names the finding by: see `crate::review::fingerprint`. Empty until the
+    /// report fills it in.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub fingerprint: String,
 }
 
 impl Finding {
@@ -233,7 +237,7 @@ pub fn merge_same_place(findings: Vec<Finding>) -> Vec<Finding> {
 /// Whether a finding points at a line of the app's code. The running-app probes, the settings and
 /// dependency checks, and the owner's own answers all give a place that is not a line of code ("the
 /// running app", line 1), and two of them on "the same line" are two different things.
-fn reads_code(f: &Finding) -> bool {
+pub(crate) fn reads_code(f: &Finding) -> bool {
     const ELSEWHERE: &[&str] = &[
         "probe.",
         "live.",
@@ -264,6 +268,7 @@ fn placeholder() -> Finding {
         impact: String::new(),
         fix: String::new(),
         also_reported_by: Vec::new(),
+        fingerprint: String::new(),
     }
 }
 
@@ -295,6 +300,7 @@ mod tests {
             impact: String::new(),
             fix: String::new(),
             also_reported_by: Vec::new(),
+            fingerprint: String::new(),
         }
     }
 
@@ -484,6 +490,7 @@ mod tests {
     fn a_whole_finding_serialises_without_the_credential() {
         let finding = Finding {
             also_reported_by: Vec::new(),
+            fingerprint: String::new(),
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),
             severity: Severity::Critical,

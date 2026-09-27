@@ -1,0 +1,268 @@
+//! Part 2 of the false-alarm work, end to end: a person's `[[finding-review]]` entries in
+//! securevibe.toml, as the report, the SARIF, and the AI coding tool see them.
+
+use serde_json::Value;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+const REDIRECT: &str = "    return redirect(request.args.get(\"next\"))";
+const MANIFEST: &str =
+    "manifest-version = 1\n[app]\nname = \"Reviewed\"\n[stack]\nlanguages = [\"python\"]\n";
+
+fn app(dir: &Path, redirect_line: &str) {
+    std::fs::write(
+        dir.join("app.py"),
+        format!(
+            "from flask import Flask, redirect, request\napp = Flask(__name__)\n\n@app.route(\"/go\")\ndef go():\n{redirect_line}\n\ndef find(db, user_id):\n    cur = db.cursor()\n    cur.execute(\"SELECT * FROM notes WHERE owner = \" + user_id)\n"
+        ),
+    )
+    .unwrap();
+}
+
+struct Run {
+    security: String,
+    compliance: String,
+    json: Value,
+    sarif: Value,
+}
+
+fn report(dir: &Path) -> Run {
+    let out = dir.join("report");
+    let run = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .arg("report")
+        .arg(dir)
+        .arg("--out")
+        .arg(&out)
+        .output()
+        .expect("sv runs");
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let read = |name: &str| std::fs::read_to_string(out.join(name)).unwrap();
+    Run {
+        security: read("security.md"),
+        compliance: read("compliance.md"),
+        json: serde_json::from_str(&read("report.json")).unwrap(),
+        sarif: serde_json::from_str(&read("findings.sarif")).unwrap(),
+    }
+}
+
+fn fingerprint(run: &Run, rule: &str) -> String {
+    run.json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["rule_id"] == rule)
+        .and_then(|f| f["fingerprint"].as_str())
+        .unwrap_or_else(|| {
+            panic!(
+                "no {rule} finding with a fingerprint: {}",
+                run.json["findings"]
+            )
+        })
+        .to_owned()
+}
+
+fn status(run: &Run, id: &str) -> String {
+    run.compliance
+        .lines()
+        .find(|l| l.starts_with(&format!("| {id} |")))
+        .unwrap_or_else(|| panic!("no row for {id}"))
+        .split('|')
+        .nth(2)
+        .unwrap()
+        .trim()
+        .trim_start_matches("**")
+        .to_owned()
+}
+
+fn entry(rule: &str, file: &str, fingerprint: &str, verdict: &str, by: &str, why: &str) -> String {
+    format!(
+        "\n[[finding-review]]\nrule = \"{rule}\"\nfile = \"{file}\"\nfingerprint = \"{fingerprint}\"\nverdict = \"{verdict}\"\nwhy = \"{why}\"\nby = \"{by}\"\non = \"{}\"\n",
+        sv_check::advisories::Day::today().unwrap().show()
+    )
+}
+
+#[test]
+fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
+    let dir: PathBuf =
+        std::env::temp_dir().join(format!("sv-finding-review-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    app(&dir, REDIRECT);
+    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+
+    // First, as found: both need attention, and each finding carries the name a review uses.
+    let before = report(&dir);
+    let redirect = fingerprint(&before, "ast.open-redirect");
+    let sql = fingerprint(&before, "ast.sql-built-by-hand");
+    let contact = fingerprint(&before, "config.security-contact");
+    assert!(
+        before
+            .security
+            .contains(&format!("Fingerprint: `{redirect}`"))
+    );
+    assert!(status(&before, "V3.7.2").starts_with("needs attention"));
+    assert!(status(&before, "V1.2.4").starts_with("needs attention"));
+
+    // A person sets the redirect aside as a false alarm and accepts the SQL for now; the AI tool
+    // proposes that the missing SECURITY.md is a false alarm.
+    let why = "The next= value is looked up in a fixed list of our own paths before redirect.";
+    std::fs::write(
+        dir.join("securevibe.toml"),
+        format!(
+            "{MANIFEST}{}{}{}",
+            entry(
+                "ast.open-redirect",
+                "app.py",
+                &redirect,
+                "false-alarm",
+                "owner",
+                why
+            ),
+            entry(
+                "ast.sql-built-by-hand",
+                "app.py",
+                &sql,
+                "accepted-risk",
+                "Sam Lee",
+                "Internal tool behind the VPN; parameterizing it is planned for next month."
+            ),
+            entry(
+                "config.security-contact",
+                "SECURITY.md",
+                &contact,
+                "false-alarm",
+                "ai-tool",
+                "The app is private and nobody outside will ever report a problem to it."
+            ),
+        ),
+    )
+    .unwrap();
+    let after = report(&dir);
+
+    // The false alarm: off the list, in its own section with the reason, and its requirement
+    // back to what else is known, not needing attention and not checked.
+    let to_fix = after
+        .security
+        .split("things to fix")
+        .nth(1)
+        .unwrap_or_else(|| panic!("no list of things to fix:\n{}", after.security));
+    assert!(!to_fix.contains("app.py` line 6"), "{}", after.security);
+    assert!(after.security.contains("## Set aside by a person"));
+    assert!(after.security.contains(why));
+    let v372 = status(&after, "V3.7.2");
+    assert!(
+        !v372.starts_with("needs attention") && !v372.starts_with("checked"),
+        "V3.7.2: {v372}"
+    );
+
+    // The accepted risk: still on the list, labeled, still needing attention.
+    assert!(
+        to_fix.contains("Known and accepted as a risk by Sam Lee"),
+        "{to_fix}"
+    );
+    assert!(status(&after, "V1.2.4").starts_with("needs attention"));
+
+    // The tool's proposal: not counted, shown with what it said, the finding still listed.
+    assert!(
+        after.security.contains("the AI coding tool's proposal")
+            && after.security.contains("nobody outside will ever report"),
+        "{}",
+        after.security
+    );
+    assert!(to_fix.contains("SECURITY.md"), "{to_fix}");
+
+    // The SARIF agrees: the false alarm is there, marked suppressed with the reason; the accepted
+    // risk is not suppressed and says who accepted it; every result can be matched again.
+    let results = after.sarif["runs"][0]["results"].as_array().unwrap();
+    let by_rule = |rule: &str| {
+        results
+            .iter()
+            .find(|r| r["ruleId"] == rule)
+            .unwrap_or_else(|| panic!("no {rule} in the SARIF"))
+    };
+    let suppressed = &by_rule("ast.open-redirect")["suppressions"][0];
+    assert_eq!(suppressed["kind"], "external");
+    assert!(suppressed["justification"].as_str().unwrap().contains(why));
+    let accepted = by_rule("ast.sql-built-by-hand");
+    assert!(accepted.get("suppressions").is_none());
+    assert_eq!(accepted["properties"]["acceptedRisk"]["by"], "Sam Lee");
+    assert!(
+        by_rule("config.security-contact")
+            .get("suppressions")
+            .is_none()
+    );
+    assert!(
+        results
+            .iter()
+            .all(|r| r["partialFingerprints"]["svFingerprint/v1"].is_string())
+    );
+
+    // What the AI coding tool is told: what a person set aside, and that its own proposal does
+    // not count and is never to be signed with a person's name.
+    let tool = mcp_check(&dir);
+    assert!(
+        tool.contains("SET ASIDE BY A PERSON") && tool.contains(why),
+        "{tool}"
+    );
+    assert!(
+        tool.contains("NOT COUNTED in [[finding-review]]")
+            && tool.contains("never write a person's name there yourself")
+            && tool.contains("the AI coding tool's proposal"),
+        "{tool}"
+    );
+
+    // The flagged line changes: the false alarm no longer matches, and the finding is back.
+    app(
+        &dir,
+        "    return redirect(request.args.get(\"next\", \"/\"))",
+    );
+    let changed = report(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(status(&changed, "V3.7.2").starts_with("needs attention"));
+    assert!(
+        changed.security.contains("no finding matches it any more"),
+        "{}",
+        changed.security
+    );
+}
+
+/// `securevibe_check` over MCP, as the AI coding tool calls it; the text it is given.
+fn mcp_check(app: &Path) -> String {
+    use std::io::Write;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["mcp", "--root"])
+        .arg(app.parent().unwrap())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("sv starts");
+    let name = app.file_name().unwrap().to_string_lossy().into_owned();
+    {
+        let stdin = child.stdin.as_mut().unwrap();
+        writeln!(stdin, r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-06-18","capabilities":{{}},"clientInfo":{{"name":"test","version":"0"}}}}}}"#).unwrap();
+        writeln!(
+            stdin,
+            r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#
+        )
+        .unwrap();
+        writeln!(stdin, r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"securevibe_check","arguments":{{"path":"{name}"}}}}}}"#).unwrap();
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().unwrap();
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str::<Value>(l).unwrap())
+        .find(|r| r["id"] == 2)
+        .and_then(|r| {
+            r["result"]["content"][0]["text"]
+                .as_str()
+                .map(str::to_owned)
+        })
+        .expect("a reply to the check")
+}
