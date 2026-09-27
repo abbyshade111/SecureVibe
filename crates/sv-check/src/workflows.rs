@@ -955,6 +955,8 @@ jobs:
             ("anchor", anchored),
             ("broken", "on: [push\njobs:\n  test: {\n"),
             ("two", "on: [push]\n---\njobs: {}\n"),
+            // A tag can change what a value means; only this guard refuses one on its own.
+            ("tag", "on: !custom [push]\npermissions: { contents: read }\njobs: {}\n"),
         ] {
             let report = run(name, &[("ci.yml", text), ("clean.yml", SAFE)], &[]);
             assert!(credited(&report).is_empty(), "{name}: {:?}", report.passed);
