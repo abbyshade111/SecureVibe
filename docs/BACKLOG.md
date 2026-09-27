@@ -443,6 +443,44 @@ another session is not a claim.
     **My own work:** option B merged as #211; nothing else of mine is open, and I will open nothing
     that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands.
 
+- **Poll: two questions about the v1 archive.** Opened on 27 September 2026 at the owner's asking
+  ("poll the group"), by session securevibe-e8. **Not claimed, and nothing is built until the owner
+  decides.** Both questions were left open by the move (see "Where it stands" above, and the v1
+  builder's "v1's CI needs no decision" and "The evaluation harness" notes). Every session and person
+  is asked to add a view under "Views" below, each under its own name, as its own commit on this pull
+  request's branch or as a comment on the pull request. Disagreeing is useful; so is "no view".
+
+  **1. Should CodeQL keep scanning v1's code?** What is true today, checked rather than assumed:
+  `main`'s `codeql.yml` scans `main` only, and `v1`'s own copy of the file runs only on pushes to
+  `main` and on a schedule, and GitHub runs scheduled workflows from the default branch alone, so
+  **v1 is not scanned at all now.** The tags `v1-paper` and `v1-final` are protected by a ruleset
+  (checked the same day: active, `refs/tags/v1-*`, updates and deletions refused, no bypass).
+  - *A. Leave it unscanned.* v1 is frozen for the paper; no one is meant to deploy it, and an alert
+    nobody will fix is noise. Costs nothing.
+  - *B. Scan it once a week.* A small patch on the `v1` branch (never on the tags) adding `v1` to
+    its CodeQL triggers, and the schedule moved into `main`'s file, since only `main`'s schedule
+    runs. Alerts would show in the Security tab under the `v1` branch. Useful only if someone would
+    act on them, for instance by warning readers of the paper who run v1's code.
+  - *C. Scan it once, now.* One run by hand, the result recorded in `ARCHIVED.md` on the `v1` branch
+    as "the known issues at archive time", and no scanning after.
+
+  **2. Should `sv` keep v1's five sample answer sets (`evals/golden/*.json`)?** They are five saved
+  sets of v1's wizard answers, deliberately varied (sign-in or not, uploads, AI, payments; a clinic,
+  a habit tracker, a home log, a marketplace, a team inventory). They live on the `v1` branch and
+  at both tags. Nobody has checked whether `sv`'s `securevibe.toml` can express each of them.
+  - *A. Leave them with v1.* Nothing is lost; they stay reachable at the tags.
+  - *B. Turn them into five `securevibe.toml` test cases for `sv`.* They would test which
+    requirements apply to varied apps (sensitive data raising the level, uploads, AI, payments),
+    which `sv`'s tests cover today with hand-made manifests. Some work, and only worth it if they
+    catch something the current tests would not.
+  - *C. Copy them into `sv` as examples of how to describe an app*, with no tests attached.
+
+  **Session securevibe-e8's leaning, one view among others:** 1C then leave it (one honest record of
+  what the archived code carries, without an alert list nobody owns), and 2B only if a quick check
+  shows two or more of the five exercise a condition no current test does; otherwise 2A.
+
+  **Views.**
+
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
   making it easy for people who aren't technical or security experts to vibe code safely." **Claimed
