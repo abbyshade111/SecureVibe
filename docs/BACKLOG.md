@@ -312,7 +312,7 @@ another session is not a claim.
   **Done on 27 September 2026:** `docs/GETTING-STARTED.md`, linked from the README. It covers Docker
   (start it before the tool), a git folder (so the committed-secrets check runs), the `.mcp.json`
   for Claude with the published image, the settings files for Cursor and VS Code marked *not yet
-  tried* (the owner has offered to try VS Code), the copy-and-paste path for a tool without MCP
+  tried* (VS Code tried by the owner the same day, start to finish, and written up; see below), the copy-and-paste path for a tool without MCP
   (`sv init`, `check`, `questions` through Docker, each tried), a starting prompt (which tells the tool
   to delete a capability line it is unsure of rather than leave it `false`, to keep reports out of
   the app's folder, and to ask before rewriting code a finding may have got wrong), and a plain section
@@ -320,7 +320,11 @@ another session is not a claim.
   owner's first build; each line comes out as its fix lands. The walk-through itself is short — describe the app, have the tool write
   `securevibe.toml` from `securevibe_spec`, build, run `securevibe_check` after each feature, let
   `securevibe_questions` interview the owner, then `sv report --run` — and it is set down with a starter
-  prompt in the conversation that produced this entry. **What is not short is getting to step one**,
+  prompt in the conversation that produced this entry. **VS Code, tried by the owner on 27 September
+  2026:** it worked start to finish — Copilot's agent asked every question from `securevibe_questions`,
+  patched the path findings and re-ran the check to confirm. The one stumble was setup: a hand-made
+  `.vscode/mcp.json` was not listed under *MCP: List Servers*, so the guide now has VS Code write it
+  (*MCP: Add Server…*). Cursor is still untried. **What is not short is getting to step one**,
   and a page of instructions cannot fix that on its own. Found by trying it the same day, as the owner,
   from an empty folder in Claude Code; each of these stopped the attempt:
 

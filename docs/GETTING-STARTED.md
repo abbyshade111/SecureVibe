@@ -67,16 +67,54 @@ test that talks to it the way the tool does, not yet in the app itself.
 - On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
   files it writes are yours rather than root's.
 
+### VS Code (GitHub Copilot)
+
+**Tried on 27 September 2026, by the owner, start to finish:** Copilot's agent called SecureVibe's
+tools, asked every question from `securevibe_questions` one at a time, wrote a fix for the path
+findings `securevibe_check` reported, and checked the fix by running the check again.
+
+You need the GitHub Copilot Chat extension, with the chat in **Agent** mode (the mode that can use
+other programs), and VS Code 1.102 or newer. If you use a paid Copilot plan, each request may count
+against its monthly allowance.
+
+**Let VS Code write the settings file for you.** A file typed or pasted by hand was not picked up the
+first time it was tried: a wrong folder, or quotes turned curly by a text editor, breaks it without any
+message. Instead:
+
+1. Open the app's folder in VS Code (*File → Open Folder*).
+2. Open the Command Palette (Cmd-Shift-P on a Mac, Ctrl-Shift-P elsewhere), and choose
+   **MCP: Add Server…**, then **Command (stdio)**.
+3. For the command, give SecureVibe's full path, then `mcp --root ${workspaceFolder}`. With `sv`
+   installed: `/full/path/to/sv mcp --root ${workspaceFolder}` (`which sv` in a terminal prints the
+   path). VS Code fills in `${workspaceFolder}` with the open folder, so there is no path to type.
+4. Name it `securevibe`, and save it for the **Workspace** (this app only).
+5. In the `.vscode/mcp.json` it opens, click **Start** above `securevibe`. In the chat, the tools
+   button should now list the six `securevibe_` tools.
+
+The file it writes looks like this:
+
+```json
+{ "servers": { "securevibe": {
+  "type": "stdio",
+  "command": "/full/path/to/sv",
+  "args": ["mcp", "--root", "${workspaceFolder}"] } } }
+```
+
+For the container instead, `command` is the full path to `docker` and `args` are
+`["run", "-i", "--rm", "--network", "none", "-v", "${workspaceFolder}:${workspaceFolder}",
+"ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "${workspaceFolder}"]`.
+
+If **MCP: Add Server…** is not in the list, check the VS Code version (*Code → About*), search Settings
+for `mcp` in case it is switched off, and, if your Copilot comes through work or school, ask whether
+your organization has turned these tools off. If SecureVibe does not appear or will not start,
+**MCP: List Servers → securevibe → Show Output** says why.
+
 ### Other tools
 
-The same `command` and `args` go in the tool's own MCP settings file. **These have not been tried
-with SecureVibe yet**, so if one does not work, tell us:
+The same `command` and `args` go in the tool's own MCP settings file. **Cursor has not been tried
+with SecureVibe yet**, so if it does not work, tell us:
 
-- **Cursor:** `.cursor/mcp.json` in the app's folder, with the same `mcpServers` block as above.
-- **VS Code (Copilot):** `.vscode/mcp.json`, where the block is called `servers` instead of
-  `mcpServers`, and each server has `"type": "stdio"`.
-
-The owner has offered to try VS Code; this section will say what was found once that is done.
+- **Cursor:** `.cursor/mcp.json` in the app's folder, with the same `mcpServers` block as for Claude, above.
 
 ### A tool without MCP
 
