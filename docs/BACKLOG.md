@@ -9,6 +9,11 @@ another session is not a claim.
 
 ## Next
 
+- **Figures for the paper: security across both versions, usability, and cost.** **Claimed on 27 September
+  2026 by session admiring-murdock-875699**, at the owner's asking. New `docs/paper/figure-*.html` beside the
+  existing three, built only from numbers already in the repository (git history, `docs/COVERAGE.md`,
+  `docs/paper/`), each with its source stated. Touches only `docs/paper/`.
+
 - **Bring the paper's timeline up to date, and draw it.** **Claimed on 27 September 2026 by session
   admiring-murdock-875699**, at the owner's asking. **Done the same day.** `docs/paper/TIMELINE.md` stops at 20 September; extend
   it through 27 September from the repository's history, and add a one-page diagram of the whole project
