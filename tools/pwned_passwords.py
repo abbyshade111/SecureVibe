@@ -59,6 +59,9 @@ BANDS = [(1, 1000), (1001, 3000), (3001, 10000), (10001, 30000), (30001, 60000),
 PER_BAND = 50
 
 
+# SHA-1 is what Pwned Passwords is indexed by, and only the first five characters of the hash are sent;
+# nothing is protected or stored with it. CodeQL reports it as a weak hash of sensitive data (alert 81,
+# dismissed as a false positive, 27 September 2026).
 def sha1_hex(password: bytes) -> str:
     return hashlib.sha1(password).hexdigest().upper()
 
@@ -125,6 +128,10 @@ def refresh(today: str) -> None:
         "checked": today,
         "checkedBy": "tools/pwned_passwords.py",
     }
+    # The password written and printed here is BREACHED, the one `sv` deliberately tries at sign-up: it
+    # is public by design, in the source and in this file, because its whole point is that it has
+    # already leaked. CodeQL reports both lines as clear-text storage and logging of sensitive data
+    # (alerts 79 and 80, dismissed as false positives, 27 September 2026).
     EVIDENCE.write_text(json.dumps(new, indent=2) + "\n")
     was = old.get("seen")
     change = "unchanged" if was == seen else f"was {was:,}" if isinstance(was, int) else "new"
