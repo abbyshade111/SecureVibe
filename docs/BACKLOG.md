@@ -9,6 +9,46 @@ another session is not a claim.
 
 ## Next
 
+- **False alarms, part 1: fewer of them reach the owner.** Asked for by the owner on 27 September
+  2026, after an investigation by session securevibe-e2 of how `sv` handles findings that are wrong.
+  Today there is no way to set a finding aside, the same line can be reported by two tools as two
+  findings, a finding in test code looks like one in the app, and each finding's `confidence` is
+  recorded and never shown. With an AI coding tool in the loop a false alarm is not noise: the tool
+  rewrites correct code until the warning stops (see "Two false alarms rated high changed correct
+  code"). Three changes, none of which hides a finding: findings from different tools on the same file,
+  line, and kind of weakness (CWE) become one finding naming every tool that raised it; a finding in
+  test code or sample files says so; and a finding `sv` is not sure of is shown as a *possible* problem,
+  apart from a *confirmed* one, both still counted as needing attention. **The owner's decision, 27
+  September 2026: go ahead.** **Claimed the same day by session securevibe-e2.**
+
+- **False alarms, part 2: a person's record that a finding is a false alarm, or an accepted risk.**
+  From the same investigation. **The owner's decisions, 27 September 2026, each as recommended:**
+  1. Build it: a section in `securevibe.toml` where a finding is set aside with a verdict, who decided,
+     the date, and a written reason.
+  2. Two verdicts: *false alarm* (the code is fine) and *accepted risk* (a real problem the owner
+     chooses to live with for now).
+  3. The AI coding tool may propose one, and only a person's word counts. An entry the tool wrote is
+     shown as the tool's opinion, the finding still counts, and the interview asks the owner to confirm
+     it. (The rules the tool follows already say it must never weaken a check.)
+  4. A false-alarm verdict lapses when the flagged line changes; an accepted risk after 90 days; a
+     lapsed entry is listed, never dropped quietly. A key or password found by the secrets scan may be
+     set aside as a false alarm, but only with a stricter reason.
+  5. Part 1 first.
+  In the report, a finding set aside moves to its own section with its reason; its requirement goes
+  back to *not verified*, never to *checked*, since dismissing a finding does not show the protection
+  is there; an accepted risk stays under *needs attention*, labeled as known and accepted. The SARIF
+  `sv` writes marks it as suppressed, with the reason, so GitHub's Security tab agrees with the report.
+  Findings are matched by rule, file, and a fingerprint of the flagged line's text, never the text
+  itself, so a flagged key is never copied into the file. **Claimed the same day by session
+  securevibe-e2**, to follow part 1.
+
+- **False alarms, part 3: each one a report against the rule.** From the same investigation, and
+  wanted by the owner on 27 September 2026. A false alarm set aside in one app is usually a rule that
+  will misfire in the next. An issue template for a false alarm (the rule, what it matched, and why it
+  is wrong, with the code shown only if the owner chooses), and a line beside each setting-aside in
+  the report pointing to it, so a rule that keeps misfiring gets narrowed, with a test, rather than
+  set aside app after app. Not claimed.
+
 - **The report credits V15.1.2 for a lockfile it could not read.** Found on 27 September 2026 by session
   securevibe-e8 while tidying this backlog. **Claimed the same day by session securevibe-e8**, at the
   owner's asking. Reproduced: an app with `pyproject.toml`, a
