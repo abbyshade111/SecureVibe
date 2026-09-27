@@ -15,6 +15,7 @@ use sv_manifest::{ClaimState, Manifest, consistency, spec};
 use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures, scan};
 
+mod bundle;
 mod mcp;
 
 fn main() -> Result<()> {
@@ -34,6 +35,7 @@ fn main() -> Result<()> {
         Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
         Some("audit") => cmd_audit(&args[1..]),
         Some("report") => cmd_report(&args[1..]),
+        Some("bundle") => cmd_bundle(&args[1..]),
         Some("mcp") => mcp::cmd_mcp(&args[1..]),
         Some("--help") | Some("-h") | None => {
             print_help();
@@ -62,6 +64,9 @@ fn print_help() {
              match what the app ships against a local OSV database\n  \
          sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     \
              write the reports: what applies, what was found, what nobody has answered\n  \
+         sv bundle [PATH] [--out FILE.zip] [--run] [--tools] [--advisories DIR]\n                     \
+             the app, its report and a SHA-256 for every file in one zip, with\n                     \
+             anything that could hold a secret left out and listed\n  \
          sv mcp [--root DIR]\n                     \
              serve the checks to an AI coding tool over MCP, for the apps under DIR\n"
     );
@@ -1377,6 +1382,151 @@ fn cmd_audit(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// `sv bundle`: the app, its report and the record of what was checked, in one zip (see `bundle.rs`).
+fn cmd_bundle(args: &[String]) -> Result<()> {
+    let ReportArgs {
+        app_dir,
+        out,
+        run_the_app,
+        slow,
+        run_tools,
+        advisories_dir,
+    } = parse_report_args(args, "a file name ending in .zip")?;
+    if !app_dir.is_dir() {
+        bail!("{} is not a folder", app_dir.display());
+    }
+    let app_abs = std::fs::canonicalize(&app_dir)
+        .with_context(|| format!("opening {}", app_dir.display()))?;
+    let name = app_abs
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "app".to_owned());
+    let folder = bundle::safe_name(&name);
+    // Outside the app folder, beside it: a bundle written inside would be read back as the app.
+    let zip_path = match out {
+        Some(path) => path,
+        None => app_abs
+            .parent()
+            .unwrap_or(&app_abs)
+            .join(format!("{folder}-securevibe-bundle.zip")),
+    };
+    // Resolved through whatever links lie on the way (on a Mac `/var` is a link to `/private/var`), so the same
+    // folder written two ways is still recognized as the app's own.
+    let zip_abs = bundle::resolve_for_writing(&if zip_path.is_absolute() {
+        zip_path.clone()
+    } else {
+        std::env::current_dir()?.join(&zip_path)
+    });
+    if zip_abs.starts_with(&app_abs) {
+        bail!(
+            "{} is inside the app folder. Choose a place outside it, so the bundle is not read back as part of the app.",
+            zip_path.display()
+        );
+    }
+
+    let report = assemble_report(
+        &app_abs,
+        &ReportOptions {
+            run_the_app,
+            slow,
+            run_tools,
+            why_not_run: "`sv bundle` does not start the app unless you pass --run.",
+            why_no_tools: "`sv bundle` does not run other people's tools unless you pass --tools.",
+            advisories: advisories_dir,
+            why_no_advisories: "`sv bundle` compares against known vulnerabilities only when you \
+                                pass --advisories DIR.",
+        },
+    )?;
+
+    // What goes in, decided from what the credential scan found and could not read.
+    let rules = SecretRules::load(&secret_rules_path())?;
+    let scan = scan_dir(&rules, &app_abs);
+    let plan = bundle::plan(&app_abs, &scan);
+
+    let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    for rel in &plan.include {
+        let bytes = std::fs::read(app_abs.join(rel)).with_context(|| format!("reading {rel}"))?;
+        entries.push((format!("{folder}/app/{rel}"), bytes));
+    }
+    let scratch = bundle::scratch_dir();
+    let written = write_report_files(&report, &scratch);
+    let sbom_json =
+        serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom::build(&app_abs)))? + "\n";
+    let report_files: Result<Vec<(String, Vec<u8>)>> = written.and_then(|names| {
+        names
+            .iter()
+            .map(|n| {
+                Ok((
+                    format!("{folder}/report/{n}"),
+                    std::fs::read(scratch.join(n))?,
+                ))
+            })
+            .collect()
+    });
+    let _ = std::fs::remove_dir_all(&scratch);
+    entries.extend(report_files?);
+    entries.push((
+        format!("{folder}/report/sbom.cdx.json"),
+        sbom_json.into_bytes(),
+    ));
+
+    let made_at = bundle::utc_time(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+    );
+    let command = format!("sv bundle {}", args.join(" "));
+    let listing = bundle::listing(
+        env!("CARGO_PKG_VERSION"),
+        &made_at,
+        command.trim(),
+        &name,
+        &entries,
+        &plan,
+    );
+    let readme = bundle::readme(&name, &made_at, plan.include.len(), &plan);
+    entries.push((
+        format!("{folder}/BUNDLE.json"),
+        (serde_json::to_string_pretty(&listing)? + "\n").into_bytes(),
+    ));
+    entries.push((format!("{folder}/README.txt"), readme.into_bytes()));
+
+    let bytes = bundle::zip(&entries)?;
+    if let Some(parent) = zip_abs.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating {}", parent.display()))?;
+    }
+    std::fs::write(&zip_abs, &bytes).with_context(|| format!("writing {}", zip_abs.display()))?;
+
+    println!(
+        "Wrote {} ({} files, {} KB).",
+        zip_abs.display(),
+        entries.len(),
+        bytes.len() / 1024
+    );
+    println!(
+        "  {} of the app's files, the report, and a SHA-256 for every file in BUNDLE.json.",
+        plan.include.len()
+    );
+    if plan.left_out.is_empty() {
+        println!("Nothing was left out.");
+    } else {
+        println!(
+            "\nLeft out on purpose, so the zip carries no secret ({}):",
+            plan.left_out.len()
+        );
+        for (path, reason) in &plan.left_out {
+            println!("  {path}: {reason}");
+        }
+    }
+    println!(
+        "\nsv cannot tell which files hold data about your app's people. It leaves out the database files it \
+         recognizes by name, and nothing else: look through the zip before you hand it on."
+    );
+    Ok(())
+}
+
 /// Writes the reports.
 ///
 /// Everything here runs offline and without a container. The probes need a running app, so unless
@@ -2237,41 +2387,67 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     Ok(report)
 }
 
-fn cmd_report(args: &[String]) -> Result<()> {
-    let mut app_dir = PathBuf::from(".");
-    let mut out_dir: Option<PathBuf> = None;
-    // Opt-in. Everything else `sv report` does reads files; this starts somebody's code. It runs
-    // behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
-    // computer — and it is still their decision to make rather than a default.
-    let mut run_the_app = false;
-    // With --run: wait out the session timeouts too.
-    let mut slow = false;
-    // Opt-in for the same reason as --run, and one more: these are other people's programs, and one
-    // of them fetches its rules over the network the first time it runs.
-    let mut run_tools = false;
-    // A folder the owner downloaded on purpose. `sv` never fetches advisories itself.
-    let mut advisories_dir: Option<PathBuf> = None;
+/// What `sv report` and `sv bundle` are asked for.
+struct ReportArgs {
+    app_dir: PathBuf,
+    /// A folder for `sv report`, a file for `sv bundle`.
+    out: Option<PathBuf>,
+    /// Opt-in. Everything else these commands do reads files; this starts somebody's code. It runs
+    /// behind the same fence `sv run` uses — no network beyond loopback, nothing published to this
+    /// computer — and it is still their decision to make rather than a default.
+    run_the_app: bool,
+    /// With --run: wait out the session timeouts too.
+    slow: bool,
+    /// Opt-in for the same reason as --run, and one more: these are other people's programs, and one
+    /// of them fetches its rules over the network the first time it runs.
+    run_tools: bool,
+    /// A folder the owner downloaded on purpose. `sv` never fetches advisories itself.
+    advisories_dir: Option<PathBuf>,
+}
+
+fn parse_report_args(args: &[String], out_wants: &str) -> Result<ReportArgs> {
+    let mut parsed = ReportArgs {
+        app_dir: PathBuf::from("."),
+        out: None,
+        run_the_app: false,
+        slow: false,
+        run_tools: false,
+        advisories_dir: None,
+    };
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
             "--out" => {
-                out_dir = Some(PathBuf::from(
-                    rest.next().context("--out needs a directory")?,
+                parsed.out = Some(PathBuf::from(
+                    rest.next()
+                        .with_context(|| format!("--out needs {out_wants}"))?,
                 ));
             }
-            "--run" => run_the_app = true,
-            "--slow" => slow = true,
-            "--tools" => run_tools = true,
+            "--run" => parsed.run_the_app = true,
+            "--slow" => parsed.slow = true,
+            "--tools" => parsed.run_tools = true,
             "--advisories" => {
-                advisories_dir = Some(PathBuf::from(
+                parsed.advisories_dir = Some(PathBuf::from(
                     rest.next().context("--advisories needs a folder")?,
                 ));
             }
             other if other.starts_with('-') => bail!("unknown option: {other}"),
-            other => app_dir = PathBuf::from(other),
+            other => parsed.app_dir = PathBuf::from(other),
         }
     }
-    let out_dir = out_dir.unwrap_or_else(|| app_dir.join("securevibe-report"));
+    Ok(parsed)
+}
+
+fn cmd_report(args: &[String]) -> Result<()> {
+    let ReportArgs {
+        app_dir,
+        out,
+        run_the_app,
+        slow,
+        run_tools,
+        advisories_dir,
+    } = parse_report_args(args, "a directory")?;
+    let out_dir = out.unwrap_or_else(|| app_dir.join("securevibe-report"));
 
     let report = assemble_report(
         &app_dir,
