@@ -70,6 +70,14 @@ fn a_whole_session_over_stdio() {
             .unwrap()
             .contains("NOT EXAMINED")
     );
+    // Appendix C, counted apart, is said in the summary the tool reads, not only in the files.
+    assert!(
+        check["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("OWASP AISVS Appendix C"),
+        "{check}"
+    );
     let escaped = &replies[3]["result"];
     assert_eq!(
         escaped["isError"], true,

@@ -2673,6 +2673,21 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         .cloned()
         .collect();
 
+    // The Appendix C requirements the coding rules given to this app come from, for the report's
+    // section on how the app is built with AI. The same rules `sv rules` would write.
+    let coding_rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    let set_aside: std::collections::BTreeSet<&str> = buckets
+        .not_applicable
+        .iter()
+        .map(|n| n.id.as_str())
+        .collect();
+    let is_set_aside = |id: &str| set_aside.contains(id);
+    let coding_rules_cited: std::collections::BTreeSet<String> = coding_rules
+        .for_app(Some(&is_set_aside))
+        .into_iter()
+        .flat_map(|r| r.cites.keys().cloned())
+        .collect();
+
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -2685,6 +2700,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         run_steps,
         test_output,
         run_status: Some(run_status),
+        coding_rules_cited,
         frameworks: &frameworks,
         buckets: &buckets,
         claims: &resolved,
@@ -2824,6 +2840,13 @@ fn cmd_report(args: &[String]) -> Result<()> {
         c.not_verified,
         if c.not_verified == 1 { "was" } else { "were" }
     );
+    if c.ai_process > 0 {
+        println!(
+            "A further {} about how the app is built with an AI coding tool (OWASP AISVS Appendix \
+             C) are counted apart; the reports list them in a section of their own.",
+            c.ai_process
+        );
+    }
     if c.attested > 0 {
         println!(
             "A further {} you answered yes to in the [design] section of securevibe.toml, or \

@@ -52,6 +52,7 @@ fn inputs<'a>(
         run_steps: Vec::new(),
         test_output: None,
         run_status: None,
+        coding_rules_cited: Default::default(),
         frameworks,
         buckets,
         claims: &[],
@@ -619,6 +620,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         run_steps: Vec::new(),
         test_output: None,
         run_status: None,
+        coding_rules_cited: Default::default(),
         frameworks: &f,
         buckets: &buckets,
         claims: &[],
@@ -1931,4 +1933,133 @@ fn the_signed_in_questions_are_mentioned_only_when_they_were_asked() {
     assert!(line(true).contains("as test users signed in to it"));
     assert!(!line(false).contains("signed in to it"), "{}", line(false));
     assert!(line(false).contains("answered 2 of the 3 requests sent to it without signing in."));
+}
+
+/// OWASP AISVS Appendix C, apart from the app's own requirements.
+mod appendix_c {
+    use super::*;
+
+    fn report_with(findings: Vec<Finding>) -> sv_report::Report {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec![
+                "V1.2.1".into(),
+                "AC.4.1".into(),
+                "AC.3.1".into(),
+                "AC.12.5".into(),
+                "AC.8.1".into(),
+            ],
+            not_applicable: vec![NotApplicable {
+                id: "AC.9.1".into(),
+                reason: "no deployment pipeline".into(),
+                condition: Condition::from_name("ci-cd").unwrap(),
+                source: Source::Claim,
+            }],
+            ..Default::default()
+        };
+        let notes = sv_check::notes::Catalog::load(&data().join("security-notes.json")).unwrap();
+        let design =
+            sv_check::design::Questions::load(&data().join("design-questions.json")).unwrap();
+        let human = sv_check::human::HumanChecks::load(&data().join("human-checks.json")).unwrap();
+        let mut i = inputs(&f, &buckets, findings, &[]);
+        i.human = Some((&notes, &design, &human));
+        // AC.4.1 is both: a rule cites it, and it is among the owner's questions.
+        i.coding_rules_cited = [
+            "AC.3.1".to_owned(),
+            "AC.8.1".to_owned(),
+            "AC.4.1".to_owned(),
+        ]
+        .into();
+        build(i)
+    }
+
+    fn route(report: &sv_report::Report, id: &str) -> &'static str {
+        report
+            .ai_process
+            .lines
+            .iter()
+            .find(|l| l.id == id)
+            .unwrap_or_else(|| panic!("{id} is not in the section"))
+            .route
+    }
+
+    #[test]
+    fn appendix_c_nothing_reached_leaves_the_counts_for_its_own_section() {
+        let report = report_with(vec![]);
+        let ids: Vec<&str> = report.requirements.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, ["V1.2.1"], "only the app's own requirement stays");
+        assert_eq!(report.counts.applicable, 1);
+        assert_eq!(report.counts.not_verified, 1);
+        assert_eq!(report.counts.ai_process, 4);
+        assert_eq!(report.ai_process.lines.len(), 4);
+        assert_eq!(report.ai_process.not_applicable, 1);
+    }
+
+    #[test]
+    fn each_is_listed_by_what_happens_to_it() {
+        let report = report_with(vec![]);
+        // A question for the owner outranks a rule: the owner's answer is what would settle it.
+        assert_eq!(route(&report, "AC.4.1"), "your-decision");
+        assert_eq!(route(&report, "AC.3.1"), "rules-given");
+        assert_eq!(route(&report, "AC.8.1"), "rules-given");
+        assert_eq!(route(&report, "AC.12.5"), "nothing-reaches-it");
+        // Still asked: moving it out of the counts does not take it out of the questions.
+        assert!(report.questions_for_you.iter().any(|q| q.id == "AC.4.1"));
+    }
+
+    #[test]
+    fn one_with_a_finding_stays_among_the_apps_requirements() {
+        let report = report_with(vec![finding("agent.merged-its-own-work", &["AC.8.1"])]);
+        let line = report
+            .requirements
+            .iter()
+            .find(|r| r.id == "AC.8.1")
+            .expect("a finding keeps it in the counts");
+        assert_eq!(line.status, Status::NeedsAttention);
+        assert!(!report.ai_process.lines.iter().any(|l| l.id == "AC.8.1"));
+        assert_eq!(report.counts.applicable, 2);
+        assert_eq!(report.counts.ai_process, 3);
+    }
+
+    #[test]
+    fn the_section_says_the_rules_are_not_evidence_in_every_format() {
+        let report = report_with(vec![]);
+        let summary = report.ai_process.summary();
+        assert!(summary.contains("not evidence"), "{summary}");
+        assert!(summary.contains("1 is your decision"), "{summary}");
+        assert!(
+            summary.contains("Nothing in `sv` reaches the other 1"),
+            "{summary}"
+        );
+        assert!(summary.contains("1 more does not apply"), "{summary}");
+        let html = sv_report::html::page(&report);
+        let compliance = sv_report::markdown::compliance(&report);
+        for rendered in [&html, &compliance] {
+            assert!(rendered.contains("How the app is built with AI (OWASP AISVS Appendix C)"));
+            assert!(
+                rendered.contains("A further 4 about how the app is built"),
+                "headline"
+            );
+            for id in ["AC.4.1", "AC.3.1", "AC.12.5", "AC.8.1"] {
+                assert!(rendered.contains(id), "{id} must still be listed");
+            }
+        }
+        // And for a tool reading report.json.
+        let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["ai_process"]["lines"].as_array().unwrap().len(), 4);
+        assert_eq!(json["counts"]["ai_process"], 4);
+    }
+
+    #[test]
+    fn with_no_appendix_c_there_is_no_section() {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec!["V1.2.1".into()],
+            ..Default::default()
+        };
+        let report = build(inputs(&f, &buckets, vec![], &[]));
+        assert!(report.ai_process.lines.is_empty());
+        assert!(!sv_report::markdown::compliance(&report).contains("How the app is built with AI"));
+        assert!(!sv_report::html::page(&report).contains("How the app is built with AI"));
+    }
 }

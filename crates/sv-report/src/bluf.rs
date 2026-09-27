@@ -249,6 +249,7 @@ mod tests {
             run_steps: Vec::new(),
             test_output: None,
             run_status: None,
+            ai_process: Default::default(),
             counts,
             requirements: Vec::new(),
             excluded: Vec::new(),

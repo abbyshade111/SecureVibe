@@ -25,7 +25,10 @@ another session is not a claim.
   - `compliance.md` and `report.json` still list every one of them, under that section, for anybody
     assessing against AISVS.
 
-  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking. **Done the same
+  day:** on the Flask example the headline goes from 284 to 240, and the section lists 44 (24 given
+  as rules, 2 the owner's decisions, 18 nothing reaches). See DESIGN, "Appendix C in a section of its
+  own".
 
 - **Read the app's GitHub Actions workflows for what Appendix C warns about.** Found on 27 September
   2026 while moving Appendix C out of the headline numbers: the coding rules tell the tool not to
