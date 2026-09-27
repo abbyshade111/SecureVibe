@@ -3579,6 +3579,39 @@ the `--`, which passed every test until the test was made to look for it; an unm
 pack, which the measured-packs test did not read until it was extended; and an unknown condition in
 the data.
 
+
+### `p/default` beside `p/security-audit`
+
+Adopted on 26 September 2026 (session relaxed-nobel-27acfa), the owner's choice among four measured
+options (backlog, "Semgrep's pack reaches 31 of the 50 requirements its map names"). `p/security-audit`
+holds semgrep's pattern rules; `p/default` holds the rules that follow data from a request to where it
+is used. With the first alone, the fixture app's planted SQL injection, request forgery, path
+traversal, and command injection went unreported. With both, `sv report --tools` on the fixture gives
+28 semgrep findings, each with its requirement (`tainted-sql-string` against V1.2.4, `ssrf-requests`
+against V1.3.6, `path-traversal-open` against V5.3.2, `subprocess-injection` against V1.2.5). It costs
+about two seconds an app. The pack is measured in `data/semgrep-packs.json` (1,074 rules), and the
+coverage count now reaches 46 of the 50 requirements the map names. Only C2.1.6, C7.1.2, C7.3.1, and
+V11.3.3 are left, and V11.3.3 has its own backlog item as a rule of `sv`'s own.
+
+Its false alarms on apps built by v1 fell on three lines of the template, all
+`detect-non-literal-regexp`: a regular expression built from a string at run time. Two were fixed at
+the source rather than hidden. `scripts/setup.ts` reads a `.env` value by its line, and the API-key
+middleware matches route patterns segment by segment (`src/lib/route-path.ts`, always present, with
+its own test), matching the same paths as before except a parameter mid-segment, which no route uses.
+The third, in `src/features/ai/screening.ts`, compiles the prompt-injection ruleset from
+`data/injection-patterns.json`, which SecureVibe copies into the app and whoever runs the server may
+update. A pattern there is not something a visitor can shape, and turning it into code would lose the
+point of the file, so it stays, and an app with the AI feature shows that one false alarm. Hiding it
+with a suppression comment would make `sv` report that semgrep was told to look away, which is worse.
+
+Checked by building the five golden apps with the changed template (all built, 0 regressed; each app
+has four more passing tests, the route-pattern ones) and running the three packs over them: `p/default`'s
+false alarms went from eight to two, both the prompt-screening line, in the two apps with the AI
+feature. The template's suite passes with every feature on (228 passed, 0 failed) when run the way
+SecureVibe runs it, `tests/**/*.test.ts`. Its own `npm test` runs only `tests/security/` and
+`tests/features/`, so the root-level tests, the new one among them, are not part of it; that gap is
+older than this change and is its own piece of work.
+
 ## Which provider a sign-in came from (V10.2.2)
 
 A mix-up attack works on an app that signs in through more than one provider: a sign-in started
