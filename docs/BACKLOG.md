@@ -598,6 +598,16 @@ another session is not a claim.
   that an item be picked; the owner is watching it and can stop it.** Plan: a `sv bundle` command first, with the
   secret rules deciding what stays out and a listing that says what was left out and why; the MCP tool and the
   "offer it once the report is written" step after that, as their own pieces.
+  **First piece done on 27 September 2026:** `sv bundle` (`crates/sv-cli/src/bundle.rs`, tests in
+  `crates/sv-cli/tests/bundle.rs`). It writes the zip beside the app, with the app's files, the report, the bill of
+  materials, a `BUNDLE.json` of SHA-256s and a plain-words `README.txt`; nothing the credential scan flagged, no
+  environment file, key store, database, link, editor folder or unreadable file goes in, and each is listed with its
+  reason. Written with no new dependency (SHA-256, CRC and a stored zip are in the crate). Reproduced on the way: a `--out`
+  reaching the app folder through a link (`/var` and `/private/var` on a Mac) slipped past the check, and a test caught it.
+  **Left, as their own pieces:** the MCP tool (the server writes only below the app today, so the zip needs its
+  own place or is skipped like the report), the offer once the report is written, `[data]` categories as a reason to leave
+  out more, the commit `sv` was built from in `BUNDLE.json` (only the version is there), and each outside tool's own
+  SARIF (only `findings.sarif` is).
 
   What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
   `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,
