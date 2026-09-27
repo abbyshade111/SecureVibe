@@ -11,19 +11,22 @@ changes two things:
   the app right. `sv` picks the code up afterwards.
 * **No language.** Nothing in the pipeline assumes Node, Express or the SecureVibe template.
 
-Written in Rust. The OWASP data files are shared with v1 rather than copied.
+Written in Rust. The OWASP data files were shared with v1 rather than copied until the move; since then
+there are two copies (`docs/adr/ADR-016.md`).
 
 ## What carries over unchanged
 
 `data/frameworks/*.json` (ASVS 5.0, AISVS 1.0, AISVS Appendix C, SbD checklist) and `data/knowledge/*.json` are
 pure data with no Node in them. `sv` reads the same files from the same place. One source of truth for ASVS
-across both products; an ASVS correction fixes both.
+across both products; an ASVS correction fixes both. (True until 26 September 2026:
+see `docs/adr/ADR-016.md`.)
 
 The rules that carry over word for word:
 
 * Evidence tiers are honest. AI review alone is `ai-assessed`, never `pass`.
-* A check that does not apply is not a check that failed (ADR-012), and a scan that did not run is not a clean
-  result, and a requirement that was not assessed is not a failed one.
+* A check that does not apply is not a check that failed (v1's ADR-012; `docs/adr/README.md` says where it
+  is), and a scan that did not run is not a clean result, and a requirement that was not assessed is not a
+  failed one.
 * A checker that knows which requirements it verifies says so in `Evidence.requirementIds`.
 
 ## The part that actually needed designing
@@ -95,7 +98,7 @@ parse = "ruff-json"
 stage = "lint"
 ```
 
-A tool that is not installed is reported as **not run**, never as a clean pass. That is the ADR-012 rule applied
+A tool that is not installed is reported as **not run**, never as a clean pass. That is v1's ADR-012 rule applied
 to tooling instead of to ecosystems.
 
 ### Running the code
@@ -282,7 +285,7 @@ Running the ported engine against the real OWASP data with a Python/Flask manife
 
 Every one of those is true of a v1 app and unknowable about someone else's. For a Java service they are wrong;
 for a repo with GitHub Actions and outside contributors, `AC.12` and `AC.13` being switched off is the difference
-between a report and a misleading one. This is ADR-012 exactly — a wrong statement in a report, which an owner
+between a report and a misleading one. This is v1's ADR-012 exactly — a wrong statement in a report, which an owner
 would act on — and it would have reached v2 silently, because the rules load and resolve without complaint.
 
 So `NotApplicable` carries the condition that excluded it, `sv` counts the inherited ones and refuses to repeat
@@ -2263,7 +2266,7 @@ would have told every Java owner their app pins nothing.
 
 That is not a coverage gap, which is honest and visible. It is a wrong statement in a report, and an owner
 acting on it would go looking for a lockfile Maven does not have. The same shape as telling a Flask app it
-was missing `package-lock.json`, which is the incident ADR-012 was written for.
+was missing `package-lock.json`, which is the incident v1's ADR-012 was written for.
 
 So `DetectedEcosystem` now carries `pins_with_lockfile`, `unpinned` only returns ecosystems that pin with
 one, and Maven comes back **not assessed** with a reason: versions live in the manifest and `sv` does not
@@ -3115,6 +3118,18 @@ halves have a case of their own: an error page saying "an order is placed only a
 it" is a refusal, and so is a `303` back to the first step, which is an accepted status and the way
 many apps answer a skipped step. That second case was added after the first run of breaks: judging a
 skip by its status alone was caught by nothing until it existed.
+
+### The admin page, as support for V8.3.1
+
+V8.3.1 asks that access rules are enforced on the server, at a layer the browser cannot get round,
+not only by hiding buttons. The admin-page probe already shows part of that: signed in as an
+ordinary user, it asks for each admin page directly, and the server refuses while the admin's own
+session opens it. The owner's decision, 27 September 2026, was to let that count as **supporting
+evidence only**, and V8.3.1 went on `manualOnly` for it. One page refused is not every rule enforced
+on the server, and actions sent straight to an API are not tried, so the refusal stands beside the
+owner's answer to the design question and strengthens it, without settling it. An admin page that
+opens to an ordinary user is a finding against V8.3.1 as well as V8.2.1, because that shows the
+rule is not enforced on the server.
 
 Seven breaks, each caught: any status counting as finished, no control, the middle never skipped, a
 skip judged by status alone, the redirect address ignored, a working skip credited, and a one-step

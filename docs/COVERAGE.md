@@ -31,10 +31,10 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 132 (38%) | 5 | 208 |
+| OWASP ASVS 5.0 | 345 | 132 (38%) | 6 | 207 |
 | OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
 | AISVS Appendix C | 68 | 0 (0%) | 0 | 68 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 6 | 30 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
 ## ASVS 5.0 by level
 
@@ -65,7 +65,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V5 File Handling | 13 | 7 | 0 | 6 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
-| V8 Authorization | 13 | 2 | 0 | 11 |
+| V8 Authorization | 13 | 2 | 1 | 10 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
 | V11 Cryptography | 24 | 8 | 1 | 15 |
@@ -225,21 +225,22 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (5)
+### Supporting only (6)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
+| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user` |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 
-### Level 1 with no check at all (14)
+### Level 1 with no check at all (13)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V8.3.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
@@ -293,12 +294,13 @@ control as supporting evidence.
 | A Architecture & Service Design | 8 | 1 | 1 | 0 |
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
 | C Reliability & Resilience | 8 | 1 | 5 | 1 |
-| D Access Control & Secure Communication | 7 | 2 | 5 | 3 |
+| D Access Control & Secure Communication | 7 | 2 | 5 | 4 |
 | E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
 - SBD-AC-01: through V12.3.1
 - SBD-AC-03: through V8.2.1
+- SBD-AC-04: through V8.3.1
 - SBD-AC-05: through V13.3.1
 - SBD-MT-01: through V16.2.1

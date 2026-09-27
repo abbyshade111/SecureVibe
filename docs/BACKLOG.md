@@ -9,6 +9,33 @@ another session is not a claim.
 
 ## Next
 
+- **Appendix C out of the report's headline numbers, into a section of its own.** Asked for by the
+  owner on 27 September 2026, once the coding rules gave Appendix C a place at the start of the
+  build. Measured the same day: Appendix C is 44 of the 284 requirements that apply to
+  `examples/flask-booking` and 33 of 163 for a bare manifest, every one *not verified* because no
+  check reaches it, so about a sixth of every report's "not verified" is about how an organization
+  runs its AI tooling rather than about the app. Removing them outright would read as coverage, and
+  the rules are not evidence, so instead:
+  - They leave the headline counts and the list of unverified requirements, unless something found
+    a problem with one or has evidence for it, which then counts as any other requirement does.
+  - One section, "How the app was built with AI (OWASP AISVS Appendix C)", says how many are given
+    to the AI coding tool as rules (and that the rules are not evidence), how many are the owner's
+    decisions (still in the questions), how many do not apply and why, and how many are left with
+    nothing reaching them.
+  - `compliance.md` and `report.json` still list every one of them, under that section, for anybody
+    assessing against AISVS.
+
+  **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's asking.
+
+- **Read the app's GitHub Actions workflows for what Appendix C warns about.** Found on 27 September
+  2026 while moving Appendix C out of the headline numbers: the coding rules tell the tool not to
+  write these, and `sv` could see whether it did. When `.github/workflows/` exists, a static rule
+  over each workflow file for a `pull_request_target` or `workflow_run` trigger that checks out the
+  pull request's code (AC.12.1), a checkout without `persist-credentials: false` (AC.12.2), secrets
+  reachable from a job that runs a fork's code (AC.12.3), and a missing or broad `permissions:` block
+  (AC.7.4). Findings when present; credit only for a workflow read in full and found clean, per rule,
+  as the other static rules do. Not claimed.
+
 - **AISVS Appendix C as rules the AI coding tool follows while it writes the app.** Asked for by the
   owner on 27 September 2026: Appendix C is better used as a reference while coding than as report
   lines. Its 68 requirements are written for an auditor ("Verify that…"), and no check in `sv`
@@ -211,7 +238,7 @@ another session is not a claim.
   after the move, the USB bundles are up to date, the community standards page shows every item done,
   and the local image `securevibe/sv:local` is replaced by the published `ghcr.io/abbyshade111/securevibe-sv`.
   Tag protection is on: a tag ruleset, "protect v1's tags", checked through GitHub's API the same day
-  by session securevibe-e8 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
+  by session securevibe-e2 (active, `refs/tags/v1-*`, deletion, update, and force-move all refused, no
   bypass).
   Text below that says `agnostic/…` was written before the move.
 
@@ -452,6 +479,60 @@ another session is not a claim.
     and rewrites `data/breached-password-evidence.json`, and needs `api.pwnedpasswords.com`).
     **My own work:** option B merged as #211; nothing else of mine is open, and I will open nothing
     that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands.
+
+- ~~**Poll: two questions about the v1 archive.**~~ Decided on 27 September 2026; see the end of the entry. Opened on 27 September 2026 at the owner's asking
+  ("poll the group"), by session securevibe-e2. **Not claimed, and nothing is built until the owner
+  decides.** Both questions were left open by the move (see "Where it stands" above, and the v1
+  builder's "v1's CI needs no decision" and "The evaluation harness" notes). Every session and person
+  is asked to add a view under "Views" below, each under its own name, as its own commit on this pull
+  request's branch or as a comment on the pull request. Disagreeing is useful; so is "no view".
+
+  **1. Should CodeQL keep scanning v1's code?** What is true today, checked rather than assumed:
+  `main`'s `codeql.yml` scans `main` only, and `v1`'s own copy of the file runs only on pushes to
+  `main` and on a schedule, and GitHub runs scheduled workflows from the default branch alone, so
+  **v1 is not scanned at all now.** The tags `v1-paper` and `v1-final` are protected by a ruleset
+  (checked the same day: active, `refs/tags/v1-*`, updates and deletions refused, no bypass).
+  - *A. Leave it unscanned.* v1 is frozen for the paper; no one is meant to deploy it, and an alert
+    nobody will fix is noise. Costs nothing.
+  - *B. Scan it once a week.* A small patch on the `v1` branch (never on the tags) adding `v1` to
+    its CodeQL triggers, and the schedule moved into `main`'s file, since only `main`'s schedule
+    runs. Alerts would show in the Security tab under the `v1` branch. Useful only if someone would
+    act on them, for instance by warning readers of the paper who run v1's code.
+  - *C. Scan it once, now.* One run by hand, the result recorded in `ARCHIVED.md` on the `v1` branch
+    as "the known issues at archive time", and no scanning after.
+
+  **2. Should `sv` keep v1's five sample answer sets (`evals/golden/*.json`)?** They are five saved
+  sets of v1's wizard answers, deliberately varied (sign-in or not, uploads, AI, payments; a clinic,
+  a habit tracker, a home log, a marketplace, a team inventory). They live on the `v1` branch and
+  at both tags. Nobody has checked whether `sv`'s `securevibe.toml` can express each of them.
+  - *A. Leave them with v1.* Nothing is lost; they stay reachable at the tags.
+  - *B. Turn them into five `securevibe.toml` test cases for `sv`.* They would test which
+    requirements apply to varied apps (sensitive data raising the level, uploads, AI, payments),
+    which `sv`'s tests cover today with hand-made manifests. Some work, and only worth it if they
+    catch something the current tests would not.
+  - *C. Copy them into `sv` as examples of how to describe an app*, with no tests attached.
+
+  **Session securevibe-e2's leaning, one view among others:** 1C then leave it (one honest record of
+  what the archived code carries, without an alert list nobody owns), and 2B only if a quick check
+  shows two or more of the five exercise a condition no current test does; otherwise 2A.
+
+  **Views.** None came in. The other sessions were not running while it was open.
+
+  **The owner's decision, 27 September 2026: as leaned above** ("go ahead with your
+  recommendations"). Taken up by session securevibe-e2 the same day.
+  - **1C.** A patch on a branch cut from `v1` (`claude/v1-codeql-once`) keeps CodeQL's results as a
+    run artifact as well as sending them to the Security tab, and the workflow was started once by
+    hand on that branch (run 36336131545): both legs, JavaScript and TypeScript (576 TypeScript, 8
+    JavaScript, 7 HTML, and 3 workflow files read) and Rust, finished. **No open alerts:** the owner
+    read the Security tab filtered to that branch, 0 open and 12 closed (matching alerts dismissed or
+    fixed before, not re-examined one by one), since this environment could neither download the
+    artifact nor read the tab. Recorded in `ARCHIVED.md` on the `v1` branch (#272). Nothing scans v1
+    again.
+  - **2A.** The quick check found none of the five sets exercises a condition no current `sv` test
+    does: between them they use sign-in, uploads, AI, email, payments, scheduled jobs, a public API,
+    outside services, and the level-2 data categories, and `real_data.rs` already walks every
+    condition. What they carry beyond that (roles, retention, region, business impact) is not
+    something `sv`'s manifest asks. They stay with v1, reachable at both tags.
 
 - **A walk-through for building an app from scratch in any AI coding tool, with `sv` alongside.**
   Asked for by the owner on 26 September 2026: "it can't be too difficult, since the whole idea is
@@ -857,7 +938,7 @@ another session is not a claim.
     categories = []` still reads as "no personal data", which only lowers the target level; that is
     a quiet "no" of the same kind, left for its own decision.
     **The owner's decision, 27 September 2026: fix it the same way** ("let's fix the personal data
-    starter file issue"). **Claimed the same day by session securevibe-e8.** **Done the same day:**
+    starter file issue"). **Claimed the same day by session securevibe-e2.** **Done the same day:**
     the starter file's line reads `# categories = ?`, and a list nobody answered (no `[data]` at
     all, or the line left commented out) no longer buys level 1: the app is held to level 2 and the
     report and `sv scope` say why and how to answer, in the same words. `categories = []` is still
@@ -1526,6 +1607,15 @@ another session is not a claim.
   refused the admin page by the server, whatever the browser was told. Citing it would cost nothing
   and settle a Level 1 requirement, but it is a citation being stretched, so somebody should decide
   rather than it being slipped in.
+  **The owner's decision, 27 September 2026: supporting evidence only.** The admin page refused to
+  an ordinary user is shown beside V8.3.1 and strengthens the owner's answer, but does not settle
+  it: one page refused is not every rule enforced on the server, and actions sent straight to an
+  API are not tried. The same standing as V2.3.1's refused skips. **Claimed the same day by session
+  securevibe-e2.**
+  **Done the same day:** V8.3.1 is on `manualOnly`, and `probe.admin-page-ordinary-user` cites it
+  beside V8.2.1, so a refusal is listed as support and an opened page is a finding against both.
+  ASVS "supporting only" goes from 5 to 6; nothing more is counted as settled. See DESIGN, "The
+  admin page, as support for V8.3.1".
 
   **The four Level 2 lines below are done on 26 September 2026 by session securevibe-e9** (V16.2.1,
   V16.2.2, V5.4.1, V5.4.2). Level 2 goes from 36 to 40 of 183. See DESIGN, "What a log line and a
@@ -1734,7 +1824,9 @@ another session is not a claim.
      a `flow` entry naming the steps and what the last one shows when it really finished; A goes
      through in order as the control, and B jumps to the last step, and skips the middle. V2.3.1
      stays on `manualOnly` at the owner's word, so a refusal supports it and a skip that works is
-     a finding. **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
+     a finding. (Asked again on 27 September 2026 whether two refused skips should settle it; the
+     owner's answer: no, it stays a person's check. Trying a repeated step is the way to strengthen
+     it, not a lower bar.) **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
      and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
@@ -1994,7 +2086,8 @@ another session is not a claim.
   three were false cleans. `html_fragments` now walks start tags the way a browser's tokenizer does and
   reads each value the way the URL standard does (put back character references, strip the ends, remove
   tabs and newlines, then read the scheme). What is still named rather than read, and why, is in
-  DESIGN, "A page of markup is not a hole in the coverage".
+  DESIGN, "A page of markup is not a hole in the coverage". This is also the owner's decision the same
+  day, asked through another session: read them the way a browser does.
 
   Verified: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, and the full workspace suite.
   Broke eight things on purpose and watched each go red: unquoted values dropped, tabs kept in a URL, the
@@ -2498,6 +2591,22 @@ another session is not a claim.
 
 ## Decided, not yet written down as ADRs
 
-- Corroboration only ever moves toward more requirements applying, never fewer (`sv-manifest::resolve`).
-- The OWASP data files are shared with v1, not copied.
-- `sv` never writes application code, so v1's generation agent and its fence have no successor here.
+**All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
+own, numbered after v1's so that a number always means one decision (`docs/adr/README.md`). Each one was
+checked against the code and the history before it was written, and two were not quite true as stated here:
+
+- ~~Corroboration only ever moves toward more requirements applying, never fewer.~~ **ADR-015.** True for
+  every question the owner is asked. The derived conditions, which nobody is asked, are the exception: a
+  scan that finds no XML or GraphQL library answers "no", and those requirements stop applying. The record
+  says so rather than repeat the rule without it.
+- ~~The OWASP data files are shared with v1, not copied.~~ **ADR-016.** True until 26 September 2026.
+  Since the move there are two copies, `main`'s and the `v1` branch's, and a correction to one does not reach
+  the other. Eight of the eleven files in `data/knowledge` are v1's alone, and editing them changes nothing
+  `sv` does.
+- ~~`sv` never writes application code.~~ **ADR-017.** True. It lists what `sv` does write into an app's
+  folder (`security-notes.md`, its section of `AGENTS.md`, the reports), none of which the app runs.
+
+The nine references to ADR-012, in `DESIGN.md` and in four files of three crates, now say it is v1's, and the
+index says where it lives. **Not settled, and named in the index:** ADR-012 also ruled out SecureVibe writing
+its own static-analysis rules for other languages. `sv` has since written them for fourteen, and no record
+revisits that ruling. Whether one should is the owner's question.

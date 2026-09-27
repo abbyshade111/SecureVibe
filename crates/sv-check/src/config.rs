@@ -253,7 +253,7 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
 /// The trap here is worth naming, because it was one function call away. `pom.xml` has no lockfile to
 /// look for: Maven pins in the manifest itself, and Gradle's lockfile is something a project turns on.
 /// A check that asked "is there a lockfile?" would report every Maven project as pinning nothing — not
-/// a coverage gap but a wrong statement in a report, which is exactly what ADR-012 is about — and did
+/// a coverage gap but a wrong statement in a report, which is exactly what v1's ADR-012 is about — and did
 /// report every Gradle project without one. So for both the versions are read (`sv_scan::jvm`): all
 /// exact passes, one that floats is a finding at its line, and one `sv` cannot work out leaves the
 /// question open with the reason.
@@ -631,7 +631,7 @@ mod tests {
     fn maven_is_not_reported_as_pinning_nothing() {
         // The trap. Maven has no lockfile to be missing — versions are in pom.xml — so asking "is there
         // a lockfile?" reports every Maven project as unpinned. That is a wrong statement in a report,
-        // not a coverage gap, and it is what ADR-012 is about.
+        // not a coverage gap, and it is what v1's ADR-012 is about.
         let dir = scratch("maven");
         fs::write(
             dir.join("pom.xml"),
