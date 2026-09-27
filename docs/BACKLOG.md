@@ -9,6 +9,21 @@ another session is not a claim.
 
 ## Next
 
+- **The report credits V15.1.2 for a lockfile it could not read.** Found on 27 September 2026 by session
+  securevibe-e8 while tidying this backlog; not claimed. Reproduced: an app with `pyproject.toml`, a
+  `poetry.lock` that holds no packages `sv` can read, and a two-line `securevibe.toml`. `sv report` marks
+  V15.1.2 (an inventory of every third-party library is maintained) **checked**, citing
+  `config.versions-pinned`, which passes because a lockfile exists. The same report lists "everything
+  Python installs" as a gap, because the bill of materials took nothing from that lockfile, and the
+  credit also counts toward threat T-27 (a dependency with a known vulnerability or a malicious update)
+  as checked in part. `sv check` on the same folder shows both the pass and the bill of materials'
+  `sbom.incomplete` finding against V15.1.2, which contradict each other. The report never shows the
+  finding: `assemble_report` in `crates/sv-cli/src/main.rs` builds the bill of materials and does not
+  add `sbom::incompleteness_finding` or `sbom::completeness_verified`, as `cmd_check` does. Likely fix:
+  report both, so the finding outranks the pass; and settle whether `config.versions-pinned` should
+  credit V15.1.2 at all when the bill of materials could read nothing from the lockfile. A pinned
+  `requirements.txt` with no lockfile is not affected: both checks flag it.
+
 - **A self-assessment of `sv` (v2), for the paper and to compare with v1's.** **Claimed on 27 September 2026 by
   session admiring-murdock-875699**, at the owner's asking. A `securevibe.toml` at the repository root saying what
   `sv` is (the owner chose to commit it, so anyone can re-run this), then `sv report . --tools --advisories` on
@@ -783,7 +798,8 @@ another session is not a claim.
     that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
     after that.
 
-- **What the owner's first build from scratch found in `sv`.** 26 September 2026: the owner built
+- ~~**What the owner's first build from scratch found in `sv`.**~~ All nine numbered items done by 27 September
+  2026; what each one left over is noted under it. 26 September 2026: the owner built
   an app from an empty folder in Claude Code with `sv` connected over MCP — a catalog site with a weekly
   AI refresh that now needs the owner's approval to publish — and session keen-meninsky-691a27 read the
   whole session (886 messages) afterwards. **Not claimed; each numbered item can be claimed on its
@@ -1178,8 +1194,8 @@ another session is not a claim.
   step either side, so an app accepting 60-second-old codes is credited with V6.5.5 today. Tolerating
   drift is the right engineering call; the evidence line should say which of the two clauses was shown.
 
-- **The threat model's 101 citations are outside the citation guard, and it cannot be pointed at them.**
-  Found on 26 September 2026 reviewing the threat model; not claimed. `data/knowledge/threats.json`
+- ~~**The threat model's 101 citations are outside the citation guard, and it cannot be pointed at them.**~~
+  Done on 26 September 2026 (see the end of the entry). Found on 26 September 2026 reviewing the threat model. `data/knowledge/threats.json`
   cites 101 distinct requirements across 42 threats. Every one resolves — the `AC-NN` class is clean —
   but nothing compares a threat with the requirement it cites, and this is the fifth citation surface
   in a codebase where four of them were wrong when first read.
@@ -1250,8 +1266,8 @@ another session is not a claim.
   part". Each of T-07 to T-12 cites one or two techniques with a `because`, the names are read from a
   pinned release, and the script names any cited ID renamed or withdrawn in a newer one.
 
-- **An unanswered question excludes requirements when a corroborator found nothing.** Found on
-  26 September 2026 reviewing the new manifest questions; not claimed. `ci-cd` and `iac` are claim
+- ~~**An unanswered question excludes requirements when a corroborator found nothing.**~~ Done on 26 September
+  2026 (see the end of the entry). Found on 26 September 2026 reviewing the new manifest questions. `ci-cd` and `iac` are claim
   conditions — `securevibe.toml` asks about them — and when the manifest does not answer, a
   corroborator that looked and found nothing answers `false` for it, which marks requirements *not
   applicable* rather than *not assessed*. On a manifest holding only `manifest-version` and
@@ -2164,8 +2180,11 @@ another session is not a claim.
   `Location:` header printed by hand). Every rule is now taught every language `sv` reads, and a test
   pins it. What each misses is in DESIGN, "Thirteen languages".
 
-- **Semgrep's pack reaches 31 of the 50 requirements its map names.** Found on 26 September 2026 by
-  the registry run (session relaxed-nobel-27acfa); not claimed. The adapter runs `p/security-audit`,
+- ~~**Semgrep's pack reaches 31 of the 50 requirements its map names.**~~ Done on 26 September 2026: the honest
+  count, the AI pack for apps that use AI, and option B (`p/default` beside `p/security-audit`) after the owner
+  reviewed the rules' license; the coverage count reaches 46 of the 50. What stays open is the separate entry
+  "Later, and not a priority" below. Found on 26 September 2026 by the registry run (session
+  relaxed-nobel-27acfa). The adapter runs `p/security-audit`,
   which loads 225 rules, 162 of them mapped. The map has 1,022, and `docs/COVERAGE.md` counts all of
   them, so it credits semgrep with 19 requirements no rule the adapter loads can reach: all eight
   AISVS ones and V1.3.6, V1.3.12, V3.3.2, V3.5.5, V4.4.1, V9.1.1, V9.2.1, V11.3.3, V11.4.2, V11.4.3,
@@ -2588,7 +2607,11 @@ another session is not a claim.
   coverage. Left over: `sv report` does not run the bill of materials or the advisory comparison at all
   — they live in `sv check` and `sv audit`, the latter because it needs an offline database path — so a
   report says nothing about dependencies either way. That is a bigger change than this item and is not
-  what this entry asked for, but a reader of the reports would not guess it.
+  what this entry asked for, but a reader of the reports would not guess it. **Since then:** the report
+  runs the advisory comparison with `--advisories` (DESIGN, "In the report too") and asks the bill of
+  materials for its gaps (DESIGN, "The report asks the bill of materials"). It still leaves out the bill
+  of materials' own finding, and that turned out to matter: see "The report credits V15.1.2 for a lockfile
+  it could not read" under Next.
 
 - ~~**Credit the app's own test suite.**~~ Done on 24 September 2026 — `crates/sv-check/src/suite.rs`.
   A test counts only for a requirement it names, and only when the suite it belongs to passed. Matching
