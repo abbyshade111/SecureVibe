@@ -2613,4 +2613,5 @@ revisits that ruling. Whether one should is the owner's question.
 
 **The owner answered on 27 September 2026:** the ruling needs updating. A superseding record covering
 the decision that `sv` checks apps in many languages, with its own rules among the checks, is **claimed
-the same day by session securevibe-e8** and drafted as ADR-018, "proposed" until the owner accepts it.
+the same day by session securevibe-e8** and drafted as ADR-018. **Accepted by the owner the same day**, and
+done: `docs/adr/ADR-018.md`.
