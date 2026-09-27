@@ -34,6 +34,52 @@ fn fake_bandit(bin: &Path, line: usize) {
     }
 }
 
+/// What each stand-in for a tool kept out of the test says when asked for its version.
+const KEPT_OUT: &str = "kept out of this test by a stand-in";
+
+/// Puts a stand-in that will not start in front of every other outside tool `sv` knows, read from
+/// `data/adapters.json`, so the run sees the stand-in Bandit and nothing the machine happens to have.
+///
+/// Found on the owner's Mac on 27 September 2026: the real `semgrep` on the PATH ran beside the
+/// stand-in, reported the same SQL line, and made "listed once" read two. CI has no scanners installed,
+/// so the test passed there and failed wherever somebody had one. A tool that will not start is
+/// reported as such and never run, which the report then shows, so this is checked, not assumed.
+fn keep_other_tools_out(bin: &Path) -> Vec<String> {
+    let adapters: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let mut commands: Vec<String> = adapters["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|a| {
+            ["version", "run", "prepare"].map(|k| a[k]["command"].as_str().map(str::to_owned))
+        })
+        .flatten()
+        .filter(|c| c != "bandit")
+        .collect();
+    commands.sort();
+    commands.dedup();
+    assert!(
+        commands.iter().any(|c| c == "semgrep"),
+        "the adapters were not read: {commands:?}"
+    );
+    for command in &commands {
+        let path = bin.join(command);
+        std::fs::write(&path, format!("#!/bin/sh\necho '{KEPT_OUT}' >&2\nexit 1\n")).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+    commands
+}
+
 fn report(app: &Path, bin: &Path) -> (String, String) {
     let out = app.join("report");
     let path = format!(
@@ -75,9 +121,16 @@ fn one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both() {
     )
     .unwrap();
 
+    // Nothing but the stand-in Bandit may run, whatever this machine has installed.
+    keep_other_tools_out(&bin);
+
     // The control: on another line, the two are two findings, and Bandit really ran.
     fake_bandit(&bin, 6);
-    let (security, _) = report(&app, &bin);
+    let (security, compliance) = report(&app, &bin);
+    assert!(
+        security.contains(KEPT_OUT) || compliance.contains(KEPT_OUT),
+        "no other tool was shown kept out, so a real one may have run:\n{compliance}"
+    );
     assert!(
         security.contains("bandit.B608") || security.contains("Possible SQL injection"),
         "the stand-in Bandit was not run, so the rest proves nothing:\n{security}"
