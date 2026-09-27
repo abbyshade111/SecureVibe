@@ -6811,8 +6811,7 @@ fn referrer_policy(response: &ProbeResponse) -> Option<String> {
         .filter(|(k, _)| k == "referrer-policy")
         .flat_map(|(_, v)| v.split(','))
         .map(|p| p.trim().to_lowercase())
-        .filter(|p| KNOWN.contains(&p.as_str()))
-        .last()
+        .rfind(|p| KNOWN.contains(&p.as_str()))
 }
 
 /// Whether the app refuses its own create request as a browser sends it under the app's own
