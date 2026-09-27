@@ -95,7 +95,10 @@ another session is not a claim.
      read, but unable to overrule the manifest, and with their findings listed apart.
   2. **Findings inside Rust `#[cfg(test)]` modules, and in test files in any language, are mixed with the
      product's.** They were 189 of the 252 findings on `sv`'s product code. Report them apart.
-     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item.
+     **Claimed on 27 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item. **Done
+     the same day:** findings inside Rust test code (`#[cfg(test)]`, `#[test]`, `#[tokio::test]`, and a file
+     that starts `#![cfg(test)]`) are marked as test code, and every report lists findings in test code after
+     the app's own, still counted. See DESIGN, "Findings in test code, listed after the app's own".
   3. **A manifest cannot say "this app is an MCP server".** So the requirements about serving tools to a model are
      never asked, of `sv` itself or of any app that serves tools. That is the surface of `sv`'s one tool-misuse
      incident (#77).
