@@ -1791,7 +1791,9 @@ another session is not a claim.
   in eight ecosystems and ten languages. A `docker-compose.yml` is deliberately not evidence — most
   single apps ship one with only a database in it — and a test pins that. Left over from it: reading a
   compose file for two or more services with their own `build:` would be the strongest evidence of all,
-  and needs the scanner to read YAML contents, which it does not. Services that call each other over
+  and needs the scanner to read YAML contents, which it does not. **Claimed on 27 September 2026 by session
+  securevibe-e8**, at the owner's asking ("continue to work off items in the backlog, your choice"),
+  as a narrow reading of the compose file rather than a YAML library. Services that call each other over
   plain HTTP stay invisible. Eleven of the twelve were written on 24 September 2026;
   `shared-hostname` is recorded as uncheckable instead (`noCorroborator`), because it is a fact about
   deployment that the repository does not hold. What is left is the weaker half of what was written:
