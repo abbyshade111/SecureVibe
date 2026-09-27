@@ -43,10 +43,12 @@ pub fn sha256(data: &[u8]) -> String {
         padded.push(0);
     }
     padded.extend_from_slice(&((data.len() as u64) * 8).to_be_bytes());
-    for block in padded.chunks_exact(64) {
+    for start in (0..padded.len()).step_by(64) {
+        let block = &padded[start..start + 64];
         let mut w = [0u32; 64];
-        for (i, word) in block.chunks_exact(4).enumerate() {
-            w[i] = u32::from_be_bytes([word[0], word[1], word[2], word[3]]);
+        for (i, slot) in w.iter_mut().take(16).enumerate() {
+            let at = i * 4;
+            *slot = u32::from_be_bytes([block[at], block[at + 1], block[at + 2], block[at + 3]]);
         }
         for i in 16..64 {
             let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
