@@ -57,6 +57,8 @@ const SIDECAR_SECONDS: u64 = 900;
 
 pub struct DockerBackend {
     binary: String,
+    /// What everything this backend starts is labeled with: this machine and this process.
+    owner: String,
 }
 
 impl Default for DockerBackend {
@@ -69,13 +71,58 @@ impl DockerBackend {
     pub fn new() -> Self {
         Self {
             binary: "docker".to_owned(),
+            owner: crate::cleanup::owner(),
         }
     }
 
     fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
         let mut c = Command::new(&self.binary);
-        c.args(args);
+        c.args(crate::cleanup::labeled(args, &self.owner));
         output_of(&mut c)
+    }
+
+    /// Removes the containers, then the networks, that runs on this machine left behind when their
+    /// process was killed outright. What it removed, by name.
+    fn remove_leftovers(&self) -> Vec<String> {
+        let machine = crate::cleanup::this_machine();
+        let filter = format!("label={}", crate::cleanup::OWNER_LABEL);
+        let format = format!(
+            "{{{{.Names}}}}\t{{{{.Label \"{}\"}}}}",
+            crate::cleanup::OWNER_LABEL
+        );
+        let network_format = format.replace(".Names", ".Name");
+        let left = |args: &[&str]| -> Vec<String> {
+            match self.docker(args) {
+                Ok((0, out)) => out
+                    .lines()
+                    .filter_map(|line| line.split_once('\t'))
+                    .filter(|(_, label)| {
+                        crate::cleanup::is_leftover(label.trim(), &machine, crate::cleanup::alive)
+                    })
+                    .map(|(name, _)| name.trim().to_owned())
+                    .collect(),
+                _ => Vec::new(),
+            }
+        };
+        let mut removed = Vec::new();
+        for name in left(&["ps", "-a", "--filter", &filter, "--format", &format]) {
+            if matches!(self.docker_cleanup(&["rm", "-f", &name]), Ok((0, _))) {
+                removed.push(name);
+            }
+        }
+        for name in left(&[
+            "network",
+            "ls",
+            "--filter",
+            &filter,
+            "--format",
+            &network_format,
+        ]) {
+            if matches!(self.docker_cleanup(&["network", "rm", &name]), Ok((0, _))) {
+                removed.push(name);
+            }
+        }
+        removed
     }
 
     /// A Docker call that removes what the run made. It still runs after Ctrl-C, since removing
@@ -122,6 +169,7 @@ impl Backend for DockerBackend {
         let browser_name = format!("{run_id}-browser");
         let model_name = format!("{run_id}-model");
         let switched_off = format!("{run_id}-app-off");
+        let left_over_removed = self.remove_leftovers();
         let guard = Teardown {
             backend: self,
             network: network.clone(),
@@ -496,6 +544,7 @@ impl Backend for DockerBackend {
             signed_in,
             oidc,
             ai,
+            left_over_removed,
         })
     }
 }
@@ -1222,6 +1271,7 @@ mod tests {
         // as failing rather than as unrun.
         let backend = DockerBackend {
             binary: "definitely-not-a-real-binary-xyz".to_owned(),
+            owner: crate::cleanup::owner(),
         };
         let err = backend.available().unwrap_err();
         match err {

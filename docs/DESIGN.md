@@ -4759,6 +4759,16 @@ Both are fixed in `crates/sv-run/src/lib.rs`.
   got to before it was stopped is not a report of the app), and exits with 130, the usual code for Ctrl-C. A
   second Ctrl-C ends `sv` at once, for someone who would rather clean up by hand than wait.
 
-Not covered: a run ended by something that cannot be caught, such as `kill -9`, or the computer shutting down,
-still leaves its containers. Their names start with `sv-` and the process number, and
-`docker ps -a --filter name=sv-` lists them.
+**Later the same day: the two gaps above, closed** (session securevibe-e2, at the owner's asking):
+
+- **The test limit can be set.** `[stack.run] test-time-limit` is the number of seconds the suite may run; left
+  out, or 0, it is ten minutes. A suite that needs longer is not stopped for it.
+- **A run ended by something that cannot be caught is cleaned up by the next one.** Everything a run creates
+  carries the label `org.securevibe.owner=<machine>:<process>` (`sv_run::cleanup`). Each run first removes what
+  carries this machine's name and the id of a process that has ended, and says what it removed, on the
+  terminal and in the report. It leaves alone what another running `sv` owns, what `sv` on another machine
+  sharing the Docker daemon owns, and anything unlabeled. The machine's name is in the label because `sv` in a
+  container has process ids of its own: without it, a host `sv` could read a container's live run as ended.
+  Where a process cannot be asked about, it counts as running, so nothing is removed on a guess. Tested against
+  real containers: a run killed with `kill -9` leaves its app and network (the control), and the next
+  `sv run`, and the next `sv report --run`, each remove them and name them.

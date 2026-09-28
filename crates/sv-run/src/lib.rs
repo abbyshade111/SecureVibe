@@ -41,6 +41,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use sv_manifest::Manifest;
 
+pub mod cleanup;
 pub mod docker;
 
 /// Why the app could not be run. Every one of these produces `not assessed`.
@@ -182,7 +183,10 @@ impl RunPlan {
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
             slow: false,
-            test_limit: TEST_LIMIT,
+            test_limit: match run.test_time_limit {
+                Some(seconds) if seconds > 0 => Duration::from_secs(seconds),
+                _ => TEST_LIMIT,
+            },
         })
     }
 }
@@ -216,6 +220,9 @@ pub struct RunOutcome {
     /// What asking the app's AI feature through the test model showed, when securevibe.toml says
     /// how to reach it.
     pub ai: Option<sv_check::signed_in::Outcome>,
+    /// Containers and networks an earlier run on this machine left behind when its process was
+    /// killed outright, removed before this run started. See `cleanup`.
+    pub left_over_removed: Vec<String>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
@@ -596,6 +603,25 @@ mod tests {
         )
         .unwrap_err();
         assert!(!said.is_empty());
+    }
+
+    #[test]
+    fn the_test_limit_is_ten_minutes_unless_securevibe_toml_says_otherwise() {
+        let limit = |seconds: Option<u64>| {
+            let mut m = Manifest::default();
+            m.stack.run.image = Some("busybox:1.36".to_owned());
+            m.stack.run.start = Some("true".to_owned());
+            m.stack.run.test_time_limit = seconds;
+            RunPlan::from_manifest(&m, Path::new("."))
+                .unwrap()
+                .test_limit
+        };
+        assert_eq!(limit(None), TEST_LIMIT);
+        assert_eq!(limit(Some(0)), TEST_LIMIT, "no time at all is not a limit");
+        assert_eq!(limit(Some(45)), Duration::from_secs(45));
+        // And the setting is read under its written name.
+        let m: Manifest = toml::from_str("[stack.run]\ntest-time-limit = 90\n").unwrap();
+        assert_eq!(m.stack.run.test_time_limit, Some(90));
     }
 
     #[test]
