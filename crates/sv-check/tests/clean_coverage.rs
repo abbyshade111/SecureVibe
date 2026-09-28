@@ -97,6 +97,64 @@ fn a_rule_that_can_only_find_is_never_credited_for_finding_nothing() {
 }
 
 #[test]
+fn the_rules_from_the_partial_check_review_are_never_credited_for_finding_nothing() {
+    // Four rules of 28 September 2026 (`docs/PARTIAL-CHECKS.md`), each blind to part of what its
+    // requirement asks: a signature saved to a variable before it is compared, a model file loaded by
+    // a helper, a model name read from settings. A clean Python file is read by each of them and
+    // must credit none of them, while the rules that can settle their requirement still say so.
+    const ONLY_FIND: &[(&str, &str)] = &[
+        ("ast.digest-compared-with-equals", "V11.2.4"),
+        ("ast.model-loaded-with-pickle", "C4.1.2"),
+        ("ast.model-download-not-pinned", "C6.1.3"),
+        ("ast.floating-model-name", "C3.2.3"),
+    ];
+    let dir = scratch("ast-review-findings-only");
+    std::fs::write(
+        dir.join("app.py"),
+        "import hmac\n\ndef ok(key, body, sig, model):\n    \
+         expected = hmac.new(key, body, 'sha256').hexdigest()\n    \
+         return hmac.compare_digest(expected, sig)\n",
+    )
+    .unwrap();
+    let scan = ast::scan_dir(&ast_rules(), &dir);
+    // The control: the same file with each fault written in is found by each rule.
+    std::fs::write(
+        dir.join("app.py"),
+        "import hmac, joblib\n\
+         ok = hmac.new(key, body, 'sha256').hexdigest() == sig\n\
+         model = joblib.load('model.joblib')\n\
+         m = AutoModel.from_pretrained('org/model')\n\
+         name = 'claude-3-5-sonnet-latest'\n",
+    )
+    .unwrap();
+    let found = ast::scan_dir(&ast_rules(), &dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(scan.untaught.is_empty(), "{:?}", scan.untaught);
+    let ids = verified_ids(&scan.verified);
+    assert!(ids.contains(&"ast.dynamic-code-execution"), "{ids:?}");
+    let credited: Vec<&String> = scan
+        .verified
+        .iter()
+        .flat_map(|v| &v.requirement_ids)
+        .collect();
+    for (rule, requirement) in ONLY_FIND {
+        assert!(!ids.contains(rule), "{rule} is credited: {ids:?}");
+        assert!(
+            !credited.iter().any(|q| q == requirement),
+            "{requirement} is credited by a clean run: {credited:?}"
+        );
+        let hit = found.findings.iter().find(|f| f.rule_id == *rule);
+        assert!(
+            hit.is_some_and(|f| f.requirement_ids.iter().any(|q| q == requirement)),
+            "{rule} did not find its fault carrying {requirement}: {:?}",
+            found.findings
+        );
+    }
+}
+
+#[test]
 fn an_eval_inside_jsx_in_a_tsx_file_is_found_and_not_called_checked() {
     // The case that found this. `.tsx` went through the TypeScript grammar, which has no JSX: the
     // parse broke at the first tag, the `eval` in the click handler was never seen, the file still

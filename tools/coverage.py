@@ -58,6 +58,9 @@ TIERS = [
 # Checks whose citations are written in Rust rather than in a data file.
 RUST_CHECKS = {
     "config.secrets-file-committed": ("static", ["V13.3.1"]),
+    "config.development-server-started": ("static", ["V15.2.3"]),
+    "config.mcp-server-unpinned": ("static", ["C10.1.1"]),
+    "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
     "config.gitignore-covers-env": ("static", ["V13.3.1"]),
     "config.versions-pinned": ("static", ["V15.1.2"]),
     "config.workflow-runs-fork-code": ("static", ["AC.12.1"]),
@@ -180,6 +183,9 @@ RUST_FINDINGS_ONLY = {
     "config.workflow-secrets-with-fork-code",
     "probe.role-field-trusted",
     "probe.ai-output-fetched",
+    "config.development-server-started",
+    "config.mcp-server-unpinned",
+    "config.rich-text-without-sanitizer",
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are

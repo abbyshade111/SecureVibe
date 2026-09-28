@@ -491,6 +491,20 @@ another session is not a claim.
      V8.4.2, V10.4.4, V16.5.4, and V13.4.7, then the eight about AI apps. The nine signed-in ones (V1.3.4, V5.4.3,
      V4.1.3, V7.4.3, V6.3.7, V10.1.1, V10.5.2, V14.3.3, C9.5.3) are not claimed: their checks live in
      `signed_in/`, which is frozen until the split's step 2 is done.
+     **The seven that read the code done the same day**, each able only to show its requirement failing, so a
+     clean run credits none of them. Four are rules in `data/ast-rules.json`: `ast.digest-compared-with-equals`
+     (V11.2.4, taught fourteen languages; shell has no timing to measure), `ast.model-loaded-with-pickle`
+     (C4.1.2, Python), `ast.model-download-not-pinned` (C6.1.3, Python and JavaScript), and
+     `ast.floating-model-name` (C3.2.3, all fifteen). Three are checks of the files:
+     `config.development-server-started` (V15.2.3, the last stage of each Dockerfile and a Procfile's `web:`
+     line, following `npm start` into package.json; files named for development are left out),
+     `config.mcp-server-unpinned` (C10.1.1, `npx`, `uvx`, `pipx run`, `pnpm dlx`, and `docker run` in the
+     app's own configuration and code; the developer's own AI-tool settings are left out), and
+     `config.rich-text-without-sanitizer` (V1.3.1, from the bill of materials and sanitizer names in the
+     code; not assessed while part of the bill could not be read). Not done from the proposals: the
+     running-app half of V15.2.3 (debug consoles that answer), committed model files opened by their
+     contents (C4.1.2), `ollama pull` and model-server images (C6.1.3), and the model name the app really
+     sent (C3.2.3), which goes with the AI checks.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.
