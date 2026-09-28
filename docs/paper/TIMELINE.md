@@ -31,21 +31,41 @@ then containerised generated code, then the OpenAI and Google providers. Before 
 already built save-and-resume of wizard answers, the dashboard, "Save credits", the human-checks wizard, app
 previews with a one-click sign-in link, and uploading your own app for a check.
 
+**Where the evaluation harness came from.** The owner raised it, Claude gave it its form, and the owner chose it.
+At 19:48 on 17 September the owner asked how SecureVibe could be improved: "Is there architectural designs or
+changes we should be considering - for example, build out/refine a harness and/or orchestrated agentic workflow,
+providing access to a skill library?" In that sentence the harness sits beside an agentic workflow and a skill
+library, which reads as a harness for running the AI. A minute later Claude's answer proposed a different kind,
+"An evaluation harness": keep "a set of **golden apps** (five or six profiles covering the feature combinations)
+and build them automatically — AI off nightly (free), AI on before a release", because "today's three template
+bugs were found only because a real build ran". At 19:58 the owner chose it, with the rest of the list: "…then the
+builds as durable jobs, and the evaluation harness and golden apps." It was designed at 20:37, and its first run,
+at 20:42, found template faults. The quotations are from the first session's transcript ("Vibe-coding application
+builder"). The two later times are from that session's recorded reasoning (`securevibe-reasoning.md`, kept with
+the paper's materials).
+
 ### Day 0 — 17 September 2026, reconstructed from the first session's transcript
 
-Commit ids are from the destroyed history and will not resolve in this repository.
+Commit ids are from the destroyed history and will not resolve in this repository. Their times are those
+recorded in that history, preserved in the v1 git bundle kept with the paper's materials. The times of rows
+without a commit are from the first session's transcript and its recorded reasoning. All times are Eastern.
 
 | time | commit | what happened |
 |---|---|---|
 | 10:36 | `a9c6661` | Initial commit. The wizard, design engine, pipeline, scanners, compliance engine, reports and the template already in place. |
 | morning | — | The owner asks for save/resume of wizard answers, and the red Delete button. |
-| afternoon | `6aec203` | The security log with named events, the Dashboard, "Save credits" (Sonnet, low effort, one fix round, the 55/30/15 budget split so a $5 cap always covers a build), the human-checks wizard, app previews, and uploading your own app for a check. |
-| — | `1a17857`, `8d8c0a2` | Navigation to the human checks, the Finish page, the free re-check, self-assessment fixes. |
+| 12:55 | `6aec203` | The security log with named events, the Dashboard, "Save credits" (Sonnet, low effort, one fix round, the 55/30/15 budget split so a $5 cap always covers a build), the human-checks wizard, app previews, and uploading your own app for a check. |
+| 13:10, 13:28 | `1a17857`, `8d8c0a2` | Navigation to the human checks, the Finish page, the free re-check, self-assessment fixes. |
 | evening | — | The third build of a health-tracking app made for a friend: $3.81, rated at risk on AC-02 and MT-06, 88 of 159 ASVS requirements verified. The owner decides its assistant should do its own research against vetted sites — which becomes a new wizard question. |
-| ~20:00 | — | The owner chooses the order of the remaining work and asks for it to be carried out without further approval. |
-| ~20:15 | `af6b83f` | All of it lands at once: the plan flow, refine questions, own API keys in `.env`, durable worker builds, the evaluation harness with its golden apps, `CLAUDE.md`, and five template fixes the harness had just found. |
-| — | `1a08dca`, `0ee9f1b`, `8811f07`, `55f04fa`, `ed99750` | Baselines recorded, raw TAP kept for readable failures, a web-search test fix, template upgrades. |
-| — | `52ad9a8` | The repository has just been moved into a folder named "Desktop – Abby's MacBook Air". First symptom of what is coming: test paths containing `%20`. |
+| 19:48 | — | The owner asks how SecureVibe could be improved, "for example, build out/refine a harness and/or orchestrated agentic workflow". |
+| 19:49 | — | Claude's answer proposes seven changes, among them "An evaluation harness" built on golden apps, and an order to make them in. |
+| 19:58 | — | The owner chooses the order of the remaining work, including "the evaluation harness and golden apps", and asks for it to be carried out without further approval. |
+| 19:59 | — | `CLAUDE.md` is written. |
+| 20:37 | — | The harness is designed: golden-app profiles saved as JSON under `evals/golden/`, and a command that builds each one without AI and compares it with a saved baseline. |
+| 20:42 | — | Its first run finds the template wanting: a Habit Log app built from the template alone fails its type check and 14 of 163 tests. |
+| 22:02 | `af6b83f` | All of it lands at once: the plan flow, refine questions, own API keys in `.env`, durable worker builds, the evaluation harness with its golden apps, `CLAUDE.md`, and five template fixes the harness had found. |
+| 22:24 to 22:49 | `1a08dca`, `8811f07`, `55f04fa`, `0ee9f1b`, `ed99750` | Baselines recorded after the template fixes, raw test output kept for readable failures, a web-search test fix, all four golden apps building clean without AI (22:39), and template upgrades (22:49). |
+| 22:54 | `52ad9a8` | The repository has just been moved into a folder named "Desktop – Abby's MacBook Air". First symptom of what is coming: test paths containing `%20`. |
 | 23:02 | `6576faf` | Version diff. |
 | ~23:45 | — | The hand-off pack is written and tested but not yet committed when Vite begins failing with an empty module export — the first sign of iCloud eviction. It survives as `5cfc0be` in the new history. |
 
