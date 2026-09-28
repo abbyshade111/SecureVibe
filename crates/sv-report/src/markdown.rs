@@ -224,27 +224,10 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
-    // Split by level, level 1 first. Two hundred rows in one table is a reference document; the
-    // level 1 ones are the short list somebody is actually expected to work through, and burying
-    // them among the level 2 ones is what made the whole table feel like nothing to act on.
+    // By chapter, with what does not apply counted beside what does, and the requirements' own
+    // words in an appendix at the end. See `crate::chapters` for why.
     out.push_str("## Requirements that apply\n\n");
-    for group in crate::groups::by_level(&report.requirements) {
-        out.push_str(&format!(
-            "### {} — {} of them\n\n",
-            group.heading,
-            group.lines.len()
-        ));
-        out.push_str("| requirement | status | what it asks for |\n|---|---|---|\n");
-        for line in group.lines {
-            out.push_str(&format!(
-                "| {} | {} | {} |\n",
-                cell(&line.id),
-                cell(&status_cell(line)),
-                cell(&line.description)
-            ));
-        }
-        out.push('\n');
-    }
+    requirements_by_chapter(&mut out, report);
 
     if !report.ai_process.lines.is_empty() {
         let p = &report.ai_process;
@@ -526,7 +509,111 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
+    appendix(&mut out, report);
     out
+}
+
+/// The chapter table, then each chapter's requirements that apply, by id, level, and status.
+fn requirements_by_chapter(out: &mut String, report: &Report) {
+    let chapters = crate::chapters::by_chapter(report);
+    let any = |f: &dyn Fn(&crate::chapters::Chapter) -> usize| chapters.iter().any(|c| f(c) > 0);
+    let your_word = any(&|c| c.your_word);
+    let tool_word = any(&|c| c.tool_word);
+    out.push_str(
+        "Each chapter of the standards, with how many of its requirements apply to this app and \
+         what is known about them, and how many do not apply. What each requirement asks for is in \
+         the appendix at the end.\n\n",
+    );
+    let mut head = String::from("| chapter | apply | a problem found | checked");
+    let mut rule = String::from("|---|---:|---:|---:");
+    if your_word {
+        head.push_str(" | your word, not a check");
+        rule.push_str("|---:");
+    }
+    if tool_word {
+        head.push_str(" | your AI tool's word");
+        rule.push_str("|---:");
+    }
+    head.push_str(" | not verified | does not apply | not placed yet |\n");
+    rule.push_str("|---:|---:|---:|\n");
+    out.push_str(&head);
+    out.push_str(&rule);
+    for c in &chapters {
+        let mut row = format!(
+            "| {} | **{}** | {} | {}",
+            cell(&c.title()),
+            c.applies(),
+            c.needs_attention,
+            c.checked
+        );
+        if your_word {
+            row.push_str(&format!(" | {}", c.your_word));
+        }
+        if tool_word {
+            row.push_str(&format!(" | {}", c.tool_word));
+        }
+        row.push_str(&format!(
+            " | {} | {} | {} |\n",
+            c.not_verified, c.does_not_apply, c.not_placed
+        ));
+        out.push_str(&row);
+    }
+    out.push('\n');
+    let apart = report.ai_process.lines.len();
+    if apart > 0 {
+        out.push_str(&format!(
+            "Not in this table: the {apart} requirements about how the app is built with an AI coding \
+             tool that nothing has reached, which are counted apart in \"How the app is built with \
+             AI\", below. The Appendix C row counts only the ones that have evidence, do not apply, \
+             or wait on a question.\n\n"
+        ));
+    }
+    for c in chapters.iter().filter(|c| c.applies() > 0) {
+        let mut heading = format!("### {} — **{} apply**", c.title(), c.applies());
+        if c.does_not_apply > 0 {
+            heading.push_str(&format!(", {} do not", c.does_not_apply));
+        }
+        out.push_str(&format!("{heading}\n\n"));
+        out.push_str("| requirement | status | level |\n|---|---|---:|\n");
+        for line in &c.lines {
+            let level = if line.level == 0 {
+                "—".to_owned()
+            } else {
+                line.level.to_string()
+            };
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&line.id),
+                cell(&status_cell(line)),
+                level
+            ));
+        }
+        out.push('\n');
+    }
+}
+
+/// What each requirement that applies asks for, once, in the chapters' order.
+fn appendix(out: &mut String, report: &Report) {
+    let chapters = crate::chapters::by_chapter(report);
+    if chapters.iter().all(|c| c.applies() == 0) {
+        return;
+    }
+    out.push_str("## Appendix: what each requirement asks for\n\n");
+    out.push_str(
+        "The words of the standard, for every requirement that applies to this app, in the order \
+         of the chapters above.\n\n\
+         | requirement | what it asks for |\n|---|---|\n",
+    );
+    for c in &chapters {
+        for line in &c.lines {
+            out.push_str(&format!(
+                "| {} | {} |\n",
+                cell(&line.id),
+                cell(&line.description)
+            ));
+        }
+    }
+    out.push('\n');
 }
 
 fn said(value: Option<bool>) -> &'static str {

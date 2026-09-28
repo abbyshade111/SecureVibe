@@ -20,9 +20,11 @@
 //!    applicable, not failing, not verified: *not assessed*, with the question that would settle it.
 
 pub mod bluf;
+pub mod chapters;
 pub mod groups;
 pub mod html;
 pub mod interview;
+pub mod json;
 pub mod markdown;
 pub mod sarif;
 pub mod threats;
@@ -170,6 +172,9 @@ pub struct CheckedBy {
 pub struct ExcludedRequirement {
     pub id: String,
     pub description: String,
+    /// The chapter it belongs to, so the compliance page can count what does not apply beside what
+    /// does, chapter by chapter.
+    pub chapter: String,
     pub reason: String,
     pub condition: String,
     /// `claim` when the exclusion rests on the manifest's word, `derived` when on the code.
@@ -180,6 +185,8 @@ pub struct ExcludedRequirement {
 pub struct UndecidedRequirement {
     pub id: String,
     pub description: String,
+    /// The chapter it belongs to, as for `ExcludedRequirement`.
+    pub chapter: String,
     /// The questions that would settle it, in the words they are asked in.
     pub blocked_on: Vec<String>,
 }
@@ -954,15 +961,19 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         .buckets
         .not_applicable
         .iter()
-        .map(|na| ExcludedRequirement {
-            id: na.id.clone(),
-            description: describe(&na.id).0,
-            reason: na.reason.clone(),
-            condition: na.condition.name().to_owned(),
-            rests_on: match na.source {
-                Source::Claim => "claim",
-                Source::Derived => "derived",
-            },
+        .map(|na| {
+            let (description, chapter) = describe(&na.id);
+            ExcludedRequirement {
+                id: na.id.clone(),
+                description,
+                chapter,
+                reason: na.reason.clone(),
+                condition: na.condition.name().to_owned(),
+                rests_on: match na.source {
+                    Source::Claim => "claim",
+                    Source::Derived => "derived",
+                },
+            }
         })
         .collect();
 
@@ -970,14 +981,18 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         .buckets
         .not_assessed
         .iter()
-        .map(|na| UndecidedRequirement {
-            id: na.id.clone(),
-            description: describe(&na.id).0,
-            blocked_on: na
-                .blocked_on
-                .iter()
-                .map(|c| question_for(*c).to_owned())
-                .collect(),
+        .map(|na| {
+            let (description, chapter) = describe(&na.id);
+            UndecidedRequirement {
+                id: na.id.clone(),
+                description,
+                chapter,
+                blocked_on: na
+                    .blocked_on
+                    .iter()
+                    .map(|c| question_for(*c).to_owned())
+                    .collect(),
+            }
         })
         .collect();
 

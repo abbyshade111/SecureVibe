@@ -146,6 +146,17 @@ another session is not a claim.
      reading `report.json`, and for anyone diffing two reports, the text once per id, or the
      not-applicable rows collapsed, would cut most of it. The owner's call on what the reading experience
      should be.
+     **Claimed on 28 September 2026 by session securevibe-e10**, in branch `claude/report-shape`. **The
+     owner's decisions, the same day:** in `report.json`, each requirement's text once, in a lookup
+     table by id, which every section points to; in `compliance.md`, the requirements that apply grouped
+     by chapter, each chapter's counts in one row (applies and checked, applies and not verified, does
+     not apply, not placed yet), with the full text in an appendix; and a requirement that does not
+     apply shown by its id and the reason, without its text. The HTML page keeps the full text.
+     **Done the same day**, and the premise corrected: only the tests worth writing repeated the
+     text, so `report.json` went from 367 KB to 334 KB, and `compliance.md` grew from 160 KB to
+     169 KB while the part read before its appendix went from 63 KB to 14 KB. See DESIGN, "The
+     report's shape". Not done, and not decided: `only_you_can_check` in `report.json` repeats
+     word for word 50 entries of `questions_for_you` (27 KB on the example).
   10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
