@@ -4664,6 +4664,19 @@ there once, as before, and the chapter headings and their small tables are new. 
 shorter to read and the file smaller were different aims, and the decision was about the first.
 The level split the page used before (level 1, level 2, design review) remains on the HTML page.
 
+**The checks only a person can make, named once** (the owner's decision the same day, after the
+above). `only_you_can_check` in `report.json` was, entry for entry and word for word, a subset of
+`questions_for_you`: 50 of 62 on the Flask example, 27 KB written twice. It is now
+`only_you_can_check_ids`, the ids in the list's own order, each of which is a question in
+`questions_for_you`. The name changed with the shape, so a tool that read full entries under the old
+name finds no list rather than a list of a different kind. If an entry ever differs from the question
+of the same id, or has no question, the full list is kept, as a differing requirement text is. The
+file went from 334 KB to 306 KB on the example. Broken on purpose four ways: the step never called,
+caught by two tests; the list dropped without its ids, three; the ids in the questions' order rather
+than the list's, two unit tests (on the real catalogs the two orders happen to agree); and entries
+converted without checking each is a question, one, the unit test written for it, since no real
+report reaches that case.
+
 **Broken on purpose, eleven ways**, each restored from the bytes read before it, never from git,
 with cargo told to run every test file even after one fails. The first pass did not, and stopped
 at the first failing file: the wrong-key break looked caught by one test, and is caught by three. Text not filed: four tests. Rows keeping their text: three. A differing text
