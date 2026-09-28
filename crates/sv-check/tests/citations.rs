@@ -567,3 +567,32 @@ fn every_bridge_phrase_has_a_word_the_comparison_can_use() {
     );
     assert!(has_a_word("guessing a short password") && !has_a_word("the app"));
 }
+
+/// Same subject, different ask: C9.5.4 is about credentials in what the model sees at run time (its
+/// context window, system prompt, and tool call parameters). The credential scan reads files, so a
+/// key it finds or does not find says nothing about that, and the word overlap above cannot tell
+/// the two apart, since both are about secrets. `secrets.anthropic-key` cited it until 28 September
+/// 2026, which credited C9.5.4 for every clean scan.
+#[test]
+fn no_rule_that_reads_files_for_keys_cites_the_model_context_requirement() {
+    let text = std::fs::read_to_string(data("secret-rules.json")).expect("the secret rules load");
+    let file: serde_json::Value = serde_json::from_str(&text).expect("the secret rules parse");
+    let rules = file["rules"].as_array().expect("a list of rules");
+    // The control: the rules really carry their citations where this reads them.
+    assert!(
+        rules.iter().any(|r| r["requirementIds"]
+            .as_array()
+            .is_some_and(|ids| ids.iter().any(|q| q == "V13.3.1"))),
+        "no rule cites V13.3.1, so this is not reading the citations"
+    );
+    let citing: Vec<&str> = rules
+        .iter()
+        .filter(|r| {
+            r["requirementIds"]
+                .as_array()
+                .is_some_and(|ids| ids.iter().any(|q| q == "C9.5.4"))
+        })
+        .filter_map(|r| r["id"].as_str())
+        .collect();
+    assert!(citing.is_empty(), "these cite C9.5.4: {citing:?}");
+}

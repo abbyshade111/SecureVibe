@@ -21,23 +21,39 @@ impl Drop for Server {
     }
 }
 
-fn start(port: u16) -> Option<Server> {
+/// Starts the test model on a port the system says is free, and waits until the test model
+/// itself answers there: a connection alone could be to something else that took the port first.
+/// Tried on three ports before giving up.
+fn start() -> Option<(Server, u16)> {
     let script = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/model-provider.mjs");
-    let child = Command::new("node")
-        .arg(script)
-        .env("PORT", port.to_string())
-        .env("HOST", "sv-model")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    let server = Server(child);
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while Instant::now() < deadline {
-        if TcpStream::connect(("127.0.0.1", port)).is_ok() {
-            return Some(server);
+    for _ in 0..3 {
+        let port = std::net::TcpListener::bind(("127.0.0.1", 0))
+            .ok()?
+            .local_addr()
+            .ok()?
+            .port();
+        let child = Command::new("node")
+            .arg(script)
+            .env("PORT", port.to_string())
+            .env("HOST", "sv-model")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+        let mut server = Server(child);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            if matches!(server.0.try_wait(), Ok(Some(_))) {
+                break;
+            }
+            if TcpStream::connect(("127.0.0.1", port)).is_ok()
+                && call(port, "GET", "/_sv/health", "").contains("\"ok\":true")
+            {
+                return Some((server, port));
+            }
+            std::thread::sleep(Duration::from_millis(100));
         }
-        std::thread::sleep(Duration::from_millis(100));
+        let _ = server.0.kill();
     }
     None
 }
@@ -94,8 +110,7 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         println!("no Node here; the test model cannot be run, so nothing is checked");
         return;
     }
-    let port = 39000 + (std::process::id() % 1000) as u16;
-    let _server = start(port).expect("the test model starts under Node");
+    let (_server, port) = start().expect("the test model starts under Node");
 
     // C11.3.2: a plain reply's id carries its tag, and the control, a reply to another tag, does not.
     let plain = chat(port, "Hello SV-PROBE-PLAIN-a1b2");

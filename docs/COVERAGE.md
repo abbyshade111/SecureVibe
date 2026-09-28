@@ -279,7 +279,7 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-14 of these 32 can only ever be marked *needs attention*: a check can
+15 of these 32 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -301,7 +301,7 @@ need `--tools`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
 - C9.3.7: found failing by sv's `probe.ai-output-fetched`.
-- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
+- C9.5.4: found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
 - C10.2.6: settled by `probe.mcp-session-survives-end`.
