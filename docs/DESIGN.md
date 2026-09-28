@@ -4697,3 +4697,29 @@ GitHub fills a form's fields from the address only when the names match the fiel
 and fails if a name the link fills is not one of its fields. Tested with the link's contents and its
 encoding, the form's fields, both pages, an accepted risk offered nothing, and end to end through `sv
 report` and the MCP server. Eight breaks were made in turn, and each turned two or more tests red.
+
+## A run has an end, and Ctrl-C cleans up (28 September 2026)
+
+Review item 2 found that nothing bounded `sv run`: every Docker call waited as long as it took, the app's own
+test command included, so a suite that hung hung the whole run. And Ctrl-C left the run's containers and network
+behind, because a signal ends a Rust process without unwinding, so the teardown in `Teardown`'s `Drop` never ran.
+Both are fixed in `crates/sv-run/src/lib.rs`.
+
+- **Every Docker call has a limit: 20 minutes.** That is generous on purpose. `docker run` downloads an image it
+  does not have, which takes minutes on a slow connection; the point is that a run never waits forever, not
+  that it hurries. A call that runs out of time is stopped and reported like any other failed call.
+- **The app's own tests get 10 minutes.** A suite stopped at the limit credits nothing, whatever it printed. The
+  report says it was stopped and after how long, not that it failed, and shows the last lines it printed, which is
+  where a hung suite shows how far it got.
+- **Stopping a command stops what it started.** Each command runs in a process group of its own, and the whole
+  group is stopped. Stopping only `sh -c` left its children running, still holding the output open, so the
+  run waited for them anyway; the first test of the limit found this.
+- **Ctrl-C is caught once a run begins.** It stops the Docker command in progress and refuses the next, so the
+  run returns and its teardown removes the containers and the network. The teardown's own calls still run after
+  Ctrl-C. `--slow`'s long waits end at Ctrl-C too. `sv` then says it was stopped, writes no report (what a run
+  got to before it was stopped is not a report of the app), and exits with 130, the usual code for Ctrl-C. A
+  second Ctrl-C ends `sv` at once, for someone who would rather clean up by hand than wait.
+
+Not covered: a run ended by something that cannot be caught, such as `kill -9`, or the computer shutting down,
+still leaves its containers. Their names start with `sv-` and the process number, and
+`docker ps -a --filter name=sv-` lists them.
