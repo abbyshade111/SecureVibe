@@ -27,7 +27,7 @@ commit history shows:
 The owner chose the order of work on **17 September** and asked for it to be carried out without further
 approval: `CLAUDE.md`, then plan → approve → build → verify, then builds as durable jobs, then the evaluation
 harness with its golden apps, then template upgrades, version diff, the hand-off pack and the one-page report,
-then containerised generated code, then the OpenAI and Google providers. Before that list the same session had
+then containerized generated code, then the OpenAI and Google providers. Before that list the same session had
 already built save-and-resume of wizard answers, the dashboard, "Save credits", the human-checks wizard, app
 previews with a one-click sign-in link, and uploading your own app for a check.
 

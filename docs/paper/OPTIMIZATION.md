@@ -70,7 +70,7 @@ Worth separating, because they cost nothing and were the ones that changed how t
 - **`--only <name>` on the harness**: one golden app in ~4.5 minutes against ~14 for five. Three full runs were
   spent on 20 September chasing a single failing test that appeared identically in all five — about half an hour,
   and three chances to attribute a failure to the wrong change.
-- **Testing sandbox behaviour with a four-line script** under `node --permission --allow-fs-read=<dir>` answers
+- **Testing sandbox behavior with a four-line script** under `node --permission --allow-fs-read=<dir>` answers
   in two seconds what a golden-app run answers in thirteen minutes.
 - **Failing test *names* passed to the fixing agent**, not just a count. Without them an agent re-ran the suite
   twice, spent budget, and told the owner to run it again with verbose output — the information existed and was
