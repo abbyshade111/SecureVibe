@@ -349,6 +349,7 @@ another session is not a claim.
      semgrep `go.lang.security.decompression_bomb`. V11.3.4: semgrep `java...gcm-nonce-reuse`, `php...openssl-cbc-static-iv`,
      and gosec G407. V12.3.3: semgrep's gRPC insecure-connection rules for Go and JavaScript. V15.4.2: bandit B306.
      V15.4.3: semgrep `trailofbits.go.missing-unlock-before-return`.
+     **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to start with this group.
   2. **Existing checks that already test the requirement. Verified against each requirement's words.** V8.2.3 by
      `probe.role-field-trusted` and `probe.record-returns-secret-fields` (field-level access is what both test); C9.3.2 by
      `probe.ai-mcp-output-unvalidated`, for tools reached over MCP; C9.3.7 by `probe.ai-output-fetched`; V14.2.2 by
