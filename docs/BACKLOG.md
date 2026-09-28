@@ -291,6 +291,10 @@ another session is not a claim.
       - Step 1: slices a to d and f to h, not claimed.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
+        **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
+        `MOST_UPLOAD_BYTES` came along, since only upload code uses it. `with_signup` stays in `mod.rs`'s
+        tests, shared by several areas, and is `pub(super)` so a slice's tests can `use
+        super::super::tests::with_signup`; other shared test helpers can be reached the same way.
       - Step 2: not claimed.
 
 - **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
