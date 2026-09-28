@@ -233,3 +233,42 @@ fn known_vulnerabilities_count_as_looked_for_only_when_the_whole_app_was_compare
     assert_eq!(entry(&covered, "advisory.").0, "ran");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_pyproject_app_locked_by_requirements_lock_is_compared_in_full() {
+    // What cato-pipeline hit: `uv pip compile` writes `requirements.lock` beside `pyproject.toml`,
+    // and `sv` read nothing from it, so the app was told it had no lockfile and its packages were
+    // never compared.
+    let dir = app("pyproject-lock");
+    std::fs::create_dir_all(dir.join("osv")).unwrap();
+    std::fs::write(
+        dir.join("pyproject.toml"),
+        "[project]\nname = \"demo\"\nversion = \"0.1.0\"\ndependencies = [\"PyYAML>=6.0\"]\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("requirements.lock"),
+        "colorama==0.4.6 ; sys_platform == 'win32' \\\n    --hash=sha256:0000\n    # via demo\n\
+         pyyaml==6.0.2 \\\n    --hash=sha256:1111\n    # via demo\n",
+    )
+    .unwrap();
+    advisory(&dir, "PYSEC-0000-2", "PyPI", "pyyaml");
+    let osv = dir.join("osv");
+    let report = report(&dir, &["--advisories", osv.to_str().unwrap()]);
+
+    let findings = report["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .any(|f| f["rule_id"] == "advisory.PYSEC-0000-2"),
+        "pyyaml from the lockfile was compared: {findings:?}"
+    );
+    assert!(
+        !findings
+            .iter()
+            .any(|f| f["rule_id"] == "config.versions-pinned"),
+        "the lockfile is there: {findings:?}"
+    );
+    assert_eq!(entry(&report, "advisory.").0, "ran");
+    std::fs::remove_dir_all(&dir).ok();
+}
