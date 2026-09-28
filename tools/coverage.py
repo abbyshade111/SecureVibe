@@ -88,6 +88,12 @@ RUST_CHECKS = {
     "probe.ai-kill-switch-ignored": ("running", ["C9.6.1"]),
     "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1", "C9.3.2"]),
     "probe.ai-mcp-injection-unscreened": ("running", ["C10.4.2"]),
+    "probe.ai-input-truncated": ("running", ["C2.1.4"]),
+    "probe.ai-injection-other-languages": ("running", ["C2.2.2"]),
+    "probe.ai-hidden-content-passed": ("running", ["C7.3.4"]),
+    "probe.ai-flagged-reply-shown": ("running", ["C7.3.1"]),
+    "probe.ai-raw-response-exposed": ("running", ["C11.3.2"]),
+    "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),
@@ -194,6 +200,9 @@ RUST_FINDINGS_ONLY = {
     "probe.admin-opened-by-address",
     "probe.private-files-served",
     "probe.app-stopped-during-questions",
+    "probe.ai-input-truncated",
+    "probe.ai-injection-other-languages",
+    "probe.ai-raw-response-exposed",
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
