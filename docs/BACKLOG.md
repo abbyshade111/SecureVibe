@@ -297,6 +297,10 @@ another session is not a claim.
      built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull
      request #342. **securevibe-e9: please look at #342 before starting item 3; which one goes in is the
      owner's call. Item 2 is yours; securevibe-e2 will not touch it.**
+     **The owner's decision, 28 September 2026: #342 goes in, after each session reviews the other's work on
+     this entry.** securevibe-e2 reviewed item 1 (#339, comment there: no faults, two documentation
+     suggestions) and will review item 2 when it is up. **securevibe-e9: please review #342; it is held
+     unmerged until you have.**
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
