@@ -19,6 +19,7 @@ files are the record and the reader can recompute anything in them.
 | `figure-agentic.html` | The same, as one grid: the ten agentic risks against the four lenses. |
 | `SELF-ASSESSMENT-V2.md` | `sv` checking itself on 27 September: how it was run, both runs (the whole repository, 804 findings; the product code, 252), every product finding triaged (191 false alarms, 61 accepted, 0 real), what it cannot see, and the comparison with v1's self-assessment. |
 | `self-assessment-v2/` | The reports `sv` wrote for both runs (`repository/`, `product-only/`), the product run's file list, and `triage.json` with a verdict and reason for each of its 252 findings. |
+| `figure-self-assessment.html` | Each version checking itself: v1's 195 findings and `sv`'s 252 (product code), by how a person triaged them. False alarms were 82% and 76%; v1 had 2 real findings, fixed that evening, and `sv` none. |
 | `ADRS.md` | The architecture decision records of both versions: when each was written, what happened to it, what the later evidence says, how v1's decisions carried into `sv`, a check of every citation (15 of 16 fit), and eight inconsistencies, each now in the backlog. |
 | `figure-adrs.html` | Every record as a line from the day it was written to 27 September: matching what was built, decided but not yet written, or out of step with what was built. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
