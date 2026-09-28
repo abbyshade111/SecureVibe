@@ -31,8 +31,8 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 140 (41%) | 7 | 198 |
-| OWASP AISVS 1.0 | 191 | 17 (9%) | 0 | 174 |
+| OWASP ASVS 5.0 | 345 | 143 (41%) | 7 | 195 |
+| OWASP AISVS 1.0 | 191 | 21 (11%) | 0 | 170 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 54 | 8 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 71 | 5 | 0 | 14 | 31 | 28 | 1 |
-| L3 | 92 | 15 | 1 | 0 | 5 | 1 | 6 | 2 |
+| L1 | 70 | 55 | 9 | 1 | 3 | 31 | 21 | 2 |
+| L2 | 183 | 72 | 6 | 0 | 14 | 31 | 28 | 1 |
+| L3 | 92 | 16 | 2 | 0 | 5 | 1 | 6 | 2 |
 
-With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -58,7 +58,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 17 | 0 | 13 |
+| V1 Encoding and Sanitization | 30 | 18 | 0 | 12 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 8 | 0 | 8 |
@@ -68,33 +68,36 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8 Authorization | 13 | 2 | 1 | 10 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
-| V11 Cryptography | 24 | 9 | 1 | 14 |
+| V11 Cryptography | 24 | 10 | 1 | 13 |
 | V12 Secure Communication | 12 | 7 | 1 | 4 |
 | V13 Configuration | 21 | 7 | 1 | 13 |
 | V14 Data Protection | 13 | 3 | 1 | 9 |
-| V15 Secure Coding and Architecture | 21 | 10 | 0 | 11 |
+| V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
 | V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (14)
+### Settled by reading the code (17)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V11.2.4 | L3 | Reads the code: `ast.digest-compared-with-equals` (sv only ever as a finding: `ast.digest-compared-with-equals`) |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
 | V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
+| V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
 ### Settled by asking the running app (83)
@@ -245,11 +248,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
-### Level 1 with no check at all (13)
+### Level 1 with no check at all (12)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
@@ -261,18 +264,18 @@ does not reach.
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
 | C2 Input Validation | 12 | 3 | 0 | 9 |
-| C3 Model Lifecycle Management & Change Control | 15 | 0 | 0 | 15 |
-| C4 Infrastructure, Configuration & Deployment Security | 14 | 0 | 0 | 14 |
+| C3 Model Lifecycle Management & Change Control | 15 | 1 | 0 | 14 |
+| C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 13 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
-| C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
+| C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
 | C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
-| C10 Model Context Protocol (MCP) Security | 23 | 2 | 0 | 21 |
+| C10 Model Context Protocol (MCP) Security | 23 | 3 | 0 | 20 |
 | C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-7 of these 20 can only ever be marked *needs attention*: a check can
+11 of these 24 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -280,6 +283,9 @@ need `--tools`.
 - C2.1.3: settled by `probe.ai-injection-unscreened`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C3.2.3: found failing by sv's `ast.floating-model-name`.
+- C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`.
+- C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
 - C7.3.3: found failing by sv's `probe.ai-output-fetched`.
@@ -289,6 +295,7 @@ need `--tools`.
 - C9.3.7: found failing by sv's `probe.ai-output-fetched`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
+- C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.

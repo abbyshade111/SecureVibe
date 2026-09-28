@@ -759,6 +759,236 @@
       "looksForIn": {
         "shell": "a `ws://` address to another computer given to a command, quoted or not"
       }
+    },
+    {
+      "id": "ast.digest-compared-with-equals",
+      "title": "A signature is compared in a way that leaks how much of it was right",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V11.2.4"
+      ],
+      "cwe": [
+        "CWE-208"
+      ],
+      "description": "A keyed signature (an HMAC, the kind a webhook or a signed link carries) is checked with an ordinary equals comparison. An ordinary comparison stops at the first character that differs, so it is not constant-time: it takes slightly longer the more of the signature is right.",
+      "impact": "Someone who can send many guesses and time the answers can work out a valid signature one character at a time, and then forge the requests the signature was meant to prove came from you or your partner.",
+      "fix": "Compare with the constant-time function your language provides: `hmac.compare_digest` in Python, `crypto.timingSafeEqual` in Node.js (on two buffers of the same length), `hash_equals` in PHP, `Rack::Utils.secure_compare` in Ruby, `hmac.Equal` in Go, `MessageDigest.isEqual` in Java and Kotlin, `CryptographicOperations.FixedTimeEquals` in C#, the `hmac` crate's `verify_slice` in Rust, `CRYPTO_memcmp` or `sodium_memcmp` in C and C++, and `HMAC.isValidAuthenticationCode` in Swift.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(comparison_operator (call function: (attribute object: (_) @mod attribute: (identifier) @fn))) @hit",
+        "javascript": "[(binary_expression left: (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)) operator: [\"==\" \"===\" \"!=\" \"!==\"]) (binary_expression operator: [\"==\" \"===\" \"!=\" \"!==\"] right: (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)))] @hit",
+        "typescript": "[(binary_expression left: (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)) operator: [\"==\" \"===\" \"!=\" \"!==\"]) (binary_expression operator: [\"==\" \"===\" \"!=\" \"!==\"] right: (call_expression function: (member_expression object: (_) @mod property: (property_identifier) @fn)))] @hit",
+        "php": "[(binary_expression left: (function_call_expression function: (name) @fn) operator: [\"==\" \"===\" \"!=\" \"!==\" \"<>\"]) (binary_expression operator: [\"==\" \"===\" \"!=\" \"!==\" \"<>\"] right: (function_call_expression function: (name) @fn))] @hit",
+        "ruby": "[(binary left: (call receiver: (_) @mod method: (identifier) @fn) operator: [\"==\" \"!=\"]) (binary operator: [\"==\" \"!=\"] right: (call receiver: (_) @mod method: (identifier) @fn))] @hit",
+        "go": "[(binary_expression operator: [\"==\" \"!=\"]) (call_expression function: (selector_expression))] @hit @arg",
+        "java": "(method_invocation name: (identifier)) @hit @arg",
+        "kotlin": "[(call_expression) (binary_expression)] @hit @arg",
+        "csharp": "[(invocation_expression) (binary_expression)] @hit @arg",
+        "rust": "(binary_expression) @hit @arg",
+        "c": "(call_expression function: (identifier) @fn arguments: (argument_list) @arg) @hit",
+        "cpp": "(call_expression function: (identifier) @fn arguments: (argument_list) @arg) @hit",
+        "dart": "(equality_expression) @hit @arg",
+        "swift": "(equality_expression) @hit @arg"
+      },
+      "functionPatterns": {
+        "python": "^(hexdigest|digest)$",
+        "javascript": "^digest$",
+        "typescript": "^digest$",
+        "php": "^hash_hmac$",
+        "ruby": "^(hexdigest|digest|base64digest)$",
+        "c": "^(memcmp|strcmp|strncmp|bcmp)$",
+        "cpp": "^(memcmp|strcmp|strncmp|bcmp)$"
+      },
+      "modulePatterns": {
+        "python": "(?s)^hmac(\\.(new|HMAC)\\(.*)?$",
+        "javascript": "createHmac\\(",
+        "typescript": "createHmac\\(",
+        "ruby": "^(::)?OpenSSL::HMAC$"
+      },
+      "looksFor": "an HMAC signature worked out, or named as a MAC or signature, in the same expression as an ordinary comparison; a signature saved to a variable and compared later is not followed, so finding none credits nothing",
+      "looksForIn": {
+        "python": "`hmac.new(...).hexdigest()`, `.digest()`, or `hmac.digest(...)` compared with `==` or `!=`",
+        "javascript": "`createHmac(...)...digest(...)` compared with `==` or `===`",
+        "typescript": "`createHmac(...)...digest(...)` compared with `==` or `===`",
+        "php": "`hash_hmac(...)` compared with `==` or `===`",
+        "ruby": "`OpenSSL::HMAC.hexdigest(...)` or `.digest(...)` compared with `==`",
+        "go": "`bytes.Equal`, `==`, or `!=` beside `.Sum(nil)` on a value named like a MAC or signature",
+        "java": "`equals` or `Arrays.equals` on the result of `doFinal`",
+        "kotlin": "`equals`, `contentEquals`, or `==` on the result of `doFinal`",
+        "csharp": "`SequenceEqual`, `Equals`, or `==` on the result of `ComputeHash` or `HashData`",
+        "rust": "`==` or `!=` on what an HMAC's `finalize()` returns",
+        "c": "`memcmp`, `strcmp`, or `bcmp` given a value named like a MAC or signature",
+        "cpp": "`memcmp`, `strcmp`, or `bcmp` given a value named like a MAC or signature",
+        "dart": "`==` or `!=` on what `Hmac(...).convert(...)` returns",
+        "swift": "`==` or `!=` on an `HMAC` authentication code"
+      },
+      "argumentPatterns": {
+        "go": "(?is)^bytes\\.Equal\\(.*\\b\\w*(mac|sig)\\w*\\.Sum\\(nil\\)|\\b\\w*(mac|sig)\\w*\\.Sum\\(nil\\).*[=!]=|[=!]=.*\\b\\w*(mac|sig)\\w*\\.Sum\\(nil\\)",
+        "java": "(?s)^Arrays\\.equals\\(.*\\bdoFinal\\(|\\bdoFinal\\(.*\\)\\s*\\.\\s*(equals|equalsIgnoreCase|contentEquals)\\(|\\.(equals|equalsIgnoreCase)\\(.*\\bdoFinal\\(",
+        "kotlin": "(?s)\\bdoFinal\\(.*\\)\\s*\\.\\s*(contentEquals|equals)\\(|\\.(contentEquals|equals)\\(.*\\bdoFinal\\(|\\bdoFinal\\(.*[=!]=|[=!]=.*\\bdoFinal\\(",
+        "csharp": "(?s)\\b(ComputeHash|HashData)\\(.*\\)\\s*\\.\\s*(SequenceEqual|Equals)\\(|\\.(SequenceEqual|Equals)\\(.*\\b(ComputeHash|HashData)\\(|\\b(ComputeHash|HashData)\\(.*[=!]=|[=!]=.*\\b(ComputeHash|HashData)\\(",
+        "rust": "(?is)(hmac.*|\\bmac\\w*)\\.finalize\\(\\).*[=!]=|[=!]=.*(hmac.*|\\bmac\\w*)\\.finalize\\(\\)",
+        "c": "(?i)\\b\\w*(hmac|mac|sig|signature)\\w*\\b",
+        "cpp": "(?i)\\b\\w*(hmac|mac|sig|signature)\\w*\\b",
+        "dart": "(?s)\\bHmac\\(|\\bhmac\\w*\\.convert\\(",
+        "swift": "(?s)\\bauthenticationCode\\(|\\bHMAC<"
+      },
+      "nothingToFind": {
+        "shell": "A shell script compares text with `[` or `test`, and the time it takes to start each command swamps any difference a comparison makes, so there is no timing for someone across a network to measure."
+      }
+    },
+    {
+      "id": "ast.model-loaded-with-pickle",
+      "title": "A model file is loaded in a way that can run code",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "C4.1.2"
+      ],
+      "cwe": [
+        "CWE-502"
+      ],
+      "description": "A model is loaded with a reader that can run code while it loads: joblib (which is pickle underneath), `torch.load` with `weights_only=False`, `torch.hub.load`, NumPy with `allow_pickle=True`, Keras with `safe_mode=False`, or a Hugging Face model with `trust_remote_code=True` or `use_safetensors=False`.",
+      "impact": "Whoever can change the model file, or the model repository it is downloaded from, can make it run any code they like on your server the moment the app loads it.",
+      "fix": "Load models only in formats that hold numbers and no code: safetensors, GGUF, or ONNX. For PyTorch, keep `weights_only=True` (the default since PyTorch 2.6). Leave `trust_remote_code` off unless you have read the code and pinned the revision it comes from.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "[(call function: (attribute attribute: (identifier) @fn)) (call function: (identifier) @fn)] @hit @arg"
+      },
+      "functionPatterns": {
+        "python": "^(load|load_model|from_pretrained|pipeline)$"
+      },
+      "argumentPatterns": {
+        "python": "^(joblib\\.load|torch\\.hub\\.load)\\(|\\b(weights_only\\s*=\\s*False|allow_pickle\\s*=\\s*True|safe_mode\\s*=\\s*False|trust_remote_code\\s*=\\s*True|use_safetensors\\s*=\\s*False)\\b"
+      },
+      "looksFor": "Python model loading that can run code: `joblib.load`, `torch.hub.load`, and the settings that turn a safe loader unsafe (`weights_only=False`, `allow_pickle=True`, `safe_mode=False`, `trust_remote_code=True`, `use_safetensors=False`); `pickle.load` itself is the unsafe-deserialization rule's, and model files committed to the folder are not opened, so finding none credits nothing",
+      "nothingToFind": {
+        "javascript": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries. JavaScript loads models through ONNX Runtime, TensorFlow.js, or Transformers.js, whose formats hold numbers rather than code.",
+        "typescript": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries. TypeScript loads models through ONNX Runtime, TensorFlow.js, or Transformers.js, whose formats hold numbers rather than code.",
+        "go": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Go has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "php": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and PHP has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "ruby": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Ruby has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "java": "The loaders that can run code while loading a model (PyTorch's `torch.load`, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Java has no pickle of its own. A model loaded through Deep Java Library is not looked for.",
+        "csharp": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and C# has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "kotlin": "The loaders that can run code while loading a model (PyTorch's `torch.load`, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Kotlin has no pickle of its own. A model loaded through Deep Java Library is not looked for.",
+        "dart": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Dart has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "swift": "The loaders that can run code while loading a model (PyTorch, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Swift has no pickle of its own; it loads models through runtimes such as ONNX Runtime or llama.cpp, whose formats hold numbers rather than code.",
+        "rust": "The loaders that can run code while loading a model (PyTorch's `torch.load`, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and Rust has no pickle of its own. A model loaded through `tch` or Candle is not looked for.",
+        "c": "The loaders that can run code while loading a model (PyTorch's `torch.load`, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and C has no pickle of its own. A model loaded through libtorch is not looked for.",
+        "shell": "The loaders that can run code while loading a model are Python libraries; a shell script that runs Python to load one is read as Python only when the Python is in a file of its own.",
+        "cpp": "The loaders that can run code while loading a model (PyTorch's `torch.load`, joblib, NumPy, Keras, and Hugging Face Transformers) are Python libraries, and C++ has no pickle of its own. A model loaded through libtorch is not looked for."
+      }
+    },
+    {
+      "id": "ast.model-download-not-pinned",
+      "title": "A model is downloaded by name without pinning the exact version",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "C6.1.3"
+      ],
+      "cwe": [
+        "CWE-494"
+      ],
+      "description": "The app downloads a model from Hugging Face by its name (`organization/model`) without a `revision` set to a commit hash. By name alone, it gets whatever the model's owner uploaded last, with nothing to check it against.",
+      "impact": "If the model repository is changed, by its owner or by someone who took it over, the app starts using the new model on its next download with nobody having looked at it. The model you tested is then not the model you run, and nothing can prove which one you have.",
+      "fix": "Add `revision=\"<40-character commit hash>\"` to the call, taken from the model's page on Hugging Face (Files and versions, then the commit), and change it on purpose when you upgrade.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "[(call function: (attribute attribute: (identifier) @fn)) (call function: (identifier) @fn)] @hit @arg",
+        "javascript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg",
+        "typescript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg"
+      },
+      "functionPatterns": {
+        "python": "^(from_pretrained|hf_hub_download|snapshot_download|pipeline)$",
+        "javascript": "^(from_pretrained|pipeline)$",
+        "typescript": "^(from_pretrained|pipeline)$"
+      },
+      "argumentPatterns": {
+        "python": "^[\\w.]*\\(\\s*(['\"][\\w-]+['\"]\\s*,\\s*)?['\"]\\w[\\w.-]*/[\\w.-]+['\"]|\\b(repo_id|model|pretrained_model_name_or_path)\\s*=\\s*['\"]\\w[\\w.-]*/[\\w.-]+['\"]",
+        "javascript": "^[\\w.]*\\(\\s*(['\"`][\\w-]+['\"`]\\s*,\\s*)?['\"`]\\w[\\w.-]*/[\\w.-]+['\"`]",
+        "typescript": "^[\\w.]*\\(\\s*(['\"`][\\w-]+['\"`]\\s*,\\s*)?['\"`]\\w[\\w.-]*/[\\w.-]+['\"`]"
+      },
+      "safeArgumentPatterns": {
+        "python": "\\brevision\\s*=\\s*['\"][0-9a-f]{40}['\"]",
+        "javascript": "\\brevision\\s*:\\s*['\"`][0-9a-f]{40}['\"`]",
+        "typescript": "\\brevision\\s*:\\s*['\"`][0-9a-f]{40}['\"`]"
+      },
+      "looksFor": "a Hugging Face model named in the code as `organization/model` and downloaded without `revision` set to a commit hash; a name built at run time, and downloads done outside the code (a script, `ollama pull`, a model server image), are not seen, so finding none credits nothing",
+      "looksForIn": {
+        "python": "`from_pretrained`, `pipeline`, `hf_hub_download`, and `snapshot_download`",
+        "javascript": "Transformers.js `pipeline` and `from_pretrained`",
+        "typescript": "Transformers.js `pipeline` and `from_pretrained`"
+      },
+      "nothingToFind": {
+        "go": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Go has none. A download written by hand over HTTP is not looked for.",
+        "php": "Hugging Face's own download libraries in common use are for Python and JavaScript, and PHP has none. A download written by hand over HTTP is not looked for.",
+        "ruby": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Ruby has none. A download written by hand over HTTP is not looked for.",
+        "java": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Java has none. A download written by hand over HTTP is not looked for.",
+        "csharp": "Hugging Face's own download libraries in common use are for Python and JavaScript, and C# has none. A download written by hand over HTTP is not looked for.",
+        "kotlin": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Kotlin has none. A download written by hand over HTTP is not looked for.",
+        "dart": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Dart has none. A download written by hand over HTTP is not looked for.",
+        "swift": "Hugging Face's own download libraries in common use are for Python and JavaScript, and Swift has none. A download written by hand over HTTP is not looked for.",
+        "rust": "Hugging Face's own download libraries in common use are for Python and JavaScript. The `hf-hub` crate, and a download written by hand over HTTP, are not looked for.",
+        "c": "Hugging Face's own download libraries in common use are for Python and JavaScript, and C has none. A download written by hand over HTTP is not looked for.",
+        "shell": "Hugging Face's own download libraries in common use are for Python and JavaScript. `huggingface-cli download` and `git clone` of a model in a script are not looked for.",
+        "cpp": "Hugging Face's own download libraries in common use are for Python and JavaScript, and C++ has none. A download written by hand over HTTP is not looked for."
+      }
+    },
+    {
+      "id": "ast.floating-model-name",
+      "title": "A hosted model is asked for by a name that moves",
+      "severity": "low",
+      "confidence": "medium",
+      "requirementIds": [
+        "C3.2.3"
+      ],
+      "cwe": [
+        "CWE-1357"
+      ],
+      "description": "The code asks the AI provider for a model by a name ending in `-latest` (or `:latest`). The provider points that name at a new model whenever it releases one.",
+      "impact": "The model behind the app can change on the provider's schedule with no change to your code, so nothing prompts anyone to test the new one for safety before users meet it.",
+      "fix": "Name a dated model version (for example `gpt-4o-2024-08-06` rather than `chatgpt-4o-latest`), and when you move to a new one, do it on purpose and re-run your checks.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(string) @hit @arg",
+        "javascript": "[(string) (template_string)] @hit @arg",
+        "typescript": "[(string) (template_string)] @hit @arg",
+        "go": "[(interpreted_string_literal) (raw_string_literal)] @hit @arg",
+        "php": "[(string) (encapsed_string)] @hit @arg",
+        "ruby": "(string) @hit @arg",
+        "java": "(string_literal) @hit @arg",
+        "csharp": "[(string_literal) (verbatim_string_literal)] @hit @arg",
+        "kotlin": "(string_literal) @hit @arg",
+        "dart": "(string_literal) @hit @arg",
+        "swift": "(line_string_literal) @hit @arg",
+        "rust": "[(string_literal) (raw_string_literal)] @hit @arg",
+        "c": "(string_literal) @hit @arg",
+        "shell": "[(string) (raw_string) (word)] @hit @arg",
+        "cpp": "(string_literal) @hit @arg"
+      },
+      "argumentPatterns": {
+        "python": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "javascript": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "typescript": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "go": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "php": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "ruby": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "java": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "csharp": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "kotlin": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "dart": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "swift": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "rust": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "c": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$",
+        "shell": "^[A-Za-z@$]*[r#]*[\"'`]?(claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]?$",
+        "cpp": "^[A-Za-z@$]*[r#]*[\"'`](claude|gpt|chatgpt|o\\d|gemini|mistral|codestral|pixtral|ministral|magistral|devstral|open-mistral|command|grok|llama\\d*|deepseek|qwen\\d*)[\\w.:-]*[-:]latest[\"'`]$"
+      },
+      "looksFor": "a model name ending in `-latest` or `:latest` written into the code as text, for the common provider families (Claude, GPT, Gemini, Mistral, Llama, and others); a name read from settings or an environment variable is not seen, so finding none credits nothing",
+      "looksForIn": {
+        "shell": "a model name ending in `-latest` or `:latest` given to a command, such as `ollama run llama3:latest`, quoted or not"
+      }
     }
   ]
 }

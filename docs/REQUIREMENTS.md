@@ -29,9 +29,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 140 can be checked, 7 where a check helps but a person decides, and 198 with no check.
+345 requirements: 143 can be checked, 7 where a check helps but a person decides, and 195 with no check.
 
-### Level 1 (70 requirements, 54 can be checked)
+### Level 1 (70 requirements, 55 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -42,7 +42,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V1.2.3** Verify that output encoding or escaping is used when dynamically building JavaScript content (including JSON), to avoid changing the message or document structure (to avoid JavaScript and JSON injection). | Can be checked | Outside tools: brakeman, 1 rule, its rules look for: cross-site scripting through JSON built from user input and written into JavaScript content without escaping |
 | **V1.2.4** Verify that data selection or database queries (e.g., SQL, HQL, NoSQL, Cypher) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from SQL Injection and other database injection attacks. This is also relevant when writing stored procedures. | Can be checked | Reads the code: `ast.sql-built-by-hand`, looks for: A database query is built by joining text together<br>Outside tools: bandit, 1 rule, its rules look for: SQL query built by string formatting or concatenation<br>Outside tools: gosec, 2 rules, its rules look for: SQL query built by string concatenation; SQL query built with a format string<br>Outside tools: brakeman, 3 rules, its rules look for: SQL injection through a dynamic finder method built from user input; SQL injection through a query's limit or offset built from user input; SQL injection: a database query built from user input<br>Outside tools: semgrep, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection)<br>Outside tools: codeql-python, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection) |
 | **V1.2.5** Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. | Can be checked | Reads the code: `ast.shell-command`, looks for: A shell command is built from a value<br>Reads the code: `ast.shell-command-backticks`, looks for: A command is run with backticks, built from text<br>Outside tools: bandit, 6 rules, its rules look for: a function called with shell=True; a process started through the operating system shell; a shell wildcard passed to an operating system command; an operating system command run from data that may be untrusted; an operating system command run through a shell (shell=True); an operating system command run without a shell, from data that may be untrusted<br>Outside tools: gosec, 1 rule, its rules look for: an operating system command executed from data that may be untrusted<br>Outside tools: brakeman, 1 rule, its rules look for: OS command injection: an operating system command built from user input<br>Outside tools: semgrep, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection)<br>Outside tools: codeql-python, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection) |
-| **V1.3.1** Verify that all untrusted HTML input from WYSIWYG editors or similar is sanitized using a well-known and secure HTML sanitization library or framework feature. | No check | – |
+| **V1.3.1** Verify that all untrusted HTML input from WYSIWYG editors or similar is sanitized using a well-known and secure HTML sanitization library or framework feature. | Can be checked | Reads the code: `config.rich-text-without-sanitizer`, looks for: A rich-text editor is used and no HTML sanitizer is anywhere in the app (found failing only) |
 | **V1.3.2** Verify that the application avoids the use of eval() or other dynamic code execution features such as Spring Expression Language (SpEL). Where there is no alternative, any user input being included must be sanitized before being executed. | Can be checked | Reads the code: `ast.dynamic-code-execution`, looks for: Code is built at run time and executed<br>Outside tools: bandit, 1 rule, its rules look for: eval used to execute code built at runtime<br>Outside tools: brakeman, 4 rules, its rules look for: dangerous eval: user input handed to eval or another dynamic code execution feature; dangerous send: a method chosen by user input is called, a dynamic code execution feature; unsafe method reflection: a method chosen by user input is looked up and called, a dynamic code execution feature; unsafe reflection: a class chosen by user input is loaded with constantize, a dynamic code execution feature<br>Outside tools: semgrep, 2 rules, its rules look for: dynamic code execution, such as eval, on data that may be untrusted; dynamic code execution, such as eval, on data that may be untrusted; an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox<br>Outside tools: codeql-javascript, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted<br>Outside tools: codeql-python, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted |
 | **V1.5.1** Verify that the application configures XML parsers to use a restrictive configuration and that unsafe features such as resolving external entities are disabled to prevent XML eXternal Entity (XXE) attacks. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an XML parser that resolves external entities (XXE)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: an XML parser that resolves external entities (XXE)<br>Outside tools: codeql-python, 1 rule, its rules look for: an XML parser that resolves external entities (XXE) |
 
@@ -178,7 +178,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. |
 
-### Level 2 (183 requirements, 71 can be checked)
+### Level 2 (183 requirements, 72 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -407,7 +407,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.1.2** Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories. | Can be checked | Reads the code: `config.versions-pinned`, if it fails: The inventory of third-party libraries this app ships is then a list of what was asked for rather than what is installed, so nobody can say whether a known vulnerability applies to it — and a component that is compromised upstream arrives on the next install without anything changing here.<br>Reads the code: `sbom`, looks for: Whether the list of what the app ships (its bill of materials) could be read completely from its lockfiles |
 | **V15.1.3** Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application. | No check | – |
 | **V15.2.2** Verify that the application has implemented defenses against loss of availability due to functionality which is time-consuming or resource-demanding, based on the documented security decisions and strategies for this. | No check | – |
-| **V15.2.3** Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | No check | – |
+| **V15.2.3** Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | Can be checked | Reads the code: `config.development-server-started`, looks for: The app is started with a development server (found failing only) |
 | **V15.3.2** Verify that where the application backend makes calls to external URLs, it is configured to not follow redirects unless it is intended functionality. | No check | – |
 | **V15.3.3** Verify that the application has countermeasures to protect against mass assignment attacks by limiting allowed fields per controller and action, e.g., it is not possible to insert or update a field value when it was not intended to be part of that action. | Can be checked | Signed in: `probe.role-field-trusted`, if it fails: Anybody who signs up can make themselves an administrator by adding one field to the sign-up form, which takes a browser's developer tools and no skill. (found failing only)<br>Outside tools: brakeman, 5 rules, its rules look for: mass assignment without protection: a model accepts fields that were not intended for the action; mass assignment: a dangerous field such as an admin flag is permitted for the action; mass assignment: a model is created or updated from all submitted fields; mass assignment: permit! allows every submitted field to be inserted or updated; mass assignment: permit_all_parameters allows every submitted field for every controller and action<br>Outside tools: semgrep, 1 rule, its rules look for: mass assignment: request fields bound straight onto a model |
 | **V15.3.4** Verify that all proxying and middleware components transfer the user's original IP address correctly using trusted data fields that cannot be manipulated by the end user, and the application and web server use this correct value for logging and security decisions such as rate limiting, taking into account that even the original IP address may not be reliable due to dynamic IPs, VPNs, or corporate firewalls. | Can be checked | Signed in: `probe.forwarded-for-trusted`, if it fails: Anybody can step around the limit on guessing passwords by claiming a different address in each request, which costs them nothing. |
@@ -448,7 +448,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V17.3.1** Verify that the signaling server is able to continue processing legitimate incoming signaling messages during a flood attack. This should be achieved by implementing rate limiting at the signaling level. | No check | – |
 | **V17.3.2** Verify that the signaling server is able to continue processing legitimate signaling messages when encountering malformed signaling message that could cause a denial of service condition. This could include implementing input validation, safely handling integer overflows, preventing buffer overflows, and employing other robust error-handling techniques. | No check | – |
 
-### Level 3 (92 requirements, 15 can be checked)
+### Level 3 (92 requirements, 16 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -554,7 +554,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V11.1.3** Verify that cryptographic discovery mechanisms are employed to identify all instances of cryptography in the system, including encryption, hashing, and signing operations. | No check | – |
 | **V11.1.4** Verify that a cryptographic inventory is maintained. This must include a documented plan that outlines the migration path to new cryptographic standards, such as post-quantum cryptography, in order to react to future threats. | No check | – |
-| **V11.2.4** Verify that all cryptographic operations are constant-time, with no 'short-circuit' operations in comparisons, calculations, or returns, to avoid leaking information. | No check | – |
+| **V11.2.4** Verify that all cryptographic operations are constant-time, with no 'short-circuit' operations in comparisons, calculations, or returns, to avoid leaking information. | Can be checked | Reads the code: `ast.digest-compared-with-equals`, looks for: A signature is compared in a way that leaks how much of it was right (found failing only) |
 | **V11.2.5** Verify that all cryptographic modules fail securely, and errors are handled in a way that does not enable vulnerabilities, such as Padding Oracle attacks. | No check | – |
 | **V11.3.4** Verify that nonces, initialization vectors, and other single-use numbers are not used for more than one encryption key and data-element pair. The method of generation must be appropriate for the algorithm being used. | Can be checked | Outside tools: gosec, 1 rule, its rules look for: an encryption IV or nonce fixed in the code, so it is reused (found failing only)<br>Outside tools: semgrep, 2 rules, its rules look for: an AES-GCM encryption nonce fixed in the code, so it is reused for every message; an encryption IV fixed in the code, so it is reused for every message (found failing only) |
 | **V11.3.5** Verify that any combination of an encryption algorithm and a MAC algorithm is operating in encrypt-then-MAC mode. | No check | – |
@@ -624,9 +624,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 17 can be checked, 0 where a check helps but a person decides, and 174 with no check.
+191 requirements: 21 can be checked, 0 where a check helps but a person decides, and 170 with no check.
 
-### Level 1 (51 requirements, 11 can be checked)
+### Level 1 (51 requirements, 13 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -660,7 +660,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C4.1.1** Verify that AI models execute in isolated sandboxes. | No check | – |
-| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | No check | – |
+| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | Can be checked | Reads the code: `ast.model-loaded-with-pickle`, looks for: A model file is loaded in a way that can run code (found failing only) |
 | **C4.3.1** Verify that edge AI devices authenticate to central infrastructure using strong authentication mechanisms. | No check | – |
 
 #### C6 Supply Chain Security for Models
@@ -703,7 +703,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C10.1.1** Verify that MCP components are obtained only from trusted sources and cryptographically verified. | No check | – |
+| **C10.1.1** Verify that MCP components are obtained only from trusted sources and cryptographically verified. | Can be checked | Reads the code: `config.mcp-server-unpinned`, looks for: An MCP server is downloaded fresh, at whatever version is newest, every time it starts (found failing only) |
 | **C10.2.1** Verify that MCP servers validate access tokens for each request and do not rely on transport security alone. | No check | – |
 | **C10.2.2** Verify that MCP servers validate the presented access token's issuer, audience, expiration, and scope claims in accordance with OAuth 2.1. | No check | – |
 | **C10.2.3** Verify that MCP servers acting as OAuth 2.1 resource servers do not store or persist access tokens or user credentials. | No check | – |
@@ -734,7 +734,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 6 can be checked)
+### Level 2 (95 requirements, 7 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -793,7 +793,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C6.1.3** Verify that every third-party model artifact can be integrity-verified. | No check | – |
+| **C6.1.3** Verify that every third-party model artifact can be integrity-verified. | Can be checked | Reads the code: `ast.model-download-not-pinned`, looks for: A model is downloaded by name without pinning the exact version (found failing only) |
 | **C6.1.4** Verify that models pass a behavioral acceptance test suite before being promoted to any non-development environment. | No check | – |
 | **C6.2.2** Verify that AI BOMs are cryptographically signed before deployment. | No check | – |
 | **C6.2.3** Verify that AI BOM completeness checks fail the build if any component metadata is missing. | No check | – |
@@ -891,7 +891,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.3** Verify that all model changes generate immutable audit records. | No check | – |
 | **C12.5.4** Verify that every ingested document is tagged at write time with source, writer identity, and timestamp. | No check | – |
 
-### Level 3 (45 requirements, 0 can be checked)
+### Level 3 (45 requirements, 1 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -911,7 +911,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C3.2.3** Verify that provider model, version, or routing changes trigger security re-evaluation before continued use. | No check | – |
+| **C3.2.3** Verify that provider model, version, or routing changes trigger security re-evaluation before continued use. | Can be checked | Reads the code: `ast.floating-model-name`, looks for: A hosted model is asked for by a name that moves (found failing only) |
 | **C3.5.2** Verify that RLHF training stages include automated detection of reward hacking or reward model over-optimization. | No check | – |
 | **C3.5.3** Verify that in multi-stage fine-tuning pipelines, each stage's output is integrity-verified before it is consumed by the next stage. | No check | – |
 | **C3.5.4** Verify that fine-tuning checkpoints are registered as distinct artifacts. | No check | – |
