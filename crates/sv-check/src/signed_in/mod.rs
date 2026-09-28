@@ -1129,7 +1129,7 @@ const BREACHED: &str = "1qaz2wsx3edc4rfv";
 
 /// `data/breached-password-evidence.json`, compiled in: `sv` reads it and fetches nothing.
 /// `tools/pwned_passwords.py` rewrites it, and the wording below follows without an edit here.
-const BREACHED_EVIDENCE: &str = include_str!("../../../data/breached-password-evidence.json");
+const BREACHED_EVIDENCE: &str = include_str!("../../../../data/breached-password-evidence.json");
 
 /// How often Pwned Passwords has seen `BREACHED`, and when that was last checked, from the
 /// evidence file: "133,732 times when last checked, on 26 September 2026". What is wrong with the
