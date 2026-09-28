@@ -364,6 +364,11 @@ another session is not a claim.
       - Step 1: slices a and d, not claimed.
       - Step 1, slice c (`passwords.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-passwords`.
+        **Done the same day:** `signed_in/passwords.rs`, 1,954 lines with its 33 tests; `mod.rs` is 5,859.
+        The breached-password evidence came along, and its `include_str!` path still works from beside
+        `mod.rs`. `run_signing_up`, `run_signing_up_with`, and `with_words` stay in `mod.rs`'s tests,
+        since slice d's tests use them too. With each of the eight checks made to return at once, the
+        moved tests catch every one.
       - Step 1, slice b (`sessions.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-sessions`. A move
         only, with `ws_handshake` and `websocket_session_checks`: securevibe-e9's V14.2.2 and V8.2.3
