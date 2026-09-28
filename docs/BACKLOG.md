@@ -41,6 +41,8 @@ another session is not a claim.
   `test-time-limit` setting in `[stack.run]`, and cleanup after a run killed outright (everything a run
   starts labeled with the machine and process, and the next run removing what an ended process left, and
   saying so). **That port claimed on 28 September 2026 by session securevibe-e2.**
+  **Done the same day:** see DESIGN, "A run has an end, and Ctrl-C cleans up", the part headed "Later the
+  same day".
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
