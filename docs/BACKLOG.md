@@ -165,6 +165,7 @@ another session is not a claim.
       step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
       comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
       `cargo audit`, belongs with the weekly review entry above.
+      **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to pick an item.
   13. **`signed_in.rs` is 15,351 lines**, with 231 tests and one fake app carrying about eighty flaw
       switches; `ai.rs` is 3,338. A session touching one check reads all of it, and every session's
       change to a check lands in the same file, which is where this week's merge conflicts were. Split by
