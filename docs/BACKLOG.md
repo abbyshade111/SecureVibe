@@ -165,11 +165,94 @@ another session is not a claim.
       step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
       comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
       `cargo audit`, belongs with the weekly review entry above.
+      **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to pick an item.
   13. **`signed_in.rs` is 15,351 lines**, with 231 tests and one fake app carrying about eighty flaw
       switches; `ai.rs` is 3,338. A session touching one check reads all of it, and every session's
       change to a check lands in the same file, which is where this week's merge conflicts were. Split by
       check (sign-in, sessions, admin, passwords, uploads, flows, codes) with the fake app as a test
       module of its own. No behavior changes; the 231 tests are the guard.
+
+      **The owner asked on 28 September 2026 for this to be shared across several sessions.** The plan
+      below is by session securevibe-e9, from the file as it stood on `main` that day: 15,463 lines,
+      about 7,600 of checks and 7,900 of tests, 233 tests, and one fake app (`FakeApp` and `Flaws`, about
+      1,450 lines) that nearly every test drives. **The file is frozen from the moment step 0 is claimed
+      until step 2 is done:** no other pull request changes `crates/sv-check/src/signed_in.rs` or the
+      folder that replaces it, so a fix to a check waits, or is made by the session holding that check's
+      slice, in its slice's pull request. The freeze is what keeps several sessions moving the same file
+      from spending their time on merge conflicts, which is the fault this item exists to fix.
+
+      **Rules for every step.** Code is moved, never changed: no renames, no new logic, no reformatting
+      beyond `cargo fmt`. The only edits allowed are `use` lines, `mod` lines, and widening a private item
+      to `pub(super)` so a sibling file can reach it. Something two slices both use stays where it is
+      (the shared plumbing, below) rather than being moved by either. A test that drives several areas at
+      once (`each_flaw_is_found_by_its_own_rule_and_by_no_other`,
+      `a_correct_app_raises_nothing_and_every_check_says_what_it_confirmed`,
+      `an_app_with_every_flaw_at_once_has_every_one_found`, and the like) stays in `mod.rs`. Each pull
+      request shows it moved and did not change: `git diff --color-moved=zebra -M origin/main` has no
+      lines but moved ones and `use`, `mod`, and visibility lines, and the pull request says so. And
+      each one keeps every test: the names from `cargo test -p sv-check --lib signed_in -- --list`,
+      compared by their last part, are the same set before and after, 233 of them unless a step says
+      otherwise. The usual checks (`cargo fmt --all --check`, `cargo clippy --all-targets -- -D
+      warnings`, `cargo test --workspace`) pass. Merge `main` in before merging; a conflict in `mod.rs`
+      is two sessions' `mod` or `use` lines, and keeping both resolves it.
+
+      **Step 0, one session, alone, merged before step 1 starts.** Turn the file into a folder and move
+      out what every slice depends on, so the slices after it touch only their own lines.
+      - `git mv crates/sv-check/src/signed_in.rs crates/sv-check/src/signed_in/mod.rs` in a commit of its
+        own with no other change, so git records a rename and `git log --follow` keeps the history.
+      - `signed_in/fake_app.rs`, `#[cfg(test)]`: `FakeApp`, `Flaws`, the constants beside them, its `impl
+        Http`, and the helpers every test uses (`users`, `accounts`, `run_against`, `run_with_users`,
+        `rule_ids`, `verified_ids`, and the request helpers `cookie_value`, `decode`, `pairs`, `form`),
+        roughly lines 7,609 to 9,220 today.
+      - `signed_in/rules.rs`: the `Rule` constants and finding helpers of the "Findings" section, roughly
+        lines 452 to 1,254.
+      - Sessions, anti-forgery tokens, and requests from templates (roughly lines 122 to 451), the
+        `Http` trait, `Outcome`, `run`, `run_with`, `sign_in`, and `sign_up` stay in `mod.rs`: they are
+        the shared plumbing.
+      - Record the 233 test names in the pull request, as the list the later steps compare against.
+
+      **Step 1, in parallel, one session per slice.** Each slice is claimed on its own line below, in a
+      claim commit of its own, and is one pull request: its functions move from `mod.rs` into its file,
+      and the tests about them move with them into that file's own `#[cfg(test)] mod tests`, which uses
+      `super::fake_app::*`. Line numbers are from 28 September and will have moved after step 0; the
+      function names are what count.
+      - a. `signin.rs`: `guess_once`, `forwarded_check`, `brute_force_check`, `plant_log_markers`,
+        `default_account_check`, `password_in_url_check`, `sign_out_on_get_check`, `logout_check`, and
+        the V6.3.1 wrong-password tests.
+      - b. `sessions.rs`: `session_timeout_checks`, `minutes_text`, `session_checks`, `session_id_check`,
+        `most_bits`, `invented_session_check`, `private_page_checks`, `points_at`, `clear_site_data_check`,
+        `record_fields_check`, `SECRET_FIELD_NAMES`, and the session-timeout and private-page tests.
+      - c. `passwords.rs`: `sign_up_only`, `account_works`, `describe_password`, `judge_breached`,
+        `breached_seen_in` and the breached-password evidence beside it, `password_checks`,
+        `exact_password_checks`, `password_field_checks`, `change_password_checks`,
+        `reveals_account_check`, `same_shape`, `password_hint`, `delete_account_check`.
+      - d. `codes.rs`: `reset_checks`, the `email_code_*` functions and `EmailCode`, `wrong_code`,
+        `activation_checks`, `activation_code_check`, `code_patterns`, `reset_code`, `percent_decode`,
+        `reset_code_check`, `TotpSignIn` and `totp_checks`, and the password-reset, emailed-code,
+        activation, and two-factor tests. The largest slice; it may be split in two (emailed codes, and
+        two-factor) by whoever claims it, saying so in the claim.
+      - e. `uploads.rs`: the "Uploads" section's `GIF_MAGIC`, `Upload`, `multipart`, `send_upload`,
+        `upload_checks`, `disposition_params`, `download_name_checks`, `served_upload_checks`,
+        `client_side_validation_check`, and the upload tests.
+      - f. `flows.rs`: `finished`, `take_steps`, `flow_checks`, and their tests.
+      - g. `admin.rs`: `admin_checks`, `ROLE_FIELDS`, `signed_in_session`, `role_field_check`,
+        `admin_action_checks`, `owned_checks`, `record_path`, `strip_origin`, and their tests.
+      - h. `forgery.rs`: `forgery_check`, `referrer_policy`, `null_origin_check`, `simple_request_check`,
+        `NullOriginApp` and its tests, and the WebSocket foreign-origin (V4.4.2) tests;
+        `ws_handshake` and `websocket_session_checks` go with slice b unless its session says otherwise.
+
+      **Step 2, one session, after every slice is merged.** What is left in `mod.rs` is the plumbing,
+      `run_with` calling each slice, and the cross-area tests. Check no slice's file passed about 2,500
+      lines, and split one that did the same way. Add a DESIGN section saying where each check now lives,
+      and mark this item done with the final line counts and the final test count.
+
+      **`ai.rs` (3,338 lines) is not part of this.** It can be split the same way afterwards, as its own
+      item.
+
+      **Claims:**
+      - Step 0: not claimed.
+      - Step 1: slices a to h, not claimed.
+      - Step 2: not claimed.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
