@@ -233,3 +233,48 @@ fn known_vulnerabilities_count_as_looked_for_only_when_the_whole_app_was_compare
     assert_eq!(entry(&covered, "advisory.").0, "ran");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_large_data_file_leaves_the_credential_scan_and_the_mcp_check_finished() {
+    // cato-pipeline's reproduction: a JSON file of plain text over the 2 MB limit, no code in it
+    // and no MCP configuration. Before, the credential scan was `partly` and the MCP check
+    // not-run, for the whole app, for as long as the file was there.
+    let dir = app("large-data");
+    std::fs::write(
+        dir.join("catalog.json"),
+        format!("{{\"text\": \"{}\"}}\n", "y".repeat(3_000_000)),
+    )
+    .unwrap();
+    let large = report(&dir, &[]);
+    let (state, why) = entry(&large, "secrets.");
+    assert_eq!(state, "ran", "{why}");
+    let mcp = large["examined"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["rules"] == "config.mcp-server-unpinned");
+    assert!(
+        mcp.is_none_or(|e| e["state"] != "not-run"),
+        "the MCP check still did not run: {mcp:?}"
+    );
+    // A person reading the report is told how the large file was read.
+    assert!(
+        large.to_string().contains("read in pieces"),
+        "the report does not say the catalog was read in pieces"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+
+    // The same catalog saying `command`: it could start an MCP server, so the check says it could
+    // not finish, and names the file, as before.
+    let dir = app("large-data-command");
+    std::fs::write(
+        dir.join("catalog.json"),
+        format!("{{\"text\": \"{} command \"}}\n", "y".repeat(3_000_000)),
+    )
+    .unwrap();
+    let mentions = report(&dir, &[]);
+    let (state, why) = entry(&mentions, "config.mcp-server-unpinned");
+    assert_eq!(state, "not-run", "{why}");
+    assert!(why.contains("catalog.json"), "{why}");
+    std::fs::remove_dir_all(&dir).ok();
+}

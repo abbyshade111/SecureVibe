@@ -68,6 +68,11 @@ fn app(root: &Path) -> PathBuf {
     .unwrap();
     std::fs::write(dir.join("blob.bin"), [0xffu8, 0xfe, 0x00, 0x80]).unwrap();
     std::fs::write(dir.join("big.txt"), vec![b'x'; 3 * 1024 * 1024]).unwrap();
+    // Over 2 MB with a key past the 2 MB mark: read in pieces since 28 September 2026, so the scan
+    // finds the key and the file stays out as one holding a credential.
+    let mut big_with_key = "a line of generated data\n".repeat(120_000);
+    big_with_key.push_str(&format!("key = {}\n", planted_key()));
+    std::fs::write(dir.join("big-with-key.txt"), big_with_key).unwrap();
     std::fs::write(
         dir.join(".vscode/settings.json"),
         "{\"token\": \"in-the-editor\"}\n",
@@ -295,7 +300,8 @@ fn files_named_like_secrets_keys_and_databases_stay_out() {
 }
 
 #[test]
-fn a_file_the_scan_could_not_read_stays_out_unless_it_is_a_plain_image_or_font() {
+fn a_file_the_scan_could_not_read_stays_out_unless_it_is_a_plain_image_or_font_and_a_large_one_is_read()
+ {
     let made = make("unread");
     assert!(
         !made.has("app/blob.bin")
@@ -303,12 +309,26 @@ fn a_file_the_scan_could_not_read_stays_out_unless_it_is_a_plain_image_or_font()
                 .left_out("blob.bin")
                 .is_some_and(|r| r.contains("could not read it"))
     );
+    // A file over 2 MB is read in pieces now, so the scan can vouch for it: a clean one goes in, and
+    // one with a key past the 2 MB mark stays out as holding a credential, never as unread.
     assert!(
-        !made.has("app/big.txt")
-            && made
-                .left_out("big.txt")
-                .is_some_and(|r| r.contains("larger than 2 MB"))
+        made.has("app/big.txt"),
+        "a large file the scan read clean is left out"
     );
+    assert!(
+        !made.has("app/big-with-key.txt")
+            && made
+                .left_out("big-with-key.txt")
+                .is_some_and(|r| r.contains("credential scan found")),
+        "{:?}",
+        made.left_out("big-with-key.txt")
+    );
+    for (name, data) in &made.entries {
+        assert!(
+            !contains(data, &planted_key()),
+            "the planted key is in {name}"
+        );
+    }
     assert!(
         made.has("app/static/logo.png"),
         "a plain image is left out too"
