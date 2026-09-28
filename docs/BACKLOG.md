@@ -314,6 +314,9 @@ another session is not a claim.
   which test failed is not known. **Not claimed.** A session that can read that run's log: name the test, find
   why it depends on timing or on the machine, and make it deterministic. The Docker tests that race a timer
   (`crates/sv-cli/tests/interrupt.rs`, `crates/sv-run/tests/limits.rs`) are the first suspects, as a guess.
+  **Claimed on 28 September 2026 by session securevibe-e2**, which read the log: the failing test is
+  `a_run_first_removes_what_a_stopped_run_left_on_this_machine_and_nothing_else` in
+  `crates/sv-run/tests/leftovers.rs` ("left was not started"), securevibe-e2's own.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
