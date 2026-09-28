@@ -129,6 +129,8 @@ another session is not a claim.
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
       size and speed before and after, since `lto` can also lengthen CI's build.
+      **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
+      `claude/release-profile`.
 
   **Smaller.**
   11. **The runtime image runs as root.** `Dockerfile` sets no `USER`; the image reads mounted folders
