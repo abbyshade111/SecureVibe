@@ -355,6 +355,59 @@ fn scan_with(rules: &ast::AstRules, name: &str, files: &[(&str, &str)]) -> ast::
     scan
 }
 
+/// The two test rules plus one whose Python query tree-sitter cannot compile. Loading accepts it,
+/// because queries compile the first time their language is met; the scan is where it must show.
+fn rules_with_a_broken_query(name: &str) -> ast::AstRules {
+    let json = r#"{"rules": [
+        {"id": "t.python-only", "title": "Something is evaluated", "severity": "high",
+         "confidence": "high", "requirementIds": ["V1.3.2"], "cwe": [], "description": "",
+         "impact": "", "fix": "", "literalArgumentIsSafe": true,
+         "functionPatterns": {"python": "^eval$"},
+         "queries": {"python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit"}},
+        {"id": "t.broken", "title": "A rule written wrong", "severity": "high",
+         "confidence": "high", "requirementIds": ["V1.3.2"], "cwe": [], "description": "",
+         "impact": "", "fix": "",
+         "queries": {"python": "(this is not a query"}}
+    ]}"#;
+    let dir = scratch(&format!("rules-{name}"));
+    let path = dir.join("rules.json");
+    std::fs::write(&path, json).unwrap();
+    let rules = ast::AstRules::load(&path).expect("loading reads the text and compiles nothing");
+    std::fs::remove_dir_all(&dir).ok();
+    rules
+}
+
+#[test]
+fn a_rule_whose_query_will_not_compile_is_named_and_stops_every_rule_claiming() {
+    // The setup: the sound rule, on its own, claims a clean Python app.
+    let clean_python = ("app.py", "def home():\n    return 'hi'\n");
+    let alone = scan_with(&partly_taught_rules("broken-control"), "broken-control", &[clean_python]);
+    assert!(
+        verified_ids(&alone.verified).contains(&"t.python-only"),
+        "the setup is wrong: the sound rule must claim a Python-only app on its own"
+    );
+
+    // Beside a rule whose Python query will not compile, it claims nothing: the broken rule did not
+    // run, and a rule that did not run cannot be told from one that found nothing.
+    let rules = rules_with_a_broken_query("broken");
+    assert!(rules.compile_all().is_err(), "the setup is wrong: the query must be uncompilable");
+    let scan = scan_with(&rules, "broken", &[clean_python, ("b.py", "x = 1\n")]);
+    assert_eq!(scan.files_parsed, 2, "both files were read");
+    assert_eq!(
+        scan.broken_queries.len(),
+        1,
+        "named once, not once per file: {:?}",
+        scan.broken_queries
+    );
+    assert_eq!(scan.broken_queries[0].rule_id, "t.broken");
+    assert_eq!(scan.broken_queries[0].language, "python");
+    assert!(
+        scan.verified.is_empty(),
+        "no rule is credited while one did not run: {:?}",
+        verified_ids(&scan.verified)
+    );
+}
+
 #[test]
 fn a_rule_not_taught_a_language_that_was_read_claims_nothing() {
     // The third shape. Everything parsed, the rule has a Python query and found nothing in the
