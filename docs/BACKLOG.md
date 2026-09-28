@@ -462,6 +462,8 @@ another session is not a claim.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.
+     **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
+     `claude/key-rules-fine-tuning`.
   5. **CodeQL queries that may already run.** `py/insecure-temporary-file` and `js/file-system-race` (V15.4.2) were
      proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
      semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
