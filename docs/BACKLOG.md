@@ -28,6 +28,8 @@ another session is not a claim.
   size the time is in item 6, not in the walks. See DESIGN, "One walk of the app".
   **Items 4, 5, and 8 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
   continue with the backlog; one pull request each.
+  **Items 2 and 11 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
+  continue with the backlog; one pull request each.
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
