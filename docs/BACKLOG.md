@@ -135,6 +135,12 @@ another session is not a claim.
       and writes reports into them. A non-root user, or `--user` in the documented `docker run` line,
       keeps a mistake from writing into the owner's folder as root. (`safe.directory` for git is already
       handled.)
+      **Done on 28 September 2026 by session securevibe-e9:** the image runs as its own user, 10001,
+      never root; `--user "$(id -u):$(id -g)"` on Linux still makes it the owner, as the README and
+      GETTING-STARTED say. `tools/image_smoke.py` checks the image's user is not root, and its
+      `safe.directory` check now names root explicitly, since the image's own user could not read the
+      test folder. Not built in the session that made the change (its sandbox cannot reach the Debian
+      mirrors from a build); CI's image job builds and drives it.
   12. **`sv` holds apps to V15.2.1 and does not hold itself.** CI has no `cargo audit` or `cargo deny`
       step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
       comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
