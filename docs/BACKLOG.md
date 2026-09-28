@@ -307,6 +307,9 @@ another session is not a claim.
       - Step 1: slices a to d, g, and h, not claimed.
       - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
+        **Done the same day:** `signed_in/flows.rs`, 371 lines with its 8 tests; `mod.rs` is 11,578. With
+        `flow_checks` made to return at once, 7 of the 8 go red (the eighth is the app with no flow), and
+        none of the tests left in `mod.rs` does: the all-flaws and correct-app tests do not cover flows.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
         **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
