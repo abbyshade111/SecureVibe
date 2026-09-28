@@ -1810,7 +1810,11 @@ mod only_you {
             .iter()
             .map(|v| v.as_str().unwrap())
             .collect();
-        let want: Vec<&str> = with.only_you_can_check.iter().map(|i| i.id.as_str()).collect();
+        let want: Vec<&str> = with
+            .only_you_can_check
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert_eq!(ids, want, "every one, in the list's own order");
         for item in &with.only_you_can_check {
             let asked = json["questions_for_you"]
