@@ -565,7 +565,11 @@ mod tests {
             ..Default::default()
         });
         assert!(!credited(&o).contains(&SESSION_KEPT.rule_id));
-        assert!(why(&o, "C10.2.6").iter().any(|w| w.contains("405")));
+        assert!(
+            why(&o, "C10.2.6")
+                .iter()
+                .any(|w| w.contains("does not let clients end"))
+        );
 
         let o = run(
             &mut FakeMcp::default(),
