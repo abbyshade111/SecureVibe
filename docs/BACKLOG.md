@@ -376,6 +376,12 @@ another session is not a claim.
       - Step 1: slice d, not claimed.
       - Step 1, slice a (`signin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-signin`.
+        **Done the same day:** `signed_in/signin.rs`, 1,140 lines with its 21 tests; `mod.rs` is 4,729.
+        `run_with`, `run_keeping_app`, and `seeded_with` stay in `mod.rs`'s tests, since slice d's tests
+        use them too. With each check made to return at once, the moved tests catch `guess_once`,
+        `forwarded_check`, `brute_force_check`, and `logout_check`. `default_account_check` (V6.3.2),
+        `password_in_url_check` (V14.2.1), `sign_out_on_get_check` (V3.5.3), and `plant_log_markers` are
+        caught only by cross-area tests in `mod.rs`, which was so before the split.
       - Step 1, slice c (`passwords.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-passwords`.
         **Done the same day:** `signed_in/passwords.rs`, 1,954 lines with its 33 tests; `mod.rs` is 5,859.
