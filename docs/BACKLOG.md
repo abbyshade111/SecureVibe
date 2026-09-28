@@ -489,7 +489,9 @@ another session is not a claim.
         `MOST_UPLOAD_BYTES` came along, since only upload code uses it. `with_signup` stays in `mod.rs`'s
         tests, shared by several areas, and is `pub(super)` so a slice's tests can `use
         super::super::tests::with_signup`; other shared test helpers can be reached the same way.
-      - Step 2: not claimed.
+      - Step 2: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking, in branch
+        `claude/securevibe-e2-split-step2`: `codes.rs` split in two, `mod.rs` tidied, a DESIGN section, and
+        this item marked done, which lifts the freeze.
 
 - **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
   September 2026 by session securevibe-e9, doing review item 12. **Not claimed; each can be claimed on its
