@@ -10,6 +10,11 @@ use std::time::{Duration, Instant};
 use sv_manifest::Manifest;
 use sv_run::{Backend, CannotRun, RunPlan, cleanup, docker::DockerBackend};
 
+/// One test at a time. Every run begins by removing what an ended process on this machine left, so
+/// a run started by one test here can remove the leftovers the other has just made for itself to
+/// find. That happened on CI once ("left was not started"), and under load here once in fifteen.
+static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn plan() -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/static-app");
     let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
@@ -39,6 +44,7 @@ fn backend() -> Option<DockerBackend> {
 
 #[test]
 fn the_limit_securevibe_toml_sets_is_the_one_a_suite_is_stopped_at() {
+    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     let Some(backend) = backend() else { return };
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/static-app");
     let mut manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
@@ -85,6 +91,7 @@ fn ended_pid() -> u32 {
 
 #[test]
 fn a_run_first_removes_what_a_stopped_run_left_on_this_machine_and_nothing_else() {
+    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     let Some(backend) = backend() else { return };
     let machine = cleanup::owner()
         .rsplit_once(':')
