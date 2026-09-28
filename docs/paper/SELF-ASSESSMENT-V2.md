@@ -2,7 +2,8 @@
 
 On 27 September 2026 `sv` was run against its own repository, the way it runs against any app, and every finding was
 triaged by hand. It is the counterpart of v1's self-assessment of 20 September (`artifacts/self-assessment/` at tag
-`v1-final`). The two are compared at the end. The results are also added to `TOP10.md` and `AGENTIC.md`.
+`v1-final`). The two are compared at the end. The results are also added to `TOP10.md` and `AGENTIC.md`. The figure
+`figure-self-assessment.html` sets the two self-checks side by side.
 
 ## How it was run
 

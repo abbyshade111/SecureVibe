@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-Checks Compared</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --empty: #d6d5cf;
+    --v1: #2a78d6; --sv: #eb6834; --open: #184f95;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+      --v1: #3987e5; --sv: #d95926; --open: #86b6ef;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+    --v1: #3987e5; --sv: #d95926; --open: #86b6ef;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 0 0 10px; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .rows { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 14px 16px; align-items: center; margin-bottom: 8px; }
+  .label b { display: block; font-size: .92rem; }
+  .label span { font-size: .78rem; color: var(--text-muted); }
+  .track { display: flex; align-items: center; gap: 10px; }
+  .bar { display: flex; height: 30px; flex: 0 0 auto; }
+  .seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 600;
+    margin-right: 2px; border-radius: 3px; min-width: 22px; }
+  .seg.fa { background: var(--empty); color: var(--text-primary); }
+  .seg.op { background: var(--open); color: var(--surface-1); }
+  .seg.acc { color: #fff; }
+  .real { font-size: .85rem; color: var(--text-secondary); white-space: nowrap; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; margin-top: 18px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+  .tablewrap { overflow-x: auto; }
+  @media (max-width: 600px) { .rows { grid-template-columns: 1fr; } td, th { white-space: normal !important; } .real { white-space: normal; font-size: .78rem; } }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Each version checking itself</h1>
+  <p class="sub">What each version's own checks flagged when pointed at its own code, and how a person triaged every
+     finding. Most of both was noise, from the same kind of cause: v1's rules assumed an app built from v1's own
+     template, and <code>sv</code> reads its own test code as the product.</p>
+
+  <div class="legend">
+    <span><span class="sw" style="background:var(--empty)"></span>false alarm</span>
+    <span><span class="sw" style="background:var(--v1)"></span><span class="sw" style="background:var(--sv)"></span>accepted, by design</span>
+    <span><span class="sw" style="background:var(--open)"></span>left open</span>
+  </div>
+  <div class="rows" id="rows" role="img" aria-label="v1 checking itself: 195 findings, 160 false alarms, 21 accepted, 14 left open, 2 real. sv checking itself: 252 findings, 191 false alarms, 61 accepted, 0 left open, none real."></div>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Findings</th><th>False alarms</th><th>Accepted, by design</th><th>Left open</th><th>Real</th></tr></thead>
+    <tbody>
+      <tr><td>v1, 20 September</td><td class="n">195</td><td class="n">160 (82%)</td><td class="n">21</td><td class="n">14</td><td>2, fixed that evening</td></tr>
+      <tr><td><code>sv</code>, 27 September, product code</td><td class="n">252</td><td class="n">191 (76%)</td><td class="n">61</td><td class="n">0</td><td>none</td></tr>
+    </tbody>
+  </table></div>
+
+  <p class="note">Sources: v1's <code>artifacts/self-assessment/security-report.json</code> at tag <code>v1-final</code>,
+     whose triage statuses are v1's own; <code>sv</code>'s <code>docs/paper/self-assessment-v2/product-only/report.json</code>,
+     with every finding's verdict and reason in <code>triage.json</code> beside it. v1's 14 left open were its 2 real
+     findings (links drawn from data, fixed in <code>9dc8140</code>), 3 install scripts allowed in dependencies, 1 slow
+     regular expression, 7 missing documentation, and 1 false alarm from a rate limiter (also <code>9dc8140</code>).
+     Run on its whole repository, tests and fixtures included, <code>sv</code> flagged 804. The full account is
+     <code>SELF-ASSESSMENT-V2.md</code>, and <code>TOP10.md</code> maps both runs to the OWASP Top 10.</p>
+</div>
+<script>
+  const rows = [
+    ["v1 checking itself", "20 September, 195 findings", [160, 21, 14], "var(--v1)", "2 real, fixed that evening"],
+    ["sv checking itself", "27 September, product code, 252 findings", [191, 61, 0], "var(--sv)", "none real"],
+  ];
+  const MAX = 252;
+  const host = document.getElementById("rows");
+  const draw = () => {
+    host.innerHTML = "";
+    rows.forEach(([name, sub, [fa, acc, op], color, real]) => {
+      const label = document.createElement("div"); label.className = "label";
+      label.innerHTML = "<b></b><span></span>"; label.querySelector("b").textContent = name; label.querySelector("span").textContent = sub;
+      const track = document.createElement("div"); track.className = "track";
+      const bar = document.createElement("div"); bar.className = "bar";
+      track.appendChild(bar); host.append(label, track);
+      const width = Math.max(90, track.getBoundingClientRect().width - (window.innerWidth < 600 ? 110 : 190));
+      [[fa, "fa"], [acc, "acc"], [op, "op"]].forEach(([n, cls]) => {
+        if (!n) return;
+        const s = document.createElement("span"); s.className = "seg " + cls; s.textContent = n;
+        s.style.width = Math.max(22, (n / MAX) * width - 2) + "px";
+        if (cls === "acc") s.style.background = color;
+        bar.appendChild(s);
+      });
+      const r = document.createElement("span"); r.className = "real"; r.textContent = real; track.appendChild(r);
+    });
+  };
+  draw();
+  window.addEventListener("resize", draw);
+</script>
+</body>
+</html>
