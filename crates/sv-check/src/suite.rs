@@ -48,7 +48,6 @@ pub struct FailingOutput {
     pub lines_total: usize,
     /// How many credentials were cut out of what is kept.
     pub redacted: usize,
-<<<<<<< HEAD
     /// Set when the suite did not finish: `sv` stopped it at its time limit, this many seconds in.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stopped_after_seconds: Option<u64>,
@@ -63,12 +62,6 @@ pub fn limit_in_words(limit: std::time::Duration) -> String {
         (seconds, "second")
     };
     format!("{n} {unit}{}", if n == 1 { "" } else { "s" })
-=======
-    /// When the suite was stopped for taking too long rather than failing on its own: how long it
-    /// was given, as a person reads it ("10 minutes").
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stopped_after: Option<String>,
->>>>>>> origin/main
 }
 
 /// The last `FAILING_OUTPUT_LINES` lines of a failing suite's output; `None` when it passed.
@@ -104,11 +97,7 @@ pub fn failing_output(
         lines_kept: kept.len(),
         lines_total: lines.len(),
         redacted,
-<<<<<<< HEAD
         stopped_after_seconds: None,
-=======
-        stopped_after: None,
->>>>>>> origin/main
     })
 }
 

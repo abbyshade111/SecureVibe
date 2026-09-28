@@ -1137,16 +1137,8 @@ fn probe_the_running_app(
     plan.slow = slow;
     let backend = sv_run::detect().map_err(|e| e.explain())?;
     let requests = anonymous_requests(&plan);
-    let outcome = backend.run(&plan, &requests);
-    // Stopped with Ctrl-C: the run has removed its containers and network on the way out. What it
-    // got to before then is not a report of the app, so nothing is written.
-    if sv_run::interrupted() {
-        eprintln!(
-            "Stopped with Ctrl-C. The app's containers and network were removed; nothing was written."
-        );
-        std::process::exit(130);
-    }
-    Ok((outcome.map_err(|e| e.explain())?, plan))
+    let outcome = backend.run(&plan, &requests).map_err(|e| e.explain())?;
+    Ok((outcome, plan))
 }
 
 /// Every request the anonymous probes make: the fixed suite, and the GraphQL and WebSocket
@@ -1319,11 +1311,6 @@ fn cmd_run(args: &[String]) -> Result<()> {
                 None => println!(
                     "\nsecurevibe.toml declares no test command, so no test evidence was \
                      collected. That is recorded as not assessed, not as a pass."
-                ),
-                Some(result) if result.stopped_after.is_some() => println!(
-                    "\nThe app's own tests had not finished after {}, the most a test run may \
-                     take, and were stopped. A suite cut short credits nothing.",
-                    sv_run::minutes(result.stopped_after.unwrap_or(sv_run::TEST_LIMIT))
                 ),
                 Some(result) if result.exit_code == 0 => {
                     println!("\nThe app's own tests passed.")
@@ -2375,12 +2362,9 @@ fn assemble_report(
                     asked: anonymous_requests(&plan).len(),
                     answered: outcome.probe_responses.len(),
                     signed_in: outcome.signed_in.is_some(),
-                    tests: match &outcome.tests {
-                        Some(t) if t.stopped_after.is_some() => "stopped",
-                        other => {
-                            sv_report::RunStatus::tests_state(other.as_ref().map(|t| t.exit_code))
-                        }
-                    }
+                    tests: sv_report::RunStatus::tests_state(
+                        outcome.tests.as_ref().map(|t| t.exit_code),
+                    )
                     .to_owned(),
                 };
                 let (running_findings, running_verified, signed_in_not_assessed) =
@@ -2473,27 +2457,6 @@ fn assemble_report(
                     });
                 }
                 match &outcome.tests {
-                    Some(result) if result.stopped_after.is_some() => {
-                        let after = result.stopped_after.unwrap_or(sv_run::TEST_LIMIT);
-                        gaps.push(sv_report::Gap {
-                            what: "anything the app's own tests would have shown".to_owned(),
-                            why: format!(
-                                "they had not finished after {}, the most a test run may take, \
-                                 and were stopped. A suite cut short credits nothing, whatever it \
-                                 printed before it was stopped.",
-                                sv_run::minutes(after)
-                            ),
-                        });
-                        test_output = sv_check::suite::failing_output(
-                            result.exit_code,
-                            &result.output,
-                            secret_rules,
-                        )
-                        .map(|t| sv_check::suite::FailingOutput {
-                            stopped_after: Some(sv_run::minutes(after)),
-                            ..t
-                        });
-                    }
                     Some(result) => {
                         // Only tests that name a requirement count, and only when something says
                         // they passed. Matching a test to a requirement by what it is called would

@@ -4612,45 +4612,6 @@ asserts the sound rule claims a clean Python app on its own, then that beside a 
 query will not compile it claims nothing and the broken rule is named once for two files. Rerun, the
 breaks are caught by two, two, and three tests.
 
-## A release profile: the binary is grammars, not code (28 September 2026)
-
-Review item 10 said `Cargo.toml` sets no release profile, the binary is 35.6 MB, and the usual
-settings for a shipped tool (`lto`, `codegen-units = 1`, `strip = true`) "typically halve the size".
-Measured before anything was changed, that expectation was for a different kind of program. A clean
-release build of `sv` on the owner's Mac takes about 40 s and gives a 35.7 MB binary, of which 4.9 MB
-is code (`__text`) and 27.2 MB is constant data (`__const`). The constants are the parse tables of the
-fifteen tree-sitter grammars: compiled, their libraries total 34.9 MB, C# alone 5.6 MB, Swift 5.3, C++
-3.8, Kotlin 3.6, TypeScript 3.4. The JSON compiled in is two small files (the breached-password
-evidence and the ATLAS references); the frameworks and the rules are read from `data/` when `sv` runs.
-Nothing a compiler setting does to the code can halve a binary that is four-fifths tables.
-
-**Measured**, each a clean build, the same commit, seven runs of each binary on the same inputs,
-median:
-
-| Profile | Binary | Clean build | `sv check`, five-file app | `sv check`, this repository |
-|---|---|---|---|---|
-| None (before) | 35.7 MB | 41 s | 45 ms | 1608 ms |
-| `lto`, `codegen-units = 1`, `strip` | 33.3 MB | 71 s | 43 ms | 1607 ms |
-| `strip` only (chosen) | 34.5 MB | 30 s | 45 ms | 1606 ms |
-
-Link-time optimization took 1.4 MB more off than stripping alone and made every clean build, on CI and
-in the Docker image, half a minute longer, for no change in speed anyone could measure. The time `sv`
-spends is in tree-sitter and in reading files, not in calls between crates, which is what link-time
-optimization removes. So the profile keeps `strip = true`, which costs nothing, and nothing else. The
-difference between 41 s and 30 s for the two builds without it is the variance of a clean build, not a
-gain. Panics still unwind: `sv-run` tears a run's containers down in a `Drop`, which `panic = "abort"`
-would skip.
-
-**What would make it smaller.** Only fewer grammars, or the grammars loaded from files beside the
-binary instead of compiled into it. Both are product decisions, not build settings: `sv` checks an app
-in any of the fifteen languages without being told which, and the Docker image and the "download
-later" packaging carry `data/` already, so grammars on disk are possible. Neither is proposed here; 35
-MB is a small download, and a smaller one was the whole of the item's reason.
-
-**What holds it.** Nothing to break: a profile is not a check, and there is no test that reads
-`Cargo.toml`. CI's image job builds the release binary and drives it (`tools/image_smoke.py`), so a
-profile that produced a binary that does not run would fail there.
-
 ## The app's GitHub Actions workflows (27 September 2026)
 
 A workflow is code that runs with the repository's credentials, and the dangerous shapes are few and
@@ -4772,29 +4733,3 @@ GitHub fills a form's fields from the address only when the names match the fiel
 and fails if a name the link fills is not one of its fields. Tested with the link's contents and its
 encoding, the form's fields, both pages, an accepted risk offered nothing, and end to end through `sv
 report` and the MCP server. Eight breaks were made in turn, and each turned two or more tests red.
-
-## A run has an end, and Ctrl-C cleans up (28 September 2026)
-
-Review item 2 found that nothing bounded `sv run`: every Docker call waited as long as it took, the app's own
-test command included, so a suite that hung hung the whole run. And Ctrl-C left the run's containers and network
-behind, because a signal ends a Rust process without unwinding, so the teardown in `Teardown`'s `Drop` never ran.
-Both are fixed in `crates/sv-run/src/lib.rs`.
-
-- **Every Docker call has a limit: 20 minutes.** That is generous on purpose. `docker run` downloads an image it
-  does not have, which takes minutes on a slow connection; the point is that a run never waits forever, not
-  that it hurries. A call that runs out of time is stopped and reported like any other failed call.
-- **The app's own tests get 10 minutes.** A suite stopped at the limit credits nothing, whatever it printed. The
-  report says it was stopped and after how long, not that it failed, and shows the last lines it printed, which is
-  where a hung suite shows how far it got.
-- **Stopping a command stops what it started.** Each command runs in a process group of its own, and the whole
-  group is stopped. Stopping only `sh -c` left its children running, still holding the output open, so the
-  run waited for them anyway; the first test of the limit found this.
-- **Ctrl-C is caught once a run begins.** It stops the Docker command in progress and refuses the next, so the
-  run returns and its teardown removes the containers and the network. The teardown's own calls still run after
-  Ctrl-C. `--slow`'s long waits end at Ctrl-C too. `sv` then says it was stopped, writes no report (what a run
-  got to before it was stopped is not a report of the app), and exits with 130, the usual code for Ctrl-C. A
-  second Ctrl-C ends `sv` at once, for someone who would rather clean up by hand than wait.
-
-Not covered: a run ended by something that cannot be caught, such as `kill -9`, or the computer shutting down,
-still leaves its containers. Their names start with `sv-` and the process number, and
-`docker ps -a --filter name=sv-` lists them.

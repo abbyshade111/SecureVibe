@@ -65,8 +65,7 @@ test that talks to it the way the tool does, not yet in the app itself.
   `which docker` in a terminal prints yours. With Docker Desktop it is often `/usr/local/bin/docker`.
 - The first time you open the folder, the tool asks whether to use the new server. Say yes.
 - On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
-  files it writes are yours. Without it the image runs as a user of its own, never root, and that user
-  cannot write into your folder. On a Mac, Docker Desktop makes what it writes yours either way.
+  files it writes are yours rather than root's.
 
 ### VS Code (GitHub Copilot)
 
@@ -131,8 +130,7 @@ docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/s
 docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv rules .
 ```
 
-On Linux, add `--user "$(id -u):$(id -g)"` after `docker run` in each line, for the same reason as
-above. The last one writes the security rules for your tool into `AGENTS.md` in the app's folder, which many
+The last one writes the security rules for your tool into `AGENTS.md` in the app's folder, which many
 tools read on their own; see "Rules your AI coding tool follows while it codes" in the README.
 
 ## 4. Start the build with this prompt

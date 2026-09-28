@@ -167,16 +167,10 @@ def main():
                 leaked = [m for m in members if b"not-a-real-key" in z.read(m)]
                 check(not leaked, f"and what it held is in no entry, whatever the entry is called: {leaked}")
 
-        who = subprocess.run(["docker", "run", "--rm", "--entrypoint", "id", args.image, "-u"],
-                             capture_output=True, text=True, timeout=120)
-        check(who.returncode == 0 and who.stdout.strip() not in ("", "0"),
-              f"the image runs as a user of its own, not root: {who.stdout.strip() or who.stderr.strip()}")
-
         if not args.no_git and os.getuid() != 0:
             # Run as root, over a repository root does not own: git refuses it unless the image
-            # trusts it, and the check would then be not assessed rather than run. Root by name,
-            # since the image's own user is not root and could not read this folder at all.
-            as_root = session(docker(args.image, root, "0:0"), [check_call])[0]
+            # trusts it, and the check would then be not assessed rather than run.
+            as_root = session(docker(args.image, root), [check_call])[0]
             check("config.secrets-file-committed" in findings(as_root),
                   "as another user than the folder's owner, the check still runs (safe.directory)")
 

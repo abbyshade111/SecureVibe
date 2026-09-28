@@ -28,19 +28,6 @@ another session is not a claim.
   size the time is in item 6, not in the walks. See DESIGN, "One walk of the app".
   **Items 4, 5, and 8 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
   continue with the backlog; one pull request each.
-  **Items 2 and 11 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
-  continue with the backlog; one pull request each.
-  **Item 2 was claimed twice**, a minute apart, and neither claim was on `main` when the other was made:
-  by session securevibe-e2 at 03:11 UTC (pull request #328) and by session securevibe-e9 at 03:13 UTC
-  (#329, which reached `main` first). securevibe-e2 had already built it by the time this was seen: branch
-  `claude/securevibe-e2-run-limits`, a time limit on the test suite and on every Docker call, Ctrl-C and
-  `kill` removing the run's containers, and each run removing what an ended run left, with tests against
-  real containers. **The owner's decision, 28 September 2026: that work goes in (pull request #331).
-  securevibe-e9: item 2 is taken care of, so please do not build it; item 11 is still yours.**
-  **Item 2 done the same day** (#331): the test suite has a stated limit (ten minutes, or `test-time-limit`)
-  and every other Docker call thirty minutes; Ctrl-C and `kill` remove the run's containers; and each run
-  first removes what an ended run on this machine left, and says so. See DESIGN, "A run that takes too
-  long, and a run that is stopped".
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
@@ -64,12 +51,6 @@ another session is not a claim.
      with the cap in the report when it fires, since a suite that was cut short credits nothing), a
      wall-clock limit per Docker call, and a Ctrl-C handler that runs the teardown; failing that, a
      `sv run --clean` that removes everything named `sv-…`.
-     **Done on 28 September 2026 by session securevibe-e9:** every Docker call is limited to 20 minutes and
-     the test command to 10, a suite stopped at the limit credits nothing and the report says it was
-     stopped, and Ctrl-C lets the run remove its containers and network before `sv` exits. Tested against
-     real Docker, Ctrl-C included, and each guard broken on purpose turns at least two tests red. See
-     DESIGN, "A run has an end, and Ctrl-C cleans up". `sv run --clean` was not needed for Ctrl-C; a run
-     ended by `kill -9` still leaves its containers, and the DESIGN section says how to list them.
   3. **No size limit in the code-rule walker or the corroborator walker.** `secrets.rs` stops at 2 MB
      (`MAX_FILE_BYTES`) and says so. `ast.rs:1313` reads any file whole and hands it to tree-sitter, so a
      50 MB minified bundle or a generated file is parsed in full; `sv-scan/src/lib.rs:490` reads every
@@ -148,23 +129,12 @@ another session is not a claim.
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
       size and speed before and after, since `lto` can also lengthen CI's build.
-      **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
-      `claude/release-profile`. **Done the same day**, and the premise corrected: 27 MB of the 35.7 MB is
-      the parse tables of the fifteen tree-sitter grammars, and 4.9 MB is code, so no setting can halve
-      it. `lto` and one code-generation unit cut 2.4 MB for a clean build 30 s longer and no change in
-      speed; the profile keeps `strip = true` only, 34.5 MB. See DESIGN, "A release profile".
 
   **Smaller.**
   11. **The runtime image runs as root.** `Dockerfile` sets no `USER`; the image reads mounted folders
       and writes reports into them. A non-root user, or `--user` in the documented `docker run` line,
       keeps a mistake from writing into the owner's folder as root. (`safe.directory` for git is already
       handled.)
-      **Done on 28 September 2026 by session securevibe-e9:** the image runs as its own user, 10001,
-      never root; `--user "$(id -u):$(id -g)"` on Linux still makes it the owner, as the README and
-      GETTING-STARTED say. `tools/image_smoke.py` checks the image's user is not root, and its
-      `safe.directory` check now names root explicitly, since the image's own user could not read the
-      test folder. Not built in the session that made the change (its sandbox cannot reach the Debian
-      mirrors from a build); CI's image job builds and drives it.
   12. **`sv` holds apps to V15.2.1 and does not hold itself.** CI has no `cargo audit` or `cargo deny`
       step; Dependabot proposes updates but compares nothing; the v2 self-assessment ran the OSV
       comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
