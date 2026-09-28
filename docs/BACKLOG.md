@@ -9,6 +9,18 @@ another session is not a claim.
 
 ## Next
 
+- **Say in `report.json` what was examined, in a form a program can read.** **Claimed on 28 September 2026 by
+  session cato-examined**, at the owner's asking.
+  `report.json` says what was not examined only in sentences: `gaps`, and the SARIF's `sv.not-examined`
+  notices. A program that reads it cannot tell a finding that was fixed from one nobody looked for this time.
+  The owner's cato-pipeline turns `sv` findings into a plan of action and closes an item when its finding stops
+  appearing, so a tool that did not run, a check that could not read what it needed, or code rules silenced by an
+  unparsed language would each close items that were never fixed. Plan: an `examined` list in `report.json`,
+  one entry per family of findings (a `rule_id` prefix: each outside tool, `sv`'s code rules, each check that could
+  not run, known vulnerabilities, the running app), each `ran` or `not-run` with the reason the gap already gives,
+  filled where those gaps are decided, and a test for each source that fails when its entry is wrong. Touches
+  `sv-report` (the field), `sv-cli` (filling it), and `docs/DESIGN.md`.
+
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.
   1. **What coordinating several AI sessions cost, and what it bought:** claims, merge conflicts, duplicated work,
