@@ -104,6 +104,15 @@ another session is not a claim.
      (`common_format`, `timestamp`, `has_place`, lines 231-320), `ai.rs:1080` one per (line, word) pair,
      `secrets.rs:268` and `:331` one per file, `signed_in.rs:4336-4355` one per page. `probes.rs:1222`
      shows the fix: a `LazyLock` static, compiled once.
+     **Done on 28 September 2026 by session securevibe-e9:** every fixed pattern in `logs.rs`,
+     `secrets.rs`, and `signed_in.rs` is a `LazyLock` static, and `ai.rs`'s `has_word` matches a word
+     by hand, since its words include the run's own token counts. A test holds `has_word` to the
+     pattern it replaced, on lines with capitals, accented letters, and emoji. Timed with a release
+     build on the same inputs, before and after: reading 20,000 lines of an app's output for the AI
+     checks, 16.7 s to 0.05 s; the log checks 200 times over, 0.42 s to 0.004 s; the credential scan
+     of 2,000 small files, 3.4 s to 0.04 s; redacting a failing test's output 2,000 times, 0.29 s to
+     0.05 s. The first was the only one a person would have waited on, and only for an app that writes
+     a lot while it runs.
   9. **The reports are large for what they say.** For the five-file example: `compliance.md` 160 KB,
      `report.html` 191 KB, `report.json` 367 KB, because each of about six hundred requirements carries
      its full text in every rendering, applicable or not. For a person the HTML is fine. For the AI tool

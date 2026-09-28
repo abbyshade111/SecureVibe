@@ -27,6 +27,8 @@
 //! half-credit this project exists to refuse.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
+use regex::Regex;
+use std::sync::LazyLock;
 
 /// The strings the probes planted, and what each one would prove.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -228,11 +230,13 @@ pub(crate) fn common_format(line: &str) -> Option<&'static str> {
     {
         return Some("JSON");
     }
-    let clf = regex::Regex::new(
-        r#"^\S+ \S+ \S+ \[\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\] "[A-Z]+ \S+[^"]*" \d{3} "#,
-    )
-    .expect("valid pattern");
-    if clf.is_match(&format!("{trimmed} ")) {
+    static CLF_LINE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r#"^\S+ \S+ \S+ \[\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}\] "[A-Z]+ \S+[^"]*" \d{3} "#,
+        )
+        .expect("valid pattern")
+    });
+    if CLF_LINE.is_match(&format!("{trimmed} ")) {
         return Some("the common log format");
     }
     // logfmt: most of the line is `key=value`, and there are enough of them to be deliberate
@@ -297,19 +301,23 @@ struct Timestamp {
 /// (`2026-09-26T10:00:03Z`, `2026-09-26 10:00:03,123`) and the Apache and nginx common log format
 /// (`[26/Sep/2026:10:00:03 +0000]`).
 fn timestamp(line: &str) -> Option<Timestamp> {
-    let iso = regex::Regex::new(
-        r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(Z|[+-]\d{2}:?\d{2}| ?UTC\b)?",
-    )
-    .expect("valid pattern");
-    if let Some(c) = iso.captures(line) {
+    static ISO: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(Z|[+-]\d{2}:?\d{2}| ?UTC\b)?",
+        )
+        .expect("valid pattern")
+    });
+    static CLF: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2}( [+-]\d{4})?")
+            .expect("valid pattern")
+    });
+    if let Some(c) = ISO.captures(line) {
         return Some(Timestamp {
             text: c[0].trim().to_owned(),
             zoned: c.get(1).is_some(),
         });
     }
-    let clf = regex::Regex::new(r"\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2}( [+-]\d{4})?")
-        .expect("valid pattern");
-    clf.captures(line).map(|c| Timestamp {
+    CLF.captures(line).map(|c| Timestamp {
         text: c[0].to_owned(),
         zoned: c.get(1).is_some(),
     })
@@ -317,8 +325,9 @@ fn timestamp(line: &str) -> Option<Timestamp> {
 
 /// Whether a line says where a request came from or went to: an IP address, or a path.
 fn has_place(line: &str) -> bool {
-    let ipv4 = regex::Regex::new(r"\b\d{1,3}(?:\.\d{1,3}){3}\b").expect("valid pattern");
-    ipv4.is_match(line)
+    static IPV4: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\b\d{1,3}(?:\.\d{1,3}){3}\b").expect("valid pattern"));
+    IPV4.is_match(line)
         || line.contains("::1")
         || line.split_whitespace().any(|t| {
             t.trim_start_matches(|c: char| !c.is_ascii_alphanumeric() && c != '/')
