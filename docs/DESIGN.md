@@ -4805,3 +4805,18 @@ be read, on purpose. So the weekly job no longer audits the whole repository. It
 built from (the workspace's `Cargo.toml` and `Cargo.lock`, and each crate's `Cargo.toml`) to a folder of
 their own and audits that. The owner chose this on 28 September 2026: the choice of what is audited is
 made in a file a person reviews, where securevibe.toml could have made it quietly.
+
+## One vulnerability, once (28 September 2026)
+
+The same flaw is often published twice: as a GitHub advisory and as the ecosystem's own (a PyPI or RustSec
+record), each listing the other among its aliases. `sv` read each record as a vulnerability of its own, so
+`examples/flask-booking` had 39 known vulnerabilities that were 20.
+
+`audit_against` (`crates/sv-check/src/advisories.rs`) now groups the records a package matched by name: two
+are the same flaw when one's id or aliases name the other's, directly or through a third record, and a name
+listed on one side only is enough. Each group is one finding. Where the records disagree about how serious it
+is, the more serious rating wins, and a record with a CVSS vector `sv` can read wins over one without, since
+two ratings of one flaw that disagree are settled toward care. The finding's title names every id it goes by.
+
+Two records sharing a CVE are the same flaw under this rule, as they should be. Two records that share no name
+stay two findings, even if they describe the same flaw in different words: `sv` does not guess.

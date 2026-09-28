@@ -327,6 +327,7 @@ pub fn audit_against(
 
     for component in &sbom.components {
         let mut undecided = false;
+        let mut matched: Vec<&Advisory> = Vec::new();
         for advisory in database {
             if advisory.withdrawn.is_some() {
                 continue;
@@ -334,9 +335,7 @@ pub fn audit_against(
             for affected in &advisory.affected {
                 match matches(component, affected) {
                     Some(true) => {
-                        let due = due_for(advisory, time_frames, today);
-                        result.findings.push(finding_for(component, advisory, &due));
-                        result.due.insert(format!("advisory.{}", advisory.id), due);
+                        matched.push(advisory);
                         undecided = false;
                         break;
                     }
@@ -344,6 +343,29 @@ pub fn audit_against(
                     Some(false) => {}
                 }
             }
+        }
+        // One vulnerability, once: records that name each other (a GitHub advisory and the PyPI one
+        // for the same flaw, each listing the other as an alias) are one finding, from the record
+        // rated most serious, since two ratings of one flaw that disagree are settled toward care.
+        for twins in same_vulnerability(&matched) {
+            let advisory = twins
+                .iter()
+                .copied()
+                .min_by_key(|a| (seriousness(a), a.id.clone()))
+                .expect("a group is never empty");
+            let due = due_for(advisory, time_frames, today);
+            let mut finding = finding_for(component, advisory, &due);
+            let others: Vec<&str> = twins
+                .iter()
+                .filter(|a| a.id != advisory.id)
+                .map(|a| a.id.as_str())
+                .filter(|id| !advisory.aliases.iter().any(|x| x == id))
+                .collect();
+            if !others.is_empty() {
+                finding.title = format!("{} (also {})", finding.title, others.join(", "));
+            }
+            result.findings.push(finding);
+            result.due.insert(format!("advisory.{}", advisory.id), due);
         }
         if undecided {
             result
@@ -400,6 +422,40 @@ pub fn audit_against(
         ));
     }
     result
+}
+
+/// The records in `matched` grouped by the vulnerability they describe: two are the same when one's
+/// id or aliases name the other's id or aliases, directly or through a third.
+fn same_vulnerability<'a>(matched: &[&'a Advisory]) -> Vec<Vec<&'a Advisory>> {
+    let names = |a: &Advisory| -> BTreeSet<String> {
+        std::iter::once(a.id.clone())
+            .chain(a.aliases.iter().cloned())
+            .collect()
+    };
+    let mut groups: Vec<(BTreeSet<String>, Vec<&'a Advisory>)> = Vec::new();
+    for advisory in matched {
+        let mine = names(advisory);
+        let (mut joined, rest): (Vec<_>, Vec<_>) = groups
+            .into_iter()
+            .partition(|(known, _)| !known.is_disjoint(&mine));
+        let mut merged = (mine, vec![*advisory]);
+        for (known, members) in joined.drain(..) {
+            merged.0.extend(known);
+            merged.1.extend(members);
+        }
+        groups = rest;
+        groups.push(merged);
+    }
+    groups.into_iter().map(|(_, members)| members).collect()
+}
+
+/// How serious a record says its flaw is, for choosing between records of one flaw: its own CVSS
+/// rating, most serious first, and a record with no rating `sv` can read after every rated one.
+fn seriousness(advisory: &Advisory) -> (u8, Severity) {
+    match crate::cvss::severity_of(advisory.severity.iter().map(|s| s.score.as_str())) {
+        Some((severity, _)) => (0, severity),
+        None => (1, Severity::Medium),
+    }
 }
 
 fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding {
@@ -920,6 +976,73 @@ mod tests {
         );
         let result = audit(&sbom, &[advisory(LODASH), both(), pypi]);
         assert!(result.uncovered.is_empty(), "{result:?}");
+    }
+
+    /// A record about lodash below 4.17.20, with its own id, aliases, and CVSS vector.
+    fn lodash_record(id: &str, aliases: &[&str], vector: Option<&str>) -> Advisory {
+        let severity = vector
+            .map(|v| format!(r#","severity":[{{"type":"CVSS_V3","score":"{v}"}}]"#))
+            .unwrap_or_default();
+        let aliases: Vec<String> = aliases.iter().map(|a| format!("\"{a}\"")).collect();
+        advisory(&format!(
+            r#"{{"id":"{id}","aliases":[{}]{severity},"affected":[{{
+                "package":{{"ecosystem":"npm","name":"lodash"}},
+                "ranges":[{{"type":"ECOSYSTEM","events":[{{"introduced":"0"}},{{"fixed":"4.17.20"}}]}}]}}]}}"#,
+            aliases.join(",")
+        ))
+    }
+
+    const HIGH_VECTOR: &str = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N";
+    const LOW_VECTOR: &str = "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N";
+
+    #[test]
+    fn one_vulnerability_under_two_names_is_one_finding_rated_the_more_serious() {
+        let sbom = sbom_of(vec![component("lodash", "4.17.15", "npm")]);
+        let result = audit(
+            &sbom,
+            &[
+                // The more serious record sorts last by id, so choosing it is not an accident of order.
+                lodash_record("GHSA-1", &["CVE-1", "PYSEC-1"], Some(LOW_VECTOR)),
+                lodash_record("PYSEC-1", &["CVE-1", "GHSA-1"], Some(HIGH_VECTOR)),
+            ],
+        );
+        assert_eq!(result.findings.len(), 1, "{result:?}");
+        assert_eq!(result.findings[0].rule_id, "advisory.PYSEC-1");
+        assert_eq!(result.findings[0].severity, Severity::High);
+        assert!(result.findings[0].title.contains("GHSA-1"));
+        assert_eq!(result.due.len(), 1);
+
+        // The control: two vulnerabilities that share no name stay two.
+        let result = audit(
+            &sbom,
+            &[
+                lodash_record("GHSA-1", &["CVE-1"], Some(HIGH_VECTOR)),
+                lodash_record("GHSA-2", &["CVE-2"], Some(HIGH_VECTOR)),
+            ],
+        );
+        assert_eq!(result.findings.len(), 2, "{result:?}");
+    }
+
+    #[test]
+    fn names_join_through_a_third_record_and_one_sided_aliases_still_join() {
+        let sbom = sbom_of(vec![component("lodash", "4.17.15", "npm")]);
+        // A names B, C names B; A and C never name each other, and all three are one flaw.
+        let result = audit(
+            &sbom,
+            &[
+                lodash_record("A-1", &["B-1"], None),
+                lodash_record("C-1", &["B-1"], None),
+                lodash_record("B-1", &[], Some(HIGH_VECTOR)),
+            ],
+        );
+        assert_eq!(result.findings.len(), 1, "{result:?}");
+        // The one record with a rating `sv` can read is the one kept.
+        assert_eq!(result.findings[0].rule_id, "advisory.B-1");
+        let title = &result.findings[0].title;
+        assert!(
+            title.contains("B-1") && title.contains("A-1") && title.contains("C-1"),
+            "every name it goes by is in the finding: {title}"
+        );
     }
 
     #[test]

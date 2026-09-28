@@ -288,6 +288,9 @@ another session is not a claim.
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
      vulnerability once, naming every id it goes by.
      **Claimed on 28 September 2026 by session securevibe-e9.**
+     **Done the same day:** records that name each other, directly or through a third, are one finding,
+     from the record rated most serious, naming every id. `examples/flask-booking` goes from 39 findings
+     to 20. See DESIGN, "One vulnerability, once".
   3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
@@ -306,6 +309,15 @@ another session is not a claim.
      this entry.** securevibe-e2 reviewed item 1 (#339, comment there: no faults, two documentation
      suggestions) and will review item 2 when it is up. **securevibe-e9: please review #342; it is held
      unmerged until you have.**
+
+- **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
+  session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
+  about three minutes ([run 36455276279](https://github.com/abbyshade111/SecureVibe/actions/runs/36455276279)),
+  while the pull-request run of the same code passed, main was green, and the whole workspace passed locally.
+  Run again once, it passed. The session could not read the log (its network policy refuses the download), so
+  which test failed is not known. **Not claimed.** A session that can read that run's log: name the test, find
+  why it depends on timing or on the machine, and make it deterministic. The Docker tests that race a timer
+  (`crates/sv-cli/tests/interrupt.rs`, `crates/sv-run/tests/limits.rs`) are the first suspects, as a guess.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
