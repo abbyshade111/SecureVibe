@@ -341,6 +341,10 @@ another session is not a claim.
       change to a check lands in the same file, which is where this week's merge conflicts were. Split by
       check (sign-in, sessions, admin, passwords, uploads, flows, codes) with the fake app as a test
       module of its own. No behavior changes; the 231 tests are the guard.
+      **Done on 28 September 2026, and the freeze is lifted:** `crates/sv-check/src/signed_in/` is fourteen
+      files, none over 2,001 lines, with the same 233 tests; see DESIGN, "The signed-in checks, one file per
+      area". The changes waiting on the freeze (securevibe-e9's V14.2.2 and V8.2.3, and the nine signed-in
+      partial checks) can go ahead, each in its area's file.
 
       **The owner asked on 28 September 2026 for this to be shared across several sessions.** The plan
       below is by session securevibe-e9, from the file as it stood on `main` that day: 15,463 lines,
@@ -495,7 +499,24 @@ another session is not a claim.
         `MOST_UPLOAD_BYTES` came along, since only upload code uses it. `with_signup` stays in `mod.rs`'s
         tests, shared by several areas, and is `pub(super)` so a slice's tests can `use
         super::super::tests::with_signup`; other shared test helpers can be reached the same way.
-      - Step 2: not claimed.
+      - Step 2: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking, in branch
+        `claude/securevibe-e2-split-step2`: `codes.rs` split in two, `mod.rs` tidied, a DESIGN section, and
+        this item marked done, which lifts the freeze.
+        **Done the same day.** `codes.rs` was split in four rather than two: two-factor out alone would have
+        left 2,700 lines, past the 2,500 checked for, so it is split by area into `reset.rs` (692 lines),
+        `activation.rs` (614), `totp.rs` (592), and `codes.rs` (1,426, the emailed sign-in code and what the
+        three email flows share). Each moved check, made to return at once, turns the tests in its new file
+        red. `mod.rs` (1,471) lost two headings with nothing under them and gained a map of the files at its
+        top, and DESIGN has the same map. Final lines: `mod.rs` 1,471, `fake_app.rs` 1,609, `rules.rs` 664,
+        `signin.rs` 1,140, `sessions.rs` 2,001, `passwords.rs` 1,954, `reset.rs` 692, `codes.rs` 1,426,
+        `activation.rs` 614, `totp.rs` 592, `admin.rs` 1,034, `forgery.rs` 777, `flows.rs` 371, `uploads.rs`
+        1,261; 15,606 in all, against 15,463 before. The difference is the new `mod`, `use`, and test-module
+        lines, blank lines between moved blocks, and the map, less the two headings. Tests: the same 233. Found on the way: `tools/pwned_passwords.py` still read the breached
+        password from `signed_in.rs`, which has not existed since step 0, and matched only `const BREACHED`,
+        not `pub(super) const BREACHED`; it has no test, so it would have failed the next time it was run.
+        Both fixed, and the reading part run to show it finds the password the evidence file records.
+        `docs/PARTIAL-CHECKS.md` still names `signed_in.rs` in about sixty places; left as it is, since the
+        name still points at the folder and securevibe-e9's open work edits that file.
 
 - **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
   September 2026 by session securevibe-e9, doing review item 12. **Not claimed; each can be claimed on its
