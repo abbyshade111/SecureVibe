@@ -115,6 +115,8 @@ fn quoted(text: &str) -> String {
 pub struct Server {
     /// The folder every path is resolved against, canonical.
     root: PathBuf,
+    /// The frameworks and rules, loaded when the server starts and shared by every call.
+    loaded: crate::Loaded,
 }
 
 /// Runs the server on stdin and stdout until stdin closes.
@@ -153,7 +155,10 @@ impl Server {
             .canonicalize()
             .with_context(|| format!("the folder {} cannot be opened", root.display()))?;
         anyhow::ensure!(root.is_dir(), "{} is not a folder", root.display());
-        Ok(Server { root })
+        Ok(Server {
+            root,
+            loaded: crate::Loaded::load()?,
+        })
     }
 
     /// One line of input to at most one line of output. Notifications get none.
@@ -215,7 +220,7 @@ impl Server {
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
         let result = match name {
             "securevibe_spec" => Ok(spec()),
-            "securevibe_explain" => explain(&args),
+            "securevibe_explain" => explain(&self.loaded.frameworks, &args),
             "securevibe_check" => self.check(&args),
             "securevibe_write_report" => self.write_report(&args),
             "securevibe_bundle" => self.bundle(&args),
@@ -279,6 +284,7 @@ impl Server {
                     at_a_terminal(&app_dir.to_string_lossy(), "--advisories DIR")
                 ),
             },
+            &self.loaded,
         )
     }
 
@@ -623,13 +629,11 @@ fn spec() -> Value {
     })
 }
 
-fn explain(args: &Value) -> Result<Value> {
+fn explain(frameworks: &sv_frameworks::Frameworks, args: &Value) -> Result<Value> {
     let id = args
         .get("id")
         .and_then(Value::as_str)
         .context("securevibe_explain needs an id")?;
-    let data = crate::data_dir()?;
-    let frameworks = crate::load_frameworks(&data)?;
     let r = frameworks
         .get(id)
         .with_context(|| format!("{id} is not a requirement in any loaded framework"))?;
@@ -1032,6 +1036,7 @@ mod tests {
                 advisories: None,
                 why_no_advisories: String::new(),
             },
+            &crate::Loaded::load().unwrap(),
         )
         .unwrap();
         assert_eq!(
@@ -1543,11 +1548,12 @@ mod tests {
 
     #[test]
     fn explain_gives_the_frameworks_own_words_and_the_level_basis() {
-        let result = explain(&json!({ "id": "SBD-DM-01" })).unwrap();
+        let frameworks = crate::Loaded::load().unwrap().frameworks;
+        let result = explain(&frameworks, &json!({ "id": "SBD-DM-01" })).unwrap();
         let t = text(&result);
         assert!(t.contains("level 2, as V14.1.1"), "{t}");
         assert!(t.contains("V14.1.2"), "{t}");
-        assert!(explain(&json!({"id": "not-a-requirement"})).is_err());
+        assert!(explain(&frameworks, &json!({"id": "not-a-requirement"})).is_err());
     }
 
     /// A folder holding one app, with a secret in it and a manifest, for the bundle tool.

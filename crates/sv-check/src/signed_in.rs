@@ -21,7 +21,9 @@
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::probes::{ProbeRequest, ProbeResponse};
+use regex::Regex;
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 
 /// Something that can put a request to the running app and bring back its answer.
@@ -4364,11 +4366,13 @@ fn same_shape(text: &str, address: &str) -> String {
     ] {
         text = text.replace(&written, "{user}");
     }
-    let values = regex::Regex::new(r#"(?i)value\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)"#)
-        .expect("a fixed pattern");
-    let long = regex::Regex::new(r"[A-Za-z0-9_-]{16,}").expect("a fixed pattern");
-    let text = values.replace_all(&text, "value");
-    long.replace_all(&text, "#").into_owned()
+    static VALUES: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"(?i)value\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)"#).expect("a fixed pattern")
+    });
+    static LONG: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"[A-Za-z0-9_-]{16,}").expect("a fixed pattern"));
+    let text = VALUES.replace_all(&text, "value");
+    LONG.replace_all(&text, "#").into_owned()
 }
 
 /// A password hint or a secret question on a page, in the page's words or a field's name.
@@ -4376,22 +4380,26 @@ fn same_shape(text: &str, address: &str) -> String {
 /// Only ever a finding: a page with none of these words can still ask for one in a way no list of
 /// phrases foresees, and the same page may be one step of several.
 fn password_hint(body: &str) -> Option<String> {
-    let words = regex::Regex::new(
-        r"(?i)\b(security question|secret question|password hint|mother'?s maiden name|name of your first pet|first pet'?s name|what city were you born)\b",
-    )
-    .ok()?;
-    if let Some(m) = words.find(body) {
+    static WORDS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"(?i)\b(security question|secret question|password hint|mother'?s maiden name|name of your first pet|first pet'?s name|what city were you born)\b",
+        )
+        .expect("a fixed pattern")
+    });
+    static NAMES: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"(?i)^(password_?hint|hint|security_?question|secret_?question|security_?answer|secret_?answer)$",
+        )
+        .expect("a fixed pattern")
+    });
+    if let Some(m) = WORDS.find(body) {
         return Some(format!("\"{}\"", m.as_str()));
     }
-    let names = regex::Regex::new(
-        r"(?i)^(password_?hint|hint|security_?question|secret_?question|security_?answer|secret_?answer)$",
-    )
-    .ok()?;
     ["input", "select", "textarea"]
         .iter()
         .flat_map(|t| tags(body, t))
         .filter_map(|tag| attribute(&tag, "name"))
-        .find(|name| names.is_match(name))
+        .find(|name| NAMES.is_match(name))
         .map(|name| format!("a field named `{name}`"))
 }
 

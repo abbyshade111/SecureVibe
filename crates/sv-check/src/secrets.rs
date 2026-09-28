@@ -19,6 +19,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::LazyLock;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -265,11 +266,12 @@ pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding
 /// an English word or an identifier.
 fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
     // name = "value" / name: 'value' / NAME=value — the shapes an assignment takes across languages.
-    let assignment =
+    static ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r#"(?m)([A-Za-z_][A-Za-z0-9_.\-]*)\s*[:=]\s*["']([^"'\n]{8,200})["']"#)
-            .expect("static pattern");
+            .expect("static pattern")
+    });
     let mut out = Vec::new();
-    for caps in assignment.captures_iter(text) {
+    for caps in ASSIGNMENT.captures_iter(text) {
         let name = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
         let value_match = caps.get(2).expect("group 2 is not optional");
         let value = value_match.as_str();
@@ -330,11 +332,13 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
             }
         }
     }
-    let named = Regex::new(
-        r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"',;&]+))"#,
-    )
-    .expect("static pattern");
-    for caps in named.captures_iter(text) {
+    static NAMED: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"',;&]+))"#,
+        )
+        .expect("static pattern")
+    });
+    for caps in NAMED.captures_iter(text) {
         let name = caps.get(1).map_or("", |m| m.as_str());
         let Some(value) = caps.get(2).or(caps.get(3)).or(caps.get(4)) else {
             continue;

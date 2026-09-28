@@ -1076,12 +1076,22 @@ const CAUGHT: &[&str] = &[
 /// Words that name the attack itself, which nothing else in a run could have made the app write.
 const NAMED: &[&str] = &["injection", "jailbreak", "prompt attack", "prompt-attack"];
 
+/// Whether `word` is on `line`, in any case, with no letter or digit either side of it. Matched by
+/// hand rather than with a pattern, which would be compiled once per line and word: this runs over
+/// every line of the app's output.
 fn has_word(line: &str, word: &str) -> bool {
-    regex::Regex::new(&format!(
-        r"(?i)(^|[^a-z0-9]){}([^a-z0-9]|$)",
-        regex::escape(word)
-    ))
-    .is_ok_and(|p| p.is_match(line))
+    let joined = |c: Option<char>| c.is_some_and(|c| c.is_ascii_alphanumeric());
+    !word.is_empty()
+        && line.char_indices().any(|(i, _)| {
+            if joined(line[..i].chars().next_back()) {
+                return false;
+            }
+            let mut rest = line[i..].chars();
+            word.chars().all(|w| {
+                rest.next()
+                    .is_some_and(|c| c.to_lowercase().eq(w.to_lowercase()))
+            }) && !joined(rest.next())
+        })
 }
 
 /// Reads the app's output for the AI feature's own records, adding to what `run` found.
@@ -1223,6 +1233,48 @@ mod tests {
     use super::*;
     use crate::probes::ProbeResponse;
     use std::collections::BTreeMap;
+
+    /// The pattern `has_word` replaced, compiled per call, kept here to hold the two to the same answers.
+    fn has_word_by_pattern(line: &str, word: &str) -> bool {
+        regex::Regex::new(&format!(
+            r"(?i)(^|[^a-z0-9]){}([^a-z0-9]|$)",
+            regex::escape(word)
+        ))
+        .is_ok_and(|p| p.is_match(line))
+    }
+
+    #[test]
+    fn has_word_answers_as_the_pattern_it_replaced_did() {
+        let lines = [
+            "",
+            "blocked",
+            "BLOCKED: prompt injection detected",
+            "request unblocked by admin",
+            "blocked2 blocked_ -blocked- (blocked)",
+            "Prompt-Attack found; jailbreaking is not jailbreak",
+            "tokens in=1234 out=56 model=gpt-4o",
+            "in=12345 out=560",
+            "x1234 1234x 1234",
+            "café refusé, é refused é",
+            "prompt  attack",
+            "openai.com anthropic",
+            "\u{1F600}flagged\u{1F600}",
+            "ﬂagged",
+        ];
+        let mut words: Vec<&str> = CAUGHT.iter().chain(NAMED).copied().collect();
+        words.extend(PROVIDERS);
+        words.extend(["1234", "56", "560", "é", "refusé", "gpt-4o", "anthropic"]);
+        let mut matched = 0;
+        for line in lines {
+            for word in &words {
+                let expected = has_word_by_pattern(line, word);
+                assert_eq!(has_word(line, word), expected, "{word:?} in {line:?}");
+                matched += usize::from(expected);
+            }
+        }
+        // The control: the lines are not all misses, so agreeing is not agreeing on "no".
+        assert!(matched >= 15, "only {matched} matches");
+    }
 
     /// What the fake app gets wrong, or does differently, one switch each.
     #[derive(Default, Clone, Copy)]
@@ -2460,6 +2512,21 @@ mod tests {
     #[test]
     fn a_line_naming_the_attack_counts_without_the_tag() {
         let o = read("2026-09-26T10:00:03Z WARN possible jailbreak attempt from user 42");
+        assert!(credited(&o).contains(&INJECTION_LOGGED), "{:?}", o.steps);
+    }
+
+    #[test]
+    fn words_are_matched_whole_and_in_any_case() {
+        // A number that starts with a count is not the count.
+        let o =
+            read("level=info latency_ms=43210 bytes=12345 provider=openai op=chat model=gpt-test");
+        assert!(!credited(&o).contains(&CALL_LOG.rule_id), "{:?}", o.steps);
+        // A word that starts with an attack's name is not it; the name in capitals is.
+        let o = read("2026-09-26T10:00:03Z INFO jailbreaking guide viewed");
+        assert!(!credited(&o).contains(&INJECTION_LOGGED), "{:?}", o.steps);
+        let o = read("2026-09-26T10:00:03Z WARN JAILBREAK attempt from user 42");
+        assert!(credited(&o).contains(&INJECTION_LOGGED), "{:?}", o.steps);
+        let o = read("2026-09-26T10:00:03Z WARN Blocked message abc123");
         assert!(credited(&o).contains(&INJECTION_LOGGED), "{:?}", o.steps);
     }
 

@@ -91,6 +91,12 @@ another session is not a claim.
      every regex, each time it runs; `securevibe_explain` reloads the frameworks per call (`mcp.rs:632`).
      The `Server` struct holds only its root. Fix: load once per process, in `Server` for the MCP server
      and at the top of `main` for the CLI, and measure the difference; most of the second above is this.
+     **Claimed 27 September 2026 by session securevibe-e8**, at the owner's asking, in branch
+     `claude/load-once`. **Done the same day**, and the premise corrected: the JSON was 5 ms of the
+     second, and 873 ms was tree-sitter compiling 143 queries in fifteen languages for every command.
+     Queries now compile the first time their language is met and are kept for the process; the MCP
+     server loads everything once in `Server`. `sv check` on a small app 957 ms → 30 ms; on this
+     repository 2.33 s → 1.93 s. See DESIGN, "The second before the first file".
   7. **The app folder is walked six times per report, the bill of materials is built two or three
      times, and every source file is lowercased once per signature.** The walks: secrets, the code
      rules, the corroborators, the tools' file list, the test finder, and the ecosystems. `sbom::build`
@@ -104,6 +110,15 @@ another session is not a claim.
      (`common_format`, `timestamp`, `has_place`, lines 231-320), `ai.rs:1080` one per (line, word) pair,
      `secrets.rs:268` and `:331` one per file, `signed_in.rs:4336-4355` one per page. `probes.rs:1222`
      shows the fix: a `LazyLock` static, compiled once.
+     **Done on 28 September 2026 by session securevibe-e9:** every fixed pattern in `logs.rs`,
+     `secrets.rs`, and `signed_in.rs` is a `LazyLock` static, and `ai.rs`'s `has_word` matches a word
+     by hand, since its words include the run's own token counts. A test holds `has_word` to the
+     pattern it replaced, on lines with capitals, accented letters, and emoji. Timed with a release
+     build on the same inputs, before and after: reading 20,000 lines of an app's output for the AI
+     checks, 16.7 s to 0.05 s; the log checks 200 times over, 0.42 s to 0.004 s; the credential scan
+     of 2,000 small files, 3.4 s to 0.04 s; redacting a failing test's output 2,000 times, 0.29 s to
+     0.05 s. The first was the only one a person would have waited on, and only for an app that writes
+     a lot while it runs.
   9. **The reports are large for what they say.** For the five-file example: `compliance.md` 160 KB,
      `report.html` 191 KB, `report.json` 367 KB, because each of about six hundred requirements carries
      its full text in every rendering, applicable or not. For a person the HTML is fine. For the AI tool
