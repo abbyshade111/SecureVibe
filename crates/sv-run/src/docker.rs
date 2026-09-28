@@ -332,7 +332,34 @@ impl Backend for DockerBackend {
                 .docker(&["logs", "--tail", "20", &app])
                 .map(|(_, o)| o)
                 .unwrap_or_default();
+            // Whether the app had anything to start: the same folder, mounted the same way into a
+            // container of the small image the probes already use, listed. Asked only here, so a
+            // run that works pays nothing for it.
+            let inside = self
+                .docker(&[
+                    "run",
+                    "--rm",
+                    "--network",
+                    "none",
+                    "--read-only",
+                    "--cap-drop",
+                    "ALL",
+                    "--security-opt",
+                    "no-new-privileges",
+                    "-v",
+                    &mount,
+                    PROBE_IMAGE,
+                    "ls",
+                    "-A",
+                    "/app",
+                ])
+                .ok()
+                .filter(|(code, _)| *code == 0)
+                .map(|(_, listed)| listed);
             drop(guard);
+            if let Some(unseen) = crate::unseen_folder(&plan.app_dir, inside.as_deref()) {
+                return Err(unseen);
+            }
             return Err(CannotRun::NeverReady {
                 waited_seconds: READY_TIMEOUT_SECONDS,
                 detail: format!("Its last output was: {}", first_line(&logs)),

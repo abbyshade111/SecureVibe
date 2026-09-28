@@ -55,6 +55,10 @@ pub enum CannotRun {
     BackendFailed { detail: String },
     /// The app was started and never became healthy.
     NeverReady { waited_seconds: u64, detail: String },
+    /// The app's folder has files on this computer and arrived empty in the container: the
+    /// container backend cannot see it. Colima shares only the home folder by default, and Docker
+    /// mounts a folder it cannot see as a new, empty one without complaint.
+    AppFolderUnseen { folder: String },
 }
 
 impl CannotRun {
@@ -82,8 +86,28 @@ impl CannotRun {
                  {detail} This is reported as not assessed rather than as a failure: an app that \
                  will not start under `sv` has not been shown to be insecure."
             ),
+            CannotRun::AppFolderUnseen { folder } => format!(
+                "The app's folder, {folder}, has files on this computer, and inside the container \
+                 it was empty: the container backend cannot see that folder, so the app had nothing \
+                 to start. On a Mac with Colima, only your home folder is shared by default: move \
+                 the app under your home folder, or share its folder (`colima start --mount \
+                 {folder}:w`, or `mounts` in ~/.colima/default/colima.yaml). With Docker Desktop, \
+                 add it under Settings, Resources, File sharing. This is reported as not assessed: \
+                 nothing about the app was seen."
+            ),
         }
     }
+}
+
+/// Whether the app never answering is the backend not seeing its folder: `inside` is what `ls -A`
+/// listed in `/app` inside a container, or `None` when that could not be asked. Only an empty
+/// listing of a folder that has something in it on this computer counts.
+pub fn unseen_folder(app_dir: &Path, inside: Option<&str>) -> Option<CannotRun> {
+    let empty_inside = inside.is_some_and(|listed| listed.trim().is_empty());
+    let has_files = std::fs::read_dir(app_dir).is_ok_and(|mut entries| entries.next().is_some());
+    (empty_inside && has_files).then(|| CannotRun::AppFolderUnseen {
+        folder: app_dir.display().to_string(),
+    })
 }
 
 /// How to build, start and test the app, taken from the manifest and checked over.
@@ -790,5 +814,51 @@ mod tests {
                 "a reason must not read as a security verdict: {text}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod unseen_folder_tests {
+    use super::*;
+
+    fn scratch(name: &str, with_file: bool) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-unseen-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        if with_file {
+            std::fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn a_folder_with_files_that_is_empty_inside_is_named_as_unseen() {
+        // On Linux every folder is shared, so the container's side is a stand-in: told empty.
+        let dir = scratch("unseen", true);
+        let unseen = unseen_folder(&dir, Some("")).expect("empty inside, files here");
+        let said = unseen.explain();
+        assert!(said.contains(&dir.display().to_string()), "{said}");
+        assert!(
+            said.contains("Colima") && said.contains("not assessed"),
+            "{said}"
+        );
+        assert!(
+            !said.contains("never answered"),
+            "the app is not blamed: {said}"
+        );
+
+        // The controls: the files seen inside, the listing not asked, and an empty folder here.
+        assert!(unseen_folder(&dir, Some("app.py\n")).is_none());
+        assert!(
+            unseen_folder(&dir, None).is_none(),
+            "not knowing is not the same as empty"
+        );
+        let empty = scratch("empty", false);
+        assert!(
+            unseen_folder(&empty, Some("")).is_none(),
+            "a folder with nothing in it is empty everywhere"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::remove_dir_all(&empty).ok();
     }
 }

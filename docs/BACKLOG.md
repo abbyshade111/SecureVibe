@@ -551,6 +551,14 @@ another session is not a claim.
      (on Linux, where every folder is shared, this needs a stand-in, such as a folder the check is told is
      empty inside). **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to continue
      with the backlog.
+     **Done the same day:** when the app never answers, the run lists `/app` from a throwaway container of the
+     probes' own busybox image with the same mount (no network, read-only, no capabilities). Empty there while
+     the folder has files on this computer is `CannotRun::AppFolderUnseen`, which names the folder and Colima's
+     and Docker Desktop's sharing settings instead of blaming the app. Asked only on failure, so a run that
+     works pays nothing. `unseen_folder` in `crates/sv-run/src/lib.rs` is tested with the inside as a stand-in
+     (Linux shares every folder), with three controls; the existing never-starts test in
+     `crates/sv-run/tests/fence.rs` is the control that runs for real in CI, where the listing must see the
+     fixture's files and the reason must stay "never answered". Not tried on a Mac with Colima.
 
 - **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
   session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
