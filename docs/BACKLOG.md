@@ -277,6 +277,17 @@ another session is not a claim.
       - Step 0: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to pick
         another item, in branch `claude/securevibe-e2-split-step0`. `signed_in.rs` is frozen from this
         claim's merge until step 2 is done.
+        **Done the same day:** `signed_in/mod.rs` (13,192 lines), `signed_in/fake_app.rs` (1,609), and
+        `signed_in/rules.rs` (664, the `Rule` type, `finding`, and the sixty rules); the 233 tests are the
+        same set and all pass. Three things for step 1:
+        - `rules.rs` took only the rules. The password constants and helpers after them (`COMMON`,
+          `BREACHED`, `BREACHED_EVIDENCE`, `breached_seen_in`, `with_commas`, `long_date`, `random_like`,
+          `context_password`, `DEFAULT_ACCOUNTS`) stay in `mod.rs` for slices a and c to take.
+        - `BREACHED_EVIDENCE` is an `include_str!` with a path relative to its file; it gained a `../` when
+          the file moved down a folder, and keeps working from any file beside `mod.rs`.
+        - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
+          out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
+          only, and moving the rules down a folder made it lose every signed-in check.
       - Step 1: slices a to h, not claimed.
       - Step 2: not claimed.
 

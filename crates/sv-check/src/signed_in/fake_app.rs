@@ -1,0 +1,1609 @@
+use super::*;
+use std::collections::BTreeMap;
+
+/// A small app, run in memory, with every flaw this suite looks for switchable.
+///
+/// Sessions are server-side and named by a random-looking counter; notes belong to whoever made
+/// them. Each flag turns one protection off, so each rule can be shown to fire when its thing is
+/// broken and to stay quiet when it is not.
+#[derive(Default)]
+pub(super) struct FakeApp {
+    flaws: Flaws,
+    /// Sign-up emails an activation code, and sign-in waits for it.
+    pub(super) activation: bool,
+    /// Activation codes: code -> (account, used).
+    activation_codes: BTreeMap<String, (String, bool)>,
+    /// Accounts signed up and not yet activated.
+    not_activated: std::collections::BTreeSet<String>,
+    /// Seconds the clock moves on with each request. Zero, the default, stands it still
+    /// except during `wait`.
+    pub(super) seconds_per_request: u64,
+    /// Seconds a signed-in session may go unused, when this app ends idle sessions at all.
+    pub(super) idle_limit: Option<u64>,
+    /// Seconds a signed-in session may last, when this app limits that at all.
+    pub(super) lifetime_limit: Option<u64>,
+    /// Per session: when it was first seen signed in, and when it was last used.
+    session_times: BTreeMap<String, (u64, u64)>,
+    /// Whether `window_rolls_over_at_first_claim` has rolled over.
+    leaked_once: bool,
+    /// From this moment on the clock, every sign-in is refused, as by an app that went down.
+    pub(super) sign_ins_refused_from: Option<u64>,
+    /// Signing in ends every other session of the same user.
+    pub(super) one_session_per_user: bool,
+    /// Two-factor secrets, by user.
+    pub(super) totp: BTreeMap<String, Vec<u8>>,
+    /// Sessions past the password and waiting for a code: session id -> user.
+    pending: BTreeMap<String, String>,
+    /// The last time step each user's code was accepted for.
+    totp_last: BTreeMap<String, u64>,
+    /// Wrong codes given, by user, for `totp_locks`.
+    totp_wrong: BTreeMap<String, u32>,
+    /// The app's clock, in seconds since 1970. Waiting moves it on rather than sleeping.
+    pub(super) clock: u64,
+    /// How far each user has got through the checkout.
+    checkout: BTreeMap<String, u32>,
+    pub(super) users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
+    sessions: BTreeMap<String, String>,                 // session id -> user ("" = not signed in)
+    notes: Vec<(String, String)>,                       // (owner, text)
+    /// Announcements posted, newest last.
+    announcements: Vec<String>,
+    pub(super) next: u32,
+    /// Old passwords a change left working, under `change_keeps_old`.
+    kept: BTreeMap<String, String>,
+    /// What `Clear-Site-Data` the sign-out sends, when `clears_site_data` is set. `None` is
+    /// the correct value covering storage.
+    pub(super) clear_site_data_value: Option<String>,
+    /// Files the app has taken, by name.
+    uploads: BTreeMap<String, String>,
+    /// The largest file body the app was sent, accepted or not. This is how the size cap's
+    /// promise is made observable: the promise is about what is sent, and no finding says it.
+    pub(super) largest_upload: usize,
+    /// Wrong passwords in a row per account, counted only when `locks_out_after` is set.
+    failures: BTreeMap<String, u32>,
+    /// Every account a wrong password was tried against, always recorded. This is how the
+    /// brute-force check's promise not to guess at the test users is made observable: the
+    /// promise is about which account it attacks, and no step or finding says which.
+    pub(super) guessed_at: Vec<String>,
+    /// The exact `Cache-Control` a private page sends. `None` means the correct `no-store`,
+    /// so a test can set a value that only looks right without a flaw flag for each one.
+    pub(super) cache_control: Option<String>,
+    /// Every email the app has sent, as (to, text), oldest first.
+    pub(super) outbox: Vec<(String, String)>,
+    /// Reset codes handed out: code -> (account, used).
+    reset_codes: BTreeMap<String, (String, bool)>,
+    /// Sessions signed out, remembered for the WebSocket that forgets to check.
+    signed_out: std::collections::BTreeSet<String>,
+    /// Sign-in codes handed out: code -> (account, the session that asked, used).
+    sign_in_codes: BTreeMap<String, (String, String, bool)>,
+    /// Wrong sign-in codes per session.
+    code_failures: BTreeMap<String, u32>,
+    /// When each sign-in code was handed out, by the clock.
+    code_born: BTreeMap<String, u64>,
+    /// Whether the idle timeout ends sessions nobody has signed in to yet, too.
+    pub(super) anonymous_sessions_time_out: bool,
+}
+
+/// The fake app's own context-specific word, as an owner would list it in `context-words`.
+pub(super) const CONTEXT_WORD: &str = "acmenotes";
+
+#[derive(Default, Clone, Copy)]
+pub(super) struct Flaws {
+    pub(super) private_open: bool,
+    pub(super) admin_open: bool,
+    /// Any signed-in user can post an announcement, which only an admin should.
+    pub(super) admin_action_open: bool,
+    /// An announcement refused to an ordinary user is answered 200, as some apps do.
+    pub(super) admin_action_says_ok: bool,
+    /// Nobody's announcement is posted, the admin's included.
+    pub(super) admin_action_broken: bool,
+    /// Sign-up makes an admin of anybody who asks for it with `role=admin` or `is_admin=true`.
+    pub(super) signup_trusts_role: bool,
+    /// Any signed-in user can read any record.
+    pub(super) idor: bool,
+    /// Anybody at all can read any record.
+    pub(super) records_public: bool,
+    pub(super) no_csrf_check: bool,
+    /// The notes page sends `Referrer-Policy: no-referrer`. Not a flaw on its own.
+    pub(super) no_referrer: bool,
+    /// Creating a note refuses `Origin: null`, as a strict cross-site defense might.
+    pub(super) refuses_null_origin: bool,
+    pub(super) keep_session_at_login: bool,
+    pub(super) logout_keeps_session: bool,
+    pub(super) no_httponly: bool,
+    pub(super) broken_login: bool,
+    /// Sign-up takes a password shorter than 8 characters.
+    pub(super) short_password_ok: bool,
+    /// Sign-up takes a password from the common list.
+    pub(super) common_password_ok: bool,
+    /// Sign-up takes a password from far down the common list.
+    pub(super) breached_password_ok: bool,
+    /// Any step of the checkout can be taken first.
+    pub(super) flow_unguarded: bool,
+    /// The last step of the checkout needs the first, and not the one between.
+    pub(super) flow_checks_first_only: bool,
+    /// A refused checkout step says "Order placed" in its refusal.
+    pub(super) flow_refusal_says_placed: bool,
+    /// The checkout's last step never finishes, even in order.
+    pub(super) flow_broken: bool,
+    /// A refused checkout step sends the browser back to the first step, as many apps do.
+    pub(super) flow_refusal_redirects: bool,
+    /// A two-factor code can be used again.
+    pub(super) totp_reusable: bool,
+    /// An activation code works again after it has been used.
+    pub(super) activation_reusable: bool,
+    /// Activation codes are four digits.
+    pub(super) activation_short: bool,
+    /// Activation codes are six digits, one more than the last.
+    pub(super) activation_counting: bool,
+    /// Sign-in does not wait for activation.
+    pub(super) activation_not_gating: bool,
+    /// Using an activation code answers as if it worked and activates nothing.
+    pub(super) activation_does_nothing: bool,
+    /// The activation link activates the account without signing it in.
+    pub(super) activation_link_does_not_sign_in: bool,
+    /// Only the current 30-second step's code is taken, with no allowance for clock drift: the
+    /// 30-second lifetime V6.5.5 asks for.
+    pub(super) totp_current_only: bool,
+    /// A two-factor code from any of the last ten steps is accepted.
+    pub(super) totp_any_age: bool,
+    /// The password alone signs a two-factor account all the way in.
+    pub(super) totp_not_required: bool,
+    /// A second wrong two-factor code locks the account's codes.
+    pub(super) totp_locks: bool,
+    /// The first wrong two-factor code locks the account's codes.
+    pub(super) totp_locks_at_once: bool,
+    /// No two-factor code is ever accepted.
+    pub(super) totp_broken: bool,
+    /// Sign-up takes a password containing the app's context word.
+    pub(super) context_word_ok: bool,
+    /// Sign-up wants a capital and a digit in every password.
+    pub(super) composition_rules: bool,
+    /// `admin` / `admin` is an account.
+    pub(super) default_admin: bool,
+    /// A GET to /login with the fields in the query string signs in.
+    pub(super) password_in_url: bool,
+    /// Session ids are a short counter.
+    pub(super) short_session_ids: bool,
+    /// Sign-up refuses everybody.
+    pub(super) signup_closed: bool,
+    /// Each user gets the same long session id every time they sign in.
+    pub(super) same_session_id: bool,
+    /// Sign-up wants at least 16 characters.
+    pub(super) long_minimum: bool,
+    /// Sign-up answers as if it worked and makes no account.
+    pub(super) signup_does_nothing: bool,
+    /// Passwords are compared with their case folded.
+    pub(super) case_folded: bool,
+    /// Passwords are compared on their first 72 characters, as bcrypt does.
+    pub(super) cut_at_72: bool,
+    /// Sign-up refuses a password longer than 64 characters.
+    pub(super) longest_64: bool,
+    /// The password fields are ordinary text fields.
+    pub(super) password_shown: bool,
+    /// The password fields refuse a paste.
+    pub(super) paste_blocked: bool,
+    /// The pages carry no password field in their HTML: a form built by script.
+    pub(super) no_form_in_html: bool,
+    /// A GET to /logout ends the session.
+    pub(super) logout_on_get: bool,
+    /// A password change does not check the current password.
+    pub(super) change_without_current: bool,
+    /// A password change adds the new password and leaves the old one working.
+    pub(super) change_keeps_old: bool,
+    /// A password change answers as if it worked and changes nothing.
+    pub(super) change_does_nothing: bool,
+    /// The new-password field of the change page alone is an ordinary text field.
+    pub(super) new_field_shown: bool,
+    /// Deleting an account leaves its other sessions working.
+    pub(super) deletion_keeps_sessions: bool,
+    /// Deleting an account answers as if it worked and deletes nothing.
+    pub(super) delete_does_nothing: bool,
+    /// Sign-up asks for the answer to a secret question.
+    pub(super) secret_question: bool,
+    /// Takes a file larger than the stated limit.
+    pub(super) oversized_upload_ok: bool,
+    /// Takes a .gif whose contents are not a GIF.
+    pub(super) unchecked_contents_ok: bool,
+    /// Runs an uploaded .php when it is fetched back, serving its output instead of its source.
+    pub(super) runs_uploaded_code: bool,
+    /// Serves an uploaded .html as text/html with nothing telling the browser not to render it.
+    pub(super) renders_uploaded_pages: bool,
+    /// Serves an uploaded file back with no file name in `Content-Disposition`.
+    pub(super) download_no_filename: bool,
+    /// Writes the uploaded name into `Content-Disposition` as it came in, unquoted.
+    pub(super) download_name_raw: bool,
+    /// Quotes the uploaded name but does not clean it. Not a fault: a `;` inside a quoted
+    /// string is part of the name, and this is here so a check that split on it would be
+    /// caught accusing a correct app.
+    pub(super) download_name_quoted_uncleaned: bool,
+    /// Accepts a session cookie it never issued.
+    pub(super) session_not_verified: bool,
+    /// The sign-up form states maxlength, and the server does not apply it.
+    pub(super) validation_only_in_browser: bool,
+    /// A record is handed back with the owner's password hash in it.
+    pub(super) record_leaks_fields: bool,
+    /// The JSON API reads a JSON body whatever its Content-Type says.
+    pub(super) api_parses_any_type: bool,
+    /// The JSON API also takes its fields as a form or as multipart.
+    pub(super) api_takes_forms: bool,
+    /// The JSON API refuses a request from another origin.
+    pub(super) api_checks_origin: bool,
+    /// The JSON API answers a request it will not take with a redirect, not a refusal.
+    pub(super) api_redirects_refusals: bool,
+    /// The JSON API redirects a multipart request, and refuses the rest it will not take.
+    pub(super) api_redirects_multipart: bool,
+    /// Signing out sends Clear-Site-Data.
+    pub(super) clears_site_data: bool,
+    /// Refuses every upload, whatever it is. An app whose upload path does not work as
+    /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
+    pub(super) upload_broken: bool,
+    /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
+    /// default, and what a naive app does — counts nothing and accepts guesses forever.
+    pub(super) locks_out_after: Option<u32>,
+    /// `locks_out_after` counts wrong passwords by the client's address, not by account.
+    pub(super) limits_by_address: bool,
+    /// The client's address is read from `X-Forwarded-For` when a request carries one.
+    pub(super) trusts_forwarded_for: bool,
+    /// A lockout lasts for one refused attempt and then lifts by itself.
+    pub(super) lockout_forgets: bool,
+    /// Each refusal lets the next attempt through: one attempt per refusal, as a token bucket, a
+    /// sliding window, or `nginx limit_req` does, whatever it thinks about addresses.
+    pub(super) lockout_leaks: bool,
+    /// The limit's window rolls over once, just as the first attempt claiming another address
+    /// arrives: that attempt gets through whatever the header says, and nothing after it does.
+    /// Timing a real limiter can produce by chance.
+    pub(super) window_rolls_over_at_first_claim: bool,
+    /// Answers a wrong password with this status from the very first attempt, as an app whose
+    /// address-based limiter an earlier check has already tripped would. Correct sign-ins
+    /// still work, because the suite has to reach the brute-force check for this to be the
+    /// case under test at all. A status rather than a flag: a guard written for 429 alone
+    /// leaves 423 and a dropped connection crediting the requirement, and one witness cannot
+    /// tell those apart.
+    pub(super) already_refusing: Option<u16>,
+    /// Private pages come back without `Cache-Control: no-store`.
+    pub(super) private_page_cacheable: bool,
+    /// Private pages carry no link or form pointing at the sign-out address — but do name it
+    /// in a script, which is what a page built by JavaScript looks like and what a check
+    /// searching the whole page for the text would wrongly credit.
+    pub(super) no_sign_out_link: bool,
+    /// The run has no mail server, so there is no email to read.
+    pub(super) no_mail_sink: bool,
+    /// A reset request answers but sends no email.
+    pub(super) reset_sends_nothing: bool,
+    /// Using a reset code answers as if it worked and changes nothing.
+    pub(super) reset_does_nothing: bool,
+    /// A reset code can be used again after it has been used.
+    pub(super) reset_reusable: bool,
+    /// A reset adds the new password and leaves the old one working.
+    pub(super) reset_keeps_old: bool,
+    /// Reset codes are four digits.
+    pub(super) reset_short_code: bool,
+    /// Reset codes are six digits, one more than the last.
+    pub(super) reset_counting_codes: bool,
+    /// A reset for an address with no account is answered 404.
+    pub(super) reset_reveals_by_status: bool,
+    /// A reset for an address with no account is answered in different words.
+    pub(super) reset_reveals_by_words: bool,
+    /// The reset email carries its code where the default patterns do not look.
+    pub(super) reset_code_elsewhere: bool,
+    /// Every reset answer says how many have been asked for, so two identical requests are
+    /// answered differently. Not a fault: it is here so a comparison that forgot to check the
+    /// two alike answers first would accuse a correct app.
+    pub(super) reset_answer_counts: bool,
+    /// A sign-in code can be used again after it has signed in.
+    pub(super) code_reusable: bool,
+    /// A sign-in code works in any session, not only the one that asked for it.
+    pub(super) code_unbound: bool,
+    /// Sign-in codes are four digits.
+    pub(super) code_short: bool,
+    /// Wrong sign-in codes are never counted.
+    pub(super) code_guessing_unlimited: bool,
+    /// A session is locked after its first wrong code, rather than its third.
+    pub(super) code_locks_after_one: bool,
+    /// Using a sign-in code answers as if it worked and signs nobody in.
+    pub(super) code_does_nothing: bool,
+    /// Asking for a sign-in code answers and sends no email.
+    pub(super) code_sends_nothing: bool,
+    /// The sign-in-by-code forms carry no anti-forgery token, so nothing makes the probe open
+    /// their pages. Not a fault.
+    pub(super) code_no_csrf: bool,
+    /// Past the limit, wrong codes are answered as before and the code is quietly cancelled:
+    /// the only sign of pushing back is that the right code no longer works. Not a fault.
+    pub(super) code_cancels_quietly: bool,
+    /// Every wrong code is answered 429 from the first, as an app whose limiter an earlier
+    /// check has tripped would.
+    pub(super) code_already_refusing: bool,
+    /// The WebSocket at /ws opens for anybody.
+    pub(super) ws_open: bool,
+    /// The WebSocket at /ws opens for any `sid` cookie at all.
+    pub(super) ws_any_cookie: bool,
+    /// The WebSocket at /ws still opens for a session that was signed out.
+    pub(super) ws_survives_sign_out: bool,
+    /// The WebSocket at /ws refuses every handshake.
+    pub(super) ws_refuses_all: bool,
+    /// The WebSocket at /ws takes a handshake from any site, as long as the session is real.
+    pub(super) ws_any_origin: bool,
+    /// The WebSocket at /ws checks a session only when a cookie is sent, and lets in a
+    /// handshake with none as a guest.
+    pub(super) ws_guest: bool,
+    /// Sign-in codes never expire; otherwise they last ten minutes.
+    pub(super) code_long_lived: bool,
+}
+
+pub(super) const CSRF: &str = "tok-123";
+/// The largest file this fake app takes, matching the max-bytes the tests state.
+pub(super) const UPLOAD_LIMIT: usize = 4096;
+
+impl FakeApp {
+    pub(super) fn new(flaws: Flaws) -> Self {
+        let mut app = FakeApp {
+            flaws,
+            clock: 1_700_000_010,
+            ..Default::default()
+        };
+        if flaws.default_admin {
+            app.users.insert("admin".into(), ("admin".into(), true));
+        }
+        app
+    }
+
+    fn new_id(&mut self) -> String {
+        self.next += 1;
+        if self.flaws.short_session_ids {
+            return format!("s{:04}x{}", self.next * 7919, self.next);
+        }
+        let n = u64::from(self.next);
+        format!(
+            "{:016x}{:016x}",
+            n.wrapping_mul(0x9E37_79B9_7F4A_7C15),
+            n.wrapping_mul(0xC2B2_AE3D_27D4_EB4F)
+        )
+    }
+
+    /// A new session for this user, answered the way POST /login answers.
+    fn signed_in(&mut self, who: String) -> ProbeResponse {
+        if self.one_session_per_user {
+            self.sessions.retain(|_, u| *u != who);
+        }
+        let id = if self.flaws.same_session_id {
+            let n = who.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+                (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+            });
+            format!("{n:016x}{:016x}", n.rotate_left(17))
+        } else {
+            self.new_id()
+        };
+        self.sessions.insert(id.clone(), who);
+        let attrs = self.cookie_attrs();
+        Self::respond(
+            303,
+            vec![
+                ("Location", "/account".into()),
+                ("Set-Cookie", format!("sid={id}; {attrs}")),
+            ],
+            "",
+        )
+    }
+
+    fn totp_is_locked(&self, who: &str) -> bool {
+        let wrong = self.totp_wrong.get(who).copied().unwrap_or(0);
+        (self.flaws.totp_locks && wrong >= 2) || (self.flaws.totp_locks_at_once && wrong >= 1)
+    }
+
+    fn password_matches(&self, stored: &str, given: &str) -> bool {
+        let fold = |p: &str| {
+            let p: String = if self.flaws.cut_at_72 {
+                p.chars().take(72).collect()
+            } else {
+                p.to_owned()
+            };
+            if self.flaws.case_folded {
+                p.to_lowercase()
+            } else {
+                p
+            }
+        };
+        fold(stored) == fold(given)
+    }
+
+    /// The password field as the sign-in and sign-up pages serve it.
+    fn password_input(&self) -> String {
+        self.password_input_named("password")
+    }
+
+    /// A password field of this name, with whatever flaws are switched on.
+    fn password_input_named(&self, name: &str) -> String {
+        if self.flaws.no_form_in_html {
+            return String::new();
+        }
+        format!(
+            "<input type=\"{}\" name=\"{name}\"{}>",
+            if self.flaws.password_shown {
+                "text"
+            } else {
+                "password"
+            },
+            if self.flaws.paste_blocked {
+                " onpaste=\"return false\""
+            } else {
+                ""
+            }
+        )
+    }
+
+    fn password_allowed(&self, password: &str) -> bool {
+        if self.flaws.longest_64 && password.chars().count() > 64 {
+            return false;
+        }
+        if password.chars().count() < 8 && !self.flaws.short_password_ok {
+            return false;
+        }
+        if self.flaws.long_minimum && password.chars().count() < 16 {
+            return false;
+        }
+        if password == COMMON && !self.flaws.common_password_ok {
+            return false;
+        }
+        if password == BREACHED && !self.flaws.breached_password_ok {
+            return false;
+        }
+        if password.to_ascii_lowercase().contains(CONTEXT_WORD) && !self.flaws.context_word_ok {
+            return false;
+        }
+        if self.flaws.composition_rules
+            && !(password.chars().any(|c| c.is_ascii_uppercase())
+                && password.chars().any(|c| c.is_ascii_digit()))
+        {
+            return false;
+        }
+        true
+    }
+
+    fn cookie_attrs(&self) -> &'static str {
+        if self.flaws.no_httponly {
+            "Path=/; SameSite=Lax"
+        } else {
+            "Path=/; HttpOnly; SameSite=Lax"
+        }
+    }
+
+    fn respond(status: u16, headers: Vec<(&str, String)>, body: &str) -> ProbeResponse {
+        ProbeResponse {
+            id: String::new(),
+            status,
+            headers: headers
+                .into_iter()
+                .map(|(k, v)| (k.to_lowercase(), v))
+                .collect(),
+            body: body.to_owned(),
+        }
+    }
+}
+
+pub(super) fn cookie_value(request: &ProbeRequest, name: &str) -> Option<String> {
+    let line = request
+        .headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("cookie"))?
+        .1
+        .clone();
+    line.split("; ").find_map(|kv| {
+        let (k, v) = kv.split_once('=')?;
+        (k == name).then(|| v.to_owned())
+    })
+}
+
+pub(super) fn decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => out.push(b' '),
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("");
+                match u8::from_str_radix(hex, 16) {
+                    Ok(b) => {
+                        out.push(b);
+                        i += 2;
+                    }
+                    Err(_) => out.push(b'%'),
+                }
+            }
+            b => out.push(b),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+pub(super) fn pairs(text: &str) -> BTreeMap<String, String> {
+    text.split('&')
+        .filter_map(|kv| kv.split_once('='))
+        .map(|(k, v)| (decode(k), decode(v)))
+        .collect()
+}
+
+pub(super) fn form(request: &ProbeRequest) -> BTreeMap<String, String> {
+    pairs(request.body.as_deref().unwrap_or(""))
+}
+
+impl Http for FakeApp {
+    fn now(&mut self) -> u64 {
+        self.clock
+    }
+
+    fn wait(&mut self, seconds: u64) {
+        self.clock += seconds;
+    }
+
+    fn mail(&mut self, to: &str, _at_least: usize) -> Option<Vec<String>> {
+        if self.flaws.no_mail_sink {
+            return None;
+        }
+        Some(
+            self.outbox
+                .iter()
+                .filter(|(who, _)| who == to)
+                .map(|(_, text)| text.clone())
+                .collect(),
+        )
+    }
+
+    fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+        // Time passing as requests are answered, when a test asks for it.
+        self.clock += self.seconds_per_request;
+        // A bearer token is a session id too, for the JSON sign-in below.
+        let bearer = r
+            .headers
+            .iter()
+            .find(|(k, _)| k == "Authorization")
+            .and_then(|(_, v)| v.strip_prefix("Bearer "))
+            .map(str::to_owned);
+        let sid = bearer.or_else(|| cookie_value(r, "sid"));
+        // The session timeouts, when this app keeps any: a signed-in session is ended here if
+        // it has been unused, or alive, too long; otherwise its last use is now.
+        if let Some(s) = sid.as_ref()
+            && self
+                .sessions
+                .get(s)
+                .is_some_and(|u| !u.is_empty() || self.anonymous_sessions_time_out)
+        {
+            let now = self.clock;
+            let (began, last) = *self.session_times.entry(s.clone()).or_insert((now, now));
+            let idle_over = self.idle_limit.is_some_and(|limit| now - last > limit);
+            let life_over = self.lifetime_limit.is_some_and(|limit| now - began > limit);
+            if idle_over || life_over {
+                self.sessions.remove(s);
+                self.session_times.remove(s);
+            } else if let Some(times) = self.session_times.get_mut(s) {
+                times.1 = now;
+            }
+        }
+        let user = sid
+            .as_ref()
+            .and_then(|s| self.sessions.get(s))
+            .filter(|u| !u.is_empty())
+            .cloned()
+            // A session id is normally looked up; under this flaw any non-empty one is
+            // believed, which is what an app that never checks the cookie does.
+            .or_else(|| {
+                (self.flaws.session_not_verified && sid.as_deref().is_some_and(|s| !s.is_empty()))
+                    .then(|| "believed@example.test".to_owned())
+            });
+        let foreign = r
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Origin" && v == STRANGER);
+        let token_ok = form(r).get("csrf_token").map(String::as_str) == Some(CSRF);
+        let is_admin = user
+            .as_ref()
+            .is_some_and(|u| self.users.get(u).is_some_and(|(_, admin)| *admin));
+        let (path, query) = match r.path.split_once('?') {
+            Some((p, q)) => (p.to_owned(), pairs(q)),
+            None => (r.path.clone(), BTreeMap::new()),
+        };
+        if self.flaws.password_in_url
+            && r.method == "GET"
+            && path == "/login"
+            && let (Some(email), Some(password)) = (query.get("email"), query.get("password"))
+            && self.users.get(email).is_some_and(|(p, _)| p == password)
+        {
+            return Some(self.signed_in(email.clone()));
+        }
+        let upgrade = r
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Upgrade" && v == "websocket");
+        if upgrade && path == "/ws" {
+            let signed_out = sid.as_ref().is_some_and(|s| self.signed_out.contains(s));
+            let opens = !self.flaws.ws_refuses_all
+                && (!foreign || self.flaws.ws_any_origin || self.flaws.ws_open)
+                && (user.is_some()
+                    || self.flaws.ws_open
+                    || (self.flaws.ws_any_cookie && sid.is_some())
+                    || (self.flaws.ws_guest && sid.is_none())
+                    || (self.flaws.ws_survives_sign_out && signed_out));
+            return Some(if opens {
+                Self::respond(101, vec![("Upgrade", "websocket".into())], "")
+            } else {
+                Self::respond(401, vec![], "sign in first")
+            });
+        }
+        Some(match (r.method.as_str(), path.as_str()) {
+            ("GET", "/login") => {
+                let id = self.new_id();
+                self.sessions.insert(id.clone(), String::new());
+                let attrs = self.cookie_attrs();
+                Self::respond(
+                    200,
+                    vec![("Set-Cookie", format!("sid={id}; {attrs}"))],
+                    &format!(
+                        "<form><input type=\"hidden\" name=\"csrf_token\" value=\"{CSRF}\">{}</form>",
+                        self.password_input()
+                    ),
+                )
+            }
+            ("POST", "/login") => {
+                let f = form(r);
+                let given = f.get("password")?;
+                let email = f.get("email")?;
+                let address = r
+                    .headers
+                    .iter()
+                    .find(|(k, _)| {
+                        self.flaws.trusts_forwarded_for && k.eq_ignore_ascii_case("x-forwarded-for")
+                    })
+                    .map_or("127.0.0.1".to_owned(), |(_, v)| v.clone());
+                let key = if self.flaws.limits_by_address {
+                    address
+                } else {
+                    email.clone()
+                };
+                // The window rolling over lets exactly one more attempt in.
+                if self.flaws.window_rolls_over_at_first_claim
+                    && !self.leaked_once
+                    && r.headers
+                        .iter()
+                        .any(|(k, _)| k.eq_ignore_ascii_case("x-forwarded-for"))
+                    && let Some(limit) = self.flaws.locks_out_after
+                    && let Some(count) = self.failures.get_mut(&key)
+                {
+                    self.leaked_once = true;
+                    *count = (*count).min(limit.saturating_sub(1));
+                }
+                if let Some(limit) = self.flaws.locks_out_after
+                    && self.failures.get(&key).copied().unwrap_or(0) >= limit
+                {
+                    if self.flaws.lockout_forgets {
+                        self.failures.remove(&key);
+                    }
+                    if self.flaws.lockout_leaks
+                        && let Some(count) = self.failures.get_mut(&key)
+                    {
+                        // One attempt through for every one refused, as a token bucket does.
+                        *count -= 1;
+                    }
+                    return Some(Self::respond(429, vec![], "too many attempts"));
+                }
+                let good = !self.flaws.broken_login
+                    && self
+                        .sign_ins_refused_from
+                        .is_none_or(|from| self.clock < from)
+                    && (self
+                        .users
+                        .get(email)
+                        .is_some_and(|(p, _)| self.password_matches(p, given))
+                        || self.kept.get(email) == Some(given));
+                if !good || !token_ok {
+                    self.guessed_at.push(email.clone());
+                    if let Some(status) = self.flaws.already_refusing {
+                        return Some(Self::respond(status, vec![], "too many attempts"));
+                    }
+                    if self.flaws.locks_out_after.is_some() {
+                        *self.failures.entry(key).or_insert(0) += 1;
+                    }
+                    return Some(Self::respond(403, vec![], "no"));
+                }
+                self.failures.remove(&key);
+                let who = f.get("email")?.clone();
+                if self.not_activated.contains(&who) && !self.flaws.activation_not_gating {
+                    return Some(Self::respond(403, vec![], "activate your account first"));
+                }
+                if self.totp.contains_key(&who) && !self.flaws.totp_not_required {
+                    let id = self.new_id();
+                    self.sessions.insert(id.clone(), String::new());
+                    self.pending.insert(id.clone(), who);
+                    let attrs = self.cookie_attrs();
+                    return Some(Self::respond(
+                        200,
+                        vec![("Set-Cookie", format!("sid={id}; {attrs}"))],
+                        "enter the code from your app",
+                    ));
+                }
+                if self.flaws.keep_session_at_login {
+                    self.sessions.insert(sid?, who);
+                    return Some(Self::respond(
+                        303,
+                        vec![("Location", "/account".into())],
+                        "",
+                    ));
+                }
+                self.signed_in(who)
+            }
+            ("GET", "/signup") => Self::respond(
+                200,
+                vec![],
+                &format!(
+                    "<input type=hidden name=csrf_token value={CSRF}><input name=email maxlength=40>{}{}",
+                    self.password_input(),
+                    if self.flaws.secret_question {
+                        "<label>Favorite teacher <input name=security_answer></label>"
+                    } else {
+                        ""
+                    }
+                ),
+            ),
+            ("GET", "/password") => match user {
+                Some(_) => Self::respond(
+                    200,
+                    vec![],
+                    &format!(
+                        "<input type=hidden name=csrf_token value={CSRF}>{}{}",
+                        self.password_input_named("current"),
+                        if self.flaws.new_field_shown {
+                            "<input type=\"text\" name=\"new\">".to_owned()
+                        } else {
+                            self.password_input_named("new")
+                        }
+                    ),
+                ),
+                None => Self::respond(302, vec![("Location", "/login".into())], ""),
+            },
+            ("POST", "/password") => {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let f = form(r);
+                let (current, new) = (f.get("current")?.clone(), f.get("new")?.clone());
+                let stored = self.users.get(&who)?.0.clone();
+                if !self.flaws.change_without_current && !self.password_matches(&stored, &current) {
+                    return Some(Self::respond(403, vec![], "wrong password"));
+                }
+                if !self.flaws.change_does_nothing {
+                    if self.flaws.change_keeps_old {
+                        self.kept.insert(who.clone(), stored);
+                    }
+                    self.users.get_mut(&who)?.0 = new;
+                }
+                Self::respond(303, vec![("Location", "/account".into())], "")
+            }
+            ("POST", "/activate") => {
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let code = form(r).get("code")?.clone();
+                let Some((who, used)) = self.activation_codes.get(&code).cloned() else {
+                    return Some(Self::respond(400, vec![], "unknown code"));
+                };
+                if used && !self.flaws.activation_reusable {
+                    return Some(Self::respond(400, vec![], "already used"));
+                }
+                self.activation_codes.insert(code, (who.clone(), true));
+                if self.flaws.activation_does_nothing {
+                    return Some(Self::respond(303, vec![("Location", "/".into())], ""));
+                }
+                self.not_activated.remove(&who);
+                if !self.flaws.activation_link_does_not_sign_in
+                    && let Some(session) = sid.clone()
+                {
+                    self.sessions.insert(session, who);
+                }
+                Self::respond(303, vec![("Location", "/account".into())], "")
+            }
+            ("GET", "/login/code" | "/login/verify" | "/activate") => {
+                // A session for the code to be tied to, unless the browser already has one.
+                let mut headers = vec![];
+                if !sid.as_ref().is_some_and(|s| self.sessions.contains_key(s)) {
+                    let id = self.new_id();
+                    self.sessions.insert(id.clone(), String::new());
+                    let attrs = self.cookie_attrs();
+                    headers.push(("Set-Cookie", format!("sid={id}; {attrs}")));
+                }
+                Self::respond(
+                    200,
+                    headers,
+                    &format!("<input type=hidden name=csrf_token value={CSRF}>"),
+                )
+            }
+            ("POST", "/login/code") => {
+                if !token_ok && !self.flaws.code_no_csrf {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let email = form(r).get("email")?.clone();
+                if self.users.contains_key(&email) && !self.flaws.code_sends_nothing {
+                    self.next += 1;
+                    let n = u64::from(self.next).wrapping_mul(7_919 * 104_729);
+                    let code = if self.flaws.code_short {
+                        format!("{:04}", n % 10_000)
+                    } else {
+                        format!("{:06}", n % 1_000_000)
+                    };
+                    self.sign_in_codes.insert(
+                        code.clone(),
+                        (email.clone(), sid.clone().unwrap_or_default(), false),
+                    );
+                    self.code_born.insert(code.clone(), self.clock);
+                    self.outbox.push((
+                        email,
+                        format!("Your sign-in code is {code}. It works once, in this browser."),
+                    ));
+                }
+                Self::respond(
+                    200,
+                    vec![],
+                    "If that address has an account, we sent a code.",
+                )
+            }
+            ("POST", "/login/verify") => {
+                if !token_ok && !self.flaws.code_no_csrf {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let session = sid.clone().unwrap_or_default();
+                let limit = if self.flaws.code_locks_after_one {
+                    1
+                } else {
+                    3
+                };
+                let failures = self.code_failures.get(&session).copied().unwrap_or(0);
+                let code = form(r).get("code")?.clone();
+                if failures >= limit && !self.flaws.code_guessing_unlimited {
+                    if self.flaws.code_cancels_quietly {
+                        self.sign_in_codes
+                            .retain(|_, (_, asked, _)| *asked != session);
+                        *self.code_failures.entry(session).or_insert(0) += 1;
+                        return Some(Self::respond(401, vec![], "that code does not work"));
+                    }
+                    return Some(Self::respond(429, vec![], "ask for a new code"));
+                }
+                if self.flaws.code_already_refusing && !self.sign_in_codes.contains_key(&code) {
+                    return Some(Self::respond(429, vec![], "slow down"));
+                }
+                let good = self
+                    .sign_in_codes
+                    .get(&code)
+                    .cloned()
+                    .filter(|(_, asked, used)| {
+                        (*asked == session || self.flaws.code_unbound)
+                            && (!used || self.flaws.code_reusable)
+                    })
+                    .filter(|_| {
+                        self.flaws.code_long_lived
+                            || self
+                                .code_born
+                                .get(&code)
+                                .is_some_and(|born| self.clock - born <= 600)
+                    })
+                    // A code tied to its session dies with it.
+                    .filter(|_| self.flaws.code_unbound || self.sessions.contains_key(&session));
+                let Some((who, asked, _)) = good else {
+                    *self.code_failures.entry(session).or_insert(0) += 1;
+                    return Some(Self::respond(401, vec![], "that code does not work"));
+                };
+                self.sign_in_codes.insert(code, (who.clone(), asked, true));
+                if !self.flaws.code_does_nothing && !session.is_empty() {
+                    self.sessions.insert(session, who);
+                }
+                Self::respond(303, vec![("Location", "/account".into())], "")
+            }
+            ("GET", "/forgot" | "/reset") => Self::respond(
+                200,
+                vec![],
+                &format!("<input type=hidden name=csrf_token value={CSRF}>"),
+            ),
+            ("POST", "/forgot") => {
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let email = form(r).get("email")?.clone();
+                let known = self.users.contains_key(&email);
+                if known && !self.flaws.reset_sends_nothing {
+                    self.next += 1;
+                    let code = if self.flaws.reset_short_code {
+                        format!("{:04}", (self.next * 7919) % 10_000)
+                    } else if self.flaws.reset_counting_codes {
+                        format!("{}", 100_000 + self.next)
+                    } else {
+                        self.new_id()
+                    };
+                    self.reset_codes
+                        .insert(code.clone(), (email.clone(), false));
+                    let text = if self.flaws.reset_code_elsewhere {
+                        format!("Your reset number is {code}. Type it on the reset page.")
+                    } else {
+                        format!(
+                            "Hello,\r\nReset your password: http://app:8080/reset?token={code}\r\n"
+                        )
+                    };
+                    self.outbox.push((email.clone(), text));
+                }
+                // A field that differs on every answer, as a real form's token does, so the
+                // comparison is shown to set it aside.
+                // Short, so it is the field's value being set aside that saves the comparison and
+                // not the rule for long random-looking runs.
+                self.next += 1;
+                let nonce = format!("{:08x}", self.next.wrapping_mul(2_654_435_761));
+                let hidden = format!("<input type=hidden name=nonce value={nonce}>");
+                if !known && self.flaws.reset_reveals_by_status {
+                    return Some(Self::respond(404, vec![], "no such account"));
+                }
+                let words = if !known && self.flaws.reset_reveals_by_words {
+                    format!("There is no account for {email}.")
+                } else if self.flaws.reset_reveals_by_words {
+                    format!("We have sent a link to {email}.")
+                } else {
+                    format!("If {email} has an account, we have sent it a link.")
+                };
+                let count = if self.flaws.reset_answer_counts {
+                    format!("<p>Request {} today.</p>", self.next)
+                } else {
+                    String::new()
+                };
+                Self::respond(200, vec![], &format!("{hidden}<p>{words}</p>{count}"))
+            }
+            ("POST", "/reset") => {
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let f = form(r);
+                let (code, new) = (f.get("token")?.clone(), f.get("password")?.clone());
+                let Some((who, used)) = self.reset_codes.get(&code).cloned() else {
+                    return Some(Self::respond(400, vec![], "unknown link"));
+                };
+                if used && !self.flaws.reset_reusable {
+                    return Some(Self::respond(400, vec![], "this link has been used"));
+                }
+                self.reset_codes.insert(code, (who.clone(), true));
+                if !self.flaws.reset_does_nothing {
+                    let stored = self.users.get(&who)?.0.clone();
+                    if self.flaws.reset_keeps_old {
+                        self.kept.insert(who.clone(), stored);
+                    }
+                    self.users.get_mut(&who)?.0 = new;
+                }
+                Self::respond(303, vec![("Location", "/login".into())], "")
+            }
+            ("POST", "/account/delete") => {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                let f = form(r);
+                let stored = self.users.get(&who)?.0.clone();
+                if !token_ok || !self.password_matches(&stored, f.get("password")?) {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                if !self.flaws.delete_does_nothing {
+                    self.users.remove(&who);
+                    if self.flaws.deletion_keeps_sessions {
+                        if let Some(s) = sid {
+                            self.sessions.remove(&s);
+                        }
+                    } else {
+                        self.sessions.retain(|_, u| *u != who);
+                    }
+                }
+                Self::respond(303, vec![("Location", "/".into())], "")
+            }
+            ("GET", "/logout") if self.flaws.logout_on_get => {
+                if let Some(s) = sid {
+                    self.sessions.remove(&s);
+                }
+                Self::respond(303, vec![("Location", "/".into())], "")
+            }
+            ("POST", "/signup") => {
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let f = form(r);
+                let (email, password) = (f.get("email")?.clone(), f.get("password")?.clone());
+                // The form says maxlength=40. A correct app applies that again here.
+                if email.chars().count() > 40 && !self.flaws.validation_only_in_browser {
+                    return Some(Self::respond(422, vec![], "too long"));
+                }
+                if self.flaws.signup_closed || !self.password_allowed(&password) {
+                    return Some(Self::respond(422, vec![], "password refused"));
+                }
+                if !self.flaws.signup_does_nothing {
+                    let asked_for_admin = f.get("role").is_some_and(|v| v == "admin")
+                        || f.get("is_admin").is_some_and(|v| v == "true");
+                    let admin = self.flaws.signup_trusts_role && asked_for_admin;
+                    self.users.insert(email.clone(), (password, admin));
+                    if self.activation {
+                        self.next += 1;
+                        let code = if self.flaws.activation_short {
+                            format!("{:04}", (self.next * 7919) % 10_000)
+                        } else if self.flaws.activation_counting {
+                            format!("{}", 100_000 + self.next)
+                        } else {
+                            self.new_id()
+                        };
+                        self.activation_codes
+                            .insert(code.clone(), (email.clone(), false));
+                        self.not_activated.insert(email.clone());
+                        self.outbox.push((
+                            email,
+                            format!(
+                                "Welcome! Activate your account: \
+                                 http://app:8080/activate?code={code}"
+                            ),
+                        ));
+                    }
+                }
+                Self::respond(303, vec![("Location", "/login".into())], "")
+            }
+            ("POST", "/api/login") => {
+                let body: serde_json::Value =
+                    serde_json::from_str(r.body.as_deref().unwrap_or("")).ok()?;
+                let email = body.get("email")?.as_str()?.to_owned();
+                let password = body.get("password")?.as_str()?.to_owned();
+                let good = self.users.get(&email).is_some_and(|(p, _)| *p == password);
+                if !good {
+                    return Some(Self::respond(401, vec![], "{}"));
+                }
+                let id = self.new_id();
+                self.sessions.insert(id.clone(), email);
+                Self::respond(200, vec![], &format!("{{\"token\": \"{id}\"}}"))
+            }
+            ("POST", "/logout") => {
+                // Like the real app this was first run against: sign-out needs the token, and
+                // `/logout` has no page of its own to find one on.
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                if !self.flaws.logout_keeps_session
+                    && let Some(s) = sid
+                {
+                    self.sessions.remove(&s);
+                    self.signed_out.insert(s);
+                }
+                let mut headers = vec![("Set-Cookie", "sid=; Max-Age=0".to_string())];
+                if self.flaws.clears_site_data {
+                    let value = self
+                        .clear_site_data_value
+                        .clone()
+                        .unwrap_or_else(|| "\"storage\", \"cookies\"".to_string());
+                    headers.push(("Clear-Site-Data", value));
+                }
+                Self::respond(303, headers, "")
+            }
+            ("GET", "/account") => {
+                if user.is_some() || self.flaws.private_open {
+                    // A correct private page: not to be kept by the browser, and carrying a
+                    // visible way out. Each half is switched off by its own flaw, so a test
+                    // that breaks one is not quietly relying on the other.
+                    let headers = match (&self.cache_control, self.flaws.private_page_cacheable) {
+                        (_, true) => vec![],
+                        (Some(value), _) => vec![("Cache-Control", value.clone())],
+                        (None, _) => vec![("Cache-Control", "no-store".to_string())],
+                    };
+                    let body = if self.flaws.no_sign_out_link {
+                        "your account<script>const OUT = '/logout';</script>".to_string()
+                    } else {
+                        format!(
+                            "your account<form method='post' action='/logout'>\
+                             <input name='csrf_token' value='{CSRF}'>\
+                             <button>Sign out</button></form>"
+                        )
+                    };
+                    Self::respond(200, headers, &body)
+                } else {
+                    Self::respond(302, vec![("Location", "/login".into())], "")
+                }
+            }
+            ("GET", "/admin") => {
+                if is_admin || (user.is_some() && self.flaws.admin_open) {
+                    Self::respond(200, vec![], "admin")
+                } else {
+                    Self::respond(403, vec![], "no")
+                }
+            }
+            ("POST", "/admin/announce") => {
+                if user.is_some() && !self.flaws.no_csrf_check && (foreign || !token_ok) {
+                    return Some(Self::respond(403, vec![], "forged"));
+                }
+                let allowed = is_admin || (user.is_some() && self.flaws.admin_action_open);
+                if allowed && !self.flaws.admin_action_broken {
+                    let text = form(r).get("text").cloned().unwrap_or_default();
+                    self.announcements.push(text);
+                    Self::respond(302, vec![("Location", "/announcements".into())], "")
+                } else if self.flaws.admin_action_says_ok {
+                    Self::respond(200, vec![], "Something went wrong.")
+                } else {
+                    Self::respond(403, vec![], "no")
+                }
+            }
+            ("GET", "/announcements") => {
+                if user.is_some() {
+                    Self::respond(200, vec![], &self.announcements.join("\n"))
+                } else {
+                    Self::respond(302, vec![("Location", "/login".into())], "")
+                }
+            }
+            ("GET", "/notes") => Self::respond(
+                200,
+                if self.flaws.no_referrer {
+                    vec![("Referrer-Policy", "no-referrer".to_owned())]
+                } else {
+                    vec![]
+                },
+                &format!("<input name='csrf_token' value='{CSRF}'>"),
+            ),
+            ("POST", "/upload") => {
+                if user.is_none() || self.flaws.upload_broken {
+                    return Some(Self::respond(403, vec![], "no"));
+                }
+                let body = r.body.clone().unwrap_or_default();
+                let name = body
+                    .split("filename=\"")
+                    .nth(1)
+                    .and_then(|rest: &str| rest.split('"').next())
+                    .unwrap_or("")
+                    .to_owned();
+                // The file's own bytes: everything after the blank line that ends its part.
+                let contents = body
+                    .split("application/octet-stream\r\n\r\n")
+                    .nth(1)
+                    .and_then(|rest: &str| rest.rsplit_once("\r\n--"))
+                    .map(|(file, _)| file.to_owned())
+                    .unwrap_or_default();
+                self.largest_upload = self.largest_upload.max(contents.len());
+                if contents.len() > UPLOAD_LIMIT && !self.flaws.oversized_upload_ok {
+                    return Some(Self::respond(413, vec![], "too large"));
+                }
+                let claims_gif = name.ends_with(".gif");
+                let is_gif = contents.starts_with("GIF87a") || contents.starts_with("GIF89a");
+                if claims_gif && !is_gif && !self.flaws.unchecked_contents_ok {
+                    return Some(Self::respond(415, vec![], "not a gif"));
+                }
+                self.uploads.insert(name, contents);
+                Self::respond(201, vec![], "stored")
+            }
+            ("GET", path) if path.starts_with("/files/") => {
+                let name = path.trim_start_matches("/files/");
+                let Some(contents) = self.uploads.get(name) else {
+                    return Some(Self::respond(404, vec![], "no such file"));
+                };
+                if name.ends_with(".php") {
+                    if self.flaws.runs_uploaded_code {
+                        // Only the output: the source is gone, which is what "it ran" means.
+                        let shown = contents
+                            .split_once("echo \"")
+                            .and_then(|(_, rest)| rest.split_once('"'))
+                            .map(|(out, _)| out.to_owned())
+                            .unwrap_or_default();
+                        return Some(Self::respond(200, vec![], &shown));
+                    }
+                    return Some(Self::respond(
+                        200,
+                        vec![("Content-Type", "text/plain".into())],
+                        contents,
+                    ));
+                }
+                if name.ends_with(".html") {
+                    if self.flaws.renders_uploaded_pages {
+                        return Some(Self::respond(
+                            200,
+                            vec![("Content-Type", "text/html; charset=utf-8".into())],
+                            contents,
+                        ));
+                    }
+                    return Some(Self::respond(
+                        200,
+                        vec![
+                            ("Content-Type", "text/html; charset=utf-8".into()),
+                            ("Content-Disposition", "attachment".into()),
+                        ],
+                        contents,
+                    ));
+                }
+                // A correct download: a name the app cleaned, quoted. Each fault is its own
+                // switch, so a test that breaks one is not quietly relying on the other.
+                let disposition = if self.flaws.download_no_filename {
+                    "attachment".to_owned()
+                } else if self.flaws.download_name_raw {
+                    format!("attachment; filename={name}")
+                } else if self.flaws.download_name_quoted_uncleaned {
+                    format!("attachment; filename=\"{name}\"")
+                } else {
+                    let clean: String = name
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_alphanumeric() || ".-_".contains(c) {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect();
+                    format!("attachment; filename=\"{clean}\"")
+                };
+                Self::respond(
+                    200,
+                    vec![
+                        ("Content-Type", "image/gif".into()),
+                        ("Content-Disposition", disposition),
+                    ],
+                    contents,
+                )
+            }
+            ("POST", "/api/notes") => {
+                // A JSON API that relies on the browser asking first: no token, and unless
+                // told otherwise, no look at the Origin either.
+                let Some(owner) = user else {
+                    return Some(Self::respond(401, vec![], "sign in"));
+                };
+                let refuse = |app: &Self, status: u16| {
+                    if app.flaws.api_redirects_refusals {
+                        Self::respond(302, vec![("Location", "/".into())], "")
+                    } else {
+                        Self::respond(status, vec![], "no")
+                    }
+                };
+                if self.flaws.api_checks_origin && foreign {
+                    return Some(refuse(self, 403));
+                }
+                let content_type_is = |prefix: &str| {
+                    r.headers.iter().any(|(k, v)| {
+                        k.eq_ignore_ascii_case("content-type")
+                            && v.to_lowercase().starts_with(prefix)
+                    })
+                };
+                if self.flaws.api_redirects_multipart && content_type_is("multipart/") {
+                    return Some(Self::respond(302, vec![("Location", "/".into())], ""));
+                }
+                let content_type = r
+                    .headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+                    .map(|(_, v)| v.to_lowercase())
+                    .unwrap_or_default();
+                let body = r.body.clone().unwrap_or_default();
+                let as_json = || {
+                    serde_json::from_str::<serde_json::Value>(&body)
+                        .ok()
+                        .and_then(|v| v.get("text")?.as_str().map(str::to_owned))
+                };
+                let text = if content_type.starts_with("application/json")
+                    || self.flaws.api_parses_any_type
+                {
+                    as_json()
+                } else if self.flaws.api_takes_forms
+                    && content_type.starts_with("application/x-www-form-urlencoded")
+                {
+                    pairs(&body).get("text").cloned()
+                } else if self.flaws.api_takes_forms
+                    && content_type.starts_with("multipart/form-data")
+                {
+                    body.split("name=\"text\"\r\n\r\n")
+                        .nth(1)
+                        .and_then(|rest| rest.split("\r\n").next())
+                        .map(str::to_owned)
+                } else {
+                    return Some(refuse(self, 415));
+                };
+                let Some(text) = text else {
+                    return Some(refuse(self, 400));
+                };
+                self.notes.push((owner, text));
+                Self::respond(201, vec![], &format!("{{\"id\":{}}}", self.notes.len()))
+            }
+            ("GET", p) if p.starts_with("/api/notes/") => {
+                let n: usize = p["/api/notes/".len()..].parse().ok()?;
+                let Some((owner, text)) = self.notes.get(n.checked_sub(1)?) else {
+                    return Some(Self::respond(404, vec![], "none"));
+                };
+                if user.as_ref() == Some(owner) {
+                    Self::respond(200, vec![], &format!("{{\"text\":\"{text}\"}}"))
+                } else {
+                    Self::respond(404, vec![], "none")
+                }
+            }
+            ("POST", "/notes") => {
+                let Some(owner) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                if !self.flaws.no_csrf_check && (foreign || !token_ok) {
+                    return Some(Self::respond(403, vec![], "forged"));
+                }
+                if self.flaws.refuses_null_origin
+                    && r.headers.iter().any(|(k, v)| k == "Origin" && v == "null")
+                {
+                    return Some(Self::respond(403, vec![], "no origin"));
+                }
+                self.notes
+                    .push((owner, form(r).get("text").cloned().unwrap_or_default()));
+                Self::respond(
+                    303,
+                    vec![(
+                        "Location",
+                        format!("http://app:8080/notes/{}", self.notes.len()),
+                    )],
+                    "",
+                )
+            }
+            ("GET", p) if p.starts_with("/notes/") => {
+                let n: usize = p["/notes/".len()..].parse().ok()?;
+                let Some((owner, text)) = self.notes.get(n.checked_sub(1)?) else {
+                    return Some(Self::respond(404, vec![], "none"));
+                };
+                if user.as_ref() == Some(owner)
+                    || (self.flaws.idor && user.is_some())
+                    || self.flaws.records_public
+                {
+                    let extra = if self.flaws.record_leaks_fields {
+                        "<script>const row={\"id\":1,\"password_hash\":\"$2b$12$abc\"}</script>"
+                    } else {
+                        ""
+                    };
+                    // The prose is deliberate: a real record page often says something like
+                    // this, and a check matching the bare word `password` would make a
+                    // finding out of every app that has one. Keeping it here means the
+                    // correct-app tests catch that mistake.
+                    Self::respond(
+                        200,
+                        vec![],
+                        &format!(
+                            "<p>{text}</p><footer>Change your password in Account</footer>\
+                             {extra}"
+                        ),
+                    )
+                } else {
+                    Self::respond(404, vec![], "none")
+                }
+            }
+            ("POST", "/login/2fa") => {
+                let id = sid.clone()?;
+                let Some(who) = self.pending.get(&id).cloned() else {
+                    return Some(Self::respond(403, vec![], "sign in first"));
+                };
+                let given = form(r).get("code")?.clone();
+                let secret = self.totp.get(&who)?.clone();
+                let now = self.clock / crate::totp::STEP;
+                let oldest = if self.flaws.totp_any_age {
+                    now.saturating_sub(10)
+                } else if self.flaws.totp_current_only {
+                    now
+                } else {
+                    now.saturating_sub(1)
+                };
+                let newest = if self.flaws.totp_current_only {
+                    now
+                } else {
+                    now + 1
+                };
+                let matched = (oldest..=newest)
+                    .find(|step| crate::totp::code_at_step(&secret, *step) == given);
+                let fresh = |step: u64| {
+                    self.flaws.totp_reusable
+                        || self.totp_last.get(&who).is_none_or(|last| step > *last)
+                };
+                match matched {
+                    Some(step)
+                        if fresh(step) && !self.flaws.totp_broken && !self.totp_is_locked(&who) =>
+                    {
+                        self.totp_last.insert(who.clone(), step);
+                        self.pending.remove(&id);
+                        self.sessions.insert(id, who);
+                        Self::respond(303, vec![("Location", "/account".into())], "")
+                    }
+                    _ => {
+                        *self.totp_wrong.entry(who).or_insert(0) += 1;
+                        Self::respond(403, vec![], "wrong code")
+                    }
+                }
+            }
+            ("POST", step) if step.starts_with("/checkout/") => {
+                let Some(who) = user.clone() else {
+                    return Some(Self::respond(401, vec![], "sign in"));
+                };
+                let n: u32 = step["/checkout/".len()..].parse().ok()?;
+                let reached = self.checkout.get(&who).copied().unwrap_or(0);
+                let allowed = self.flaws.flow_unguarded
+                    || reached + 1 == n
+                    || (self.flaws.flow_checks_first_only && n == 3 && reached >= 1);
+                if (!allowed || !token_ok) && self.flaws.flow_refusal_redirects {
+                    return Some(Self::respond(
+                        303,
+                        vec![("Location", "/checkout/1".into())],
+                        "",
+                    ));
+                }
+                if !allowed || !token_ok {
+                    return Some(Self::respond(
+                        409,
+                        vec![],
+                        if self.flaws.flow_refusal_says_placed {
+                            "An order is placed only after the steps before it"
+                        } else {
+                            "finish the steps before this one"
+                        },
+                    ));
+                }
+                if n < 3 {
+                    self.checkout.insert(who, n);
+                    return Some(Self::respond(200, vec![], "next step"));
+                }
+                self.checkout.remove(&who);
+                if self.flaws.flow_broken {
+                    return Some(Self::respond(200, vec![], "something went wrong"));
+                }
+                Self::respond(303, vec![("Location", "/orders/7".into())], "Order placed")
+            }
+            _ => Self::respond(404, vec![], "none"),
+        })
+    }
+}
+
+pub(super) fn users() -> UsersSection {
+    let t = |path: &str, fields: &[(&str, &str)]| RequestTemplate {
+        method: "POST".into(),
+        path: path.into(),
+        form: fields
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+        json: BTreeMap::new(),
+    };
+    UsersSection {
+        activation: None,
+        seed: Some("seed".into()),
+        signup: None,
+        login: Some(t(
+            "/login",
+            &[
+                ("email", "{user}"),
+                ("password", "{password}"),
+                ("csrf_token", "{csrf}"),
+            ],
+        )),
+        logout: Some(t("/logout", &[("csrf_token", "{csrf}")])),
+        token_field: None,
+        private: vec!["/account".into()],
+        admin: vec!["/admin".into()],
+        admin_actions: vec![sv_manifest::AdminAction {
+            method: "POST".into(),
+            path: "/admin/announce".into(),
+            form: [("text", "{marker}"), ("csrf_token", "{csrf}")]
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            json: BTreeMap::new(),
+            check: Some("/announcements".into()),
+        }],
+        owned: Some(sv_manifest::OwnedSection {
+            create: RequestTemplate {
+                method: "POST".into(),
+                path: "/notes".into(),
+                form: [("text", "{marker}"), ("csrf_token", "{csrf}")]
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+                json: BTreeMap::new(),
+            },
+            read: None,
+            id_field: None,
+        }),
+        change_password: Some(t(
+            "/password",
+            &[
+                ("current", "{password}"),
+                ("new", "{new_password}"),
+                ("csrf_token", "{csrf}"),
+            ],
+        )),
+        delete_account: Some(t(
+            "/account/delete",
+            &[("password", "{password}"), ("csrf_token", "{csrf}")],
+        )),
+        upload: None,
+        reset: Some(sv_manifest::ResetSection {
+            request: t("/forgot", &[("email", "{user}"), ("csrf_token", "{csrf}")]),
+            use_code: t(
+                "/reset",
+                &[
+                    ("token", "{code}"),
+                    ("password", "{new_password}"),
+                    ("csrf_token", "{csrf}"),
+                ],
+            ),
+            code_pattern: None,
+        }),
+        email_code: Some(sv_manifest::ResetSection {
+            request: t(
+                "/login/code",
+                &[("email", "{user}"), ("csrf_token", "{csrf}")],
+            ),
+            use_code: t(
+                "/login/verify",
+                &[("code", "{code}"), ("csrf_token", "{csrf}")],
+            ),
+            code_pattern: None,
+        }),
+        totp: Some(t("/login/2fa", &[("code", "{code}")])),
+        flow: Some(sv_manifest::FlowSection {
+            steps: (1..=3)
+                .map(|n| t(&format!("/checkout/{n}"), &[("csrf_token", "{csrf}")]))
+                .collect(),
+            completed: "/orders/".into(),
+        }),
+        browser: None,
+        private_websocket: None,
+    }
+}
+
+pub(super) fn accounts() -> Accounts {
+    Accounts {
+        a: Account {
+            user: "a@example.test".into(),
+            password: "Sv-0a1b2c3d4e5f60718293a4b5-aZ9!".into(),
+        },
+        b: Account {
+            user: "b@example.test".into(),
+            password: "Sv-b5a4938271605f4e3d2c1b0a-aZ9!".into(),
+        },
+        admin: Some(Account {
+            user: "admin@example.test".into(),
+            password: "Sv-00112233445566778899aabb-aZ9!".into(),
+        }),
+        spare: "3f9c0a7e5b1d2468ace13579bdf02468".into(),
+        totp: Some(TotpAccount {
+            account: Account {
+                user: "totp@example.test".into(),
+                password: "Sv-7a6b5c4d3e2f10293847a6b5-aZ9!".into(),
+            },
+            // RFC 6238's own SHA-1 test secret.
+            secret: b"12345678901234567890".to_vec(),
+        }),
+    }
+}
+
+/// Runs the suite against the fake app, seeded the way `seed` would seed it.
+pub(super) fn run_against(flaws: Flaws, users: &UsersSection) -> Outcome {
+    let mut app = FakeApp::new(flaws);
+    let acc = accounts();
+    app.users
+        .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+    app.users
+        .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+    let admin = acc.admin.clone().unwrap();
+    app.users.insert(admin.user, (admin.password, true));
+    if let Some(totp) = &acc.totp {
+        app.users.insert(
+            totp.account.user.clone(),
+            (totp.account.password.clone(), false),
+        );
+        app.totp
+            .insert(totp.account.user.clone(), totp.secret.clone());
+    }
+    run(&mut app, users, &acc, true, &Default::default())
+}
+
+/// A run with no seeded admin, for the fixtures that sign up rather than being seeded.
+pub(super) fn run_with_users(flaws: Flaws, users: &UsersSection) -> Outcome {
+    let mut app = FakeApp::new(flaws);
+    let mut acc = accounts();
+    acc.admin = None;
+    acc.totp = None;
+    run(&mut app, users, &acc, false, &Default::default())
+}
+
+pub(super) fn rule_ids(o: &Outcome) -> Vec<&str> {
+    o.findings.iter().map(|f| f.rule_id.as_str()).collect()
+}
+
+pub(super) fn verified_ids(o: &Outcome) -> Vec<&str> {
+    o.verified.iter().map(|v| v.check_id.as_str()).collect()
+}
