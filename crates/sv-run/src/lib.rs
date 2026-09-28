@@ -223,6 +223,9 @@ pub struct RunOutcome {
     /// Containers and networks an earlier run on this machine left behind when its process was
     /// killed outright, removed before this run started. See `cleanup`.
     pub left_over_removed: Vec<String>,
+    /// Whether the app was still running and answering after the anonymous questions, and again
+    /// after the signed-in, sign-in-provider, and AI questions when any of those were asked (V16.5.4).
+    pub liveness: Vec<sv_check::running::Liveness>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.

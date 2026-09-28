@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 143 (41%) | 7 | 195 |
+| OWASP ASVS 5.0 | 345 | 147 (43%) | 7 | 191 |
 | OWASP AISVS 1.0 | 191 | 21 (11%) | 0 | 170 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -42,9 +42,9 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 55 | 9 | 1 | 3 | 31 | 21 | 2 |
+| L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
 | L2 | 183 | 72 | 6 | 0 | 14 | 31 | 28 | 1 |
-| L3 | 92 | 16 | 2 | 0 | 5 | 1 | 6 | 2 |
+| L3 | 92 | 19 | 2 | 0 | 8 | 1 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -65,15 +65,15 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V5 File Handling | 13 | 8 | 0 | 5 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
-| V8 Authorization | 13 | 2 | 1 | 10 |
+| V8 Authorization | 13 | 3 | 1 | 9 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
-| V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
+| V10 OAuth and OIDC | 36 | 6 | 0 | 30 |
 | V11 Cryptography | 24 | 10 | 1 | 13 |
 | V12 Secure Communication | 12 | 7 | 1 | 4 |
-| V13 Configuration | 21 | 7 | 1 | 13 |
+| V13 Configuration | 21 | 8 | 1 | 12 |
 | V14 Data Protection | 13 | 3 | 1 | 9 |
 | V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
-| V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
+| V16 Security Logging and Error Handling | 17 | 9 | 0 | 8 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -100,7 +100,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (83)
+### Settled by asking the running app (87)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -164,9 +164,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
+| V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.2 | L2 | Signed in: `probe.oidc-issuer-not-checked` |
+| V10.4.4 | L1 | The running app: `probe.retired-grants-offered` (sv only ever as a finding: `probe.retired-grants-offered`) |
 | V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
@@ -175,6 +177,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` |
 | V13.4.6 | L3 | The running app: `probe.version-disclosed` |
+| V13.4.7 | L3 | The running app: `probe.private-files-served` (sv only ever as a finding: `probe.private-files-served`) |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
@@ -187,6 +190,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
+| V16.5.4 | L3 | The running app: `probe.app-stopped-during-questions` (sv only ever as a finding: `probe.app-stopped-during-questions`) |
 
 ### Settled by known-vulnerability data (1)
 
@@ -248,11 +252,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 9 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
-### Level 1 with no check at all (12)
+### Level 1 with no check at all (11)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 

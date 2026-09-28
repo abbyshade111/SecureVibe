@@ -1158,7 +1158,22 @@ fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
         plan.graphql.as_deref(),
         plan.websocket.as_deref(),
     ));
+    let (admin_pages, private_files) = more_questions(plan);
+    requests.extend(sv_check::running::requests(&admin_pages, &private_files));
     requests
+}
+
+/// The admin pages securevibe.toml names, and the files in the app's folder that should never be
+/// served, for the questions in `sv_check::running`. Worked out the same way for the requests and
+/// for reading the answers, so the two agree on what was asked.
+fn more_questions(plan: &RunPlan) -> (Vec<String>, Vec<sv_check::running::PrivateFile>) {
+    let admin_pages = plan
+        .users
+        .as_ref()
+        .map(|users| users.admin.clone())
+        .unwrap_or_default();
+    let listing = sv_scan::files::Listing::of(&plan.app_dir);
+    (admin_pages, sv_check::running::private_files(&listing))
 }
 
 /// What the running app showed: the anonymous probes, and the signed-in ones when they ran.
@@ -1180,6 +1195,16 @@ fn running_app_evidence(
     findings.extend(api_findings);
     verified.extend(api_verified);
     not_assessed.extend(api_not_assessed);
+    let (admin_pages, private_files) = more_questions(plan);
+    let more = sv_check::running::evaluate(
+        &outcome.probe_responses,
+        &admin_pages,
+        &private_files,
+        &outcome.liveness,
+    );
+    findings.extend(more.findings);
+    verified.extend(more.verified);
+    not_assessed.extend(more.not_assessed);
     for asked in [&outcome.signed_in, &outcome.oidc, &outcome.ai]
         .into_iter()
         .flatten()
