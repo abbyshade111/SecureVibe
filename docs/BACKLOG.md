@@ -374,6 +374,8 @@ another session is not a claim.
      call:** the existing probe checks sign-in tokens in the app as a client, and V9.2.3 is about a service accepting
      access tokens; a code rule for a switched-off audience check (`verify_aud` False, `ValidateAudience = false`) fits
      either way.
+     **V8.2.3, C9.3.2, C9.3.7, and V14.2.2 claimed on 28 September 2026 by session securevibe-e9**, at the
+     owner's asking to go ahead with this group; V9.2.3 stays the owner's call.
   3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
      Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
      V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
