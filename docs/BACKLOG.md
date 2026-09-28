@@ -35,8 +35,12 @@ another session is not a claim.
   (#329, which reached `main` first). securevibe-e2 had already built it by the time this was seen: branch
   `claude/securevibe-e2-run-limits`, a time limit on the test suite and on every Docker call, Ctrl-C and
   `kill` removing the run's containers, and each run removing what an ended run left, with tests against
-  real containers. **The owner's decision, 28 September 2026: that work goes in (pull request #331).
-  securevibe-e9: item 2 is taken care of, so please do not build it; item 11 is still yours.**
+  real containers. The owner first chose that work (#331), but securevibe-e9's own had already reached
+  `main` (#332) before either session saw the other's. **The owner's decision, later the same day: #332
+  stays, #331 is closed, and the two things only #331 had are ported onto #332's code:** a
+  `test-time-limit` setting in `[stack.run]`, and cleanup after a run killed outright (everything a run
+  starts labeled with the machine and process, and the next run removing what an ended process left, and
+  saying so). **That port claimed on 28 September 2026 by session securevibe-e2.**
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
