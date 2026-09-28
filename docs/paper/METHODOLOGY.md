@@ -93,6 +93,10 @@ Phrased by the session that built it, which watched the first run:
 > open critical, high or medium findings and 60–68% of applicable ASVS requirements verified. Every one of those
 > faults would have reached a real owner's application first.
 
+The date in the quotation is in UTC. The first run was at 20:42 on 17 September 2026, Eastern time, which is 00:42
+on 18 September in UTC. `TIMELINE.md` (Day 0) gives the evening in order, and says who raised the idea of a harness
+and who chose it.
+
 This matters to the paper's question because those five faults are invisible to unit testing by construction:
 each appears only in a particular *combination* of wizard answers, and the template is a set of switches. A
 foundation that is only tested as a library is not tested as the thing people receive.
