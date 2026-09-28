@@ -321,6 +321,10 @@ another session is not a claim.
       - Step 1, slice g (`admin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-admin`. A move only:
         securevibe-e9's V8.2.3 change to `probe.role-field-trusted` stays with securevibe-e9, after it.
+        **Done the same day:** `signed_in/admin.rs`, 1,034 lines with its 17 tests; `mod.rs` is 9,787. With
+        each check made to return at once, the moved tests catch every one: `admin_checks` 3,
+        `admin_action_checks` 6, `role_field_check` 4, and `owned_checks` 2, besides the cross-area tests.
+        `role_field_check` is in `admin.rs` now, for securevibe-e9's V8.2.3 change.
       - Step 1, slice h (`forgery.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-forgery`.
         **Done the same day:** `signed_in/forgery.rs`, 777 lines with its 17 tests; `mod.rs` is 10,811. The
