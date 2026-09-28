@@ -288,6 +288,9 @@ another session is not a claim.
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
      vulnerability once, naming every id it goes by.
      **Claimed on 28 September 2026 by session securevibe-e9.**
+     **Done the same day:** records that name each other, directly or through a third, are one finding,
+     from the record rated most serious, naming every id. `examples/flask-booking` goes from 39 findings
+     to 20. See DESIGN, "One vulnerability, once".
   3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.

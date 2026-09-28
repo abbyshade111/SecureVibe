@@ -126,3 +126,32 @@ fn with_no_time_frames_everything_counts_as_it_always_did_and_the_owner_is_told_
         "no hint how to set one:\n{text}"
     );
 }
+
+#[test]
+fn a_vulnerability_under_two_names_is_printed_and_counted_once() {
+    let (dir, osv) = app("twins", None);
+    // The same lodash flaw a second time, as a PyPI-style record naming the first as its alias.
+    std::fs::write(
+        osv.join("PYSEC-twin.json"),
+        format!(
+            r#"{{"id":"PYSEC-twin","aliases":["GHSA-late"],"published":"2020-07-15T00:00:00Z",
+                "severity":[{{"type":"CVSS_V3","score":"{HIGH}"}}],
+                "affected":[{{"package":{{"ecosystem":"npm","name":"lodash"}},
+                "ranges":[{{"type":"ECOSYSTEM","events":[{{"introduced":"0"}},{{"fixed":"99"}}]}}]}}]}}"#
+        ),
+    )
+    .unwrap();
+    let text = audit(&dir, &osv);
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+    // Three packages, three vulnerabilities, as before the twin was added; lodash's names both.
+    assert!(text.contains("\n3 known vulnerabilities:"), "{text}");
+    let lodash: Vec<&str> = text
+        .lines()
+        .filter(|l| l.contains("lodash 4.17.15"))
+        .collect();
+    assert_eq!(lodash.len(), 1, "{text}");
+    assert!(
+        lodash[0].contains("GHSA-late") && lodash[0].contains("PYSEC-twin"),
+        "{text}"
+    );
+}
