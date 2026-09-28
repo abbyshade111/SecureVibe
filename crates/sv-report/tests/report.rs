@@ -231,6 +231,86 @@ fn the_reports_say_how_much_was_not_examined_before_they_say_what_was_found() {
 }
 
 #[test]
+fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
+    // The end-to-end test holds the sums on the Flask example. This one holds each count in the
+    // chapter it belongs to, on a report small enough that every number is known: a sum can come
+    // out right with two chapters' counts swapped, and this cannot.
+    let f = frameworks();
+    let excluded = |id: &str| NotApplicable {
+        id: id.into(),
+        reason: "ruled out for the test".into(),
+        condition: Condition::Auth,
+        source: Source::Claim,
+    };
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.2.4".into(), "V2.2.2".into()],
+        not_applicable: vec![excluded("V1.3.1"), excluded("V2.1.1")],
+        not_assessed: vec![NotAssessed {
+            id: "V16.5.1".into(),
+            blocked_on: vec![Condition::Auth],
+        }],
+        out_of_level: vec![],
+    };
+    let verified = [Verified::new("some.check", &["V1.2.1"], "8 files".into())];
+    let report = build(inputs(&f, &buckets, vec![], &verified));
+    // Setup, asserted: each requirement landed where this test put it, and knows its chapter.
+    assert_eq!(
+        (
+            report.counts.applicable,
+            report.counts.checked,
+            report.counts.not_applicable,
+            report.counts.not_assessed
+        ),
+        (3, 1, 2, 1)
+    );
+    assert!(report.excluded.iter().all(|e| !e.chapter.is_empty()));
+    assert!(report.undecided.iter().all(|u| !u.chapter.is_empty()));
+
+    let chapters = sv_report::chapters::by_chapter(&report);
+    let keys: Vec<&str> = chapters.iter().map(|c| c.key.as_str()).collect();
+    assert_eq!(keys, ["V1", "V2", "V16"], "by number, not by spelling");
+    let counts = |c: &sv_report::chapters::Chapter| {
+        (
+            c.applies(),
+            c.checked,
+            c.not_verified,
+            c.does_not_apply,
+            c.not_placed,
+        )
+    };
+    assert_eq!(counts(&chapters[0]), (2, 1, 1, 1, 0), "V1");
+    assert_eq!(counts(&chapters[1]), (1, 0, 1, 1, 0), "V2");
+    assert_eq!(counts(&chapters[2]), (0, 0, 0, 0, 1), "V16");
+
+    let page = sv_report::markdown::compliance(&report);
+    let v1 = chapters[0].title();
+    // The V1 row: apply, a problem found, checked, not verified, does not apply, not placed yet.
+    assert!(
+        page.contains(&format!("| {v1} | **2** | 0 | 1 | 1 | 1 | 0 |")),
+        "{page}"
+    );
+    assert!(
+        page.contains(&format!("### {v1} — **2 apply**, 1 do not")),
+        "{page}"
+    );
+    // V16 has a row in the table and no list: nothing in it applies.
+    assert!(page.contains(&format!("| {} |", chapters[2].title())), "{page}");
+    assert!(!page.contains(&format!("### {}", chapters[2].title())), "{page}");
+    // Every requirement that applies has its words in the appendix, and the chapter lists do not.
+    // (The tests worth writing still show a level 1 requirement's words beside it, on purpose.)
+    let appendix = &page[page
+        .find("## Appendix: what each requirement asks for")
+        .expect("the appendix")..];
+    let lists = &page[page.find("## Requirements that apply").unwrap()..];
+    let lists = &lists[..lists[3..].find("\n## ").map_or(lists.len(), |i| i + 3)];
+    for line in &report.requirements {
+        let words: String = line.description.chars().take(30).collect();
+        assert!(appendix.contains(&format!("| {} | {words}", line.id)), "{appendix}");
+        assert!(!lists.contains(&words), "{}'s words are in the chapter lists", line.id);
+    }
+}
+
+#[test]
 fn a_finding_about_an_excluded_requirement_is_shown_rather_than_dropped() {
     // A check found something and named a requirement the engine excluded. Dropping the line hides
     // a possibly-wrong exclusion behind a clean count.
