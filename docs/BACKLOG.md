@@ -9,6 +9,18 @@ another session is not a claim.
 
 ## Next
 
+- **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking.
+  1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported
+     number or verdict was corrected, most often downward, because it had been overstated, set beside how many
+     tests existed at the time.
+  2. **Who decided what:** the project's major decisions, each with who proposed it and who chose it, quoted from
+     the transcripts and the backlog rather than paraphrased.
+  3. **"Ten of the twelve ADRs"** in `docs/paper/METHODOLOGY.md` and `TIMELINE.md` was true when written. v1 ended
+     with thirteen records, and there are seventeen across both versions (`docs/paper/ADRS.md`).
+
+  Touches only `docs/paper/`.
+
 - **A review of `sv` on 27 September 2026: faults, and what could be faster.** By session securevibe-e8, at
   the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
   entry points, the runner, every walker, the checks' hot loops, the MCP server, `Cargo.toml`, the
