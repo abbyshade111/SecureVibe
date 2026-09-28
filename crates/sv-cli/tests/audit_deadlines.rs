@@ -63,9 +63,11 @@ fn audit(dir: &Path, osv: &Path) -> String {
         ])
         .output()
         .expect("sv runs");
-    assert!(
-        out.status.success(),
-        "sv audit failed: {}",
+    // Status 1: known vulnerabilities were found, which every app here has.
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "sv audit: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     String::from_utf8(out.stdout).unwrap()

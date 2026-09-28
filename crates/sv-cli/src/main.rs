@@ -1650,7 +1650,22 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         bail!("{} is not a folder", app_dir.display());
     }
 
-    let sbom = sbom::build(&app_dir);
+    // What securevibe.toml says is not the app (examples, test fixtures) is compared too, and listed
+    // apart: it is not shipped, so it neither counts against V15.2.1 nor makes the app's list
+    // incomplete (DESIGN, "Folders the manifest says are not the app").
+    let manifest_path = app_dir.join("securevibe.toml");
+    let manifest = if manifest_path.is_file() {
+        Some(Manifest::load(&manifest_path)?)
+    } else {
+        None
+    };
+    let folders = manifest
+        .as_ref()
+        .map(|m| m.not_the_app().0)
+        .unwrap_or_default();
+    let (ours, theirs) = sv_scan::files::Listing::of(&app_dir).split(&folders);
+    let sbom = sbom::build_in(&ours);
+    let elsewhere = sbom::build_in(&theirs);
 
     // No database is not a clean result, and must never be printed as one.
     let Some(dir) = advisories_dir else {
@@ -1675,7 +1690,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
                 names.join(", ")
             }
         );
-        return Ok(());
+        exit_after_audit(AUDIT_NOT_ASSESSED);
     };
 
     let database = advisories::load_database(&dir)
@@ -1686,17 +1701,14 @@ fn cmd_audit(args: &[String]) -> Result<()> {
              An empty database and a healthy app look identical from here, and only one of them is good news.",
             dir.display()
         );
-        return Ok(());
+        exit_after_audit(AUDIT_NOT_ASSESSED);
     }
 
     // The time frames are V15.1.1's document, as numbers. Without them every known vulnerability
     // counts against V15.2.1 whatever its age, which is what this said before they existed.
-    let manifest_path = app_dir.join("securevibe.toml");
-    let time_frames = if manifest_path.is_file() {
-        Manifest::load(&manifest_path)?.policy.fix_within_days
-    } else {
-        None
-    };
+    let time_frames = manifest
+        .as_ref()
+        .and_then(|m| m.policy.fix_within_days.clone());
     let result = advisories::audit_against(
         &sbom,
         &database,
@@ -1760,7 +1772,9 @@ fn cmd_audit(args: &[String]) -> Result<()> {
                  clean bill: the lines above say what this comparison could not reach."
             ),
         }
-        return Ok(());
+        not_the_app_audit(&elsewhere, &database, &folders);
+        let whole = !result.verified.is_empty() && sbom.is_complete();
+        exit_after_audit(if whole { 0 } else { AUDIT_NOT_ASSESSED });
     }
     println!(
         "\n{} known vulnerabilit{}:",
@@ -1822,7 +1836,77 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         );
         on_time.iter().for_each(|f| print(f));
     }
-    Ok(())
+    not_the_app_audit(&elsewhere, &database, &folders);
+    exit_after_audit(AUDIT_FOUND);
+}
+
+/// `sv audit`'s exit status when the app has a known vulnerability. An error `sv` could not get past
+/// also exits with 1; either way, something needs a person.
+const AUDIT_FOUND: i32 = 1;
+/// `sv audit`'s exit status when the comparison did not cover the whole app: no database, an empty
+/// one, an ecosystem it holds nothing about, a version it could not compare, or a list of packages
+/// `sv` could not complete. Never 0, which is kept for "compared everything, and nothing matched".
+const AUDIT_NOT_ASSESSED: i32 = 2;
+
+/// Ends `sv audit` with its status, once what it printed is out.
+fn exit_after_audit(code: i32) -> ! {
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    std::process::exit(code)
+}
+
+/// What `sv audit` found in folders securevibe.toml says are not the app, listed after the app's own
+/// and counted apart, one line per vulnerability, since none of it is shipped.
+fn not_the_app_audit(
+    elsewhere: &sbom::Sbom,
+    database: &[advisories::Advisory],
+    folders: &[String],
+) {
+    if folders.is_empty() || elsewhere.components.is_empty() {
+        return;
+    }
+    let result = advisories::audit_against(elsewhere, database, None, advisories::Day::today());
+    let named = folders.join(", ");
+    if !result.uncovered.is_empty() {
+        println!(
+            "\nIn folders securevibe.toml says are not the app ({named}): not compared for {}, which \
+             this database holds nothing about.",
+            result
+                .uncovered
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    if result.findings.is_empty() {
+        if result.uncovered.is_empty() {
+            println!(
+                "\nIn folders securevibe.toml says are not the app ({named}): {} package{} compared, \
+                 and none matches a record in this database.",
+                result.components_checked,
+                if result.components_checked == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            );
+        }
+        return;
+    }
+    println!(
+        "\nIn folders securevibe.toml says are not the app ({named}), listed for information and not \
+         counted against the app, since none of it is shipped: {} known vulnerabilit{}.",
+        result.findings.len(),
+        if result.findings.len() == 1 {
+            "y"
+        } else {
+            "ies"
+        }
+    );
+    for f in &result.findings {
+        println!("  [{}] {}", f.severity.name(), f.title);
+    }
 }
 
 /// `sv bundle`: the app, its report and the record of what was checked, in one zip (see `bundle.rs`).
