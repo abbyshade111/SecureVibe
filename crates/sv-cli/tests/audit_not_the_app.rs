@@ -1,6 +1,7 @@
 //! `sv audit` and the folders securevibe.toml says are not the app, and what its exit status says,
-//! end to end through the binary. A weekly job in CI holds `sv` itself to V15.2.1 with this, so the
-//! status is the check: 0 only when everything was compared and nothing matched.
+//! end to end through the binary. What is in those folders is listed apart and still counted, since
+//! the AI coding tool writes securevibe.toml. A weekly job in CI holds `sv` itself to V15.2.1 with
+//! this, so the status is the check: 0 only when everything was compared and nothing matched.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -39,20 +40,13 @@ fn lockfile(dir: &Path, packages: &[(&str, &str)]) {
 }
 
 /// An npm app whose own packages are `app_packages`, with an example app beside it using lodash
-/// 4.17.15 and an example whose lockfile cannot be read, and an advisory database about npm.
+/// 4.17.15, and an advisory database about npm with a record for lodash and one for qs.
 fn setup(name: &str, manifest: &str, app_packages: &[(&str, &str)]) -> (PathBuf, PathBuf) {
     let root = std::env::temp_dir().join(format!("sv-audit-nta-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&root).ok();
     let (dir, osv) = (root.join("app"), root.join("osv"));
     lockfile(&dir, app_packages);
     lockfile(&dir.join("examples/demo"), &[("lodash", "4.17.15")]);
-    std::fs::create_dir_all(dir.join("examples/broken")).unwrap();
-    std::fs::write(dir.join("examples/broken/package.json"), r#"{"name":"x"}"#).unwrap();
-    std::fs::write(
-        dir.join("examples/broken/package-lock.json"),
-        "this is not a lockfile",
-    )
-    .unwrap();
     std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
     std::fs::create_dir_all(&osv).unwrap();
     for (id, package) in [("GHSA-app", "qs"), ("GHSA-example", "lodash")] {
@@ -87,56 +81,66 @@ fn audit(dir: &Path, osv: Option<&Path>) -> (Option<i32>, String) {
     )
 }
 
+/// A lockfile `sv` cannot read, in `folder` under the app.
+fn unreadable_lockfile(dir: &Path, folder: &str) {
+    std::fs::create_dir_all(dir.join(folder)).unwrap();
+    std::fs::write(dir.join(folder).join("package.json"), r#"{"name":"x"}"#).unwrap();
+    std::fs::write(
+        dir.join(folder).join("package-lock.json"),
+        "this is not a lockfile",
+    )
+    .unwrap();
+}
+
 #[test]
-fn an_example_apps_vulnerability_is_listed_apart_and_does_not_count_against_the_app() {
+fn an_example_apps_vulnerability_is_listed_apart_and_still_counted() {
     let (dir, osv) = setup("apart", NOT_THE_APP, &[("qs", "6.5.0")]);
     let (code, text) = audit(&dir, Some(&osv));
-    // The control: the same folders, with nothing said about examples, count both and call the
-    // list incomplete, because the broken example's lockfile could not be read.
+    // The control: with nothing said about examples, both are the app's own.
     std::fs::write(dir.join("securevibe.toml"), PLAIN).unwrap();
     let (plain_code, plain) = audit(&dir, Some(&osv));
     std::fs::remove_dir_all(dir.parent().unwrap()).ok();
 
     assert_eq!(code, Some(1), "{text}");
-    assert!(text.contains("\n1 known vulnerability:"), "{text}");
-    let apart = text
-        .split("not the app")
-        .nth(1)
+    let (app_part, apart) = text
+        .split_once("not the app")
         .unwrap_or_else(|| panic!("no section for what is not the app:\n{text}"));
-    let (app_part, _) = text.split_once("not the app").unwrap();
     assert!(
-        app_part.contains("qs 6.5.0") && !app_part.contains("lodash"),
+        app_part.contains("\n1 known vulnerability:")
+            && app_part.contains("qs 6.5.0")
+            && !app_part.contains("lodash"),
         "{text}"
     );
-    assert!(apart.contains("lodash 4.17.15"), "{text}");
-    assert!(!text.contains("list itself is incomplete"), "{text}");
+    assert!(
+        apart.contains("counted all the same") && apart.contains("lodash 4.17.15"),
+        "{text}"
+    );
 
     assert_eq!(plain_code, Some(1), "{plain}");
     assert!(plain.contains("\n2 known vulnerabilities:"), "{plain}");
-    assert!(plain.contains("list itself is incomplete"), "{plain}");
 }
 
 #[test]
-fn nothing_found_in_the_app_is_status_0_even_with_an_examples_vulnerability() {
-    let (dir, osv) = setup("clean", NOT_THE_APP, &[("express", "4.21.2")]);
+fn naming_a_folder_never_hides_its_vulnerability() {
+    // The app itself is clean; the only vulnerable package is in a folder securevibe.toml sets apart.
+    // A line the AI coding tool writes must not be able to turn that into a clean result.
+    let (dir, osv) = setup("hidden", NOT_THE_APP, &[("express", "4.21.2")]);
     let (code, text) = audit(&dir, Some(&osv));
-    std::fs::write(dir.join("securevibe.toml"), PLAIN).unwrap();
-    let (plain_code, plain) = audit(&dir, Some(&osv));
+    // The control: the same example without the vulnerable package is clean, status 0.
+    lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);
+    let (clean, clean_text) = audit(&dir, Some(&osv));
     std::fs::remove_dir_all(dir.parent().unwrap()).ok();
 
-    assert_eq!(code, Some(0), "{text}");
-    assert!(
-        text.contains("there was nothing it could not compare"),
-        "{text}"
-    );
     assert!(text.contains("lodash 4.17.15"), "{text}");
-    // The control: counted as the app's, the example's lodash makes it status 1.
-    assert_eq!(plain_code, Some(1), "{plain}");
+    assert_eq!(code, Some(1), "{text}");
+    assert_eq!(clean, Some(0), "{clean_text}");
 }
 
 #[test]
 fn a_comparison_that_did_not_cover_the_app_is_status_2_never_0() {
     let (dir, osv) = setup("partial", NOT_THE_APP, &[("express", "4.21.2")]);
+    // The example is clean here, so what the status says is about the app alone.
+    lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);
     // No database at all.
     let (none, text) = audit(&dir, None);
     assert_eq!(none, Some(2), "{text}");
@@ -154,23 +158,24 @@ fn a_comparison_that_did_not_cover_the_app_is_status_2_never_0() {
 }
 
 #[test]
-fn an_app_whose_own_list_is_incomplete_is_status_2_where_an_examples_is_not() {
-    // The example's unreadable lockfile is in every setup here and never makes the status 2 (the
-    // test above shows status 0 with it). The same file in the app itself does.
-    let (dir, osv) = setup("incomplete", NOT_THE_APP, &[("express", "4.21.2")]);
-    let (before, text) = audit(&dir, Some(&osv));
-    assert_eq!(
-        before,
-        Some(0),
-        "the setup is clean before the app's lockfile breaks: {text}"
-    );
-    std::fs::create_dir_all(dir.join("web")).unwrap();
-    std::fs::write(dir.join("web/package.json"), r#"{"name":"web"}"#).unwrap();
-    std::fs::write(dir.join("web/package-lock.json"), "this is not a lockfile").unwrap();
-    let (code, text) = audit(&dir, Some(&osv));
-    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
-    assert!(text.contains("list itself is incomplete"), "{text}");
-    assert_eq!(code, Some(2), "{text}");
+fn an_incomplete_list_is_status_2_in_the_app_or_in_a_folder_set_apart() {
+    for folder in ["web", "examples/broken"] {
+        let (dir, osv) = setup("incomplete", NOT_THE_APP, &[("express", "4.21.2")]);
+        // The control: the example's vulnerable package out of the way, the setup is clean.
+        lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);
+        let (before, text) = audit(&dir, Some(&osv));
+        assert_eq!(before, Some(0), "clean before the lockfile breaks: {text}");
+        unreadable_lockfile(&dir, folder);
+        let (code, text) = audit(&dir, Some(&osv));
+        std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+        assert!(text.contains("incomplete"), "{folder}: {text}");
+        if folder.starts_with("examples") {
+            // "None matches" beside "incomplete" would read as clean for that folder.
+            let (_, apart) = text.split_once("not the app").unwrap();
+            assert!(!apart.contains("none matches a record"), "{folder}: {text}");
+        }
+        assert_eq!(code, Some(2), "{folder}: {text}");
+    }
 }
 
 #[test]
@@ -178,6 +183,8 @@ fn a_database_that_only_mentions_an_ecosystem_in_passing_does_not_cover_it() {
     // The app's own Python packages, and a database about npm whose one other record also names a
     // PyPI package, as OSV's per-ecosystem exports do for packages published to both.
     let (dir, osv) = setup("passing", NOT_THE_APP, &[("express", "4.21.2")]);
+    // The example is clean here, so what the status says is about the app alone.
+    lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);
     std::fs::write(dir.join("requirements.txt"), "flask==3.0.0\n").unwrap();
     std::fs::write(
         osv.join("GHSA-both.json"),
@@ -207,4 +214,32 @@ fn a_database_that_only_mentions_an_ecosystem_in_passing_does_not_cover_it() {
         "{covered_text}"
     );
     assert_eq!(covered, Some(2), "{covered_text}");
+}
+
+#[test]
+fn a_folder_set_apart_by_a_pattern_still_counts_both_ways() {
+    // `fixtures/*` in securevibe.toml, as `sv`'s own manifest writes `crates/*/tests`.
+    let manifest = "manifest-version = 1\n[app]\nname = \"Audited\"\n[stack]\nlanguages = [\"javascript\"]\n[repository]\nnot-the-app = [\"examples\", \"fixtures/*\"]\n";
+    let (dir, osv) = setup("pattern", manifest, &[("express", "4.21.2")]);
+    lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);
+    let (clean, clean_text) = audit(&dir, Some(&osv));
+    assert_eq!(clean, Some(0), "the setup is clean: {clean_text}");
+
+    // A vulnerable package in a fixture: listed apart, and status 1.
+    lockfile(&dir.join("fixtures/one"), &[("qs", "6.5.0")]);
+    let (found, found_text) = audit(&dir, Some(&osv));
+    // A fixture whose lockfile cannot be read, the vulnerable one gone: status 2.
+    std::fs::remove_dir_all(dir.join("fixtures/one")).unwrap();
+    unreadable_lockfile(&dir, "fixtures/two");
+    let (partial, partial_text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+
+    let (_, apart) = found_text
+        .split_once("not the app")
+        .unwrap_or_else(|| panic!("{found_text}"));
+    assert!(apart.contains("qs 6.5.0"), "{found_text}");
+    assert_eq!(found, Some(1), "{found_text}");
+    assert_eq!(partial, Some(2), "{partial_text}");
+    let (_, apart) = partial_text.split_once("not the app").unwrap();
+    assert!(!apart.contains("none matches a record"), "{partial_text}");
 }

@@ -292,6 +292,11 @@ another session is not a claim.
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
      **Claimed on 28 September 2026 by session securevibe-e9.**
+     **Done the same day, the other way round:** the report was right and `sv audit` was wrong. Findings
+     in those folders are listed apart and still counted, since securevibe.toml is written by the AI
+     coding tool and a line in it must not hide a vulnerability; `sv audit` now counts them too, and the
+     weekly job audits only the files `sv` is built from, at the owner's choice. See DESIGN, "`sv`
+     audits its own dependencies, weekly", its "Later" part.
      **Item 3 was claimed twice, 27 seconds apart** (securevibe-e2 at 16:35:24 UTC in #340, securevibe-e9 at
      16:35:51 in #341, which reached `main` first), and neither could see the other's. securevibe-e2 had it
      built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull

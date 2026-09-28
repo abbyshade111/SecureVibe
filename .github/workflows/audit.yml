@@ -6,10 +6,13 @@
 # whenever Cargo.lock changes, so an update that brings one in is caught before it merges. `sv` itself
 # fetches nothing: downloading the list is this workflow's step, as it is the owner's step anywhere else.
 #
-# The folders securevibe.toml says are not the app (the example apps and the test fixtures, some of them
-# vulnerable on purpose) are compared too and listed apart; they do not fail the job, since none of them
-# ships. The job fails on `sv audit`'s status: 1 for a known vulnerability in `sv`'s own crates, 2 for a
-# comparison that did not cover all of them. Only 0, everything compared and nothing matched, passes.
+# What is audited is what `sv` is built from: the workspace's Cargo.toml, Cargo.lock, and each crate's
+# Cargo.toml, copied to a folder of their own. Not the whole repository: `sv audit` counts everything in
+# a folder, the example apps and the test fixtures too (securevibe.toml's `not-the-app` changes where
+# they are listed, never whether they count), and some fixtures hold lockfiles that cannot be read on
+# purpose, so the whole repository can never be fully compared. Choosing the files here, in a file a
+# person reviews, is the deliberate version of that choice. The job fails on `sv audit`'s status: 1 for
+# a known vulnerability, 2 for a comparison that did not cover every crate. Only 0 passes.
 #
 # Every step is pinned to an exact commit fingerprint, as in rust.yml.
 
@@ -55,4 +58,8 @@ jobs:
           echo "records: $(ls "$RUNNER_TEMP/osv" | wc -l)"
 
       - name: Audit sv's own crates
-        run: ./target/release/sv audit . --advisories "$RUNNER_TEMP/osv"
+        run: |
+          mkdir -p "$RUNNER_TEMP/sv-ships"
+          git ls-files -z 'Cargo.toml' 'Cargo.lock' 'crates/*/Cargo.toml' \
+            | xargs -0 -I{} cp --parents {} "$RUNNER_TEMP/sv-ships/"
+          ./target/release/sv audit "$RUNNER_TEMP/sv-ships" --advisories "$RUNNER_TEMP/osv"
