@@ -159,6 +159,8 @@ another session is not a claim.
      word for word 50 entries of `questions_for_you` (27 KB on the example).
      **The owner's decision, the same day: drop the duplicate. Claimed by session securevibe-e10**, in
      branch `claude/only-you-once`.
+     **Done the same day:** `report.json` names them as `only_you_can_check_ids`, each a question in
+     `questions_for_you`; 334 KB to 306 KB on the example. See DESIGN, "The report's shape".
   10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
