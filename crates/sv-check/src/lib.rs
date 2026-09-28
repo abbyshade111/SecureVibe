@@ -22,6 +22,7 @@ pub mod junit;
 pub mod launch;
 pub mod live_tls;
 pub mod logs;
+pub mod mcp_server;
 pub mod notes;
 pub mod oidc;
 pub mod probes;

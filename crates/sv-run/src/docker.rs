@@ -383,6 +383,21 @@ impl Backend for DockerBackend {
             sv_check::oidc::run(&mut http, section)
         });
 
+        // 4c'. The app as an MCP server, when securevibe.toml says where it answers.
+        let mcp_server = plan.mcp_server.as_ref().map(|section| {
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: None,
+            };
+            sv_check::mcp_server::run(&mut http, section)
+        });
+
         // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
         //     Last of the questions, as the second test user when it needs one: nothing after it
         //     depends on that user's session.
@@ -457,7 +472,7 @@ impl Backend for DockerBackend {
         });
 
         // Still up after everything else it was asked, while the sidecar can still ask it.
-        if signed_in.is_some() || oidc.is_some() || ai.is_some() {
+        if signed_in.is_some() || oidc.is_some() || ai.is_some() || mcp_server.is_some() {
             liveness.push(self.liveness(
                 &via,
                 &app,
@@ -560,6 +575,7 @@ impl Backend for DockerBackend {
             signed_in,
             oidc,
             ai,
+            mcp_server,
             left_over_removed,
             liveness,
         })
@@ -1446,10 +1462,24 @@ fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option
     {
         return None;
     }
-    let mut raw = format!(
-        "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
-        request.method, request.path
-    );
+    // A request may name its own `Host`, to ask what the app does with a name that is not its
+    // own; it then replaces this one rather than being sent beside it, since two would be refused
+    // for being two.
+    let own_host = request
+        .headers
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case("host"));
+    let mut raw = if own_host {
+        format!(
+            "{} {} HTTP/1.0\r\nConnection: close\r\n",
+            request.method, request.path
+        )
+    } else {
+        format!(
+            "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
+            request.method, request.path
+        )
+    };
     for (name, value) in &request.headers {
         raw.push_str(&format!("{name}: {value}\r\n"));
     }
@@ -1936,6 +1966,23 @@ http.createServer((q, s) => {
             "{head}"
         );
         assert_eq!(body, r.body.as_deref().unwrap());
+    }
+
+    #[test]
+    fn a_request_naming_its_own_host_is_sent_with_that_one_only() {
+        let raw = request_bytes(
+            &req("POST", "/mcp", &[("Host", "sv-rebind.invalid")]),
+            "app",
+        )
+        .expect("a Host header is allowed");
+        let hosts: Vec<&str> = raw
+            .lines()
+            .filter(|l| l.to_ascii_lowercase().starts_with("host:"))
+            .collect();
+        assert_eq!(hosts, ["Host: sv-rebind.invalid"], "{raw}");
+        // The control: without one, the app's own name is sent.
+        let raw = request_bytes(&req("POST", "/mcp", &[]), "app").unwrap();
+        assert!(raw.contains("\r\nHost: app\r\n"), "{raw}");
     }
 
     #[test]

@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 147 (43%) | 7 | 191 |
-| OWASP AISVS 1.0 | 191 | 27 (14%) | 0 | 164 |
+| OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -275,11 +275,11 @@ does not reach.
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
 | C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
-| C10 Model Context Protocol (MCP) Security | 23 | 3 | 0 | 20 |
+| C10 Model Context Protocol (MCP) Security | 23 | 5 | 0 | 18 |
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-14 of these 30 can only ever be marked *needs attention*: a check can
+14 of these 32 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -304,6 +304,8 @@ need `--tools`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
+- C10.2.6: settled by `probe.mcp-session-survives-end`.
+- C10.3.3: settled by `probe.mcp-server-origin-unchecked`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
