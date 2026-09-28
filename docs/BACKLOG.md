@@ -76,7 +76,8 @@ another session is not a claim.
      recommends (a) and (b) together, which clear it without asking anyone to trust the manifest. Tests: a
      3 MB plain-text JSON and no MCP configuration leaves the MCP check run, or `partly` and naming the file,
      never not assessed; a key planted past the 2 MB mark of a large file is found and `secrets.` is `ran`;
-     each guard removed in turn turns its test red. **Not claimed; the option is the owner's call.**
+     each guard removed in turn turns its test red. **The owner's decision, 28 September 2026: (a) and (b)
+     together. Claimed the same day by session securevibe-e10**, in branch `claude/large-data-files`.
 
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.
