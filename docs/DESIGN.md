@@ -4345,6 +4345,42 @@ evidence that more requirements apply, which is why the report shows it.
 `docs`, the four the v2 self-assessment left out of its "product code only" run. That file is the one the
 self-assessment's repository run used, so a rerun of that run now differs from what the assessment records.
 
+## A run that takes too long, and a run that is stopped (28 September 2026)
+
+Review item 2 found that `sv run` could wait forever and could leave its containers behind. Every Docker
+call went through one helper that waited as long as the command took, and the app's own test suite is one
+of those calls, so a suite that hung hung `sv report --run` with it. Cleanup was the run's `Teardown`,
+which runs on every way out of a run except Ctrl-C: a signal ends a Rust process without running
+anything, so each stopped run left its app, its sidecar, its stand-ins, and its fenced network behind.
+
+**A stated limit on the suite.** The test command runs for at most ten minutes, or the number of seconds
+`[stack.run] test-time-limit` gives. A suite still running then is stopped. It credits nothing, since a
+suite cut short has not said which of its tests pass, and nothing it wrote is read. The report says so in
+"What was not examined" and above the suite's output, and `sv run` says so on the terminal, with the
+setting to raise.
+
+**A limit on every other Docker call.** Thirty minutes, generous because building or pulling an image is
+a Docker call too. The long waits of `sv run --slow` happen between calls, not inside one. A call that
+runs out of time is an error that names the limit, and the run ends with that reason. Output is read as it
+comes, so a call that prints a great deal cannot stall on a full pipe (`run_within`).
+
+**Ctrl-C and `kill` clean up.** The first run in a process installs a handler (the `ctrlc` crate) that
+removes every run still in progress, says so, and exits with status 130.
+
+**The next run cleans up after one killed outright.** `kill -9`, a crash, or a closed laptop runs
+nothing at all. So everything a run creates carries the label `org.securevibe.owner=<machine>:<process>`,
+and each run first removes what carries this machine's name and the id of a process that has ended, then
+says what it removed, on the terminal and in the report. It leaves alone what another running `sv` owns,
+what `sv` on another machine sharing the Docker daemon owns, and anything unlabeled. The machine's name is
+in the label because `sv` in a container has process ids of its own: without it, a host `sv` could read a
+container's live run as ended. Where a process cannot be asked about, it counts as running, so nothing is
+removed on a guess.
+
+Tested against real containers: a suite stopped at a three-second limit beside one that finishes; Ctrl-C
+leaving nothing behind; a run killed with `kill -9` leaving its app and network (the control), and the
+next `sv run` and the next `sv report --run` each removing them and naming them; and leftovers from
+another machine or a running process left alone.
+
 ## Appendix C as rules the AI coding tool follows while it codes (27 September 2026)
 
 Asked for by the owner: OWASP AISVS 1.0 Appendix C, *AI-Assisted Secure Coding*, is better used as a
