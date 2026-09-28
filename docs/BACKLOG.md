@@ -434,6 +434,11 @@ another session is not a claim.
      a password change), V6.3.7 (an email after a password change), V10.1.1 (tokens in browser storage), V10.5.2 (two
      people sharing an email address at the test sign-in provider), V14.3.3 (the test password in browser storage),
      C9.5.3 (another user's record through a tool the model calls).
+     **The twenty that read the code or the running app claimed on 28 September 2026 by session securevibe-e9**, at
+     the owner's asking to go ahead with this group, in three pull requests: the seven that read the code, then
+     V8.4.2, V10.4.4, V16.5.4, and V13.4.7, then the eight about AI apps. The nine signed-in ones (V1.3.4, V5.4.3,
+     V4.1.3, V7.4.3, V6.3.7, V10.1.1, V10.5.2, V14.3.3, C9.5.3) are not claimed: their checks live in
+     `signed_in/`, which is frozen until the split's step 2 is done.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.
