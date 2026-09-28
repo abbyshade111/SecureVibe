@@ -176,7 +176,7 @@ mod tests {
         // An entry that differs, or has no question at all: dropping it would lose what it says.
         for only in [
             json!([{"id": "V1.1.1", "title": "t", "how": "look closer"}]),
-            json!([{"id": "V9.9.9", "title": "t", "how": "look"}]),
+            json!([{"id": "V2.2.2", "title": "t", "how": "look"}]),
         ] {
             let mut v = json!({
                 "questions_for_you": [{"id": "V1.1.1", "title": "t", "how": "look"}],
