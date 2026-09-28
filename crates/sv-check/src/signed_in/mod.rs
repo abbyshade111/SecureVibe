@@ -26,24 +26,30 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 
+mod activation;
 mod admin;
 mod codes;
 mod flows;
 mod forgery;
 mod passwords;
+mod reset;
 mod rules;
 mod sessions;
 mod signin;
+mod totp;
 mod uploads;
+use activation::*;
 use admin::*;
 use codes::*;
 use flows::*;
 use forgery::*;
 use passwords::*;
+use reset::*;
 use rules::*;
 pub(crate) use rules::{Rule, finding};
 use sessions::*;
 use signin::*;
+use totp::*;
 use uploads::*;
 
 /// Something that can put a request to the running app and bring back its answer.
