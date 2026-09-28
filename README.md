@@ -306,7 +306,8 @@ to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/
 - `--network none` means the container has no network at all, so the promise that `sv` opens no
   connection is enforced rather than only kept.
 - On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
-  files it writes are yours rather than root's.
+  files it writes are yours. Without it the image runs as a user of its own, never root, and that user
+  cannot write into your folder. On a Mac, Docker Desktop makes what it writes yours either way.
 - Docker (or Colima) has to be running when the tool starts, or the securevibe tools are simply absent.
 - The container never runs `sv report --run`: starting the app means starting containers, which from
   inside a container would mean handing it control of Docker on your machine. Run that step with a
