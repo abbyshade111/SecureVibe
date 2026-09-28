@@ -631,6 +631,27 @@ mod tests {
     }
 
     #[test]
+    fn each_ai_vendors_key_is_reported_by_its_own_rule_alone() {
+        // Anthropic's keys start sk-ant-, OpenAI's sk-proj- or sk-: a pattern for one that
+        // forgot its marker would claim the other's keys too, and one key would read as two.
+        let anthropic = credential_shaped(&["sk", "ant", "api03", &filler(40, MIXED)], "-");
+        let cases: Vec<(String, &str)> = std::iter::once((anthropic, "secrets.anthropic-key"))
+            .chain(openai_keys().into_iter().map(|k| (k, "secrets.openai-key")))
+            .chain(
+                huggingface_tokens()
+                    .into_iter()
+                    .map(|k| (k, "secrets.huggingface-token")),
+            )
+            .collect();
+        for (key, rule) in &cases {
+            let text = format!("key: {key}\n");
+            let found = scan_text(&rules(), "notes.txt", &text);
+            let ids: Vec<&str> = found.iter().map(|f| f.rule_id.as_str()).collect();
+            assert_eq!(ids, [*rule], "{}…: {ids:?}", &key[..8]);
+        }
+    }
+
+    #[test]
     fn near_misses_are_not_openai_or_hugging_face_keys() {
         // Shapes close to the rules that are not keys: a Hugging Face identifier, a token one
         // letter short or long, and an sk- string with no marker in it.
