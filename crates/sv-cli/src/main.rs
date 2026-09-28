@@ -20,58 +20,230 @@ mod mcp;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        Some("init") => {
+    let Some(first) = args.first().map(String::as_str) else {
+        print_help();
+        return Ok(());
+    };
+    match first {
+        "--help" | "-h" | "help" => {
+            print_help();
+            return Ok(());
+        }
+        "--version" | "-V" | "version" => {
+            println!("{}", version_line());
+            return Ok(());
+        }
+        _ => {}
+    }
+    let Some(command) = COMMANDS.iter().find(|c| c.name == first) else {
+        print_help();
+        bail!("unknown command: {first}");
+    };
+    let rest = &args[1..];
+    if rest.iter().any(|a| a == "--help" || a == "-h") {
+        print!("USAGE:\n{}", command.help);
+        return Ok(());
+    }
+    check_args(command, rest)?;
+    match command.name {
+        "init" => {
             println!("{}", spec::STARTER_MANIFEST);
             println!("{}", spec::INSTRUCTIONS);
             Ok(())
         }
-        Some("scope") => cmd_scope(args.get(1).map(PathBuf::from)),
-        Some("notes") => cmd_notes(args.get(1).map(PathBuf::from)),
-        Some("questions") => cmd_questions(args.get(1).map(PathBuf::from)),
-        Some("rules") => cmd_rules(&args[1..]),
-        Some("probe") => cmd_probe(&args[1..]),
-        Some("run") => cmd_run(&args[1..]),
-        Some("check") => cmd_check(args.get(1).map(PathBuf::from)),
-        Some("sbom") => cmd_sbom(args.get(1).map(PathBuf::from)),
-        Some("audit") => cmd_audit(&args[1..]),
-        Some("report") => cmd_report(&args[1..]),
-        Some("bundle") => cmd_bundle(&args[1..]),
-        Some("mcp") => mcp::cmd_mcp(&args[1..]),
-        Some("--help") | Some("-h") | None => {
-            print_help();
-            Ok(())
-        }
-        Some(other) => {
-            print_help();
-            bail!("unknown command: {other}");
-        }
+        "scope" => cmd_scope(rest.first().map(PathBuf::from)),
+        "notes" => cmd_notes(rest.first().map(PathBuf::from)),
+        "questions" => cmd_questions(rest.first().map(PathBuf::from)),
+        "rules" => cmd_rules(rest),
+        "probe" => cmd_probe(rest),
+        "run" => cmd_run(rest),
+        "check" => cmd_check(rest.first().map(PathBuf::from)),
+        "sbom" => cmd_sbom(rest.first().map(PathBuf::from)),
+        "audit" => cmd_audit(rest),
+        "report" => cmd_report(rest),
+        "bundle" => cmd_bundle(rest),
+        "mcp" => mcp::cmd_mcp(rest),
+        other => unreachable!("{other} is in COMMANDS and has no arm"),
     }
 }
 
+/// One command: its name, the options it takes, and its lines of the help.
+struct Command {
+    name: &'static str,
+    /// What the one word that is not an option names, such as `PATH`, or `None` when it takes none.
+    word: Option<&'static str>,
+    /// Options that stand alone.
+    flags: &'static [&'static str],
+    /// Options followed by a value, the word after them.
+    valued: &'static [&'static str],
+    /// The command's lines of `sv --help`, as they are printed there.
+    help: &'static str,
+}
+
+/// Every command `sv` knows, in the order `sv --help` lists them.
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "init",
+        word: None,
+        flags: &[],
+        valued: &[],
+        help: "  sv init            print the securevibe.toml spec to hand to your AI coding tool\n",
+    },
+    Command {
+        name: "scope",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv scope [PATH]    show which requirements apply to the app, and why\n",
+    },
+    Command {
+        name: "notes",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv notes [PATH]    write security-notes.md: the questions only you can answer\n",
+    },
+    Command {
+        name: "questions",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv questions [PATH]\n                     the questions only a person can answer, for your AI coding\n                     tool to ask you: paste them into its chat\n",
+    },
+    Command {
+        name: "rules",
+        word: Some("PATH"),
+        flags: &["--print"],
+        valued: &[],
+        help: "  sv rules [PATH] [--print]\n                     write the security rules your AI coding tool follows while it\n                     codes into AGENTS.md (--print shows them instead)\n",
+    },
+    Command {
+        name: "probe",
+        word: Some("URL"),
+        flags: &[],
+        valued: &["--hsts-preload"],
+        help: "  sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n",
+    },
+    Command {
+        name: "run",
+        word: Some("PATH"),
+        flags: &["--slow"],
+        valued: &[],
+        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n",
+    },
+    Command {
+        name: "check",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv check [PATH]    credentials left in the code, and how it is set up\n",
+    },
+    Command {
+        name: "sbom",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n",
+    },
+    Command {
+        name: "audit",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &["--advisories"],
+        help: "  sv audit [PATH] --advisories DIR\n                     match what the app ships against a local OSV database\n",
+    },
+    Command {
+        name: "report",
+        word: Some("PATH"),
+        flags: &["--run", "--slow", "--tools"],
+        valued: &["--out", "--advisories"],
+        help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     write the reports: what applies, what was found, what nobody has answered\n",
+    },
+    Command {
+        name: "bundle",
+        word: Some("PATH"),
+        flags: &["--run", "--slow", "--tools"],
+        valued: &["--out", "--advisories"],
+        help: "  sv bundle [PATH] [--out FILE.zip] [--run] [--tools] [--advisories DIR]\n                     the app, its report and a SHA-256 for every file in one zip, with\n                     anything that could hold a secret left out and listed\n",
+    },
+    Command {
+        name: "mcp",
+        word: None,
+        flags: &[],
+        valued: &["--root"],
+        help: "  sv mcp [--root DIR]\n                     serve the checks to an AI coding tool over MCP, for the apps under DIR\n",
+    },
+];
+
+/// Refuses what a command cannot take before it runs, so an option is never read as a folder: an unknown
+/// option, an option missing its value, and a second word where the command takes one or none.
+fn check_args(command: &Command, args: &[String]) -> Result<()> {
+    let refuse = |problem: String| -> Result<()> {
+        bail!("{problem}\n\nUSAGE:\n{}", command.help.trim_end())
+    };
+    let name = command.name;
+    let mut words = 0;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if command.valued.contains(&arg.as_str()) {
+            if rest.next().is_none() {
+                return refuse(format!("`{arg}` needs a value after it"));
+            }
+        } else if command.flags.contains(&arg.as_str()) {
+        } else if arg.starts_with('-') && arg.len() > 1 {
+            let known: Vec<&str> = command
+                .flags
+                .iter()
+                .chain(command.valued)
+                .copied()
+                .collect();
+            let takes = if known.is_empty() {
+                "it takes no options but --help".to_owned()
+            } else {
+                format!("it takes {}, and --help", known.join(", "))
+            };
+            return refuse(format!(
+                "unknown option for `sv {name}`: {arg} ({takes}). A folder whose name starts with `-` \
+                 can be given as ./{arg}"
+            ));
+        } else {
+            words += 1;
+            match command.word {
+                None => {
+                    return refuse(format!(
+                        "`sv {name}` takes only options, and was given {arg}"
+                    ));
+                }
+                Some(word) if words > 1 => {
+                    return refuse(format!(
+                        "`sv {name}` takes one {word}, and was given a second: {arg}"
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `sv --version`: the version, and the commit the build was made from, as a bundle records it.
+fn version_line() -> String {
+    format!(
+        "sv {} (commit {})",
+        env!("CARGO_PKG_VERSION"),
+        env!("SV_GIT_COMMIT")
+    )
+}
+
 fn print_help() {
-    println!(
-        "sv — check an app against OWASP ASVS 5.0, AISVS 1.0 and Secure by Design.\n\n\
-         USAGE:\n  \
-         sv init            print the securevibe.toml spec to hand to your AI coding tool\n  \
-         sv scope [PATH]    show which requirements apply to the app, and why\n  \
-         sv notes [PATH]    write security-notes.md: the questions only you can answer\n  \
-         sv questions [PATH]\n                     the questions only a person can answer, for your AI coding\n                     tool to ask you: paste them into its chat\n  \
-         sv rules [PATH] [--print]\n                     write the security rules your AI coding tool follows while it\n                     codes into AGENTS.md (--print shows them instead)\n  \
-         sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n  \
-         sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n  \
-         sv check [PATH]    credentials left in the code, and how it is set up\n  \
-         sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n  \
-         sv audit [PATH] --advisories DIR\n                     \
-             match what the app ships against a local OSV database\n  \
-         sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     \
-             write the reports: what applies, what was found, what nobody has answered\n  \
-         sv bundle [PATH] [--out FILE.zip] [--run] [--tools] [--advisories DIR]\n                     \
-             the app, its report and a SHA-256 for every file in one zip, with\n                     \
-             anything that could hold a secret left out and listed\n  \
-         sv mcp [--root DIR]\n                     \
-             serve the checks to an AI coding tool over MCP, for the apps under DIR\n"
+    let mut text = String::from(
+        "sv — check an app against OWASP ASVS 5.0, AISVS 1.0 and Secure by Design.\n\nUSAGE:\n",
     );
+    for command in COMMANDS {
+        text.push_str(command.help);
+    }
+    text.push_str("  sv --version       the version, and the commit it was built from\n");
+    println!("{text}");
 }
 
 /// Where the data lives: the OWASP frameworks and knowledge files, and sv's own files beside them, all in the
