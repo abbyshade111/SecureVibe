@@ -18,7 +18,7 @@
 use crate::finding::{Confidence, Finding, Location, Severity};
 use serde::Serialize;
 use std::path::Path;
-use sv_scan::ecosystems::{DetectedEcosystem, detect};
+use sv_scan::ecosystems::DetectedEcosystem;
 
 /// Whether a version is what is installed, or only what was requested.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -78,8 +78,15 @@ impl Sbom {
 
 /// Builds the bill of materials for an app folder.
 pub fn build(app_dir: &Path) -> Sbom {
+    build_in(&sv_scan::files::Listing::of(app_dir))
+}
+
+/// `build`, from a listing already made. `sv report` builds one bill of materials and hands it to
+/// the lockfile check and the report; it used to build it twice, and `sv check` three times.
+pub fn build_in(listing: &sv_scan::files::Listing) -> Sbom {
+    let app_dir = listing.root.as_path();
     let mut sbom = Sbom::default();
-    for eco in detect(app_dir) {
+    for eco in sv_scan::ecosystems::detect_in(listing) {
         read_ecosystem(app_dir, &eco, &mut sbom);
     }
     sbom.components.sort_by(|a, b| {

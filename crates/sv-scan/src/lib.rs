@@ -14,6 +14,7 @@
 
 pub mod deps;
 pub mod ecosystems;
+pub mod files;
 pub mod jvm;
 
 use anyhow::{Context, Result};
@@ -153,23 +154,90 @@ impl ScanReport {
 
 /// Reads the app's manifests and source, and answers every signature it can.
 pub fn scan(app_dir: &Path, signatures: &Signatures) -> Result<ScanReport> {
+    scan_listing(&files::Listing::of(app_dir), signatures)
+}
+
+/// `scan`, over a listing already made.
+///
+/// The source is read in one pass: each file is read once and lowercased once, and every signature's
+/// patterns for its language are tried against it there, the first match in path order being the
+/// evidence. Before, every file was held in memory for the whole run and lowercased again for each
+/// of about thirty signatures.
+pub fn scan_listing(listing: &files::Listing, signatures: &Signatures) -> Result<ScanReport> {
+    let app_dir = listing.root.as_path();
     let mut report = ScanReport {
-        ecosystems: ecosystems::detect(app_dir),
-        unpinned: ecosystems::unpinned(app_dir),
-        declared: deps::read(app_dir),
+        ecosystems: ecosystems::detect_in(listing),
+        unpinned: ecosystems::unpinned_in(listing),
+        declared: deps::read_in(listing),
+        all_paths: listing.all_paths(),
         ..Default::default()
     };
 
-    let mut files: Vec<(String, String, String)> = Vec::new(); // (language, path, contents)
-    walk(app_dir, app_dir, &mut files, &mut report)?;
-    report.files_read = files.len();
-    report.languages = files.iter().map(|(l, _, _)| l.clone()).collect();
+    // Each signature's source patterns, lowercased once, by language.
+    let lowered: Vec<BTreeMap<&str, Vec<String>>> = signatures
+        .signatures
+        .iter()
+        .map(|sig| {
+            sig.source
+                .iter()
+                .map(|(language, patterns)| {
+                    (
+                        language.as_str(),
+                        patterns.iter().map(|p| p.to_lowercase()).collect(),
+                    )
+                })
+                .collect()
+        })
+        .collect();
+    // The first file each signature's patterns matched: (the pattern as written, the file).
+    let mut source_hits: Vec<Option<(String, String)>> = vec![None; signatures.signatures.len()];
 
-    for sig in &signatures.signatures {
+    for entry in listing.app_files() {
+        let Some(ext) = &entry.extension else {
+            continue;
+        };
+        let Some(language) = entry.language else {
+            if looks_like_source(ext) {
+                report.unread_extensions.insert(ext.clone());
+            }
+            continue;
+        };
+        let contents = match entry.read_text() {
+            Ok(contents) => contents,
+            // A source file that cannot be read — or is over the size limit — is a hole in the
+            // coverage, not an empty file.
+            Err(_) => {
+                report.unread_extensions.insert(ext.clone());
+                continue;
+            }
+        };
+        // Read by the code rules, and present as a language, but not looked in for technologies:
+        // no dependency file of theirs is read and no signature has a pattern for them, so a Dart
+        // app's GraphQL would go unseen and be called absent.
+        if ecosystems::NO_TECHNOLOGY_READER.contains(&language) {
+            report.unread_extensions.insert(ext.clone());
+        }
+        report.files_read += 1;
+        report.languages.insert(language.to_owned());
+        let haystack = contents.to_lowercase();
+        for (i, sig) in signatures.signatures.iter().enumerate() {
+            if source_hits[i].is_some() {
+                continue;
+            }
+            let Some(patterns) = lowered[i].get(language) else {
+                continue;
+            };
+            if let Some(at) = patterns.iter().position(|p| haystack.contains(p.as_str())) {
+                source_hits[i] = Some((sig.source[language][at].clone(), entry.relative.clone()));
+            }
+        }
+    }
+
+    for (i, sig) in signatures.signatures.iter().enumerate() {
         if let Some(condition) = Condition::from_name(&sig.condition) {
             report
                 .answers
-                .push(evaluate(condition, sig, &report, &files));
+                .push(evaluate(condition, sig, &report, source_hits[i].as_ref()));
         }
     }
 
@@ -230,7 +298,7 @@ fn evaluate(
     condition: Condition,
     sig: &Signature,
     report: &ScanReport,
-    files: &[(String, String, String)],
+    source_hit: Option<&(String, String)>,
 ) -> Answer {
     // 0. Some claims cannot be checked from the code at all. Answering "not found" for those would
     // be a kind of lie by omission: it reads as a search that came up empty rather than as a
@@ -290,24 +358,17 @@ fn evaluate(
         }
     }
 
-    // 4. A pattern in the app's own source — how a standard-library use is caught.
-    for (language, path, contents) in files {
-        let Some(patterns) = sig.source.get(language) else {
-            continue;
+    // 4. A pattern in the app's own source — how a standard-library use is caught. Found in the
+    //    one pass over the files in `scan_listing`.
+    if let Some((pattern, file)) = source_hit {
+        return Answer {
+            condition,
+            value: Some(true),
+            evidence: Evidence::Source {
+                pattern: pattern.clone(),
+                file: file.clone(),
+            },
         };
-        let haystack = contents.to_lowercase();
-        for pattern in patterns {
-            if haystack.contains(&pattern.to_lowercase()) {
-                return Answer {
-                    condition,
-                    value: Some(true),
-                    evidence: Evidence::Source {
-                        pattern: pattern.clone(),
-                        file: path.clone(),
-                    },
-                };
-            }
-        }
     }
 
     // 5. Nothing matched.
@@ -443,73 +504,6 @@ fn package_matches(ecosystem: &str, signature: &str, declared: &str) -> bool {
 
 fn eq_ignore_case(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.to_lowercase() == b.to_lowercase()
-}
-
-fn walk(
-    root: &Path,
-    dir: &Path,
-    files: &mut Vec<(String, String, String)>,
-    report: &mut ScanReport,
-) -> Result<()> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Ok(());
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            // Only the genuinely uninteresting directories are skipped. `.github` is a dot-directory
-            // and is exactly where a CI pipeline lives, so a blanket dot-skip would answer "no
-            // CI/CD" for every repository that has one.
-            if ecosystems::skip_dir(&path) {
-                continue;
-            }
-            let relative = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .to_string();
-            report.all_paths.insert(relative);
-            walk(root, &path, files, report)?;
-            continue;
-        }
-        let relative = path
-            .strip_prefix(root)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-        // Recorded before anything is decided about reading it. A file with no extension — a
-        // `Dockerfile`, a `Jenkinsfile`, a `CODEOWNERS` — used to be skipped here, before its path
-        // was ever written down, so signatures that name those files could not match. For `iac`,
-        // which rules itself out by absence, that turned "I did not look" into "there is no
-        // infrastructure configuration", on an app whose Dockerfile was sitting next to the source.
-        report.all_paths.insert(relative.clone());
-        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-            continue;
-        };
-        match ecosystems::language_of(&ext.to_lowercase()) {
-            Some(language) => match std::fs::read_to_string(&path) {
-                Ok(contents) => {
-                    // Read by the code rules, and present as a language, but not looked in for
-                    // technologies: no dependency file of theirs is read and no signature has a
-                    // pattern for them, so a Dart app's GraphQL would go unseen and be called absent.
-                    if ecosystems::NO_TECHNOLOGY_READER.contains(&language) {
-                        report.unread_extensions.insert(ext.to_lowercase());
-                    }
-                    files.push((language.to_owned(), relative, contents));
-                }
-                // A source file that cannot be read is a hole in the coverage, not an empty file.
-                Err(_) => {
-                    report.unread_extensions.insert(ext.to_lowercase());
-                }
-            },
-            None => {
-                if looks_like_source(ext) {
-                    report.unread_extensions.insert(ext.to_lowercase());
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Extensions that are probably code `sv` has no reader for. Deliberately narrow: counting every

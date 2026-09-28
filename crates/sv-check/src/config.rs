@@ -59,6 +59,18 @@ impl ConfigReport {
 
 /// Runs every configuration check over the app folder.
 pub fn check_dir(app_dir: &Path) -> ConfigReport {
+    let listing = sv_scan::files::Listing::of(app_dir);
+    let bill_of_materials = crate::sbom::build_in(&listing);
+    check_dir_in(&listing, &bill_of_materials)
+}
+
+/// `check_dir`, with the app's files and its bill of materials already made, so `sv report` walks
+/// the folder once and builds the bill once.
+pub fn check_dir_in(
+    listing: &sv_scan::files::Listing,
+    bill_of_materials: &crate::sbom::Sbom,
+) -> ConfigReport {
+    let app_dir = listing.root.as_path();
     let mut report = ConfigReport::default();
     report.record(
         "config.secrets-file-committed",
@@ -66,7 +78,10 @@ pub fn check_dir(app_dir: &Path) -> ConfigReport {
     );
     report.record("config.gitignore-covers-env", gitignore_covers_env(app_dir));
     report.record("config.security-contact", security_contact(app_dir));
-    report.record("config.versions-pinned", versions_pinned(app_dir));
+    report.record(
+        "config.versions-pinned",
+        versions_pinned(listing, bill_of_materials),
+    );
     let workflows = crate::workflows::check(app_dir);
     report.findings.extend(workflows.findings);
     report.passed.extend(workflows.passed);
@@ -267,8 +282,12 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
 /// report every Gradle project without one. So for both the versions are read (`sv_scan::jvm`): all
 /// exact passes, one that floats is a finding at its line, and one `sv` cannot work out leaves the
 /// question open with the reason.
-fn versions_pinned(app_dir: &Path) -> Outcome {
-    let detected = sv_scan::ecosystems::detect(app_dir);
+fn versions_pinned(
+    listing: &sv_scan::files::Listing,
+    bill_of_materials: &crate::sbom::Sbom,
+) -> Outcome {
+    let app_dir = listing.root.as_path();
+    let detected = sv_scan::ecosystems::detect_in(listing);
     if detected.is_empty() {
         return Outcome::NotAssessed(
             "No package manifest was found, so there is nothing whose versions could be pinned. If this \
@@ -375,7 +394,6 @@ fn versions_pinned(app_dir: &Path) -> Outcome {
     // pass credited V15.1.2, an inventory of what is installed, for an app whose inventory the
     // same run reported as empty (found 27 September 2026, with a `poetry.lock` holding no packages).
     // The bill of materials is what read it, so it is what is asked.
-    let bill_of_materials = crate::sbom::build(app_dir);
     let mut unread: Vec<&str> = judged
         .iter()
         .filter(|(e, _)| e.lockfile.is_some())
@@ -482,7 +500,11 @@ mod tests {
         )
         .unwrap();
         fs::write(dir.join("poetry.lock"), "this is not a lockfile\n").unwrap();
-        let outcome = versions_pinned(&dir);
+        let pinned = |dir: &std::path::Path| {
+            let listing = sv_scan::files::Listing::of(dir);
+            versions_pinned(&listing, &crate::sbom::build_in(&listing))
+        };
+        let outcome = pinned(&dir);
 
         // And the control, in the same folder: a lockfile the bill of materials can read passes.
         fs::write(
@@ -490,7 +512,7 @@ mod tests {
             "[[package]]\nname = \"flask\"\nversion = \"3.0.0\"\n",
         )
         .unwrap();
-        let readable = versions_pinned(&dir);
+        let readable = pinned(&dir);
         fs::remove_dir_all(&dir).ok();
 
         match outcome {
