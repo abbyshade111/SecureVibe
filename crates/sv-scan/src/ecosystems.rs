@@ -42,7 +42,10 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
     EcosystemDef {
         name: "Python",
         manifest: "pyproject.toml",
-        lockfiles: &["poetry.lock", "pdm.lock", "uv.lock"],
+        // `requirements.lock` is what `uv pip compile pyproject.toml -o requirements.lock` writes, and
+        // the name Rye uses. Left out, such a project was told it had no lockfile and listed no
+        // packages. It comes last: when a tool's own lockfile is there too, that one is read.
+        lockfiles: &["poetry.lock", "pdm.lock", "uv.lock", "requirements.lock"],
     },
     EcosystemDef {
         name: "Go",

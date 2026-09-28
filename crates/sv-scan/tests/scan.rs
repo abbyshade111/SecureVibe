@@ -1095,6 +1095,28 @@ fn a_nested_project_with_no_lockfile_is_unpinned_and_named() {
 }
 
 #[test]
+fn a_requirements_lock_pins_a_pyproject_project_and_a_tools_own_lockfile_comes_first() {
+    // `uv pip compile pyproject.toml -o requirements.lock` writes it, and Rye uses the name.
+    let dir = scratch("pyproject-requirements-lock");
+    std::fs::write(dir.join("pyproject.toml"), "[project]\nname = \"demo\"\n").unwrap();
+    std::fs::write(dir.join("requirements.lock"), "pyyaml==6.0.2\n").unwrap();
+    let alone = sv_scan::ecosystems::detect(&dir);
+    std::fs::write(dir.join("uv.lock"), "version = 1\n").unwrap();
+    let beside_uv = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let lockfile = |detected: &[sv_scan::ecosystems::DetectedEcosystem]| {
+        detected
+            .iter()
+            .find(|e| e.manifest == "pyproject.toml")
+            .expect("the project is found")
+            .lockfile
+            .clone()
+    };
+    assert_eq!(lockfile(&alone).as_deref(), Some("requirements.lock"));
+    assert_eq!(lockfile(&beside_uv).as_deref(), Some("uv.lock"));
+}
+
+#[test]
 fn a_workspace_member_is_pinned_by_the_lockfile_at_the_workspace_root() {
     // npm, pnpm, Yarn, Cargo and uv keep one lockfile at the root for every member.
     let dir = scratch("npm-workspace");

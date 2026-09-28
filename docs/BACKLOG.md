@@ -53,6 +53,13 @@ another session is not a claim.
      `config.versions-pinned` finding, and `advisory.` as `ran` when the database covers PyPI; remove the new
      entry and it goes red. **Claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to
      pick a backlog item, in branch `claude/securevibe-e2-pyproject-lock`.
+     **Done the same day:** `requirements.lock` is the last of the `pyproject.toml` lockfiles, so a `uv.lock`,
+     `pdm.lock`, or `poetry.lock` beside it is read first. A platform condition is not read, so such a package
+     is listed everywhere, and a line is now cut at its `;` whether or not a space comes before it, which fixes
+     `requirements.txt` as well. Three tests (the reader, which lockfile counts, and the report end to end); each
+     guard, broken in turn, turns its own test red. See DESIGN, "A `requirements.lock` beside `pyproject.toml`".
+     One correction to the entry above: no ecosystem's report says which lockfile was read when several are
+     there, so this one does not either. That is the next item.
   2. **One large data file blocks two checks for the whole app.** `MAX_FILE_BYTES` (2 MB,
      `crates/sv-scan/src/files.rs`; checked) is the largest file any check reads. cato vendors NIST's SP 800-53
      catalog at `oscal/catalogs/nist-800-53-rev5/catalog.json`: 10 MB of standards text, no code, no
@@ -84,6 +91,13 @@ another session is not a claim.
      read when it never says `command`, its own rule for any file. On cato's reproduction the credential
      scan is `ran` and the MCP check is no longer not-run. See DESIGN, "A large data file no longer
      blocks the credential scan or the MCP check".
+  3. **The report does not say which lockfile was read when a project has more than one.** Found on 28 September
+     2026 while doing item 1. `find_lockfile` in `crates/sv-scan/src/ecosystems.rs` takes the first name in each
+     ecosystem's list that exists and says nothing about the rest, for every ecosystem (`poetry.lock` and
+     `requirements.lock` beside `requirements.txt`, `uv.lock` and `requirements.lock` beside `pyproject.toml`,
+     `package-lock.json` and `yarn.lock`, and so on). If the two disagree, the bill of materials and the advisory
+     comparison describe one of them and the owner is not told which. The bill of materials could carry a note
+     naming the file read and the ones passed over. **Not claimed.**
 
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.
