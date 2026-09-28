@@ -21,6 +21,10 @@ another session is not a claim.
 
   Touches only `docs/paper/`.
 
+  **Done the same day.** 1 is `docs/paper/CORRECTIONS.md` with `corrections.csv` and `figure-corrections.html`;
+  2 is `DECISIONS.md` with `figure-decisions.html`; 3 is fixed in both files, keeping the original count and
+  saying it was true when written.
+
 - **A review of `sv` on 27 September 2026: faults, and what could be faster.** By session securevibe-e8, at
   the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
   entry points, the runner, every walker, the checks' hot loops, the MCP server, `Cargo.toml`, the
