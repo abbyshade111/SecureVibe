@@ -336,6 +336,57 @@ another session is not a claim.
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
 
+- **Partial checks for the requirements no check speaks to, from the review of 28 September 2026.** The owner asked
+  on 28 September 2026 for every requirement with no check to be reviewed for a partial check: a signal that tells the
+  owner something useful even when it cannot settle the requirement. Session securevibe-e9 had seven reviewers go
+  through all 382 and wrote their proposals to `docs/PARTIAL-CHECKS.md`: 279 partial checks, 33 questions for
+  `securevibe.toml`, and 70 with no useful check. **The proposals are not verified unless an item below says so**, and
+  several rest on library defaults recalled rather than looked up. **Each numbered item can be claimed on its own**, and
+  any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claimed the same way.
+  1. **Outside-tool rules that already run and count for nothing (8 requirements). Verified.** Each rule is in a pack or
+     tool `sv --tools` already runs, and is mapped to nothing in `data/adapters.json`. All are `findings_against`: each
+     requirement asks for a control, and a pattern can show one missing but not present. V3.6.1: semgrep
+     `html.security.audit.missing-integrity`. V1.4.1: semgrep `c.lang.security` `insecure-use-gets-fn`,
+     `insecure-use-string-copy-fn`, `insecure-use-strcat-fn`. V1.4.3: semgrep `use-after-free`, `double-free`. V5.2.3:
+     semgrep `go.lang.security.decompression_bomb`. V11.3.4: semgrep `java...gcm-nonce-reuse`, `php...openssl-cbc-static-iv`,
+     and gosec G407. V12.3.3: semgrep's gRPC insecure-connection rules for Go and JavaScript. V15.4.2: bandit B306.
+     V15.4.3: semgrep `trailofbits.go.missing-unlock-before-return`.
+     **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to start with this group.
+  2. **Existing checks that already test the requirement. Verified against each requirement's words.** V8.2.3 by
+     `probe.role-field-trusted` and `probe.record-returns-secret-fields` (field-level access is what both test); C9.3.2 by
+     `probe.ai-mcp-output-unvalidated`, for tools reached over MCP; C9.3.7 by `probe.ai-output-fetched`; V14.2.2 by
+     `probe.private-page-cached`, extended to flag `public` and `s-maxage` on a private page. **V9.2.3 is the owner's
+     call:** the existing probe checks sign-in tokens in the app as a client, and V9.2.3 is about a service accepting
+     access tokens; a code rule for a switched-off audience check (`verify_aud` False, `ValidateAudience = false`) fits
+     either way.
+  3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
+     Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
+     V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
+     C3.2.3 (floating model names such as `-latest`), C4.1.2 (model files loaded with pickle), C10.1.1 (MCP servers
+     started with an unpinned `npx -y` or `uvx`). The running app: V8.4.2 (admin pages opened by `X-Forwarded-For`),
+     V10.4.4 (retired sign-in methods in the app's own published settings), V16.5.4 (the app still up after the probes),
+     V13.4.7 (files that exist and should never be served), C2.1.4 (a very large message refused), C2.2.2 (the injection
+     probe in other languages and base64), C7.3.4 (hidden characters in a reply), C7.3.1 (a moderation verdict ignored),
+     C10.3.3 (the MCP endpoint and a foreign Origin or rebound Host), C11.3.2 (raw model metadata reaching the page),
+     C12.1.1 (who and which session in the model-call log line), C10.2.6 (an MCP session reused after it was ended).
+     Signed in: V1.3.4 and V5.4.3 (an SVG with a script, and the EICAR test file, built from pieces at run time, through
+     the upload probe), V4.1.3 (identity headers such as `X-Remote-User` on private pages), V7.4.3 (other sessions after
+     a password change), V6.3.7 (an email after a password change), V10.1.1 (tokens in browser storage), V10.5.2 (two
+     people sharing an email address at the test sign-in provider), V14.3.3 (the test password in browser storage),
+     C9.5.3 (another user's record through a tool the model calls).
+  4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
+     OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
+     `fine_tuning.jobs.create`.
+  5. **CodeQL queries that may already run.** `py/insecure-temporary-file` and `js/file-system-race` (V15.4.2) were
+     proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
+     semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
+     was proposed for V13.1.3, which asks for documentation, so it can only ever be shown beside it, never counted.
+  6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
+     no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
+     V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
+     failed. Most checks of an app that is itself an MCP server, or itself a sign-in service, need a new securevibe.toml
+     section, and apply to few apps.
+
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
