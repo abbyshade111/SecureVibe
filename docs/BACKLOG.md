@@ -443,6 +443,20 @@ another session is not a claim.
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
 
+- **A rate limiter's 429 may be read as the app's answer about access.** Reported to the owner on 28 September
+  2026 by an agent in another project that was integrating `sv`: an open CRITICAL it listed as "F-0001, the
+  anonymous user denied runtime probe" had got HTTP 429 from the app's rate limiter rather than a refusal to sign in,
+  and may be a false positive. **Not claimed.** Their report was not available here, and no check of `sv`'s matches
+  that name at CRITICAL, so the first step is to get the report (rule id, the request, the answer) from the owner.
+  Found while looking: `probe.private-page-anonymous` (`signed_in/mod.rs`, step 1 of `run_with`) counts anything
+  but 2xx as refused. It raises a finding only on 2xx, so a 429 cannot cause a false alarm there, but a 429 **is
+  credited as a pass**: V8.2.1 "refused to somebody not signed in" when the rate limiter said no and the page's own
+  check never ran. That is the opposite fault, a false pass, and the same reading may be elsewhere (`ok()` and
+  `accepted()` are used throughout the signed-in checks, and 429 is already handled on its own in the sign-in
+  guessing checks). A fix would treat 429 (and 503 with `Retry-After`) as "the app did not answer the question":
+  wait out `Retry-After` once and ask again, else not assessed, never refused. The file is frozen for the split
+  until step 2; this waits for it, or for the session holding slice b (private pages).
+
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
   semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
