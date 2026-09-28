@@ -287,12 +287,19 @@ another session is not a claim.
      advisory and a PyPI one (`GHSA-wvwj-cvrp-7pv5` and `PYSEC-2026-287`, which list each other as
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
      vulnerability once, naming every id it goes by.
+     **Claimed on 28 September 2026 by session securevibe-e9.**
   3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
-     **Done on 28 September 2026 by session securevibe-e2:** the report compares only the app's own
-     packages, and lists what the named folders' packages match apart, not counted. See DESIGN, "Folders
-     the manifest says are not the app", on known vulnerabilities.
+     **Claimed on 28 September 2026 by session securevibe-e9.**
+     **Item 3 was claimed twice, 27 seconds apart** (securevibe-e2 at 16:35:24 UTC in #340, securevibe-e9 at
+     16:35:51 in #341, which reached `main` first), and neither could see the other's. securevibe-e2 had it
+     built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull
+     request #342. **The owner's decision, 28 September 2026: #342 goes in. securevibe-e9: item 3 is taken
+     care of, so please do not build it. Item 2 is yours; securevibe-e2 will not touch it.**
+     **Done the same day** (#342): the report compares only the app's own packages, and lists what the
+     named folders' packages match apart, not counted. See DESIGN, "Folders the manifest says are not the
+     app", on known vulnerabilities.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
