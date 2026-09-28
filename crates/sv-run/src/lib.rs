@@ -36,7 +36,9 @@
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 use sv_manifest::Manifest;
 
 pub mod docker;
@@ -117,6 +119,8 @@ pub struct RunPlan {
     /// Wait out the session timeouts the owner states (`sv run --slow`). Off unless asked for: it
     /// can take as long as the timeouts, up to an hour and a half.
     pub slow: bool,
+    /// The longest the test command may take: `TEST_LIMIT`, and shorter only in `sv`'s own tests.
+    pub test_limit: Duration,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -178,6 +182,7 @@ impl RunPlan {
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
             slow: false,
+            test_limit: TEST_LIMIT,
         })
     }
 }
@@ -270,6 +275,9 @@ pub struct TestResult {
     pub report: Option<String>,
     /// What happened when the report was looked for, when it did not simply work.
     pub report_note: Option<String>,
+    /// How long the tests ran before they were stopped for taking longer than `TEST_LIMIT`, or
+    /// `None` when they finished. A suite cut short credits nothing, whatever it printed.
+    pub stopped_after: Option<Duration>,
 }
 
 /// Which fence was in force. Reports say which applied, as v1's do.
@@ -323,21 +331,280 @@ pub fn detect() -> Result<Box<dyn Backend>, CannotRun> {
     }
 }
 
-/// Runs a command and hands back stdout+stderr with the status, or the reason it could not start.
-pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> {
-    match command.output() {
-        Ok(out) => {
-            let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
-            text.push_str(&String::from_utf8_lossy(&out.stderr));
-            Ok((out.status.code().unwrap_or(-1), text))
+/// The longest any one Docker command may take before it is stopped. Generous, because `docker run`
+/// downloads an image it does not have, which on a slow connection takes minutes; the point is that a
+/// run never waits forever, not that it hurries.
+pub const DOCKER_CALL_LIMIT: Duration = Duration::from_secs(20 * 60);
+
+/// The longest the app's own test command may take. A suite cut short credits nothing, and the report
+/// says it was stopped and after how long.
+pub const TEST_LIMIT: Duration = Duration::from_secs(10 * 60);
+
+/// Set by Ctrl-C during a run. See `catch_interrupts`.
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+
+/// Whether Ctrl-C was pressed during a run. The run has returned by the time anybody asks, and its
+/// containers and network have been removed.
+pub fn interrupted() -> bool {
+    INTERRUPTED.load(Ordering::SeqCst)
+}
+
+/// From here on, Ctrl-C (or a polite `kill`) stops the Docker command in progress and every one after
+/// it, so the run returns and its teardown removes the containers and network, instead of ending
+/// the process where it stands and leaving them behind: a signal ends a Rust process without
+/// unwinding, so no `Drop` would run. A second Ctrl-C ends the process at once, for somebody who
+/// would rather clean up by hand than wait.
+pub fn catch_interrupts() {
+    #[cfg(unix)]
+    {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        extern "C" fn on_signal(_: libc::c_int) {
+            if INTERRUPTED.swap(true, Ordering::SeqCst) {
+                // Only async-signal-safe calls in here: `_exit`, not `std::process::exit`.
+                unsafe { libc::_exit(130) };
+            }
         }
-        Err(e) => Err(e.to_string()),
+        ONCE.call_once(|| {
+            let handler = on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t;
+            // SAFETY: the handler only touches an atomic and calls `_exit`.
+            unsafe {
+                libc::signal(libc::SIGINT, handler);
+                libc::signal(libc::SIGTERM, handler);
+            }
+        });
+    }
+}
+
+/// What a bounded command did.
+#[derive(Debug)]
+pub(crate) struct Bounded {
+    pub code: i32,
+    /// Standard output, then standard error.
+    pub text: String,
+    /// Stopped for taking longer than its limit; `code` is then not the command's own.
+    pub stopped: bool,
+}
+
+/// Runs a command for at most `limit`, and hands back what it printed and its status, whether it was
+/// stopped for time, or why it could not start. `cleanup` runs even after Ctrl-C, which is what
+/// removing the containers needs; anything else is refused once Ctrl-C has been pressed.
+pub(crate) fn run_bounded(
+    command: &mut Command,
+    limit: Duration,
+    cleanup: bool,
+) -> Result<Bounded, String> {
+    use std::io::Read;
+    if !cleanup && interrupted() {
+        return Err("not started: the run was stopped with Ctrl-C".to_owned());
+    }
+    // In a process group of its own, so stopping it stops what it started too: `sh -c` running a
+    // suite, or anything else holding its output open, which would otherwise keep the output from
+    // ending until it finished by itself. Ctrl-C at the terminal then reaches `sv` alone, whose
+    // handler stops the group.
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(command, 0);
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let read = |mut pipe: Box<dyn Read + Send>| {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = pipe.read_to_end(&mut bytes);
+            bytes
+        })
+    };
+    let out = read(Box::new(child.stdout.take().expect("piped")));
+    let err = read(Box::new(child.stderr.take().expect("piped")));
+    let started = Instant::now();
+    let mut pause = Duration::from_millis(1);
+    let (status, stopped) = loop {
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(status) => break (Some(status), false),
+            None if started.elapsed() >= limit => {
+                stop(&mut child);
+                break (None, true);
+            }
+            None if !cleanup && interrupted() => {
+                stop(&mut child);
+                return Err("stopped: the run was stopped with Ctrl-C".to_owned());
+            }
+            None => {
+                std::thread::sleep(pause);
+                pause = (pause * 2).min(Duration::from_millis(50));
+            }
+        }
+    };
+    let mut text = String::from_utf8_lossy(&out.join().unwrap_or_default()).into_owned();
+    text.push_str(&String::from_utf8_lossy(&err.join().unwrap_or_default()));
+    Ok(Bounded {
+        code: status.and_then(|s| s.code()).unwrap_or(-1),
+        text,
+        stopped,
+    })
+}
+
+/// Stops a command started by `run_bounded`, and everything in its process group.
+fn stop(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    if let Ok(pid) = libc::pid_t::try_from(child.id()) {
+        // SAFETY: a plain system call; the group is the one `run_bounded` made for this child.
+        unsafe { libc::kill(-pid, libc::SIGKILL) };
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// Runs a command and hands back stdout+stderr with the status, or the reason it could not start or
+/// finish: every Docker call goes through here, and none may take longer than `DOCKER_CALL_LIMIT`.
+pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> {
+    bounded_output(command, DOCKER_CALL_LIMIT, false)
+}
+
+/// `output_of` with a limit of its own, and for cleanup, which still runs after Ctrl-C.
+pub(crate) fn bounded_output(
+    command: &mut Command,
+    limit: Duration,
+    cleanup: bool,
+) -> Result<(i32, String), String> {
+    let done = run_bounded(command, limit, cleanup)?;
+    if done.stopped {
+        return Err(format!(
+            "it had not finished after {}, and was stopped",
+            minutes(limit)
+        ));
+    }
+    Ok((done.code, done.text))
+}
+
+/// "10 minutes", for a limit a person reads.
+pub fn minutes(limit: Duration) -> String {
+    let m = limit.as_secs() / 60;
+    if m == 1 {
+        "1 minute".to_owned()
+    } else if m > 0 {
+        format!("{m} minutes")
+    } else {
+        format!("{} seconds", limit.as_secs())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sh(script: &str) -> Command {
+        let mut c = Command::new("sh");
+        c.args(["-c", script]);
+        c
+    }
+
+    #[test]
+    fn a_command_that_takes_too_long_is_stopped_and_says_so() {
+        let started = Instant::now();
+        let done = run_bounded(
+            &mut sh("echo begun; sleep 30"),
+            Duration::from_millis(400),
+            false,
+        )
+        .expect("it starts");
+        assert!(done.stopped, "{done:?}");
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "{:?}",
+            started.elapsed()
+        );
+        // What it printed before it was stopped is kept: it is where a hung suite says how far it got.
+        assert!(done.text.contains("begun"), "{done:?}");
+        let said =
+            bounded_output(&mut sh("sleep 30"), Duration::from_millis(300), false).unwrap_err();
+        assert!(said.contains("had not finished after"), "{said}");
+    }
+
+    #[test]
+    fn a_command_that_finishes_hands_back_both_streams_and_its_status() {
+        // The control for the test above: the same machinery, not stopped.
+        let done = run_bounded(
+            &mut sh("echo out; echo err >&2; exit 3"),
+            Duration::from_secs(20),
+            false,
+        )
+        .unwrap();
+        assert!(!done.stopped);
+        assert_eq!(done.code, 3);
+        assert!(
+            done.text.contains("out") && done.text.contains("err"),
+            "{done:?}"
+        );
+        // More than a pipe holds, on both streams at once: read while it runs, or it never ends.
+        let done = run_bounded(
+            &mut sh("head -c 3000000 /dev/zero | tr '\\0' a; head -c 3000000 /dev/zero | tr '\\0' b >&2"),
+            Duration::from_secs(20),
+            false,
+        )
+        .unwrap();
+        assert!(!done.stopped, "it filled a pipe and hung");
+        assert_eq!(done.text.len(), 6_000_000);
+        assert!(bounded_output(&mut sh("exit 0"), Duration::from_secs(20), false).is_ok());
+    }
+
+    #[test]
+    fn a_stopped_command_leaves_nothing_it_started_running() {
+        let dir = std::env::temp_dir().join(format!("sv-bounded-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pid_file = dir.join("pid");
+        // Its output sent elsewhere, so it is only the stopping that can end it, not the pipes.
+        let script = format!(
+            "sleep 30 >/dev/null 2>&1 & echo $! > '{}'; wait",
+            pid_file.display()
+        );
+        let done = run_bounded(&mut sh(&script), Duration::from_millis(500), false).unwrap();
+        assert!(done.stopped);
+        let pid = std::fs::read_to_string(&pid_file)
+            .unwrap()
+            .trim()
+            .to_owned();
+        std::fs::remove_dir_all(&dir).ok();
+        // The control is `pid` itself: it was written, so the child really was started.
+        assert!(!pid.is_empty());
+        std::thread::sleep(Duration::from_millis(200));
+        // A killed process nobody has collected yet is a zombie: dead, and still answering `kill -0`.
+        // Where `/proc` says, a zombie is not running; elsewhere, `kill -0` is the question.
+        let alive = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+            Ok(stat) => stat
+                .rsplit_once(')')
+                .is_some_and(|(_, rest)| !rest.trim_start().starts_with('Z')),
+            Err(_) if std::path::Path::new("/proc/self").exists() => false,
+            Err(_) => Command::new("kill")
+                .args(["-0", &pid])
+                .stderr(Stdio::null())
+                .status()
+                .unwrap()
+                .success(),
+        };
+        assert!(!alive, "the command's own child {pid} is still running");
+    }
+
+    #[test]
+    fn a_command_that_cannot_start_says_why() {
+        let said = run_bounded(
+            &mut Command::new("/no/such/program"),
+            Duration::from_secs(5),
+            false,
+        )
+        .unwrap_err();
+        assert!(!said.is_empty());
+    }
+
+    #[test]
+    fn limits_are_written_for_a_person() {
+        assert_eq!(minutes(TEST_LIMIT), "10 minutes");
+        assert_eq!(minutes(DOCKER_CALL_LIMIT), "20 minutes");
+        assert_eq!(minutes(Duration::from_secs(60)), "1 minute");
+        assert_eq!(minutes(Duration::from_secs(3)), "3 seconds");
+    }
 
     #[test]
     fn every_run_makes_its_own_accounts_with_passwords_nobody_could_guess() {

@@ -60,6 +60,12 @@ another session is not a claim.
      with the cap in the report when it fires, since a suite that was cut short credits nothing), a
      wall-clock limit per Docker call, and a Ctrl-C handler that runs the teardown; failing that, a
      `sv run --clean` that removes everything named `sv-…`.
+     **Done on 28 September 2026 by session securevibe-e9:** every Docker call is limited to 20 minutes and
+     the test command to 10, a suite stopped at the limit credits nothing and the report says it was
+     stopped, and Ctrl-C lets the run remove its containers and network before `sv` exits. Tested against
+     real Docker, Ctrl-C included, and each guard broken on purpose turns at least two tests red. See
+     DESIGN, "A run has an end, and Ctrl-C cleans up". `sv run --clean` was not needed for Ctrl-C; a run
+     ended by `kill -9` still leaves its containers, and the DESIGN section says how to list them.
   3. **No size limit in the code-rule walker or the corroborator walker.** `secrets.rs` stops at 2 MB
      (`MAX_FILE_BYTES`) and says so. `ast.rs:1313` reads any file whole and hands it to tree-sitter, so a
      50 MB minified bundle or a generated file is parsed in full; `sv-scan/src/lib.rs:490` reads every

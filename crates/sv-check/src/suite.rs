@@ -48,6 +48,10 @@ pub struct FailingOutput {
     pub lines_total: usize,
     /// How many credentials were cut out of what is kept.
     pub redacted: usize,
+    /// When the suite was stopped for taking too long rather than failing on its own: how long it
+    /// was given, as a person reads it ("10 minutes").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stopped_after: Option<String>,
 }
 
 /// The last `FAILING_OUTPUT_LINES` lines of a failing suite's output; `None` when it passed.
@@ -83,6 +87,7 @@ pub fn failing_output(
         lines_kept: kept.len(),
         lines_total: lines.len(),
         redacted,
+        stopped_after: None,
     })
 }
 

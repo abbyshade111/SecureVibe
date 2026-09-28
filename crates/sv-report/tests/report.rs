@@ -1771,6 +1771,7 @@ fn a_failing_suite_shows_its_last_lines_in_every_format() {
         lines_kept: 3,
         lines_total: 212,
         redacted: 1,
+        stopped_after: None,
     });
     let report = build(i);
     let html = sv_report::html::page(&report);
@@ -1822,6 +1823,7 @@ fn failing(
         lines_kept,
         lines_total,
         redacted,
+        stopped_after: None,
     }
 }
 
@@ -2381,4 +2383,34 @@ mod false_alarm_reports {
         assert_eq!(security.matches("Report it against the rule").count(), 1);
         assert!(!security.contains("rule=ast.weak-hash-function"));
     }
+}
+
+#[test]
+fn a_suite_stopped_for_time_is_said_to_have_been_stopped_not_to_have_failed() {
+    use sv_report::RunStatus;
+    let stopped = sv_check::suite::FailingOutput {
+        stopped_after: Some("10 minutes".to_owned()),
+        ..failing("still waiting for the database", 1, 1, 0)
+    };
+    let intro = sv_report::test_output_intro(&stopped);
+    assert!(
+        intro.contains("had not finished after 10 minutes") && !intro.contains("failed"),
+        "{intro}"
+    );
+    // The control: the same output, not stopped, is a failure.
+    let failed = sv_report::test_output_intro(&failing("still waiting for the database", 1, 1, 0));
+    assert!(failed.contains("failed"), "{failed}");
+
+    let line = RunStatus::Started {
+        image: "node:22-alpine".into(),
+        asked: 3,
+        answered: 3,
+        signed_in: false,
+        tests: "stopped".into(),
+    }
+    .line();
+    assert!(
+        line.contains("were stopped") && line.contains("credit nothing"),
+        "{line}"
+    );
 }

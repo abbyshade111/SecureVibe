@@ -468,7 +468,7 @@ pub enum RunStatus {
         answered: usize,
         /// Whether it was asked more as signed-in users.
         signed_in: bool,
-        /// Its own tests: `passed`, `failed`, or `not-declared`.
+        /// Its own tests: `passed`, `failed`, `stopped` (for taking too long), or `not-declared`.
         tests: String,
     },
     /// Asked for, and the app could not be started or never answered.
@@ -509,6 +509,10 @@ impl RunStatus {
                     "failed" => {
                         "Its own tests failed; the report shows the last lines they printed."
                     }
+                    "stopped" => {
+                        "Its own tests took longer than a test run may and were stopped, so they \
+                         credit nothing; the report shows the last lines they printed."
+                    }
                     _ => "securevibe.toml declares no test command, so its own tests were not run.",
                 };
                 format!(
@@ -543,10 +547,16 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
         1 => " One value that looked like a credential is cut short.".to_owned(),
         n => format!(" {n} values that looked like credentials are cut short."),
     };
-    format!(
-        "The app's own tests failed when `sv` ran them (exit {}). {what}{redacted}",
-        t.exit_code
-    )
+    match &t.stopped_after {
+        Some(after) => format!(
+            "The app's own tests had not finished after {after}, the most a test run may take, \
+             and were stopped. {what}{redacted}"
+        ),
+        None => format!(
+            "The app's own tests failed when `sv` ran them (exit {}). {what}{redacted}",
+            t.exit_code
+        ),
+    }
 }
 
 /// What the reports say above the findings in test or sample code.
