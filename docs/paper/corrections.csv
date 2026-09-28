@@ -1,0 +1,49 @@
+n,date,time_eastern,version,direction,found_by,before,after,why,source
+1,2026-09-18,20:29,v1,down,building another check,V2.3.3 read as verified in every level-2 app,a test is now compared with the requirement it names,the test named V2.3.3 checked page size; V2.3.3 is about transactions,c78ce825
+2,2026-09-18,21:02,v1,up,running the tool on real input,"the name check failed requirements: clinic-bookings 64.5%, marketplace 62.1%","68% and 65.9%; a misnamed test became a note, not a failure",a word comparison counted against requirements the apps meet,f6b3691a
+3,2026-09-18,21:26,v1,down,building another check,"three template tests cited V13.4.3, V15.3.7 and V15.3.6","V4.1.4, V15.3.6 and V15.2.2",the names cited the wrong requirement,bb5705b2
+4,2026-09-19,09:25,v1,wording,the owner or real use,a check-only run showed two steps as pending,"both say skipped, with a reason",a step with no status looks like one still to come,bfaac424
+5,2026-09-19,10:07,v1,wording,another session's review,coverage table said Ran: No for a scan that had charged the owner,"a third state, Partly",a false cell sat above a true sentence,0f9d73f8
+6,2026-09-19,15:20,v1,up,the owner or real use,"three failing access-control tests (V8.2.1 twice, V8.3.1)",the admin area is found by its role,the tests recognized only a role literally named admin; earlier passes held only because the role happened to be so named,bb7a834c
+7,2026-09-19,15:38,v1,down,the owner or real use,a charts feature marked Built,"Files in place, unless a planned test passed",nothing in the app drew anything,03e5983c
+8,2026-09-19,16:12,v1,up,reading the output,"126 of 188 passing, read as 62 failures",says a test not passing either failed or was skipped,most of the rest were skipped,d78d122a; 868102fa
+9,2026-09-20,14:57,v1,wording,the owner or real use,ClamAV would have reported nothing was scanned,falls back to the slower clamscan,"the daemon was unreachable, not the scan impossible",c7c1f08c
+10,2026-09-20,15:39,v1,up,the owner or real use,0 of 106 applicable Level 2 ASVS requirements verified on a Flask app,not assessed: 1 of 8 code files read,seven .py files were never read,dca2e6cc
+11,2026-09-20,16:14,v1,down,the owner or real use,"semgrep ran, 0 findings, in 20 runs over 5 apps","12 files read, 151 Python rules","semgrep reads only git-tracked files, and app folders are never repositories",7e81ada7
+12,2026-09-20,17:21,v1,up,the owner or real use,rerunning the reports brought back the 0 of 106 score,coverage worked out again from the app folder,the rewrite path re-derived the old headline,4e1583ae
+13,2026-09-20,18:15,v1,up,reading the output,an uploaded copy scored 0 of 149 verified,"4 failed, 77 never assessed, and the headline says so","uploaded apps are never run, so no strong evidence can exist",c978034a
+14,2026-09-20,18:20,v1,down,reading the output,four tests cited UX-01,renamed; they cite nothing,the id exists in no framework,d91eab86
+15,2026-09-20,19:29,v1,down,running the tool on real input,a critical: protected route open to anonymous visitors,inconclusive,the route answered 429; the rate limiter spoke first,9dc81407
+16,2026-09-20,19:33,v1,down,reading the output,"self-check: 4 critical, 113 high",103 findings from four template-assuming rules dropped; 6 real matches,the rules assume a generated app,86ddf823; 065f3bb; #40
+17,2026-09-23,22:38,sv,up,reading the output,the uncorroborated-claims list said ten,twelve,it named twelve,b403f5d4
+18,2026-09-24,09:31,sv,down,building another check,"citations in the reports, including every probe citation",fixed,invented rather than looked up,ea1969c5
+19,2026-09-24,10:23,sv,up,reading the output,205 of 207 applicable requirements not verified after scans had run,checks can report a satisfied outcome,only four config checks could,ecd812b
+20,2026-09-24,11:38,sv,up,reading the output,0 checked on a run where the probes had checked three,"the three are shown, with the reason",they were above the target level and fell out of the table,918c86fa
+21,2026-09-24,20:58,sv,down,running the tool on real input,"7 rules cited V1.2.1, 9 cited V1.2.2, 8 cited V11.3.1, and more","remapped, with a guard",wrong by a digit or two; the tests were written from the map,975d4539; 10bb7942
+22,2026-09-24,23:14,sv,down,a failing test,V1.3.2 checked over a .tsx file,a file that fails to parse supports no clean claim,the TypeScript grammar has no JSX,5d2d4dd6
+23,2026-09-24,23:18,sv,up,building another check,one failing test credited nothing,the JUnit report credits the tests that passed,strictly additive,537a04d9
+24,2026-09-24,23:55,sv,down,unclear,three more wrong citations; a silent SBOM and advisory check,fixed; both checks fail closed,silence reads like a check that never ran,1ab46687; #60
+25,2026-09-25,00:15,sv,down,building another check,V13.3.1 and V11.1.1 checked by the secrets scan,supporting evidence only,both are manual-only,ef098b8f
+26,2026-09-25,00:13,sv,wording,another session's review,"above the ASVS level, for checklist controls",above the level this app targets,the checklist has no levels,11b0e6c7
+27,2026-09-25,01:59,sv,down,building another check,a rule that read Python claimed its requirement for Rust beside it,claims nothing for a language it was not taught,per-rule clean claims,61ffdb04
+28,2026-09-25,10:38,sv,down,reading the output,a clean semgrep run marked 39 requirements for any app,"Python 9, Go 5, Ruby 0","only rules loaded, for the app's languages",7c6b1a49; #71
+29,2026-09-25,11:11,sv,down,building another check,the credential scan checks V11.1.1 and V13.3.1,withdrawn,both are manual-only,3266f740
+30,2026-09-25,11:24,sv,down,another session's review,a bandit run with # nosec credited as clean,suppressed results shown; credit withheld,the tool was told to look away,ccfd90cf #73; 65e1db22 #79
+31,2026-09-25,12:11,sv,down,reading the output,10 scanner-clean ASVS requirements credited,clean credit only where a covering rule exists,"credit was built from findings, not rules",f9258ac0; #76
+32,2026-09-25,13:48,sv,down,reading the output,a clean semgrep run credited tests and ignored files,"files handed over by name, and checked as read",semgrep skips them silently,4c788169
+33,2026-09-25,15:26,sv,down,another session's review,"the report said an npm list was what was asked for, with no lockfile","the list is empty, as the SBOM says",approximate when absent,bc25b79d #82; 190a78a #102
+34,2026-09-25,15:48,sv,down,building another check,C9.5.4 checked by a clean credential scan,"the semgrep AI rules count against AISVS, never for",a clean run is not evidence for an AI control,84e7fe37
+35,2026-09-25,16:06,sv,wording,another session's review,"1 shell file, read as a path check","check scope, and what the rule looks for",a count of files is not a check,6225f3fb; #85
+36,2026-09-25,18:45,sv,down,reading the output,policy numbers make about eight requirements checkable,three,counted without being read,00e0ebaa
+37,2026-09-25,20:29,sv,down,another session's review,"V6.3.1 credited, having tested nothing",fixed,only the last attempt was read,672d4af1
+38,2026-09-25,23:15,sv,down,reading the output,a claim counted eleven requirements,seven,V9.2.2 and V9.2.3 are unreachable,4e514f84
+39,2026-09-26,09:01,sv,down,another session's review,silence on ci-cd and iac excluded twelve requirements,not assessed,silence is not no,f9a77f41 #128; 59c3f16c #133
+40,2026-09-26,09:21,sv,down,another session's review,V6.5.1 credited across a code-step rollover,"judged within one step, otherwise not assessed",a stale-code refusal was read as a refused reuse,65020b24 #132; 5303209
+41,2026-09-26,15:23,sv,down,running the tool on real input,"coverage: ASVS 129 settleable, AISVS 8","ASVS 125, AISVS 2",only rules a pack actually loads count,d18783ea; #164
+42,2026-09-26,16:14,sv,up,reading the output,Level 2: 62 to 64 of 183,63 to 65,a merge,d9a9f4f7
+43,2026-09-26,20:20,sv,down,the owner or real use,"two false alarms rated high (a regular expression's exec, a test's query)",no longer raised,they led the AI tool to change correct code,de8b4d8c
+44,2026-09-26,23:27,sv,down,the owner or real use,nine notes documented by the owner,stated by the AI coding tool,the AI tool wrote them,b1aec2f9
+45,2026-09-27,12:29,sv,down,building another check,an empty data list by default gave ASVS level 1,an unanswered list means level 2,a quiet no,b02efec0
+46,2026-09-27,15:20,sv,down,reading the output,V15.1.2 credited for an unreadable lockfile,not assessed,the SBOM read nothing,10598b8; dc761916; aa992585
+47,2026-09-27,16:33,sv,down,a failing test,a sign-in that quietly failed could credit the signed-in guard,credits nothing,a failed setup is not a pass,d1ef678a
+48,2026-09-27,20:27,sv,down,reading the output,15 percent faster,2.86 s to 2.73 s,measured against a two-day-old binary,f340c97

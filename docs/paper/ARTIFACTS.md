@@ -22,6 +22,11 @@ files are the record and the reader can recompute anything in them.
 | `figure-self-assessment.html` | Each version checking itself: v1's 195 findings and `sv`'s 252 (product code), by how a person triaged them. False alarms were 82% and 76%; v1 had 2 real findings, fixed that evening, and `sv` none. |
 | `ADRS.md` | The architecture decision records of both versions: when each was written, what happened to it, what the later evidence says, how v1's decisions carried into `sv`, a check of every citation (15 of 16 fit), and eight inconsistencies, each now in the backlog. |
 | `figure-adrs.html` | Every record as a line from the day it was written to 27 September: matching what was built, decided but not yet written, or out of step with what was built. |
+| `CORRECTIONS.md` | Every time SecureVibe's reported numbers or verdicts were later found to be wrong: 48 corrections in ten days, 32 of them downward, set against the test count at the time. Two of the 48 were caught by a failing test. |
+| `corrections.csv` | 48 rows, one per correction: date, version, direction, how it was found, the claim before and after, why, and the commit or pull request. |
+| `figure-corrections.html` | The same, as three charts: corrections by day and direction, tests over the same days, and how each correction was found. |
+| `DECISIONS.md` | The 23 decisions that shaped the project, each with who proposed it and who made the final call, quoted from the session transcripts: the owner chose 19, an AI session 3, and one was split. The owner took Claude's recommended option in 24 of 29 questions. |
+| `figure-decisions.html` | The same, as a grid of who proposed against who chose, with every decision in its cell, and the 29 recommendations as a row of squares. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
 | `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |

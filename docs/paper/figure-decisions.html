@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Decided What</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --empty: #d6d5cf;
+    --s1: #eef4fc; --s2: #cfe0f6; --s3: #86b6ef; --took: #184f95;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+      --s1: #1d2633; --s2: #1f3a5c; --s3: #2a5c99; --took: #86b6ef;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+    --s1: #1d2633; --s2: #1f3a5c; --s3: #2a5c99; --took: #86b6ef;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .wrap { overflow-x: auto; }
+  .matrix { display: grid; grid-template-columns: 150px repeat(3, minmax(150px, 1fr)); gap: 4px; min-width: 620px; }
+  .h { font-size: .74rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; padding: 4px 8px; align-self: end; }
+  .rh { font-size: .88rem; font-weight: 600; padding: 10px 8px; align-self: center; }
+  .rh span { display: block; font-weight: 400; font-size: .76rem; color: var(--text-muted); }
+  .cell { border-radius: 8px; padding: 10px; min-height: 64px; }
+  .cell .n { font-size: 1.4rem; font-weight: 700; line-height: 1; display: block; margin-bottom: 6px; }
+  .cell ul { list-style: none; margin: 0; padding: 0; font-size: .76rem; color: var(--text-secondary); }
+  .cell li { margin: 0 0 2px; }
+  .cell li b { color: var(--text-primary); font-variant-numeric: tabular-nums; margin-right: 4px; }
+  .cell.zero .n { color: var(--text-muted); font-weight: 400; }
+  .dots { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px; }
+  .dot { width: 18px; height: 18px; border-radius: 4px; }
+  .dot.t { background: var(--took); }
+  .dot.o { background: transparent; box-shadow: inset 0 0 0 2px var(--text-muted); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Who proposed, and who chose</h1>
+  <p class="sub">The 23 decisions that shaped SecureVibe, placed by who first put each one forward and who made the
+     final call. The owner made 19 of the final calls. The AI supplied most of the options, and the owner usually took
+     the one it recommended. The full table, with a quotation for every entry, is <code>DECISIONS.md</code>.</p>
+
+  <div class="wrap"><div class="matrix" id="matrix" role="img" aria-label="Proposed by the owner: 7, all chosen by the owner. Proposed by both: 10, 9 chosen by the owner and 1 by the AI. Proposed by the AI: 6, 3 chosen by the owner, 2 by the AI, 1 split."></div></div>
+
+  <h2>How often the owner took the recommended option</h2>
+  <p class="lede">Each square is one question from Claude that marked an option "Recommended".</p>
+  <div class="dots" id="dots" role="img" aria-label="24 of 29 recommendations taken."></div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--took)"></span>took it: 24</span>
+    <span><span class="sw" style="box-shadow:inset 0 0 0 2px var(--text-muted)"></span>did not: 5 (another option twice, own answer once, dismissed twice)</span>
+  </div>
+
+  <p class="note">Sources: the Claude Code session transcripts on the owner's machine, and the repository. Every
+     quotation in <code>DECISIONS.md</code> was checked against its transcript. "Chosen by the AI" means no question or
+     approval from the owner was found. "Both" means the owner named the need and the AI named the answer. The
+     recommendation count covers every recorded answer to a question with a recommended option.</p>
+</div>
+<script>
+  const D = {
+    1: "Build SecureVibe", 2: "v1's foundations (ADR-001 to 010)", 3: "Evidence tiers (ADR-006)", 4: "The 55% budget split",
+    5: "Any AI provider", 6: "The optimization program", 7: "Evaluation harness", 8: "Recipe library", 9: "Network fence",
+    10: "Git pre-approval", 11: "Claim work in the backlog", 12: "“Break your own rule”", 13: "Refuse unscanned uploads",
+    14: "No rules of its own (ADR-012)", 15: "Start sv, in Rust", 16: "Rules after all (ADR-018)", 17: "Promote sv, archive v1",
+    18: "Semgrep's license", 19: "PDF reports", 20: "The paper's thesis", 21: "sv's self-check", 22: "Three-arm study",
+    23: "Public, MIT license",
+  };
+  const rows = [
+    ["The owner", "", [[1, 5, 15, 17, 20, 21, 10], [], []]],
+    ["Both", "the owner named the need, the AI the answer", [[6, 7, 8, 12, 13, 14, 19, 22, 23], [4], []]],
+    ["An AI session", "", [[11, 16, 18], [2, 3], [9]]],
+  ];
+  const shade = (n) => n === 0 ? "transparent" : n <= 2 ? "var(--s1)" : n <= 5 ? "var(--s2)" : "var(--s3)";
+  const m = document.getElementById("matrix");
+  const add = (cls, html) => { const d = document.createElement("div"); d.className = cls; d.innerHTML = html; m.appendChild(d); return d; };
+  add("h", "Proposed by ↓ &nbsp; Chosen by →");
+  ["The owner", "An AI session", "Split"].forEach((t) => add("h", t));
+  rows.forEach(([name, sub, cells]) => {
+    const rh = add("rh", ""); rh.textContent = name;
+    if (sub) { const s = document.createElement("span"); s.textContent = sub; rh.appendChild(s); }
+    cells.forEach((ids) => {
+      const c = add("cell" + (ids.length ? "" : " zero"), "");
+      c.style.background = ids.length ? shade(ids.length) : "transparent";
+      c.style.boxShadow = ids.length ? "none" : "inset 0 0 0 1px var(--grid)";
+      const n = document.createElement("span"); n.className = "n"; n.textContent = ids.length || "0"; c.appendChild(n);
+      const ul = document.createElement("ul");
+      [...ids].sort((a, b) => a - b).forEach((i) => { const li = document.createElement("li"); li.innerHTML = "<b></b>"; li.querySelector("b").textContent = i; li.append(D[i]); ul.appendChild(li); });
+      c.appendChild(ul);
+    });
+  });
+  const dots = document.getElementById("dots");
+  for (let i = 0; i < 29; i++) { const d = document.createElement("span"); d.className = "dot " + (i < 24 ? "t" : "o"); dots.appendChild(d); }
+</script>
+</body>
+</html>
