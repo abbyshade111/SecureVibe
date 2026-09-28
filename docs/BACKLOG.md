@@ -288,7 +288,9 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a to d and f to h, not claimed.
+      - Step 1: slices a to d, g, and h, not claimed.
+      - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
         **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
