@@ -275,6 +275,8 @@ another session is not a claim.
      nothing, when nothing about Python was loaded. Reproduced with the export downloaded that day. An
      ecosystem should count as covered only when the database holds a record about it and nothing else, as
      every per-ecosystem export does.
+     **Claimed on 28 September 2026 by session securevibe-e9.** The fix was written before this claim, in
+     branch `claude/securevibe-e9-osv-coverage`, while waiting for the entry itself to reach `main`.
   2. **One vulnerability under two names is counted twice.** An advisory published as both a GitHub
      advisory and a PyPI one (`GHSA-wvwj-cvrp-7pv5` and `PYSEC-2026-287`, which list each other as
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
