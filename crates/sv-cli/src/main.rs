@@ -1226,6 +1226,9 @@ fn cmd_run(args: &[String]) -> Result<()> {
             println!("\nNot assessed.\n\n{reason}");
         }
         Ok((outcome, plan)) => {
+            if let Some(removed) = sv_run::cleanup::removed_sentence(&outcome.left_over_removed) {
+                println!("\n{removed}");
+            }
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
             let (findings, verified, signed_in_not_assessed) =
@@ -2522,6 +2525,12 @@ fn assemble_report(
                     plan.health_path,
                     outcome.fence.explain()
                 ));
+                if let (Some(note), Some(removed)) = (
+                    run_note.as_mut(),
+                    sv_run::cleanup::removed_sentence(&outcome.left_over_removed),
+                ) {
+                    note.push_str(&format!(" {removed}"));
+                }
                 for (requirements, why) in signed_in_not_assessed {
                     // AISVS ids are the AI feature's, asked through the test model, which may not
                     // have involved signing in at all.

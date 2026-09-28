@@ -13,3 +13,6 @@ sv-check = { path = "../sv-check" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[dev-dependencies]
+toml.workspace = true

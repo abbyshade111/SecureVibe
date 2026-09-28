@@ -380,6 +380,7 @@ dependencies = [
  "serde_json",
  "sv-check",
  "sv-manifest",
+ "toml",
 ]
 
 [[package]]

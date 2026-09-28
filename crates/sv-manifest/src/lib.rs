@@ -181,6 +181,10 @@ pub struct RunSection {
     /// Without it a failing suite credits nothing at all, because one exit code does not say which
     /// tests it came from. With it, the tests the runner reports as passing still count.
     pub test_report: Option<String>,
+    /// How many seconds the test command may run before `sv` stops it. Absent (or 0) means ten
+    /// minutes. A suite that is stopped credits nothing, and the report says it was stopped.
+    #[serde(default)]
+    pub test_time_limit: Option<u64>,
     #[serde(default)]
     pub health: Option<String>,
     /// How to sign in, so the probes can ask what a signed-in user can do and not only what
