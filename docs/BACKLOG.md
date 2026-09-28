@@ -346,6 +346,10 @@ another session is not a claim.
      removed, and its explanation names it, so both commands say it.
      **Claimed on 28 September 2026 by that session**, at the owner's asking, in branch
      `claude/failed-run-says-removed`.
+     **Done the same day:** a failed run is a `RunFailed`, the reason and what was removed first, and its
+     explanation gives both. `a_run_that_fails_after_removing_leftovers_still_says_what_it_removed` in
+     `crates/sv-run/tests/leftovers.rs` fails when the failure drops the list and when the explanation
+     leaves it out. See DESIGN, "A run has an end, and Ctrl-C cleans up", the part headed "Later still".
   2. **On a Mac with Colima, an app folder outside the home folder reaches the app empty, and `sv` says only
      that the app never answered.** Colima shares the home folder with its machine by default and nothing
      else; Docker mounts any other folder as a new, empty one without complaint. Checked on the owner's
