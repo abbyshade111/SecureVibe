@@ -62,6 +62,18 @@ another session is not a claim.
   8. `TOP10.md` says no verdict that failed open was caught by a failing test. That holds for its eight; two others
      were (`faults.csv` SV-10 and SV-49, `corrections.csv` rows 22 and 47).
 
+  **Done the same day.** Each was checked against its source first; six held as written, and two were worse
+  than stated:
+  - 3: the full harness count is 14, not 13. The ledger had also missed `00456fe`, whose own title says the harness
+    caught it, so `faults.csv` gained a row (V1-77) and the fault totals in `TESTS-AND-FAULTS.md`,
+    `COORDINATION.md`, and their figures are now 149 (81 in v1).
+  - 7: the fix never reached `v1` in any form. The whole `claude/ci-hang` branch (`3e78e98`, the test fix, and
+    `a562749`, the rule) is unmerged, and `v1` as archived still has the test line that hung CI
+    (`server/tests/llm/safety.test.ts`, the `/proc/definitely/not/writable` call). `TOP10.md` and `faults.csv` now
+    say so. Patching `v1` is a separate decision, made on the `v1` branch if at all.
+  Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
+  (28 against 26).
+
 - **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
   admiring-murdock-875699**, at the owner's asking.
   1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported

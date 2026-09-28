@@ -7,7 +7,7 @@ files are the record and the reader can recompute anything in them.
 
 | file | what it is |
 |---|---|
-| `TIMELINE.md` | The surviving record, 18–27 September 2026, by day: all 116 commits to 17:32 on 20 September, then each of the 267 changes that reached `main` (214 of them pull requests), with times and subjects. |
+| `TIMELINE.md` | The surviving record, 18–27 September 2026, by day: all 116 commits to 17:32 on 20 September, then each of the 267 changes that reached `main` (226 of them pull requests), with times and subjects. |
 | `figure-timeline.html` | The whole project on one page: v1 and `sv` as two lanes, eight numbered milestones, and commits per day, with the same numbers as tables beneath. |
 | `figure-security.html` | Security across both versions: v1's three-arm result, how far `sv`'s checks reach (ASVS 53 → 132 in 34 hours, from every version of `docs/COVERAGE.md`), where that reach stands by framework and level, and the two approaches side by side. |
 | `figure-cost.html` | Cost and speed: v1's cost and time per run type, where its $63.46 went, what made it cheaper, and four measured speed-ups across both versions. |
@@ -30,8 +30,8 @@ files are the record and the reader can recompute anything in them.
 | `COORDINATION.md` | What running several AI sessions at once cost and bought, 18–28 September: 93 of 469 changes to `main` only claimed or released work, 56 conflicts were resolved by hand (31 in the backlog alone), 14 duplicates and collisions, 3 pull requests thrown away, and 28 faults found by one session reviewing another's work. |
 | `coordination.csv` | 209 rows, one per event: claims, unmerged pull requests, conflicts, duplicates, collisions, and faults found in review, each with its source. |
 | `figure-coordination.html` | The same, as three charts: changes to `main` per day with the coordination share, conflicts per day, and how the project's faults were found. |
-| `TESTS-AND-FAULTS.md` | Test growth against fault discovery: 148 faults in SecureVibe's own code, how each was found (5 of the 129 in the product by a failing test), the rate per 1,000 lines changed as the suites grew, and whether each fix added a test (104 of 119). |
-| `faults.csv` | 143 rows covering the 148 faults: when and how each was found, when fixed, whether the fix added a test, and the commit or pull request. |
+| `TESTS-AND-FAULTS.md` | Test growth against fault discovery: 149 faults in SecureVibe's own code, how each was found (5 of the 129 in the product by a failing test), the rate per 1,000 lines changed as the suites grew, and whether each fix added a test (104 of 119). |
+| `faults.csv` | 144 rows covering the 149 faults: when and how each was found, when fixed, whether the fix added a test, and the commit or pull request. |
 | `tests_by_day.csv` | Tests, tests added, faults found, and lines changed, per day and version. |
 | `figure-tests-faults.html` | The same, as tests per day, faults per day with the rate per 1,000 lines, and the 119 fixes that did or did not leave a test behind. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
