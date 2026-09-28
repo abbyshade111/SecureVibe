@@ -32,6 +32,25 @@ use std::path::{Path, PathBuf};
 /// is better than reading it quietly or skipping it quietly.
 pub const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
+/// The largest file a check reads in pieces ([`Entry::in_pieces`]), for the few checks whose question
+/// can be answered a piece at a time. Owner's decision, 28 September 2026: a large data file the owner
+/// keeps in the app (a vendored standards catalog of 10 MB, in cato-pipeline) should not leave the
+/// credential scan unfinished for the whole app. Above this, a file is still refused and named: it is
+/// not a file anybody keeps by hand, and reading it would take longer than the rest of the report.
+pub const MAX_PIECEWISE_BYTES: u64 = 256 * 1024 * 1024;
+
+/// One piece of a file read in pieces. `text` overlaps the piece before it and the piece after it;
+/// `keep` is the part that belongs to this piece alone, so a match that starts inside `keep` is counted
+/// here and nowhere else, and is whole as long as it is shorter than the overlap.
+#[derive(Debug)]
+pub struct Piece<'a> {
+    pub text: &'a str,
+    /// The line, 1-indexed, that `text` starts on.
+    pub first_line: usize,
+    /// Byte range of `text` that is this piece's own.
+    pub keep: std::ops::Range<usize>,
+}
+
 /// One regular file under the app folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
@@ -92,6 +111,95 @@ impl Entry {
         }
         let bytes = std::fs::read(&self.path).map_err(|_| Unread::Unreadable)?;
         String::from_utf8(bytes).map_err(|_| Unread::NotText)
+    }
+
+    /// The file in overlapping pieces of about `window` bytes, each handed to `each`, holding no more
+    /// than one piece in memory. For a question that one line answers, such as whether a credential is
+    /// written there: every line is inside some piece whole, provided `overlap` is longer than the
+    /// longest thing looked for. Refused, with the reason, as `read_text` refuses: no details, over
+    /// [`MAX_PIECEWISE_BYTES`], not text, or not readable.
+    pub fn in_pieces(
+        &self,
+        window: usize,
+        overlap: usize,
+        mut each: impl FnMut(Piece<'_>),
+    ) -> Result<(), Unread> {
+        use std::io::Read;
+        assert!(
+            window > 2 * overlap,
+            "a piece must be longer than twice its overlap"
+        );
+        match self.size {
+            None => return Err(Unread::NoDetails),
+            Some(s) if s > MAX_PIECEWISE_BYTES => return Err(Unread::TooLarge),
+            Some(_) => {}
+        }
+        let mut file = std::fs::File::open(&self.path).map_err(|_| Unread::Unreadable)?;
+        let mut buf: Vec<u8> = Vec::with_capacity(window + 4);
+        // How much of `buf`'s start was carried over from the piece before, and so is not this one's.
+        let mut carried = 0usize;
+        let mut first_line = 1usize;
+        let mut chunk = vec![0u8; window];
+        let mut at_end = false;
+        loop {
+            // Fill the piece up to `window`, or to the end of the file.
+            while buf.len() < window && !at_end {
+                let want = window - buf.len();
+                let n = file
+                    .read(&mut chunk[..want])
+                    .map_err(|_| Unread::Unreadable)?;
+                if n == 0 {
+                    at_end = true;
+                } else {
+                    buf.extend_from_slice(&chunk[..n]);
+                }
+            }
+            // Text up to the last whole character; a character cut by the window waits for the next.
+            let valid = match std::str::from_utf8(&buf) {
+                Ok(_) => buf.len(),
+                Err(e) if e.error_len().is_none() && !at_end => e.valid_up_to(),
+                Err(_) => return Err(Unread::NotText),
+            };
+            let text = std::str::from_utf8(&buf[..valid]).expect("checked above");
+            let mut keep_to = if at_end {
+                text.len()
+            } else {
+                text.len().saturating_sub(overlap).max(carried)
+            };
+            while !text.is_char_boundary(keep_to) {
+                keep_to -= 1;
+            }
+            each(Piece {
+                text,
+                first_line,
+                keep: carried..keep_to,
+            });
+            if at_end {
+                return Ok(());
+            }
+            // The next piece's own part starts exactly where this one's ended, so every byte is
+            // owned once. Its text starts `overlap` earlier: look-behind, so a pattern that asks what
+            // comes before a match (a word boundary) sees the same character it would in the whole
+            // file. The bytes after `keep_to` in this piece were its look-ahead.
+            let mut cut = keep_to.saturating_sub(overlap);
+            while !text.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            first_line += text[..cut].bytes().filter(|b| *b == b'\n').count();
+            carried = keep_to - cut;
+            buf.drain(..cut);
+        }
+    }
+
+    /// Whether the file's text contains `needle`, read in pieces, for a file too large for
+    /// [`Entry::read_text`].
+    pub fn mentions(&self, needle: &str) -> Result<bool, Unread> {
+        let mut found = false;
+        let overlap = needle.len().max(1);
+        self.in_pieces(1024 * 1024, overlap, |piece| {
+            found = found || piece.text.contains(needle);
+        })?;
+        Ok(found)
     }
 }
 
@@ -378,6 +486,112 @@ mod tests {
             ["", "server"].into_iter().map(String::from).collect()
         );
         assert_eq!(listing.code_files().count(), 1);
+    }
+
+    fn entry_for(path: &Path, relative: &str) -> Entry {
+        Entry {
+            relative: relative.into(),
+            path: path.to_path_buf(),
+            size: std::fs::metadata(path).ok().map(|m| m.len()),
+            extension: None,
+            language: None,
+            editor: false,
+        }
+    }
+
+    /// Reads `entry` in pieces and puts back together the part each piece owns, checking as it goes
+    /// that each piece's `first_line` is the line its own part starts on.
+    fn reassemble(entry: &Entry, window: usize, overlap: usize, whole: &str) -> (String, usize) {
+        let mut out = String::new();
+        let mut pieces = 0;
+        entry
+            .in_pieces(window, overlap, |piece| {
+                pieces += 1;
+                let own_start = out.len();
+                // The line the piece's own part starts on, counted in the file, against the piece's
+                // own count: `first_line` plus the newlines in the overlap before `keep`.
+                let expected = 1 + whole[..own_start].matches('\n').count();
+                let claimed =
+                    piece.first_line + piece.text[..piece.keep.start].matches('\n').count();
+                assert_eq!(claimed, expected, "piece {pieces} starts on the wrong line");
+                out.push_str(&piece.text[piece.keep.clone()]);
+            })
+            .expect("the file is read");
+        (out, pieces)
+    }
+
+    #[test]
+    fn a_file_read_in_pieces_is_every_byte_once_with_its_lines_counted() {
+        let dir = scratch("pieces");
+        let path = dir.join("catalog.txt");
+        let whole: String = (0..6000)
+            .map(|i| format!("line {i} of the catalog\n"))
+            .collect();
+        std::fs::write(&path, &whole).unwrap();
+        let entry = entry_for(&path, "catalog.txt");
+        let (back, pieces) = reassemble(&entry, 4096, 256, &whole);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            pieces > 10,
+            "the setup: the file really was read in many pieces ({pieces})"
+        );
+        assert_eq!(back, whole, "a byte was dropped or counted twice");
+    }
+
+    #[test]
+    fn a_character_cut_by_a_piece_boundary_is_not_read_as_binary() {
+        // Accented letters and an emoji are two to four bytes each; with a small window some of them
+        // straddle every boundary. A reader that cut them would call the file "not text".
+        let dir = scratch("pieces-utf8");
+        let path = dir.join("names.txt");
+        let whole: String = (0..400).map(|i| format!("é{i}🔑ü\n")).collect();
+        std::fs::write(&path, &whole).unwrap();
+        let entry = entry_for(&path, "names.txt");
+        let (back, pieces) = reassemble(&entry, 97, 13, &whole);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(pieces > 20, "the setup: many boundaries ({pieces})");
+        assert_eq!(back, whole);
+    }
+
+    #[test]
+    fn a_word_split_by_a_piece_boundary_is_still_mentioned() {
+        // `mentions` reads in 1 MB pieces; the word is placed across the first boundary, and the
+        // file is over the 2 MB limit, as the files it is for are.
+        let dir = scratch("mentions");
+        let path = dir.join("catalog.json");
+        let before = "x".repeat(1024 * 1024 - 3);
+        let after = "y".repeat(MAX_FILE_BYTES as usize);
+        std::fs::write(&path, format!("{before}command{after}")).unwrap();
+        let entry = entry_for(&path, "catalog.json");
+        assert!(entry.too_large(), "the setup: over the limit");
+        assert_eq!(entry.mentions("command"), Ok(true));
+        assert_eq!(entry.mentions("mcpServers"), Ok(false));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_file_read_in_pieces_is_refused_for_the_same_reasons_as_a_whole_one() {
+        let dir = scratch("pieces-refused");
+        let binary = dir.join("blob.bin");
+        std::fs::write(&binary, [b'a', 0xff, 0xfe, b'b']).unwrap();
+        assert_eq!(
+            entry_for(&binary, "blob.bin").in_pieces(64, 8, |_| {}),
+            Err(Unread::NotText)
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        let huge = Entry {
+            relative: "dump.json".into(),
+            path: PathBuf::from("/nowhere/dump.json"),
+            size: Some(MAX_PIECEWISE_BYTES + 1),
+            extension: Some("json".into()),
+            language: None,
+            editor: false,
+        };
+        // Refused before it is opened: the path does not exist.
+        assert_eq!(huge.in_pieces(64, 8, |_| {}), Err(Unread::TooLarge));
+        assert_eq!(huge.mentions("command"), Err(Unread::TooLarge));
+        let unknown = Entry { size: None, ..huge };
+        assert_eq!(unknown.in_pieces(64, 8, |_| {}), Err(Unread::NoDetails));
     }
 
     #[test]

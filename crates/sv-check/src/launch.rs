@@ -592,6 +592,27 @@ fn mcp_servers(listing: &Listing, report: &mut ConfigReport) {
     {
         let text = match entry.read_text() {
             Ok(text) => text,
+            // A file over 2 MB is almost always data, and one that never says `command` cannot start
+            // an MCP server by this check's own rule below, the rule it applies to every file it
+            // reads. So it is searched for that word in pieces, and counts as read when the word is
+            // not there. When it is, the file stays unread and named, with the reason.
+            Err(sv_scan::files::Unread::TooLarge) => match entry.mentions("command") {
+                Ok(false) => {
+                    read += 1;
+                    continue;
+                }
+                Ok(true) => {
+                    unread.push(format!(
+                        "`{}` (larger than 2 MB, and it mentions `command`)",
+                        entry.relative
+                    ));
+                    continue;
+                }
+                Err(why) => {
+                    unread.push(format!("`{}` ({})", entry.relative, why.explain()));
+                    continue;
+                }
+            },
             Err(why) => {
                 unread.push(format!("`{}` ({})", entry.relative, why.explain()));
                 continue;
@@ -923,6 +944,76 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn large_data(dir: &std::path::Path, name: &str, extra: &str) {
+        fs::write(
+            dir.join(name),
+            format!("{{\"text\": \"{}{extra}\"}}\n", "y".repeat(3 * 1024 * 1024)),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn a_large_data_file_that_never_says_command_does_not_block_the_mcp_check() {
+        // cato-pipeline's catalog: 10 MB of standards text in a JSON file. Before, the check could
+        // not read it, and so could never pass for the whole app.
+        let dir = scratch("mcp-large");
+        fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
+        large_data(&dir, "catalog.json", "");
+        let listing = Listing::of(&dir);
+        assert!(
+            listing
+                .files
+                .iter()
+                .any(|f| f.relative == "catalog.json" && f.too_large()),
+            "the setup: the catalog is over the limit"
+        );
+        let report = run(&dir);
+        assert!(
+            !report.not_assessed.iter().any(|(id, _)| id == MCP_UNPINNED),
+            "{:?}",
+            report.not_assessed
+        );
+        let passed = report
+            .passed
+            .iter()
+            .find(|v| v.check_id == MCP_UNPINNED)
+            .expect("a clean reading");
+        assert!(
+            passed.scope.starts_with("2 files"),
+            "both files count: {}",
+            passed.scope
+        );
+
+        // The word is there: the file could start a server, so it stays unread and says why.
+        large_data(&dir, "catalog.json", " command ");
+        let report = run(&dir);
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == MCP_UNPINNED)
+            .expect("not assessed, and named");
+        assert!(
+            why.contains("`catalog.json` (larger than 2 MB, and it mentions `command`)"),
+            "{why}"
+        );
+
+        // And a large data file beside the app's own unpinned server hides nothing.
+        large_data(&dir, "catalog.json", "");
+        fs::write(
+            dir.join("mcp_config.json"),
+            r#"{"mcpServers": {"gh": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"]}}}"#,
+        )
+        .unwrap();
+        let report = run(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            found(&report, MCP_UNPINNED).len(),
+            1,
+            "{:?}",
+            report.findings
+        );
     }
 
     #[test]

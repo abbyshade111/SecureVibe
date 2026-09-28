@@ -233,3 +233,29 @@ fn known_vulnerabilities_count_as_looked_for_only_when_the_whole_app_was_compare
     assert_eq!(entry(&covered, "advisory.").0, "ran");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_large_data_file_leaves_the_credential_scan_and_the_mcp_check_finished() {
+    // cato-pipeline's reproduction: a JSON file of plain text over the 2 MB limit, no code in it
+    // and no MCP configuration. Before, the credential scan was `partly` and the MCP check
+    // not-run, for the whole app, for as long as the file was there.
+    let dir = app("large-data");
+    std::fs::write(
+        dir.join("catalog.json"),
+        format!("{{\"text\": \"{}\"}}\n", "y".repeat(3_000_000)),
+    )
+    .unwrap();
+    let report = report(&dir, &[]);
+    let (state, why) = entry(&report, "secrets.");
+    assert_eq!(state, "ran", "{why}");
+    let mcp = report["examined"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["rules"] == "config.mcp-server-unpinned");
+    assert!(
+        mcp.is_none_or(|e| e["state"] != "not-run"),
+        "the MCP check still did not run: {mcp:?}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
