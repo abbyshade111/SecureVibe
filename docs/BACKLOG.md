@@ -28,8 +28,15 @@ another session is not a claim.
   size the time is in item 6, not in the walks. See DESIGN, "One walk of the app".
   **Items 4, 5, and 8 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
   continue with the backlog; one pull request each.
-  **Item 2 claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to pick a
-  backlog item.
+  **Items 2 and 11 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
+  continue with the backlog; one pull request each.
+  **Item 2 was claimed twice**, a minute apart, and neither claim was on `main` when the other was made:
+  by session securevibe-e2 at 03:11 UTC (pull request #328) and by session securevibe-e9 at 03:13 UTC
+  (#329, which reached `main` first). securevibe-e2 had already built it by the time this was seen: branch
+  `claude/securevibe-e2-run-limits`, a time limit on the test suite and on every Docker call, Ctrl-C and
+  `kill` removing the run's containers, and each run removing what an ended run left, with tests against
+  real containers. **securevibe-e9: look at that branch before starting item 2.** Which one goes in is
+  the owner's call; item 11 is untouched by it.
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
