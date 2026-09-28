@@ -20,6 +20,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
+use sv_scan::files::{Entry, Unread};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -111,6 +112,9 @@ impl SecretRules {
 #[derive(Debug, Default, Clone)]
 pub struct Coverage {
     pub files_read: usize,
+    /// Of `files_read`, the files over 2 MB that were read in pieces rather than refused. Counted so
+    /// the report can say so: an assignment found in one is reported with low confidence.
+    pub read_in_pieces: Vec<String>,
     /// Files that exist but were not read, with the reason. A scan that skipped something is not a clean one.
     pub skipped: Vec<(String, String)>,
 }
@@ -214,11 +218,31 @@ fn is_env_file(relative: &str) -> bool {
 
 /// Runs every rule over one file's text.
 pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding> {
+    scan_piece(rules, relative, text, 1, 0..text.len(), false)
+}
+
+/// Runs every rule over one piece of a file: `text` starts on line `first_line`, and only a match that
+/// starts inside `keep` is this piece's to report (see `sv_scan::files::Piece`). `large` marks a file
+/// over 2 MB, where the assignment rule's judgment is weaker: such a file is generated or vendored, and
+/// a long random-looking value in it is as likely to be a hash as a key, so what that rule finds there
+/// is reported with low confidence. The vendor rules keep theirs; a hash does not look like `AKIA` or
+/// `sk-ant-`.
+fn scan_piece(
+    rules: &SecretRules,
+    relative: &str,
+    text: &str,
+    first_line: usize,
+    keep: std::ops::Range<usize>,
+    large: bool,
+) -> Vec<Finding> {
     let mut out = Vec::new();
     let env_file = is_env_file(relative);
 
     for (rule, re) in &rules.rules {
         for m in re.find_iter(text) {
+            if !keep.contains(&m.start()) {
+                continue;
+            }
             let value = m.as_str();
             if looks_like_placeholder(value) {
                 continue;
@@ -233,7 +257,7 @@ pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding
                 confidence: rule.confidence,
                 location: Location {
                     file: relative.to_owned(),
-                    line: line_of(text, m.start()),
+                    line: first_line - 1 + line_of(text, m.start()),
                 },
                 secret: Some(Secret::redact(value)),
                 requirement_ids: rule.requirement_ids.clone(),
@@ -251,9 +275,15 @@ pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding
         // vendor rule is the better of the two: it names what the credential is and how to revoke it.
         let already: Vec<usize> = out.iter().map(|f| f.location.line).collect();
         out.extend(
-            assignment_findings(relative, text)
+            assignment_findings(relative, text, first_line, &keep)
                 .into_iter()
-                .filter(|f| !already.contains(&f.location.line)),
+                .filter(|f| !already.contains(&f.location.line))
+                .map(|mut f| {
+                    if large {
+                        f.confidence = Confidence::Low;
+                    }
+                    f
+                }),
         );
     }
     out
@@ -264,7 +294,12 @@ pub fn scan_text(rules: &SecretRules, relative: &str, text: &str) -> Vec<Finding
 /// This is the rule that earns its keep and the rule most able to cry wolf, so it asks for three things at
 /// once: a name that means a secret, a value that is not a placeholder, and enough entropy that it is not
 /// an English word or an identifier.
-fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
+fn assignment_findings(
+    relative: &str,
+    text: &str,
+    first_line: usize,
+    keep: &std::ops::Range<usize>,
+) -> Vec<Finding> {
     // name = "value" / name: 'value' / NAME=value — the shapes an assignment takes across languages.
     static ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r#"(?m)([A-Za-z_][A-Za-z0-9_.\-]*)\s*[:=]\s*["']([^"'\n]{8,200})["']"#)
@@ -272,6 +307,9 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
     });
     let mut out = Vec::new();
     for caps in ASSIGNMENT.captures_iter(text) {
+        if !keep.contains(&caps.get(0).expect("group 0 is the match").start()) {
+            continue;
+        }
         let name = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
         let value_match = caps.get(2).expect("group 2 is not optional");
         let value = value_match.as_str();
@@ -296,7 +334,10 @@ fn assignment_findings(relative: &str, text: &str) -> Vec<Finding> {
             title: format!("A value that looks like a credential is written into the code (`{name}`)"),
             severity: Severity::High,
             confidence: Confidence::Medium,
-            location: Location { file: relative.to_owned(), line: line_of(text, value_match.start()) },
+            location: Location {
+                file: relative.to_owned(),
+                line: first_line - 1 + line_of(text, value_match.start()),
+            },
             secret: Some(Secret::redact(value)),
             requirement_ids: ASSIGNMENT_REQUIREMENTS.iter().map(|r| (*r).to_owned()).collect(),
             cwe: vec!["CWE-798".into(), "CWE-259".into()],
@@ -397,11 +438,19 @@ pub fn scan_listing(rules: &SecretRules, listing: &sv_scan::files::Listing) -> S
             .push((dir.clone(), "the folder could not be opened".to_owned()));
     }
     for entry in &listing.files {
-        match entry.read_text() {
-            Ok(text) => {
+        let read = match entry.read_text() {
+            Ok(text) => Ok(scan_text(rules, &entry.relative, &text)),
+            // A file over 2 MB is read a piece at a time: every rule is one line long, so a piece
+            // that overlaps the next by far more than the longest match misses nothing.
+            Err(Unread::TooLarge) => scan_large(rules, entry).inspect(|_| {
+                scan.coverage.read_in_pieces.push(entry.relative.clone());
+            }),
+            Err(why) => Err(why),
+        };
+        match read {
+            Ok(found) => {
                 scan.coverage.files_read += 1;
-                scan.findings
-                    .extend(scan_text(rules, &entry.relative, &text));
+                scan.findings.extend(found);
             }
             Err(why) => scan
                 .coverage
@@ -417,6 +466,23 @@ pub fn scan_listing(rules: &SecretRules, listing: &sv_scan::files::Listing) -> S
     });
     scan.verified = clean_scan(rules, &scan);
     scan
+}
+
+/// One file over 2 MB, in pieces of 1 MB overlapping by 64 KB: longer than any credential or any line
+/// the assignment rule reads, so each is inside some piece whole and counted by exactly one.
+fn scan_large(rules: &SecretRules, entry: &Entry) -> Result<Vec<Finding>, Unread> {
+    let mut found = Vec::new();
+    entry.in_pieces(1024 * 1024, 64 * 1024, |piece| {
+        found.extend(scan_piece(
+            rules,
+            &entry.relative,
+            piece.text,
+            piece.first_line,
+            piece.keep,
+            true,
+        ));
+    })?;
+    Ok(found)
 }
 
 /// Whether this scan is evidence that the app holds no credentials.
@@ -438,12 +504,16 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
         "secrets.scan",
         &ids,
         format!(
-            "{} file{}, against {} known credential formats plus the assignment rule",
+            "{} file{}{}, against {} known credential formats plus the assignment rule",
             scan.coverage.files_read,
             if scan.coverage.files_read == 1 {
                 ""
             } else {
                 "s"
+            },
+            match scan.coverage.read_in_pieces.len() {
+                0 => String::new(),
+                n => format!(" ({n} over 2 MB, read in pieces)"),
             },
             rules.len()
         ),
@@ -669,6 +739,274 @@ mod tests {
                 found.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
             );
         }
+    }
+
+    fn big_scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-secrets-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn aws_key(tail: &str) -> String {
+        credential_shaped(&["AKIA", tail], "")
+    }
+
+    #[test]
+    fn keys_in_a_large_one_line_file_are_found_once_each_wherever_the_pieces_fall() {
+        // cato-pipeline's case: a vendored catalog of several MB, on one line as JSON often is. Three
+        // keys: one across the boundary where the first piece's own part ends (1 MB less 64 KB), one
+        // across the first piece's physical end (1 MB), and one past the 2 MB mark.
+        let keys = [
+            aws_key("Q7RZ2KV9LP4WN8HA"),
+            aws_key("Q7RZ2KV9LP4WN8HB"),
+            aws_key("Q7RZ2KV9LP4WN8HC"),
+        ];
+        let mib = 1024 * 1024;
+        let snippets: [(usize, &str); 3] = [
+            (mib - 64 * 1024 - 5, keys[0].as_str()),
+            (mib - 10, keys[1].as_str()),
+            (2 * mib + mib / 2, keys[2].as_str()),
+        ];
+        let mut line = String::from("{\"text\": \"");
+        for (offset, snippet) in snippets {
+            line.push_str(&"y".repeat(offset - line.len()));
+            line.push(' ');
+            line.push_str(snippet);
+            line.push(' ');
+        }
+        line.push_str(&"y".repeat(3 * mib - line.len()));
+        line.push_str("\"}\n");
+        let dir = big_scratch("one-line");
+        std::fs::write(dir.join("catalog.json"), &line).unwrap();
+        let listing = sv_scan::files::Listing::of(&dir);
+        assert!(listing.files[0].too_large(), "the setup: over 2 MB");
+        let scan = scan_listing(&rules(), &listing);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            scan.coverage.skipped.is_empty(),
+            "{:?}",
+            scan.coverage.skipped
+        );
+        assert_eq!(scan.coverage.read_in_pieces, ["catalog.json"]);
+        let aws: Vec<&Finding> = scan
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == "secrets.aws-access-key")
+            .collect();
+        assert_eq!(aws.len(), 3, "each key once, none twice, none cut in half");
+        for f in &aws {
+            assert_eq!(f.location.line, 1);
+            assert_eq!(
+                f.secret.as_ref().map(|s| s.length()),
+                Some(20),
+                "a whole key"
+            );
+            assert_eq!(
+                f.confidence,
+                Confidence::High,
+                "a vendor shape keeps its confidence"
+            );
+        }
+        let rendered = serde_json::to_string(&scan.findings).unwrap();
+        for key in &keys {
+            assert!(
+                !rendered.contains(key.as_str()),
+                "a key reached the finding"
+            );
+        }
+    }
+
+    #[test]
+    fn a_piece_reports_only_what_starts_in_its_own_part() {
+        // One piece, three lines: the first is look-behind, the last look-ahead, and only the
+        // middle is the piece's own. A key or an assignment outside the middle belongs to the piece
+        // before or after, and is reported there; here it must not be, or it is reported twice.
+        let key = aws_key("Q7RZ2KV9LP4WN8HE");
+        let value = credential_shaped(&["Zq8", "Lm2", "Vx7", "Rt4", "Wp9", "Kd3"], "");
+        let behind = format!("aws = {key}\npassword = \"{value}\"\n");
+        let own = format!("aws = {key}\npassword = \"{value}\"\n");
+        let ahead = format!("aws = {key}\npassword = \"{value}\"\n");
+        let text = format!("{behind}{own}{ahead}");
+        let keep = behind.len()..behind.len() + own.len();
+        let found = scan_piece(&rules(), "dump.txt", &text, 100, keep, true);
+        let mut got: Vec<(&str, usize)> = found
+            .iter()
+            .map(|f| (f.rule_id.as_str(), f.location.line))
+            .collect();
+        got.sort();
+        // `text` starts on line 100, so its own part is lines 102 and 103.
+        assert_eq!(
+            got,
+            [
+                ("secrets.aws-access-key", 102),
+                ("secrets.credential-assignment", 103)
+            ]
+        );
+    }
+
+    #[test]
+    fn a_piece_sees_the_character_before_its_own_part() {
+        // `AKIA…` glued to the letter before it is not a key: the rule asks for a word boundary.
+        // Placed so that `AKIA` is the first byte of the second piece's own part, a piece with no
+        // look-behind would see a boundary that the file does not have, and report it.
+        let mib = 1024 * 1024;
+        let own_starts = mib - 64 * 1024;
+        let glued = format!("y{}", aws_key("Q7RZ2KV9LP4WN8HF"));
+        let mut line = "y".repeat(own_starts - 1);
+        line.push_str(&glued);
+        line.push_str(&" y".repeat(mib));
+        line.push('\n');
+        assert_eq!(
+            &line[own_starts..own_starts + 4],
+            "AKIA",
+            "the setup: at the boundary"
+        );
+        let dir = big_scratch("glued");
+        std::fs::write(dir.join("catalog.txt"), &line).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            scan.coverage.read_in_pieces,
+            ["catalog.txt"],
+            "the setup: read in pieces"
+        );
+        assert!(
+            !scan
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "secrets.aws-access-key"),
+            "a key the file does not have: {:?}",
+            scan.findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn a_large_file_gives_the_line_an_editor_shows_and_a_weaker_assignment() {
+        // Many short lines, so the pieces start mid-file on counted lines. A key on line 45,000 must
+        // say 45,000. An assignment in a large file is reported with low confidence: a long
+        // random-looking value in generated data is as likely a hash as a key.
+        let key = aws_key("Q7RZ2KV9LP4WN8HD");
+        let value = credential_shaped(&["Zq8", "Lm2", "Vx7", "Rt4", "Wp9", "Kd3"], "");
+        let mut text = String::new();
+        for i in 1..=60_000 {
+            match i {
+                45_000 => text.push_str(&format!("aws = {key}\n")),
+                50_000 => text.push_str(&format!("password = \"{value}\"\n")),
+                _ => text.push_str(&format!("{i:>8} a line of generated data, nothing in it\n")),
+            }
+        }
+        let dir = big_scratch("many-lines");
+        std::fs::write(dir.join("dump.txt"), &text).unwrap();
+        let listing = sv_scan::files::Listing::of(&dir);
+        assert!(listing.files[0].too_large(), "the setup: over 2 MB");
+        let scan = scan_listing(&rules(), &listing);
+        std::fs::remove_dir_all(&dir).ok();
+        let aws = scan
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "secrets.aws-access-key")
+            .expect("the key is found");
+        assert_eq!(aws.location.line, 45_000);
+        let assigned = scan
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "secrets.credential-assignment")
+            .expect("the assignment is found");
+        assert_eq!(assigned.location.line, 50_000);
+        assert_eq!(assigned.confidence, Confidence::Low);
+        // The same line in an ordinary file keeps the rule's usual confidence.
+        let small = scan_text(&rules(), "src/app.py", &format!("password = \"{value}\"\n"));
+        assert_eq!(small[0].confidence, Confidence::Medium);
+    }
+
+    #[test]
+    fn an_assignment_in_the_overlap_is_reported_once_and_weaker() {
+        // Alone on its line, since the assignment rule stands aside for a vendor key on the same
+        // line. Inside the overlap: the first piece reads it as look-ahead and the second owns it,
+        // so it is reported once, and with low confidence, as a large file's assignment is.
+        let value = credential_shaped(&["Zq8", "Lm2", "Vx7", "Rt4", "Wp9", "Kd3"], "");
+        let mib = 1024 * 1024;
+        let mut line = String::from("{\"text\": \"");
+        line.push_str(&"y".repeat(mib - 30_000 - line.len()));
+        line.push_str(&format!(" password = '{value}' "));
+        line.push_str(&"y".repeat(3 * mib - line.len()));
+        line.push_str("\"}\n");
+        let dir = big_scratch("overlap-assignment");
+        std::fs::write(dir.join("catalog.json"), &line).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            scan.coverage.read_in_pieces,
+            ["catalog.json"],
+            "the setup: read in pieces"
+        );
+        let assigned: Vec<&Finding> = scan
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == "secrets.credential-assignment")
+            .collect();
+        assert_eq!(assigned.len(), 1, "the assignment in the overlap, once");
+        assert_eq!(assigned[0].confidence, Confidence::Low);
+        let rendered = serde_json::to_string(&scan.findings).unwrap();
+        assert!(
+            !rendered.contains(value.as_str()),
+            "the value reached the finding"
+        );
+    }
+
+    #[test]
+    fn a_large_file_of_accented_text_is_read_and_not_called_binary() {
+        // Two- and four-byte characters throughout, so pieces end in the middle of one: the scan
+        // must read on, and find the key past the 2 MB mark, rather than refuse the file.
+        let key = aws_key("Q7RZ2KV9LP4WN8HG");
+        let mut text = "Détails 🔑 réglementés ü\n".repeat(100_000);
+        text.push_str(&format!("aws = {key}\n"));
+        let dir = big_scratch("accented");
+        std::fs::write(dir.join("catalogue.txt"), &text).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            text.len() as u64 > sv_scan::files::MAX_FILE_BYTES,
+            "the setup: over 2 MB"
+        );
+        assert!(
+            scan.coverage.skipped.is_empty(),
+            "{:?}",
+            scan.coverage.skipped
+        );
+        let aws = scan
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "secrets.aws-access-key")
+            .expect("the key past 2 MB is found");
+        assert_eq!(aws.location.line, 100_001);
+    }
+
+    #[test]
+    fn a_large_file_with_nothing_in_it_leaves_the_scan_clean_and_says_how_it_was_read() {
+        let dir = big_scratch("clean");
+        std::fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
+        std::fs::write(
+            dir.join("catalog.json"),
+            format!("{{\"text\": \"{}\"}}\n", "y".repeat(3 * 1024 * 1024)),
+        )
+        .unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(scan.coverage.files_read, 2);
+        assert!(scan.coverage.skipped.is_empty());
+        let clean = scan
+            .verified
+            .first()
+            .expect("a clean scan, not an unfinished one");
+        assert!(
+            clean
+                .scope
+                .contains("2 files (1 over 2 MB, read in pieces)"),
+            "{}",
+            clean.scope
+        );
     }
 
     #[test]

@@ -84,7 +84,13 @@ another session is not a claim.
      recommends (a) and (b) together, which clear it without asking anyone to trust the manifest. Tests: a
      3 MB plain-text JSON and no MCP configuration leaves the MCP check run, or `partly` and naming the file,
      never not assessed; a key planted past the 2 MB mark of a large file is found and `secrets.` is `ran`;
-     each guard removed in turn turns its test red. **Not claimed; the option is the owner's call.**
+     each guard removed in turn turns its test red. **The owner's decision, 28 September 2026: (a) and (b)
+     together. Claimed the same day by session securevibe-e10**, in branch `claude/large-data-files`.
+     **Done the same day:** a file over 2 MB and up to 256 MB is read in pieces for credentials (an
+     assignment found in one is reported with low confidence), and the MCP check counts a large file as
+     read when it never says `command`, its own rule for any file. On cato's reproduction the credential
+     scan is `ran` and the MCP check is no longer not-run. See DESIGN, "A large data file no longer
+     blocks the credential scan or the MCP check".
   3. **The report does not say which lockfile was read when a project has more than one.** Found on 28 September
      2026 while doing item 1. `find_lockfile` in `crates/sv-scan/src/ecosystems.rs` takes the first name in each
      ecosystem's list that exists and says nothing about the rest, for every ecosystem (`poetry.lock` and
