@@ -4855,6 +4855,11 @@ before. Nothing about a file's name or the manifest is trusted.
 On cato's reproduction (a `securevibe.toml`, an `app.py`, and a 3 MB JSON of plain text) the
 credential scan is now `ran` and the MCP check is no longer not-run.
 
+**Bundles follow.** `sv bundle` leaves out any file the credential scan could not vouch for, and a file
+over 2 MB used to be one. Read in pieces, a clean one now goes into the bundle, and one with a key past
+the 2 MB mark stays out as holding a credential, as any file with a key does. The bundle test's example
+of an unread file was a 3 MB one; it now checks both sides.
+
 **Broken on purpose eleven ways**, each restored from the bytes read before it, never from git. The
 reader: no look-behind, caught by three tests; a strip at each boundary owned by nobody, four; lines
 counted to the wrong place, four; a character cut by the window read as binary, two. The credential
