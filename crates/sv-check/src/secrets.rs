@@ -763,12 +763,16 @@ mod tests {
             aws_key("Q7RZ2KV9LP4WN8HC"),
         ];
         let mib = 1024 * 1024;
-        let at = [mib - 64 * 1024 - 5, mib - 10, 2 * mib + mib / 2];
+        let snippets: [(usize, &str); 3] = [
+            (mib - 64 * 1024 - 5, keys[0].as_str()),
+            (mib - 10, keys[1].as_str()),
+            (2 * mib + mib / 2, keys[2].as_str()),
+        ];
         let mut line = String::from("{\"text\": \"");
-        for (key, offset) in keys.iter().zip(at) {
+        for (offset, snippet) in snippets {
             line.push_str(&"y".repeat(offset - line.len()));
             line.push(' ');
-            line.push_str(key);
+            line.push_str(snippet);
             line.push(' ');
         }
         line.push_str(&"y".repeat(3 * mib - line.len()));
@@ -914,6 +918,69 @@ mod tests {
         // The same line in an ordinary file keeps the rule's usual confidence.
         let small = scan_text(&rules(), "src/app.py", &format!("password = \"{value}\"\n"));
         assert_eq!(small[0].confidence, Confidence::Medium);
+    }
+
+    #[test]
+    fn an_assignment_in_the_overlap_is_reported_once_and_weaker() {
+        // Alone on its line, since the assignment rule stands aside for a vendor key on the same
+        // line. Inside the overlap: the first piece reads it as look-ahead and the second owns it,
+        // so it is reported once, and with low confidence, as a large file's assignment is.
+        let value = credential_shaped(&["Zq8", "Lm2", "Vx7", "Rt4", "Wp9", "Kd3"], "");
+        let mib = 1024 * 1024;
+        let mut line = String::from("{\"text\": \"");
+        line.push_str(&"y".repeat(mib - 30_000 - line.len()));
+        line.push_str(&format!(" password = '{value}' "));
+        line.push_str(&"y".repeat(3 * mib - line.len()));
+        line.push_str("\"}\n");
+        let dir = big_scratch("overlap-assignment");
+        std::fs::write(dir.join("catalog.json"), &line).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(
+            scan.coverage.read_in_pieces,
+            ["catalog.json"],
+            "the setup: read in pieces"
+        );
+        let assigned: Vec<&Finding> = scan
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == "secrets.credential-assignment")
+            .collect();
+        assert_eq!(assigned.len(), 1, "the assignment in the overlap, once");
+        assert_eq!(assigned[0].confidence, Confidence::Low);
+        let rendered = serde_json::to_string(&scan.findings).unwrap();
+        assert!(
+            !rendered.contains(value.as_str()),
+            "the value reached the finding"
+        );
+    }
+
+    #[test]
+    fn a_large_file_of_accented_text_is_read_and_not_called_binary() {
+        // Two- and four-byte characters throughout, so pieces end in the middle of one: the scan
+        // must read on, and find the key past the 2 MB mark, rather than refuse the file.
+        let key = aws_key("Q7RZ2KV9LP4WN8HG");
+        let mut text = "Détails 🔑 réglementés ü\n".repeat(100_000);
+        text.push_str(&format!("aws = {key}\n"));
+        let dir = big_scratch("accented");
+        std::fs::write(dir.join("catalogue.txt"), &text).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            text.len() as u64 > sv_scan::files::MAX_FILE_BYTES,
+            "the setup: over 2 MB"
+        );
+        assert!(
+            scan.coverage.skipped.is_empty(),
+            "{:?}",
+            scan.coverage.skipped
+        );
+        let aws = scan
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "secrets.aws-access-key")
+            .expect("the key past 2 MB is found");
+        assert_eq!(aws.location.line, 100_001);
     }
 
     #[test]

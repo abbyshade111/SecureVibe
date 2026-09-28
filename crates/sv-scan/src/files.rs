@@ -514,6 +514,14 @@ mod tests {
                 let claimed =
                     piece.first_line + piece.text[..piece.keep.start].matches('\n').count();
                 assert_eq!(claimed, expected, "piece {pieces} starts on the wrong line");
+                // Every piece after the first carries at least `overlap` bytes before its own part,
+                // so a rule that looks at the character before a match sees the file's.
+                if pieces > 1 {
+                    assert!(
+                        piece.keep.start >= overlap,
+                        "piece {pieces} has no look-behind"
+                    );
+                }
                 out.push_str(&piece.text[piece.keep.clone()]);
             })
             .expect("the file is read");
