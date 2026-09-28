@@ -20,6 +20,14 @@ another session is not a claim.
   symbolic links, and no panic anywhere on this repository's own 58,000 lines.
 
   **Faults, most serious first.**
+  **Items 7, 1, and 3 claimed together on 27 September 2026 by session securevibe-e8**, at the owner's
+  asking: one walk of the app, with the link rule and the size cap in it, is one change. **Done the same day:**
+  `sv_scan::files::Listing`, one walk that no check repeats, links never followed and named, a 2 MB cap
+  for every reader, the bill of materials built once, and the corroborators reading each file once. `sv
+  report` on this repository goes from 2.86 s to 2.73 s; `sv check` is unchanged, because on trees this
+  size the time is in item 6, not in the walks. See DESIGN, "One walk of the app".
+  **Items 4, 5, and 8 claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to
+  continue with the backlog; one pull request each.
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
@@ -55,11 +63,23 @@ another session is not a claim.
      the command as a path. Fix: a word starting with `-` is an option, an unknown one is an error that
      names the command's options, `--help` works after any command, and `sv --version` prints the version
      and the commit the build was made from, which the bundle already knows how to find.
+     **Done on 28 September 2026 by session securevibe-e9:** every command's options are in one table,
+     `COMMANDS` in `main.rs`, checked before the command runs. An unknown option is refused with the
+     command's options and its usage; so is a second folder, a word where a command takes none, and an
+     option missing its value. A folder whose name starts with `-` is named as `./-name`, which the
+     message says. `--help` or `-h` after any command shows that command's usage and runs nothing.
+     `sv --version` prints the version and the commit. `crates/sv-cli/tests/options.rs` holds it; each
+     part, broken on purpose, turns at least two of its tests red, except `--version`, which one test
+     holds.
   5. **A bad edit to a compiled-in data file makes `sv run` panic.** `signed_in.rs:1135-1153` uses
      `expect` while reading `data/breached-password-evidence.json`, which is compiled in with
      `include_str!`; the file is checked by a test, so this reaches an owner only from a source build with
      the file broken. Low. A panic in a probe run should be *not assessed* with the reason, like every
-     other failure there.
+     other failure there. **Done on 28 September 2026 by session securevibe-e9:** the file is read by
+     `breached_seen_in`, which says what is wrong with it (not JSON, evidence for another password, no
+     count, no date), and V6.2.12 is then *not assessed* with that reason, whatever the app answered;
+     the rest of the run goes on. Two tests in `signed_in.rs` hold it, each failing when the password
+     match or the count is taken out.
 
   **What could be faster.** Timed with a release build: `sv check` on the five-file Flask example takes
   about a second, `sv check .` on this repository about three, `sv report` on the example about one. None
@@ -238,7 +258,8 @@ another session is not a claim.
      whole chapter hangs today on `mcp`, which asks whether the app's AI *uses* MCP. The server's requirements
      (C10.2.1–C10.2.7, C10.3.3, C10.4.3, C10.4.4, C10.4.6) turn on the new question, the client's stay on `mcp`,
      and the four about the transport between the two (C10.3.1, C10.3.2, C10.3.5, C10.4.5) apply when either
-     is true.
+     is true. **Done the same day;** see DESIGN, "An app that serves tools over MCP". `sv`'s own count does
+     not move until item 1 is done: a fixture's `from mcp` already brings in the whole chapter.
 
 - **The architecture decision records, analyzed for the paper.** **Claimed on 27 September 2026 by session
   admiring-murdock-875699**, at the owner's asking. **Done the same day:** `docs/paper/ADRS.md`; its inconsistencies are the entry above. v1's ADR-001 to ADR-013 (at tag `v1-final`), `sv`'s ADR-015 to
@@ -288,7 +309,10 @@ another session is not a claim.
   will misfire in the next. An issue template for a false alarm (the rule, what it matched, and why it
   is wrong, with the code shown only if the owner chooses), and a line beside each setting-aside in
   the report pointing to it, so a rule that keeps misfiring gets narrowed, with a test, rather than
-  set aside app after app. Not claimed.
+  set aside app after app. **Claimed on 27 September 2026 by session securevibe-e9**, at the owner's
+  asking. **Done the same day:** `.github/ISSUE_TEMPLATE/false_alarm.yml`, and a link beside each
+  false alarm in `security.md`, `report.html`, and the MCP summary. See DESIGN, "False alarms, part 3".
+  It uses the existing `bug` label; a `false alarm` label of its own is the owner's to add.
 
 - ~~**Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).**~~ **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a

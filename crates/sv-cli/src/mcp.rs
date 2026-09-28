@@ -802,14 +802,17 @@ fn summary(report: &sv_report::Report) -> String {
             }
         }
     }
-    let set_aside = sv_report::false_alarm_lines(report);
+    let set_aside = sv_report::false_alarm_entries(report);
     if !set_aside.is_empty() {
         out.push_str(&format!(
-            "\nSET ASIDE BY A PERSON as false alarms, not counted above ({}):\n",
-            set_aside.len()
+            "\nSET ASIDE BY A PERSON as false alarms, not counted above ({}). {}\n",
+            set_aside.len(),
+            sv_report::FALSE_ALARM_TOOL_NOTE
         ));
-        for line in &set_aside {
-            out.push_str(&format!("- {line}\n"));
+        for (line, report_it) in &set_aside {
+            out.push_str(&format!(
+                "- {line}\n  report it against the rule: {report_it}\n"
+            ));
         }
     }
     if !report.reviews_not_counted.is_empty() {

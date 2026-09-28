@@ -1121,7 +1121,7 @@ const COMMON: &str = "123qweasdzxc";
 /// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
 /// 16 characters, so a length rule of up to 16 does not refuse it first. That it is breached is
 /// not taken from the list, whose source is recorded nowhere: it is Have I Been Pwned's count, in
-/// `data/breached-password-evidence.json`, and `breached_seen` below says it in the finding. A test
+/// `data/breached-password-evidence.json`, and `breached_seen_in` below says it in the finding. A test
 /// holds the password to that file, so it cannot change without new evidence.
 const BREACHED: &str = "1qaz2wsx3edc4rfv";
 
@@ -1130,19 +1130,28 @@ const BREACHED: &str = "1qaz2wsx3edc4rfv";
 const BREACHED_EVIDENCE: &str = include_str!("../../../data/breached-password-evidence.json");
 
 /// How often Pwned Passwords has seen `BREACHED`, and when that was last checked, from the
-/// evidence file: "133,732 times when last checked, on 26 September 2026".
-fn breached_seen() -> String {
+/// evidence file: "133,732 times when last checked, on 26 September 2026". What is wrong with the
+/// file, rather than a panic: a source build with the file edited badly would otherwise stop the
+/// whole run.
+fn breached_seen_in(evidence: &str) -> Result<String, String> {
     let evidence: serde_json::Value =
-        serde_json::from_str(BREACHED_EVIDENCE).expect("the breached-password evidence parses");
-    let seen = evidence["seen"].as_u64().expect("the evidence has a count");
+        serde_json::from_str(evidence).map_err(|e| format!("it is not readable JSON ({e})"))?;
+    if evidence["password"].as_str() != Some(BREACHED) {
+        return Err(format!(
+            "it is evidence for another password, not `{BREACHED}`"
+        ));
+    }
+    let seen = evidence["seen"]
+        .as_u64()
+        .ok_or("it has no count of how often the password was seen")?;
     let checked = evidence["checked"]
         .as_str()
         .and_then(long_date)
-        .expect("the evidence has a date written YYYY-MM-DD");
-    format!(
+        .ok_or("it has no date written YYYY-MM-DD for when it was checked")?;
+    Ok(format!(
         "{} times when last checked, on {checked}",
         with_commas(seen)
-    )
+    ))
 }
 
 /// 133732 as "133,732".
@@ -2321,6 +2330,52 @@ fn describe_password(p: &str) -> String {
     format!("a {}-character password of {}", p.len(), kinds.join(", "))
 }
 
+/// V6.2.12 from sign-up's answers to `BREACHED` and to a random password of the same shape, and the
+/// evidence that `BREACHED` is breached. In the same shape as V6.2.4: refused beside a random password
+/// of the same shape that was accepted is evidence; refused beside a refused control is evidence of
+/// nothing.
+fn judge_breached(accepted: bool, control_accepted: bool, evidence: &str, out: &mut Outcome) {
+    let seen = breached_seen_in(evidence);
+    match (accepted, control_accepted, seen) {
+        // Without the evidence that the password is breached, neither outcome says anything.
+        (_, _, Err(wrong)) => out.not_assessed.push((
+            "V6.2.12".to_owned(),
+            format!(
+                "`sv`'s own record that `{BREACHED}` is a breached password, \
+                 data/breached-password-evidence.json, could not be used: {wrong}. Without it, \
+                 whether the app accepts that password says nothing about breached passwords. \
+                 Restore the file from SecureVibe's repository and build `sv` again."
+            ),
+        )),
+        (true, _, Ok(seen)) => out.findings.push(finding(
+            &BREACHED_PASSWORD,
+            "A password known from data breaches is accepted",
+            Severity::Low,
+            format!(
+                "The app let an account sign up with `{BREACHED}`, and sign in with it. Have I Been \
+                 Pwned has seen that password in breaches {seen}, though it is not among \
+                 the 3000 most common, so a check against a large set of breached passwords would \
+                 have refused it."
+            ),
+        )),
+        (false, true, Ok(seen)) => out.verified.push(crate::Verified::new(
+            BREACHED_PASSWORD.rule_id,
+            BREACHED_PASSWORD.requirement_ids,
+            format!(
+                "`{BREACHED}`, seen in breaches {seen} and not among the 3000 most \
+                 common, refused at sign-up where a random password of the same shape was accepted"
+            ),
+        )),
+        (false, false, Ok(_)) => out.not_assessed.push((
+            "V6.2.12".to_owned(),
+            format!(
+                "The app refused `{BREACHED}`, and also a random password of the same length and \
+                 kinds of character, so the refusal cannot be told apart from another rule."
+            ),
+        )),
+    }
+}
+
 /// The password rules, asked through the app's own sign-up and answered by signing in.
 ///
 /// A control goes first: an account signed up with an ordinary strong password, 32 characters of
@@ -2482,37 +2537,12 @@ fn password_checks(
         )),
     }
 
-    // V6.2.12, in the same shape as V6.2.4: refused beside a random password of the same shape
-    // that was accepted is evidence; refused beside a refused control is evidence of nothing.
-    let seen = breached_seen();
-    match (works["breached"], works["like-breached"]) {
-        (true, _) => out.findings.push(finding(
-            &BREACHED_PASSWORD,
-            "A password known from data breaches is accepted",
-            Severity::Low,
-            format!(
-                "The app let an account sign up with `{BREACHED}`, and sign in with it. Have I Been \
-                 Pwned has seen that password in breaches {seen}, though it is not among \
-                 the 3000 most common, so a check against a large set of breached passwords would \
-                 have refused it."
-            ),
-        )),
-        (false, true) => out.verified.push(crate::Verified::new(
-            BREACHED_PASSWORD.rule_id,
-            BREACHED_PASSWORD.requirement_ids,
-            format!(
-                "`{BREACHED}`, seen in breaches {seen} and not among the 3000 most \
-                 common, refused at sign-up where a random password of the same shape was accepted"
-            ),
-        )),
-        (false, false) => out.not_assessed.push((
-            "V6.2.12".to_owned(),
-            format!(
-                "The app refused `{BREACHED}`, and also a random password of the same length and \
-                 kinds of character, so the refusal cannot be told apart from another rule."
-            ),
-        )),
-    }
+    judge_breached(
+        works["breached"],
+        works["like-breached"],
+        BREACHED_EVIDENCE,
+        out,
+    );
 
     // V6.2.11 asks that the *documented* list is used, so without the owner's list there is
     // nothing to hold the app to, and guessing at words would be testing a list nobody wrote.
@@ -11680,12 +11710,85 @@ mod tests {
         );
         let checked = long_date(evidence["checked"].as_str().expect("a date")).expect("a date");
         assert_eq!(
-            breached_seen(),
+            breached_seen_in(BREACHED_EVIDENCE).expect("the evidence file is sound"),
             format!(
                 "{} times when last checked, on {checked}",
                 with_commas(seen)
             )
         );
+    }
+
+    #[test]
+    fn a_broken_breached_password_record_leaves_v6_2_12_not_assessed_and_does_not_stop_the_run() {
+        // The control: with the file as shipped, each answer is judged.
+        let judged = |accepted, control, evidence: &str| {
+            let mut out = Outcome::default();
+            judge_breached(accepted, control, evidence, &mut out);
+            out
+        };
+        let sound = judged(true, true, BREACHED_EVIDENCE);
+        assert_eq!(sound.findings.len(), 1, "{sound:?}");
+        assert!(
+            sound.findings[0]
+                .description
+                .contains("times when last checked"),
+            "{sound:?}"
+        );
+        assert_eq!(judged(false, true, BREACHED_EVIDENCE).verified.len(), 1);
+        assert_eq!(
+            judged(false, false, BREACHED_EVIDENCE).not_assessed.len(),
+            1
+        );
+
+        let good: serde_json::Value = serde_json::from_str(BREACHED_EVIDENCE).unwrap();
+        let with = |key: &str, value: serde_json::Value| {
+            let mut broken = good.clone();
+            broken[key] = value;
+            broken.to_string()
+        };
+        for (broken, says) in [
+            ("{ not json".to_owned(), "not readable JSON"),
+            (with("password", "hunter2".into()), "another password"),
+            (with("seen", "many".into()), "no count"),
+            (with("checked", "26/09/2026".into()), "no date"),
+        ] {
+            for (accepted, control) in [(true, true), (true, false), (false, true), (false, false)]
+            {
+                let out = judged(accepted, control, &broken);
+                assert!(
+                    out.findings.is_empty() && out.verified.is_empty(),
+                    "{says}: {out:?}"
+                );
+                assert_eq!(out.not_assessed.len(), 1, "{says}: {out:?}");
+                let (id, why) = &out.not_assessed[0];
+                assert_eq!(id, "V6.2.12");
+                assert!(
+                    why.contains(says) && why.contains("breached-password-evidence.json"),
+                    "{says}: {why}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_evidence_reader_says_what_is_wrong_with_the_file() {
+        assert!(breached_seen_in(BREACHED_EVIDENCE).is_ok());
+        let sound =
+            format!(r#"{{"password": "{BREACHED}", "seen": 1234567, "checked": "2027-01-05"}}"#);
+        assert_eq!(
+            breached_seen_in(&sound).as_deref(),
+            Ok("1,234,567 times when last checked, on 5 January 2027")
+        );
+        for (broken, says) in [
+            (sound.replace(BREACHED, "letmein"), "another password"),
+            (sound.replace("1234567", "-4"), "no count"),
+            (sound.replace("\"seen\"", "\"count\""), "no count"),
+            (sound.replace("2027-01-05", "yesterday"), "no date"),
+            (sound.replace('}', ""), "not readable JSON"),
+        ] {
+            let wrong = breached_seen_in(&broken).expect_err(&broken);
+            assert!(wrong.contains(says), "{broken}: {wrong}");
+        }
     }
 
     #[test]

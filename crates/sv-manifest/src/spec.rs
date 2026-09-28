@@ -123,6 +123,7 @@ health = "/"              # a path that returns 200 once the app is up
 # auth = ?                    # does anyone sign in?
 # oauth = ?                   # sign-in through Google/Microsoft/etc.
 # authorization-server = ?    # do OTHER apps sign their users in through THIS one?
+# mcp-server = ?              # do AI tools connect to THIS app over MCP, to use tools it offers?
 # jwt = ?                     # self-contained tokens (JWT) rather than opaque session ids
 # uploads = ?                 # can anyone upload a file?
 # payments = ?                # does it take money?

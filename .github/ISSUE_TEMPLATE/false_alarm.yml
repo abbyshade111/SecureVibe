@@ -1,0 +1,64 @@
+name: A false alarm
+description: A rule flagged code that is fine. One report per rule, so the rule gets narrowed, with a test, instead of being set aside in app after app.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. A false alarm you set aside in your own app is usually a rule that will misfire in the next one, so this is worth reporting even though your report already has it set aside.
+
+        **Never paste a real key, password, or `.env` file** here. If the rule is the credential scan, describe the *shape* of what it matched (for example "a 40-character test token in a fixture"), never the value.
+
+        **Your code is yours.** Nothing below asks for it. The last box is there only if you choose to show a few lines, and only after you have checked they hold nothing private.
+  - type: input
+    id: rule
+    attributes:
+      label: The rule
+      description: The rule's id, as the report shows it in backquotes after the file and line, for example `ast.sql-built-by-hand`. The link beside a false alarm in the report fills this in.
+    validations:
+      required: true
+  - type: input
+    id: finding
+    attributes:
+      label: What the rule says it found
+      description: The finding's title, as the report shows it.
+  - type: textarea
+    id: matched
+    attributes:
+      label: What kind of code it matched
+      description: In words, not the code itself. The language, the library or framework, and the idiom, for example "a Flask `redirect(url_for(...))`, which only ever goes to the app's own pages", or "`child_process` imported but only `execFile` called with a fixed list of arguments".
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is not a problem
+      description: What makes this use safe. This is what a narrower rule, and the test that goes with it, will be written from.
+    validations:
+      required: true
+  - type: dropdown
+    id: how-often
+    attributes:
+      label: How often it happens
+      options:
+        - Once, in one place
+        - Several times in one app
+        - In more than one app
+        - I do not know
+  - type: input
+    id: version
+    attributes:
+      label: Which sv
+      description: The commit you built it from (`git rev-parse HEAD` in your copy), or the container image's fingerprint (`docker image inspect --format '{{.Id}}' ghcr.io/abbyshade111/securevibe-sv`).
+  - type: checkboxes
+    id: show-code
+    attributes:
+      label: Showing code (optional)
+      options:
+        - label: I choose to show a few lines below, and I have checked they hold no key, password, personal data, or anything else private.
+  - type: textarea
+    id: code
+    attributes:
+      label: A few lines of the code (optional)
+      description: Only if you ticked the box above. The smallest piece that still shows the match, with names changed if you like.
+      render: text

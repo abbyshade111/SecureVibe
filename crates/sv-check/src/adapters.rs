@@ -390,6 +390,22 @@ pub fn run_one_for(
     report_path: &Path,
     not_holding: &BTreeSet<String>,
 ) -> Outcome {
+    run_one_in(
+        adapter,
+        &sv_scan::files::Listing::of(app_dir),
+        report_path,
+        not_holding,
+    )
+}
+
+/// `run_one_for`, with the app's files from a listing already made.
+pub fn run_one_in(
+    adapter: &Adapter,
+    listing: &sv_scan::files::Listing,
+    report_path: &Path,
+    not_holding: &BTreeSet<String>,
+) -> Outcome {
+    let app_dir = listing.root.as_path();
     let subject = adapter.subject();
     let run_args = adapter.run_args(not_holding);
     match presence(adapter) {
@@ -421,7 +437,7 @@ pub fn run_one_for(
     // A list left behind by an earlier run would vouch for files this one never read.
     std::fs::remove_file(&scanned_path).ok();
     let files = if names_files {
-        code_files(app_dir)
+        code_files_in(listing)
     } else {
         Vec::new()
     };
@@ -550,11 +566,28 @@ pub fn run_all(
     not_holding: &BTreeSet<String>,
     scratch: &Path,
 ) -> AdapterRun {
+    run_all_in(
+        adapters,
+        &sv_scan::files::Listing::of(app_dir),
+        languages,
+        not_holding,
+        scratch,
+    )
+}
+
+/// `run_all`, with the app's files from a listing already made.
+pub fn run_all_in(
+    adapters: &Adapters,
+    listing: &sv_scan::files::Listing,
+    languages: &[String],
+    not_holding: &BTreeSet<String>,
+    scratch: &Path,
+) -> AdapterRun {
     let mut run = AdapterRun::default();
     for adapter in adapters.for_languages(languages) {
         let report_path = scratch.join(format!("sv-{}.sarif", adapter.id));
         std::fs::remove_file(&report_path).ok();
-        match run_one_for(adapter, app_dir, &report_path, not_holding) {
+        match run_one_in(adapter, listing, &report_path, not_holding) {
             Outcome::Ran {
                 findings,
                 loaded,
@@ -720,33 +753,13 @@ pub fn loaded_rules(text: &str) -> BTreeSet<String> {
 /// its SARIF. Given file names, it reads them all. So a tool that is handed this list reads what
 /// `sv` counts as the app, and what the app says about ignoring does not decide it.
 pub fn code_files(app_dir: &Path) -> Vec<String> {
-    fn walk(root: &Path, dir: &Path, out: &mut Vec<String>) {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            // Not followed: a link can lead out of the app, and the tool would read what it found.
-            let Ok(kind) = entry.file_type() else {
-                continue;
-            };
-            if kind.is_dir() {
-                if !sv_scan::ecosystems::skip_dir(&path) {
-                    walk(root, &path, out);
-                }
-            } else if kind.is_file()
-                && path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .is_some_and(|e| sv_scan::ecosystems::language_of(&e.to_lowercase()).is_some())
-                && let Ok(relative) = path.strip_prefix(root)
-            {
-                out.push(relative.to_string_lossy().replace('\\', "/"));
-            }
-        }
-    }
-    let mut out = Vec::new();
-    walk(app_dir, app_dir, &mut out);
+    code_files_in(&sv_scan::files::Listing::of(app_dir))
+}
+
+/// `code_files`, from a listing already made. The listing never follows a link, which is what this
+/// walk refused on its own before there was one walk.
+pub fn code_files_in(listing: &sv_scan::files::Listing) -> Vec<String> {
+    let mut out: Vec<String> = listing.code_files().map(|e| e.relative.clone()).collect();
     out.sort();
     out
 }

@@ -379,8 +379,32 @@ fn line_of(text: &str, byte_offset: usize) -> usize {
 /// the reason — because "no secrets found" in a folder half of which was skipped is not the same claim as
 /// "no secrets found", and only one of them is true.
 pub fn scan_dir(rules: &SecretRules, app_dir: &Path) -> SecretScan {
+    scan_listing(rules, &sv_scan::files::Listing::of(app_dir))
+}
+
+/// `scan_dir`, over a listing already made: every file in it is read, and every one that could not
+/// be is named, so a link `sv` did not follow and a file over the size limit are gaps with names
+/// rather than a clean result.
+pub fn scan_listing(rules: &SecretRules, listing: &sv_scan::files::Listing) -> SecretScan {
     let mut scan = SecretScan::default();
-    walk(app_dir, app_dir, rules, &mut scan);
+    for dir in &listing.unopened {
+        scan.coverage
+            .skipped
+            .push((dir.clone(), "the folder could not be opened".to_owned()));
+    }
+    for entry in &listing.files {
+        match entry.read_text() {
+            Ok(text) => {
+                scan.coverage.files_read += 1;
+                scan.findings
+                    .extend(scan_text(rules, &entry.relative, &text));
+            }
+            Err(why) => scan
+                .coverage
+                .skipped
+                .push((entry.relative.clone(), why.explain().to_owned())),
+        }
+    }
     scan.findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -422,81 +446,7 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
     )]
 }
 
-/// Whether the credential scan leaves a folder out: the app-wide list (`sv_scan::ecosystems`), less
-/// the editor folders, which can hold a token. One list rather than two copies, which had drifted.
-fn skip_dir(dir: &Path) -> bool {
-    let name = dir
-        .file_name()
-        .map(|n| n.to_string_lossy())
-        .unwrap_or_default();
-    let skipped = sv_scan::ecosystems::SKIP_DIRS.contains(&name.as_ref())
-        && !sv_scan::ecosystems::EDITOR_DIRS.contains(&name.as_ref());
-    skipped || sv_scan::ecosystems::is_sv_output(dir)
-}
-
 /// Above this, a file is not something a person typed and reading it all costs more than it finds.
-const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
-
-fn walk(root: &Path, dir: &Path, rules: &SecretRules, scan: &mut SecretScan) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        scan.coverage.skipped.push((
-            relative(root, dir),
-            "the folder could not be opened".to_owned(),
-        ));
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if skip_dir(&path) {
-                continue;
-            }
-            walk(root, &path, rules, scan);
-            continue;
-        }
-        let rel = relative(root, &path);
-        match entry.metadata() {
-            Ok(meta) if meta.len() > MAX_FILE_BYTES => {
-                scan.coverage
-                    .skipped
-                    .push((rel, "larger than 2 MB".to_owned()));
-                continue;
-            }
-            Err(_) => {
-                scan.coverage
-                    .skipped
-                    .push((rel, "its details could not be read".to_owned()));
-                continue;
-            }
-            _ => {}
-        }
-        match std::fs::read(&path) {
-            Ok(bytes) => match String::from_utf8(bytes) {
-                Ok(text) => {
-                    scan.coverage.files_read += 1;
-                    scan.findings.extend(scan_text(rules, &rel, &text));
-                }
-                // Not text. Nothing here reads binaries, and saying so is better than counting it as clean.
-                Err(_) => scan
-                    .coverage
-                    .skipped
-                    .push((rel, "not a text file".to_owned())),
-            },
-            Err(_) => scan
-                .coverage
-                .skipped
-                .push((rel, "it could not be read".to_owned())),
-        }
-    }
-}
-
-fn relative(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

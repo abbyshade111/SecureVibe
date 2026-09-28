@@ -137,34 +137,20 @@ pub fn looks_like_a_test_path(relative: &str) -> bool {
 /// a typo that resolves to nothing would otherwise put a green line against a requirement nobody
 /// has, and the id is reported as unknown by the caller instead.
 pub fn tests_naming_requirements(app_dir: &Path, known: &BTreeSet<&str>) -> Vec<NamedTest> {
-    let mut out = Vec::new();
-    walk(app_dir, app_dir, known, &mut out);
-    out.sort_by(|a, b| a.file.cmp(&b.file).then_with(|| a.line.cmp(&b.line)));
-    out
+    tests_naming_requirements_in(&sv_scan::files::Listing::of(app_dir), known)
 }
 
-fn walk(root: &Path, dir: &Path, known: &BTreeSet<&str>, out: &mut Vec<NamedTest>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if sv_scan::ecosystems::skip_dir(&path) {
-                continue;
-            }
-            walk(root, &path, known, out);
+/// `tests_naming_requirements`, over a listing already made.
+pub fn tests_naming_requirements_in(
+    listing: &sv_scan::files::Listing,
+    known: &BTreeSet<&str>,
+) -> Vec<NamedTest> {
+    let mut out = Vec::new();
+    for entry in listing.app_files() {
+        if !looks_like_a_test_path(&entry.relative) {
             continue;
         }
-        let relative = path
-            .strip_prefix(root)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-        if !looks_like_a_test_path(&relative) {
-            continue;
-        }
-        let Ok(source) = std::fs::read_to_string(&path) else {
+        let Ok(source) = entry.read_text() else {
             continue;
         };
         for (index, line) in source.lines().enumerate() {
@@ -178,11 +164,13 @@ fn walk(root: &Path, dir: &Path, known: &BTreeSet<&str>, out: &mut Vec<NamedTest
             out.push(NamedTest {
                 requirement_ids: ids,
                 text: line.trim().chars().take(160).collect(),
-                file: relative.clone(),
+                file: entry.relative.clone(),
                 line: index + 1,
             });
         }
     }
+    out.sort_by(|a, b| a.file.cmp(&b.file).then_with(|| a.line.cmp(&b.line)));
+    out
 }
 
 /// Every requirement-id-shaped token in a line.

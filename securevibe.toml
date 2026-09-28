@@ -36,6 +36,7 @@ categories = []
 auth = false                  # nobody signs in to `sv`
 oauth = false
 authorization-server = false
+mcp-server = true             # `sv mcp` serves eight tools to AI coding tools over standard input and output
 jwt = false
 uploads = false               # MCP tools take a folder path under --root, not an uploaded file
 payments = false

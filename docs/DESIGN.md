@@ -4464,6 +4464,64 @@ section when there is nothing to put in it), through the binary on the Flask exa
 problem the owner recorded by hand keeping one in the counts), and in the MCP check's summary. Eleven
 breaks were made in turn, and each turned two or more tests red.
 
+## One walk of the app (27 September 2026)
+
+The review of 27 September found the same three questions answered six different ways. Every check
+walked the app folder for itself — the credential scan, the code rules, the corroborators, the outside
+tools' file list, the test finder, and the ecosystem detection, which the bill of materials, the
+dependency reader, and the pinning check each called again — and each walk decided on its own whether to
+follow a symbolic link, whether to read a file of any size, and which folders to leave out. Two refused
+links; five followed them. One capped file size; two read anything, and one held every source file in
+memory for the run. Reproduced on a fixture: an app with a link to a folder outside it and a link
+`src/loop -> ..`, on which `sv check` read the outside folder's file and reported it about thirty times
+under paths four hundred characters long, stopping only where the operating system refuses a chain of
+links past thirty-two.
+
+`sv_scan::files::Listing` is now the one walk. It records every regular file with its size, extension,
+and language; every folder entered; every symbolic link met, not followed; and every folder that could
+not be opened. `sv report` and `sv check` build it once and hand it to each check, and build the bill of
+materials once from it. Each check keeps its old function that takes a folder, as a thin wrapper, for
+the callers and tests that have only one question to ask.
+
+Three rules live in the listing and nowhere else:
+
+- **A link is not followed**, to a file or a folder, and is named once. The report lists the links as
+  a gap, so a linked `vendor/` is something the owner can see rather than something the checks
+  quietly did or did not read. The kind is taken from the directory entry before anything resolves
+  the link, since `Path::is_dir` answers for wherever the link leads.
+- **A file over 2 MB is not read**, by any check. The credential scan already said so; the code rules
+  now name such a file too, and claim nothing while it stands, the same way they treat a file whose
+  parse failed. A generated bundle that size is not something a person typed.
+- **Editor folders are for the credential scan alone.** `.idea` and `.vscode` are entered and their
+  files marked, because a settings file holds a token as easily as any other file; every other check
+  takes `app_files`, which leaves them out, as their walks did. This was the one regression on the
+  way: the first listing skipped them for everyone, and the existing test for the credential scan
+  reading `.vscode` caught it.
+
+The corroborators changed shape to fit. They used to read every source file into memory, then for each
+of about thirty signatures lowercase every file again and search it. Now each file is read once and
+lowercased once, and every signature's patterns for its language are tried against it there; the first
+file to match, in path order, is the evidence. The listing is in path order where the old walks were in
+disk order, so on an app where a pattern appears in several files the corroborator may now name a
+different one. Both are true; the new one is the same on every run.
+
+**Measured**, with release builds of `main` and of this change, five runs each, best and median: `sv
+check` is unchanged (0.98 s on the five-file example, 2.3 s on this repository, both within a few
+hundredths of a second of before) and `sv report` on this repository goes from 2.86 s to 2.73 s, about
+five percent. That is the honest result and worth recording: on trees this size the walks were never
+where the time went. The startup cost the review names as item 6 (everything loaded and every query
+compiled on each command) is most of that second, and this change does not touch it. Both builds write
+the same security report on this repository, byte for byte; the compliance report differs only in the
+corroborator's choice of file, described above. (An earlier measurement said 15 percent; it compared
+against a `main` binary two days old, and is withdrawn.)
+
+**Broken on purpose, four ways, each caught:** the kind read through the link (the loop fixture goes
+red twice, in the listing's own test and end to end); the size cap off (twice); editor folders skipped
+for the credential scan (twice, one of them the older test written when the two skip lists were made
+one); editor files handed to every check (once, the listing's test). The end-to-end test runs both `sv
+check` and `sv report` on the link fixture and on an app with a 2.4 MB source file, and asserts the
+setup each time: the app's own file was read, so an absence is not the scan having read nothing.
+
 ## The app's GitHub Actions workflows (27 September 2026)
 
 A workflow is code that runs with the repository's credentials, and the dangerous shapes are few and
@@ -4525,3 +4583,63 @@ split moves out only the Appendix C requirements that nothing has reached.
 findings-only (`RUST_FINDINGS_ONLY`), and `sv`'s own findings-only checks are counted among the
 Appendix C requirements that can only ever be marked *needs attention*. Appendix C goes from 0 to 3
 of 68 that a check can speak to, and one of the three is that kind.
+
+## An app that serves tools over MCP (27 September 2026)
+
+`sv`'s self-assessment (`docs/paper/SELF-ASSESSMENT-V2.md`) found that a manifest could not say
+"this app is an MCP server". AISVS C10, the Model Context Protocol chapter, hung whole on `mcp`, which
+asks whether the app's AI *uses* MCP tools. So an app that serves tools to AI models, and may have no
+AI of its own (`sv` is one), was never asked about the server's side: whether it validates the access
+token on every request, checks the Origin and Host headers, rejects parameters it does not know,
+limits payloads. That is the surface of `sv`'s one tool-misuse incident (#77).
+
+- **A question of its own,** `mcp-server` under `[capabilities]`, and deliberately not under
+  `[capabilities.ai]`, where every question reads "no" once the app says it has no AI. A server needs
+  no AI, and answering "no AI" must not answer this. `sv`'s own `securevibe.toml` answers yes.
+- **C10 split by side,** with rules at the requirement or section level, which win over the chapter's:
+  the server's requirements (C10.2, C10.3.3, C10.4.3, C10.4.4, C10.4.6) turn on `mcp-server`; the
+  client's stay on the chapter's `mcp`; and the four about the connection between the two (C10.3.1,
+  C10.3.2, C10.3.5, C10.4.5) carry one rule for each side, which are OR-ed, so they apply when either
+  is true. Unanswered stays *not assessed*.
+- **Evidence from the code,** only ever toward applying: a FastMCP or McpServer object, the SDK's
+  server module, `server.NewMCPServer(` or `mcp.NewServer(` in Go, `rmcp::handler::server` or an
+  `impl ServerHandler for` in Rust. Only the server's side is listed, so an app whose AI calls MCP tools
+  is not taken for a server. A server written by hand over JSON-RPC, as `sv`'s is, leaves nothing to
+  tell it apart, so absence settles nothing.
+
+On a bare app that answers `mcp-server = true` with no AI, the server's requirements and the shared
+ones apply and the client's are set aside, where before all of C10 was. On `sv`'s own repository the
+count does not move yet: a test fixture containing `from mcp` already switches `mcp` on for it and
+brings in the whole chapter, which is the self-assessment's first finding, and a separate entry.
+
+Tested in the applicability engine (a server with no AI, a client, both, neither, and unanswered), in
+the manifest (the answer kept when the app has no AI, and unanswered left unanswered), and in the
+scanner (FastMCP and TypeScript servers found, two Python clients not taken for one), and through the
+binary on a bare app, with its own control. Seven breaks were made in turn, and each turned two or more
+tests red.
+
+## False alarms, part 3: each one a report against the rule (27 September 2026)
+
+A false alarm a person sets aside in one app is usually a rule that will misfire in the next, so each
+one should also reach the rule, where it can be narrowed with a test, rather than being set aside app
+after app.
+
+- **An issue form,** `.github/ISSUE_TEMPLATE/false_alarm.yml`: the rule, what the finding said, what
+  kind of code it matched and why it is fine (both required, both in words), how often it happens, and
+  which `sv`. The code is asked for last, optionally, behind a box the reporter ticks to say they chose
+  to show it and checked it holds nothing private. The form says, first, never to paste a key, and, for
+  the credential scan, to describe the shape of what matched rather than the value. It carries the
+  existing `bug` label; a label of its own would be a repository setting, and is the owner's to add.
+- **A link beside each false alarm** in `security.md` and `report.html`, and in the MCP check's summary,
+  opening that form with the rule's id and the finding's title filled in, the two things about it that
+  are `sv`'s own and already public. Never the file, the line, the code, or the owner's written reason:
+  the link is built from nothing else, and a test holds it to that. One sentence under the list says why
+  the links are there. An accepted risk gets none, being a real problem rather than a wrong rule.
+- **The AI coding tool offers, and never files.** The MCP summary tells it to offer each link, that
+  filing is the person's choice and public, and never to paste their code or a key into it.
+
+GitHub fills a form's fields from the address only when the names match the fields' `id`s, and reads
+`title` as the issue's own title, so the finding's title is sent as `finding`; a test reads the form
+and fails if a name the link fills is not one of its fields. Tested with the link's contents and its
+encoding, the form's fields, both pages, an accepted risk offered nothing, and end to end through `sv
+report` and the MCP server. Eight breaks were made in turn, and each turned two or more tests red.
