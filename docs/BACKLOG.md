@@ -435,6 +435,24 @@ another session is not a claim.
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
 
+- **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
+  September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
+  semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
+  `data/semgrep-packs.json`, `tools/semgrep_packs.py`), so the question is whether to switch, offer both, or stay.
+  Things to find out, each written down with how it was measured rather than recalled:
+  1. **Rules.** Which of the packs `sv` runs (`data/semgrep-packs.json`) Opengrep can load and run, under what
+     license each is published, and whether the rules mapped in `data/adapters.json` give the same findings. Run
+     both over the same apps (`examples/` and a few fixtures) and compare rule ids, files, and lines.
+  2. **Output.** Whether its SARIF is what `adapters::parse_sarif` reads, rule ids and levels included, and whether
+     `clean_run_evidence` would credit the same requirements.
+  3. **Installing it.** How an owner who is not a programmer installs it on a Mac and on Linux, whether it is one
+     file with no account or sign-in, and what the Docker image would need.
+  4. **Running it offline.** Whether it sends anything over the network by default (semgrep's metrics and rule
+     downloads), since `sv` promises no network connection of its own, and how to turn that off.
+  5. **Speed and upkeep.** Time over the same apps, how often it is released, and who maintains it.
+  The result is a recommendation in this item, with the numbers, for the owner to decide; nothing in the adapters
+  changes until then.
+
 - **Partial checks for the requirements no check speaks to, from the review of 28 September 2026.** The owner asked
   on 28 September 2026 for every requirement with no check to be reviewed for a partial check: a signal that tells the
   owner something useful even when it cannot settle the requirement. Session securevibe-e9 had seven reviewers go
