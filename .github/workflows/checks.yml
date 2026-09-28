@@ -54,6 +54,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The recipe tests build a real application and type-check it, which needs the template's own packages.
+      # The root `npm ci` installs the workspaces (server, web) and the template is not one of them, so on a
+      # runner that folder simply is not there: three tests that prove generated code compiles were failing with
+      # ENOENT on every run, unseen, because the suite died before reaching them.
+      - name: Install the app template's packages
+        working-directory: templates/secure-web-app
+        run: npm ci
+
       # One file at a time, and a hard stop from the shell as well as the job.
       #
       # This suite starts real applications, each in its own process, and on a developer's machine vitest runs
@@ -61,18 +69,13 @@ jobs:
       #
       # Called directly rather than through `npm test`: the root script is `npm run test -w server`, so flags
       # passed to it are read by npm as its own configuration and never reach vitest. An earlier attempt at this
-      # said so in the log — "Unknown cli config --reporter" — and ran exactly as before, which is why two runs
+      # said so in the log - "Unknown cli config --reporter" - and ran exactly as before, which is why two runs
       # looked like a fix and changed nothing.
       #
-      # The `timeout` wrapper matters because the job's own timeout is enforced by the runner: when the runner
-      # is the thing that wedged, nothing is left to enforce it.
-      #
-      # KNOWN BUG, not yet solved: on a runner this suite stops dead a few seconds in and produces no further
-      # output, both in parallel and one file at a time, and the orphan list at kill time is two node processes
-      # rather than a crowd — one worker blocked on something, with the rest queued behind it. It has never
-      # reproduced locally. Naming the file needs a run that prints each name before running it, because vitest
-      # prints a file only once it finishes; that diagnostic is in this branch's history at 876cbe6 and can be
-      # put back when there are runner minutes to spend on it.
+      # The `timeout` wrapper stays. The hang it was added for is fixed (a test asked mkdirSync to write into
+      # /proc, which on Linux spins for ever instead of failing), but a synchronous spin in a worker survives
+      # the death of its parent, so the wrapper is not enough on its own either. --no-file-parallelism keeps the
+      # worker count at one so there is only ever one thing to orphan.
       - name: Run SecureVibe's own tests
         working-directory: server
         run: timeout --signal=TERM --kill-after=30s 15m ../node_modules/.bin/vitest run --reporter=verbose --no-file-parallelism
