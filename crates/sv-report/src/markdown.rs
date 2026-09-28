@@ -564,8 +564,8 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
         out.push_str(&format!(
             "Not in this table: the {apart} requirements about how the app is built with an AI coding \
              tool that nothing has reached, which are counted apart in \"How the app is built with \
-             AI\", below. The AC row counts only the ones that have evidence, do not apply, or wait \
-             on a question.\n\n"
+             AI\", below. The Appendix C row counts only the ones that have evidence, do not apply, \
+             or wait on a question.\n\n"
         ));
     }
     for c in chapters.iter().filter(|c| c.applies() > 0) {

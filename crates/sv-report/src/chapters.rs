@@ -44,7 +44,13 @@ impl Chapter<'_> {
     }
 
     /// The chapter as a heading names it: `V6 Authentication`.
+    ///
+    /// Appendix C is one row for all its sections, so it is named for the appendix. The name of
+    /// whichever section happened to come first would have titled every one of them with it.
     pub fn title(&self) -> String {
+        if self.key == APPENDIX_C.trim_end_matches('.') {
+            return "AISVS Appendix C: how the app is built with AI".to_owned();
+        }
         if self.name.is_empty() {
             self.key.clone()
         } else {

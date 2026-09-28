@@ -163,8 +163,19 @@ fn the_chapter_counts_add_up_to_the_reports_own_totals() {
     assert_eq!(sum("not verified"), total("not_verified"));
     assert_eq!(sum("does not apply"), total("not_applicable"));
     assert_eq!(sum("not placed yet"), total("not_assessed"));
-    // Each chapter appears once.
+    // Appendix C is one row, named for the appendix rather than for its first section.
     let chapters = &table["chapter"];
+    assert!(
+        chapters
+            .iter()
+            .any(|c| c == "AISVS Appendix C: how the app is built with AI"),
+        "{chapters:?}"
+    );
+    assert!(
+        !chapters.iter().any(|c| c.starts_with("AC ")),
+        "an Appendix C row is titled by one of its sections: {chapters:?}"
+    );
+    // Each chapter appears once.
     let mut unique = chapters.clone();
     unique.sort();
     unique.dedup();
