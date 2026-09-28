@@ -4341,6 +4341,14 @@ the app's own code off the list. Unlike a finding set aside, the list does not n
 hides nothing, since every finding in those folders is still listed and counted. What it can take away is
 evidence that more requirements apply, which is why the report shows it.
 
+**Known vulnerabilities (added 28 September 2026).** A package in one of those folders is not shipped with
+the app, so `sv report --advisories` compares only the app's own packages against the database, as `sv
+audit` already did. The named folders' packages are compared too, and what matches is listed in the
+report's "What was not examined", named and not counted against V15.2.1, with the same reminder to take the
+app's own code off the list. The rest of the report's bill of materials (whether versions are pinned, and
+whether the inventory is complete) still covers the whole folder; those checks read the listing and the bill
+of materials together, and splitting one without the other would make them disagree.
+
 `sv`'s own `securevibe.toml` uses it, at the owner's asking: `crates/*/tests`, `examples`, `tools`, and
 `docs`, the four the v2 self-assessment left out of its "product code only" run. That file is the one the
 self-assessment's repository run used, so a rerun of that run now differs from what the assessment records.

@@ -290,6 +290,9 @@ another session is not a claim.
   3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
+     **Done on 28 September 2026 by session securevibe-e2:** the report compares only the app's own
+     packages, and lists what the named folders' packages match apart, not counted. See DESIGN, "Folders
+     the manifest says are not the app", on known vulnerabilities.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session

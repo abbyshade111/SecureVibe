@@ -1912,6 +1912,44 @@ fn not_the_app_audit(
     }
 }
 
+/// The report's line about known vulnerabilities in folders securevibe.toml says are not the app:
+/// compared, listed, and not counted, as `sv audit` does. `None` when there is nothing to say.
+fn not_the_app_advisories(
+    elsewhere: &sbom::Sbom,
+    database: &[advisories::Advisory],
+    folders: &[String],
+) -> Option<sv_report::Gap> {
+    let result = advisories::audit_against(elsewhere, database, None, advisories::Day::today());
+    if result.findings.is_empty() {
+        return None;
+    }
+    let n = result.findings.len();
+    let shown: Vec<String> = result
+        .findings
+        .iter()
+        .take(10)
+        .map(|f| f.title.clone())
+        .collect();
+    Some(sv_report::Gap {
+        what: format!(
+            "{n} known vulnerabilit{} in folders securevibe.toml says are not the app",
+            if n == 1 { "y" } else { "ies" }
+        ),
+        why: format!(
+            "in {}: {}{}. Listed for information and not counted against the app, since nothing in \
+             those folders is shipped with it. If one of them is the app's own code, take it off \
+             `[repository] not-the-app`.",
+            folders.join(", "),
+            shown.join("; "),
+            if n > 10 {
+                format!("; and {} more", n - 10)
+            } else {
+                String::new()
+            }
+        ),
+    })
+}
+
 /// `sv bundle`: the app, its report and the record of what was checked, in one zip (see `bundle.rs`).
 fn cmd_bundle(args: &[String]) -> Result<()> {
     let ReportArgs {
@@ -2346,12 +2384,22 @@ fn assemble_report(
                     ),
                 });
             } else {
+                // What the app ships, as `sv audit` counts it: a package in a folder
+                // securevibe.toml says is not the app is not shipped, so a vulnerability in it is
+                // listed apart and not counted against V15.2.1.
+                let folders = manifest.not_the_app().0;
+                let (ours, theirs) = listing.split(&folders);
                 let result = advisories::audit_against(
-                    &bill_of_materials,
+                    &sbom::build_in(&ours),
                     &database,
                     manifest.policy.fix_within_days.as_ref(),
                     advisories::Day::today(),
                 );
+                if let Some(gap) =
+                    not_the_app_advisories(&sbom::build_in(&theirs), &database, &folders)
+                {
+                    advisory_gaps.push(gap);
+                }
                 findings_from_advisories = result.findings;
                 advisory_verified = result.verified;
                 if !result.uncovered.is_empty() {
@@ -3648,6 +3696,60 @@ mod dependency_gap_tests {
             ecosystem: ecosystem.to_owned(),
             source,
         }
+    }
+
+    #[test]
+    fn a_long_list_of_vulnerabilities_elsewhere_names_ten_and_counts_the_rest() {
+        let dir = std::env::temp_dir().join(format!("sv-elsewhere-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("osv")).unwrap();
+        let names: Vec<String> = (0..12).map(|i| format!("pkg{i:02}")).collect();
+        let deps: Vec<String> = names.iter().map(|n| format!("\"{n}\":\"1.0.0\"")).collect();
+        let locked: Vec<String> = names
+            .iter()
+            .map(|n| format!("\"node_modules/{n}\":{{\"version\":\"1.0.0\"}}"))
+            .collect();
+        std::fs::write(
+            dir.join("package.json"),
+            format!(
+                r#"{{"name":"d","version":"1.0.0","dependencies":{{{}}}}}"#,
+                deps.join(",")
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("package-lock.json"),
+            format!(
+                r#"{{"name":"d","lockfileVersion":3,"packages":{{"":{{"name":"d"}},{}}}}}"#,
+                locked.join(",")
+            ),
+        )
+        .unwrap();
+        for n in &names {
+            std::fs::write(
+                dir.join("osv").join(format!("GHSA-{n}.json")),
+                format!(
+                    r#"{{"id":"GHSA-{n}","summary":"x","published":"2020-01-01T00:00:00Z",
+                        "affected":[{{"package":{{"ecosystem":"npm","name":"{n}"}},
+                        "ranges":[{{"type":"ECOSYSTEM","events":[{{"introduced":"0"}},{{"fixed":"9"}}]}}]}}]}}"#
+                ),
+            )
+            .unwrap();
+        }
+        let database = advisories::load_database(&dir.join("osv")).unwrap();
+        let elsewhere = sbom::build(&dir);
+        let gap = not_the_app_advisories(&elsewhere, &database, &["demo".to_owned()])
+            .expect("twelve found");
+        assert!(
+            gap.what.starts_with("12 known vulnerabilities"),
+            "{}",
+            gap.what
+        );
+        assert!(gap.why.contains("; and 2 more."), "{}", gap.why);
+        assert_eq!(gap.why.matches("GHSA-pkg").count(), 10, "{}", gap.why);
+        // Nothing found there: nothing to say.
+        assert!(not_the_app_advisories(&elsewhere, &[], &["demo".to_owned()]).is_none());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
