@@ -287,9 +287,11 @@ another session is not a claim.
      advisory and a PyPI one (`GHSA-wvwj-cvrp-7pv5` and `PYSEC-2026-287`, which list each other as
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
      vulnerability once, naming every id it goes by.
+     **Claimed on 28 September 2026 by session securevibe-e9.**
   3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
+     **Claimed on 28 September 2026 by session securevibe-e9.**
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
