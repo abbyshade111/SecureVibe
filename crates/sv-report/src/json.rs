@@ -12,6 +12,13 @@
 //! build their text differently today; the second rule is there so that if one ever does, the
 //! difference is kept rather than silently replaced by the first.
 //!
+//! The same holds for the checks only a person can make. `only_you_can_check` was, entry for entry,
+//! a subset of `questions_for_you`: fifty of sixty-two on the Flask example, 27 KB written twice.
+//! The owner's decision, the same day: drop the duplicate. `report.json` keeps which questions they
+//! are, as `only_you_can_check_ids`, in the list's own order; the entries themselves are in
+//! `questions_for_you`. If an entry ever differs from the question of the same id, or has no
+//! question, the full list is kept as it was, for the same reason a differing text is.
+//!
 //! The pages for people (`compliance.md`, `report.html`) are written from the `Report` itself and
 //! are not affected. The MCP server's answers are not affected either.
 
@@ -34,7 +41,33 @@ pub const LISTS_WITH_TEXT: &[&[&str]] = &[
 pub fn to_value(report: &Report) -> Value {
     let mut value = serde_json::to_value(report).expect("a report serializes");
     file_text(&mut value);
+    only_you_by_id(&mut value);
     value
+}
+
+/// Replaces `only_you_can_check` with the ids of its entries, when every entry is the question of
+/// the same id in `questions_for_you`, word for word.
+fn only_you_by_id(value: &mut Value) {
+    let Value::Object(top) = value else {
+        return;
+    };
+    let (Some(Value::Array(only)), Some(Value::Array(questions))) =
+        (top.get("only_you_can_check"), top.get("questions_for_you"))
+    else {
+        return;
+    };
+    let mut ids = Vec::new();
+    for entry in only {
+        let Some(id) = entry.get("id").and_then(Value::as_str) else {
+            return;
+        };
+        if !questions.iter().any(|q| q == entry) {
+            return;
+        }
+        ids.push(Value::String(id.to_owned()));
+    }
+    top.remove("only_you_can_check");
+    top.insert("only_you_can_check_ids".to_owned(), Value::Array(ids));
 }
 
 /// Moves each row's `description` into `requirement_text`, under its id, once.
@@ -122,6 +155,37 @@ mod tests {
         // What the rows carried besides their text is untouched.
         assert_eq!(v["excluded"][0]["reason"], "no forms");
         assert_eq!(v["tests_to_write"][0]["level"], 1);
+    }
+
+    #[test]
+    fn the_checks_only_you_can_make_are_kept_by_id_when_each_is_a_question() {
+        let q = |id: &str, how: &str| json!({"id": id, "title": "t", "how": how});
+        let mut v = json!({
+            "questions_for_you": [q("V1.1.1", "look"), q("V2.2.2", "ask"), q("V3.3.3", "read")],
+            "only_you_can_check": [q("V3.3.3", "read"), q("V1.1.1", "look")],
+        });
+        only_you_by_id(&mut v);
+        assert!(v.get("only_you_can_check").is_none(), "{v}");
+        // In the list's own order, which is not the questions' order.
+        assert_eq!(v["only_you_can_check_ids"], json!(["V3.3.3", "V1.1.1"]));
+        assert_eq!(v["questions_for_you"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn a_check_that_is_not_word_for_word_a_question_keeps_the_whole_list() {
+        // An entry that differs, or has no question at all: dropping it would lose what it says.
+        for only in [
+            json!([{"id": "V1.1.1", "title": "t", "how": "look closer"}]),
+            json!([{"id": "V9.9.9", "title": "t", "how": "look"}]),
+        ] {
+            let mut v = json!({
+                "questions_for_you": [{"id": "V1.1.1", "title": "t", "how": "look"}],
+                "only_you_can_check": only.clone(),
+            });
+            only_you_by_id(&mut v);
+            assert_eq!(v["only_you_can_check"], only);
+            assert!(v.get("only_you_can_check_ids").is_none(), "{v}");
+        }
     }
 
     #[test]

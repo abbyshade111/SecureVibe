@@ -1794,6 +1794,36 @@ mod only_you {
     }
 
     #[test]
+    fn report_json_names_the_checks_only_you_can_make_by_id_and_loses_none() {
+        // report.json keeps these as ids into questions_for_you, never the entries twice. Built
+        // from the real catalogs, so the list is what an owner would get, not a hand-made one.
+        let (with, _) = report_with_and_without();
+        assert!(
+            !with.only_you_can_check.is_empty(),
+            "and the list is not empty, or this proves nothing"
+        );
+        let json = sv_report::json::to_value(&with);
+        assert!(json.get("only_you_can_check").is_none(), "written twice");
+        let ids: Vec<&str> = json["only_you_can_check_ids"]
+            .as_array()
+            .expect("the ids are in report.json")
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        let want: Vec<&str> = with.only_you_can_check.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(ids, want, "every one, in the list's own order");
+        for item in &with.only_you_can_check {
+            let asked = json["questions_for_you"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|q| q["id"] == item.id.as_str())
+                .unwrap_or_else(|| panic!("{} is not among the questions", item.id));
+            assert_eq!(*asked, serde_json::to_value(item).unwrap(), "{}", item.id);
+        }
+    }
+
+    #[test]
     fn nothing_here_credits_a_requirement() {
         // The one thing this section could get wrong. An instruction for how to check something is
         // not the check: every requirement on the list must read exactly as it did before the list

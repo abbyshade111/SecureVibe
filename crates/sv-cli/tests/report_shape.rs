@@ -238,3 +238,37 @@ fn every_requirement_that_applies_is_listed_once_by_chapter_and_once_in_the_appe
         "a requirement's text is still in the chapter lists"
     );
 }
+
+#[test]
+fn the_checks_only_you_can_make_are_named_by_id_and_each_is_a_question() {
+    let w = report_on_the_flask_example("only-you");
+    assert!(
+        w.json.get("only_you_can_check").is_none(),
+        "the duplicate list is still written"
+    );
+    let ids: Vec<&str> = w.json["only_you_can_check_ids"]
+        .as_array()
+        .expect("only_you_can_check_ids is in report.json")
+        .iter()
+        .map(|v| v.as_str().expect("an id"))
+        .collect();
+    // Setup, asserted: the example has such checks, so the loop below examines something.
+    assert!(
+        !ids.is_empty(),
+        "the example has no checks only a person can make"
+    );
+    let questions = w.json["questions_for_you"].as_array().unwrap();
+    for id in &ids {
+        let asked = questions.iter().filter(|q| q["id"] == *id).count();
+        assert_eq!(asked, 1, "{id} is asked {asked} times in questions_for_you");
+    }
+    // The same number the person reads in compliance.md.
+    let said = format!(
+        "{} of the requirements that apply cannot be settled by any tool",
+        ids.len()
+    );
+    assert!(
+        w.compliance.contains(&said),
+        "compliance.md does not say: {said}"
+    );
+}
