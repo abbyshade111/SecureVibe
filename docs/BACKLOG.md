@@ -317,7 +317,9 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a, c, and d, not claimed.
+      - Step 1: slices a and d, not claimed.
+      - Step 1, slice c (`passwords.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-passwords`.
       - Step 1, slice b (`sessions.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-sessions`. A move
         only, with `ws_handshake` and `websocket_session_checks`: securevibe-e9's V14.2.2 and V8.2.3
