@@ -496,7 +496,8 @@ another session is not a claim.
      folder on this computer is not, stop the run as not assessed and say the container backend could not
      see the folder, naming Colima's shared-folder setting. A test: an app folder the backend cannot see
      (on Linux, where every folder is shared, this needs a stand-in, such as a folder the check is told is
-     empty inside). **Not claimed.**
+     empty inside). **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to continue
+     with the backlog.
 
 - **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
   session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
@@ -682,7 +683,8 @@ another session is not a claim.
   requirement about the model's context, which the file says nothing about. The new rules leave it out. The
   semgrep rule `mcp-credential-in-response` also cites C9.5.4, and there it fits: a tool returning a
   credential into the model's context is what C9.5.4 is about. Fix: take C9.5.4 off the Anthropic rule,
-  regenerate `docs/COVERAGE.md`, and see what else moves. **Not claimed.**
+  regenerate `docs/COVERAGE.md`, and see what else moves. **Claimed on 28 September 2026 by session
+  securevibe-e9**, at the owner's asking to continue with the backlog.
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
