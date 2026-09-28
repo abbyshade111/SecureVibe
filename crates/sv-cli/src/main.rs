@@ -1218,6 +1218,9 @@ fn cmd_run(args: &[String]) -> Result<()> {
             println!("\nNot assessed.\n\n{reason}");
         }
         Ok((outcome, plan)) => {
+            if let Some(removed) = sv_run::cleanup::removed_sentence(&outcome.left_over_removed) {
+                println!("\n{removed}");
+            }
             println!("\nThe app started and answered on {}.", plan.health_path);
             println!("\n{}", outcome.fence.explain());
             let (findings, verified, signed_in_not_assessed) =
@@ -1316,9 +1319,10 @@ fn cmd_run(args: &[String]) -> Result<()> {
                     // The end of the output, where runners say which tests failed, and with any
                     // credential a runner printed cut short, as in the report.
                     let rules = SecretRules::load(&secret_rules_path())?;
-                    if let Some(t) =
+                    if let Some(mut t) =
                         sv_check::suite::failing_output(result.exit_code, &result.output, &rules)
                     {
+                        t.stopped_after_seconds = result.stopped_after.map(|d| d.as_secs());
                         println!("\n{}", sv_report::test_output_intro(&t));
                         if !t.text.is_empty() {
                             println!("{}", t.text);
@@ -2422,6 +2426,12 @@ fn assemble_report(
                     plan.health_path,
                     outcome.fence.explain()
                 ));
+                if let (Some(note), Some(removed)) = (
+                    run_note.as_mut(),
+                    sv_run::cleanup::removed_sentence(&outcome.left_over_removed),
+                ) {
+                    note.push_str(&format!(" {removed}"));
+                }
                 for (requirements, why) in signed_in_not_assessed {
                     // AISVS ids are the AI feature's, asked through the test model, which may not
                     // have involved signing in at all.
@@ -2498,8 +2508,24 @@ fn assemble_report(
                             result.exit_code,
                             &result.output,
                             secret_rules,
-                        );
-                        if result.exit_code != 0 {
+                        )
+                        .map(|mut t| {
+                            t.stopped_after_seconds = result.stopped_after.map(|d| d.as_secs());
+                            t
+                        });
+                        if let Some(limit) = result.stopped_after {
+                            gaps.push(sv_report::Gap {
+                                what: "anything the app's own tests would have shown".to_owned(),
+                                why: format!(
+                                    "the suite was still running after {}, so `sv` stopped it. A \
+                                     suite cut short has not said which of its tests pass, so none \
+                                     of them is credited. If it needs longer, set \
+                                     `test-time-limit` (in seconds) under [stack.run] in \
+                                     securevibe.toml.",
+                                    sv_check::suite::limit_in_words(limit)
+                                ),
+                            });
+                        } else if result.exit_code != 0 {
                             gaps.push(sv_report::Gap {
                                 what: "anything the failing tests would have shown".to_owned(),
                                 why: match (&passed_cases, credited.len()) {

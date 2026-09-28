@@ -13,7 +13,10 @@
 //! 5. Run the declared test command inside the app container.
 //! 6. Tear everything down, whatever happened.
 
-use crate::{Backend, CannotRun, Fence, REPORT_DIR, RunOutcome, RunPlan, TestResult, output_of};
+use crate::{
+    Backend, CannotRun, Fence, REPORT_DIR, Ran, RunOutcome, RunPlan, TestResult, output_of,
+    run_within,
+};
 use std::process::Command;
 
 /// How long to wait for the app to answer before calling it not assessed.
@@ -56,6 +59,8 @@ const SIDECAR_SECONDS: u64 = 900;
 
 pub struct DockerBackend {
     binary: String,
+    /// What everything this backend starts is labeled with: this machine and this process.
+    owner: String,
 }
 
 impl Default for DockerBackend {
@@ -68,13 +73,66 @@ impl DockerBackend {
     pub fn new() -> Self {
         Self {
             binary: "docker".to_owned(),
+            owner: crate::cleanup::owner(),
         }
     }
 
     fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
         let mut c = Command::new(&self.binary);
-        c.args(args);
+        c.args(crate::cleanup::labeled(args, &self.owner));
         output_of(&mut c)
+    }
+
+    /// Removes the containers, then the networks, that runs on this machine left behind when their
+    /// process ended without its teardown. What it removed, by name.
+    fn remove_leftovers(&self) -> Vec<String> {
+        let machine = crate::cleanup::this_machine();
+        let filter = format!("label={}", crate::cleanup::OWNER_LABEL);
+        let format = format!(
+            "{{{{.Names}}}}\t{{{{.Label \"{}\"}}}}",
+            crate::cleanup::OWNER_LABEL
+        );
+        let network_format = format.replace(".Names", ".Name");
+        let left = |args: &[&str]| -> Vec<String> {
+            match self.docker(args) {
+                Ok((0, out)) => out
+                    .lines()
+                    .filter_map(|line| line.split_once('\t'))
+                    .filter(|(_, label)| {
+                        crate::cleanup::is_leftover(label.trim(), &machine, crate::cleanup::alive)
+                    })
+                    .map(|(name, _)| name.trim().to_owned())
+                    .collect(),
+                _ => Vec::new(),
+            }
+        };
+        let mut removed = Vec::new();
+        for name in left(&["ps", "-a", "--filter", &filter, "--format", &format]) {
+            if matches!(self.docker(&["rm", "-f", &name]), Ok((0, _))) {
+                removed.push(name);
+            }
+        }
+        for name in left(&[
+            "network",
+            "ls",
+            "--filter",
+            &filter,
+            "--format",
+            &network_format,
+        ]) {
+            if matches!(self.docker(&["network", "rm", &name]), Ok((0, _))) {
+                removed.push(name);
+            }
+        }
+        removed
+    }
+
+    /// A Docker call with a limit of its own, for the one step whose length the app decides: its
+    /// test suite.
+    fn docker_within(&self, args: &[&str], limit: std::time::Duration) -> Result<Ran, String> {
+        let mut c = Command::new(&self.binary);
+        c.args(args);
+        run_within(&mut c, limit)
     }
 }
 
@@ -111,10 +169,11 @@ impl Backend for DockerBackend {
         let browser_name = format!("{run_id}-browser");
         let model_name = format!("{run_id}-model");
         let switched_off = format!("{run_id}-app-off");
-        let guard = Teardown {
-            backend: self,
-            network: network.clone(),
-            containers: vec![
+        let left_over_removed = self.remove_leftovers();
+        let guard = Teardown::new(
+            self,
+            network.clone(),
+            vec![
                 app.clone(),
                 sidecar.clone(),
                 mail_name.clone(),
@@ -123,7 +182,7 @@ impl Backend for DockerBackend {
                 model_name.clone(),
                 switched_off.clone(),
             ],
-        };
+        );
 
         // 1. The fence.
         self.docker(&["network", "create", "--internal", &network])
@@ -420,10 +479,23 @@ impl Backend for DockerBackend {
                     .map(|(code, _)| code == 0)
                     .unwrap_or(false)
             });
-            let (exit_code, output) = self
-                .docker(&["exec", &app, "sh", "-c", test_command])
-                .ok()?;
+            let (exit_code, output, stopped_after) =
+                match self.docker_within(&["exec", &app, "sh", "-c", test_command], plan.test_limit)
+                {
+                    Ok(Ran::Finished(code, text)) => (code, text, None),
+                    Ok(Ran::Stopped(text)) => (-1, text, Some(plan.test_limit)),
+                    Err(_) => return None,
+                };
             let (report, report_note) = match (&report_path, removed_stale) {
+                // A suite cut short has not finished writing whatever it writes, and has not said
+                // which of its tests pass, so its report is not read at all.
+                _ if stopped_after.is_some() => (
+                    None,
+                    Some(format!(
+                        "the suite was still running after {}, so `sv` stopped it and read nothing it wrote",
+                        sv_check::suite::limit_in_words(plan.test_limit)
+                    )),
+                ),
                 (None, _) => (
                     None,
                     Some(
@@ -456,6 +528,7 @@ impl Backend for DockerBackend {
                 output,
                 report,
                 report_note,
+                stopped_after,
             })
         });
 
@@ -468,6 +541,7 @@ impl Backend for DockerBackend {
             signed_in,
             oidc,
             ai,
+            left_over_removed,
         })
     }
 }
@@ -1126,12 +1200,26 @@ struct Teardown<'a> {
     containers: Vec<String>,
 }
 
+impl<'a> Teardown<'a> {
+    /// A teardown for one run, known to the Ctrl-C handler until it has run.
+    fn new(backend: &'a DockerBackend, network: String, containers: Vec<String>) -> Self {
+        crate::cleanup::install_handler(&backend.binary);
+        crate::cleanup::register(&network, &containers);
+        Self {
+            backend,
+            network,
+            containers,
+        }
+    }
+}
+
 impl Drop for Teardown<'_> {
     fn drop(&mut self) {
         for container in &self.containers {
             let _ = self.backend.docker(&["rm", "-f", container]);
         }
         let _ = self.backend.docker(&["network", "rm", &self.network]);
+        crate::cleanup::unregister(&self.network);
     }
 }
 
@@ -1179,6 +1267,7 @@ mod tests {
         // as failing rather than as unrun.
         let backend = DockerBackend {
             binary: "definitely-not-a-real-binary-xyz".to_owned(),
+            owner: crate::cleanup::owner(),
         };
         let err = backend.available().unwrap_err();
         match err {

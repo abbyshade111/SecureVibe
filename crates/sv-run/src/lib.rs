@@ -37,8 +37,10 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 use sv_manifest::Manifest;
 
+pub mod cleanup;
 pub mod docker;
 
 /// Why the app could not be run. Every one of these produces `not assessed`.
@@ -92,6 +94,8 @@ pub struct RunPlan {
     pub test: Option<String>,
     /// Where the test command writes a JUnit XML report, relative to the app folder.
     pub test_report: Option<String>,
+    /// How long the test command may run before it is stopped.
+    pub test_limit: Duration,
     pub health_path: String,
     /// Where the app's code is.
     pub app_dir: PathBuf,
@@ -162,6 +166,10 @@ impl RunPlan {
             start: start.expect("checked above"),
             test: non_empty(&run.test),
             test_report: non_empty(&run.test_report),
+            test_limit: match run.test_time_limit {
+                Some(seconds) if seconds > 0 => Duration::from_secs(seconds),
+                _ => TEST_LIMIT,
+            },
             health_path: non_empty(&run.health).unwrap_or_else(|| "/".to_owned()),
             // Absolute, always. Docker reads a relative path as the *name* of a named volume and
             // refuses it, which turns "sv was run from the wrong directory" into an error message
@@ -211,6 +219,9 @@ pub struct RunOutcome {
     /// What asking the app's AI feature through the test model showed, when securevibe.toml says
     /// how to reach it.
     pub ai: Option<sv_check::signed_in::Outcome>,
+    /// Containers and networks an earlier run on this machine left behind when its process was
+    /// stopped outright, removed before this run started. See `cleanup`.
+    pub left_over_removed: Vec<String>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
@@ -270,6 +281,9 @@ pub struct TestResult {
     pub report: Option<String>,
     /// What happened when the report was looked for, when it did not simply work.
     pub report_note: Option<String>,
+    /// Set when the suite was still running at its time limit and was stopped. Nothing it did is
+    /// credited then: a suite cut short has not said which of its tests pass.
+    pub stopped_after: Option<Duration>,
 }
 
 /// Which fence was in force. Reports say which applied, as v1's do.
@@ -324,20 +338,187 @@ pub fn detect() -> Result<Box<dyn Backend>, CannotRun> {
 }
 
 /// Runs a command and hands back stdout+stderr with the status, or the reason it could not start.
-pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> {
-    match command.output() {
-        Ok(out) => {
-            let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
-            text.push_str(&String::from_utf8_lossy(&out.stderr));
-            Ok((out.status.code().unwrap_or(-1), text))
+/// How long any one Docker call may take before `sv` stops waiting for it. Generous, because
+/// building an image or pulling one is a Docker call too; the point is that no call waits forever.
+/// The long waits of `sv run --slow` happen between calls, not inside one.
+pub const CALL_LIMIT: Duration = Duration::from_secs(30 * 60);
+
+/// How long the app's own test suite may run, unless securevibe.toml says otherwise
+/// (`[stack.run] test-time-limit`, in seconds).
+pub const TEST_LIMIT: Duration = Duration::from_secs(10 * 60);
+
+/// What became of a command given a time limit.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Ran {
+    /// It finished: its exit code (-1 when a signal ended it), and everything it printed.
+    Finished(i32, String),
+    /// It was still running at the limit and was stopped: what it had printed by then.
+    Stopped(String),
+}
+
+/// Runs a command, stopping it if it is still running after `limit`. Output and errors are read
+/// as they come, so a command that prints a great deal cannot stall on a full pipe.
+pub(crate) fn run_within(command: &mut Command, limit: Duration) -> Result<Ran, String> {
+    use std::io::Read;
+    let mut child = command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let read = |pipe: Option<Box<dyn Read + Send>>| {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            if let Some(mut pipe) = pipe {
+                let _ = pipe.read_to_end(&mut bytes);
+            }
+            bytes
+        })
+    };
+    let out = read(
+        child
+            .stdout
+            .take()
+            .map(|p| Box::new(p) as Box<dyn Read + Send>),
+    );
+    let err = read(
+        child
+            .stderr
+            .take()
+            .map(|p| Box::new(p) as Box<dyn Read + Send>),
+    );
+    let deadline = std::time::Instant::now() + limit;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if std::time::Instant::now() >= deadline => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(e) => return Err(e.to_string()),
         }
-        Err(e) => Err(e.to_string()),
+    };
+    let mut text = String::from_utf8_lossy(&out.join().unwrap_or_default()).into_owned();
+    text.push_str(&String::from_utf8_lossy(&err.join().unwrap_or_default()));
+    Ok(match status {
+        Some(status) => Ran::Finished(status.code().unwrap_or(-1), text),
+        None => Ran::Stopped(text),
+    })
+}
+
+/// A Docker call, within `CALL_LIMIT`. One that runs out of time is an error naming the limit, so
+/// a hung daemon or a stuck container ends the run with a reason instead of hanging it.
+pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> {
+    output_within(command, CALL_LIMIT)
+}
+
+fn output_within(command: &mut Command, limit: Duration) -> Result<(i32, String), String> {
+    match run_within(command, limit)? {
+        Ran::Finished(code, text) => Ok((code, text)),
+        Ran::Stopped(_) => Err(format!(
+            "it was still running after {}, the limit `sv` sets on any one Docker call, so it was stopped",
+            sv_check::suite::limit_in_words(limit)
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn a_command_that_finishes_in_time_gives_its_code_and_everything_it_printed() {
+        let ran = run_within(
+            Command::new("sh").args(["-c", "echo out; echo err >&2; exit 3"]),
+            Duration::from_secs(20),
+        )
+        .unwrap();
+        match ran {
+            Ran::Finished(3, text) => {
+                assert!(text.contains("out") && text.contains("err"), "{text:?}")
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_command_still_running_at_its_limit_is_stopped_with_what_it_printed() {
+        let started = std::time::Instant::now();
+        let ran = run_within(
+            Command::new("sh").args(["-c", "echo started; exec sleep 30"]),
+            Duration::from_millis(500),
+        )
+        .unwrap();
+        assert_eq!(ran, Ran::Stopped("started\n".to_owned()));
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "stopped at the limit, not when it ended: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_command_that_prints_a_great_deal_does_not_stall_on_a_full_pipe() {
+        // Far more than a pipe holds (64 KB on Linux): read only at the end, this would never finish.
+        let ran = run_within(
+            Command::new("sh").args(["-c", "yes 0123456789 | head -c 2000000"]),
+            Duration::from_secs(20),
+        )
+        .unwrap();
+        match ran {
+            Ran::Finished(0, text) => assert_eq!(text.len(), 2_000_000),
+            other => panic!("{:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_docker_call_that_runs_out_of_time_is_an_error_that_names_the_limit() {
+        let err = output_within(
+            Command::new("sh").args(["-c", "exec sleep 30"]),
+            Duration::from_secs(1),
+        )
+        .unwrap_err();
+        assert!(err.contains("still running after 1 second"), "{err}");
+        assert_eq!(
+            output_within(
+                Command::new("sh").args(["-c", "echo hi"]),
+                Duration::from_secs(20)
+            ),
+            Ok((0, "hi\n".to_owned()))
+        );
+        assert_eq!(CALL_LIMIT, Duration::from_secs(30 * 60));
+    }
+
+    #[test]
+    fn a_limit_is_said_as_a_person_says_it() {
+        use sv_check::suite::limit_in_words;
+        assert_eq!(limit_in_words(TEST_LIMIT), "10 minutes");
+        assert_eq!(limit_in_words(Duration::from_secs(60)), "1 minute");
+        assert_eq!(limit_in_words(Duration::from_secs(90)), "90 seconds");
+        assert_eq!(limit_in_words(Duration::from_secs(1)), "1 second");
+    }
+
+    #[test]
+    fn the_test_limit_is_ten_minutes_unless_securevibe_toml_says_otherwise() {
+        let plan = |seconds: Option<u64>| {
+            let mut m = Manifest::default();
+            m.stack.run.image = Some("busybox:1.36".to_owned());
+            m.stack.run.start = Some("true".to_owned());
+            m.stack.run.test_time_limit = seconds;
+            RunPlan::from_manifest(&m, Path::new("."))
+                .unwrap()
+                .test_limit
+        };
+        assert_eq!(plan(None), TEST_LIMIT);
+        assert_eq!(plan(Some(0)), TEST_LIMIT, "no limit at all is not a limit");
+        assert_eq!(plan(Some(45)), Duration::from_secs(45));
+    }
 
     #[test]
     fn every_run_makes_its_own_accounts_with_passwords_nobody_could_guess() {

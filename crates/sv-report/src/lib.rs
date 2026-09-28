@@ -543,10 +543,17 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
         1 => " One value that looked like a credential is cut short.".to_owned(),
         n => format!(" {n} values that looked like credentials are cut short."),
     };
-    format!(
-        "The app's own tests failed when `sv` ran them (exit {}). {what}{redacted}",
-        t.exit_code
-    )
+    match t.stopped_after_seconds {
+        Some(seconds) => format!(
+            "The app's own tests were still running after {}, so `sv` stopped them, and nothing \
+             they did is credited. {what}{redacted}",
+            sv_check::suite::limit_in_words(std::time::Duration::from_secs(seconds))
+        ),
+        None => format!(
+            "The app's own tests failed when `sv` ran them (exit {}). {what}{redacted}",
+            t.exit_code
+        ),
+    }
 }
 
 /// What the reports say above the findings in test or sample code.

@@ -1771,6 +1771,7 @@ fn a_failing_suite_shows_its_last_lines_in_every_format() {
         lines_kept: 3,
         lines_total: 212,
         redacted: 1,
+        stopped_after_seconds: None,
     });
     let report = build(i);
     let html = sv_report::html::page(&report);
@@ -1822,6 +1823,7 @@ fn failing(
         lines_kept,
         lines_total,
         redacted,
+        stopped_after_seconds: None,
     }
 }
 
