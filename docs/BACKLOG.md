@@ -421,7 +421,9 @@ another session is not a claim.
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
-  28 September 2026 by session admiring-murdock-875699**, at the owner's asking.
+  28 September 2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day:** `TIMELINE.md`
+  says where the harness came from and gives Day 0 its recorded times (the commits' own, from the v1 bundle), and
+  `METHODOLOGY.md` notes that its quotation's date is UTC.
   The transcript (the first session, "Vibe-coding application builder") and `securevibe-reasoning.md` in the
   owner's paper folder show:
   - At 19:48 Eastern on 17 September, the owner asked about optimizations "for example, build out/refine a
