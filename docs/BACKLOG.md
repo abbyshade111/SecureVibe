@@ -332,6 +332,32 @@ another session is not a claim.
      unmerged at the owner's word.** Item 1 (#339) and item 2 (#345) were reviewed by securevibe-e2: no
      faults, and suggestions on each pull request.
 
+- **Two faults found while `killed_run.rs` failed on the owner's Mac.** Found on 28 September 2026 by the
+  session working in branch `claude/killed-run-colima-mount`. The test itself was fixed in #361: it wrote its
+  app to the system's temporary folder, which on a Mac is under `/var/folders`, and Colima does not share that
+  folder with its machine, so the app's folder arrived empty and the app never answered. Each item can be
+  claimed on its own.
+  1. **A run that removes leftovers and then fails does not say it removed them.** `DockerBackend::run`
+     (`crates/sv-run/src/docker.rs`) removes what an ended run left before it starts anything, but the list
+     travels back only in a successful `RunOutcome`. When the app then never answers, or Docker refuses,
+     `sv run` and `sv report --run` say only why the run failed, and containers and a network were removed
+     from the owner's computer without a word. Seen on the owner's Mac: after the failing test, nothing
+     labeled `org.securevibe.owner` was left, and nothing had said so. Fix: a failed run carries what it
+     removed, and its explanation names it, so both commands say it.
+     **Claimed on 28 September 2026 by that session**, at the owner's asking, in branch
+     `claude/failed-run-says-removed`.
+  2. **On a Mac with Colima, an app folder outside the home folder reaches the app empty, and `sv` says only
+     that the app never answered.** Colima shares the home folder with its machine by default and nothing
+     else; Docker mounts any other folder as a new, empty one without complaint. Checked on the owner's
+     Colima (Docker 29.5.2): a folder under `/var/folders` appeared empty inside a container, and one under
+     the home folder appeared with its file. The run is still correctly not assessed, but the reason given
+     ("never answered on its health path") sends the owner looking at their app rather than at where it is.
+     Fix, as a suggestion: after the app's container starts, list `/app` inside it; when it is empty and the
+     folder on this computer is not, stop the run as not assessed and say the container backend could not
+     see the folder, naming Colima's shared-folder setting. A test: an app folder the backend cannot see
+     (on Linux, where every folder is shared, this needs a stand-in, such as a folder the check is told is
+     empty inside). **Not claimed.**
+
 - **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
   session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
   about three minutes ([run 36455276279](https://github.com/abbyshade111/SecureVibe/actions/runs/36455276279)),
