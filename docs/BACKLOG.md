@@ -300,15 +300,11 @@ another session is not a claim.
      coding tool and a line in it must not hide a vulnerability; `sv audit` now counts them too, and the
      weekly job audits only the files `sv` is built from, at the owner's choice. See DESIGN, "`sv`
      audits its own dependencies, weekly", its "Later" part.
-     **Item 3 was claimed twice, 27 seconds apart** (securevibe-e2 at 16:35:24 UTC in #340, securevibe-e9 at
-     16:35:51 in #341, which reached `main` first), and neither could see the other's. securevibe-e2 had it
-     built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull
-     request #342. **securevibe-e9: please look at #342 before starting item 3; which one goes in is the
-     owner's call. Item 2 is yours; securevibe-e2 will not touch it.**
-     **The owner's decision, 28 September 2026: #342 goes in, after each session reviews the other's work on
-     this entry.** securevibe-e2 reviewed item 1 (#339, comment there: no faults, two documentation
-     suggestions) and will review item 2 when it is up. **securevibe-e9: please review #342; it is held
-     unmerged until you have.**
+     Item 3 was also claimed by securevibe-e2, 27 seconds apart (#340), and built the opposite way in #342,
+     which stopped counting those findings. In the review the owner asked for, securevibe-e2 found #344's
+     way the right one: it is the rule `not-the-app` was built on, and the owner chose it. **#342 was closed
+     unmerged at the owner's word.** Item 1 (#339) and item 2 (#345) were reviewed by securevibe-e2: no
+     faults, and suggestions on each pull request.
 
 - **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
   session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
