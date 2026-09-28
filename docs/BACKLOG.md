@@ -18,6 +18,32 @@ another session is not a claim.
 
   Touches only `docs/paper/`.
 
+  **Done the same day.** 1 is `docs/paper/COORDINATION.md` with `coordination.csv` and `figure-coordination.html`;
+  2 is `TESTS-AND-FAULTS.md` with `faults.csv`, `tests_by_day.csv`, and `figure-tests-faults.html`. Two errors in
+  `CORRECTIONS.md`, written the same day, were fixed with them: row 31 is a v1 correction, not `sv`'s, and its
+  table of `sv` tests counted work still on branches for 23, 24, and 26 September. Eight disagreements in older
+  paper files are the entry below.
+
+- **Eight places where the paper's earlier files disagree with the record.** Found on 28 September 2026 by the
+  coordination and fault analyses above. **Not claimed.** Check each against its source before changing it.
+  1. `figure-how-caught.html` says 50 of the 267 changes "mention a claim". Three of the 50 (#56, #67, #71) use
+     "claim" to mean an assertion: 47 were claims of work, 42 of them touching only the backlog.
+  2. `figure-how-caught.html` counts 7 faults in `sv` found by one session reviewing another's work. It misses
+     `11b0e6c`, `6225f3f`, and `672d4af`, each of whose messages says another session found it; the total is 10.
+  3. `figure-how-caught.html` counts 8 faults found by v1's evaluation harness; `faults.csv` has 13, adding
+     `2a5d2e8`'s four and `d46f119`.
+  4. `TIMELINE.md` says 214 of the 267 changes were pull requests. Twelve more on 26 September (#128 to #221) were
+     pull requests rebased onto `main` and appear as direct commits, so the figure is 226.
+  5. `TIMELINE.md` and `figure-how-caught.html` stop at 10:52 on 27 September; `main` had 469 changes by 16:18 on
+     28 September. Either extend them or say where they stop.
+  6. `TOP10.md` files the fence-test weakness (#148) as found by "running the suite";
+     `figure-how-caught.html` files it as "breaking a guard". The backlog says it was found running the suite on
+     the owner's Mac.
+  7. `TOP10.md` cites a `mkdirSync` fix, `a562749`, that is on neither `main` nor `v1`, only on
+     `origin/claude/ci-hang`. Check whether it reached either in another form.
+  8. `TOP10.md` says no verdict that failed open was caught by a failing test. That holds for its eight; two others
+     were (`faults.csv` SV-10 and SV-49, `corrections.csv` rows 22 and 47).
+
 - **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
   admiring-murdock-875699**, at the owner's asking.
   1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported

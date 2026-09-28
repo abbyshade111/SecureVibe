@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coordination Cost</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --work: #c9c8c1; --coord: #2a78d6; --hot: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 16px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 170px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 4px 0 6px; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .chart { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 560px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .muted { fill: var(--text-muted); font-size: 11px; }
+  svg .ink { fill: var(--text-primary); font-size: 12px; }
+  svg .strong { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>What coordinating several AI sessions cost, and what it bought</h1>
+  <p class="sub">Several Claude Code sessions worked on the same repository at once. Keeping them out of each other's
+     way took a fifth of all changes, and most of the friction was in the one file they used to coordinate. Reading
+     each other's work found more faults than failing tests did. The full account is <code>COORDINATION.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b style="color:var(--coord)">93</b><span>of 469 changes to <code>main</code> did nothing but claim or release work</span></div>
+    <div class="stat"><b>31</b><span>of 56 conflicts resolved by hand were in the backlog alone</span></div>
+    <div class="stat"><b>28</b><span>faults found by one session reviewing another's work, against 9 by a failing test</span></div>
+  </div>
+
+  <h2>1. Changes to <code>main</code> each day</h2>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--coord)"></span>coordination only: a claim, a release, or a harness lock</span>
+    <span><span class="sw" style="background:var(--work)"></span>everything else</span>
+  </div>
+  <div class="chart"><svg id="days" viewBox="0 0 860 200" role="img" aria-label="Changes to main per day from 18 to 28 September, with coordination-only changes: 15 (0), 45 (0), 48 (2), 0, 10 (4), 12 (4), 37 (0), 57 (2), 118 (34), 89 (31), 38 (16)."></svg></div>
+
+  <h2>2. Conflicts resolved by hand</h2>
+  <p class="lede">Merges of <code>main</code> into a working branch that needed lines matching neither side.</p>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--hot)"></span>only in the backlog</span>
+    <span><span class="sw" style="background:var(--work)"></span>other files, with or without the backlog</span>
+  </div>
+  <div class="chart"><svg id="conf" viewBox="0 0 860 150" role="img" aria-label="Conflicts per day: 18 September 1, 24th 1, 25th 7, 26th 29, 27th 12, 28th 6; backlog only 0, 1, 2, 17, 8, 3."></svg></div>
+
+  <h2>3. How the project's 148 faults were found</h2>
+  <div class="chart"><svg id="how" viewBox="0 0 860 260" role="img" aria-label="Review by another session 28, the owner or real use 26, real input 21, building something else 19, v1's harness 13, CI tools 13, breaking a guard 10, a failing test 9, not recorded 9."></svg></div>
+
+  <p class="note">Sources: <code>coordination.csv</code>, one row per event with its commit, pull request, or backlog
+     line; <code>faults.csv</code> for section 3. The record runs from 09:32 on 18 September to 16:18 on 28 September
+     (Eastern). A change counts as coordination only when it touched nothing but the backlog and its title or branch
+     says it claims, releases, or locks. Conflicts resolved by taking one side whole leave no trace, so 56 is a floor.</p>
+</div>
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+  const days = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
+  const L = 70, R = 840, step = (R - L) / days.length, cx = (i) => L + step * (i + 0.5), BW = 38;
+  const axis = (s, B) => { mk(s, "line", { x1: L, x2: R, y1: B, y2: B, stroke: "var(--text-muted)" }); days.forEach((d, i) => mk(s, "text", { x: cx(i), y: B + 18, "text-anchor": "middle", class: "muted" }, i === 0 ? "18 Sep" : String(d))); };
+  const stack = (s, B, H, M, vals, colors) => vals.forEach((v, i) => { let y = B; v.forEach((n, k) => { if (!n) return; const h = n / M * H; mk(s, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), fill: colors[k], rx: 2 }); y -= h; }); const t = v.reduce((a, b) => a + b, 0); mk(s, "text", { x: cx(i), y: y - 6, "text-anchor": "middle", class: t ? "ink" : "muted" }, String(t)); });
+  const total = [15, 45, 48, 0, 10, 12, 37, 57, 118, 89, 38], coord = [0, 0, 2, 0, 4, 4, 0, 2, 34, 31, 16];
+  const s1 = document.getElementById("days"); axis(s1, 170);
+  stack(s1, 170, 140, 125, total.map((t, i) => [coord[i], t - coord[i]]), ["var(--coord)", "var(--work)"]);
+  coord.forEach((c, i) => { if (c >= 10) mk(s1, "text", { x: cx(i), y: 170 - c / 125 * 140 / 2 + 4, "text-anchor": "middle", style: "fill:#fff;font-size:11px;font-weight:600" }, String(c)); });
+  const bo = [0, 0, 0, 0, 0, 0, 1, 2, 17, 8, 3], all = [1, 0, 0, 0, 0, 0, 1, 7, 29, 12, 6];
+  const s2 = document.getElementById("conf"); axis(s2, 120);
+  stack(s2, 120, 90, 30, all.map((t, i) => [bo[i], t - bo[i]]), ["var(--hot)", "var(--work)"]);
+  const how = [["Another session's review", 28, "coord"], ["The owner, or real use", 26], ["Running it on real input", 21], ["Building something else", 19], ["v1's evaluation harness", 13], ["A tool in CI", 13], ["Breaking a guard on purpose", 10], ["A failing test", 9, "hot"], ["Not recorded", 9]];
+  const s3 = document.getElementById("how"), HX = 260, HW = 500;
+  how.forEach(([name, n, k], i) => {
+    const y = 6 + i * 27, cls = k ? "strong" : "ink";
+    mk(s3, "text", { x: 0, y: y + 14, class: cls }, name);
+    mk(s3, "rect", { x: HX, y, width: n / 28 * HW, height: 18, rx: 2, fill: k ? `var(--${k})` : "var(--text-muted)" });
+    mk(s3, "text", { x: HX + n / 28 * HW + 8, y: y + 14, class: cls }, String(n));
+  });
+})();
+</script>
+</body>
+</html>
