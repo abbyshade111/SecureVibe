@@ -346,6 +346,12 @@ impl Backend for DockerBackend {
             .iter()
             .filter_map(|request| self.probe(&via, &app, plan.port, request))
             .collect();
+        let mut liveness = vec![self.liveness(
+            &via,
+            &app,
+            plan,
+            "the questions asked as somebody not signed in",
+        )];
 
         // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
         //     those see the app as a stranger first; before the tests, which may change its data.
@@ -450,6 +456,16 @@ impl Backend for DockerBackend {
             outcome
         });
 
+        // Still up after everything else it was asked, while the sidecar can still ask it.
+        if signed_in.is_some() || oidc.is_some() || ai.is_some() {
+            liveness.push(self.liveness(
+                &via,
+                &app,
+                plan,
+                "the signed-in, sign-in, and AI questions as well",
+            ));
+        }
+
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
         // after the probes.
@@ -545,6 +561,7 @@ impl Backend for DockerBackend {
             oidc,
             ai,
             left_over_removed,
+            liveness,
         })
     }
 }
@@ -1148,6 +1165,59 @@ impl DockerBackend {
                 "no-new-privileges",
                 PROBE_IMAGE,
             ],
+        }
+    }
+
+    /// Whether the app is still running and answering, after `after`.
+    ///
+    /// Read from `docker inspect` and one request to the health path, tried three times two seconds
+    /// apart so a moment of slowness is not taken for a stopped app.
+    fn liveness(
+        &self,
+        via: &Via,
+        app: &str,
+        plan: &RunPlan,
+        after: &str,
+    ) -> sv_check::running::Liveness {
+        let state = self
+            .docker(&[
+                "inspect",
+                "-f",
+                "{{.State.Status}} {{.RestartCount}} {{.State.ExitCode}} {{.State.OOMKilled}}",
+                app,
+            ])
+            .ok()
+            .filter(|(code, _)| *code == 0)
+            .map(|(_, out)| out)
+            .unwrap_or_default();
+        let words: Vec<&str> = state.split_whitespace().collect();
+        let (status, restarts, exit_code, out_of_memory) = match words.as_slice() {
+            [status, restarts, exit_code, oom] => (
+                (*status).to_owned(),
+                restarts.parse().unwrap_or(0),
+                exit_code.parse().unwrap_or(0),
+                *oom == "true",
+            ),
+            _ => (String::new(), 0, 0, false),
+        };
+        let url = format!("http://{app}:{}{}", plan.port, plan.health_path);
+        let answered = status == "running"
+            && (0..3).any(|attempt| {
+                if attempt > 0 {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                }
+                matches!(
+                    self.inside_fence(via, &["wget", "-q", "-T", "5", "-O", "/dev/null", &url]),
+                    Ok((0, _))
+                )
+            });
+        sv_check::running::Liveness {
+            after: after.to_owned(),
+            status,
+            restarts,
+            exit_code,
+            out_of_memory,
+            answered,
         }
     }
 

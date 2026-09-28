@@ -580,6 +580,16 @@ another session is not a claim.
      running-app half of V15.2.3 (debug consoles that answer), committed model files opened by their
      contents (C4.1.2), `ollama pull` and model-server images (C6.1.3), and the model name the app really
      sent (C3.2.3), which goes with the AI checks.
+     **V8.4.2, V10.4.4, V13.4.7, and V16.5.4 done the same day** (`crates/sv-check/src/running.rs`), each only ever a
+     finding: `probe.admin-opened-by-address` (an admin page named in `[stack.run.users]` shut to a stranger and
+     open with `X-Forwarded-For: 127.0.0.1`; made in `probes`' anonymous requests, so `signed_in/` is untouched),
+     `probe.retired-grants-offered` (the password or implicit grant in the sign-in settings the app publishes at
+     `/.well-known/`), `probe.private-files-served` (up to sixteen settings, key, dump, build, and server-code files
+     from the app's folder, asked for by name and judged by their own first 200 characters), and
+     `probe.app-stopped-during-questions` (the container read after the anonymous questions and again after the
+     rest; `crates/sv-run/tests/stays_up.rs` runs a fixture that a request stops, with Docker in CI). Not done from
+     the proposals: the static half of V10.4.4 (grant settings in code), the static half of V13.4.7 (a static-file
+     handler pointed at the app's folder), and the error-handler signals for V16.5.4.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.

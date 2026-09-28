@@ -29,9 +29,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 143 can be checked, 7 where a check helps but a person decides, and 195 with no check.
+345 requirements: 147 can be checked, 7 where a check helps but a person decides, and 191 with no check.
 
-### Level 1 (70 requirements, 55 can be checked)
+### Level 1 (70 requirements, 56 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -138,7 +138,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V10.4.1** Verify that the authorization server validates redirect URIs based on a client-specific allowlist of pre-registered URIs using exact string comparison. | No check | – |
 | **V10.4.2** Verify that, if the authorization server returns the authorization code in the authorization response, it can be used only once for a token request. For the second valid request with an authorization code that has already been used to issue an access token, the authorization server must reject a token request and revoke any issued tokens related to the authorization code. | No check | – |
 | **V10.4.3** Verify that the authorization code is short-lived. The maximum lifetime can be up to 10 minutes for L1 and L2 applications and up to 1 minute for L3 applications. | No check | – |
-| **V10.4.4** Verify that for a given client, the authorization server only allows the usage of grants that this client needs to use. Note that the grants 'token' (Implicit flow) and 'password' (Resource Owner Password Credentials flow) must no longer be used. | No check | – |
+| **V10.4.4** Verify that for a given client, the authorization server only allows the usage of grants that this client needs to use. Note that the grants 'token' (Implicit flow) and 'password' (Resource Owner Password Credentials flow) must no longer be used. | Can be checked | The running app: `probe.retired-grants-offered`, if it fails: An app using the password grant sees every user's password, and a token sent the implicit way can be read by anything that sees the address. Both are why V10.4.4 says they must no longer be used. (found failing only) |
 | **V10.4.5** Verify that the authorization server mitigates refresh token replay attacks for public clients, preferably using sender-constrained refresh tokens, i.e., Demonstrating Proof of Possession (DPoP) or Certificate-Bound Access Tokens using mutual TLS (mTLS). For L1 and L2 applications, refresh token rotation may be used. If refresh token rotation is used, the authorization server must invalidate the refresh token after usage, and revoke all refresh tokens for that authorization if an already used and invalidated refresh token is provided. | No check | – |
 
 #### V11 Cryptography
@@ -448,7 +448,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V17.3.1** Verify that the signaling server is able to continue processing legitimate incoming signaling messages during a flood attack. This should be achieved by implementing rate limiting at the signaling level. | No check | – |
 | **V17.3.2** Verify that the signaling server is able to continue processing legitimate signaling messages when encountering malformed signaling message that could cause a denial of service condition. This could include implementing input validation, safely handling integer overflows, preventing buffer overflows, and employing other robust error-handling techniques. | No check | – |
 
-### Level 3 (92 requirements, 16 can be checked)
+### Level 3 (92 requirements, 19 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -534,7 +534,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V8.2.4** Verify that adaptive security controls based on a consumer's environmental and contextual attributes (such as time of day, location, IP address, or device) are implemented for authentication and authorization decisions, as defined in the application's documentation. These controls must be applied when the consumer tries to start a new session and also during an existing session. | No check | – |
 | **V8.3.2** Verify that changes to values on which authorization decisions are made are applied immediately. Where changes cannot be applied immediately, (such as when relying on data in self-contained tokens), there must be mitigating controls to alert when a consumer performs an action when they are no longer authorized to do so and revert the change. Note that this alternative would not mitigate information leakage. | No check | – |
 | **V8.3.3** Verify that access to an object is based on the originating subject's (e.g. consumer's) permissions, not on the permissions of any intermediary or service acting on their behalf. For example, if a consumer calls a web service using a self-contained token for authentication, and the service then requests data from a different service, the second service will use the consumer's token, rather than a machine-to-machine token from the first service, to make permission decisions. | No check | – |
-| **V8.4.2** Verify that access to administrative interfaces incorporates multiple layers of security, including continuous consumer identity verification, device security posture assessment, and contextual risk analysis, ensuring that network location or trusted endpoints are not the sole factors for authorization even though they may reduce the likelihood of unauthorized access. | No check | – |
+| **V8.4.2** Verify that access to administrative interfaces incorporates multiple layers of security, including continuous consumer identity verification, device security posture assessment, and contextual risk analysis, ensuring that network location or trusted endpoints are not the sole factors for authorization even though they may reduce the likelihood of unauthorized access. | Can be checked | The running app: `probe.admin-opened-by-address`, if it fails: Anyone on the internet can add those headers, so the admin pages are open to anyone who thinks to. Where the request came from is the only thing guarding them. (found failing only) |
 
 #### V10 OAuth and OIDC
 
@@ -582,7 +582,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V13.3.3** Verify that all cryptographic operations are performed using an isolated security module (such as a vault or hardware security module) to securely manage and protect key material from exposure outside of the security module. | No check | – |
 | **V13.3.4** Verify that secrets are configured to expire and be rotated based on the application's documentation. | No check | – |
 | **V13.4.6** Verify that the application does not expose detailed version information of backend components. | Can be checked | The running app: `probe.version-disclosed`, if it fails: A version number tells an attacker which published weaknesses to try first, without having to guess. |
-| **V13.4.7** Verify that the web tier is configured to only serve files with specific file extensions to prevent unintentional information, configuration, and source code leakage. | No check | – |
+| **V13.4.7** Verify that the web tier is configured to only serve files with specific file extensions to prevent unintentional information, configuration, and source code leakage. | Can be checked | The running app: `probe.private-files-served`, if it fails: Anyone can download them. A settings file or key hands over the passwords and keys in it; server code shows exactly where to look for weaknesses; a dump or backup can hold every user's data. (found failing only) |
 
 #### V14 Data Protection
 
@@ -610,7 +610,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **V16.5.4** Verify that a "last resort" error handler is defined which will catch all unhandled exceptions. This is both to avoid losing error details that must go to log files and to ensure that an error does not take down the entire application process, leading to a loss of availability. | No check | – |
+| **V16.5.4** Verify that a "last resort" error handler is defined which will catch all unhandled exceptions. This is both to avoid losing error details that must go to log files and to ensure that an error does not take down the entire application process, leading to a loss of availability. | Can be checked | The running app: `probe.app-stopped-during-questions`, if it fails: Anyone who sends the same request can stop the app for everyone, as often as they like, and the error that did it may never reach the logs. (found failing only) |
 
 #### V17 WebRTC
 
