@@ -35,7 +35,9 @@ const LEAKED: Rule = Rule {
 
 const FETCHED: Rule = Rule {
     rule_id: "probe.ai-output-fetched",
-    requirement_ids: &["C7.3.3"],
+    // C9.3.7 as well: an address the model wrote, invoked with no allow-list, is the resource
+    // "named in model output" it asks to be checked first. Only ever a finding, like C7.3.3 here.
+    requirement_ids: &["C7.3.3", "C9.3.7"],
     cwe: &["CWE-918"],
     impact: "An address a model writes into its reply is an address anybody who can steer the model \
              chooses. Fetching it, or letting the page load it as an image, sends a request — and \
@@ -87,7 +89,9 @@ const KILL_SWITCH: Rule = Rule {
 
 const MCP_UNVALIDATED: Rule = Rule {
     rule_id: "probe.ai-mcp-output-unvalidated",
-    requirement_ids: &["C10.4.1"],
+    // C9.3.2 asks that tool outputs are validated against schemas; for tools reached over MCP that
+    // is what this tests, with the same control, so it speaks to that part of it.
+    requirement_ids: &["C10.4.1", "C9.3.2"],
     cwe: &["CWE-20"],
     impact: "A tool's result that does not match the shape the tool promised is passed to the model \
              as if it did, so a broken or hostile MCP server decides what the model is told.",
@@ -619,7 +623,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     // 7. C10.4.1 and C10.4.2, when the feature gives the model tools from an MCP server: the test
     //    model asks for the test MCP server's tool, which answers with a clean result (the control),
     //    one that breaks its declared schema, and one carrying an injected instruction.
-    const MCP_IDS: &str = "C10.4.1, C10.4.2";
+    const MCP_IDS: &str = "C10.4.1, C10.4.2, C9.3.2";
     if let Some(env) = &section.mcp_url_env {
         let mut probe = |http: &mut dyn Http, n: u32, kind: &str| {
             let (t, answer) = ask(http, n, kind, "Could you look that up for me?");
@@ -666,7 +670,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
             );
         } else {
             for (n, kind, rule, id) in [
-                (7, "MCPBAD", &MCP_UNVALIDATED, "C10.4.1"),
+                (7, "MCPBAD", &MCP_UNVALIDATED, "C10.4.1, C9.3.2"),
                 (8, "MCPINJECT", &MCP_UNSCREENED, "C10.4.2"),
             ] {
                 let (t, answer, seen) = probe(http, n, kind);
@@ -3212,6 +3216,62 @@ mod tests {
     }
 
     #[test]
+    fn tool_results_checked_against_their_schema_speak_to_c9_3_2_both_ways() {
+        // Credited when the app keeps a result that breaks its schema from the model...
+        let careful = ask_mcp(Flaws::default());
+        let credit = careful
+            .verified
+            .iter()
+            .find(|v| v.check_id == MCP_UNVALIDATED.rule_id)
+            .expect("the control: a careful app is credited");
+        assert!(
+            credit.requirement_ids.iter().any(|q| q == "C9.3.2"),
+            "{credit:?}"
+        );
+        // ...and found failing when it passes one on.
+        let careless = ask_mcp(Flaws {
+            mcp_unvalidated: true,
+            ..Default::default()
+        });
+        let f = careless
+            .findings
+            .iter()
+            .find(|f| f.rule_id == MCP_UNVALIDATED.rule_id)
+            .expect("the unchecked result is found");
+        assert!(f.requirement_ids.iter().any(|q| q == "C9.3.2"), "{f:?}");
+        // Without a test MCP server, C9.3.2 is said as not assessed, never left silent.
+        let unasked = ask(Flaws::default());
+        assert!(
+            !why(&unasked, "C9.3.2").is_empty(),
+            "{:?}",
+            unasked.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_address_the_model_wrote_and_the_app_fetched_is_found_against_c9_3_7() {
+        let o = ask(Flaws {
+            fetches_images: true,
+            ..Default::default()
+        });
+        let f = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == FETCHED.rule_id)
+            .expect("the fetch is found");
+        assert!(f.requirement_ids.iter().any(|q| q == "C9.3.7"), "{f:?}");
+        // The control: an app that fetches nothing is never credited for it, since the page may
+        // still load the address in the browser.
+        let careful = ask(Flaws::default());
+        assert!(
+            !careful
+                .verified
+                .iter()
+                .any(|v| v.requirement_ids.iter().any(|q| q == "C9.3.7"))
+        );
+    }
+
+    #[test]
     fn an_app_that_checks_and_screens_its_tool_results_is_credited_for_both() {
         let o = ask_mcp(Flaws::default());
         assert!(
@@ -3308,6 +3368,11 @@ mod tests {
         assert!(
             mcp_why(&o).iter().any(|w| w.contains("mcp-url-env")),
             "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            why(&o, "C9.3.2").iter().any(|w| w.contains("mcp-url-env")),
+            "C9.3.2 is left silent: {:?}",
             o.not_assessed
         );
         assert!(!o.steps.iter().any(|s| s.contains("MCP")));

@@ -72,14 +72,14 @@ RUST_CHECKS = {
     "probe.error-detail-leak": ("running", ["V13.4.2", "V16.5.1"]),
     "probe.trace-enabled": ("running", ["V13.4.4"]),
     "probe.ai-instructions-leaked": ("running", ["C7.3.2"]),
-    "probe.ai-output-fetched": ("running", ["C7.3.3"]),
+    "probe.ai-output-fetched": ("running", ["C7.3.3", "C9.3.7"]),
     "probe.ai-output-unbounded": ("running", ["C7.1.2"]),
     "probe.ai-injection-unscreened": ("running", ["C2.1.3"]),
     "probe.ai-call-log-incomplete": ("running", ["C12.1.3"]),
     "probe.ai-injection-logged": ("running", ["C12.2.1"]),
     "probe.ai-rate-unlimited": ("running", ["C11.2.2"]),
     "probe.ai-kill-switch-ignored": ("running", ["C9.6.1"]),
-    "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1"]),
+    "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1", "C9.3.2"]),
     "probe.ai-mcp-injection-unscreened": ("running", ["C10.4.2"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
@@ -176,7 +176,11 @@ RUST_CHECKS = {
 
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
-RUST_FINDINGS_ONLY = {"config.workflow-secrets-with-fork-code", "probe.role-field-trusted"}
+RUST_FINDINGS_ONLY = {
+    "config.workflow-secrets-with-fork-code",
+    "probe.role-field-trusted",
+    "probe.ai-output-fetched",
+}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the two ids `sv init` prints as
