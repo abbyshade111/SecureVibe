@@ -51,7 +51,8 @@ another session is not a claim.
      is installed, which the report could say, or the marker could be read). Test: a `pyproject.toml` project
      with a hash-pinned `requirements.lock`, `--hash` lines and one marker line included, gives components, no
      `config.versions-pinned` finding, and `advisory.` as `ran` when the database covers PyPI; remove the new
-     entry and it goes red. **Not claimed.**
+     entry and it goes red. **Claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to
+     pick a backlog item, in branch `claude/securevibe-e2-pyproject-lock`.
   2. **One large data file blocks two checks for the whole app.** `MAX_FILE_BYTES` (2 MB,
      `crates/sv-scan/src/files.rs`; checked) is the largest file any check reads. cato vendors NIST's SP 800-53
      catalog at `oscal/catalogs/nist-800-53-rev5/catalog.json`: 10 MB of standards text, no code, no
