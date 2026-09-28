@@ -172,6 +172,13 @@ another session is not a claim.
       comparison once, by hand. A weekly job running `sv audit .` against a downloaded OSV export, or
       `cargo audit`, belongs with the weekly review entry above.
       **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to pick an item.
+      **Done the same day:** `.github/workflows/audit.yml` runs `sv audit .` against OSV's crates.io export
+      weekly and when a lockfile or manifest changes. `sv audit` now respects `not-the-app` and exits 0,
+      1, or 2 for clean, found, and not fully compared. `sv`'s 68 crates matched none of 2,858 records.
+      See DESIGN, "`sv` audits its own dependencies, weekly". Three faults found on the way are entries
+      of their own below: the report's bill of materials ignores `not-the-app`, an ecosystem counts as
+      covered by a database that only mentions it in passing, and one vulnerability under two names is
+      counted twice.
   13. **`signed_in.rs` is 15,351 lines**, with 231 tests and one fake app carrying about eighty flaw
       switches; `ai.rs` is 3,338. A session touching one check reads all of it, and every session's
       change to a check lands in the same file, which is where this week's merge conflicts were. Split by
@@ -259,6 +266,26 @@ another session is not a claim.
       - Step 0: not claimed.
       - Step 1: slices a to h, not claimed.
       - Step 2: not claimed.
+
+- **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
+  September 2026 by session securevibe-e9, doing review item 12. **Not claimed; each can be claimed on its
+  own.**
+  1. **An ecosystem counts as covered by a database that only mentions it in passing.** `audit_against`
+     (`crates/sv-check/src/advisories.rs`) treats an ecosystem as covered when any record in the database
+     names it. OSV's crates.io export holds 28 records that also name PyPI packages, so with only that
+     export, a Python app's packages are "compared" against 28 records and can be reported as matching
+     nothing, when nothing about Python was loaded. Reproduced with the export downloaded that day. An
+     ecosystem should count as covered only when the database holds a record about it and nothing else, as
+     every per-ecosystem export does.
+     **Claimed on 28 September 2026 by session securevibe-e9.** The fix was written before this claim, in
+     branch `claude/securevibe-e9-osv-coverage`, while waiting for the entry itself to reach `main`.
+  2. **One vulnerability under two names is counted twice.** An advisory published as both a GitHub
+     advisory and a PyPI one (`GHSA-wvwj-cvrp-7pv5` and `PYSEC-2026-287`, which list each other as
+     aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
+     vulnerability once, naming every id it goes by.
+  3. **`sv report --advisories` does not respect `not-the-app`.** It builds its own bill of materials from
+     the whole folder, so on this repository the report still counts the example app's vulnerabilities
+     against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session

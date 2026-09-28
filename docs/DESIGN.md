@@ -4772,3 +4772,25 @@ Both are fixed in `crates/sv-run/src/lib.rs`.
   Where a process cannot be asked about, it counts as running, so nothing is removed on a guess. Tested against
   real containers: a run killed with `kill -9` leaves its app and network (the control), and the next
   `sv run`, and the next `sv report --run`, each remove them and name them.
+
+## `sv` audits its own dependencies, weekly (28 September 2026)
+
+Review item 12: `sv` holds apps to V15.2.1 and did not hold itself. `.github/workflows/audit.yml` now runs
+`sv audit .` against OSV's export of known vulnerabilities in Rust crates every Monday, and whenever
+`Cargo.lock` or a `Cargo.toml` changes. The workflow downloads the export; `sv` still fetches nothing.
+
+Two changes to `sv audit` made that possible, and both apply to every app, not only to `sv`:
+
+- **It respects `not-the-app`.** Run on this repository before, it counted 39 known vulnerabilities, every
+  one from `examples/flask-booking`, an example app, and it called the list incomplete because of test
+  fixtures' lockfiles it cannot read. The folder listing is now split by securevibe.toml's `not-the-app`
+  (`Listing::split`) before the bill of materials is built. What is in those folders is still compared and
+  listed apart, one line per vulnerability, and neither counts against the app nor makes its list incomplete.
+- **Its exit status says what it found.** 0 only when everything was compared and nothing matched; 1 for a
+  known vulnerability in the app; 2 when the comparison did not cover the whole app. It used to be 0 in
+  every case, which a CI job cannot act on, and "not assessed" must never read as clean.
+
+On 28 September 2026, against the crates.io export (2,858 records), `sv`'s 68 crates matched none.
+
+Still not covered: `sv report --advisories` builds its own bill of materials, which does not yet respect
+`not-the-app`; see the backlog.

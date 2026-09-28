@@ -1,0 +1,58 @@
+# `sv` holds the apps it checks to V15.2.1 (no component with a known vulnerability past the time frame for
+# fixing it), and this holds `sv` to it too: `sv audit` on this repository, against OSV's list of known
+# vulnerabilities in Rust crates, downloaded fresh each run.
+#
+# Weekly, because a crate nobody touched can have a vulnerability published against it on any day; and
+# whenever Cargo.lock changes, so an update that brings one in is caught before it merges. `sv` itself
+# fetches nothing: downloading the list is this workflow's step, as it is the owner's step anywhere else.
+#
+# The folders securevibe.toml says are not the app (the example apps and the test fixtures, some of them
+# vulnerable on purpose) are compared too and listed apart; they do not fail the job, since none of them
+# ships. The job fails on `sv audit`'s status: 1 for a known vulnerability in `sv`'s own crates, 2 for a
+# comparison that did not cover all of them. Only 0, everything compared and nothing matched, passes.
+#
+# Every step is pinned to an exact commit fingerprint, as in rust.yml.
+
+name: Audit
+
+on:
+  schedule:
+    - cron: '0 7 * * 1' # Mondays, 07:00 UTC, an hour after CodeQL's weekly run.
+  push:
+    branches: [main]
+    paths: ['Cargo.lock', 'Cargo.toml', 'crates/*/Cargo.toml', '.github/workflows/audit.yml']
+  pull_request:
+    paths: ['Cargo.lock', 'Cargo.toml', 'crates/*/Cargo.toml', '.github/workflows/audit.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use the toolchain this workspace needs
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - name: Build sv
+        run: cargo build --release --locked -p sv-cli
+
+      - name: Download OSV's known vulnerabilities in Rust crates
+        # The whole export for the ecosystem, not a query about this repository's crates: the list of
+        # what a project depends on is its own business, and a query would tell the service.
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            -o "$RUNNER_TEMP/osv-crates.zip" \
+            https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip
+          mkdir -p "$RUNNER_TEMP/osv"
+          unzip -q "$RUNNER_TEMP/osv-crates.zip" -d "$RUNNER_TEMP/osv"
+          echo "records: $(ls "$RUNNER_TEMP/osv" | wc -l)"
+
+      - name: Audit sv's own crates
+        run: ./target/release/sv audit . --advisories "$RUNNER_TEMP/osv"
