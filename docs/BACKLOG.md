@@ -78,7 +78,11 @@ another session is not a claim.
      The `Server` struct holds only its root. Fix: load once per process, in `Server` for the MCP server
      and at the top of `main` for the CLI, and measure the difference; most of the second above is this.
      **Claimed 27 September 2026 by session securevibe-e8**, at the owner's asking, in branch
-     `claude/load-once`.
+     `claude/load-once`. **Done the same day**, and the premise corrected: the JSON was 5 ms of the
+     second, and 873 ms was tree-sitter compiling 143 queries in fifteen languages for every command.
+     Queries now compile the first time their language is met and are kept for the process; the MCP
+     server loads everything once in `Server`. `sv check` on a small app 957 ms → 30 ms; on this
+     repository 2.33 s → 1.93 s. See DESIGN, "The second before the first file".
   7. **The app folder is walked six times per report, the bill of materials is built two or three
      times, and every source file is lowercased once per signature.** The walks: secrets, the code
      rules, the corroborators, the tools' file list, the test finder, and the ecosystems. `sbom::build`

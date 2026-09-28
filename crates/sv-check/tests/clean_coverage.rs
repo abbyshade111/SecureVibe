@@ -381,7 +381,11 @@ fn rules_with_a_broken_query(name: &str) -> ast::AstRules {
 fn a_rule_whose_query_will_not_compile_is_named_and_stops_every_rule_claiming() {
     // The setup: the sound rule, on its own, claims a clean Python app.
     let clean_python = ("app.py", "def home():\n    return 'hi'\n");
-    let alone = scan_with(&partly_taught_rules("broken-control"), "broken-control", &[clean_python]);
+    let alone = scan_with(
+        &partly_taught_rules("broken-control"),
+        "broken-control",
+        &[clean_python],
+    );
     assert!(
         verified_ids(&alone.verified).contains(&"t.python-only"),
         "the setup is wrong: the sound rule must claim a Python-only app on its own"
@@ -390,7 +394,10 @@ fn a_rule_whose_query_will_not_compile_is_named_and_stops_every_rule_claiming() 
     // Beside a rule whose Python query will not compile, it claims nothing: the broken rule did not
     // run, and a rule that did not run cannot be told from one that found nothing.
     let rules = rules_with_a_broken_query("broken");
-    assert!(rules.compile_all().is_err(), "the setup is wrong: the query must be uncompilable");
+    assert!(
+        rules.compile_all().is_err(),
+        "the setup is wrong: the query must be uncompilable"
+    );
     let scan = scan_with(&rules, "broken", &[clean_python, ("b.py", "x = 1\n")]);
     assert_eq!(scan.files_parsed, 2, "both files were read");
     assert_eq!(
