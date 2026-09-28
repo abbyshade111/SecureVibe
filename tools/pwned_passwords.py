@@ -14,7 +14,7 @@ padded with made-up entries (seen 0 times, and ignored here), so its size says n
 range either.
 
 The default run re-checks the password `sv` tries at sign-up for V6.2.12 (`BREACHED` in
-`crates/sv-check/src/signed_in.rs`, read from there so the two cannot drift) and rewrites
+`crates/sv-check/src/signed_in/passwords.rs`, read from there so the two cannot drift) and rewrites
 `data/breached-password-evidence.json` with the count and today's date. The report's V6.2.12 wording
 is built from that file, so it follows without an edit. If the password is no longer in the data,
 nothing is written and the script fails: the finding would then call a password breached with no
@@ -43,7 +43,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-SIGNED_IN = ROOT / "crates" / "sv-check" / "src" / "signed_in.rs"
+SIGNED_IN = ROOT / "crates" / "sv-check" / "src" / "signed_in" / "passwords.rs"
 EVIDENCE = ROOT / "data" / "breached-password-evidence.json"
 COMMON = ROOT / "data" / "knowledge" / "common-passwords.txt"
 SAMPLE_OUT = ROOT / "data" / "common-passwords-breach-sample.json"
@@ -93,7 +93,9 @@ def fetch_range(prefix: str) -> dict:
 
 
 def breached_constant() -> str:
-    found = re.findall(r'^const BREACHED: &str = "([^"\\]+)";$', SIGNED_IN.read_text(), re.M)
+    found = re.findall(
+        r'^(?:pub\(super\) )?const BREACHED: &str = "([^"\\]+)";$', SIGNED_IN.read_text(), re.M
+    )
     if len(found) != 1:
         sys.exit(f"could not find the one `const BREACHED` in {SIGNED_IN.relative_to(ROOT)}")
     return found[0]
@@ -112,8 +114,9 @@ def refresh(today: str) -> None:
     new = {
         "_comment": (
             "Why the V6.2.12 sign-up probe may call its password breached. `password` is BREACHED "
-            "in crates/sv-check/src/signed_in.rs, and a test there fails if the two differ, so the "
-            "password cannot be changed without new evidence. `sha1` is the password's SHA-1; "
+            "in crates/sv-check/src/signed_in/passwords.rs, and a test there fails if the two "
+            "differ, so the password cannot be changed without new evidence. `sha1` is the "
+            "password's SHA-1; "
             "Pwned Passwords is asked for the range of its first five characters and answers with "
             "every suffix in that range and how often each was seen, so the password itself is "
             "never sent. `line` is the one in that range whose suffix is the rest of `sha1`. "
