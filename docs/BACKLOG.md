@@ -263,7 +263,9 @@ another session is not a claim.
       item.
 
       **Claims:**
-      - Step 0: not claimed.
+      - Step 0: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to pick
+        another item, in branch `claude/securevibe-e2-split-step0`. `signed_in.rs` is frozen from this
+        claim's merge until step 2 is done.
       - Step 1: slices a to h, not claimed.
       - Step 2: not claimed.
 
