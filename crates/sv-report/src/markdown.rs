@@ -557,7 +557,7 @@ pub fn security(report: &Report) -> String {
         out.push('\n');
     }
 
-    let set_aside = crate::false_alarm_lines(report);
+    let set_aside = crate::false_alarm_entries(report);
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
         out.push_str("## Set aside by a person\n\n");
         if !set_aside.is_empty() {
@@ -566,10 +566,12 @@ pub fn security(report: &Report) -> String {
                  They are not counted below. A requirement one of them was about is not credited \
                  for it: it is shown by whatever else is known about it, never as checked.\n\n",
             );
-            for line in &set_aside {
-                out.push_str(&format!("- {line}\n"));
+            for (line, report_it) in &set_aside {
+                out.push_str(&format!(
+                    "- {line} [Report it against the rule]({report_it})\n"
+                ));
             }
-            out.push('\n');
+            out.push_str(&format!("\n{}\n\n", crate::FALSE_ALARM_WHY));
         }
         if !report.reviews_not_counted.is_empty() {
             out.push_str(
