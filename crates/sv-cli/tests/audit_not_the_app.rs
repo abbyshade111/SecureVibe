@@ -172,3 +172,39 @@ fn an_app_whose_own_list_is_incomplete_is_status_2_where_an_examples_is_not() {
     assert!(text.contains("list itself is incomplete"), "{text}");
     assert_eq!(code, Some(2), "{text}");
 }
+
+#[test]
+fn a_database_that_only_mentions_an_ecosystem_in_passing_does_not_cover_it() {
+    // The app's own Python packages, and a database about npm whose one other record also names a
+    // PyPI package, as OSV's per-ecosystem exports do for packages published to both.
+    let (dir, osv) = setup("passing", NOT_THE_APP, &[("express", "4.21.2")]);
+    std::fs::write(dir.join("requirements.txt"), "flask==3.0.0\n").unwrap();
+    std::fs::write(
+        osv.join("GHSA-both.json"),
+        r#"{"id":"GHSA-both","affected":[
+            {"package":{"ecosystem":"npm","name":"left-pad"},
+             "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"0.1"}]}]},
+            {"package":{"ecosystem":"PyPI","name":"left-pad"},
+             "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"0.1"}]}]}]}"#,
+    )
+    .unwrap();
+    let (code, text) = audit(&dir, Some(&osv));
+    // The control: a record about PyPI alone covers it, and the same app is then clean.
+    std::fs::write(
+        osv.join("PYSEC-only.json"),
+        r#"{"id":"PYSEC-only","affected":[{"package":{"ecosystem":"PyPI","name":"django"},
+            "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"1.0"}]}]}]}"#,
+    )
+    .unwrap();
+    let (covered, covered_text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+    assert!(text.contains("holds nothing about Python"), "{text}");
+    assert_eq!(code, Some(2), "{text}");
+    // Still 2 then, for another reason the output gives: a requirements.txt is not a lockfile, so
+    // the list is incomplete. What changes is that Python counts as compared.
+    assert!(
+        !covered_text.contains("holds nothing about Python"),
+        "{covered_text}"
+    );
+    assert_eq!(covered, Some(2), "{covered_text}");
+}
