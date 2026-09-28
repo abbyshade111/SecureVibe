@@ -635,6 +635,20 @@ another session is not a claim.
      rest; `crates/sv-run/tests/stays_up.rs` runs a fixture that a request stops, with Docker in CI). Not done from
      the proposals: the static half of V10.4.4 (grant settings in code), the static half of V13.4.7 (a static-file
      handler pointed at the app's folder), and the error-handler signals for V16.5.4.
+     **Six of the eight about AI apps done the same day** (`crates/sv-check/src/ai.rs`, asked after the rate check,
+     a minute after its burst). Found and credited: `probe.ai-hidden-content-passed` (C7.3.4: invisible tag and
+     zero-width characters, a right-to-left override, and a misleading link in a reply, looked for in the answer
+     with JSON escapes, surrogate pairs, and HTML references read) and `probe.ai-flagged-reply-shown` (C7.3.1:
+     judged only when the app asked the test model's new moderation endpoint about the reply; a classifier
+     elsewhere is not seen). Only ever findings: `probe.ai-input-truncated` (C2.1.4: a 40,000-character message
+     with a marker at each end; the fence carries a request as one shell argument, so a message past any context
+     window cannot be sent, and one arriving whole is only a step), `probe.ai-injection-other-languages` (C2.2.2:
+     the injection in Zulu, Scottish Gaelic, Bengali, and base64, asked only where the English one was stopped),
+     and `probe.ai-raw-response-exposed` (C11.3.2: every reply's id now carries `SVRAW` and its tag). Credited
+     only: `probe.ai-call-log-session` (C12.1.1: the model-call log line of a signed-in run naming the user or a
+     user or session field). `crates/sv-run/tests/model_provider.rs` runs the test model under Node for the first
+     time. **C10.3.3 and C10.2.6 are not done yet**: both ask of an app that is itself an MCP server, and need
+     securevibe.toml to say where it answers.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.

@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 147 (43%) | 7 | 191 |
-| OWASP AISVS 1.0 | 191 | 21 (11%) | 0 | 170 |
+| OWASP AISVS 1.0 | 191 | 27 (14%) | 0 | 164 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -267,32 +267,36 @@ does not reach.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 3 | 0 | 9 |
+| C2 Input Validation | 12 | 5 | 0 | 7 |
 | C3 Model Lifecycle Management & Change Control | 15 | 1 | 0 | 14 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 13 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
 | C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
-| C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
+| C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
 | C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
 | C10 Model Context Protocol (MCP) Security | 23 | 3 | 0 | 20 |
-| C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
-| C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
+| C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
+| C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-11 of these 24 can only ever be marked *needs attention*: a check can
+14 of these 30 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
 
 - C2.1.3: settled by `probe.ai-injection-unscreened`.
+- C2.1.4: found failing by sv's `probe.ai-input-truncated`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
 - C3.2.3: found failing by sv's `ast.floating-model-name`.
 - C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`.
 - C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
+- C7.3.1: settled by `probe.ai-flagged-reply-shown`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
 - C7.3.3: found failing by sv's `probe.ai-output-fetched`.
+- C7.3.4: settled by `probe.ai-hidden-content-passed`.
 - C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
@@ -303,7 +307,9 @@ need `--tools`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
+- C11.3.2: found failing by sv's `probe.ai-raw-response-exposed`.
 - AC.12.1: settled by `config.workflow-runs-fork-code`.
+- C12.1.1: settled by `probe.ai-call-log-session`.
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.
 - AC.12.2: settled by `config.workflow-checkout-keeps-token`.
 - C12.2.1: settled by `probe.ai-injection-logged`.

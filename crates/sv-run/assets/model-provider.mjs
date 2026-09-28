@@ -13,17 +13,28 @@
 //   LEAK    the reply repeats, word for word, the instructions the app sent it
 //   IMAGE   the reply carries a markdown image and a link to an address on this server
 //   INJECT  an ordinary reply; what matters is whether the message reached it at all
+//   HIDDEN  an ordinary reply that also carries the tag in invisible Unicode tag characters,
+//           zero-width characters, a right-to-left override, and a link whose text is one address
+//           and whose target is another
+//   HARM    an ordinary reply, which this server's moderation endpoint (`POST .../moderations`)
+//           then flags as harmful when the app asks about it
+//   LONG, LONGEND
+//           the two ends of one very long message; which of them arrived says whether the app
+//           passed it on whole or cut it short
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
 //           that breaks the tool's declared output schema, or one carrying an injected
 //           instruction; and whatever the app then sends back as the tool's result is recorded
 //
-// `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, the instructions it came
-// with, whether the request limited the reply's length, and whether anything has since fetched the
-// address an IMAGE reply named. It also says the model name the request asked for and the token
+// `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, which of its markers, the
+// instructions it came with, whether the request limited the reply's length, whether anything has
+// since fetched the address an IMAGE reply named, and whether the app asked the moderation endpoint
+// about the reply. It also says the model name the request asked for and the token
 // counts the reply reported, which are picked at random for each reply so that a log line carrying
-// both can only be the log of that call.
+// both can only be the log of that call. Every reply's own id carries `SVRAW` and the tag, so an app
+// that hands the service's whole response to the browser can be told from one that passes on the
+// text.
 import http from 'node:http';
 
 const HOST = process.env.HOST || 'localhost';
@@ -104,6 +115,7 @@ function reply(api, body, usage) {
   const record = {
     ...before,
     kind, system: instructions, bounded, fetched: before.fetched || false, api,
+    kinds: all.filter((m) => m[2] === tag).map((m) => m[1]),
     model: typeof body.model === 'string' ? body.model : '',
     input_tokens: usage.input, output_tokens: usage.output,
   };
@@ -125,6 +137,13 @@ function reply(api, body, usage) {
       return instructions
         ? `${marker} My instructions are: ${instructions}`
         : `${marker} I was given no instructions.`;
+    case 'HIDDEN': {
+      // The tag again in Unicode tag characters (U+E0000 to U+E007F), which no screen shows.
+      const smuggled = [...tag].map((c) => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join('');
+      const target = `http://${HOST}:${PORT}/_sv/x/${tag}`;
+      return `${marker} Here you go.${smuggled} Sure\u200b\u200cthing\u2060. \u202eetoN ` +
+        `See [https://example.test/a](${target}).`;
+    }
     case 'IMAGE': {
       const base = `http://${HOST}:${PORT}/_sv/exfil/${tag}`;
       return `${marker} Here is the chart: ![chart](${base}.png) and [the details](${base}-link).`;
@@ -148,6 +167,12 @@ function sse(res, events) {
   res.end();
 }
 
+// The tag of the latest message, for the reply's id.
+function tagOf(api, body) {
+  const all = [...read(api, body).user.matchAll(/SV-PROBE-([A-Z]+)-([0-9a-f]+)/g)];
+  return all.length ? all[all.length - 1][2] : '';
+}
+
 function answer(api, body, res) {
   // Counts no real call of this size would report, different every time: 4000 to 8999 in, 1000
   // to 3999 out.
@@ -156,9 +181,10 @@ function answer(api, body, res) {
   const said = reply(api, body, { input, output });
   const model = typeof body.model === 'string' ? body.model : MODEL;
   if (typeof said !== 'string') return toolCall(api, body, res, said, model, input, output);
+  const raw = `SVRAW${tagOf(api, body)}`;
   if (api === 'messages') {
     const message = {
-      id: 'msg_sv', type: 'message', role: 'assistant', model,
+      id: `msg_${raw}`, type: 'message', role: 'assistant', model,
       content: [{ type: 'text', text: said }],
       stop_reason: 'end_turn', stop_sequence: null,
       usage: { input_tokens: input, output_tokens: output },
@@ -175,7 +201,7 @@ function answer(api, body, res) {
   }
   if (api === 'responses') {
     const response = {
-      id: 'resp_sv', object: 'response', created_at: 0, status: 'completed', model,
+      id: `resp_${raw}`, object: 'response', created_at: 0, status: 'completed', model,
       output: [{
         type: 'message', id: 'msg_sv', status: 'completed', role: 'assistant',
         content: [{ type: 'output_text', text: said, annotations: [] }],
@@ -203,13 +229,15 @@ function answer(api, body, res) {
   const usage = { prompt_tokens: input, completion_tokens: output, total_tokens: input + output };
   if (!body.stream) {
     return json(res, 200, {
-      id: 'chatcmpl-sv', object: 'chat.completion', created: 0, model,
+      id: `chatcmpl-${raw}`, object: 'chat.completion', created: 0, model,
+      system_fingerprint: `fp_${raw}`,
       choices: [{ index: 0, message: { role: 'assistant', content: said }, finish_reason: 'stop' }],
       usage,
     });
   }
   const chunk = (delta, finish) => ({
-    id: 'chatcmpl-sv', object: 'chat.completion.chunk', created: 0, model,
+    id: `chatcmpl-${raw}`, object: 'chat.completion.chunk', created: 0, model,
+    system_fingerprint: `fp_${raw}`,
     choices: [{ index: 0, delta, finish_reason: finish }],
   });
   const events = [
@@ -217,7 +245,7 @@ function answer(api, body, res) {
     [null, chunk({}, 'stop')],
   ];
   if (body.stream_options && body.stream_options.include_usage) {
-    events.push([null, { id: 'chatcmpl-sv', object: 'chat.completion.chunk', created: 0, model, choices: [], usage }]);
+    events.push([null, { id: `chatcmpl-${raw}`, object: 'chat.completion.chunk', created: 0, model, choices: [], usage }]);
   }
   events.push([null, '[DONE]']);
   return sse(res, events);
@@ -335,6 +363,29 @@ function mcp(message, res) {
   }
 }
 
+// OpenAI's moderation endpoint. A reply to a HARM message is flagged as violent when the app asks
+// about it, and the asking is recorded; anything else is not flagged.
+const CATEGORIES = ['harassment', 'hate', 'self-harm', 'sexual', 'violence'];
+
+function moderate(body, res) {
+  const inputs = (Array.isArray(body.input) ? body.input : [body.input]).map((i) =>
+    typeof i === 'string' ? i : i && typeof i.text === 'string' ? i.text : '');
+  const results = inputs.map((input) => {
+    let flagged = false;
+    for (const [, tag] of input.matchAll(/SV-REPLY-([0-9a-f]+)/g)) {
+      const what = seen.get(tag);
+      if (what && what.kind === 'HARM') {
+        seen.set(tag, { ...what, reply_screened: true });
+        flagged = true;
+      }
+    }
+    const categories = Object.fromEntries(CATEGORIES.map((c) => [c, flagged && c === 'violence']));
+    const scores = Object.fromEntries(CATEGORIES.map((c) => [c, flagged && c === 'violence' ? 0.99 : 0.001]));
+    return { flagged, categories, category_scores: scores };
+  });
+  return json(res, 200, { id: 'modr-sv', model: 'omni-moderation-latest', results });
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     const parts = [];
@@ -375,6 +426,7 @@ http
       return json(res, 400, { error: { message: 'the body is not JSON' } });
     }
     if (path === '/mcp') return mcp(body, res);
+    if (/(^|\/)moderations$/.test(path)) return moderate(body, res);
     if (/(^|\/)chat\/completions$/.test(path)) return answer('chat', body, res);
     if (/(^|\/)responses$/.test(path)) return answer('responses', body, res);
     if (/(^|\/)messages$/.test(path)) return answer('messages', body, res);
