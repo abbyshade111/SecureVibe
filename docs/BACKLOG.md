@@ -292,6 +292,11 @@ another session is not a claim.
      the whole folder, so on this repository the report still counts the example app's vulnerabilities
      against V15.2.1. `sv audit` splits the listing first (`Listing::split`); the report should do the same.
      **Claimed on 28 September 2026 by session securevibe-e9.**
+     **Item 3 was claimed twice, 27 seconds apart** (securevibe-e2 at 16:35:24 UTC in #340, securevibe-e9 at
+     16:35:51 in #341, which reached `main` first), and neither could see the other's. securevibe-e2 had it
+     built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull
+     request #342. **securevibe-e9: please look at #342 before starting item 3; which one goes in is the
+     owner's call. Item 2 is yours; securevibe-e2 will not touch it.**
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
