@@ -243,6 +243,81 @@ pub struct Gap {
     pub why: String,
 }
 
+/// Whether this report looked for one family of findings, for a program reading `report.json`
+/// (DESIGN, "What was examined, for a program"). `gaps` says the same to a person, in sentences; a
+/// program cannot tell from them whether a finding that stopped appearing was fixed or was simply
+/// not looked for this time, and one that closes its own records when a finding disappears needs to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Examined {
+    /// The start of the `rule_id` of every finding this entry speaks for: `bandit.`, `ast.`, or one
+    /// check's whole id. The longest entry that a finding's `rule_id` starts with decides for it;
+    /// a finding no entry matches was not looked for.
+    pub rules: String,
+    pub state: ExaminedState,
+    /// Why it did not run, or ran only in part, in the words the matching gap uses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub why: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExaminedState {
+    /// It looked at everything it reads. A finding of this family that is not in the report was
+    /// looked for and not found.
+    Ran,
+    /// It looked at some of the app and not the rest. A finding that is not in the report may be
+    /// in the part it did not read.
+    Partly,
+    /// It did not look at all.
+    NotRun,
+    /// There was nothing of its kind in the app to look at, such as a tool for a language the app
+    /// does not use.
+    NothingToExamine,
+}
+
+impl Examined {
+    pub fn ran(rules: impl Into<String>) -> Self {
+        Self {
+            rules: rules.into(),
+            state: ExaminedState::Ran,
+            why: None,
+        }
+    }
+
+    pub fn not_run(rules: impl Into<String>, why: impl Into<String>) -> Self {
+        Self {
+            rules: rules.into(),
+            state: ExaminedState::NotRun,
+            why: Some(why.into()),
+        }
+    }
+
+    pub fn partly(rules: impl Into<String>, why: impl Into<String>) -> Self {
+        Self {
+            rules: rules.into(),
+            state: ExaminedState::Partly,
+            why: Some(why.into()),
+        }
+    }
+
+    pub fn nothing_to_examine(rules: impl Into<String>, why: impl Into<String>) -> Self {
+        Self {
+            rules: rules.into(),
+            state: ExaminedState::NothingToExamine,
+            why: Some(why.into()),
+        }
+    }
+
+    /// The entry that decides for a finding with this `rule_id`: the longest whose `rules` it
+    /// starts with. `None` means nothing looked for it.
+    pub fn deciding<'a>(entries: &'a [Examined], rule_id: &str) -> Option<&'a Examined> {
+        entries
+            .iter()
+            .filter(|e| rule_id.starts_with(&e.rules))
+            .max_by_key(|e| e.rules.len())
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Counts {
     pub applicable: usize,
@@ -448,6 +523,9 @@ pub struct Report {
     /// The MITRE ATLAS release the threats' references were read from, when they carry any.
     pub threat_atlas_release: Option<String>,
     pub gaps: Vec<Gap>,
+    /// The same limits as `gaps`, per family of findings, for a program. Filled by whoever ran the
+    /// checks (`sv report`); empty when a report is built without them.
+    pub examined: Vec<Examined>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1218,6 +1296,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         threat_parts,
         threat_atlas_release,
         gaps: inputs.gaps,
+        examined: Vec::new(),
     }
 }
 
@@ -1318,4 +1397,41 @@ fn question_for(condition: Condition) -> &'static str {
 /// questions on 27 September 2026), so a finer order would have nothing to sort.
 fn stake(level: u8) -> u8 {
     u8::from(level != 1)
+}
+
+#[cfg(test)]
+mod examined_tests {
+    use super::{Examined, ExaminedState};
+
+    #[test]
+    fn the_longest_matching_entry_decides_and_no_entry_means_not_looked_for() {
+        let entries = vec![
+            Examined::ran("config."),
+            Examined::not_run("config.secrets-file-committed", "not a git repository"),
+            Examined::partly("ast.", "no parser for objective-c"),
+        ];
+        let state = |rule: &str| Examined::deciding(&entries, rule).map(|e| e.state);
+        assert_eq!(state("config.versions-pinned"), Some(ExaminedState::Ran));
+        assert_eq!(
+            state("config.secrets-file-committed"),
+            Some(ExaminedState::NotRun)
+        );
+        assert_eq!(state("ast.shell-command"), Some(ExaminedState::Partly));
+        assert_eq!(state("bandit.B314"), None);
+    }
+
+    #[test]
+    fn states_are_spelled_as_report_json_readers_expect() {
+        let json = serde_json::to_value(vec![
+            Examined::ran("sbom."),
+            Examined::nothing_to_examine("gosec.", "this app has no code in go"),
+        ])
+        .unwrap();
+        assert_eq!(json[0]["state"], "ran");
+        assert!(
+            json[0].get("why").is_none(),
+            "a clean run carries no reason"
+        );
+        assert_eq!(json[1]["state"], "nothing-to-examine");
+    }
 }

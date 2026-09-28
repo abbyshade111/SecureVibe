@@ -327,6 +327,11 @@ pub struct AdapterRun {
     pub verified: Vec<Verified>,
     /// Adapter id and why it did not run. Never folded into "found nothing".
     pub not_run: Vec<(String, String)>,
+    /// Adapters that ran over everything they read, found something or not.
+    pub ran: Vec<String>,
+    /// Adapters that ran but were told not to look at part of the app, and what they skipped. One
+    /// that also found nothing is in `not_run` as well, as the report has always said it.
+    pub partly: Vec<(String, String)>,
 }
 
 /// Whether the tool is here, and whether it works.
@@ -593,6 +598,18 @@ pub fn run_all_in(
                 loaded,
                 looked_away,
             } => {
+                if looked_away.is_empty() {
+                    run.ran.push(adapter.id.clone());
+                } else {
+                    run.partly.push((
+                        adapter.id.clone(),
+                        format!(
+                            "{} was told not to look at part of this app: {}.",
+                            adapter.name,
+                            looked_away.join("; ")
+                        ),
+                    ));
+                }
                 if findings.is_empty() && !looked_away.is_empty() {
                     run.not_run.push((
                         adapter.id.clone(),

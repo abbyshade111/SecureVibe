@@ -2355,20 +2355,33 @@ fn assemble_report(
     // so: a report silent about known vulnerabilities reads as a report that found none.
     let mut advisory_verified = Vec::new();
     let mut advisory_gaps = Vec::new();
+    // What was examined, per family of findings, for a program reading report.json: the same
+    // limits as the gaps, decided in the same places (DESIGN, "What was examined, for a program").
+    let mut examined: Vec<sv_report::Examined> = vec![sv_report::Examined::ran("sbom.")];
     match &options.advisories {
-        None => advisory_gaps.push(sv_report::Gap {
-            what: "known vulnerabilities in the packages this app ships".to_owned(),
-            why: format!(
-                "{} `sv` does not fetch anything, because the list of packages an app depends on \
-                 is yours: download an OSV export for this app's ecosystems, unpack it, and pass \
-                 its folder with --advisories.",
-                options.why_no_advisories
-            ),
-        }),
+        None => {
+            examined.push(sv_report::Examined::not_run(
+                "advisory.",
+                "no advisory database was given (--advisories)",
+            ));
+            advisory_gaps.push(sv_report::Gap {
+                what: "known vulnerabilities in the packages this app ships".to_owned(),
+                why: format!(
+                    "{} `sv` does not fetch anything, because the list of packages an app depends \
+                     on is yours: download an OSV export for this app's ecosystems, unpack it, and \
+                     pass its folder with --advisories.",
+                    options.why_no_advisories
+                ),
+            })
+        }
         Some(dir) => {
             let database = advisories::load_database(dir)
                 .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
             if database.is_empty() {
+                examined.push(sv_report::Examined::not_run(
+                    "advisory.",
+                    "the advisory database holds no records `sv` could read",
+                ));
                 advisory_gaps.push(sv_report::Gap {
                     what: "known vulnerabilities in the packages this app ships".to_owned(),
                     why: format!(
@@ -2384,6 +2397,30 @@ fn assemble_report(
                     manifest.policy.fix_within_days.as_ref(),
                     advisories::Day::today(),
                 );
+                // Whole only as `sv audit` counts it: every ecosystem covered, every version
+                // comparable, and the list of packages itself complete.
+                let mut short = Vec::new();
+                if !result.uncovered.is_empty() {
+                    let names: Vec<String> = result.uncovered.iter().cloned().collect();
+                    short.push(format!(
+                        "the database holds nothing about {}",
+                        names.join(", ")
+                    ));
+                }
+                if !result.uncomparable.is_empty() {
+                    short.push(format!(
+                        "{} package version(s) could not be compared",
+                        result.uncomparable.len()
+                    ));
+                }
+                if !bill_of_materials.is_complete() {
+                    short.push("the list of packages is incomplete".to_owned());
+                }
+                examined.push(if short.is_empty() {
+                    sv_report::Examined::ran("advisory.")
+                } else {
+                    sv_report::Examined::partly("advisory.", short.join("; "))
+                });
                 findings_from_advisories = result.findings;
                 advisory_verified = result.verified;
                 if !result.uncovered.is_empty() {
@@ -2456,6 +2493,7 @@ fn assemble_report(
             &not_holding,
             &sv_check::adapters::scratch_dir(),
         );
+        examined.extend(adapters_examined(&adapters, &languages, &outcome));
         findings.extend(outcome.findings);
         tool_verified = outcome.verified;
         for (id, why) in outcome.not_run {
@@ -2465,6 +2503,14 @@ fn assemble_report(
             });
         }
     } else {
+        if let Ok(adapters) = sv_check::adapters::Adapters::load(&adapters_path()) {
+            for adapter in adapters.all() {
+                examined.push(sv_report::Examined::not_run(
+                    format!("{}.", adapter.id),
+                    "outside tools run only with --tools",
+                ));
+            }
+        }
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
             why: format!(
@@ -2861,6 +2907,7 @@ fn assemble_report(
         });
     }
     gaps.extend(untaught_gaps(&code.untaught));
+    examined.extend(file_checks_examined(&listing, &code, &secrets, &config));
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions
@@ -3303,6 +3350,17 @@ fn assemble_report(
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
     );
     let findings = reviewed.findings;
+    examined.push(match &run_status {
+        // Started is still only part of what the app could be asked: what sits behind a sign-in
+        // it could not reach, and the requirements no question reaches, are in the gaps.
+        sv_report::RunStatus::Started { .. } => sv_report::Examined::partly(
+            "probe.",
+            "the running app was asked what `sv` knows to ask; the gaps say what that could not reach",
+        ),
+        sv_report::RunStatus::NotAsked { why } | sv_report::RunStatus::CouldNotStart { why } => {
+            sv_report::Examined::not_run("probe.", why.clone())
+        }
+    });
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -3334,6 +3392,7 @@ fn assemble_report(
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
     });
+    report.examined = examined;
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
     // wrote it with nothing to go on; `sv scope` always said, and now the report does too.
@@ -3565,6 +3624,118 @@ fn untaught_lines(untaught: &[sv_check::ast::Untaught]) -> Vec<String> {
 }
 
 /// The same, as gaps in the written report.
+/// One `examined` entry per outside tool `sv` knows: the ones that ran, in full or in part, the
+/// ones that could not, and the ones for a language this app does not have.
+fn adapters_examined(
+    adapters: &sv_check::adapters::Adapters,
+    languages: &[String],
+    run: &sv_check::adapters::AdapterRun,
+) -> Vec<sv_report::Examined> {
+    adapters
+        .all()
+        .iter()
+        .map(|adapter| {
+            let rules = format!("{}.", adapter.id);
+            let reason = |list: &[(String, String)]| {
+                list.iter()
+                    .find(|(id, _)| id == &adapter.id)
+                    .map(|(_, why)| why.clone())
+            };
+            if let Some(why) = reason(&run.partly) {
+                sv_report::Examined::partly(rules, why)
+            } else if run.ran.contains(&adapter.id) {
+                sv_report::Examined::ran(rules)
+            } else if let Some(why) = reason(&run.not_run) {
+                sv_report::Examined::not_run(rules, why)
+            } else if !languages.iter().any(|l| adapter.reads(l)) {
+                sv_report::Examined::nothing_to_examine(
+                    rules,
+                    format!("this app has no code in {}", adapter.language),
+                )
+            } else {
+                sv_report::Examined::not_run(rules, "it was not run")
+            }
+        })
+        .collect()
+}
+
+/// The checks that read the app's files, per family. Each one read only part of the app when a
+/// symbolic link was not followed; the rules that read code, also when a file was not opened or
+/// did not parse, or a language had no parser; a single code rule, when it could not run or had
+/// not been taught a language here.
+fn file_checks_examined(
+    listing: &sv_scan::files::Listing,
+    code: &sv_check::ast::AstScan,
+    secrets: &sv_check::secrets::SecretScan,
+    config: &sv_check::config::ConfigReport,
+) -> Vec<sv_report::Examined> {
+    let family = |rules: &str, short: Vec<String>| {
+        if short.is_empty() {
+            sv_report::Examined::ran(rules)
+        } else {
+            sv_report::Examined::partly(rules, short.join("; "))
+        }
+    };
+    let links: Vec<String> = if listing.links.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{} symbolic link(s) in the app were not followed",
+            listing.links.len()
+        )]
+    };
+
+    let mut code_short = links.clone();
+    if !code.unread_files.is_empty() {
+        code_short.push(format!(
+            "{} file(s) in a language the rules read were not opened",
+            code.unread_files.len()
+        ));
+    }
+    if !code.unread_languages.is_empty() {
+        let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
+        names.sort_unstable();
+        code_short.push(format!("no parser for {}", names.join(", ")));
+    }
+    if !code.unparsed_files.is_empty() {
+        code_short.push(format!(
+            "{} file(s) did not parse cleanly",
+            code.unparsed_files.len()
+        ));
+    }
+    let mut examined = vec![family("ast.", code_short)];
+    for broken in &code.broken_queries {
+        examined.push(sv_report::Examined::partly(
+            broken.rule_id.clone(),
+            format!(
+                "its query for {} would not compile: {}",
+                broken.language, broken.why
+            ),
+        ));
+    }
+    for untaught in &code.untaught {
+        examined.push(sv_report::Examined::partly(
+            untaught.rule_id.clone(),
+            format!("it has not been taught {}", untaught.languages.join(", ")),
+        ));
+    }
+
+    let mut secrets_short = links.clone();
+    if !secrets.coverage.skipped.is_empty() {
+        secrets_short.push(format!(
+            "{} file(s) were not read",
+            secrets.coverage.skipped.len()
+        ));
+    }
+    examined.push(family("secrets.", secrets_short));
+
+    examined.push(family("config.", links));
+    for (id, why) in &config.not_assessed {
+        examined.push(sv_report::Examined::not_run(id.clone(), why.clone()));
+    }
+    examined
+}
+
 fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
     untaught
         .iter()
@@ -3587,6 +3758,46 @@ fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_outside_tool_gets_an_entry_saying_whether_it_looked() {
+        let adapters = sv_check::adapters::Adapters::load(&adapters_path()).unwrap();
+        let run = sv_check::adapters::AdapterRun {
+            ran: vec!["bandit".into()],
+            partly: vec![("semgrep".into(), "told to skip tests/".into())],
+            not_run: vec![
+                (
+                    "semgrep".into(),
+                    "ran and found nothing, but was told not to look".into(),
+                ),
+                ("codeql-python".into(), "not installed".into()),
+            ],
+            ..Default::default()
+        };
+        let examined = adapters_examined(&adapters, &["python".to_owned()], &run);
+        let state = |rules: &str| {
+            examined
+                .iter()
+                .find(|e| e.rules == rules)
+                .unwrap_or_else(|| panic!("no entry for {rules}"))
+                .state
+        };
+        use sv_report::ExaminedState::*;
+        assert_eq!(state("bandit."), Ran);
+        assert_eq!(
+            state("semgrep."),
+            Partly,
+            "looking away outranks not having found anything"
+        );
+        assert_eq!(state("codeql-python."), NotRun);
+        assert_eq!(state("gosec."), NothingToExamine);
+        assert_eq!(state("brakeman."), NothingToExamine);
+        assert_eq!(
+            examined.len(),
+            adapters.all().len(),
+            "one entry per tool `sv` knows"
+        );
+    }
 
     fn untaught() -> Vec<sv_check::ast::Untaught> {
         vec![sv_check::ast::Untaught {
