@@ -71,6 +71,9 @@ another session is not a claim.
     `a562749`, the rule) is unmerged, and `v1` as archived still has the test line that hung CI
     (`server/tests/llm/safety.test.ts`, the `/proc/definitely/not/writable` call). `TOP10.md` and `faults.csv` now
     say so. Patching `v1` is a separate decision, made on the `v1` branch if at all.
+    **The owner decided on 28 September 2026 to patch `v1`: merging `claude/ci-hang` into the `v1` branch is
+    claimed on 28 September 2026 by session admiring-murdock-875699.** The tags `v1-paper` and `v1-final` stay
+    where they are.
   Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
   (28 against 26).
 
