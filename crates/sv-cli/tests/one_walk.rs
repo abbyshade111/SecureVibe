@@ -23,17 +23,30 @@ fn check(app: &Path) -> String {
         .arg(app)
         .output()
         .expect("sv runs");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
 fn report(app: &Path) -> serde_json::Value {
     let out_dir = app.join("report");
     let run = Command::new(env!("CARGO_BIN_EXE_sv"))
-        .args(["report", app.to_str().unwrap(), "--out", out_dir.to_str().unwrap()])
+        .args([
+            "report",
+            app.to_str().unwrap(),
+            "--out",
+            out_dir.to_str().unwrap(),
+        ])
         .output()
         .expect("sv runs");
-    assert!(run.status.success(), "{}", String::from_utf8_lossy(&run.stderr));
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
     serde_json::from_str(&std::fs::read_to_string(out_dir.join("report.json")).unwrap()).unwrap()
 }
 
@@ -70,7 +83,10 @@ fn a_link_out_of_the_app_and_a_loop_are_named_once_and_never_read() {
         !said.contains("settings.py") && !said.contains("sv-outside"),
         "the file outside the app was read:\n{said}"
     );
-    assert!(!said.contains("loop/src/loop"), "the loop was followed:\n{said}");
+    assert!(
+        !said.contains("loop/src/loop"),
+        "the loop was followed:\n{said}"
+    );
     assert!(
         said.contains("2 symbolic links were not followed")
             && said.contains("  src/loop")
