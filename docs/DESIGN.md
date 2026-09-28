@@ -500,6 +500,40 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+### What was examined, for a program (28 September 2026)
+
+`gaps` tells a person what was not examined, in sentences. A program reading `report.json` needs the
+same thing in a form it can act on: the owner's cato-pipeline turns `sv` findings into a plan of action
+and closes an item when its finding stops appearing, and from `gaps` alone it could not tell a finding
+that was fixed from one nobody looked for this time. A tool that did not run, a check that could not
+read what it needed, or code rules silenced by a language without a parser all make findings disappear.
+
+So `report.json` carries `examined`: one entry per family of findings, each with `rules` (the start of
+every `rule_id` it speaks for: `bandit.`, `ast.`, or one check's whole id), a `state`, and, unless it
+ran in full, `why`. **The longest entry that a finding's `rule_id` starts with decides for it, and a
+finding no entry matches was not looked for.** The states:
+
+- `ran`: it looked at everything it reads. A finding of this family missing from the report was looked
+  for and not found.
+- `partly`: it looked at some of the app. A missing finding may be in the part it did not read.
+- `not-run`: it did not look.
+- `nothing-to-examine`: there was nothing of its kind to look at, such as a tool for a language the app
+  does not use. Without this, removing an app's last Python file would leave Bandit's findings looking
+  unexamined forever.
+
+The entries are decided where the gaps are, from the same facts, so the two cannot disagree: a symbolic
+link nothing followed leaves every check that reads files `partly`; an unopened or unparsed file, or a
+language with no parser, leaves the code rules (`ast.`) `partly`; a code rule whose query would not
+compile, or that has not been taught a language present, gets an entry of its own; a check that could
+not run (`config.secrets-file-committed` outside git) gets a `not-run` entry of its own under a family
+that ran; known vulnerabilities (`advisory.`) ran only when the comparison covered the whole app, as
+`sv audit` counts it; an outside tool that was told to skip part of the app is `partly`; the running
+app (`probe.`) is never more than `partly`, because what sits behind a sign-in and the requirements no
+question reaches are always in the gaps. Families this list does not name yet (`design.`, `hand.`,
+`tests.`) are not looked for, as far as a program can tell, which is the safe reading. Each of these
+has a test in `crates/sv-cli/tests/examined.rs` or beside the code, and removing each guard turns its
+test red.
+
 ## Fourteen languages, and why the fifteenth silences everything
 
 The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,

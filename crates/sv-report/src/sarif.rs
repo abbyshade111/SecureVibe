@@ -163,6 +163,7 @@ mod tests {
             threat_atlas_release: None,
             satisfied_elsewhere: vec![],
             gaps,
+            examined: Vec::new(),
         }
     }
 

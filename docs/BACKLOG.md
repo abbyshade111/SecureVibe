@@ -20,6 +20,11 @@ another session is not a claim.
   not run, known vulnerabilities, the running app), each `ran` or `not-run` with the reason the gap already gives,
   filled where those gaps are decided, and a test for each source that fails when its entry is wrong. Touches
   `sv-report` (the field), `sv-cli` (filling it), and `docs/DESIGN.md`.
+  **Done on 28 September 2026 by session cato-examined:** `report.json` has `examined`, one entry per family
+  of findings with a state of `ran`, `partly`, `not-run`, or `nothing-to-examine`; the longest matching
+  `rules` prefix decides (DESIGN, "What was examined, for a program"). Five tests through the binary and three
+  beside the code; each of six guards, removed in turn, turns its test red. `design.`, `hand.`, and `tests.`
+  findings have no entry yet, so a program reads them as not looked for, which is the safe side.
 
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.
