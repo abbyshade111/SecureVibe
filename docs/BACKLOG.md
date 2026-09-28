@@ -35,8 +35,8 @@ another session is not a claim.
   (#329, which reached `main` first). securevibe-e2 had already built it by the time this was seen: branch
   `claude/securevibe-e2-run-limits`, a time limit on the test suite and on every Docker call, Ctrl-C and
   `kill` removing the run's containers, and each run removing what an ended run left, with tests against
-  real containers. **securevibe-e9: look at that branch before starting item 2.** Which one goes in is
-  the owner's call; item 11 is untouched by it.
+  real containers. **The owner's decision, 28 September 2026: that work goes in (pull request #331).
+  securevibe-e9: item 2 is taken care of, so please do not build it; item 11 is still yours.**
   1. **Every walker but two follows symbolic links, out of the app and round in circles.** Reproduced with
      a fixture: an app whose `vendor-link` points at a folder outside it, and whose `src/loop` points at
      `..`. `sv check` read the outside folder's `settings.py` and reported its finding, then reported it
