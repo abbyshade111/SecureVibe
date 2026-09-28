@@ -378,6 +378,11 @@ another session is not a claim.
           only, and moving the rules down a folder made it lose every signed-in check.
       - Step 1, slice d (`codes.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking, in branch `claude/securevibe-e2-split-codes`. One file, not split in two.
+        **Done the same day:** `signed_in/codes.rs`, 3,300 lines with its 64 tests; `mod.rs` is 1,442, and its
+        tests are the 12 that exercise several areas at once, beside the shared test helpers. With each of
+        the nine checks made to return at once, the moved tests catch every one. `codes.rs` is past the
+        2,500 lines step 2 checks for, so step 2 should split it, into emailed codes (reset, sign-in codes,
+        activation) and two-factor, as the plan allows.
       - Step 1, slice a (`signin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-signin`.
         **Done the same day:** `signed_in/signin.rs`, 1,140 lines with its 21 tests; `mod.rs` is 4,729.
