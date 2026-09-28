@@ -80,8 +80,8 @@ took a few minutes of checks.
 ## What it bought
 
 **Sessions found faults in each other's merged work that no test had caught.** In the fault ledger
-(`TESTS-AND-FAULTS.md`), review by another session found **28 of the 148 faults**: 10 in v1, 18 in `sv`. That is more
-than any other single way except the owner's own use, and three times as many as a failing test (9).
+(`TESTS-AND-FAULTS.md`), review by another session found **28 of the 149 faults**: 10 in v1, 18 in `sv`. That is more
+than any other single way, just ahead of the owner's own use (26), and three times as many as a failing test (9).
 
 - **v1, 19 September:** one session read the other's half of the code looking for one pattern, SecureVibe "doing
   the right thing and saying the wrong thing", and found nine (`a4e4fbf`). The most serious was about money: a tool

@@ -58,7 +58,7 @@
      left a test behind. The full account is <code>TESTS-AND-FAULTS.md</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b>148</b><span>faults found and fixed in SecureVibe's own code: 80 in v1, 68 in <code>sv</code></span></div>
+    <div class="stat"><b>149</b><span>faults found in SecureVibe's own code: 81 in v1, 68 in <code>sv</code></span></div>
     <div class="stat"><b style="color:var(--hot)">5</b><span>of the 129 faults in the product were caught by a failing test</span></div>
     <div class="stat"><b>87%</b><span>of the faults the tests missed got a test when they were fixed (104 of 119)</span></div>
   </div>
@@ -76,7 +76,7 @@
     <span><span class="sw" style="background:var(--hot)"></span>found by a failing test</span>
     <span><span class="sw" style="background:var(--other)"></span>found any other way</span>
   </div>
-  <div class="chart"><svg id="faults" viewBox="0 0 860 190" role="img" aria-label="Faults found per day: v1 5, 6, 36, 19 from 17 to 20 September; sv 1, 0, 12, 15, 17, 17, 6 from 22 to 28 September; by a failing test sv 2 on the 24th, 1 on the 26th, 2 on the 27th, 3 on the 28th."></svg></div>
+  <div class="chart"><svg id="faults" viewBox="0 0 860 190" role="img" aria-label="Faults found per day: v1 5, 7, 36, 19 from 17 to 20 September; sv 1, 0, 12, 15, 17, 17, 6 from 22 to 28 September; by a failing test sv 2 on the 24th, 1 on the 26th, 2 on the 27th, 3 on the 28th."></svg></div>
 
   <h2>3. Did the suite learn from each surprise?</h2>
   <p class="lede">Each square is a fault in the product that the tests missed and whose fix can be checked.</p>
@@ -105,7 +105,7 @@
     mk(s1, "rect", { x: cx(i) - BW / 2, y: 140 - h, width: BW, height: h, rx: 2, fill: v1[d] ? "var(--v1)" : "var(--sv)" });
     mk(s1, "text", { x: cx(i), y: 140 - h - 6, "text-anchor": "middle", class: "ink" }, n.toLocaleString("en-US")); });
   // [by a failing test, other, per 1,000 lines]
-  const f = { 17: [0, 5, null], 18: [0, 6, 0.5], 19: [0, 36, 6.0], 20: [0, 19, 4.0], 22: [0, 1, 0.2], 23: [0, 0, 0], 24: [2, 10, 1.1], 25: [0, 15, 0.5], 26: [1, 16, 0.5], 27: [2, 15, 1.2], 28: [3, 3, 0.5] };
+  const f = { 17: [0, 5, null], 18: [0, 7, 0.6], 19: [0, 36, 6.0], 20: [0, 19, 4.0], 22: [0, 1, 0.2], 23: [0, 0, 0], 24: [2, 10, 1.1], 25: [0, 15, 0.5], 26: [1, 16, 0.5], 27: [2, 15, 1.2], 28: [3, 3, 0.5] };
   const s2 = document.getElementById("faults"), B = 160, H = 130, M = 38; axis(s2, B);
   days.forEach((d, i) => { const v = f[d]; if (!v) return; let y = B;
     [[v[0], "var(--hot)"], [v[1], "var(--other)"]].forEach(([n, c]) => { if (!n) return; const h = n / M * H; mk(s2, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), rx: 2, fill: c }); y -= h; });

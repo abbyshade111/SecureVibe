@@ -73,8 +73,8 @@
   </div>
   <div class="chart"><svg id="conf" viewBox="0 0 860 150" role="img" aria-label="Conflicts per day: 18 September 1, 24th 1, 25th 7, 26th 29, 27th 12, 28th 6; backlog only 0, 1, 2, 17, 8, 3."></svg></div>
 
-  <h2>3. How the project's 148 faults were found</h2>
-  <div class="chart"><svg id="how" viewBox="0 0 860 260" role="img" aria-label="Review by another session 28, the owner or real use 26, real input 21, building something else 19, v1's harness 13, CI tools 13, breaking a guard 10, a failing test 9, not recorded 9."></svg></div>
+  <h2>3. How the project's 149 faults were found</h2>
+  <div class="chart"><svg id="how" viewBox="0 0 860 260" role="img" aria-label="Review by another session 28, the owner or real use 26, real input 21, building something else 19, v1's harness 14, CI tools 13, breaking a guard 10, a failing test 9, not recorded 9."></svg></div>
 
   <p class="note">Sources: <code>coordination.csv</code>, one row per event with its commit, pull request, or backlog
      line; <code>faults.csv</code> for section 3. The record runs from 09:32 on 18 September to 16:18 on 28 September
@@ -96,7 +96,7 @@
   const bo = [0, 0, 0, 0, 0, 0, 1, 2, 17, 8, 3], all = [1, 0, 0, 0, 0, 0, 1, 7, 29, 12, 6];
   const s2 = document.getElementById("conf"); axis(s2, 120);
   stack(s2, 120, 90, 30, all.map((t, i) => [bo[i], t - bo[i]]), ["var(--hot)", "var(--work)"]);
-  const how = [["Another session's review", 28, "coord"], ["The owner, or real use", 26], ["Running it on real input", 21], ["Building something else", 19], ["v1's evaluation harness", 13], ["A tool in CI", 13], ["Breaking a guard on purpose", 10], ["A failing test", 9, "hot"], ["Not recorded", 9]];
+  const how = [["Another session's review", 28, "coord"], ["The owner, or real use", 26], ["Running it on real input", 21], ["Building something else", 19], ["v1's evaluation harness", 14], ["A tool in CI", 13], ["Breaking a guard on purpose", 10], ["A failing test", 9, "hot"], ["Not recorded", 9]];
   const s3 = document.getElementById("how"), HX = 260, HW = 500;
   how.forEach(([name, n, k], i) => {
     const y = 6 + i * 27, cls = k ? "strong" : "ink";

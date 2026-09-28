@@ -42,7 +42,8 @@ another session is not a claim.
   paper files are the entry below.
 
 - **Eight places where the paper's earlier files disagree with the record.** Found on 28 September 2026 by the
-  coordination and fault analyses above. **Not claimed.** Check each against its source before changing it.
+  coordination and fault analyses above. **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking. Check each against its source before changing it.
   1. `figure-how-caught.html` says 50 of the 267 changes "mention a claim". Three of the 50 (#56, #67, #71) use
      "claim" to mean an assertion: 47 were claims of work, 42 of them touching only the backlog.
   2. `figure-how-caught.html` counts 7 faults in `sv` found by one session reviewing another's work. It misses
@@ -60,6 +61,18 @@ another session is not a claim.
      `origin/claude/ci-hang`. Check whether it reached either in another form.
   8. `TOP10.md` says no verdict that failed open was caught by a failing test. That holds for its eight; two others
      were (`faults.csv` SV-10 and SV-49, `corrections.csv` rows 22 and 47).
+
+  **Done the same day.** Each was checked against its source first; six held as written, and two were worse
+  than stated:
+  - 3: the full harness count is 14, not 13. The ledger had also missed `00456fe`, whose own title says the harness
+    caught it, so `faults.csv` gained a row (V1-77) and the fault totals in `TESTS-AND-FAULTS.md`,
+    `COORDINATION.md`, and their figures are now 149 (81 in v1).
+  - 7: the fix never reached `v1` in any form. The whole `claude/ci-hang` branch (`3e78e98`, the test fix, and
+    `a562749`, the rule) is unmerged, and `v1` as archived still has the test line that hung CI
+    (`server/tests/llm/safety.test.ts`, the `/proc/definitely/not/writable` call). `TOP10.md` and `faults.csv` now
+    say so. Patching `v1` is a separate decision, made on the `v1` branch if at all.
+  Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
+  (28 against 26).
 
 - **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
   admiring-murdock-875699**, at the owner's asking.
@@ -360,9 +373,16 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a and d, not claimed.
+      - Step 1: slice d, not claimed.
+      - Step 1, slice a (`signin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-signin`.
       - Step 1, slice c (`passwords.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-passwords`.
+        **Done the same day:** `signed_in/passwords.rs`, 1,954 lines with its 33 tests; `mod.rs` is 5,859.
+        The breached-password evidence came along, and its `include_str!` path still works from beside
+        `mod.rs`. `run_signing_up`, `run_signing_up_with`, and `with_words` stay in `mod.rs`'s tests,
+        since slice d's tests use them too. With each of the eight checks made to return at once, the
+        moved tests catch every one.
       - Step 1, slice b (`sessions.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-sessions`. A move
         only, with `ws_handshake` and `websocket_session_checks`: securevibe-e9's V14.2.2 and V8.2.3
