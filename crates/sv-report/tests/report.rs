@@ -1177,6 +1177,35 @@ mod attested {
     }
 
     #[test]
+    fn the_chapter_table_keeps_the_owners_word_and_the_tools_word_apart_from_checked() {
+        // The Flask example has neither, so the end-to-end test never sees these two columns. Each
+        // is its own column and neither is ever counted as checked: the owner's yes and the AI
+        // tool's yes are words, not checks, and at different ranks.
+        let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[said_yes("V2.2.2")]);
+        assert_eq!(status_of(&report, "V8.3.1"), Status::Stated);
+        assert_eq!(status_of(&report, "V2.2.2"), Status::Attested);
+        let chapters = sv_report::chapters::by_chapter(&report);
+        let v8 = chapters
+            .iter()
+            .find(|c| c.key == "V8")
+            .expect("a V8 chapter");
+        let v2 = chapters
+            .iter()
+            .find(|c| c.key == "V2")
+            .expect("a V2 chapter");
+        assert_eq!((v8.tool_word, v8.your_word, v8.checked), (1, 0, 0));
+        assert_eq!((v2.your_word, v2.tool_word, v2.checked), (1, 0, 0));
+        let page = sv_report::markdown::compliance(&report);
+        assert!(page.contains("| your word, not a check |"), "{page}");
+        assert!(page.contains("| your AI tool's word |"), "{page}");
+        // With neither, neither column is drawn: a column of zeros is noise.
+        let plain = sv_report::markdown::compliance(&report_with_stated(&[], &[]));
+        assert!(plain.contains("| chapter | apply |"), "the table is drawn");
+        assert!(!plain.contains("your word, not a check"), "{plain}");
+        assert!(!plain.contains("your AI tool's word"), "{plain}");
+    }
+
+    #[test]
     fn the_ai_tools_yes_is_its_own_tier_below_the_owners() {
         let report = report_with_stated(&[tool_said_yes("V8.3.1")], &[]);
         assert_eq!(status_of(&report, "V8.3.1"), Status::Stated);

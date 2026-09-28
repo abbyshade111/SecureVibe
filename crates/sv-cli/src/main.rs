@@ -2162,7 +2162,7 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
         ("compliance.md", sv_report::markdown::compliance(report)),
         ("security.md", sv_report::markdown::security(report)),
         ("findings.sarif", sv_report::sarif::render(report)),
-        ("report.json", serde_json::to_string_pretty(report)? + "\n"),
+        ("report.json", sv_report::json::to_string(report)),
     ];
     for (name, contents) in &written {
         std::fs::write(out_dir.join(name), contents).with_context(|| format!("writing {name}"))?;
