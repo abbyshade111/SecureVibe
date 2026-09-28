@@ -42,7 +42,8 @@ another session is not a claim.
   paper files are the entry below.
 
 - **Eight places where the paper's earlier files disagree with the record.** Found on 28 September 2026 by the
-  coordination and fault analyses above. **Not claimed.** Check each against its source before changing it.
+  coordination and fault analyses above. **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking. Check each against its source before changing it.
   1. `figure-how-caught.html` says 50 of the 267 changes "mention a claim". Three of the 50 (#56, #67, #71) use
      "claim" to mean an assertion: 47 were claims of work, 42 of them touching only the backlog.
   2. `figure-how-caught.html` counts 7 faults in `sv` found by one session reviewing another's work. It misses
