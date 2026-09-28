@@ -157,6 +157,8 @@ another session is not a claim.
      169 KB while the part read before its appendix went from 63 KB to 14 KB. See DESIGN, "The
      report's shape". Not done, and not decided: `only_you_can_check` in `report.json` repeats
      word for word 50 entries of `questions_for_you` (27 KB on the example).
+     **The owner's decision, the same day: drop the duplicate. Claimed by session securevibe-e10**, in
+     branch `claude/only-you-once`.
   10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
