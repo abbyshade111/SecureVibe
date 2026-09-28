@@ -522,6 +522,134 @@ mod tests {
         );
     }
 
+    /// `n` characters from `alphabet`, in a fixed order, for building key-shaped test values. Fixed
+    /// so a failing test fails the same way twice; built at run time so no file holds a key.
+    fn filler(n: usize, alphabet: &str) -> String {
+        alphabet.chars().cycle().take(n).collect()
+    }
+
+    const MIXED: &str = "Qm7Rz2Kv9Lp4Wn8Hs3Jd6Tf1Gb5Yc0";
+    const LETTERS: &str = "QmRzKvLpWnHsJdTfGbYcAeBi";
+
+    /// OpenAI's middle marker, in two pieces, so this file does not hold a key's shape whole.
+    fn openai_marker() -> String {
+        ["T3Bl", "bkFJ"].concat()
+    }
+
+    /// A project key ending in `-`, which a trailing word boundary would have missed, and a
+    /// legacy key: the two shapes in gitleaks' rule that a person is likely to have.
+    fn openai_keys() -> Vec<String> {
+        let tail = format!("{}-", filler(73, MIXED));
+        vec![
+            credential_shaped(
+                &[
+                    "sk",
+                    "proj",
+                    &format!("{}{}{tail}", filler(74, MIXED), openai_marker()),
+                ],
+                "-",
+            ),
+            credential_shaped(
+                &[
+                    "sk",
+                    &format!(
+                        "{}{}{}",
+                        filler(20, MIXED),
+                        openai_marker(),
+                        filler(20, MIXED)
+                    ),
+                ],
+                "-",
+            ),
+        ]
+    }
+
+    fn huggingface_tokens() -> Vec<String> {
+        vec![
+            credential_shaped(&["hf", &filler(34, LETTERS)], "_"),
+            credential_shaped(&["api", "org", &filler(34, LETTERS)], "_"),
+        ]
+    }
+
+    #[test]
+    fn openai_and_hugging_face_keys_are_found_where_nothing_found_them_before() {
+        // Where the generic assignment rule does not reach: an env file other than .env itself,
+        // which it skips on purpose, and a shell line with no quotes. Before these rules an OpenAI
+        // key in `.env.production` or a Dockerfile's ENV line was reported by nothing.
+        let cases: Vec<(String, &str)> = openai_keys()
+            .into_iter()
+            .map(|k| (k, "secrets.openai-key"))
+            .chain(
+                huggingface_tokens()
+                    .into_iter()
+                    .map(|k| (k, "secrets.huggingface-token")),
+            )
+            .collect();
+        for (key, rule) in &cases {
+            for (file, text) in [
+                (".env.production", format!("OPENAI_API_KEY={key}\n")),
+                ("deploy.sh", format!("export TOKEN={key}\n")),
+                (
+                    "Dockerfile",
+                    format!("FROM python:3.12\nENV HF_TOKEN {key}\n"),
+                ),
+            ] {
+                let found = scan_text(&rules(), file, &text);
+                let hits: Vec<&Finding> = found.iter().filter(|f| f.rule_id == *rule).collect();
+                assert_eq!(
+                    hits.len(),
+                    1,
+                    "{rule} in {file}: {:?}",
+                    found.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+                );
+                let hit = hits[0];
+                assert!(hit.requirement_ids.contains(&"V13.3.1".to_string()));
+                // Four characters and the length, never the key.
+                let rendered = serde_json::to_string(&found).unwrap();
+                assert!(
+                    !rendered.contains(key.as_str()),
+                    "{rule}: the key reached the finding"
+                );
+                assert_eq!(
+                    hit.secret.as_ref().map(|s| s.length()),
+                    Some(key.len()),
+                    "{rule} in {file}: the whole key, and only the key, was matched"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn redaction_cuts_openai_and_hugging_face_keys_from_output() {
+        // What a failing test suite printed goes into the report; a key in it must not.
+        for key in openai_keys().into_iter().chain(huggingface_tokens()) {
+            let text = format!("request failed: Bearer {key} was refused\n");
+            let (out, n) = redact_text(&rules(), &text);
+            assert_eq!(n, 1, "one credential in the line");
+            assert!(!out.contains(key.as_str()), "the key was not cut short");
+        }
+    }
+
+    #[test]
+    fn near_misses_are_not_openai_or_hugging_face_keys() {
+        // Shapes close to the rules that are not keys: a Hugging Face identifier, a token one
+        // letter short or long, and an sk- string with no marker in it.
+        for text in [
+            "from huggingface_hub import hf_hub_download\n".to_owned(),
+            format!("x = 'hf_{}'\n", filler(33, LETTERS)),
+            format!("x = 'hf_{}'\n", filler(35, LETTERS)),
+            format!("x = 'sk-{}'\n", filler(48, MIXED)),
+        ] {
+            let found = scan_text(&rules(), "src/app.py", &text);
+            assert!(
+                !found.iter().any(|f| f.rule_id == "secrets.openai-key"
+                    || f.rule_id == "secrets.huggingface-token"),
+                "{text:?}: {:?}",
+                found.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+            );
+        }
+    }
+
     #[test]
     fn a_placeholder_is_not_reported() {
         // The rule that decides whether anybody keeps using the scanner.

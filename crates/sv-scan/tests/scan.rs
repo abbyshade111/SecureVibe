@@ -1696,3 +1696,97 @@ fn an_agent_that_connects_to_a_remote_mcp_server_is_not_one() {
     let server = answer(&report, Condition::McpServer);
     assert_ne!(server.value, Some(true), "{:?}", server.evidence);
 }
+
+#[test]
+fn a_fine_tuning_call_to_a_vendor_is_training_even_with_no_framework() {
+    // The `training` corroborator knew the frameworks (torch, transformers) and missed an app that
+    // fine-tunes with one call to a vendor and installs nothing of the kind. Each case is that
+    // vendor's call as its own SDK or API definition spells it, in an app with no ML dependency.
+    let cases: &[(&str, &str, &str, &str)] = &[
+        (
+            "openai-py",
+            "tune.py",
+            "from openai import OpenAI\nclient = OpenAI()\njob = client.fine_tuning.jobs.create(training_file=f.id, model=\"gpt-4o-mini\")\n",
+            "fine_tuning.jobs.create",
+        ),
+        (
+            "openai-node",
+            "tune.js",
+            "import OpenAI from \"openai\";\nconst client = new OpenAI();\nconst job = await client.fineTuning.jobs.create({ training_file: id, model: \"gpt-4o-mini\" });\n",
+            "fineTuning.jobs.create",
+        ),
+        (
+            "openai-http",
+            "tune.ts",
+            "await fetch(\"https://api.openai.com/v1/fine_tuning/jobs\", { method: \"POST\", body });\n",
+            "/fine_tuning/jobs",
+        ),
+        (
+            "vertex",
+            "tune.py",
+            "from vertexai.tuning import sft\njob = sft.train(source_model=\"gemini-2.0-flash-001\", train_dataset=uri)\n",
+            "sft.train(",
+        ),
+        (
+            "genai",
+            "tune.py",
+            "from google import genai\nclient = genai.Client()\njob = client.tunings.tune(base_model=m, training_dataset=d)\n",
+            "tunings.tune(",
+        ),
+        (
+            "bedrock-py",
+            "tune.py",
+            "import boto3\nbedrock = boto3.client(\"bedrock\")\nbedrock.create_model_customization_job(jobName=n, baseModelIdentifier=m)\n",
+            "create_model_customization_job",
+        ),
+        (
+            "bedrock-js",
+            "tune.ts",
+            "import { BedrockClient, CreateModelCustomizationJobCommand } from \"@aws-sdk/client-bedrock\";\nawait client.send(new CreateModelCustomizationJobCommand(input));\n",
+            "CreateModelCustomizationJob",
+        ),
+    ];
+    for (name, file, text, pattern) in cases {
+        let dir = scratch(&format!("fine-tune-{name}"));
+        std::fs::write(dir.join(file), text).unwrap();
+        let report = scan(&dir, &all_signatures()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        // Setup, asserted: the file was read, so an answer is about its contents.
+        assert_eq!(report.files_read, 1, "{name}: the file was not read");
+        let training = answer(&report, Condition::Training);
+        assert_eq!(
+            training.value,
+            Some(true),
+            "{name}: {:?}",
+            training.evidence
+        );
+        assert!(
+            matches!(&training.evidence, Evidence::Source { pattern: p, .. } if p.as_str() == *pattern),
+            "{name}: expected {pattern:?} as the evidence, got {:?}",
+            training.evidence
+        );
+    }
+}
+
+#[test]
+fn calling_a_hosted_model_is_not_training() {
+    // The control for the test above: the same vendors' clients, used to ask a model something,
+    // are not fine-tuning, and the corroborator must not say they are. Nothing found proves
+    // nothing for this claim, so the answer is "could not tell", never "no training".
+    let dir = scratch("hosted-model-only");
+    std::fs::write(
+        dir.join("ask.py"),
+        "from openai import OpenAI\nclient = OpenAI()\nreply = client.chat.completions.create(model=\"gpt-4o-mini\", messages=m)\nfiles = client.files.list()\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("ask.ts"),
+        "import OpenAI from \"openai\";\nconst client = new OpenAI();\nconst reply = await client.responses.create({ model: \"gpt-4o-mini\", input });\n",
+    )
+    .unwrap();
+    let report = scan(&dir, &all_signatures()).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(report.files_read, 2, "both files were read");
+    let training = answer(&report, Condition::Training);
+    assert_eq!(training.value, None, "{:?}", training.evidence);
+}
