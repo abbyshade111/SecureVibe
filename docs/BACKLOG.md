@@ -647,8 +647,11 @@ another session is not a claim.
      and `probe.ai-raw-response-exposed` (C11.3.2: every reply's id now carries `SVRAW` and its tag). Credited
      only: `probe.ai-call-log-session` (C12.1.1: the model-call log line of a signed-in run naming the user or a
      user or session field). `crates/sv-run/tests/model_provider.rs` runs the test model under Node for the first
-     time. **C10.3.3 and C10.2.6 are not done yet**: both ask of an app that is itself an MCP server, and need
-     securevibe.toml to say where it answers.
+     time. **C10.3.3 and C10.2.6 done the same day** (`crates/sv-check/src/mcp_server.rs`), for an app that is
+     itself an MCP server and says where in a new `[stack.run.mcp-server]` section: `probe.mcp-server-origin-unchecked`
+     (a foreign `Origin` and a foreign `Host`, each on its own, against an ordinary request as the control) and
+     `probe.mcp-session-survives-end` (a session ended with `DELETE` and used again). Both are credited when
+     refused. Not yet run against a real MCP library.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.

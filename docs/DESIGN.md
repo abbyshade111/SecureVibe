@@ -3704,6 +3704,47 @@ client, and a screen on results) was credited for both, and a careless one (raw 
 passed on as they came) raised both findings. The break round found one guard with no witness — a
 tool called once and then answered from memory — and three with one; each now has two.
 
+### Six more questions, after the rate check
+
+Added on 28 September 2026 from the partial-check review (`docs/PARTIAL-CHECKS.md`). They are asked
+after the rate check, and a minute after its burst when there was one, so the rate check sees the
+messages it always saw: an app that refuses every other message let the burst's first one through only
+while the count before it stayed even, which two tests caught when the new questions went first.
+
+- **C7.3.4:** the test model hides the tag in Unicode tag characters, adds zero-width characters and
+  a right-to-left override, and writes a link whose text is another address. The answer is read as a
+  browser or a JSON reader would get it: JSON escapes with surrogate pairs joined (Python's default
+  writes a character outside the first plane as two), and HTML character references. Anything left
+  is a finding, a right-to-left override alone at Low; all four gone, with the reply itself there,
+  is credited for that part.
+- **C7.3.1:** the test model answers `POST .../moderations` in OpenAI's shape and flags the HARM reply as
+  violent. Judged only when the app asked about that reply; a classifier elsewhere is not seen.
+- **C2.1.4:** 40,000 characters with a marker at each end, which the test model now records. A request
+  crosses the fence as one shell argument, capped at 128 KB, so nothing past any model's context
+  window can be sent: a message cut short is a finding, and one arriving whole is only a step.
+- **C2.2.2:** the injection in Zulu, Scottish Gaelic, Bengali, and base64, asked only where the English
+  one was stopped while a plain message got through. Only ever a finding.
+- **C11.3.2:** every reply's own id now carries `SVRAW` and its tag, which only the model service's
+  response holds; in the answer, it means that response was passed on whole. Only ever a finding.
+- **C12.1.1:** the model-call log line, found by its token counts, naming the signed-in user or
+  carrying a user or session field. Credited only for a signed-in run.
+
+`crates/sv-run/tests/model_provider.rs` runs the test model under Node, the first test to run the
+script itself rather than the Rust fake of it. None of the six has been tried against the real
+OpenAI or Anthropic libraries or a real app, as the MCP questions above were.
+
+### The app as an MCP server
+
+`[stack.run.mcp-server]` names the path an app that serves tools itself answers MCP's HTTP transport
+on. A session is started as any client starts one, as the control; then `Origin:
+http://sv-evil.invalid` and `Host: sv-rebind.invalid` are each sent on their own (C10.3.3), and a
+request may now name its own `Host`, which replaces the app's rather than being sent beside it. A
+session is then ended with `DELETE` and its `Mcp-Session-Id` and used again (C10.2.6), which the
+transport says must be answered with 404; files or caches it left are not visible, and the credit
+says so. A server that needs a token, keeps no sessions, or does not let clients end them is *not
+assessed*, each with its reason. Tested against a fake server in Rust only; no real MCP library has
+been run against it yet.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the

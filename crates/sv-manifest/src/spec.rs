@@ -51,6 +51,12 @@ health = "/"              # a path that returns 200 once the app is up
 # mcp-url-env = "MCP_SERVER_URL"  # where the app reads its MCP server's address, if it gives the
 #                                 # model tools from one; it is given a test MCP server there
 
+# [stack.run.mcp-server]
+# Only if the app itself serves tools to AI models over MCP's HTTP transport. The run asks it to
+# start a session as usual, then from a foreign web page (an `Origin` it has never heard of) and
+# under a foreign name (a `Host` it is not), and ends a session and tries to use it again.
+# path = "/mcp"             # where the MCP endpoint answers
+
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
 # data, admin pages, whether logging out really ends the session. Leave it out and all of that is

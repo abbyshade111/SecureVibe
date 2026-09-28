@@ -624,7 +624,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 27 can be checked, 0 where a check helps but a person decides, and 164 with no check.
+191 requirements: 29 can be checked, 0 where a check helps but a person decides, and 162 with no check.
 
 ### Level 1 (51 requirements, 17 can be checked)
 
@@ -734,7 +734,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 8 can be checked)
+### Level 2 (95 requirements, 10 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -852,9 +852,9 @@ decided per app, from its `securevibe.toml` and its code.
 | **C10.1.3** Verify that locally launched MCP servers run in a least-privilege sandbox with restricted file system, network, and system access. | No check | – |
 | **C10.2.4** Verify that MCP tools/list returns only tools permitted by resource owners' authorized scopes. | No check | – |
 | **C10.2.5** Verify that MCP servers enforce access control on every tool invocation, validating that the user's access token authorizes both the requested tool and the specific argument values supplied. | No check | – |
-| **C10.2.6** Verify that MCP servers ensure all session artifacts are removed when a session terminates. | No check | – |
+| **C10.2.6** Verify that MCP servers ensure all session artifacts are removed when a session terminates. | Can be checked | The running app: `probe.mcp-session-survives-end`, if it fails: A session that still works after it was ended can be picked up by whoever learns its ID, and whatever the server kept for it is still there. |
 | **C10.2.7** Verify that MCP servers do not pass through access tokens received from clients to downstream APIs. | No check | – |
-| **C10.3.3** Verify that MCP servers validate both the Origin header and the Host header independently on all HTTP-based transports to prevent DNS rebinding attacks. | No check | – |
+| **C10.3.3** Verify that MCP servers validate both the Origin header and the Host header independently on all HTTP-based transports to prevent DNS rebinding attacks. | Can be checked | The running app: `probe.mcp-server-origin-unchecked`, if it fails: A web page open in someone's browser can send requests to an MCP server on their own computer or network, by pointing its own name at it (DNS rebinding). A server that does not check where requests come from answers them, and hands the page its tools. |
 | **C10.3.4** Verify that MCP clients enforce a minimum acceptable protocol version and reject initialize responses that propose a version below that minimum. | No check | – |
 | **C10.4.4** Verify that all MCP servers enforce strict schema validation. | No check | – |
 | **C10.4.5** Verify that all MCP transports enforce maximum payload size limits. | No check | – |
