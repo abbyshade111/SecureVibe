@@ -68,7 +68,7 @@
     <span><span class="dot" style="background:var(--v1)"></span>v1</span>
     <span><span class="dot" style="background:var(--sv)"></span><code>sv</code></span>
   </div>
-  <div class="rows" id="rows" role="img" aria-label="Faults by how they were caught: a person using it, v1 13 and sv 18; another session's review, v1 9 and sv 7; v1's evaluation harness, 8; breaking a guard on purpose, v1 3 and sv 4; by accident, sv 3."></div>
+  <div class="rows" id="rows" role="img" aria-label="Faults by how they were caught: a person using it, v1 13 and sv 18; another session's review, v1 9 and sv 10; v1's evaluation harness, 14; breaking a guard on purpose, v1 3 and sv 3; by accident, sv 4."></div>
 
   <blockquote>"a test that checks the code against itself"
     <cite>docs/DESIGN.md, "The citations were all wrong": the tests for sv's citation map were written from the
@@ -86,9 +86,9 @@
       <tr><td>Breaking a guard</td><td class="who" style="color:var(--v1)">v1</td><td>The sensitive-field rule was caught by exactly one fixture: "a rule with one accidental witness is a rule that survives being deleted"</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
       <tr><td>Breaking a guard</td><td class="who" style="color:var(--v1)">v1</td><td>A search test fell back to another record when its write was refused, and passed with the ownership clause deleted</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
       <tr><td>Breaking a guard</td><td class="who" style="color:var(--sv)">sv</td><td>Three guards were each caught by only one test; each got a second witness that fails differently</td><td class="src"><code>0cd3a74</code></td></tr>
-      <tr><td>Breaking a guard</td><td class="who" style="color:var(--sv)">sv</td><td>The fence test passed with <code>nc</code> missing from the image, and its only comparison was the host, which on Docker Desktop is a different machine from the containers</td><td class="src">#148</td></tr>
       <tr><td>Harness</td><td class="who" style="color:var(--v1)">v1</td><td>Five template bugs real owners would have hit, in the harness's first hour, among them feature flags written in one case and read in another, and a removed file still imported</td><td class="src"><code>af6b83f</code></td></tr>
       <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>Nearly every citation in the rule maps pointed at the wrong requirement, plausibly: the right chapter, a digit or two off. Found by accident three times</td><td class="src"><code>docs/DESIGN.md</code></td></tr>
+      <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>The fence test passed with <code>nc</code> missing from the image, and its only comparison was the host, which on Docker Desktop is a different machine from the containers; found running the suite on the owner's Mac for another reason</td><td class="src">#148</td></tr>
     </tbody>
   </table>
 
@@ -99,7 +99,7 @@
   <table>
     <thead><tr><th>What happened</th><th>What changed</th><th>Record</th></tr></thead>
     <tbody>
-      <tr><td>Two sessions each read the backlog, each correctly saw an item unclaimed, and both built it (20 September)</td><td>Claim in the backlog, in a commit of its own, before starting: 50 of the 267 changes that reached <code>main</code> from 20 September on mention a claim</td><td class="src">v1 <code>CLAUDE.md</code>, <code>TIMELINE.md</code></td></tr>
+      <tr><td>Two sessions each read the backlog, each correctly saw an item unclaimed, and both built it (20 September)</td><td>Claim in the backlog, in a commit of its own, before starting: 47 of the 267 changes that reached <code>main</code> from the evening of 20 September to 10:52 on 27 September were claims of work, 42 of them touching only the backlog</td><td class="src">v1 <code>CLAUDE.md</code>, <code>TIMELINE.md</code></td></tr>
       <tr><td>Two sessions ran the evaluation harness at once for eight minutes, each having said in a message it would warn first</td><td>A claim in a file the other session can see; a message is not a claim</td><td class="src">v1 <code>CLAUDE.md</code></td></tr>
       <tr><td>Sessions working on <code>sv</code> collided five times in one day; the move to the top of the repository would touch every session's work</td><td>For the move: every session's view written down first, one session claims it, a freeze, and one pull request</td><td class="src"><code>docs/BACKLOG.md</code>, #210 → #224</td></tr>
     </tbody>
@@ -107,19 +107,24 @@
 
   <p class="note">Counts are faults written down in the repository, not a census: something caught and fixed
      without a note is not here. "A person using it" is the usability figure's 13 for v1 and 9 + 7 + 2 for
-     <code>sv</code>. Review: seven <code>sv</code> findings (#73, #82, #124, #128, #132, #134, #169) and one v1
-     cross-review that found nine. Harness: the first hour's five (<code>af6b83f</code>), two in <code>d50ce89</code>,
-     and the test names in <code>00456fe</code>. Breaking a guard: three in v1's <code>CLAUDE.md</code>, three
-     guards in <code>0cd3a74</code>, and #148. Accident: the three times the wrong citations were found. Sources
+     <code>sv</code>. Review: ten <code>sv</code> findings (#73, #82, #124, #128, #132, #134, #169, <code>6225f3f</code>,
+     <code>672d4af</code>, and the level wording in #63, fixed on <code>main</code> by <code>e4af72d</code>) and one v1
+     cross-review that found nine. Harness: the first hour's five (<code>af6b83f</code>), four in <code>2a5d2e8</code>,
+     two in <code>d50ce89</code>, the misnamed tests in <code>22ddcc1</code>, <code>Math.random</code> in
+     <code>d46f119</code>, and the test name in <code>00456fe</code>. Breaking a guard: three in v1's
+     <code>CLAUDE.md</code>, and three guards in <code>0cd3a74</code>. Accident: the three times the wrong citations
+     were found, and #148, found running the suite on the owner's Mac. The claims count covers the window of
+     <code>TIMELINE.md</code>, which stops at 10:52 on 27 September; <code>COORDINATION.md</code> carries it to
+     28 September. Sources
      are named in each row; v1's files are read at tag <code>v1-final</code>.</p>
 </div>
 <script>
   const rows = [
     ["A person using it", "the owner, or someone watching them", 13, 18],
-    ["Another session's review", "reading merged work, reproducing it", 9, 7],
-    ["v1's evaluation harness", "five apps rebuilt from saved answers", 8, 0],
-    ["Breaking a guard on purpose", "then counting what goes red", 3, 4],
-    ["By accident", "noticed while doing something else", 0, 3],
+    ["Another session's review", "reading merged work, reproducing it", 9, 10],
+    ["v1's evaluation harness", "five apps rebuilt from saved answers", 14, 0],
+    ["Breaking a guard on purpose", "then counting what goes red", 3, 3],
+    ["By accident", "noticed while doing something else", 0, 4],
   ];
   const host = document.getElementById("rows");
   rows.forEach(([name, how, v1, sv]) => {

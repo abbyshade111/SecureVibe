@@ -1,6 +1,6 @@
 date,version,tests_level,tests_level_measure,tests_level_first_parent,tests_added,commit,commit_first_parent,v1_stated_server_tests,faults_found,found_by_test,found_by_failing_test_only,found_other,product_faults,test_gaps,lines_changed,test_path_lines
 2026-09-17,v1,,"v1 it()/test() calls in *.test.ts, static",,,(destroyed history),,"810 (CORRECTIONS.md (17 Sep, destroyed history))",5,0,0,5,5,0,0,0
-2026-09-18,v1,982,"v1 it()/test() calls in *.test.ts, static",,,0d56fcb7,,949 (60d6e02 / 9bf6eca 'server suite 949 passing'),6,0,0,6,6,0,11594,3165
+2026-09-18,v1,982,"v1 it()/test() calls in *.test.ts, static",,,0d56fcb7,,949 (60d6e02 / 9bf6eca 'server suite 949 passing'),7,0,0,7,6,1,11594,3165
 2026-09-19,v1,1046,"v1 it()/test() calls in *.test.ts, static",,64,5f94d1c3,,1002 (5f94d1c 'Server suite 107 files / 1002 tests'),36,0,0,36,36,0,6036,1585
 2026-09-20,v1,1118,"v1 it()/test() calls in *.test.ts, static",,72,7fa07d64,,"1078 (last statement that day: 'Server suite: 113 files, 1,078 tests')",19,2,0,17,16,3,4714,1939
 2026-09-21,v1,1118,"v1 it()/test() calls in *.test.ts, static",,0,7fa07d64,,,0,0,0,0,0,0,0,0

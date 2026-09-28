@@ -51,7 +51,7 @@ That leaves 18 weaknesses.
 | | | When no sidecar could start, `sv`'s fallback probe container ran without `--read-only`, `--cap-drop ALL`, or `no-new-privileges` | sv | 269 *(chosen)* | review | #77 (`45d8125`) |
 | A09 Security Logging and Alerting Failures | 2 | An opt-in AI scanner charged the owner's API key, then reported "skipped", hiding the spend | v1 | 223 *(chosen)* | cross-review | `a4e4fbf` |
 | | | `sv`'s tests about keeping credentials out of output printed the value under test when they failed | sv | 532 | CodeQL | #229 (`90201dd`) |
-| No category | 3 | `mkdirSync(recursive)` loops forever on a path like `/proc` | v1 | 835 | a CI hang | `a562749` |
+| No category | 3 | `mkdirSync(recursive)` loops forever on a path like `/proc` | v1 | 835 | a CI hang | `3e78e98` and `a562749`, on branch `claude/ci-hang`, never merged: v1 as archived still has the test line that hung |
 | | | CodeQL type confusion on the uploaded body passed to the zip reader | v1 | 843 | CodeQL | `b3e22ed` |
 | | | The fence test counted any failure as "blocked", so it could pass without proving the fence held (see also section 2) | sv | 1164 *(chosen)* | running the suite | #148 |
 
@@ -176,11 +176,13 @@ there was confirmed by running the app.
 ## What this shows
 
 - **The largest groups of SecureVibe's own weaknesses were in handling untrusted text (A05, 4) and paths and
-  addresses (A01, 3).** Every one was fixed, most within a day, except the secret-manager requirement, which is still
-  reported as unmet. CodeQL found six of the 18. Review, the self-check, a unit test, Dependabot, and design work found
-  the rest. No authentication, session, or leaked-key flaw in SecureVibe's own code appears anywhere in the record.
-- **The weakness most particular to a security checker is A10: a verdict that fails open.** Eight are recorded, in
-  both versions, and none was caught by a test failing. Two A09 items are the reporting cousin of the same fault,
+  addresses (A01, 3).** Every one was fixed, most within a day, except two: the secret-manager requirement, which is still
+  reported as unmet, and the recursive `mkdir` hang, whose fix stayed on a branch that never merged. CodeQL found six of the 18. Review, the self-check, a unit test, Dependabot, a CI hang, and design work
+  found the rest. No authentication, session, or leaked-key flaw in SecureVibe's own code appears anywhere in the record.
+- **The weakness most particular to a security checker is A10: a verdict that fails open.** Eight are recorded here, in
+  both versions, and none of the eight was caught by a test failing. The fuller fault ledger
+  (`TESTS-AND-FAULTS.md`) finds 22 verdicts that failed open, and 2 of those were caught by a failing test
+  (`faults.csv` SV-10 and SV-49). Two A09 items are the reporting cousin of the same fault,
   among them the scan that charged the owner's credit and said "skipped".
 - **Checking itself, each version flagged the most under A01, and it was noise both times.** v1: 95 findings, every
   one a false alarm, because the rules assumed v1's own template; tuning the rules removed 103 findings at once, 90 of
