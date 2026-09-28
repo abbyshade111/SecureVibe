@@ -245,7 +245,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
-| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 9 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
 ### Level 1 with no check at all (12)
