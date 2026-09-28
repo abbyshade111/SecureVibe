@@ -281,7 +281,20 @@ another session is not a claim.
       - Step 0: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to pick
         another item, in branch `claude/securevibe-e2-split-step0`. `signed_in.rs` is frozen from this
         claim's merge until step 2 is done.
-      - Step 1: slices a to h, not claimed.
+        **Done the same day:** `signed_in/mod.rs` (13,192 lines), `signed_in/fake_app.rs` (1,609), and
+        `signed_in/rules.rs` (664, the `Rule` type, `finding`, and the sixty rules); the 233 tests are the
+        same set and all pass. Three things for step 1:
+        - `rules.rs` took only the rules. The password constants and helpers after them (`COMMON`,
+          `BREACHED`, `BREACHED_EVIDENCE`, `breached_seen_in`, `with_commas`, `long_date`, `random_like`,
+          `context_password`, `DEFAULT_ACCOUNTS`) stay in `mod.rs` for slices a and c to take.
+        - `BREACHED_EVIDENCE` is an `include_str!` with a path relative to its file; it gained a `../` when
+          the file moved down a folder, and keeps working from any file beside `mod.rs`.
+        - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
+          out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
+          only, and moving the rules down a folder made it lose every signed-in check.
+      - Step 1: slices a to d and f to h, not claimed.
+      - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
       - Step 2: not claimed.
 
 - **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
@@ -378,6 +391,8 @@ another session is not a claim.
      call:** the existing probe checks sign-in tokens in the app as a client, and V9.2.3 is about a service accepting
      access tokens; a code rule for a switched-off audience check (`verify_aud` False, `ValidateAudience = false`) fits
      either way.
+     **V8.2.3, C9.3.2, C9.3.7, and V14.2.2 claimed on 28 September 2026 by session securevibe-e9**, at the
+     owner's asking to go ahead with this group; V9.2.3 stays the owner's call.
   3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
      Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
      V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
