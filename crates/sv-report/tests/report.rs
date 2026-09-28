@@ -297,7 +297,10 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
     let v1 = chapters[0].title();
     // Apply, a problem found, checked, the AI tool's word, not verified, does not apply, not placed
     // yet. The owner's-word column is not drawn: nobody here gave theirs.
-    assert!(page.contains("| checked | your AI tool's word | not verified |"), "{page}");
+    assert!(
+        page.contains("| checked | your AI tool's word | not verified |"),
+        "{page}"
+    );
     assert!(!page.contains("your word, not a check"), "{page}");
     assert!(
         page.contains(&format!("| {v1} | **2** | 0 | 1 | 0 | 1 | 1 | 0 |")),
