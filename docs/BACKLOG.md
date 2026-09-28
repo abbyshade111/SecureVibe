@@ -63,6 +63,14 @@ another session is not a claim.
      the command as a path. Fix: a word starting with `-` is an option, an unknown one is an error that
      names the command's options, `--help` works after any command, and `sv --version` prints the version
      and the commit the build was made from, which the bundle already knows how to find.
+     **Done on 28 September 2026 by session securevibe-e9:** every command's options are in one table,
+     `COMMANDS` in `main.rs`, checked before the command runs. An unknown option is refused with the
+     command's options and its usage; so is a second folder, a word where a command takes none, and an
+     option missing its value. A folder whose name starts with `-` is named as `./-name`, which the
+     message says. `--help` or `-h` after any command shows that command's usage and runs nothing.
+     `sv --version` prints the version and the commit. `crates/sv-cli/tests/options.rs` holds it; each
+     part, broken on purpose, turns at least two of its tests red, except `--version`, which one test
+     holds.
   5. **A bad edit to a compiled-in data file makes `sv run` panic.** `signed_in.rs:1135-1153` uses
      `expect` while reading `data/breached-password-evidence.json`, which is compiled in with
      `include_str!`; the file is checked by a test, so this reaches an owner only from a source build with
