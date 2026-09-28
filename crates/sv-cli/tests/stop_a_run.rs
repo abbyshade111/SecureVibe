@@ -276,8 +276,16 @@ fn a_suite_stopped_at_its_time_limit_is_named_in_the_report_and_credits_nothing(
         return;
     }
     assert!(
-        compliance.contains("the suite was still running after 3 seconds, so `sv` stopped it"),
+        compliance.contains("the suite was still running after 3 seconds, so `sv` stopped it. A"),
         "{compliance}"
+    );
+    assert!(
+        compliance.contains("set `test-time-limit` (in seconds)"),
+        "the report says how to allow longer: {compliance}"
+    );
+    assert!(
+        !compliance.contains("they failed (exit"),
+        "a stopped suite is not called a failed one: {compliance}"
     );
     assert!(
         compliance.contains("were still running after 3 seconds, so `sv` stopped them"),
