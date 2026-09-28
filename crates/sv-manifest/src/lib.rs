@@ -723,6 +723,11 @@ pub struct RepositorySection {
     /// workflow files).
     #[serde(default)]
     pub iac: Option<bool>,
+    /// Folders that hold something other than the app: test fixtures, example apps, sample code.
+    /// Their code is still checked and its findings still count, listed apart; what is in them
+    /// cannot change which requirements apply. See `Manifest::not_the_app`.
+    #[serde(default)]
+    pub not_the_app: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -933,6 +938,40 @@ pub struct FindingReview {
 }
 
 impl Manifest {
+    /// The folders `[repository] not-the-app` names, as paths from the app folder with `/`
+    /// separators, and the entries refused, each with why. `*` stands for one whole folder name, as
+    /// in `crates/*/tests`. An entry that would name the whole app, or reach outside it, is refused:
+    /// the list moves findings down the page and keeps code from changing which requirements apply,
+    /// so an entry that covered the app would silence the check it exists to sharpen.
+    pub fn not_the_app(&self) -> (Vec<String>, Vec<String>) {
+        let mut folders = Vec::new();
+        let mut refused = Vec::new();
+        for entry in &self.repository.not_the_app {
+            let path = entry.trim().replace('\\', "/");
+            let path = path.trim_start_matches("./").trim_end_matches('/');
+            let parts: Vec<&str> = path.split('/').collect();
+            let why = if path.is_empty() || path == "." || parts.iter().all(|p| *p == "*") {
+                Some("it names the whole app")
+            } else if path.starts_with('/') || path.contains(':') {
+                Some("it is not a path inside the app folder")
+            } else if parts
+                .iter()
+                .any(|p| *p == ".." || p.is_empty() || *p == ".")
+            {
+                Some("it is not a plain path inside the app folder")
+            } else if parts.iter().any(|p| p.contains('*') && *p != "*") {
+                Some("`*` can only stand for a whole folder name")
+            } else {
+                None
+            };
+            match why {
+                Some(why) => refused.push(format!("`{entry}`: {why}, so it is not used")),
+                None => folders.push(path.to_owned()),
+            }
+        }
+        (folders, refused)
+    }
+
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
@@ -1153,6 +1192,23 @@ pub fn resolve(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn folders_that_are_not_the_app_are_read_and_the_whole_app_is_refused() {
+        let manifest: Manifest = toml::from_str(
+            "[repository]\nnot-the-app = [\"examples/\", \"./crates/*/tests\", \"tests\\\\fixtures\", \
+             \".\", \"\", \"*\", \"*/*\", \"../other\", \"/etc\", \"C:/app\", \"a//b\", \"a/./b\", \"test*\"]\n",
+        )
+        .unwrap();
+        let (folders, refused) = manifest.not_the_app();
+        assert_eq!(
+            folders,
+            vec!["examples", "crates/*/tests", "tests/fixtures"]
+        );
+        assert_eq!(refused.len(), 10, "{refused:#?}");
+        assert!(refused[0].contains("names the whole app"), "{}", refused[0]);
+        assert!(refused.iter().all(|r| r.ends_with("so it is not used")));
+    }
+
     use super::*;
 
     #[test]

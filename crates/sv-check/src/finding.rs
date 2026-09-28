@@ -110,10 +110,11 @@ pub struct Finding {
     /// report fills it in.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub fingerprint: String,
-    /// On a line Rust builds only for its tests, inside a file that is otherwise the app's own: see
-    /// `mark_rust_test_code`. False until the report looks.
+    /// Known to be test or sample code from more than its file's name: on a line Rust builds only for
+    /// its tests (`mark_rust_test_code`), or in a folder the manifest says is not the app
+    /// (`mark_not_the_app`). False until the report looks.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub in_test_module: bool,
+    pub marked_test_code: bool,
 }
 
 impl Finding {
@@ -133,7 +134,7 @@ impl Finding {
     /// app itself. Said beside it, never used to hide it: test code can hold a real key, and sample
     /// code gets copied.
     pub fn in_test_code(&self) -> bool {
-        self.in_test_module || is_test_path(&self.location.file)
+        self.marked_test_code || is_test_path(&self.location.file)
     }
 }
 
@@ -152,9 +153,17 @@ pub fn mark_rust_test_code(app_dir: &std::path::Path, findings: &mut [Finding]) 
                 .map(|source| rust_test_lines(&source))
                 .unwrap_or_default()
         });
-        f.in_test_module = lines
+        f.marked_test_code |= lines
             .iter()
             .any(|(first, last)| (*first..=*last).contains(&f.location.line));
+    }
+}
+
+/// Marks the findings in a folder the manifest says is not the app (`[repository] not-the-app`), so
+/// the reports list them with test and sample code. They still count.
+pub fn mark_not_the_app(folders: &[String], findings: &mut [Finding]) {
+    for f in findings {
+        f.marked_test_code |= sv_scan::under_any(&f.location.file, folders);
     }
 }
 
@@ -350,7 +359,7 @@ fn placeholder() -> Finding {
         fix: String::new(),
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
-        in_test_module: false,
+        marked_test_code: false,
     }
 }
 
@@ -383,7 +392,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
-            in_test_module: false,
+            marked_test_code: false,
         }
     }
 
@@ -610,7 +619,7 @@ mod tests {
             at("r", "src/lib.rs", 0, &[], Severity::High),
         ];
         mark_rust_test_code(&dir, &mut findings);
-        let marked: Vec<bool> = findings.iter().map(|f| f.in_test_module).collect();
+        let marked: Vec<bool> = findings.iter().map(|f| f.marked_test_code).collect();
         assert_eq!(marked, vec![false, true, false, false, false]);
         assert!(
             findings[1].in_test_code(),
@@ -618,6 +627,22 @@ mod tests {
         );
         assert!(!findings[0].in_test_code());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn findings_in_a_folder_that_is_not_the_app_are_listed_with_test_code() {
+        let folders = vec!["demo".to_owned()];
+        let mut findings = vec![
+            at("r", "demo/shop/app.py", 3, &[], Severity::High),
+            at("r", "demo/lib.rs", 1, &[], Severity::High),
+            at("r", "demos/app.py", 3, &[], Severity::High),
+            at("r", "src/app.py", 3, &[], Severity::High),
+        ];
+        mark_not_the_app(&folders, &mut findings);
+        // Reading a Rust file afterwards finds no test there, and must not undo what the folder said.
+        mark_rust_test_code(std::path::Path::new("/nonexistent"), &mut findings);
+        let marked: Vec<bool> = findings.iter().map(|f| f.in_test_code()).collect();
+        assert_eq!(marked, vec![true, true, false, false]);
     }
 
     #[test]
@@ -669,7 +694,7 @@ mod tests {
         let finding = Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
-            in_test_module: false,
+            marked_test_code: false,
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),
             severity: Severity::Critical,

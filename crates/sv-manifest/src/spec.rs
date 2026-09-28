@@ -144,6 +144,10 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # hosted-scm = ?              # hosted source control with branch protection or a merge queue
 # outside-contributors = ?    # code contributions from people outside the team
 # iac = ?                     # Terraform, CloudFormation or CI workflow files in the repository
+# Folders that are not the app: test fixtures, example apps, sample code. Still checked, and their
+# findings still count, listed apart; what they use cannot change which requirements apply.
+# `*` stands for one folder name. The report lists them, so never put the app's own code here.
+# not-the-app = ["examples", "crates/*/tests/fixtures"]
 
 [capabilities.ai]
 # enabled = ?                 # does the app have an AI feature at all?

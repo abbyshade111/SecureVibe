@@ -13,7 +13,7 @@ use sv_frameworks::applicability::{ApplicabilityConfig, bucket, requirements_gat
 use sv_frameworks::{Condition, Source};
 use sv_manifest::{ClaimState, Manifest, consistency, spec};
 use sv_run::RunPlan;
-use sv_scan::{Evidence, Signatures, scan};
+use sv_scan::{Evidence, Signatures};
 
 mod bundle;
 mod mcp;
@@ -402,7 +402,11 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     // manifest's claims against it. Corroboration only ever moves toward more requirements
     // applying: a claim of "no" cannot survive the code saying otherwise.
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let report = scan(&app_dir, &signatures)?;
+    let report = scan_for(
+        &manifest,
+        &sv_scan::files::Listing::of(&app_dir),
+        &signatures,
+    )?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
 
@@ -910,7 +914,11 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
         let frameworks = load_frameworks(&data)?;
         let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
         let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-        let scan_report = scan(app_dir, &signatures)?;
+        let scan_report = scan_for(
+            &manifest,
+            &sv_scan::files::Listing::of(app_dir),
+            &signatures,
+        )?;
         let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
         let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
         Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
@@ -1063,7 +1071,11 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     let frameworks = load_frameworks(&data)?;
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
     let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-    let scan_report = scan(app_dir, &signatures)?;
+    let scan_report = scan_for(
+        &manifest,
+        &sv_scan::files::Listing::of(app_dir),
+        &signatures,
+    )?;
     let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
     let catalog = sv_check::notes::Catalog::load(&notes_path())?;
@@ -2107,6 +2119,66 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
     gaps
 }
 
+/// The scan every command reads the app with: the folders the manifest says are not the app are
+/// left out of what counts as evidence about it. One place, so no command reads them as the app.
+fn scan_for(
+    manifest: &Manifest,
+    listing: &sv_scan::files::Listing,
+    signatures: &Signatures,
+) -> Result<sv_scan::ScanReport> {
+    sv_scan::scan_listing_app(listing, signatures, &manifest.not_the_app().0)
+}
+
+/// What the report says about `[repository] not-the-app`: the folders it set apart, any it named that
+/// are not there, and any entry refused. Said in the report because the list changes what counts as
+/// evidence, and a list nobody sees could hide the app's own code from the check.
+fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_report::Gap> {
+    let (folders, refused) = manifest.not_the_app();
+    let mut gaps = Vec::new();
+    if !folders.is_empty() {
+        let found: Vec<String> = scan.set_apart.iter().map(|f| format!("`{f}`")).collect();
+        let missing: Vec<String> = folders
+            .iter()
+            .filter(|f| {
+                !scan
+                    .set_apart
+                    .iter()
+                    .any(|p| sv_scan::under_any(p, &[(*f).clone()]))
+            })
+            .map(|f| format!("`{f}`"))
+            .collect();
+        let mut why = format!(
+            "securevibe.toml says these folders are not the app (`[repository] not-the-app`): {}. \
+             Their code is still checked, and its findings count, listed with test and sample \
+             code. What is in them cannot change which requirements apply: a library an example \
+             uses is not one the app uses. If the app's own code is in one of them, take it off \
+             the list.",
+            if found.is_empty() {
+                "none of them is in this app".to_owned()
+            } else {
+                found.join(", ")
+            }
+        );
+        if !found.is_empty() && !missing.is_empty() {
+            why.push_str(&format!(" Named but not found: {}.", missing.join(", ")));
+        }
+        gaps.push(sv_report::Gap {
+            what: "what the folders named as not the app use".to_owned(),
+            why,
+        });
+    }
+    if !refused.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: "entries in `[repository] not-the-app` that were refused".to_owned(),
+            why: format!(
+                "{}. Everything they would have named is read as the app.",
+                refused.join("; ")
+            ),
+        });
+    }
+    gaps
+}
+
 fn assemble_report(
     app_dir: &Path,
     options: &ReportOptions,
@@ -2131,7 +2203,7 @@ fn assemble_report(
     } = loaded;
     // One walk of the folder, shared by every check in this report (DESIGN, "One walk of the app").
     let listing = sv_scan::files::Listing::of(app_dir);
-    let scan_report = sv_scan::scan_listing(&listing, signatures)?;
+    let scan_report = scan_for(&manifest, &listing, signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(frameworks, config_rules, &ctx, manifest.target_level());
 
@@ -2574,6 +2646,7 @@ fn assemble_report(
             ),
         });
     }
+    gaps.extend(not_the_app_gaps(&manifest, &scan_report));
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -3058,6 +3131,8 @@ fn assemble_report(
     let mut findings = sv_check::finding::merge_same_place(findings);
     // Rust keeps its unit tests beside the code, so the file's name cannot say which is which.
     sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
+    // What the manifest says is not the app is listed with test and sample code.
+    sv_check::finding::mark_not_the_app(&manifest.not_the_app().0, &mut findings);
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(

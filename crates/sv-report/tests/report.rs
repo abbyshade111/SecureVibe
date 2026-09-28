@@ -23,7 +23,7 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
-        in_test_module: false,
+        marked_test_code: false,
         rule_id: rule_id.into(),
         title: "something".into(),
         severity: Severity::High,
@@ -2129,7 +2129,7 @@ fn findings_in_test_code_are_listed_after_the_apps_own_and_still_count() {
     let mut by_module = finding("ast.module", &["V1.2.1"]);
     by_module.title = "Found in a Rust test module".into();
     by_module.location.file = "src/lib.rs".into();
-    by_module.in_test_module = true;
+    by_module.marked_test_code = true;
     let report = build(inputs(&f, &buckets, vec![by_path, in_app, by_module], &[]));
 
     let status = |id: &str| {

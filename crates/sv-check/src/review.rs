@@ -222,7 +222,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: format!("fp-{rule}"),
-            in_test_module: false,
+            marked_test_code: false,
         }
     }
 

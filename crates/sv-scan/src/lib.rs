@@ -143,6 +143,10 @@ pub struct ScanReport {
     /// at all, or one only the code rules read (`ecosystems::NO_TECHNOLOGY_READER`).
     pub unread_extensions: BTreeSet<String>,
     pub answers: Vec<Answer>,
+    /// The folders the manifest says are not the app (`[repository] not-the-app`), as given.
+    pub not_the_app: Vec<String>,
+    /// The folders in the app that one of those matched, and so were not looked in for evidence.
+    pub set_apart: BTreeSet<String>,
 }
 
 impl ScanReport {
@@ -164,12 +168,45 @@ pub fn scan(app_dir: &Path, signatures: &Signatures) -> Result<ScanReport> {
 /// evidence. Before, every file was held in memory for the whole run and lowercased again for each
 /// of about thirty signatures.
 pub fn scan_listing(listing: &files::Listing, signatures: &Signatures) -> Result<ScanReport> {
+    scan_listing_app(listing, signatures, &[])
+}
+
+/// As `scan_listing`, leaving out the folders the manifest says are not the app: a fixture's
+/// `authlib` is not evidence that the app signs people in. Only the answers change. The code rules,
+/// the credentials scan, and every other check still read those folders.
+pub fn scan_listing_app(
+    listing: &files::Listing,
+    signatures: &Signatures,
+    not_the_app: &[String],
+) -> Result<ScanReport> {
     let app_dir = listing.root.as_path();
+    let ours = |path: &str| !under_any(path, not_the_app);
     let mut report = ScanReport {
-        ecosystems: ecosystems::detect_in(listing),
-        unpinned: ecosystems::unpinned_in(listing),
-        declared: deps::read_in(listing),
-        all_paths: listing.all_paths(),
+        ecosystems: ecosystems::detect_in(listing)
+            .into_iter()
+            .filter(|e| ours(&e.manifest))
+            .collect(),
+        unpinned: ecosystems::unpinned_in(listing)
+            .into_iter()
+            .filter(|e| ours(&e.manifest))
+            .collect(),
+        declared: deps::read_in(listing)
+            .into_iter()
+            .filter(|d| ours(&d.manifest))
+            .collect(),
+        all_paths: listing
+            .all_paths()
+            .into_iter()
+            .filter(|p| ours(p))
+            .collect(),
+        not_the_app: not_the_app.to_vec(),
+        // The outermost folder each entry matched, so the report can name what it set apart.
+        set_apart: listing
+            .dirs
+            .iter()
+            .filter(|d| !ours(d) && d.rsplit_once('/').is_none_or(|(parent, _)| ours(parent)))
+            .cloned()
+            .collect(),
         ..Default::default()
     };
 
@@ -192,7 +229,7 @@ pub fn scan_listing(listing: &files::Listing, signatures: &Signatures) -> Result
     // The first file each signature's patterns matched: (the pattern as written, the file).
     let mut source_hits: Vec<Option<(String, String)>> = vec![None; signatures.signatures.len()];
 
-    for entry in listing.app_files() {
+    for entry in listing.app_files().filter(|e| ours(&e.relative)) {
         let Some(ext) = &entry.extension else {
             continue;
         };
@@ -504,6 +541,20 @@ fn package_matches(ecosystem: &str, signature: &str, declared: &str) -> bool {
 
 fn eq_ignore_case(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.to_lowercase() == b.to_lowercase()
+}
+
+/// Whether a path from the app folder is inside one of `folders`, where `*` stands for one whole
+/// folder name. `examples` holds `examples/shop/app.py`, and not `examples.md` or `my-examples/`.
+pub fn under_any(path: &str, folders: &[String]) -> bool {
+    let parts: Vec<&str> = path.split(['/', '\\']).filter(|p| !p.is_empty()).collect();
+    folders.iter().any(|folder| {
+        let pattern: Vec<&str> = folder.split('/').collect();
+        pattern.len() <= parts.len()
+            && pattern
+                .iter()
+                .zip(&parts)
+                .all(|(want, got)| *want == "*" || want == got)
+    })
 }
 
 /// Extensions that are probably code `sv` has no reader for. Deliberately narrow: counting every

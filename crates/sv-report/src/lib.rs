@@ -552,7 +552,7 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
 /// What the reports say above the findings in test or sample code.
 pub const TEST_CODE_SECTION: &str = "Listed apart because they are in code that tests the app or \
      shows how to use it, not in the app itself: a folder or file named for tests, fixtures, or \
-     examples, or Rust code built only for its tests. They still count toward the requirements they \
+     examples, Rust code built only for its tests, or a folder securevibe.toml says is not the app. They still count toward the requirements they \
      are about. Test code can hold a real key, and sample code gets copied, so read each one before \
      deciding it does not matter.";
 

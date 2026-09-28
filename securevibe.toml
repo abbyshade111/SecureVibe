@@ -56,6 +56,12 @@ ci-cd = true                  # GitHub Actions: .github/workflows/rust.yml and c
 hosted-scm = false            # hosted on GitHub, but with no branch protection or merge queue on main
 outside-contributors = false  # none so far; CONTRIBUTING.md invites them
 iac = true                    # the CI workflow files above are in the repository
+# Folders that are not `sv`, added at the owner's asking on 27 September 2026: its tests and the
+# deliberately vulnerable fixture apps inside them, the example apps, the maintenance scripts, and the
+# documents and paper. The same four the v2 self-assessment left out of its "product code only" run.
+# They are still checked and their findings still count, listed apart; what they use cannot change
+# which requirements apply to `sv`.
+not-the-app = ["crates/*/tests", "examples", "tools", "docs"]
 
 [capabilities.ai]
 # `sv` has no AI feature of its own. It tests other apps' AI features with a test model it runs itself,
