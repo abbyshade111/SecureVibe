@@ -320,6 +320,12 @@ another session is not a claim.
       - Step 1: slices a to d and g, not claimed.
       - Step 1, slice h (`forgery.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-forgery`.
+        **Done the same day:** `signed_in/forgery.rs`, 777 lines with its 17 tests; `mod.rs` is 10,811. The
+        WebSocket foreign-origin tests use `ws_run`, `ws_findings`, and `bearer_ws_users`, which stay in
+        `mod.rs`'s tests for slice b and are `pub(super)`. Each check was made to return at once: breaking
+        `null_origin_check` turns 5 of the moved tests red, and `simple_request_check` 4. `forgery_check`
+        (V3.5.1) turns only the three cross-area tests in `mod.rs` red, none in `forgery.rs`: nothing
+        tests it on its own, which was so before the split and is left for a change that may add tests.
       - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
         **Done the same day:** `signed_in/flows.rs`, 371 lines with its 8 tests; `mod.rs` is 11,578. With
