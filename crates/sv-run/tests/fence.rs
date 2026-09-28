@@ -59,7 +59,7 @@ fn an_app_that_never_starts_is_not_assessed_rather_than_failed() {
     let mut p = plan();
     p.start = "false".to_owned();
     let err = backend.run(&p, &[]).unwrap_err();
-    match &err {
+    match &err.reason {
         CannotRun::NeverReady { .. } => {}
         other => panic!("expected NeverReady, got {other:?}"),
     }

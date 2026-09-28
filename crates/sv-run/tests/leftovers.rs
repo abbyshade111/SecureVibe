@@ -157,3 +157,63 @@ fn a_run_first_removes_what_a_stopped_run_left_on_this_machine_and_nothing_else(
     cleanup_after();
     result.unwrap();
 }
+
+/// Removing leftovers happens before the app starts, so an app that then never answers has still
+/// had them removed, and the failure must say so: `sv run` and `sv report --run` show only the
+/// failure's explanation. Seen on the owner's Mac, where a run that failed removed a killed run's
+/// containers and network and said nothing about it.
+#[test]
+fn a_run_that_fails_after_removing_leftovers_still_says_what_it_removed() {
+    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(backend) = backend() else { return };
+    let machine = cleanup::owner()
+        .rsplit_once(':')
+        .map(|(m, _)| m.to_owned())
+        .expect("owner is machine:pid");
+    let name = format!("sv-leftover-test-{}-before-failure", std::process::id());
+    let label = format!("{}={machine}:{}", cleanup::OWNER_LABEL, ended_pid());
+    let (ok, out) = docker(&[
+        "run",
+        "-d",
+        "--label",
+        &label,
+        "--name",
+        &name,
+        "busybox:1.36",
+        "sleep",
+        "300",
+    ]);
+    assert!(ok, "could not start the left-over container: {out}");
+    assert!(
+        exists(&name),
+        "the left-over container is there before the run"
+    );
+
+    // An app that exits at once, so the run fails after the cleanup and before anything else.
+    let mut failing = plan();
+    failing.start = "false".to_owned();
+    let result = backend.run(&failing, &[]);
+    let removed = !exists(&name);
+    let _ = docker(&["rm", "-f", &name]);
+
+    let failed = result.expect_err("an app that exits at once never answers");
+    assert!(
+        matches!(failed.reason, CannotRun::NeverReady { .. }),
+        "the run failed for the reason this test sets up: {failed:?}"
+    );
+    assert!(removed, "the run removed the leftover before it failed");
+    assert!(
+        failed.left_over_removed.contains(&name),
+        "{:?}",
+        failed.left_over_removed
+    );
+    let said = failed.explain();
+    assert!(
+        said.contains("never answered"),
+        "why it failed comes first: {said}"
+    );
+    assert!(
+        said.contains("Before starting, `sv` removed") && said.contains(&name),
+        "and then what it removed: {said}"
+    );
+}
