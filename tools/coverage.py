@@ -646,10 +646,7 @@ def main():
         parts = []
         if names:
             parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"
-                         + (f" and {len(names) - 4} more" if len(names) > 4 else "")
-                         + (" (its applicability rule classifies it `scanner-clean`, so a clean credential"
-                            " scan counts; the scan reads the repository, not what reaches the model's"
-                            " context at run time)" if any(c.startswith("secrets.") for c in names) else ""))
+                         + (f" and {len(names) - 4} more" if len(names) > 4 else ""))
         by_tool = defaultdict(list)
         for tool, r in rules:
             by_tool[tool].append(f"`{r}`")

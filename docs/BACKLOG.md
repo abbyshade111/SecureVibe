@@ -738,6 +738,12 @@ another session is not a claim.
   credential into the model's context is what C9.5.4 is about. Fix: take C9.5.4 off the Anthropic rule,
   regenerate `docs/COVERAGE.md`, and see what else moves. **Claimed on 28 September 2026 by session
   securevibe-e9**, at the owner's asking to continue with the backlog.
+  **Done the same day:** C9.5.4 is off `secrets.anthropic-key`, and it is now only ever found failing, by
+  semgrep's `mcp-credential-in-response`. Nothing else moved. The note in `tools/coverage.py` explaining why
+  a clean credential scan counted for it is gone with it. `no_rule_that_reads_files_for_keys_cites_the_model_context_requirement`
+  in `crates/sv-check/tests/citations.rs` holds it, beside the coverage document; putting the citation back
+  turns both red. Left as it is: `data/knowledge/applicability.json` still classes C9.5.4 as `scanner-clean`,
+  which no code reads and which no clean scan now backs.
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
