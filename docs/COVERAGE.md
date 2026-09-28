@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 140 (41%) | 7 | 198 |
-| OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
+| OWASP AISVS 1.0 | 191 | 17 (9%) | 0 | 174 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -267,12 +267,12 @@ does not reach.
 | C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 4 | 0 | 30 |
+| C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
 | C10 Model Context Protocol (MCP) Security | 23 | 2 | 0 | 21 |
 | C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
 
-5 of these 18 can only ever be marked *needs attention*: a check can
+7 of these 20 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -282,9 +282,11 @@ need `--tools`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
-- C7.3.3: settled by `probe.ai-output-fetched`.
+- C7.3.3: found failing by sv's `probe.ai-output-fetched`.
 - C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
+- C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
+- C9.3.7: found failing by sv's `probe.ai-output-fetched`.
 - C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.

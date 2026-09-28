@@ -173,6 +173,10 @@ another session is not a claim.
      169 KB while the part read before its appendix went from 63 KB to 14 KB. See DESIGN, "The
      report's shape". Not done, and not decided: `only_you_can_check` in `report.json` repeats
      word for word 50 entries of `questions_for_you` (27 KB on the example).
+     **The owner's decision, the same day: drop the duplicate. Claimed by session securevibe-e10**, in
+     branch `claude/only-you-once`.
+     **Done the same day:** `report.json` names them as `only_you_can_check_ids`, each a question in
+     `questions_for_you`; 334 KB to 306 KB on the example. See DESIGN, "The report's shape".
   10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
@@ -304,7 +308,12 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a to d and f to h, not claimed.
+      - Step 1: slices a to d, g, and h, not claimed.
+      - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
+        **Done the same day:** `signed_in/flows.rs`, 371 lines with its 8 tests; `mod.rs` is 11,578. With
+        `flow_checks` made to return at once, 7 of the 8 go red (the eighth is the app with no flow), and
+        none of the tests left in `mod.rs` does: the all-flaws and correct-app tests do not cover flows.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
         **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
@@ -435,6 +444,13 @@ another session is not a claim.
      either way.
      **V8.2.3, C9.3.2, C9.3.7, and V14.2.2 claimed on 28 September 2026 by session securevibe-e9**, at the
      owner's asking to go ahead with this group; V9.2.3 stays the owner's call.
+     **C9.3.2 and C9.3.7 done the same day** (`crates/sv-check/src/ai.rs`). **V8.2.3 and V14.2.2 wait for the
+     `signed_in.rs` freeze to lift**, since their checks live there: add V8.2.3 to the requirement lists of
+     `probe.role-field-trusted` and `probe.record-returns-secret-fields` (both only ever findings), and add a
+     finding-only `probe.private-page-shared-cache` (V14.2.2) beside `probe.private-page-cached` for a private
+     page whose `Cache-Control` has `public` or an `s-maxage` with neither `private` nor `no-store`. Session
+     securevibe-e9 wrote and tested both before the freeze was noticed, and holds the claim; the slice's
+     session may make them in its pull request instead (slices g and b).
   3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
      Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
      V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),

@@ -624,9 +624,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 15 can be checked, 0 where a check helps but a person decides, and 176 with no check.
+191 requirements: 17 can be checked, 0 where a check helps but a person decides, and 174 with no check.
 
-### Level 1 (51 requirements, 10 can be checked)
+### Level 1 (51 requirements, 11 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -696,7 +696,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C9.1.2** Verify that per-execution budgets (e.g., max recursion depth, token use, and monetary spend) are configured and enforced by the runtime. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: a model called in a loop with no limit on iterations, token use, or spend (found failing only) |
 | **C9.2.1** Verify that the agent runtime blocks execution of privileged, high-impact, or irreversible actions until explicit human approval is received and verified. | No check | – |
 | **C9.3.1** Verify that each tool/plugin executes in a least-privilege sandbox or is otherwise isolated from model operations. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted; an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox (found failing only) |
-| **C9.3.2** Verify that tool outputs are validated against schemas. | No check | – |
+| **C9.3.2** Verify that tool outputs are validated against schemas. | Can be checked | The running app: `probe.ai-mcp-output-unvalidated`, if it fails: A tool's result that does not match the shape the tool promised is passed to the model as if it did, so a broken or hostile MCP server decides what the model is told. |
 | **C9.6.1** Verify that a manual kill-switch mechanism exists to immediately halt AI model inference and outputs. | Can be checked | The running app: `probe.ai-kill-switch-ignored`, if it fails: A kill switch that does not stop the model is found not to work at the moment it is needed: when the feature is misbehaving and has to stop now. |
 
 #### C10 Model Context Protocol (MCP) Security
@@ -734,7 +734,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 5 can be checked)
+### Level 2 (95 requirements, 6 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -805,7 +805,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C7.2.1** Verify that the system assesses the reliability of generated answers using a confidence estimation method. | No check | – |
 | **C7.2.2** Verify that the application automatically blocks answers or switches to a fallback message if the confidence score drops below a defined threshold. | No check | – |
 | **C7.3.2** Verify that output filters detect and block responses that disclose system prompt content or backend data. | Can be checked | The running app: `probe.ai-instructions-leaked`, if it fails: Whatever the app tells its model before the conversation — its rules, the data it looked up, sometimes a key — reaches anybody who asks the model to repeat it, and models can always be talked into repeating it. |
-| **C7.3.3** Verify that model-generated output is prevented from triggering outbound requests. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. |
+| **C7.3.3** Verify that model-generated output is prevented from triggering outbound requests. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. (found failing only) |
 | **C7.4.3** Verify that claims in a RAG response can be traced to the retrieved chunk. | No check | – |
 
 #### C8 Memory, Embeddings & Vector Database Security
@@ -834,7 +834,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C9.3.4** Verify that the runtime enforces the privileges, resource limits, and output-validation requirements declared in tool manifests. | No check | – |
 | **C9.3.5** Verify that components processing untrusted data are isolated from tool-calling capabilities, ensuring that compromised data processing cannot trigger unauthorized tool invocations. | No check | – |
 | **C9.3.6** Verify that there is architectural separation between processing of untrusted tool outputs and agent operations. | No check | – |
-| **C9.3.7** Verify that external resources named in model output are verified against an approved allow-list or registry before the agent installs or invokes them. | No check | – |
+| **C9.3.7** Verify that external resources named in model output are verified against an approved allow-list or registry before the agent installs or invokes them. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. (found failing only) |
 | **C9.4.1** Verify that each agent instance has a unique cryptographic identity and authenticates as a first-class principal to downstream systems. | No check | – |
 | **C9.4.2** Verify that agent-initiated actions are cryptographically bound to each step of the execution chain for non-repudiation. | No check | – |
 | **C9.5.1** Verify that agent actions are authorized against fine-grained policies enforced by the runtime that restrict which tools an agent may invoke, and which parameter values it may supply. | No check | – |
