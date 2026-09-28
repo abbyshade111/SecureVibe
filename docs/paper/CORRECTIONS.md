@@ -8,11 +8,11 @@ commit or pull request. The figure is `figure-corrections.html`.
 
 ## The count
 
-**48 corrections in ten days, 16 in v1 and 32 in `sv`.**
+**48 corrections in ten days, 17 in v1 and 31 in `sv`.**
 
 | Direction | v1 | `sv` | Total |
 |---|---|---|---|
-| **Down:** the claim was stronger than the evidence | 7 | 25 | 32 |
+| **Down:** the claim was stronger than the evidence | 8 | 24 | 32 |
 | **Up:** the claim was weaker than the evidence | 6 | 5 | 11 |
 | **Wording:** the claim was true, but read as something else | 3 | 2 | 5 |
 
@@ -23,7 +23,7 @@ the report greener, never redder. Upward corrections were mostly v1 counting aga
 
 By day: 3 on 18 September, 5 on the 19th, 8 on the 20th, none on the 21st or 22nd, 1 on the 23rd, 7 on the 24th,
 **14 on the 25th**, 6 on the 26th, and 4 on the 27th. The peak is the day `sv` added the most checks: its test count
-more than doubled that day, from 326 to 687.
+more than doubled that day, from 320 to 687.
 
 ## How each was found
 
@@ -52,10 +52,10 @@ Over the same days, `sv`'s tests grew from 54 to 1,306, and v1's server tests fr
 | 19 September | — | 1,002 |
 | 20 September | — | 1,078 |
 | 22 September | 54 | — |
-| 23 September | 161 | — |
-| 24 September | 326 | — |
+| 23 September | 54 | — |
+| 24 September | 320 | — |
 | 25 September | 687 | — |
-| 26 September | 1,132 | — |
+| 26 September | 1,126 | — |
 | 27 September | 1,306 | — |
 
 This does not make the tests useless: they guard what the code does. What they cannot catch is a claim that is

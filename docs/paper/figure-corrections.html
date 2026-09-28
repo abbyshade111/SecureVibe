@@ -56,7 +56,7 @@
      <code>CORRECTIONS.md</code>, and every row is in <code>corrections.csv</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b>48</b><span>corrections in ten days: 16 in v1, 32 in <code>sv</code></span></div>
+    <div class="stat"><b>48</b><span>corrections in ten days: 17 in v1, 31 in <code>sv</code></span></div>
     <div class="stat"><b style="color:var(--down)">32</b><span>went down: the claim was stronger than the evidence</span></div>
     <div class="stat"><b>2</b><span>were caught by a failing test, while <code>sv</code>'s tests grew from 54 to 1,306</span></div>
   </div>
@@ -76,7 +76,7 @@
     <span><span class="sw" style="background:var(--v1)"></span>v1 server tests</span>
     <span><span class="sw" style="background:var(--sv)"></span><code>sv</code> tests</span>
   </div>
-  <div class="chart"><svg id="tests" viewBox="0 0 860 170" role="img" aria-label="Tests per day: v1 810 on 17 September, 1,002 on the 19th, 1,078 on the 20th; sv 54, 161, 326, 687, 1,132, 1,306 from 22 to 27 September."></svg></div>
+  <div class="chart"><svg id="tests" viewBox="0 0 860 170" role="img" aria-label="Tests per day: v1 810 on 17 September, 1,002 on the 19th, 1,078 on the 20th; sv 54, 54, 320, 687, 1,126, 1,306 from 22 to 27 September."></svg></div>
 
   <h2>3. How each correction was found</h2>
   <div class="chart"><svg id="how" viewBox="0 0 860 200" role="img" aria-label="Found by reading the output 15, the owner or real use 9, building something else 9, another session's review 8, running a tool on real input 4, a failing test 2, not recorded 1."></svg></div>
@@ -110,7 +110,7 @@
   const s2 = document.getElementById("tests"), B2 = 140, H2 = 110, M2 = 1306;
   mk(s2, "line", { x1: L, x2: R, y1: B2, y2: B2, stroke: "var(--text-muted)" });
   days.forEach((d) => mk(s2, "text", { x: x(d) + (R - L) / 22, y: B2 + 18, "text-anchor": "middle", class: "muted" }, d === 17 ? "17 Sep" : String(d)));
-  const v1t = { 17: 810, 19: 1002, 20: 1078 }, svt = { 22: 54, 23: 161, 24: 326, 25: 687, 26: 1132, 27: 1306 };
+  const v1t = { 17: 810, 19: 1002, 20: 1078 }, svt = { 22: 54, 23: 54, 24: 320, 25: 687, 26: 1126, 27: 1306 };
   days.forEach((d) => {
     const cx = x(d) + (R - L) / 22;
     [[v1t[d], "var(--v1)"], [svt[d], "var(--sv)"]].forEach(([n, c]) => {

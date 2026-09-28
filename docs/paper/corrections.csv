@@ -29,7 +29,7 @@ n,date,time_eastern,version,direction,found_by,before,after,why,source
 28,2026-09-25,10:38,sv,down,reading the output,a clean semgrep run marked 39 requirements for any app,"Python 9, Go 5, Ruby 0","only rules loaded, for the app's languages",7c6b1a49; #71
 29,2026-09-25,11:11,sv,down,building another check,the credential scan checks V11.1.1 and V13.3.1,withdrawn,both are manual-only,3266f740
 30,2026-09-25,11:24,sv,down,another session's review,a bandit run with # nosec credited as clean,suppressed results shown; credit withheld,the tool was told to look away,ccfd90cf #73; 65e1db22 #79
-31,2026-09-25,12:11,sv,down,reading the output,10 scanner-clean ASVS requirements credited,clean credit only where a covering rule exists,"credit was built from findings, not rules",f9258ac0; #76
+31,2026-09-25,12:11,v1,down,reading the output,10 scanner-clean ASVS requirements credited,clean credit only where a covering rule exists,"credit was built from findings, not rules",f9258ac0; #76
 32,2026-09-25,13:48,sv,down,reading the output,a clean semgrep run credited tests and ignored files,"files handed over by name, and checked as read",semgrep skips them silently,4c788169
 33,2026-09-25,15:26,sv,down,another session's review,"the report said an npm list was what was asked for, with no lockfile","the list is empty, as the SBOM says",approximate when absent,bc25b79d #82; 190a78a #102
 34,2026-09-25,15:48,sv,down,building another check,C9.5.4 checked by a clean credential scan,"the semgrep AI rules count against AISVS, never for",a clean run is not evidence for an AI control,84e7fe37

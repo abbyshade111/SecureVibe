@@ -27,6 +27,13 @@ files are the record and the reader can recompute anything in them.
 | `figure-corrections.html` | The same, as three charts: corrections by day and direction, tests over the same days, and how each correction was found. |
 | `DECISIONS.md` | The 23 decisions that shaped the project, each with who proposed it and who made the final call, quoted from the session transcripts: the owner chose 19, an AI session 3, and one was split. The owner took Claude's recommended option in 24 of 29 questions. |
 | `figure-decisions.html` | The same, as a grid of who proposed against who chose, with every decision in its cell, and the 29 recommendations as a row of squares. |
+| `COORDINATION.md` | What running several AI sessions at once cost and bought, 18–28 September: 93 of 469 changes to `main` only claimed or released work, 56 conflicts were resolved by hand (31 in the backlog alone), 14 duplicates and collisions, 3 pull requests thrown away, and 28 faults found by one session reviewing another's work. |
+| `coordination.csv` | 209 rows, one per event: claims, unmerged pull requests, conflicts, duplicates, collisions, and faults found in review, each with its source. |
+| `figure-coordination.html` | The same, as three charts: changes to `main` per day with the coordination share, conflicts per day, and how the project's faults were found. |
+| `TESTS-AND-FAULTS.md` | Test growth against fault discovery: 148 faults in SecureVibe's own code, how each was found (5 of the 129 in the product by a failing test), the rate per 1,000 lines changed as the suites grew, and whether each fix added a test (104 of 119). |
+| `faults.csv` | 143 rows covering the 148 faults: when and how each was found, when fixed, whether the fix added a test, and the commit or pull request. |
+| `tests_by_day.csv` | Tests, tests added, faults found, and lines changed, per day and version. |
+| `figure-tests-faults.html` | The same, as tests per day, faults per day with the rate per 1,000 lines, and the 119 fixes that did or did not leave a test behind. |
 | `METHODOLOGY.md` | What a run does, the frameworks and their counts, the evidence model, the comparison design, stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
 | `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |
