@@ -277,6 +277,10 @@ another session is not a claim.
      every per-ecosystem export does.
      **Claimed on 28 September 2026 by session securevibe-e9.** The fix was written before this claim, in
      branch `claude/securevibe-e9-osv-coverage`, while waiting for the entry itself to reach `main`.
+     **Done the same day:** an ecosystem is covered only when the database holds a record about it and
+     no other. With the crates.io export alone, this repository's example Python app is now "not compared
+     for Python" rather than compared. A unit test in `advisories.rs` and an end-to-end one in
+     `crates/sv-cli/tests/audit_not_the_app.rs` hold it, each failing when a mention is enough again.
   2. **One vulnerability under two names is counted twice.** An advisory published as both a GitHub
      advisory and a PyPI one (`GHSA-wvwj-cvrp-7pv5` and `PYSEC-2026-287`, which list each other as
      aliases) is two findings; `examples/flask-booking`'s 39 are about 20 vulnerabilities. Count a
