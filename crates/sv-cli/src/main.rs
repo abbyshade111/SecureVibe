@@ -282,6 +282,41 @@ fn load_frameworks(data: &std::path::Path) -> Result<Frameworks> {
     Ok(frameworks)
 }
 
+/// Everything a report reads from `data/`, loaded once per process.
+///
+/// A command loads it once and is done; the MCP server loads it when it starts and hands the same
+/// one to every call, so the code rules' queries — compiled the first time a language is met, and
+/// kept in the `AstRules` — are compiled once for the life of the server rather than once per call.
+/// Loading itself is cheap (about 30 ms, most of it the regexes); the second every command used to
+/// spend before reading a file was the queries, and they are now compiled only for the languages
+/// the app holds (review item 6, 27 September 2026).
+pub(crate) struct Loaded {
+    pub frameworks: Frameworks,
+    pub config_rules: ApplicabilityConfig,
+    pub signatures: Signatures,
+    pub threat_rules: sv_report::threats::ThreatRules,
+    pub secret_rules: SecretRules,
+    pub ast_rules: ast::AstRules,
+}
+
+impl Loaded {
+    pub(crate) fn load() -> Result<Loaded> {
+        let data = data_dir()?;
+        Ok(Loaded {
+            frameworks: load_frameworks(&data)?,
+            config_rules: ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?,
+            signatures: Signatures::load_all(&[&signatures_path(), &corroborators_path()])?,
+            // Shared with v1, beside the applicability rules, so a threat is corrected in one place.
+            threat_rules: sv_report::threats::ThreatRules::load(
+                &data.join("knowledge").join("threats.json"),
+            )?
+            .with_atlas()?,
+            secret_rules: SecretRules::load(&secret_rules_path())?,
+            ast_rules: ast::AstRules::load(&ast_rules_path())?,
+        })
+    }
+}
+
 /// What each `derived` condition looks like in real code.
 fn signatures_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
@@ -994,6 +1029,7 @@ fn cmd_questions(path: Option<PathBuf>) -> Result<()> {
             advisories: None,
             why_no_advisories: "".to_owned(),
         },
+        &Loaded::load()?,
     )?;
     println!(
         "Paste everything below into your AI coding tool's chat. It will ask you these one at a \
@@ -1381,6 +1417,21 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
         if code.unread_files.len() > 10 {
             println!("  … and {} more", code.unread_files.len() - 10);
+        }
+    }
+    if !code.broken_queries.is_empty() {
+        println!(
+            "\n{} code rule{} could not run, because its query would not compile (a fault in sv's \
+             rule file, not in your app), so no rule claims a clean result:",
+            code.broken_queries.len(),
+            if code.broken_queries.len() == 1 {
+                ""
+            } else {
+                "s"
+            }
+        );
+        for b in &code.broken_queries {
+            println!("  {} for {} — {}", b.rule_id, b.language, b.why);
         }
     }
 
@@ -1805,6 +1856,7 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
                                 pass --advisories DIR."
                 .to_owned(),
         },
+        &Loaded::load()?,
     )?;
     let command = format!("sv bundle {}", args.join(" "));
     let outcome = write_bundle(&app_abs, &zip_abs, &report, command.trim())?;
@@ -2055,7 +2107,11 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
     gaps
 }
 
-fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report::Report> {
+fn assemble_report(
+    app_dir: &Path,
+    options: &ReportOptions,
+    loaded: &Loaded,
+) -> Result<sv_report::Report> {
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -2065,19 +2121,19 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     }
     let manifest = Manifest::load(&manifest_path)?;
 
-    let data = data_dir()?;
-    let frameworks = load_frameworks(&data)?;
-    let config_rules = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
-    let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+    let Loaded {
+        frameworks,
+        config_rules,
+        signatures,
+        threat_rules,
+        secret_rules,
+        ast_rules,
+    } = loaded;
     // One walk of the folder, shared by every check in this report (DESIGN, "One walk of the app").
     let listing = sv_scan::files::Listing::of(app_dir);
-    let scan_report = sv_scan::scan_listing(&listing, &signatures)?;
+    let scan_report = sv_scan::scan_listing(&listing, signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
-    let buckets = bucket(&frameworks, &config_rules, &ctx, manifest.target_level());
-    // Shared with v1, beside the applicability rules, so a threat is corrected in one place.
-    let threat_rules =
-        sv_report::threats::ThreatRules::load(&data.join("knowledge").join("threats.json"))?
-            .with_atlas()?;
+    let buckets = bucket(frameworks, config_rules, &ctx, manifest.target_level());
 
     // The report used to reason about dependencies from the scan alone, which knows only whether a
     // lockfile is missing. The bill of materials knows what actually came out of each ecosystem,
@@ -2085,11 +2141,9 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // Building it reads manifests and lockfiles; it opens no network connection. Built once, here,
     // and handed to the lockfile check and the findings below.
     let bill_of_materials = sbom::build_in(&listing);
-    let secret_rules = SecretRules::load(&secret_rules_path())?;
-    let secrets = sv_check::secrets::scan_listing(&secret_rules, &listing);
+    let secrets = sv_check::secrets::scan_listing(secret_rules, &listing);
     let config = check_dir_in(&listing, &bill_of_materials);
-    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
-    let code = ast::scan_listing(&ast_rules, &listing);
+    let code = ast::scan_listing(ast_rules, &listing);
     let mut findings_from_advisories = Vec::new();
 
     // Known vulnerabilities, when the owner has pointed at a local advisory database, held to the
@@ -2371,7 +2425,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
                         test_output = sv_check::suite::failing_output(
                             result.exit_code,
                             &result.output,
-                            &secret_rules,
+                            secret_rules,
                         );
                         if result.exit_code != 0 {
                             gaps.push(sv_report::Gap {
@@ -2496,6 +2550,30 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
             ),
         });
     }
+    if !code.broken_queries.is_empty() {
+        let shown: Vec<String> = code
+            .broken_queries
+            .iter()
+            .map(|b| format!("{} for {} ({})", b.rule_id, b.language, b.why))
+            .collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} code rule{} that could not run",
+                code.broken_queries.len(),
+                if code.broken_queries.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ),
+            why: format!(
+                "{}. The rule's query for that language would not compile, so it read none of \
+                 those files; while a rule did not run, no rule that reads code can say it found \
+                 nothing wrong. This is a fault in sv's rule file, not in the app.",
+                shown.join("; ")
+            ),
+        });
+    }
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -2567,7 +2645,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
     // and every one is unverified — which is true of a great many ASVS requirements too, and the
     // difference matters: those could in principle be reached by some check, and these cannot be
     // reached by any, ever. Counting them together lets a reader think the scanner tried.
-    let manual_only = buckets.manual_only(&config_rules);
+    let manual_only = buckets.manual_only(config_rules);
     let design_review = manual_only.len();
     if design_review > 0 {
         gaps.push(sv_report::Gap {
@@ -3001,7 +3079,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         test_output,
         run_status: Some(run_status),
         coding_rules_cited,
-        frameworks: &frameworks,
+        frameworks,
         buckets: &buckets,
         claims: &resolved,
         findings,
@@ -3017,7 +3095,7 @@ fn assemble_report(app_dir: &Path, options: &ReportOptions) -> Result<sv_report:
         stated: &stated,
         by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
-        threats: Some((&threat_rules, &ctx)),
+        threats: Some((threat_rules, &ctx)),
     });
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
@@ -3118,6 +3196,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
                                 pass --advisories DIR."
                 .to_owned(),
         },
+        &Loaded::load()?,
     )?;
 
     let written = write_report_files(&report, &out_dir)?;
