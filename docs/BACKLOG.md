@@ -324,6 +324,10 @@ another session is not a claim.
   `tools/coverage.py` from the same citations, as `docs/REQUIREMENTS.md`, so it cannot claim a check the
   code does not have, and published as a page the owner can filter. **Claimed on 28 September 2026 by
   session securevibe-e9.**
+  **Done the same day:** `docs/REQUIREMENTS.md`, 536 requirements by framework, level, and family, each with
+  its coverage and the checks that speak to it: what each looks for, read from where the check is defined,
+  and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
+  fails when it is out of date or leaves out a requirement.
 
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session

@@ -30,6 +30,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 OUT = ROOT / "docs" / "COVERAGE.md"
+LIST_OUT = ROOT / "docs" / "REQUIREMENTS.md"
 
 # What each kind of check needs before it can run at all.
 TIERS = [
@@ -200,9 +201,85 @@ def framework(path):
                     "level": r.get("level"),
                     "chapter": chapter["id"],
                     "chapter_name": chapter["name"],
+                    "section": section["id"],
+                    "section_name": section["name"],
                     "text": r.get("description", ""),
                 }
     return out
+
+
+# What a check of sv's own looks for, for the few whose code carries no title or impact of its own to
+# read it from: checks that only ever credit a requirement, and the configuration checks built
+# differently. Every other check's words are read from the code or data where the check is defined.
+DESCRIBED = {
+    "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
+    "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
+    "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",
+    "sbom": "Whether the list of what the app ships (its bill of materials) could be read completely from its lockfiles",
+    "advisories": "Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities",
+    "probe.ai-injection-logged": "Whether the app writes down that it caught the textbook prompt injection the run sent",
+    "probe.authentication-logged": "Whether the app writes down a refused sign-in the run made",
+    "probe.authorization-failure-logged": "Whether the app writes down a request it refused to someone not allowed to make it",
+    "probe.log-line-metadata": "Whether the line recording a security event says when, where from, and who",
+    "probe.log-common-format": "Whether that line is written in a format log tools read without being taught",
+    "probe.clear-site-data": "Whether signing out tells the browser to clear what the site stored in it",
+}
+
+
+def rust_string(text, i):
+    """The Rust string literal that starts at the quote at `text[i]`, with line continuations joined."""
+    out, j = [], i + 1
+    while True:
+        ch = text[j]
+        if ch == "\\":
+            nxt = text[j + 1]
+            if nxt == "\n":
+                j += 2
+                while text[j] in " \t":
+                    j += 1
+                continue
+            out.append({"n": "\n", '"': '"', "\\": "\\", "t": "\t"}.get(nxt, nxt))
+            j += 2
+            continue
+        if ch == '"':
+            return "".join(out)
+        out.append(ch)
+        j += 1
+
+
+def check_words():
+    """sv's own check id -> (label, words): what it looks for, from where the check is defined."""
+    words = {}
+    for rule in load(ROOT / "data/ast-rules.json")["rules"]:
+        words[rule["id"]] = ("Looks for", rule["title"])
+    for rule in load(ROOT / "data/secret-rules.json")["rules"]:
+        words[rule["id"]] = ("Looks for", rule["title"])
+    code = "".join(p.read_text().split("#[cfg(test)]")[0]
+                   for p in sorted((ROOT / "crates").glob("*/src/*.rs")))
+    for m in re.finditer(r'rule_id:\s*"([^"]+)"', code):
+        if m.group(1) in words:
+            continue
+        nxt = code.find("rule_id:", m.end())
+        body = code[m.end():min(nxt if nxt != -1 else len(code), m.end() + 4000)]
+        for field, label in (("title", "Looks for"), ("impact", "If it fails")):
+            f = re.search(field + r':\s*"', body)
+            if f:
+                words[m.group(1)] = (label, rust_string(body, f.end() - 1))
+                break
+    for check, text in DESCRIBED.items():
+        words.setdefault(check, ("Looks for", text))
+    unsaid = sorted(c for c in RUST_CHECKS if c not in words)
+    if unsaid:
+        sys.exit("checks with no words to show in docs/REQUIREMENTS.md; add them to DESCRIBED: "
+                 + ", ".join(unsaid))
+    extra = sorted(c for c in DESCRIBED if c not in RUST_CHECKS)
+    if extra:
+        sys.exit("DESCRIBED names checks RUST_CHECKS does not have: " + ", ".join(extra))
+    return words
+
+
+# Requirement id -> {tool: [what each of its rules looks for]}, for the outside tools.
+TOOL_RULES = defaultdict(lambda: defaultdict(list))
 
 
 def appendix_c(path):
@@ -289,10 +366,14 @@ def evidence():
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
                 CREDITED_BY_TOOL[q].add(adapter["id"])
+                if rule.get("what"):
+                    TOOL_RULES[q][adapter["id"]].append(rule["what"])
         for rule_id, rule in rules.items():
             for q in rule.get("findings_against", []):
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
+                if rule.get("what"):
+                    TOOL_RULES[q][adapter["id"]].append(rule["what"])
                 # The AI rules by their folder, which names the family across vendors and
                 # languages; the rest by their own id.
                 parts = rule_id.split(".")
@@ -559,13 +640,129 @@ def main():
     w("")
 
     text = "\n".join(out).rstrip() + "\n"
+    rows = requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only)
+    listing_text = requirements_markdown(rows)
+    if "--json" in sys.argv[1:]:
+        path = Path(sys.argv[sys.argv.index("--json") + 1])
+        path.write_text(json.dumps({"tiers": [{"id": t, "name": n, "needs": d} for t, n, d in TIERS],
+                                    "requirements": rows}, indent=1) + "\n")
+        print(f"wrote {path}")
     if check:
-        current = OUT.read_text() if OUT.exists() else ""
-        if current != text:
-            sys.exit("docs/COVERAGE.md is out of date: run `python3 tools/coverage.py` at the repository root")
+        for path, want in ((OUT, text), (LIST_OUT, listing_text)):
+            current = path.read_text() if path.exists() else ""
+            if current != want:
+                sys.exit(f"{path.relative_to(ROOT)} is out of date: run `python3 tools/coverage.py` at "
+                         "the repository root")
         return
     OUT.write_text(text)
-    print(f"wrote {OUT.relative_to(ROOT)}")
+    LIST_OUT.write_text(listing_text)
+    print(f"wrote {OUT.relative_to(ROOT)} and {LIST_OUT.relative_to(ROOT)}")
+
+
+# How each coverage status reads in the list, in words a person who is not a programmer reads easily.
+STATUS = {
+    "settle": "Can be checked",
+    "support": "A check helps; a person decides",
+    "none": "No check",
+}
+
+
+def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only):
+    """One row per ASVS and AISVS requirement: where it sits, what it asks, and what speaks to it."""
+    words = check_words()
+    tier_name = {t: n for t, n, _ in TIERS}
+    rows = []
+    for name, reqs in (("ASVS 5.0", asvs), ("AISVS 1.0", aisvs)):
+        for q, v in reqs.items():
+            status = "settle" if settles(q) else "support" if supports_only(q) else "none"
+            only = {r for _, r in FINDINGS_ONLY.get(q, ())}
+            checks = []
+            for t in tiers(q):
+                for c in ev[q][t]:
+                    if t == "tools":
+                        what = TOOL_RULES[q].get(c, [])
+                        finding_only = c not in CREDITED_BY_TOOL[q]
+                        checks.append({
+                            "id": c, "kind": tier_name[t], "tool": True,
+                            "label": "Its rules look for",
+                            "words": "; ".join(sorted(set(what))[:6])
+                                     + (f"; and {len(set(what)) - 6} more" if len(set(what)) > 6 else ""),
+                            "rules": len(set(what)), "finding_only": finding_only,
+                        })
+                    else:
+                        label, text = words.get(c, ("Looks for", ""))
+                        checks.append({"id": c, "kind": tier_name[t], "tool": False, "label": label,
+                                       "words": text, "finding_only": c in only})
+            rows.append({
+                "id": q, "framework": name, "level": v["level"],
+                "family": v["chapter"], "family_name": v["chapter_name"],
+                "section": v["section"], "section_name": v["section_name"],
+                "text": v["text"], "status": status, "status_words": STATUS[status],
+                "person_decides": q in manual_only, "checks": checks,
+            })
+    return rows
+
+
+def requirements_markdown(rows):
+    order = lambda q: [int(x) for x in re.findall(r"\d+", q)]
+    out = []
+    w = out.append
+    w("# Every ASVS and AISVS requirement, and what checks it\n")
+    w("Generated by `tools/coverage.py` from the checks' own citations, with `docs/COVERAGE.md`. Do not")
+    w("edit by hand; run `python3 tools/coverage.py` after changing a check, and the build fails until")
+    w("you do. It lists every requirement, whether or not it applies to a given app; which apply is")
+    w("decided per app, from its `securevibe.toml` and its code.\n")
+    w("## How to read this\n")
+    w(f"- **{STATUS['settle']}**: at least one check can mark it *checked* or *needs attention*. A check")
+    w("  is almost always about part of a requirement, so a clean result is one automated check that")
+    w("  was satisfied, not proof the whole requirement is met.")
+    w(f"- **{STATUS['support']}**: a check speaks to it, but it asks for something no check can settle,")
+    w("  such as a documented policy or a design decision.")
+    w(f"- **{STATUS['none']}**: nothing in `sv` checks it. The app's own tests can still count for it when")
+    w("  a passing test names the requirement's id; otherwise it stays *not verified*.")
+    w("- *found failing only*: that check can show the requirement is not met, and finding nothing does")
+    w("  not show it is, so a clean run credits nothing.")
+    w("- Each check says what kind it is and so what it needs to run:\n")
+    w("| Kind | Needs |")
+    w("|---|---|")
+    for _, name, needs in TIERS:
+        w(f"| {name} | {needs} |")
+    w("")
+    for framework in ("ASVS 5.0", "AISVS 1.0"):
+        mine = [r for r in rows if r["framework"] == framework]
+        w(f"## OWASP {framework}\n")
+        counts = Counter(r["status"] for r in mine)
+        w(f"{len(mine)} requirements: {counts['settle']} can be checked, {counts['support']} where a check "
+          f"helps but a person decides, and {counts['none']} with no check.\n")
+        for level in sorted({r["level"] for r in mine}):
+            at = [r for r in mine if r["level"] == level]
+            c = Counter(r["status"] for r in at)
+            w(f"### Level {level} ({len(at)} requirements, {c['settle']} can be checked)\n")
+            families = defaultdict(list)
+            for r in at:
+                families[(r["family"], r["family_name"])].append(r)
+            for (fid, fname), reqs in sorted(families.items(), key=lambda x: order(x[0][0])):
+                w(f"#### {fid} {fname}\n")
+                w("| Requirement | Coverage | Checks |")
+                w("|---|---|---|")
+                for r in sorted(reqs, key=lambda r: order(r["id"])):
+                    parts = []
+                    for ch in r["checks"]:
+                        if ch["tool"]:
+                            n = ch["rules"]
+                            desc = f"{ch['kind']}: {ch['id']}, {n} rule{'' if n == 1 else 's'}"
+                        else:
+                            desc = f"{ch['kind']}: `{ch['id']}`"
+                        if ch["words"]:
+                            desc += f", {ch['label'].lower()}: {ch['words']}"
+                        if ch["finding_only"]:
+                            desc += " (found failing only)"
+                        parts.append(desc.replace("|", "\\|"))
+                    text = r["text"].replace("|", "\\|").replace("\n", " ")
+                    checks = "<br>".join(parts) if parts else "–"
+                    w(f"| **{r['id']}** {text} | {r['status_words']} | {checks} |")
+                w("")
+    return "\n".join(out).rstrip() + "\n"
 
 
 if __name__ == "__main__":

@@ -15,7 +15,8 @@ elsewhere still resolves.
 The compliance engine, the scanners, the container runner, the checks and the reports all run. What is not
 built is listed in `docs/BACKLOG.md`, and the reports say plainly which parts of an app nothing has examined. Which
 requirements of ASVS, AISVS, and the Secure by Design checklist any check can speak to at all, and what
-each check needs to run, is counted in `docs/COVERAGE.md`.
+each check needs to run, is counted in `docs/COVERAGE.md`. `docs/REQUIREMENTS.md` lists every ASVS and AISVS requirement by level and
+family, with the checks that speak to each.
 
 ```bash
 cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
