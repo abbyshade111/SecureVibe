@@ -97,7 +97,7 @@ Several decisions were tested by what happened after they were written:
 
 ## The records against the Top 10 analyses
 
-Several records are defenses against the risks in `TOP10.md` and `AGENTIC.md`. These placements are judgements,
+Several records are defenses against the risks in `TOP10.md` and `AGENTIC.md`. These placements are judgments,
 like those in `AGENTIC.md`:
 
 | Record | Defends against |
@@ -160,6 +160,6 @@ Items 1 to 4 and 7 are in v1's records, which are archived on the `v1` branch. T
 
 - **This reads the records and checks them against the code and history.** It does not re-argue whether each
   decision was right.
-- **The Top 10 placements are judgements,** and each record defends against more than the row shows.
+- **The Top 10 placements are judgments,** and each record defends against more than the row shows.
 - **Owner involvement is counted only where a record says so.** It says so for ADR-012, ADR-013, ADR-014, ADR-016's
   later part, and ADR-018. v1's first ten records name no one.

@@ -31,7 +31,7 @@ OWASP Top 10 for Agentic Applications, 2026 edition, published by the OWASP GenA
 
 ## Method
 
-- **This list gives no CWEs,** unlike the ordinary Top 10, so every placement below is a judgement against the
+- **This list gives no CWEs,** unlike the ordinary Top 10, so every placement below is a judgment against the
   descriptions above. Each item has one main risk; where a second one applies it is named.
 - **Three kinds of item.** An *incident* is something that went wrong. A *control* is a defense built on purpose,
   including ones that were never tested by an incident. A *check* is something `sv` asks of another app's AI feature.
@@ -69,7 +69,7 @@ OWASP Top 10 for Agentic Applications, 2026 edition, published by the OWASP GenA
 | ASI08 | incident | Two false alarms rated high led the AI tool to rewrite correct code until the warnings stopped: "With an AI in the loop a false alarm is not noise: it changes the code" | #220 |
 | ASI09 | incident | Security notes the AI tool wrote were credited to the owner: 8 of 12. "The interview already tells the tool to write a note only once the owner agrees; this run shows an instruction is not enough" | #239 |
 | ASI09 | incident | The starter manifest answered "no" to every capability, so a tool that left a line alone told `sv` the app had no sign-in: "the most dangerous line in the product" (also ASI08) | #252 |
-| ASI09 | open | 18 of the 40 requirements checked on the owner's app came from tests the AI tool wrote and labelled itself: "the author vouching for its own work through the name". Recorded to keep in mind | `docs/BACKLOG.md` |
+| ASI09 | open | 18 of the 40 requirements checked on the owner's app came from tests the AI tool wrote and labeled itself: "the author vouching for its own work through the name". Recorded to keep in mind | `docs/BACKLOG.md` |
 | ASI09 | control | A person can confirm what the tool wrote, at their own tier and never as "checked". A confirmation stops counting once it is stale, once the file changes, or when "the AI tool confirms itself", and the tool is told never to write one the person did not make | #242 (`4f1fcf8`) |
 
 ## 3. What `sv` checks in other apps' AI features
@@ -110,7 +110,7 @@ its results bear on agentic risk:
 |---|---|---|
 | ASI04, ASI03 | Two CI-hardening requirements from AISVS Appendix C were checked automatically. No workflow runs code from a fork with secrets (AC.12.1), and every checkout drops its credentials (AC.12.2). These are the pipeline that builds and publishes the image an AI tool installs | `self-assessment-v2/product-only/compliance.md` |
 | ASI09 | Of the 19 Appendix C requirements about building software with AI tools, 13 are handed to the AI coding tool as rules to follow, 1 is left to the owner (human review of AI-written code), and 5 are reached by nothing in `sv`: a written AI workflow, a threat model for every AI tool including MCP servers, and prompt logging among them. Rules handed to the tool are instructions, the kind of defense section 2 found failing once | `self-assessment-v2/product-only/compliance.md` |
-| ASI06 | Run on the whole repository, `sv` read its own deliberately vulnerable test fixtures as part of itself, and they overruled the manifest 19 times ("says auth is not used, but `authlib` is declared in examples/flask-booking/requirements.txt"). This is the same shape as #220, where `sv` read its own report as the app: what it read reshaped its judgement of the thing it was judging | `SELF-ASSESSMENT-V2.md` |
+| ASI06 | Run on the whole repository, `sv` read its own deliberately vulnerable test fixtures as part of itself, and they overruled the manifest 19 times ("says auth is not used, but `authlib` is declared in examples/flask-booking/requirements.txt"). This is the same shape as #220, where `sv` read its own report as the app: what it read reshaped its judgment of the thing it was judging | `SELF-ASSESSMENT-V2.md` |
 
 **One thing the self-check cannot see.** The manifest can say that an app reaches tools over MCP, but not that it *is*
 an MCP server driven by an AI tool. So the one surface where `sv` had a tool-misuse incident (ASI02: the report writer
@@ -161,7 +161,7 @@ with a proposed manifest field.
 
 ## Limits
 
-- **Every placement is a judgement.** The list defines its risks in words, not CWEs, and several items touch two
+- **Every placement is a judgment.** The list defines its risks in words, not CWEs, and several items touch two
   risks; the second is named.
 - **Only what was written down counts.** A near-miss nobody recorded is not here.
 - **The development-process items describe AI coding sessions working together, which is how this project was

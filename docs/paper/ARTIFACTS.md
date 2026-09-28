@@ -15,7 +15,7 @@ files are the record and the reader can recompute anything in them.
 | `figure-how-caught.html` | How the faults the tests missed were caught: by use, by one session reviewing another, by breaking a guard on purpose, by v1's harness, or by accident; and how parallel sessions coordinated. |
 | `TOP10.md` | The project's security faults against the OWASP Top 10:2025: weaknesses in SecureVibe's own code (18), its verdicts that failed open (8, all A10), v1 checking itself (195 findings, 160 false alarms), and what it found in the apps it checked. Each item is mapped through a CWE on the category's official list, with its source. |
 | `figure-top10.html` | The same, as one grid: the ten categories against the four kinds of evidence. |
-| `AGENTIC.md` | The project against the OWASP Top 10 for Agentic Applications (2026): v1's own AI agents, `sv` driven by an AI coding tool over MCP, `sv`'s checks of other apps' AI features, and the project built by several AI sessions at once. 16 incidents, 15 defenses, and 7 checks, each placed by judgement against the risk descriptions, with its source. |
+| `AGENTIC.md` | The project against the OWASP Top 10 for Agentic Applications (2026): v1's own AI agents, `sv` driven by an AI coding tool over MCP, `sv`'s checks of other apps' AI features, and the project built by several AI sessions at once. 16 incidents, 15 defenses, and 7 checks, each placed by judgment against the risk descriptions, with its source. |
 | `figure-agentic.html` | The same, as one grid: the ten agentic risks against the four lenses. |
 | `SELF-ASSESSMENT-V2.md` | `sv` checking itself on 27 September: how it was run, both runs (the whole repository, 804 findings; the product code, 252), every product finding triaged (191 false alarms, 61 accepted, 0 real), what it cannot see, and the comparison with v1's self-assessment. |
 | `self-assessment-v2/` | The reports `sv` wrote for both runs (`repository/`, `product-only/`), the product run's file list, and `triage.json` with a verdict and reason for each of its 252 findings. |
@@ -72,5 +72,5 @@ refused. That is the whole of the 104-to-0 difference, and it is a property of t
   stays on the owner's machine.
 - Arm A with an AI review. SecureVibe offers a native app an AI review only as part of a full rebuild, which
   costs about $3.75 and rewrites the code. Arm A's AI figures in the paper should come from the separate full
-  build of 19 September (132 of 192 requirements reviewed, 231 citations, $3.75) and be labelled as a different
+  build of 19 September (132 of 192 requirements reviewed, 231 citations, $3.75) and be labeled as a different
   run against slightly older code.

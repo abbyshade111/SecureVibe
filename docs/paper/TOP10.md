@@ -197,8 +197,8 @@ there was confirmed by running the app.
 ## Limits
 
 - **This counts what was written down.** A fault fixed without a note is not here.
-- **Chosen CWEs are judgements.** Each is marked, and a different reader could place a few items in a neighboring
-  category. The v1 self-check mapping uses the CWEs v1 recorded and involves no judgement.
+- **Chosen CWEs are judgments.** Each is marked, and a different reader could place a few items in a neighboring
+  category. The v1 self-check mapping uses the CWEs v1 recorded and involves no judgment.
 - **Top 10 categories are broad**, and several of these items touch two. Counts use one category per item and name
   the second.
 - **The checked-app findings come from one day's comparison of three apps.** They describe those apps, not apps in
