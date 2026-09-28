@@ -1653,9 +1653,10 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         bail!("{} is not a folder", app_dir.display());
     }
 
-    // What securevibe.toml says is not the app (examples, test fixtures) is compared too, and listed
-    // apart: it is not shipped, so it neither counts against V15.2.1 nor makes the app's list
-    // incomplete (DESIGN, "Folders the manifest says are not the app").
+    // What securevibe.toml says is not the app (examples, test fixtures) is compared too, listed apart,
+    // and still counted, as every finding in those folders is (DESIGN, "Folders the manifest says are
+    // not the app"): securevibe.toml is written by the AI coding tool, and a line in it that stopped a
+    // vulnerability counting would hide one by naming the folder it is in.
     let manifest_path = app_dir.join("securevibe.toml");
     let manifest = if manifest_path.is_file() {
         Some(Manifest::load(&manifest_path)?)
@@ -1775,9 +1776,9 @@ fn cmd_audit(args: &[String]) -> Result<()> {
                  clean bill: the lines above say what this comparison could not reach."
             ),
         }
-        not_the_app_audit(&elsewhere, &database, &folders);
+        let theirs = not_the_app_audit(&elsewhere, &database, &folders, time_frames.as_ref());
         let whole = !result.verified.is_empty() && sbom.is_complete();
-        exit_after_audit(if whole { 0 } else { AUDIT_NOT_ASSESSED });
+        exit_after_audit(worse(if whole { 0 } else { AUDIT_NOT_ASSESSED }, theirs));
     }
     println!(
         "\n{} known vulnerabilit{}:",
@@ -1839,7 +1840,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         );
         on_time.iter().for_each(|f| print(f));
     }
-    not_the_app_audit(&elsewhere, &database, &folders);
+    not_the_app_audit(&elsewhere, &database, &folders, time_frames.as_ref());
     exit_after_audit(AUDIT_FOUND);
 }
 
@@ -1858,22 +1859,40 @@ fn exit_after_audit(code: i32) -> ! {
     std::process::exit(code)
 }
 
-/// What `sv audit` found in folders securevibe.toml says are not the app, listed after the app's own
-/// and counted apart, one line per vulnerability, since none of it is shipped.
+/// Of two `sv audit` statuses, the one that says more is wrong: a known vulnerability, then a
+/// comparison that did not cover everything, then clean.
+fn worse(a: i32, b: i32) -> i32 {
+    if a == AUDIT_FOUND || b == AUDIT_FOUND {
+        AUDIT_FOUND
+    } else if a == AUDIT_NOT_ASSESSED || b == AUDIT_NOT_ASSESSED {
+        AUDIT_NOT_ASSESSED
+    } else {
+        0
+    }
+}
+
+/// What `sv audit` found in folders securevibe.toml says are not the app, listed after the app's own,
+/// one line per vulnerability, and counted all the same. Returns the status it adds.
 fn not_the_app_audit(
     elsewhere: &sbom::Sbom,
     database: &[advisories::Advisory],
     folders: &[String],
-) {
-    if folders.is_empty() || elsewhere.components.is_empty() {
-        return;
+    time_frames: Option<&sv_manifest::FixWithinDays>,
+) -> i32 {
+    if folders.is_empty() || (elsewhere.components.is_empty() && elsewhere.is_complete()) {
+        return 0;
     }
-    let result = advisories::audit_against(elsewhere, database, None, advisories::Day::today());
+    let result =
+        advisories::audit_against(elsewhere, database, time_frames, advisories::Day::today());
     let named = folders.join(", ");
+    println!(
+        "\nIn folders securevibe.toml says are not the app ({named}), listed apart and counted all the \
+         same: naming a folder there changes where its findings are listed, never whether they count."
+    );
+    let mut status = 0;
     if !result.uncovered.is_empty() {
         println!(
-            "\nIn folders securevibe.toml says are not the app ({named}): not compared for {}, which \
-             this database holds nothing about.",
+            "  Not compared for {}, which this database holds nothing about.",
             result
                 .uncovered
                 .iter()
@@ -1881,25 +1900,37 @@ fn not_the_app_audit(
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+        status = AUDIT_NOT_ASSESSED;
+    }
+    if !result.uncomparable.is_empty() {
+        println!(
+            "  {} package version(s) could not be compared with any range.",
+            result.uncomparable.len()
+        );
+        status = AUDIT_NOT_ASSESSED;
+    }
+    if !elsewhere.is_complete() {
+        println!("  The list of packages there is incomplete; `sv sbom` says what is missing.");
+        status = AUDIT_NOT_ASSESSED;
     }
     if result.findings.is_empty() {
-        if result.uncovered.is_empty() {
-            println!(
-                "\nIn folders securevibe.toml says are not the app ({named}): {} package{} compared, \
-                 and none matches a record in this database.",
-                result.components_checked,
-                if result.components_checked == 1 {
-                    ""
-                } else {
-                    "s"
-                }
-            );
+        // Only when nothing above qualifies it: "none matches" beside "not compared" reads as clean.
+        if status != 0 {
+            return status;
         }
-        return;
+        println!(
+            "  {} package{} compared, and none matches a record in this database.",
+            result.components_checked,
+            if result.components_checked == 1 {
+                ""
+            } else {
+                "s"
+            }
+        );
+        return status;
     }
     println!(
-        "\nIn folders securevibe.toml says are not the app ({named}), listed for information and not \
-         counted against the app, since none of it is shipped: {} known vulnerabilit{}.",
+        "  {} known vulnerabilit{}:",
         result.findings.len(),
         if result.findings.len() == 1 {
             "y"
@@ -1910,6 +1941,7 @@ fn not_the_app_audit(
     for f in &result.findings {
         println!("  [{}] {}", f.severity.name(), f.title);
     }
+    AUDIT_FOUND
 }
 
 /// `sv bundle`: the app, its report and the record of what was checked, in one zip (see `bundle.rs`).

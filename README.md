@@ -42,8 +42,9 @@ is really on. A page counts as unreadable only when something in it could not be
 `sv audit` ends with a status a CI job can act on: 0 when every package was compared and none matched a
 known vulnerability, 1 when one did, and 2 when the comparison did not cover the whole app (no database,
 an ecosystem the database holds nothing about, or a list of packages `sv` could not complete). Packages
-in folders `securevibe.toml` says are not the app, such as example apps and test fixtures, are compared too
-and listed apart, and do not change the status. `sv` holds itself to this every week
+in folders `securevibe.toml` says are not the app, such as example apps and test fixtures, are listed apart
+and still count: that file is written by your AI coding tool, and naming a folder there must never hide a
+vulnerability. `sv` holds itself to this every week, auditing the Rust files it is built from
 (`.github/workflows/audit.yml`).
 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
