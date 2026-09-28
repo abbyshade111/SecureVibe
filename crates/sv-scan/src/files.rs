@@ -152,6 +152,42 @@ impl Listing {
     pub fn code_files(&self) -> impl Iterator<Item = &Entry> {
         self.app_files().filter(|f| f.language.is_some())
     }
+
+    /// This listing in two: what lies outside `folders`, and what lies in them, as securevibe.toml's
+    /// `not-the-app` names them (`crate::under_any`). Both keep the same root, so paths read the same.
+    pub fn split(&self, folders: &[String]) -> (Listing, Listing) {
+        let (mut ours, mut theirs) = (
+            Listing {
+                root: self.root.clone(),
+                ..Default::default()
+            },
+            Listing {
+                root: self.root.clone(),
+                ..Default::default()
+            },
+        );
+        let side = |path: &str| crate::under_any(path, folders);
+        for file in &self.files {
+            if side(&file.relative) {
+                &mut theirs
+            } else {
+                &mut ours
+            }
+            .files
+            .push(file.clone());
+        }
+        for (all, pick) in [(&self.dirs, 0), (&self.links, 1), (&self.unopened, 2)] {
+            for path in all {
+                let to = if side(path) { &mut theirs } else { &mut ours };
+                match pick {
+                    0 => to.dirs.push(path.clone()),
+                    1 => to.links.push(path.clone()),
+                    _ => to.unopened.push(path.clone()),
+                }
+            }
+        }
+        (ours, theirs)
+    }
 }
 
 fn relative(root: &Path, path: &Path) -> String {
