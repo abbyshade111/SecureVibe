@@ -302,11 +302,19 @@ pub fn audit_against(
         ..Default::default()
     };
 
-    // Which ecosystems the database says anything about at all.
+    // Which ecosystems the database is about: those with a record about that ecosystem and no other.
+    // A record that names several is in several exports, so a mention alone says nothing about which
+    // was loaded: OSV's crates.io export holds records that also name PyPI packages, and counting a
+    // mention would call a Python app compared against a database with nothing else about Python in it.
     let covered: BTreeSet<&str> = database
         .iter()
-        .flat_map(|a| a.affected.iter())
-        .map(|a| a.package.ecosystem.as_str())
+        .filter_map(|a| {
+            let first = a.affected.first()?.package.ecosystem.as_str();
+            a.affected
+                .iter()
+                .all(|x| x.package.ecosystem == first)
+                .then_some(first)
+        })
         .collect();
     for component in &sbom.components {
         match osv_ecosystem(&component.ecosystem) {
@@ -877,6 +885,41 @@ mod tests {
             result.findings.is_empty(),
             "a withdrawn record is not a finding: {result:?}"
         );
+    }
+
+    #[test]
+    fn an_ecosystem_named_only_beside_another_is_not_covered() {
+        // As in OSV's crates.io export: a record about a crate that is also published to PyPI names
+        // both. Loaded alone, it says nothing about the rest of PyPI.
+        let both = || {
+            advisory(
+                r#"{"id":"GHSA-both","affected":[
+                {"package":{"ecosystem":"crates.io","name":"pyo3"},
+                 "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"0.1"}]}]},
+                {"package":{"ecosystem":"PyPI","name":"pyo3-pack"},
+                 "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"0.1"}]}]}]}"#,
+            )
+        };
+        let sbom = sbom_of(vec![
+            component("lodash", "4.17.21", "npm"),
+            component("flask", "3.0.0", "Python"),
+        ]);
+        let result = audit(&sbom, &[advisory(LODASH), both()]);
+        assert!(result.uncovered.contains("Python"), "{result:?}");
+        assert!(!result.uncovered.contains("npm"), "{result:?}");
+        assert!(
+            result.verified.is_empty(),
+            "no clean claim with Python unchecked"
+        );
+
+        // The control: a record about PyPI alone, as the PyPI export holds, does cover it.
+        let pypi = advisory(
+            r#"{"id":"PYSEC-only","affected":[
+                {"package":{"ecosystem":"PyPI","name":"django"},
+                 "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"1.0"}]}]}]}"#,
+        );
+        let result = audit(&sbom, &[advisory(LODASH), both(), pypi]);
+        assert!(result.uncovered.is_empty(), "{result:?}");
     }
 
     #[test]
