@@ -446,7 +446,10 @@ name = "sv-run"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+<<<<<<< HEAD
  "ctrlc",
+=======
+>>>>>>> origin/main
  "libc",
  "serde",
  "serde_json",

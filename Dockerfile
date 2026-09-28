@@ -44,4 +44,11 @@ COPY --from=build /src/target/release/sv /usr/local/bin/sv
 # Tells `sv` it is in this container, so what it tells an AI coding tool to have the person run
 # (`--run`, which cannot work from in here) names `sv` installed on the computer instead.
 ENV SV_IN_CONTAINER=1
+# Not root. The image reads the owner's folder and writes reports into it, and as root a mistake
+# could write anywhere in it, as root. An unprivileged user of its own, by number so a platform that
+# refuses root images can tell. On Linux, `--user "$(id -u):$(id -g)"` in the `docker run` line
+# replaces it with the owner's own, so what it writes is theirs; Docker Desktop on a Mac makes what
+# any user writes the owner's.
+RUN useradd --system --uid 10001 --user-group --no-create-home --shell /usr/sbin/nologin sv
+USER 10001:10001
 ENTRYPOINT ["sv"]

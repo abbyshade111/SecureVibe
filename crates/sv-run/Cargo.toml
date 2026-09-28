@@ -10,10 +10,15 @@ serde.workspace = true
 serde_json.workspace = true
 sv-manifest = { path = "../sv-manifest" }
 sv-check = { path = "../sv-check" }
+<<<<<<< HEAD
 # Ctrl-C and `kill` run the teardown, so an interrupted run does not leave containers behind.
 ctrlc = { version = "3", features = ["termination"] }
 
 [target.'cfg(unix)'.dependencies]
 # Whether the process that started a leftover container is still running (`kill(pid, 0)`), and
 # this machine's name, which the containers are labeled with.
+=======
+
+[target.'cfg(unix)'.dependencies]
+>>>>>>> origin/main
 libc = "0.2"

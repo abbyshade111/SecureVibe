@@ -18,6 +18,7 @@ use crate::{
     run_within,
 };
 use std::process::Command;
+use std::time::Duration;
 
 /// How long to wait for the app to answer before calling it not assessed.
 const READY_TIMEOUT_SECONDS: u64 = 60;
@@ -83,6 +84,7 @@ impl DockerBackend {
         output_of(&mut c)
     }
 
+<<<<<<< HEAD
     /// Removes the containers, then the networks, that runs on this machine left behind when their
     /// process ended without its teardown. What it removed, by name.
     fn remove_leftovers(&self) -> Vec<String> {
@@ -133,6 +135,14 @@ impl DockerBackend {
         let mut c = Command::new(&self.binary);
         c.args(args);
         run_within(&mut c, limit)
+=======
+    /// A Docker call that removes what the run made. It still runs after Ctrl-C, since removing
+    /// things is the point of catching it, and gets two minutes rather than twenty.
+    fn docker_cleanup(&self, args: &[&str]) -> Result<(i32, String), String> {
+        let mut c = Command::new(&self.binary);
+        c.args(args);
+        crate::bounded_output(&mut c, Duration::from_secs(120), true)
+>>>>>>> origin/main
     }
 }
 
@@ -160,6 +170,8 @@ impl Backend for DockerBackend {
         plan: &RunPlan,
         probes: &[sv_check::probes::ProbeRequest],
     ) -> Result<RunOutcome, CannotRun> {
+        // Before anything is started, so Ctrl-C from here on removes what was.
+        crate::catch_interrupts();
         let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
@@ -479,6 +491,7 @@ impl Backend for DockerBackend {
                     .map(|(code, _)| code == 0)
                     .unwrap_or(false)
             });
+<<<<<<< HEAD
             let (exit_code, output, stopped_after) =
                 match self.docker_within(&["exec", &app, "sh", "-c", test_command], plan.test_limit)
                 {
@@ -486,6 +499,27 @@ impl Backend for DockerBackend {
                     Ok(Ran::Stopped(text)) => (-1, text, Some(plan.test_limit)),
                     Err(_) => return None,
                 };
+=======
+            // At most `TEST_LIMIT`: a suite that hangs would otherwise hang the whole run. Stopping
+            // the `docker exec` leaves the suite running in the app's container, which the
+            // teardown then removes.
+            let ran = crate::run_bounded(
+                Command::new(&self.binary).args(["exec", &app, "sh", "-c", test_command]),
+                plan.test_limit,
+                false,
+            )
+            .ok()?;
+            if ran.stopped {
+                return Some(TestResult {
+                    exit_code: ran.code,
+                    output: ran.text,
+                    report: None,
+                    report_note: None,
+                    stopped_after: Some(plan.test_limit),
+                });
+            }
+            let (exit_code, output) = (ran.code, ran.text);
+>>>>>>> origin/main
             let (report, report_note) = match (&report_path, removed_stale) {
                 // A suite cut short has not finished writing whatever it writes, and has not said
                 // which of its tests pass, so its report is not read at all.
@@ -528,7 +562,11 @@ impl Backend for DockerBackend {
                 output,
                 report,
                 report_note,
+<<<<<<< HEAD
                 stopped_after,
+=======
+                stopped_after: None,
+>>>>>>> origin/main
             })
         });
 
@@ -564,6 +602,19 @@ struct DockerHttp<'a> {
 }
 
 impl sv_check::signed_in::Http for DockerHttp<'_> {
+    /// The waits `--slow` makes can last an hour and a half, so they are taken in short steps that
+    /// end at Ctrl-C, when the run goes on to remove its containers instead of waiting them out.
+    fn wait(&mut self, seconds: u64) {
+        let until = std::time::Instant::now() + Duration::from_secs(seconds);
+        while !crate::interrupted() {
+            let left = until.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                break;
+            }
+            std::thread::sleep(left.min(Duration::from_millis(200)));
+        }
+    }
+
     fn send(
         &mut self,
         request: &sv_check::probes::ProbeRequest,
@@ -1216,10 +1267,16 @@ impl<'a> Teardown<'a> {
 impl Drop for Teardown<'_> {
     fn drop(&mut self) {
         for container in &self.containers {
-            let _ = self.backend.docker(&["rm", "-f", container]);
+            let _ = self.backend.docker_cleanup(&["rm", "-f", container]);
         }
+<<<<<<< HEAD
         let _ = self.backend.docker(&["network", "rm", &self.network]);
         crate::cleanup::unregister(&self.network);
+=======
+        let _ = self
+            .backend
+            .docker_cleanup(&["network", "rm", &self.network]);
+>>>>>>> origin/main
     }
 }
 
