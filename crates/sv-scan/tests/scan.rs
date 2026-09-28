@@ -1556,6 +1556,8 @@ fn folders_that_are_not_the_app_are_not_evidence_about_it() {
     std::fs::write(app.join("requirements.txt"), "flask==3.0.0\n").unwrap();
     std::fs::write(app.join("examples/shop/requirements.txt"), "flask-login\n").unwrap();
     std::fs::write(app.join("examples/shop/main.go"), "package main\n").unwrap();
+    // A file whose name alone is evidence: an example's Terraform is not the app's infrastructure.
+    std::fs::write(app.join("examples/shop/main.tf"), "provider \"aws\" {}\n").unwrap();
     std::fs::write(app.join("crates/one/tests/page.dart"), "void main() {}\n").unwrap();
     // A file whose name only starts like the folder is the app's own.
     std::fs::write(app.join("examples.py"), "print('mine')\n").unwrap();
@@ -1565,6 +1567,7 @@ fn folders_that_are_not_the_app_are_not_evidence_about_it() {
     let whole = scan(&app, &sigs).unwrap();
     assert_eq!(answer(&whole, Condition::Auth).value, Some(true));
     assert!(whole.languages.contains("go"));
+    assert_eq!(answer(&whole, Condition::Iac).value, Some(true));
     assert!(whole.declared.iter().any(|d| d.name == "flask-login"));
     assert!(
         whole
@@ -1578,6 +1581,8 @@ fn folders_that_are_not_the_app_are_not_evidence_about_it() {
         sv_scan::scan_listing_app(&sv_scan::files::Listing::of(&app), &sigs, &folders).unwrap();
     assert_ne!(answer(&apart, Condition::Auth).value, Some(true));
     assert!(!apart.languages.contains("go"));
+    assert_ne!(answer(&apart, Condition::Iac).value, Some(true));
+    assert!(!apart.all_paths.iter().any(|p| p.starts_with("examples/")));
     assert!(!apart.declared.iter().any(|d| d.name == "flask-login"));
     assert!(
         apart.declared.iter().any(|d| d.name == "flask"),
