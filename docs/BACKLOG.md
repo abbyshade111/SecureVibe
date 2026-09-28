@@ -326,8 +326,9 @@ another session is not a claim.
         Shared and so left in `mod.rs`'s tests: `timeouts` (slice d's `code_slow_run` uses it), and
         `WS_RULES`, `ws_run`, `ws_findings`, and `bearer_ws_users` (`forgery.rs` uses them). `most_bits` is
         in `sessions.rs` as planned and `pub(super)`, since the code checks use it too. With each check
-        made to return at once, the moved tests catch six of the eight; `session_checks` (V7.2.4, the
-        cookie attributes and renewal) and `session_id_check` (V7.2.3) are caught only by four cross-area
+        made to return at once, the moved tests catch six of the eight; `session_checks` (the cookie's
+        attributes, V3.3.2 and V3.3.4, and its renewal at sign-in, V7.2.4) and `session_id_check` (V7.2.3)
+        are caught only by four cross-area
         tests in `mod.rs`, which was so before the split. `private_page_checks` and
         `record_fields_check` are in `sessions.rs` now, for securevibe-e9's V14.2.2 and V8.2.3 changes.
       - Step 1, slice g (`admin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
