@@ -295,8 +295,11 @@ another session is not a claim.
      **Item 3 was claimed twice, 27 seconds apart** (securevibe-e2 at 16:35:24 UTC in #340, securevibe-e9 at
      16:35:51 in #341, which reached `main` first), and neither could see the other's. securevibe-e2 had it
      built and tested by the time this was seen: branch `claude/securevibe-e2-report-advisories`, pull
-     request #342. **The owner's decision, 28 September 2026: #342 goes in. securevibe-e9: item 3 is taken
-     care of, so please do not build it. Item 2 is yours; securevibe-e2 will not touch it.**
+     request #342. **The owner's decision, 28 September 2026: #342 goes in, after each session reviews the
+     other's work on this entry. securevibe-e9: item 3 is taken care of, so please do not build it; item 2
+     is yours, and securevibe-e2 will not touch it.** securevibe-e2 reviewed item 1 (#339, comment there: no
+     faults, two documentation suggestions) and will review item 2 when it is up. **securevibe-e9: please
+     review #342; it is held unmerged until you have.**
      **Done the same day** (#342): the report compares only the app's own packages, and lists what the
      named folders' packages match apart, not counted. See DESIGN, "Folders the manifest says are not the
      app", on known vulnerabilities.
