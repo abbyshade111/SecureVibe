@@ -27,6 +27,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator};
 
 #[derive(Debug, Deserialize)]
@@ -114,12 +115,44 @@ struct RuleFile {
     rules: Vec<AstRule>,
 }
 
-/// A rule with its queries compiled, one per language.
+/// A query compiled the first time a file in its language is read, and kept for the process.
+///
+/// Compiling every query eagerly cost 0.87 s of the 0.96 s every `sv check` spent before reading a
+/// file (27 September 2026, review item 6): 143 queries across fifteen languages, Swift alone a
+/// quarter of a second, paid in full by a Python app that would parse none of them. The source is
+/// still checked when the rules load — the text predicates, the pattern-without-query cases — and
+/// `AstRules::compile_all` compiles everything for the test that guards the data file, so a query
+/// tree-sitter cannot compile is still caught in CI rather than on the first app in that language.
+struct LazyQuery {
+    grammar: Language,
+    source: String,
+    compiled: OnceLock<Result<Query, String>>,
+}
+
+impl LazyQuery {
+    fn new(grammar: Language, source: &str) -> Self {
+        LazyQuery {
+            grammar,
+            source: source.to_owned(),
+            compiled: OnceLock::new(),
+        }
+    }
+
+    /// The compiled query, or why tree-sitter refused it.
+    fn get(&self) -> Result<&Query, &str> {
+        self.compiled
+            .get_or_init(|| Query::new(&self.grammar, &self.source).map_err(|e| e.to_string()))
+            .as_ref()
+            .map_err(String::as_str)
+    }
+}
+
+/// A rule with its queries, one per language, each compiled on first use.
 struct Compiled {
     rule: AstRule,
-    queries: BTreeMap<String, Query>,
-    /// The `typescript` query compiled against the TSX grammar, for `.tsx` files.
-    tsx: Option<Query>,
+    queries: BTreeMap<String, LazyQuery>,
+    /// The `typescript` query against the TSX grammar, for `.tsx` files.
+    tsx: Option<LazyQuery>,
     function: BTreeMap<String, regex::Regex>,
     module: BTreeMap<String, regex::Regex>,
     argument: BTreeMap<String, regex::Regex>,
@@ -710,13 +743,7 @@ impl AstRules {
                         rule.id
                     )
                 })?;
-                let query = Query::new(&grammar, source).with_context(|| {
-                    format!(
-                        "rule {} has a {language} query tree-sitter cannot compile",
-                        rule.id
-                    )
-                })?;
-                queries.insert(language.clone(), query);
+                queries.insert(language.clone(), LazyQuery::new(grammar, source));
             }
             let compile_patterns = |patterns: &BTreeMap<String, String>, what: &str| {
                 patterns
@@ -775,19 +802,10 @@ impl AstRules {
                     rule.id
                 );
             }
-            let tsx = match rule.queries.get("typescript") {
-                Some(source) => Some(
-                    Query::new(&grammar("tsx").expect("tsx is compiled in"), source).with_context(
-                        || {
-                            format!(
-                                "rule {} has a typescript query the TSX grammar cannot compile",
-                                rule.id
-                            )
-                        },
-                    )?,
-                ),
-                None => None,
-            };
+            let tsx = rule
+                .queries
+                .get("typescript")
+                .map(|source| LazyQuery::new(grammar("tsx").expect("tsx is compiled in"), source));
             compiled.push(Compiled {
                 rule,
                 queries,
@@ -807,6 +825,32 @@ impl AstRules {
 
     pub fn is_empty(&self) -> bool {
         self.compiled.is_empty()
+    }
+
+    /// Compiles every query in every language now, and names the first one tree-sitter refuses.
+    ///
+    /// For the test that guards the data file. A command compiles only the languages it meets, so
+    /// without this a query written wrong would first fail on someone's app in that language.
+    pub fn compile_all(&self) -> Result<()> {
+        for c in &self.compiled {
+            for (language, query) in &c.queries {
+                query.get().map_err(|why| {
+                    anyhow::anyhow!(
+                        "rule {} has a {language} query tree-sitter cannot compile: {why}",
+                        c.rule.id
+                    )
+                })?;
+            }
+            if let Some(tsx) = &c.tsx {
+                tsx.get().map_err(|why| {
+                    anyhow::anyhow!(
+                        "rule {} has a typescript query the TSX grammar cannot compile: {why}",
+                        c.rule.id
+                    )
+                })?;
+            }
+        }
+        Ok(())
     }
 
     /// The languages any rule has a query for.
@@ -975,6 +1019,9 @@ pub struct AstScan {
     /// command built in Rust. Before this was kept, such a rule claimed the requirement on the
     /// strength of the Python beside it.
     pub untaught: Vec<Untaught>,
+    /// Rules whose query for a language met in this app would not compile, so they did not run
+    /// there. Like an unread file, this keeps every rule from claiming anything is absent.
+    pub broken_queries: Vec<BrokenQuery>,
 }
 
 /// One rule, and the languages in this app it was not able to look in.
@@ -990,11 +1037,26 @@ pub fn scan_file(rules: &AstRules, language: &str, relative: &str, source: &str)
     read_file(rules, language, relative, source).findings
 }
 
+/// A rule whose query for a language tree-sitter refused to compile, so the rule did not run on
+/// the files in that language.
+///
+/// Queries compile on first use (`LazyQuery`), and the data file's are all compiled by a test, so
+/// this names a rule file edited after that test last ran. It is carried rather than swallowed
+/// because a rule that did not run must not read as a rule that found nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BrokenQuery {
+    pub rule_id: String,
+    pub language: String,
+    pub why: String,
+}
+
 /// What reading one file produced.
 pub struct FileRead {
     pub findings: Vec<Finding>,
     /// The parse came back with an error in it, so some of the file was not read.
     pub parse_error: bool,
+    /// Rules that could not run on this file because their query would not compile.
+    pub broken: Vec<BrokenQuery>,
 }
 
 /// Runs every rule over one file, and says whether the whole file was understood.
@@ -1006,7 +1068,9 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
     let unread = FileRead {
         findings: Vec::new(),
         parse_error: true,
+        broken: Vec::new(),
     };
+    let mut broken = Vec::new();
     let tsx = language == "typescript" && relative.to_lowercase().ends_with(".tsx");
     let Some(grammar) = grammar(if tsx { "tsx" } else { language }) else {
         return unread;
@@ -1028,6 +1092,18 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         };
         let Some(query) = query else {
             continue;
+        };
+        let query = match query.get() {
+            Ok(query) => query,
+            // The rule is not run on this file, and says so, rather than quietly reading as clean.
+            Err(why) => {
+                broken.push(BrokenQuery {
+                    rule_id: compiled.rule.id.clone(),
+                    language: language.to_owned(),
+                    why: why.to_owned(),
+                });
+                continue;
+            }
         };
         let arg_index = query.capture_index_for_name("arg");
         let hit_index = query.capture_index_for_name("hit");
@@ -1114,6 +1190,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
     FileRead {
         findings: out,
         parse_error: tree.root_node().has_error(),
+        broken,
     }
 }
 
@@ -1172,6 +1249,7 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
             scan.unparsed_files.push(entry.relative.clone());
         }
         scan.findings.extend(read.findings);
+        note_broken(&mut scan, read.broken);
     }
     scan.findings.sort_by(|a, b| {
         a.severity
@@ -1182,6 +1260,15 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
     scan.untaught = untaught(rules, &scan);
     scan.verified = clean_rules(rules, &scan);
     scan
+}
+
+/// Records each rule-and-language whose query would not compile, once, however many files met it.
+fn note_broken(scan: &mut AstScan, broken: Vec<BrokenQuery>) {
+    for b in broken {
+        if !scan.broken_queries.contains(&b) {
+            scan.broken_queries.push(b);
+        }
+    }
 }
 
 /// Every rule, with the languages read in this app that it has neither a query for nor a reason
@@ -1222,6 +1309,7 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     if !scan.unread_languages.is_empty()
         || !scan.unparsed_files.is_empty()
         || !scan.unread_files.is_empty()
+        || !scan.broken_queries.is_empty()
     {
         return Vec::new();
     }
@@ -1314,7 +1402,9 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
             .parsed_by_language
             .entry(fragment.language.to_owned())
             .or_default() += 1;
-        for mut finding in scan_file(rules, fragment.language, relative, &fragment.code) {
+        let read = read_file(rules, fragment.language, relative, &fragment.code);
+        note_broken(scan, read.broken);
+        for mut finding in read.findings {
             // Back to the line in the page. Without this a reader is sent to line 3 of something
             // that does not exist as a file.
             finding.location.line += fragment.line_offset;
@@ -1344,10 +1434,40 @@ mod tests {
     #[test]
     fn every_query_in_the_data_file_compiles() {
         // A query tree-sitter cannot compile is a rule that silently never fires, which looks exactly
-        // like a rule finding nothing.
+        // like a rule finding nothing. Queries compile on first use, so loading proves nothing about
+        // them; this compiles every one, in every language, so a rule written wrong fails here and
+        // not on the first app in that language.
         let rules = rules();
         assert!(rules.len() >= 4, "only {} rules loaded", rules.len());
         assert!(rules.languages().contains("python"));
+        rules.compile_all().expect("every query compiles");
+    }
+
+    #[test]
+    fn a_query_that_will_not_compile_stops_the_rule_claiming_a_clean_result() {
+        // Loading accepts it, because compiling happens on first use. Meeting a Python file then
+        // names the rule as one that could not run, and the clean-result gate stays shut.
+        let rules = rules_from(ONE_RULE).expect("loads: nothing checks the query text at load");
+        assert!(rules.compile_all().is_err());
+        let read = read_file(&rules, "python", "src/app.py", "x = 1\n");
+        assert_eq!(read.broken.len(), 1, "{:?}", read.broken);
+        assert_eq!(read.broken[0].rule_id, "test.rule");
+        assert_eq!(read.broken[0].language, "python");
+        assert!(read.findings.is_empty());
+
+        let dir = std::env::temp_dir().join(format!("sv-ast-broken-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("app.py"), "x = 1\n").unwrap();
+        std::fs::write(dir.join("b.py"), "y = 2\n").unwrap();
+        let scan = scan_dir(&rules, &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(scan.files_parsed, 2);
+        assert_eq!(
+            scan.broken_queries.len(),
+            1,
+            "named once, not once per file"
+        );
+        assert!(scan.verified.is_empty(), "{:?}", scan.verified);
     }
 
     /// Writes a rule file to a scratch path so load-time refusals can be exercised.
@@ -1397,13 +1517,15 @@ mod tests {
     }
 
     #[test]
-    fn a_query_tree_sitter_cannot_compile_is_refused_at_load() {
-        let refused = rules_from(&ONE_RULE.replace("QUERY", "(this is not a query"));
-        let error = match refused {
+    fn a_query_tree_sitter_cannot_compile_is_refused_by_compile_all() {
+        let rules = rules_from(&ONE_RULE.replace("QUERY", "(this is not a query"))
+            .expect("loading reads the text; compiling waits for a file in that language");
+        let error = match rules.compile_all() {
             Ok(_) => panic!("a broken query must be refused"),
             Err(e) => format!("{e:#}"),
         };
         assert!(error.contains("cannot compile"), "{error}");
+        assert!(error.contains("test.rule"), "{error}");
     }
 
     fn one_rule(extra: &str) -> String {
