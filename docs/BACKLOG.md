@@ -464,6 +464,10 @@ another session is not a claim.
      `fine_tuning.jobs.create`.
      **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
      `claude/key-rules-fine-tuning`.
+     **Done the same day:** `secrets.openai-key` and `secrets.huggingface-token` in
+     `data/secret-rules.json`, from gitleaks' published patterns, and the vendor fine-tuning calls in
+     the `training` corroborator, each read from the vendor's own SDK or API definition. See DESIGN,
+     "OpenAI and Hugging Face keys, and fine-tuning through a vendor".
   5. **CodeQL queries that may already run.** `py/insecure-temporary-file` and `js/file-system-race` (V15.4.2) were
      proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
      semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
@@ -474,6 +478,15 @@ another session is not a claim.
      failed. Most checks of an app that is itself an MCP server, or itself a sign-in service, need a new securevibe.toml
      section, and apply to few apps.
 
+- **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
+  by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
+  "secrets and credentials required by an agent at runtime are not exposed within the model's observable
+  context, including the context window, system prompts, or tool call parameters". `secrets.anthropic-key`
+  in `data/secret-rules.json` cites it, so every Anthropic key found in a file is a finding against a
+  requirement about the model's context, which the file says nothing about. The new rules leave it out. The
+  semgrep rule `mcp-credential-in-response` also cites C9.5.4, and there it fits: a tool returning a
+  credential into the model's context is what C9.5.4 is about. Fix: take C9.5.4 off the Anthropic rule,
+  regenerate `docs/COVERAGE.md`, and see what else moves. **Not claimed.**
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`
