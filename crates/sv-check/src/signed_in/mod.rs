@@ -18,6 +18,35 @@
 //! Like `probes.rs`, this decides what to ask and how to read the answers; it talks to the app only
 //! through [`Http`]. `sv-run` supplies one that speaks from inside the network fence, and the tests
 //! supply a scripted app with each flaw switchable, which is how every rule here is shown to fire.
+//!
+//! # Where each check lives
+//!
+//! This file holds what every check shares: sessions and cookies, anti-forgery tokens, requests
+//! filled from securevibe.toml's templates, signing in and up, and `run_with`, which calls each
+//! area's checks in turn. The rules each check can raise are in `rules.rs`. The checks themselves:
+//!
+//! - `signin.rs`: wrong-password limits (V6.3.1), `X-Forwarded-For`, default accounts, a password in
+//!   an address, and signing out.
+//! - `sessions.rs`: session cookies, ids, and timeouts, invented sessions, private pages and their
+//!   caching, `Clear-Site-Data`, the fields a record gives back, and a private WebSocket's session
+//!   and origin.
+//! - `passwords.rs`: the password rules at sign-up (short, common, breached, context words, altered,
+//!   long), the password field, changing a password, hints, and deleting an account.
+//! - `reset.rs`: a forgotten-password reset, followed through the email it sends.
+//! - `codes.rs`: signing in with an emailed code, and what the three email flows share for finding a
+//!   code in an email.
+//! - `activation.rs`: the activation code emailed at sign-up.
+//! - `totp.rs`: two-factor codes from an authenticator app.
+//! - `admin.rs`: the admin page and admin actions, a role given at sign-up, and records that belong
+//!   to someone else.
+//! - `forgery.rs`: cross-site request forgery, `Origin: null`, and forms another site can send
+//!   without a preflight. The WebSocket origin check's tests are here too, beside the other origin
+//!   tests; the check itself is in `sessions.rs`.
+//! - `flows.rs`: steps of a multi-step flow taken out of order.
+//! - `uploads.rs`: uploads and downloads.
+//!
+//! Each file's tests sit beside its checks. The tests here are the ones that exercise several areas
+//! at once, and `fake_app.rs` is the scripted app they all drive.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::probes::{ProbeRequest, ProbeResponse};
@@ -470,9 +499,6 @@ pub(crate) fn send_filled(
 }
 
 // ------------------------------------------------------------------------------------------------
-// Findings
-
-// ------------------------------------------------------------------------------------------------
 // The suite
 
 /// A user signed in, with what the sign-in showed.
@@ -836,9 +862,6 @@ pub(crate) fn sign_up(
     }
     answer
 }
-
-// ------------------------------------------------------------------------------------------------
-// Uploads
 
 #[cfg(test)]
 mod fake_app;
