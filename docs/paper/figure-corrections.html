@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corrected Claims</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --empty: #d6d5cf;
+    --down: #d03b3b; --up: #2a78d6; --wording: #a3a29b; --v1: #2a78d6; --sv: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+      --down: #e05252; --up: #3987e5; --wording: #77766f; --v1: #3987e5; --sv: #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --empty: #4a4944;
+    --down: #e05252; --up: #3987e5; --wording: #77766f; --v1: #3987e5; --sv: #d95926;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 26px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 16px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 170px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 4px 0 6px; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .chart { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 560px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .muted { fill: var(--text-muted); font-size: 11px; }
+  svg .ink { fill: var(--text-primary); font-size: 12px; }
+  svg .strong { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>What the checks claimed, and what turned out to be true</h1>
+  <p class="sub">Every recorded time SecureVibe told somebody something that was later found to be wrong: a number, a
+     status, or a verdict. Most were overstated, and almost none was caught by a failing test. The full account is
+     <code>CORRECTIONS.md</code>, and every row is in <code>corrections.csv</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>48</b><span>corrections in ten days: 16 in v1, 32 in <code>sv</code></span></div>
+    <div class="stat"><b style="color:var(--down)">32</b><span>went down: the claim was stronger than the evidence</span></div>
+    <div class="stat"><b>2</b><span>were caught by a failing test, while <code>sv</code>'s tests grew from 54 to 1,306</span></div>
+  </div>
+
+  <h2>1. Corrections by day</h2>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--down)"></span>down: overstated</span>
+    <span><span class="sw" style="background:var(--up)"></span>up: understated</span>
+    <span><span class="sw" style="background:var(--wording)"></span>wording: true, but read as something else</span>
+  </div>
+  <div class="chart"><svg id="days" viewBox="0 0 860 190" role="img" aria-label="Corrections per day, 18 to 27 September: 3, 5, 8, 0, 0, 1, 7, 14, 6, 4."></svg></div>
+
+  <h2>2. Tests over the same days</h2>
+  <p class="lede">Each version's own count, on its own scale below the chart above. <code>sv</code>'s is the number of
+     tests at the last commit on <code>main</code> each day; v1's is as stated in its commits.</p>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--v1)"></span>v1 server tests</span>
+    <span><span class="sw" style="background:var(--sv)"></span><code>sv</code> tests</span>
+  </div>
+  <div class="chart"><svg id="tests" viewBox="0 0 860 170" role="img" aria-label="Tests per day: v1 810 on 17 September, 1,002 on the 19th, 1,078 on the 20th; sv 54, 161, 326, 687, 1,132, 1,306 from 22 to 27 September."></svg></div>
+
+  <h2>3. How each correction was found</h2>
+  <div class="chart"><svg id="how" viewBox="0 0 860 200" role="img" aria-label="Found by reading the output 15, the owner or real use 9, building something else 9, another session's review 8, running a tool on real input 4, a failing test 2, not recorded 1."></svg></div>
+
+  <p class="note">Sources: <code>corrections.csv</code>, one row per correction with its commit or pull request. The
+     groups in section 3 are a judgment from each commit's own account. v1's 810 tests on 17 September come from
+     the first session's recorded reasoning, since that day's commits were lost; its other counts are stated in
+     commit messages. Only corrections that were written down are counted, so 48 is a floor.</p>
+</div>
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+  const days = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
+  const L = 70, R = 840, x = (d) => L + (d - 17) / 11 * (R - L), BW = 38;
+  // 1. Corrections per day: [down, up, wording]
+  const per = { 18: [2, 1, 0], 19: [1, 2, 2], 20: [4, 3, 1], 23: [0, 1, 0], 24: [4, 3, 0], 25: [12, 0, 2], 26: [5, 1, 0], 27: [4, 0, 0] };
+  const s1 = document.getElementById("days"), B1 = 160, H1 = 130, M1 = 14;
+  days.forEach((d) => mk(s1, "text", { x: x(d) + (R - L) / 22, y: B1 + 18, "text-anchor": "middle", class: "muted" }, d === 17 ? "17 Sep" : String(d)));
+  mk(s1, "line", { x1: L, x2: R, y1: B1, y2: B1, stroke: "var(--text-muted)" });
+  days.forEach((d) => {
+    const v = per[d] || [0, 0, 0], cx = x(d) + (R - L) / 22; let y = B1;
+    [[v[0], "var(--down)"], [v[1], "var(--up)"], [v[2], "var(--wording)"]].forEach(([n, c]) => {
+      if (!n) return; const h = n / M1 * H1; mk(s1, "rect", { x: cx - BW / 2, y: y - h + 1, width: BW, height: h - 1.5, fill: c, rx: 2 }); y -= h;
+    });
+    const tot = v[0] + v[1] + v[2];
+    mk(s1, "text", { x: cx, y: y - 6, "text-anchor": "middle", class: tot ? "ink" : "muted" }, tot ? String(tot) : (d === 17 ? "" : "0"));
+  });
+  mk(s1, "text", { x: 0, y: 20, class: "muted" }, "corrections");
+  // 2. Tests per day
+  const s2 = document.getElementById("tests"), B2 = 140, H2 = 110, M2 = 1306;
+  mk(s2, "line", { x1: L, x2: R, y1: B2, y2: B2, stroke: "var(--text-muted)" });
+  days.forEach((d) => mk(s2, "text", { x: x(d) + (R - L) / 22, y: B2 + 18, "text-anchor": "middle", class: "muted" }, d === 17 ? "17 Sep" : String(d)));
+  const v1t = { 17: 810, 19: 1002, 20: 1078 }, svt = { 22: 54, 23: 161, 24: 326, 25: 687, 26: 1132, 27: 1306 };
+  days.forEach((d) => {
+    const cx = x(d) + (R - L) / 22;
+    [[v1t[d], "var(--v1)"], [svt[d], "var(--sv)"]].forEach(([n, c]) => {
+      if (!n) return; const h = n / M2 * H2;
+      mk(s2, "rect", { x: cx - BW / 2, y: B2 - h, width: BW, height: h, fill: c, rx: 2 });
+      mk(s2, "text", { x: cx, y: B2 - h - 6, "text-anchor": "middle", class: "ink" }, n.toLocaleString("en-US"));
+    });
+  });
+  mk(s2, "text", { x: 0, y: 20, class: "muted" }, "tests");
+  // 3. How found
+  const how = [["Reading the output or the data", 15], ["The owner, or real use", 9], ["Building or designing something else", 9], ["Another session's review", 8], ["Running a tool on real input", 4], ["A failing test", 2], ["Not recorded", 1]];
+  const s3 = document.getElementById("how"), HX = 290, HW = 480;
+  how.forEach(([name, n], i) => {
+    const y = 8 + i * 27, strong = name === "A failing test";
+    mk(s3, "text", { x: 0, y: y + 14, class: strong ? "strong" : "ink" }, name);
+    mk(s3, "rect", { x: HX, y, width: Math.max(3, n / 15 * HW), height: 18, rx: 2, fill: strong ? "var(--down)" : "var(--text-muted)" });
+    mk(s3, "text", { x: HX + n / 15 * HW + 8, y: y + 14, class: strong ? "strong" : "ink" }, String(n));
+  });
+})();
+</script>
+</body>
+</html>

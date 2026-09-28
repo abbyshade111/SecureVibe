@@ -8,10 +8,10 @@ The repository's first commit, `c85c174`, is titled *"Restore SecureVibe after i
 and lands **687 files and 280,421 lines in one go** — a mature project appearing at once. The commits before it
 were lost when iCloud evicted the working copy, and what survived was reconstructed as a single starting point.
 
-Work demonstrably began earlier. Ten of the twelve architecture decision records are dated **16 September 2026**,
-two days before the repository's first commit, and the documentation references the 17th. So at least two days
-of development — including most of the foundational decisions the rest of the project rests on — happened before
-any commit in this timeline.
+Work demonstrably began earlier. Ten of v1's thirteen architecture decision records (twelve when this was written;
+`ADRS.md` covers all of them) are dated **16 September 2026**, two days before the repository's first commit, and
+the documentation references the 17th. So at least two days of development — including most of the foundational
+decisions the rest of the project rests on — happened before any commit in this timeline.
 
 What follows is therefore **the surviving record from 18 September onward**, not the project's life. Treat the
 commit count as a measure of the days it covers, and the ADRs as evidence of what came before them.

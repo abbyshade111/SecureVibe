@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking.
+  1. **What coordinating several AI sessions cost, and what it bought:** claims, merge conflicts, duplicated work,
+     harness collisions, and faults one session found in another's merged work, from git and this backlog.
+  2. **Test growth against fault discovery:** tests day by day beside when each fault was found and how, to see
+     whether more tests meant fewer surprises. Exploratory; it may not show a clean pattern.
+
+  Touches only `docs/paper/`.
+
 - **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
   admiring-murdock-875699**, at the owner's asking.
   1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported
@@ -20,6 +29,10 @@ another session is not a claim.
      with thirteen records, and there are seventeen across both versions (`docs/paper/ADRS.md`).
 
   Touches only `docs/paper/`.
+
+  **Done the same day.** 1 is `docs/paper/CORRECTIONS.md` with `corrections.csv` and `figure-corrections.html`;
+  2 is `DECISIONS.md` with `figure-decisions.html`; 3 is fixed in both files, keeping the original count and
+  saying it was true when written.
 
 - **A review of `sv` on 27 September 2026: faults, and what could be faster.** By session securevibe-e8, at
   the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
@@ -304,9 +317,23 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a to d, g, and h, not claimed.
+      - Step 1: slices a to d, not claimed.
+      - Step 1, slice g (`admin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-admin`. A move only:
+        securevibe-e9's V8.2.3 change to `probe.role-field-trusted` stays with securevibe-e9, after it.
+      - Step 1, slice h (`forgery.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-forgery`.
+        **Done the same day:** `signed_in/forgery.rs`, 777 lines with its 17 tests; `mod.rs` is 10,811. The
+        WebSocket foreign-origin tests use `ws_run`, `ws_findings`, and `bearer_ws_users`, which stay in
+        `mod.rs`'s tests for slice b and are `pub(super)`. Each check was made to return at once: breaking
+        `null_origin_check` turns 5 of the moved tests red, and `simple_request_check` 4. `forgery_check`
+        (V3.5.1) turns only the three cross-area tests in `mod.rs` red, none in `forgery.rs`: nothing
+        tests it on its own, which was so before the split and is left for a change that may add tests.
       - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
+        **Done the same day:** `signed_in/flows.rs`, 371 lines with its 8 tests; `mod.rs` is 11,578. With
+        `flow_checks` made to return at once, 7 of the 8 go red (the eighth is the app with no flow), and
+        none of the tests left in `mod.rs` does: the all-flaws and correct-app tests do not cover flows.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
         **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
@@ -459,6 +486,11 @@ another session is not a claim.
      a password change), V6.3.7 (an email after a password change), V10.1.1 (tokens in browser storage), V10.5.2 (two
      people sharing an email address at the test sign-in provider), V14.3.3 (the test password in browser storage),
      C9.5.3 (another user's record through a tool the model calls).
+     **The twenty that read the code or the running app claimed on 28 September 2026 by session securevibe-e9**, at
+     the owner's asking to go ahead with this group, in three pull requests: the seven that read the code, then
+     V8.4.2, V10.4.4, V16.5.4, and V13.4.7, then the eight about AI apps. The nine signed-in ones (V1.3.4, V5.4.3,
+     V4.1.3, V7.4.3, V6.3.7, V10.1.1, V10.5.2, V14.3.3, C9.5.3) are not claimed: their checks live in
+     `signed_in/`, which is frozen until the split's step 2 is done.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.
