@@ -31,3 +31,10 @@ tree-sitter-dart = "0.2"
 tree-sitter-bash = "0.25"
 tree-sitter-yaml = "0.7"
 anyhow = "1"
+
+# The binary people download and the Docker image carry. Symbols stripped, nothing else: of its
+# 35 MB, 27 MB is the parse tables of the fifteen tree-sitter grammars and 5 MB is code, so link-time optimization cut 1.4 MB for a build 30 s longer and no change in speed
+# (measured in DESIGN, "A release profile"). Panics still unwind, so a run's containers are torn
+# down when a check panics (`sv-run`'s `Teardown` is a `Drop`).
+[profile.release]
+strip = true

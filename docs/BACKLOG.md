@@ -130,7 +130,10 @@ another session is not a claim.
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
       size and speed before and after, since `lto` can also lengthen CI's build.
       **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
-      `claude/release-profile`.
+      `claude/release-profile`. **Done the same day**, and the premise corrected: 27 MB of the 35.7 MB is
+      the parse tables of the fifteen tree-sitter grammars, and 4.9 MB is code, so no setting can halve
+      it. `lto` and one code-generation unit cut 2.4 MB for a clean build 30 s longer and no change in
+      speed; the profile keeps `strip = true` only, 34.5 MB. See DESIGN, "A release profile".
 
   **Smaller.**
   11. **The runtime image runs as root.** `Dockerfile` sets no `USER`; the image reads mounted folders
