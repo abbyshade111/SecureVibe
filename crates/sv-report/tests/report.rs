@@ -2225,3 +2225,160 @@ fn when_every_finding_is_in_test_code_the_report_does_not_read_as_clean() {
         sv_report::bluf::headline(&report)
     );
 }
+
+/// False alarms, part 3: each one a report against the rule.
+mod false_alarm_reports {
+    use super::*;
+
+    fn form() -> String {
+        std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../.github/ISSUE_TEMPLATE/false_alarm.yml"),
+        )
+        .expect("the issue form is in the repository")
+    }
+
+    /// The field names a link fills in, other than `template` and the issue's own `title`.
+    fn filled(url: &str) -> Vec<String> {
+        url.split_once('?')
+            .unwrap()
+            .1
+            .split('&')
+            .filter_map(|p| p.split_once('=').map(|(k, _)| k.to_owned()))
+            .filter(|k| k != "template" && k != "title")
+            .collect()
+    }
+
+    #[test]
+    fn the_link_fills_in_the_rule_and_nothing_of_the_owners() {
+        let url = sv_report::false_alarm_issue_url(
+            "ast.sql-built-by-hand",
+            "SQL built by hand & run as \"text\" #1",
+        );
+        assert!(url.starts_with(sv_report::FALSE_ALARM_FORM), "{url}");
+        assert!(url.contains("&rule=ast.sql-built-by-hand"), "{url}");
+        assert!(
+            url.contains("&title=False%20alarm%3A%20ast.sql-built-by-hand"),
+            "{url}"
+        );
+        // Characters that would end or break a query string are encoded.
+        assert!(url.contains("%26%20run%20as%20%22text%22%20%231"), "{url}");
+        assert_eq!(url.matches('#').count(), 0, "{url}");
+        assert_eq!(filled(&url), ["rule", "finding"]);
+    }
+
+    #[test]
+    fn every_field_the_link_fills_is_a_field_of_the_form() {
+        // GitHub fills a form's field from the address only when the names match its `id`s; a field
+        // renamed in one place and not the other would quietly arrive empty.
+        let form = form();
+        for field in filled(&sv_report::false_alarm_issue_url("r", "t")) {
+            assert!(
+                form.contains(&format!("id: {field}\n")),
+                "the form has no field `{field}`"
+            );
+        }
+        let (_, template) = sv_report::FALSE_ALARM_FORM.split_once("template=").unwrap();
+        assert!(template.ends_with(".yml"));
+        // What the rule will be narrowed from is required, in words; the code is asked for only
+        // behind a choice the reporter makes, and a key is never to be pasted.
+        for needed in [
+            "id: matched",
+            "id: why",
+            "id: show-code",
+            "Never paste a real key",
+            "only if you choose",
+        ] {
+            assert!(form.contains(needed), "the form lacks {needed:?}");
+        }
+    }
+
+    fn report_with_a_false_alarm(path: &str) -> sv_report::Report {
+        let f = frameworks();
+        let buckets = Buckets {
+            applicable: vec!["V1.2.1".into()],
+            ..Default::default()
+        };
+        let mut flagged = finding("ast.sql-built-by-hand", &["V1.2.1"]);
+        flagged.location.file = path.to_owned();
+        let mut i = inputs(&f, &buckets, vec![], &[]);
+        i.set_aside = vec![
+            sv_check::review::SetAside {
+                finding: flagged.clone(),
+                verdict: sv_check::review::FALSE_ALARM.to_owned(),
+                why: "the id is an integer from the route, internal detail".to_owned(),
+                by: "owner".to_owned(),
+                on: "2026-09-27".to_owned(),
+            },
+            sv_check::review::SetAside {
+                finding: finding("ast.weak-hash-function", &["V1.2.1"]),
+                verdict: sv_check::review::ACCEPTED_RISK.to_owned(),
+                why: "a real problem, for now".to_owned(),
+                by: "owner".to_owned(),
+                on: "2026-09-27".to_owned(),
+            },
+        ];
+        build(i)
+    }
+
+    #[test]
+    fn each_false_alarm_in_the_report_links_to_a_report_against_its_rule() {
+        let report = report_with_a_false_alarm("secret-project/billing.py");
+        let entries = sv_report::false_alarm_entries(&report);
+        assert_eq!(
+            entries.len(),
+            1,
+            "only the false alarm, never the accepted risk"
+        );
+        let (_, url) = &entries[0];
+        assert!(url.contains("rule=ast.sql-built-by-hand"));
+        // Neither the file nor the owner's reason leaves in the link.
+        assert!(
+            !url.contains("billing") && !url.contains("secret-project"),
+            "{url}"
+        );
+        assert!(!url.contains("integer"), "{url}");
+        let html = sv_report::html::page(&report);
+        let security = sv_report::markdown::security(&report);
+        assert!(html.contains("Report it against the rule</a>"), "{html}");
+        assert!(html.contains(&format!("href=\"{}\"", sv_report::html::escape(url))));
+        assert!(security.contains(&format!("[Report it against the rule]({url})")));
+        for page in [&html, &security] {
+            assert!(
+                page.contains("usually a rule that will misfire"),
+                "the why is said"
+            );
+        }
+    }
+
+    #[test]
+    fn the_tool_is_told_to_offer_the_link_and_never_file_it() {
+        let note = sv_report::FALSE_ALARM_TOOL_NOTE;
+        for needed in [
+            "offer the person the link",
+            "never file it yourself",
+            "never paste their code or a key",
+        ] {
+            assert!(note.contains(needed), "{note}");
+        }
+    }
+
+    #[test]
+    fn the_form_has_the_fields_sv_fills() {
+        // The same promise from the form's side: a field renamed there is caught here too.
+        let form = form();
+        assert!(
+            form.contains("    id: rule\n") && form.contains("    id: finding\n"),
+            "{form}"
+        );
+        assert!(form.contains("name: A false alarm"));
+    }
+
+    #[test]
+    fn an_accepted_risk_is_not_offered_as_a_false_alarm() {
+        let report = report_with_a_false_alarm("app.py");
+        let security = sv_report::markdown::security(&report);
+        assert_eq!(security.matches("Report it against the rule").count(), 1);
+        assert!(!security.contains("rule=ast.weak-hash-function"));
+    }
+}

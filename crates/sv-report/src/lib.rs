@@ -623,6 +623,64 @@ pub fn accepted_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
         })
 }
 
+/// Why each false alarm carries a link, said once under the list.
+pub const FALSE_ALARM_WHY: &str = "A false alarm set aside here is usually a rule that will misfire \
+    in the next app too. Each link opens a report against the rule in sv's repository, with only the \
+    rule's name filled in: it asks what kind of code matched and why it is fine, in words, and shows \
+    your code only if you choose to. Reported rules get narrowed, with a test, instead of being set \
+    aside app after app.";
+
+/// What the AI coding tool is told about the links: offer them, never file one, never paste code.
+pub const FALSE_ALARM_TOOL_NOTE: &str = "A false alarm is usually a rule that will misfire in the \
+    next app too: offer the person the link beside each, which reports it against the rule with only \
+    the rule's name filled in. Filing it is their choice, in public, so never file it yourself, and \
+    never paste their code or a key into it.";
+
+/// Where a false alarm is reported against its rule: the issue form in `sv`'s repository.
+pub const FALSE_ALARM_FORM: &str =
+    "https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml";
+
+/// The issue form for a false alarm, with the rule's id and title filled in, the only two things
+/// about it that are `sv`'s own and already public. Never the file, the line, the code, or the
+/// owner's reason: the form asks for those in words, and the code only if the owner chooses.
+pub fn false_alarm_issue_url(rule_id: &str, title: &str) -> String {
+    fn encode(text: &str) -> String {
+        text.bytes()
+            .map(|b| match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                    (b as char).to_string()
+                }
+                _ => format!("%{b:02X}"),
+            })
+            .collect()
+    }
+    // `title` is the issue's own title, which GitHub reads from the address; `rule` and `finding`
+    // are the form's fields of those ids, which it fills in the same way.
+    format!(
+        "{FALSE_ALARM_FORM}&title={}&rule={}&finding={}",
+        encode(&format!("False alarm: {rule_id}")),
+        encode(rule_id),
+        encode(title)
+    )
+}
+
+/// The false alarms a person set aside, one line each, with the link that reports each against
+/// its rule. A false alarm set aside in one app is usually a rule that will misfire in the next.
+pub fn false_alarm_entries(report: &Report) -> Vec<(String, String)> {
+    report
+        .set_aside
+        .iter()
+        .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
+        .zip(false_alarm_lines(report))
+        .map(|(s, line)| {
+            (
+                line,
+                false_alarm_issue_url(&s.finding.rule_id, &s.finding.title),
+            )
+        })
+        .collect()
+}
+
 /// The false alarms a person set aside, one line each, for every report.
 pub fn false_alarm_lines(report: &Report) -> Vec<String> {
     report

@@ -227,7 +227,7 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
-    let set_aside = crate::false_alarm_lines(report);
+    let set_aside = crate::false_alarm_entries(report);
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
         b.push_str("<h2>Set aside by a person</h2>\n");
         if !set_aside.is_empty() {
@@ -236,10 +236,17 @@ pub fn page(report: &Report) -> String {
                  They are not counted below, and a requirement one of them was about is never \
                  shown as checked because of it.</p>\n<ul>\n",
             );
-            for line in &set_aside {
-                b.push_str(&format!("<li>{}</li>\n", escape(line)));
+            for (line, report_it) in &set_aside {
+                b.push_str(&format!(
+                    "<li>{} <a href=\"{}\">Report it against the rule</a></li>\n",
+                    escape(line),
+                    escape(report_it)
+                ));
             }
-            b.push_str("</ul>\n");
+            b.push_str(&format!(
+                "</ul>\n<p>{}</p>\n",
+                escape(crate::FALSE_ALARM_WHY)
+            ));
         }
         if !report.reviews_not_counted.is_empty() {
             b.push_str(

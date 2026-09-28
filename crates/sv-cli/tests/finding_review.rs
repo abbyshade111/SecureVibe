@@ -22,6 +22,7 @@ fn app(dir: &Path, redirect_line: &str) {
 struct Run {
     security: String,
     compliance: String,
+    html: String,
     json: Value,
     sarif: Value,
 }
@@ -44,6 +45,7 @@ fn report(dir: &Path) -> Run {
     Run {
         security: read("security.md"),
         compliance: read("compliance.md"),
+        html: read("report.html"),
         json: serde_json::from_str(&read("report.json")).unwrap(),
         sarif: serde_json::from_str(&read("findings.sarif")).unwrap(),
     }
@@ -153,6 +155,30 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     assert!(!to_fix.contains("app.py` line 6"), "{}", after.security);
     assert!(after.security.contains("## Set aside by a person"));
     assert!(after.security.contains(why));
+    // Reported against the rule, with only the rule's name in the link; the accepted risk is not.
+    assert!(
+        after.security.contains("[Report it against the rule](https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml&title=False%20alarm%3A%20ast.open-redirect&rule=ast.open-redirect&"),
+        "{}",
+        after.security
+    );
+    assert!(!after.security.contains("rule=ast.sql-built-by-hand"));
+    assert!(after.security.contains("usually a rule that will misfire"));
+    assert!(
+        after.html.contains("Report it against the rule</a>"),
+        "{}",
+        after.html
+    );
+    // The link is built from the rule alone: nothing of the app's files leaves in it.
+    let link = after
+        .security
+        .split("[Report it against the rule](")
+        .nth(1)
+        .and_then(|rest| rest.split(')').next())
+        .expect("a link");
+    assert!(
+        !link.contains("app.py") && !link.contains("file="),
+        "{link}"
+    );
     let v372 = status(&after, "V3.7.2");
     assert!(
         !v372.starts_with("needs attention") && !v372.starts_with("checked"),
@@ -206,6 +232,12 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     let tool = mcp_check(&dir);
     assert!(
         tool.contains("SET ASIDE BY A PERSON") && tool.contains(why),
+        "{tool}"
+    );
+    assert!(
+        tool.contains("report it against the rule: https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml")
+            && tool.contains(sv_report::FALSE_ALARM_TOOL_NOTE)
+            && tool.contains("never file it yourself"),
         "{tool}"
     );
     assert!(
