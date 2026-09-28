@@ -65,7 +65,11 @@ another session is not a claim.
      `expect` while reading `data/breached-password-evidence.json`, which is compiled in with
      `include_str!`; the file is checked by a test, so this reaches an owner only from a source build with
      the file broken. Low. A panic in a probe run should be *not assessed* with the reason, like every
-     other failure there.
+     other failure there. **Done on 28 September 2026 by session securevibe-e9:** the file is read by
+     `breached_seen_in`, which says what is wrong with it (not JSON, evidence for another password, no
+     count, no date), and V6.2.12 is then *not assessed* with that reason, whatever the app answered;
+     the rest of the run goes on. Two tests in `signed_in.rs` hold it, each failing when the password
+     match or the count is taken out.
 
   **What could be faster.** Timed with a release build: `sv check` on the five-file Flask example takes
   about a second, `sv check .` on this repository about three, `sv report` on the example about one. None
