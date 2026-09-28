@@ -247,6 +247,21 @@ def rust_string(text, i):
         j += 1
 
 
+def rust_code():
+    """(path, code) for every Rust file that ships: each file under a crate's `src`, subfolders
+    included, with its tests cut off at the first `#[cfg(test)]`. A file that is a test module of
+    its own, declared `#[cfg(test)] mod name;` by the file beside it (as `signed_in/fake_app.rs`
+    is), is left out whole."""
+    paths = sorted((ROOT / "crates").glob("*/src/**/*.rs"))
+    test_only = set()
+    for path in paths:
+        folder = path.parent if path.name in ("mod.rs", "lib.rs", "main.rs") else path.with_suffix("")
+        for m in re.finditer(r"#\[cfg\(test\)\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;", path.read_text()):
+            test_only.add(folder / f"{m.group(1)}.rs")
+            test_only.add(folder / m.group(1) / "mod.rs")
+    return [(p, p.read_text().split("#[cfg(test)]")[0]) for p in paths if p not in test_only]
+
+
 def check_words():
     """sv's own check id -> (label, words): what it looks for, from where the check is defined."""
     words = {}
@@ -254,8 +269,7 @@ def check_words():
         words[rule["id"]] = ("Looks for", rule["title"])
     for rule in load(ROOT / "data/secret-rules.json")["rules"]:
         words[rule["id"]] = ("Looks for", rule["title"])
-    code = "".join(p.read_text().split("#[cfg(test)]")[0]
-                   for p in sorted((ROOT / "crates").glob("*/src/*.rs")))
+    code = "".join(code for _, code in rust_code())
     for m in re.finditer(r'rule_id:\s*"([^"]+)"', code):
         if m.group(1) in words:
             continue
@@ -293,8 +307,7 @@ def appendix_c(path):
 
 def rust_literals():
     found = defaultdict(set)
-    for path in sorted((ROOT / "crates").glob("*/src/*.rs")):
-        code = path.read_text().split("#[cfg(test)]")[0]
+    for path, code in rust_code():
         for m in re.finditer(r'"(' + ID + r')"', code):
             found[m.group(1)].add(path.name)
     return found
@@ -398,7 +411,7 @@ def main():
             "check to RUST_CHECKS, or the id to MENTIONS if it is not evidence:\n  "
             + "\n  ".join(f"{q} in {', '.join(f)}" for q, f in sorted(missing.items()))
         )
-    code = "".join(p.read_text().split("#[cfg(test)]")[0] for p in (ROOT / "crates").glob("*/src/*.rs"))
+    code = "".join(code for _, code in rust_code())
     unnamed = sorted(c for c in RUST_CHECKS if f'"{c}"' not in code)
     if unnamed:
         sys.exit("RUST_CHECKS names checks the code does not have: " + ", ".join(unnamed))
