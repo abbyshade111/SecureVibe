@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking.
+  1. **What coordinating several AI sessions cost, and what it bought:** claims, merge conflicts, duplicated work,
+     harness collisions, and faults one session found in another's merged work, from git and this backlog.
+  2. **Test growth against fault discovery:** tests day by day beside when each fault was found and how, to see
+     whether more tests meant fewer surprises. Exploratory; it may not show a clean pattern.
+
+  Touches only `docs/paper/`.
+
 - **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
   admiring-murdock-875699**, at the owner's asking.
   1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported
