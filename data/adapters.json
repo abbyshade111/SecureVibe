@@ -136,6 +136,13 @@
           "requirements": [
             "V13.4.2"
           ]
+        },
+        "B306": {
+          "what": "a temporary file name made with tempfile.mktemp, which another process can take before the file is created",
+          "requirements": [],
+          "findings_against": [
+            "V15.4.2"
+          ]
         }
       }
     },
@@ -241,6 +248,13 @@
           "what": "an outbound request made to a URL built from untrusted input, which is server-side request forgery",
           "requirements": [
             "V1.3.6"
+          ]
+        },
+        "G407": {
+          "what": "an encryption IV or nonce fixed in the code, so it is reused",
+          "requirements": [],
+          "findings_against": [
+            "V11.3.4"
           ]
         }
       }
@@ -9939,6 +9953,136 @@
           ],
           "languages": [
             "csharp"
+          ]
+        },
+        "html.security.audit.missing-integrity.missing-integrity": {
+          "what": "a script or stylesheet loaded from another site with no integrity hash (Subresource Integrity)",
+          "requirements": [],
+          "findings_against": [
+            "V3.6.1"
+          ],
+          "languages": [
+            "html"
+          ]
+        },
+        "c.lang.security.insecure-use-gets-fn.insecure-use-gets-fn": {
+          "what": "gets, which reads input with no limit on its length and can overflow the buffer",
+          "requirements": [],
+          "findings_against": [
+            "V1.4.1"
+          ],
+          "languages": [
+            "c"
+          ]
+        },
+        "c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn": {
+          "what": "strcpy or a similar copy with no length limit, which can overflow the buffer",
+          "requirements": [],
+          "findings_against": [
+            "V1.4.1"
+          ],
+          "languages": [
+            "c"
+          ]
+        },
+        "c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn": {
+          "what": "strcat or a similar join with no length limit, which can overflow the buffer",
+          "requirements": [],
+          "findings_against": [
+            "V1.4.1"
+          ],
+          "languages": [
+            "c"
+          ]
+        },
+        "c.lang.security.use-after-free.use-after-free": {
+          "what": "memory used after it was freed",
+          "requirements": [],
+          "findings_against": [
+            "V1.4.3"
+          ],
+          "languages": [
+            "c"
+          ]
+        },
+        "c.lang.security.double-free.double-free": {
+          "what": "memory freed twice",
+          "requirements": [],
+          "findings_against": [
+            "V1.4.3"
+          ],
+          "languages": [
+            "c"
+          ]
+        },
+        "go.lang.security.decompression_bomb.potential-dos-via-decompression-bomb": {
+          "what": "compressed data unpacked with no limit on its uncompressed size",
+          "requirements": [],
+          "findings_against": [
+            "V5.2.3"
+          ],
+          "languages": [
+            "go"
+          ]
+        },
+        "java.lang.security.audit.crypto.gcm-nonce-reuse.gcm-nonce-reuse": {
+          "what": "an AES-GCM encryption nonce fixed in the code, so it is reused for every message",
+          "requirements": [],
+          "findings_against": [
+            "V11.3.4"
+          ],
+          "languages": [
+            "java"
+          ]
+        },
+        "php.lang.security.openssl-cbc-static-iv.openssl-cbc-static-iv": {
+          "what": "an encryption IV fixed in the code, so it is reused for every message",
+          "requirements": [],
+          "findings_against": [
+            "V11.3.4"
+          ],
+          "languages": [
+            "php"
+          ]
+        },
+        "go.grpc.security.grpc-client-insecure-connection.grpc-client-insecure-connection": {
+          "what": "a gRPC client connection made without encryption",
+          "requirements": [],
+          "findings_against": [
+            "V12.3.3"
+          ],
+          "languages": [
+            "go"
+          ]
+        },
+        "go.grpc.security.grpc-server-insecure-connection.grpc-server-insecure-connection": {
+          "what": "a gRPC server that accepts connections without encryption",
+          "requirements": [],
+          "findings_against": [
+            "V12.3.3"
+          ],
+          "languages": [
+            "go"
+          ]
+        },
+        "javascript.grpc.security.grpc-nodejs-insecure-connection.grpc-nodejs-insecure-connection": {
+          "what": "a gRPC connection in Node.js made without encryption",
+          "requirements": [],
+          "findings_against": [
+            "V12.3.3"
+          ],
+          "languages": [
+            "javascript"
+          ]
+        },
+        "trailofbits.go.missing-unlock-before-return.missing-unlock-before-return": {
+          "what": "a lock taken and not released on every way out of the function",
+          "requirements": [],
+          "findings_against": [
+            "V15.4.3"
+          ],
+          "languages": [
+            "go"
           ]
         }
       },

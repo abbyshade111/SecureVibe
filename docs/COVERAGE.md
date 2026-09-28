@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 132 (38%) | 7 | 206 |
+| OWASP ASVS 5.0 | 345 | 140 (41%) | 7 | 198 |
 | OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,10 +43,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 54 | 8 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 67 | 5 | 0 | 14 | 31 | 24 | 1 |
-| L3 | 92 | 11 | 1 | 0 | 5 | 1 | 2 | 2 |
+| L2 | 183 | 71 | 5 | 0 | 14 | 31 | 28 | 1 |
+| L3 | 92 | 15 | 1 | 0 | 5 | 1 | 6 | 2 |
 
-With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 29 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -58,21 +58,21 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 15 | 0 | 15 |
+| V1 Encoding and Sanitization | 30 | 17 | 0 | 13 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
-| V3 Web Frontend Security | 31 | 21 | 0 | 10 |
+| V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 8 | 0 | 8 |
-| V5 File Handling | 13 | 7 | 0 | 6 |
+| V5 File Handling | 13 | 8 | 0 | 5 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
 | V8 Authorization | 13 | 2 | 1 | 10 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
-| V11 Cryptography | 24 | 8 | 1 | 15 |
-| V12 Secure Communication | 12 | 6 | 1 | 5 |
+| V11 Cryptography | 24 | 9 | 1 | 14 |
+| V12 Secure Communication | 12 | 7 | 1 | 4 |
 | V13 Configuration | 21 | 7 | 1 | 13 |
 | V14 Data Protection | 13 | 3 | 1 | 9 |
-| V15 Secure Coding and Architecture | 21 | 8 | 0 | 13 |
+| V15 Secure Coding and Architecture | 21 | 10 | 0 | 11 |
 | V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
@@ -191,7 +191,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (29)
+### Settled only by an outside tool (37)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -205,14 +205,19 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V1.3.7 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.3.10 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V1.3.12 | L3 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V1.4.1 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `insecure-use-gets-fn`, `insecure-use-strcat-fn`, `insecure-use-string-copy-fn`) |
+| V1.4.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `double-free`, `use-after-free`) |
 | V1.5.1 | L1 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.3.1 | L1 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.5.5 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
+| V3.6.1 | L3 | Outside tools: `semgrep` (semgrep only ever as a finding: `missing-integrity`) |
+| V5.2.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `potential-dos-via-decompression-bomb`) |
 | V5.3.3 | L3 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V9.1.1 | L1 | Outside tools: `semgrep`, `codeql-javascript` |
 | V9.1.2 | L1 | Outside tools: `semgrep` |
 | V9.2.1 | L1 | Outside tools: `semgrep` (semgrep only ever as a finding: `jwt-tokenvalidationparameters-no-expiry-validation`) |
 | V11.2.3 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V11.3.4 | L3 | Outside tools: `gosec`, `semgrep` (gosec only ever as a finding: `G407`; semgrep only ever as a finding: `gcm-nonce-reuse`, `openssl-cbc-static-iv`) |
 | V11.4.2 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V11.4.3 | L2 | Outside tools: `semgrep` |
 | V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
@@ -220,8 +225,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
 | V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V12.3.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `grpc-client-insecure-connection`, `grpc-nodejs-insecure-connection`, `grpc-server-insecure-connection`) |
 | V15.3.5 | L2 | Outside tools: `codeql-javascript` |
 | V15.3.6 | L2 | Outside tools: `codeql-javascript` |
+| V15.4.2 | L3 | Outside tools: `bandit` (bandit only ever as a finding: `B306`) |
+| V15.4.3 | L3 | Outside tools: `semgrep` (semgrep only ever as a finding: `missing-unlock-before-return`) |
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
@@ -304,7 +312,7 @@ control as supporting evidence.
 
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
-- SBD-AC-01: through V12.3.1
+- SBD-AC-01: through V12.3.1, V12.3.3
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1
 - SBD-AC-05: through V13.3.1
