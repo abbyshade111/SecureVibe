@@ -10,8 +10,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// In Cargo's own scratch folder beside the build, not the system's temporary folder: on a Mac that
+/// is under `/var/folders`, which Colima does not share with its machine, so the app's folder
+/// arrived empty, `httpd` had no page to serve, and the quick run never answered its health path.
+/// The build folder is inside the checkout, which every Mac backend shares.
 fn app(name: &str, test: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-stop-{name}-{}", std::process::id()));
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("sv-stop-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("index.html"), "<p>hello</p>\n").unwrap();
