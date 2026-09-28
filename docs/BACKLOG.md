@@ -77,6 +77,8 @@ another session is not a claim.
      every regex, each time it runs; `securevibe_explain` reloads the frameworks per call (`mcp.rs:632`).
      The `Server` struct holds only its root. Fix: load once per process, in `Server` for the MCP server
      and at the top of `main` for the CLI, and measure the difference; most of the second above is this.
+     **Claimed 27 September 2026 by session securevibe-e8**, at the owner's asking, in branch
+     `claude/load-once`.
   7. **The app folder is walked six times per report, the bill of materials is built two or three
      times, and every source file is lowercased once per signature.** The walks: secrets, the code
      rules, the corroborators, the tools' file list, the test finder, and the ecosystems. `sbom::build`
