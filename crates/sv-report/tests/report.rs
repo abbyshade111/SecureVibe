@@ -252,16 +252,25 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
         out_of_level: vec![],
     };
     let verified = [Verified::new("some.check", &["V1.2.1"], "8 files".into())];
-    let report = build(inputs(&f, &buckets, vec![], &verified));
+    // The AI coding tool's yes about V2.2.2: its own column, below the owner's word, never checked.
+    let stated = [Verified::new(
+        "design.stated-by-ai",
+        &["V2.2.2"],
+        "securevibe.toml: your AI coding tool answered yes.".to_owned(),
+    )];
+    let mut given = inputs(&f, &buckets, vec![], &verified);
+    given.stated = &stated;
+    let report = build(given);
     // Setup, asserted: each requirement landed where this test put it, and knows its chapter.
     assert_eq!(
         (
             report.counts.applicable,
             report.counts.checked,
+            report.counts.stated,
             report.counts.not_applicable,
             report.counts.not_assessed
         ),
-        (3, 1, 2, 1)
+        (3, 1, 1, 2, 1)
     );
     assert!(report.excluded.iter().all(|e| !e.chapter.is_empty()));
     assert!(report.undecided.iter().all(|u| !u.chapter.is_empty()));
@@ -273,20 +282,30 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
         (
             c.applies(),
             c.checked,
+            c.your_word,
+            c.tool_word,
             c.not_verified,
             c.does_not_apply,
             c.not_placed,
         )
     };
-    assert_eq!(counts(&chapters[0]), (2, 1, 1, 1, 0), "V1");
-    assert_eq!(counts(&chapters[1]), (1, 0, 1, 1, 0), "V2");
-    assert_eq!(counts(&chapters[2]), (0, 0, 0, 0, 1), "V16");
+    assert_eq!(counts(&chapters[0]), (2, 1, 0, 0, 1, 1, 0), "V1");
+    assert_eq!(counts(&chapters[1]), (1, 0, 0, 1, 0, 1, 0), "V2");
+    assert_eq!(counts(&chapters[2]), (0, 0, 0, 0, 0, 0, 1), "V16");
 
     let page = sv_report::markdown::compliance(&report);
     let v1 = chapters[0].title();
-    // The V1 row: apply, a problem found, checked, not verified, does not apply, not placed yet.
+    // Apply, a problem found, checked, the AI tool's word, not verified, does not apply, not placed
+    // yet. The owner's-word column is not drawn: nobody here gave theirs.
+    assert!(page.contains("| checked | your AI tool's word | not verified |"), "{page}");
+    assert!(!page.contains("your word, not a check"), "{page}");
     assert!(
-        page.contains(&format!("| {v1} | **2** | 0 | 1 | 1 | 1 | 0 |")),
+        page.contains(&format!("| {v1} | **2** | 0 | 1 | 0 | 1 | 1 | 0 |")),
+        "{page}"
+    );
+    let v2 = chapters[1].title();
+    assert!(
+        page.contains(&format!("| {v2} | **1** | 0 | 0 | 1 | 0 | 1 | 0 |")),
         "{page}"
     );
     assert!(
@@ -294,8 +313,14 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
         "{page}"
     );
     // V16 has a row in the table and no list: nothing in it applies.
-    assert!(page.contains(&format!("| {} |", chapters[2].title())), "{page}");
-    assert!(!page.contains(&format!("### {}", chapters[2].title())), "{page}");
+    assert!(
+        page.contains(&format!("| {} |", chapters[2].title())),
+        "{page}"
+    );
+    assert!(
+        !page.contains(&format!("### {}", chapters[2].title())),
+        "{page}"
+    );
     // Every requirement that applies has its words in the appendix, and the chapter lists do not.
     // (The tests worth writing still show a level 1 requirement's words beside it, on purpose.)
     let appendix = &page[page
@@ -305,8 +330,15 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
     let lists = &lists[..lists[3..].find("\n## ").map_or(lists.len(), |i| i + 3)];
     for line in &report.requirements {
         let words: String = line.description.chars().take(30).collect();
-        assert!(appendix.contains(&format!("| {} | {words}", line.id)), "{appendix}");
-        assert!(!lists.contains(&words), "{}'s words are in the chapter lists", line.id);
+        assert!(
+            appendix.contains(&format!("| {} | {words}", line.id)),
+            "{appendix}"
+        );
+        assert!(
+            !lists.contains(&words),
+            "{}'s words are in the chapter lists",
+            line.id
+        );
     }
 }
 
