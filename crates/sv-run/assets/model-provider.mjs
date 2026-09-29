@@ -21,6 +21,9 @@
 //   LONG, LONGEND
 //           the two ends of one very long message; which of them arrived says whether the app
 //           passed it on whole or cut it short
+//   FETCH   asks for the app's own tool named in the message's `SV-CALL-<hex>` (a JSON object of
+//           `tool` and `args`, hex-encoded), when the app offered it, and records what the app then
+//           sends back as the tool's result
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
@@ -121,6 +124,24 @@ function reply(api, body, usage) {
   };
   seen.set(tag, record);
   const marker = `SV-REPLY-${tag}`;
+  if (kind === 'FETCH') {
+    record.tools_offered = tools;
+    if (results.length) {
+      record.tool_result = results.join('\n');
+      return `${marker} Here it is.`;
+    }
+    const call = /SV-CALL-([0-9a-f]+)/.exec(user);
+    let wanted = null;
+    try {
+      wanted = call ? JSON.parse(Buffer.from(call[1], 'hex').toString('utf8')) : null;
+    } catch {
+      wanted = null;
+    }
+    const tool = wanted && tools.find((name) => name === wanted.tool);
+    if (!tool) return `${marker} I have no tool to look that up with.`;
+    record.tool_requested = true;
+    return { tool, args: wanted.args || {} };
+  }
   if (kind.startsWith('MCP')) {
     record.tools_offered = tools;
     if (results.length) {

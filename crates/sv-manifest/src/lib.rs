@@ -248,6 +248,22 @@ pub struct AiSection {
     /// gives the model tools from one. The run gives it a test MCP server of `sv`'s own there.
     #[serde(default)]
     pub mcp_url_env: Option<String>,
+    /// A tool of the app's own that the model can call to read one record, with `{id}` where the
+    /// record's id goes. The test model asks it, as the second user, for the first user's record
+    /// (C9.5.3). Needs `signed-in` and an `owned` record under [stack.run.users].
+    #[serde(default)]
+    pub record_tool: Option<RecordTool>,
+}
+
+/// The tool the model calls to read a record, and the arguments it takes.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct RecordTool {
+    /// The tool's name as the app offers it to the model, such as `get_note`.
+    pub name: String,
+    /// Its arguments, with `{id}` where the record's id goes, such as `{ id = "{id}" }`.
+    #[serde(default)]
+    pub args: std::collections::BTreeMap<String, String>,
 }
 
 impl AiSection {
@@ -276,6 +292,15 @@ impl AiSection {
                      variable"
                 ));
             }
+        }
+        if let Some(tool) = &self.record_tool
+            && !tool.args.values().any(|v| v.contains("{id}"))
+        {
+            out.push(format!(
+                "`ai.record-tool` ({}) has no argument with `{{id}}`, so the test model could not \
+                 name a record",
+                tool.name
+            ));
         }
         for name in self.base_url_env.iter().chain(&self.mcp_url_env) {
             if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
