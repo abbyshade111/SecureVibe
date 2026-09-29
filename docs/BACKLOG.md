@@ -703,6 +703,12 @@ another session is not a claim.
   `adapters.rs` strips the folder as text and `…/app/.` is not a prefix of `…/app/backend/…`; the fingerprints
   differed from the same scan of `app`, so a reviewed finding stops matching. Fix: normalize the folder once, where
   `sv` receives it, so `app`, `app/`, `app/.`, `./app`, and its absolute path give the same report. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **An app in a subfolder of a git repository is reported as not in git.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `tracked_files` in
+  `crates/sv-check/src/config.rs` looks for `.git` in the app folder itself, which exists only at a repository's
+  root, so `config.secrets-file-committed` says "This folder is not a git repository" and advises putting it in git.
+  Fix: ask git (`git -C <app> rev-parse --is-inside-work-tree`, then `ls-files`, which lists the subfolder's tracked
+  files relative to it). **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
