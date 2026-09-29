@@ -94,6 +94,7 @@ RUST_CHECKS = {
     "probe.ai-flagged-reply-shown": ("running", ["C7.3.1"]),
     "probe.ai-raw-response-exposed": ("running", ["C11.3.2"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
+    "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),
     "probe.mcp-session-survives-end": ("running", ["C10.2.6"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),

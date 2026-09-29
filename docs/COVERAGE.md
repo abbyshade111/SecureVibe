@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 155 (45%) | 9 | 181 |
-| OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
+| OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -284,12 +284,12 @@ does not reach.
 | C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
+| C9 Orchestration & Agentic Security | 34 | 7 | 0 | 27 |
 | C10 Model Context Protocol (MCP) Security | 23 | 5 | 0 | 18 |
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-15 of these 32 can only ever be marked *needs attention*: a check can
+15 of these 33 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -311,6 +311,7 @@ need `--tools`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
 - C9.3.7: found failing by sv's `probe.ai-output-fetched`.
+- C9.5.3: settled by `probe.ai-tool-reads-others-records`.
 - C9.5.4: found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.1.1: found failing by sv's `config.mcp-server-unpinned`.

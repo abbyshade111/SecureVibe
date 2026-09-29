@@ -50,6 +50,9 @@ health = "/"              # a path that returns 200 once the app is up
 #                                 # is started with it and must answer without calling the model
 # mcp-url-env = "MCP_SERVER_URL"  # where the app reads its MCP server's address, if it gives the
 #                                 # model tools from one; it is given a test MCP server there
+# record-tool = { name = "get_note", args = { id = "{id}" } }   # a tool of the app's own the model
+#                                 # calls to read one record; the test model asks it, as the second
+#                                 # user, for the first user's `owned` record (needs signed-in)
 
 # [stack.run.mcp-server]
 # Only if the app itself serves tools to AI models over MCP's HTTP transport. The run asks it to
