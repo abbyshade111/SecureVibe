@@ -580,7 +580,142 @@ pub fn run(
 
 /// `run`, and with `slow` also the checks that have to wait: the session timeouts the owner states,
 /// waited out (`sv run --slow`).
+///
+/// Every request goes through [`Patient`], which waits out a rate limiter's answer once. When the
+/// limiter was still answering after that, no refusal in the run can be told from the limiter's, so
+/// nothing the run would have credited is: each credit becomes not assessed, naming the requests the
+/// limiter kept answering. Findings stay, since hiding a real one is the worse fault, and the run
+/// says which of them could rest on the limiter's refusal rather than the app's.
 pub fn run_with(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    seeded: bool,
+    policy: &sv_manifest::PolicySection,
+    slow: bool,
+) -> Outcome {
+    let mut patient = Patient {
+        inner: http,
+        still_limited: Vec::new(),
+    };
+    let mut out = run_checks(&mut patient, users, accounts, seeded, policy, slow);
+    if patient.still_limited.is_empty() {
+        return out;
+    }
+    let limited = patient.still_limited.join(", ");
+    out.steps.push(format!(
+        "the app's rate limiter was still answering after waiting as it asked: {limited}"
+    ));
+    for credit in std::mem::take(&mut out.verified) {
+        out.not_assessed.push((
+            credit.requirement_ids.join(", "),
+            format!(
+                "`{}` would have been credited ({}), but the app's rate limiter was still refusing \
+                 requests after `sv` waited as it asked ({limited}), so a refusal here may be the \
+                 limiter's rather than the app's own check. Run again with the limiter relaxed for \
+                 the test run, or with a longer wait between requests.",
+                credit.check_id, credit.scope
+            ),
+        ));
+    }
+    if !out.findings.is_empty() {
+        let mut ids: Vec<&str> = out
+            .findings
+            .iter()
+            .flat_map(|f| f.requirement_ids.iter().map(String::as_str))
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        out.not_assessed.push((
+            ids.join(", "),
+            format!(
+                "The app's rate limiter was still refusing requests after `sv` waited as it asked \
+                 ({limited}). The findings above are kept, but one that rests on the app refusing \
+                 something may be the limiter's refusal: read each against its evidence."
+            ),
+        ));
+    }
+    out
+}
+
+/// Seconds to wait before asking again, when `response` is a rate limiter's rather than an answer to
+/// the question: 429, or 503 with `Retry-After`. The app's own `Retry-After` in seconds, at most a
+/// minute; five seconds when it gives none, or gives a date.
+pub(crate) fn rate_limited(response: &ProbeResponse) -> Option<u64> {
+    let retry_after = response.header("retry-after");
+    match response.status {
+        429 => {}
+        503 if retry_after.is_some() => {}
+        _ => return None,
+    }
+    Some(
+        retry_after
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .unwrap_or(5)
+            .min(60),
+    )
+}
+
+/// The app, with a rate limiter's answer waited out once.
+///
+/// A 429 from a limiter says nothing about the question asked: a private page refused with 429 was
+/// never shown to the app's own sign-in check, and a check that reads "not 2xx" as "refused" would
+/// credit a refusal nobody made (V8.2.1, and wherever else a refusal is read), or report one (a
+/// sign-out that seemed to end a session). So a limited answer is waited out, as long as the app
+/// asks and at most a minute, and the request sent once more. Not for a request whose id says it is
+/// a guess: the guessing checks send wrong passwords and codes on purpose to see the limiter answer,
+/// and a wait would both change what they measure and send one guess more than they count.
+struct Patient<'a> {
+    inner: &'a mut dyn Http,
+    /// Requests the limiter was still answering after the wait, as "id (status)".
+    still_limited: Vec<String>,
+}
+
+impl Http for Patient<'_> {
+    fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        let first = self.inner.send(request);
+        if request.id.contains("guess") {
+            return first;
+        }
+        let Some(wait) = first.as_ref().and_then(rate_limited) else {
+            return first;
+        };
+        self.inner.wait(wait);
+        let second = self.inner.send(request);
+        if let Some(r) = second.as_ref().filter(|r| rate_limited(r).is_some()) {
+            self.still_limited
+                .push(format!("{} ({})", request.id, r.status));
+        }
+        second
+    }
+
+    fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
+        self.inner.mail(to, at_least)
+    }
+
+    fn now(&mut self) -> u64 {
+        self.inner.now()
+    }
+
+    fn wait(&mut self, seconds: u64) {
+        self.inner.wait(seconds);
+    }
+
+    fn provider(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        self.inner.provider(request)
+    }
+
+    fn browser(&mut self, job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
+        self.inner.browser(job)
+    }
+
+    fn model(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        self.inner.model(request)
+    }
+}
+
+/// The checks themselves, in order; `run_with` wraps them.
+fn run_checks(
     http: &mut dyn Http,
     users: &UsersSection,
     accounts: &Accounts,
@@ -1467,5 +1602,203 @@ mod tests {
         u.owned = None;
         u.private_websocket = Some("/ws".into());
         u
+    }
+}
+
+/// A rate limiter's answer is not the app's answer to the question (V8.2.1 and wherever a refusal
+/// is read). Found on 28 September 2026: the private-page check read anything but 2xx as "refused",
+/// so a limiter's 429 was credited as the app refusing a stranger, and the sign-out check read one
+/// as a GET having ended a session.
+#[cfg(test)]
+mod rate_limit_tests {
+    use super::fake_app::*;
+    use super::*;
+
+    /// The fake app behind a limiter: the next `times` requests with id `id` are answered `status`,
+    /// with `Retry-After: retry` when given, instead of reaching the app. Counts what it waited.
+    struct Limited {
+        app: FakeApp,
+        id: &'static str,
+        status: u16,
+        retry: Option<&'static str>,
+        times: u32,
+        waited: u64,
+        limited: u32,
+    }
+
+    impl Http for Limited {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            if r.id == self.id && self.times > 0 {
+                self.times -= 1;
+                self.limited += 1;
+                return Some(ProbeResponse {
+                    id: r.id.clone(),
+                    status: self.status,
+                    headers: self
+                        .retry
+                        .map(|v| vec![("retry-after".to_owned(), v.to_owned())])
+                        .unwrap_or_default(),
+                    body: "slow down".into(),
+                });
+            }
+            self.app.send(r)
+        }
+        fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
+            self.app.mail(to, at_least)
+        }
+        fn now(&mut self) -> u64 {
+            self.app.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.waited += seconds;
+            self.app.wait(seconds);
+        }
+    }
+
+    fn limited(id: &'static str, status: u16, retry: Option<&'static str>, times: u32) -> Limited {
+        let mut app = FakeApp::new(Flaws::default());
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        Limited {
+            app,
+            id,
+            status,
+            retry,
+            times,
+            waited: 0,
+            limited: 0,
+        }
+    }
+
+    fn run_limited(limiter: &mut Limited) -> Outcome {
+        let mut acc = accounts();
+        acc.totp = None;
+        run(limiter, &users(), &acc, true, &Default::default())
+    }
+
+    fn credits_private_page(o: &Outcome) -> bool {
+        verified_ids(o).contains(&PRIVATE_PAGE.rule_id)
+    }
+
+    #[test]
+    fn a_limiter_that_answers_once_is_waited_out_and_the_refusal_is_the_apps() {
+        let mut control = limited("private-anonymous", 429, Some("7"), 0);
+        assert!(
+            credits_private_page(&run_limited(&mut control)),
+            "the setup: with no limiter the private page is credited"
+        );
+        let mut limiter = limited("private-anonymous", 429, Some("7"), 1);
+        let o = run_limited(&mut limiter);
+        assert_eq!(limiter.limited, 1, "the setup: the limiter answered");
+        assert_eq!(limiter.waited, 7, "waited as long as the app asked");
+        assert!(credits_private_page(&o), "{:?}", o.not_assessed);
+        assert!(
+            !o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("rate limiter")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_limiter_that_keeps_answering_credits_nothing_in_the_run() {
+        let mut limiter = limited("private-anonymous", 429, None, 99);
+        let o = run_limited(&mut limiter);
+        assert_eq!(
+            limiter.limited, 2,
+            "asked twice: once, and once after waiting"
+        );
+        assert_eq!(limiter.waited, 5, "no Retry-After: five seconds");
+        assert!(!credits_private_page(&o), "a refusal nobody made, credited");
+        assert!(o.verified.is_empty(), "{:?}", verified_ids(&o));
+        let (ids, why) = o
+            .not_assessed
+            .iter()
+            .find(|(_, why)| why.contains(PRIVATE_PAGE.rule_id))
+            .expect("the withdrawn credit says why");
+        assert!(ids.contains("V8.2.1"), "{ids}");
+        assert!(why.contains("private-anonymous (429)"), "{why}");
+    }
+
+    #[test]
+    fn a_503_is_a_limiter_only_when_it_says_when_to_come_back() {
+        let mut with_retry = limited("private-anonymous", 503, Some("3"), 1);
+        let o = run_limited(&mut with_retry);
+        assert_eq!(with_retry.waited, 3);
+        assert!(credits_private_page(&o));
+        // Without Retry-After a 503 is the app failing, not a limiter, and is not waited out.
+        let mut without = limited("private-anonymous", 503, None, 1);
+        run_limited(&mut without);
+        assert_eq!(without.waited, 0);
+    }
+
+    #[test]
+    fn a_limiter_does_not_make_a_sign_out_out_of_a_plain_page_visit() {
+        // The app keeps the session on a GET to /logout. A limiter answering the check's next look
+        // at the private page made it read as signed out.
+        let mut once = limited("private-after-get-logout", 429, Some("2"), 1);
+        let o = run_limited(&mut once);
+        assert_eq!(
+            once.limited, 1,
+            "the setup: the limiter answered that request"
+        );
+        assert!(
+            !rule_ids(&o).contains(&SIGN_OUT_ON_GET.rule_id),
+            "a limiter's 429 read as a sign-out"
+        );
+        // Still answering after the wait: the finding stands, and the run says what it may rest on.
+        let mut always = limited("private-after-get-logout", 429, Some("2"), 99);
+        let o = run_limited(&mut always);
+        assert!(rule_ids(&o).contains(&SIGN_OUT_ON_GET.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V3.5.3") && why.contains("may be the limiter's")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_limiter_asking_for_an_hour_is_waited_a_minute() {
+        // An app may ask for a long wait; the run waits at most a minute, once, and then says what
+        // it could not tell rather than stalling the whole report.
+        let mut limiter = limited("private-anonymous", 429, Some("3600"), 1);
+        let o = run_limited(&mut limiter);
+        assert_eq!(limiter.waited, 60);
+        assert!(credits_private_page(&o));
+        let limited_for = |value: &str| {
+            rate_limited(&ProbeResponse {
+                id: String::new(),
+                status: 429,
+                headers: vec![("retry-after".into(), value.into())],
+                body: String::new(),
+            })
+        };
+        assert_eq!(limited_for("12"), Some(12));
+        assert_eq!(limited_for("Wed, 21 Oct 2026 07:28:00 GMT"), Some(5), "a date: five seconds");
+    }
+
+    #[test]
+    fn a_guess_is_never_waited_out() {
+        // The guessing checks send wrong passwords and codes to see the limiter answer. Waiting
+        // would change what they measure and send one guess more than they count.
+        let mut inner = limited("guess-3", 429, Some("30"), 99);
+        let mut patient = Patient {
+            inner: &mut inner,
+            still_limited: Vec::new(),
+        };
+        let request = get("guess-3", "/login", &Session::default());
+        let answer = patient.send(&request).expect("an answer");
+        assert_eq!(answer.status, 429);
+        assert!(patient.still_limited.is_empty());
+        drop(patient);
+        assert_eq!((inner.limited, inner.waited), (1, 0));
     }
 }
