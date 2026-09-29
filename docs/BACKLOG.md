@@ -854,6 +854,9 @@ another session is not a claim.
      GIF; each is credited when refused, and V5.4.3 only after an ordinary text file was accepted. Not done: the
      EICAR file inside a `.zip` (the probe's bodies are text, and a zip is not), and the pointers from the code
      (SVG sanitizers, antivirus packages).
+     **V10.1.1 and V14.3.3 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take
+     another backlog item, in branch `claude/securevibe-e2-browser-storage`: tokens and the test password in what
+     the app leaves in the browser after sign-in. V10.5.2 and C9.5.3 stay unclaimed.
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
