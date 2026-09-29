@@ -1030,6 +1030,11 @@ another session is not a claim.
      Spring Authorization Server, league/oauth2-server, fosite, and node-oauth2-server), and only ever a finding.
      **Claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
      in branch `claude/securevibe-e9-retired-grants`.
+     **Done the same day** (DESIGN, "The password and implicit grants, read from a sign-in server's code").
+     `config.retired-grant-enabled` reads django-oauth-toolkit, Doorkeeper, fosite, and node-oauth2-server, each by
+     names read from its own source, and only where the library is among the app's packages or the file names it.
+     Six guards broken in turn, each caught. Not done: league/oauth2-server (its source could not be fetched here),
+     Spring (whose authorization server has no password grant to switch on), and settings kept in a database.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
