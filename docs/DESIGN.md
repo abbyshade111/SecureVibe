@@ -2301,6 +2301,13 @@ be checked *before* what was found, for the same reason the secrets scanner prin
 Both ways the question can go unanswered have their own test — a missing `.git`, and a `.git` that git
 refuses to read — because they are different code paths and the first one alone left the second untested.
 
+An app can be a folder inside a larger repository, so the `.git` is looked for in the app's folder and every
+folder above it. Only the files under the app's folder count: git is asked from inside it, and lists just
+those. A secrets file committed elsewhere in the same repository belongs to something else and is not
+reported against this app. The `.gitignore` check reads only the app's own `.gitignore`, so an app in a
+subfolder with none of its own is not assessed rather than failed, since one in a folder above it may
+already leave out `.env`.
+
 ### The lockfile check, and the wrong statement it was one call away from
 
 `sv-scan::ecosystems::unpinned` already worked out which ecosystems have no lockfile, so reporting it
