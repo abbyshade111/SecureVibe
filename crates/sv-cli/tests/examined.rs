@@ -303,16 +303,42 @@ fn a_large_data_file_leaves_the_credential_scan_and_the_mcp_check_finished() {
     );
     std::fs::remove_dir_all(&dir).ok();
 
-    // The same catalog saying `command`: it could start an MCP server, so the check says it could
-    // not finish, and names the file, as before.
+    // The word `command` in the catalog's prose, as NIST's uses it: still finished (the check was
+    // narrowed to a `command` key on 29 September 2026).
+    let dir = app("large-data-prose");
+    std::fs::write(
+        dir.join("catalog.json"),
+        format!(
+            "{{\"text\": \"{} the command and control of the system \"}}\n",
+            "y".repeat(3_000_000)
+        ),
+    )
+    .unwrap();
+    let prose = report(&dir, &[]);
+    let mcp = prose["examined"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["rules"] == "config.mcp-server-unpinned");
+    assert!(
+        mcp.is_none_or(|e| e["state"] != "not-run"),
+        "the word alone stopped the check: {mcp:?}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+
+    // The same catalog setting `command` to a program that starts a server: it could, so the check
+    // says it could not finish, and names the file.
     let dir = app("large-data-command");
     std::fs::write(
         dir.join("catalog.json"),
-        format!("{{\"text\": \"{} command \"}}\n", "y".repeat(3_000_000)),
+        format!(
+            "{{\"text\": \"{}\", \"command\": \"npx\"}}\n",
+            "y".repeat(3_000_000)
+        ),
     )
     .unwrap();
-    let mentions = report(&dir, &[]);
-    let (state, why) = entry(&mentions, "config.mcp-server-unpinned");
+    let starts = report(&dir, &[]);
+    let (state, why) = entry(&starts, "config.mcp-server-unpinned");
     assert_eq!(state, "not-run", "{why}");
     assert!(why.contains("catalog.json"), "{why}");
     std::fs::remove_dir_all(&dir).ok();
