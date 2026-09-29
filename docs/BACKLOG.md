@@ -9,6 +9,16 @@ another session is not a claim.
 
 ## Next
 
+- **`ast.download-piped-to-shell` flags a download read as data.** **Claimed on 28 September 2026 by session
+  cato-examined**, at the owner's asking. Found by cato-pipeline: `curl … | python3 -c '<fixed program>'` is
+  reported high, the same as `curl … | sh`, because the rule matches any pipeline from `curl`, `wget`, or `fetch`
+  into a shell or interpreter, whatever that command's arguments are. An interpreter runs what arrives on standard
+  input only when no program is given another way. Plan: keep flagging `| sh`, `| bash -s`, `| python3 -`, and
+  `| sudo bash`; stop flagging, or report at *possible* certainty, the forms that give the program another way
+  (`-c`, `-e`, a script file). A literal program is not proof of safety (`python3 -c "exec(sys.stdin.read())"`
+  runs the download), which is the case for *possible* rather than silence. A test for each side, and each guard
+  broken in turn.
+
 - **Say in `report.json` what was examined, in a form a program can read.** **Claimed on 28 September 2026 by
   session cato-examined**, at the owner's asking.
   `report.json` says what was not examined only in sentences: `gaps`, and the SARIF's `sv.not-examined`
