@@ -658,6 +658,16 @@ another session is not a claim.
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
 
+- **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
+  September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
+  (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
+  4.0.0`. `Event` in `crates/sv-check/src/advisories.rs` reads only `introduced` and `fixed`; serde drops
+  `last_affected` without a word, and `in_range` then reads every version from the start as affected. Fix: read
+  `last_affected` (a version above it is not affected; the named version is), and treat any other event key `sv`
+  does not know as a range it cannot compare, so the next unsupported field is a gap in the report rather than a
+  false finding. **Claimed on 29 September 2026 by session securevibe-e9**, at the cato-pipeline session's report
+  on the owner's behalf.
+
 - **A rate limiter's 429 may be read as the app's answer about access.** Reported to the owner on 28 September
   2026 by an agent in another project that was integrating `sv`: an open CRITICAL it listed as "F-0001, the
   anonymous user denied runtime probe" had got HTTP 429 from the app's rate limiter rather than a refusal to sign in,
