@@ -677,7 +677,8 @@ another session is not a claim.
   cato-pipeline session: after the large-file work, `config.mcp-server-unpinned` is still not run on cato, because
   NIST's 10 MB catalog uses the word `command` in its text, and a large file is counted as read only when it never
   says `command`. That is the check working as written; narrowing it to a `command` key (`"command"` followed by `:`,
-  or `command =`) would let a prose file through while still catching a configuration. **Not claimed.**
+  or `command =`) would let a prose file through while still catching a configuration. **Claimed on 29 September
+  2026 by session securevibe-e9**, at the owner's asking to continue with the backlog.
 
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
