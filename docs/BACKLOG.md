@@ -822,6 +822,12 @@ another session is not a claim.
      page whose `Cache-Control` has `public` or an `s-maxage` with neither `private` nor `no-store`. Session
      securevibe-e9 wrote and tested both before the freeze was noticed, and holds the claim; the slice's
      session may make them in its pull request instead (slices g and b).
+     **V8.2.3 and V14.2.2 done on 29 September 2026**, once the freeze lifted: V8.2.3 is on
+     `probe.role-field-trusted` (`signed_in/rules.rs`, writing a field) and `probe.record-returns-secret-fields`
+     (reading one), both only ever findings; `probe.private-page-shared-cache` (`signed_in/sessions.rs`, V14.2.2) finds
+     a private page whose `Cache-Control` has `public` or an `s-maxage` with neither `private` nor `no-store`. Found
+     on the way: `probe.record-returns-secret-fields` never credits anything, yet `tools/coverage.py` did not list it as
+     finding-only, so V15.3.1 read as checkable by a clean run; it is listed now. Each guard broken turned its tests red.
   3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
      Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
      V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
