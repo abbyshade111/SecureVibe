@@ -649,6 +649,9 @@ another session is not a claim.
   guessing checks). A fix would treat 429 (and 503 with `Retry-After`) as "the app did not answer the question":
   wait out `Retry-After` once and ask again, else not assessed, never refused. The file is frozen for the split
   until step 2; this waits for it, or for the session holding slice b (private pages).
+  **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
+  `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
+  wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
