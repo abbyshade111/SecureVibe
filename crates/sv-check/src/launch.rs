@@ -592,27 +592,36 @@ fn mcp_servers(listing: &Listing, report: &mut ConfigReport) {
     {
         let text = match entry.read_text() {
             Ok(text) => text,
-            // A file over 2 MB is almost always data, and one that never says `command` cannot start
-            // an MCP server by this check's own rule below, the rule it applies to every file it
-            // reads. So it is searched for that word in pieces, and counts as read when the word is
-            // not there. When it is, the file stays unread and named, with the reason.
-            Err(sv_scan::files::Unread::TooLarge) => match entry.mentions("command") {
-                Ok(false) => {
-                    read += 1;
-                    continue;
+            // A file over 2 MB is almost always data. Read in pieces, it counts as read unless a
+            // piece sets `command` to one of the programs this check follows (`npx`, `uvx`, `docker`,
+            // and the rest), the same pattern every other file is judged by. Until 29 September 2026
+            // the word `command` anywhere was enough, and NIST's 10 MB catalog, whose prose uses the
+            // word, kept this check from running on cato-pipeline. A file that does set one stays
+            // unread and named, since the server's arguments may lie across pieces.
+            Err(sv_scan::files::Unread::TooLarge) => {
+                let mut starts_one = false;
+                let pieces = entry.in_pieces(1024 * 1024, 4096, |piece| {
+                    starts_one = starts_one || LAUNCHER.is_match(piece.text);
+                });
+                match pieces {
+                    Ok(()) if !starts_one => {
+                        read += 1;
+                        continue;
+                    }
+                    Ok(()) => {
+                        unread.push(format!(
+                            "`{}` (larger than 2 MB, and it sets `command` to a program that \
+                             downloads what it runs)",
+                            entry.relative
+                        ));
+                        continue;
+                    }
+                    Err(why) => {
+                        unread.push(format!("`{}` ({})", entry.relative, why.explain()));
+                        continue;
+                    }
                 }
-                Ok(true) => {
-                    unread.push(format!(
-                        "`{}` (larger than 2 MB, and it mentions `command`)",
-                        entry.relative
-                    ));
-                    continue;
-                }
-                Err(why) => {
-                    unread.push(format!("`{}` ({})", entry.relative, why.explain()));
-                    continue;
-                }
-            },
+            }
             Err(why) => {
                 unread.push(format!("`{}` ({})", entry.relative, why.explain()));
                 continue;
@@ -986,8 +995,22 @@ mod tests {
             passed.scope
         );
 
-        // The word is there: the file could start a server, so it stays unread and says why.
-        large_data(&dir, "catalog.json", " command ");
+        // The word in prose, as the NIST catalog uses it: still read, and still clean.
+        large_data(
+            &dir,
+            "catalog.json",
+            " the command and control of the system ",
+        );
+        let report = run(&dir);
+        assert!(
+            !report.not_assessed.iter().any(|(id, _)| id == MCP_UNPINNED),
+            "the word alone kept the check from running: {:?}",
+            report.not_assessed
+        );
+        assert!(report.passed.iter().any(|v| v.check_id == MCP_UNPINNED));
+
+        // A command that starts a server: the file stays unread and says why.
+        large_data(&dir, "catalog.json", r#"", "command": "npx"#);
         let report = run(&dir);
         let (_, why) = report
             .not_assessed
@@ -995,7 +1018,7 @@ mod tests {
             .find(|(id, _)| id == MCP_UNPINNED)
             .expect("not assessed, and named");
         assert!(
-            why.contains("`catalog.json` (larger than 2 MB, and it mentions `command`)"),
+            why.contains("`catalog.json` (larger than 2 MB, and it sets `command` to a program"),
             "{why}"
         );
 

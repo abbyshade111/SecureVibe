@@ -4860,6 +4860,17 @@ cannot start an MCP server by the check's own rule and counts as read; with it, 
 and named, "larger than 2 MB, and it mentions `command`", and the check says it could not finish, as
 before. Nothing about a file's name or the manifest is trusted.
 
+*Narrowed on 29 September 2026.* On cato the check still did not run: NIST's 10 MB catalog uses the
+word "command" in its prose. The large file's pieces are now judged by the same pattern `launches_in`
+applies to every file, a `command` key set to `npx`, `uvx`, `pipx`, `pnpm`, `yarn`, `bunx`, `pnpx`,
+or `docker`, not by the word. A file with one stays unread and named ("larger than 2 MB, and it sets
+`command` to a program that downloads what it runs"), since the server's arguments may lie across
+pieces; one without counts as read. Going back to the word, or never finding the pattern, each turns
+`a_large_data_file_that_never_says_command_does_not_block_the_mcp_check` red; the end-to-end
+`a_large_data_file_leaves_the_credential_scan_and_the_mcp_check_finished` in `crates/sv-cli/tests/examined.rs`
+now runs the catalog with the word in prose (finished) and with a `"command": "npx"` key (not run, naming the
+file), and failed on the old rule.
+
 On cato's reproduction (a `securevibe.toml`, an `app.py`, and a 3 MB JSON of plain text) the
 credential scan is now `ran` and the MCP check is no longer not-run.
 
