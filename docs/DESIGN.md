@@ -3760,6 +3760,21 @@ says so. A server that needs a token, keeps no sessions, or does not let clients
 assessed*, each with its reason. Tested against a fake server in Rust only; no real MCP library has
 been run against it yet.
 
+### Another user's record, through the model's tool (C9.5.3)
+
+Added on 29 September 2026. `record-tool = { name = "get_note", args = { id = "{id}" } }` under
+`[stack.run.ai]` names a tool of the app's own that the model can call to read one record. Early in the
+AI questions, the first test user signs in and creates the `owned` record with a marker, and the second
+creates one of their own; the app's answers give each record's id (`record_id`, split out of the
+signed-in suite's `record_path`). Chatting as the second user, a FETCH message carries the call the test
+model is to make, hex-encoded as `SV-CALL-…`, and the test model asks the app for that tool with those
+arguments, then records what the app sends back as its result. The control asks for the second user's
+own record, whose marker must come back; then the first user's is asked for. Its marker coming back is
+a finding; not coming back, with the control, is credited for that tool and that kind of record. No
+tool named, no signed-in section, no `owned` record, a tool the app does not offer, or a control that
+did not come back is *not assessed*, each with its reason. Tested against a fake app in Rust and the
+test model run under Node; not yet against a real app.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the

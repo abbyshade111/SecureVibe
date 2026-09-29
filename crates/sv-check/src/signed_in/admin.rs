@@ -573,25 +573,38 @@ fn record_path(owned: &sv_manifest::OwnedSection, created: &ProbeResponse) -> Op
         .map(|l| strip_origin(l).to_owned());
     match &owned.read {
         Some(read) if read.contains("{id}") => {
-            let field = owned.id_field.as_deref().unwrap_or("id");
-            let from_json = serde_json::from_str::<serde_json::Value>(&created.body)
-                .ok()
-                .and_then(|v| match v.get(field)? {
-                    serde_json::Value::String(s) => Some(s.clone()),
-                    serde_json::Value::Number(n) => Some(n.to_string()),
-                    _ => None,
-                });
-            // Or the last part of where the app sent the browser: `/notes/7` gives 7.
-            let from_location = location
-                .as_deref()
-                .and_then(|l| l.trim_end_matches('/').rsplit('/').next())
-                .map(str::to_owned);
-            let id = from_json.or(from_location)?;
+            let id = record_id(owned, created)?;
             Some(read.replace("{id}", &id))
         }
         Some(read) => Some(read.clone()),
         None => location,
     }
+}
+
+/// The id the app gave a record it created: the `id-field` of a JSON answer, or else the last part
+/// of where it sent the browser (`/notes/7` gives 7).
+pub(super) fn record_id(
+    owned: &sv_manifest::OwnedSection,
+    created: &ProbeResponse,
+) -> Option<String> {
+    let field = owned.id_field.as_deref().unwrap_or("id");
+    let from_json = serde_json::from_str::<serde_json::Value>(&created.body)
+        .ok()
+        .and_then(|v| match v.get(field)? {
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            _ => None,
+        });
+    let from_location = created
+        .header("location")
+        .map(|l| strip_origin(l).to_owned())
+        .and_then(|l| {
+            l.trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .map(str::to_owned)
+        });
+    from_json.or(from_location)
 }
 
 fn strip_origin(location: &str) -> &str {

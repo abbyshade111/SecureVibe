@@ -685,6 +685,30 @@ another session is not a claim.
   `crates/sv-cli/tests/examined.rs`, which failed on the old rule. See DESIGN, "A large data file no longer blocks
   the credential scan or the MCP check", its "Narrowed" note.
 
+- **`sv init`'s blank template trips its own credential check.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). Every app using the template gets a HIGH
+  `secrets.credential-assignment` at its commented `reset = { … password = "{new_password}" … }` example:
+  `looks_like_placeholder` knows `${VAR}`, `<name>`, and `{{ var }}` but not the single-brace `{name}` `sv`'s own
+  manifest uses. Fix: a value that is entirely one `{identifier}` is a placeholder; `"{new_password}x9Q2vL"` is
+  still judged. A test that `sv init`'s own output raises no findings would catch a return. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **A missing outside tool is reported as installed and broken under amd64 emulation.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `presence()` in
+  `crates/sv-check/src/adapters.rs` reads a spawn that failed as missing and one that exited non-zero as broken;
+  under QEMU on an ARM Mac, spawning a program that does not exist succeeds and the child exits 127, so Semgrep and
+  CodeQL, absent from the image, read as "installed and would not start". Fix: exit status 127 with nothing on
+  stderr is missing, the shell's own meaning of 127. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **An app folder given with a trailing `/.` leaves outside tools' paths absolute, and their fingerprints change.**
+  Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `sv report app/.` reported every Bandit finding at an absolute path, because `relative_to` in
+  `adapters.rs` strips the folder as text and `…/app/.` is not a prefix of `…/app/backend/…`; the fingerprints
+  differed from the same scan of `app`, so a reviewed finding stops matching. Fix: normalize the folder once, where
+  `sv` receives it, so `app`, `app/`, `app/.`, `./app`, and its absolute path give the same report. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **An app in a subfolder of a git repository is reported as not in git.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `tracked_files` in
+  `crates/sv-check/src/config.rs` looks for `.git` in the app folder itself, which exists only at a repository's
+  root, so `config.secrets-file-committed` says "This folder is not a git repository" and advises putting it in git.
+  Fix: ask git (`git -C <app> rev-parse --is-inside-work-tree`, then `ls-files`, which lists the subfolder's tracked
+  files relative to it). **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
@@ -901,6 +925,11 @@ another session is not a claim.
      the sign-in callback).
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
+     **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
+     `probe.ai-tool-reads-others-records`: a new `record-tool` under [stack.run.ai] names the app's own tool; the
+     test model, chatting as the second user, asks it for the second user's record (the control) and then the
+     first user's. Handed over is a finding, refused is credited. The test model is run under Node for the FETCH
+     call too. Not done: the static pointer (instructions to the model asking it to enforce permissions).
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
@@ -961,6 +990,9 @@ another session is not a claim.
      proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
      semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
      was proposed for V13.1.3, which asks for documentation, so it can only ever be shown beside it, never counted.
+     **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
+     in branch `claude/securevibe-e2-codeql-suites`: list what the two security-extended suites run, measured with
+     CodeQL itself, and map the two queries for V15.4.2 if they are in them.
   6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
      no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
      V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
