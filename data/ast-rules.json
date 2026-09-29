@@ -663,13 +663,19 @@
       "impact": "Whoever controls that address, or anything between it and the machine, chooses what runs, with the permissions of the script, often root.",
       "fix": "Download to a file, check it against a published checksum or signature, then run it. Better still, install the tool from the system's package manager, or pin a version in a lockfile.",
       "queries": {
-        "shell": "[(pipeline (command name: (command_name) @mod) (command name: (command_name) @fn))\n (pipeline (command name: (command_name) @mod) (command name: (command_name) . argument: (word) @fn))\n (command name: (command_name) @fn argument: (process_substitution (command name: (command_name) @mod)))] @hit"
+        "shell": "[(pipeline (command name: (command_name) @mod) (command name: (command_name) @fn) @arg)\n (pipeline (command name: (command_name) @mod) (command name: (command_name) argument: (word) @fn) @arg)\n (command name: (command_name) @fn argument: (process_substitution (command name: (command_name) @mod))) @arg]"
       },
       "functionPatterns": {
         "shell": "^(((/usr)?/bin/)?(sh|bash|zsh|dash|ksh)|python3?|perl|ruby|node)$"
       },
       "modulePatterns": {
         "shell": "^(curl|wget|fetch)$"
+      },
+      "argumentPatterns": {
+        "shell": "^([A-Za-z_][A-Za-z0-9_]*=\\S*\\s+)*((sudo|doas)(\\s+-\\S+(\\s+[^-\\s]\\S*)?)*\\s+)?(\\S*/)?(sh|bash|zsh|dash|ksh|python[0-9.]*|perl|ruby|node)(\\s|$)"
+      },
+      "safeArgumentPatterns": {
+        "shell": "^([A-Za-z_][A-Za-z0-9_]*=\\S*\\s+)*((sudo|doas)(\\s+-\\S+(\\s+[^-\\s]\\S*)?)*\\s+)?(\\S*/)?((sh|bash|zsh|dash|ksh)(\\s+-[a-rt-zA-Z]+)*\\s+(-[a-rt-zA-Z]*c[a-rt-zA-Z]*(\\s|$)|[^-\\s<])|python[0-9.]*(\\s+-[abd-ln-zA-Z]+)*\\s+(-[a-zA-Z]*[cm][a-zA-Z]*(\\s|$)|[^-\\s<])|perl(\\s+-[a-df-zA-DF-Z]+)*\\s+(-[a-zA-Z]*[eE][a-zA-Z]*(\\s|$)|[^-\\s<])|ruby(\\s+-[a-df-zA-Z]+)*\\s+(-[a-zA-Z]*e[a-zA-Z]*(\\s|$)|[^-\\s<])|node(\\s+-[a-df-oq-zA-Z-]+)*\\s+(-e|-p|--eval|--print|[^-\\s<]))"
       },
       "nothingToFind": {
         "c": "C has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
@@ -687,7 +693,7 @@
         "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "cpp": "C++ has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
       },
-      "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter"
+      "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter that takes its program from what it is sent"
     },
     {
       "id": "ast.plaintext-websocket-url",

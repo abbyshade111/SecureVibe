@@ -18,6 +18,13 @@ another session is not a claim.
   (`-c`, `-e`, a script file). A literal program is not proof of safety (`python3 -c "exec(sys.stdin.read())"`
   runs the download), which is the case for *possible* rather than silence. A test for each side, and each guard
   broken in turn.
+  **Done on 28 September 2026 by session cato-examined:** the rule reports an interpreter only when it takes its
+  program from standard input (`| sh`, `| sh -s stable`, `| python3 -`, `| sudo -E bash`), and not when the
+  program is given another way (`-c`, `-e`, `-m`, a script file). Not reported at *possible* certainty instead:
+  the engine has no per-match certainty, and the `-c` text is the author's own, as `literal_argument_is_safe`
+  already treats `eval("1 + 1")` (DESIGN). On the way: `| sudo -E sh` had been missed, because only the first
+  word after `sudo` was looked at, and `| grep python` would have been reported; the command must now begin
+  with the interpreter. 24 cases added to the rule table, 12 on each side; five guards broken in turn each turn a case red.
 
 - **Say in `report.json` what was examined, in a form a program can read.** **Claimed on 28 September 2026 by
   session cato-examined**, at the owner's asking.
