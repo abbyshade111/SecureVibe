@@ -829,6 +829,14 @@ another session is not a claim.
   the whole secret fails on every run. Broken both ways: the four-digit check put back fails it, and a `.env` let
   into the bundle fails it (and `files_named_like_secrets_keys_and_databases_stay_out` in `tests/bundle.rs`).
 
+- **`a_run_killed_outright_is_cleaned_up_by_the_next_one_and_said_to_be` failed once on CI.** Seen on 29 September
+  2026 by session securevibe-e2, on the pull-request run of #447 (a change to this file alone), while the push run of
+  the same commit passed. `crates/sv-cli/tests/killed_run.rs:177`: the killed run was listed as leaving
+  `sv-<pid>-0-app`, `-net`, and `-probe`, and the next run's message named the app and the network but not the probe
+  sidecar; nothing was left afterwards. The sidecar runs `sleep 900` with `--rm`, so why it was listed and then not
+  named is not known; a guess, marked as one: the next run's leftover listing, or its removal, can miss a container
+  that is starting or already being removed. Needs a container backend to reproduce. **Not claimed.**
+
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
   semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
