@@ -357,22 +357,40 @@ pub fn presence(adapter: &Adapter) -> Presence {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .output();
-    match output {
-        Err(_) => Presence::Missing,
-        Ok(out) if out.status.success() => Presence::Ready,
-        Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let detail = stderr
-                .lines()
-                .find(|l| !l.trim().is_empty())
-                .unwrap_or("it exited with an error and said nothing")
-                .trim()
-                .chars()
-                .take(160)
-                .collect();
-            Presence::Broken { detail }
-        }
+    judge_presence(output.ok().map(|out| {
+        (
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        )
+    }))
+}
+
+/// What a tool's version command showed: `None` when it could not be started at all, else its exit
+/// code and what it wrote to stderr.
+///
+/// Exit status 127 with nothing said is the shell's "command not found", and is missing, not broken:
+/// under amd64 emulation on an ARM Mac, starting a program that does not exist succeeds and the
+/// child exits 127, so Semgrep and CodeQL, absent from the image, read as "installed and would not
+/// start" until 29 September 2026 (found by the owner's comparison study). A tool that exits 127 and
+/// says why (a wrapper whose interpreter is gone) did start, and stays broken with its words.
+fn judge_presence(ran: Option<(Option<i32>, String)>) -> Presence {
+    let Some((code, stderr)) = ran else {
+        return Presence::Missing;
+    };
+    if code == Some(0) {
+        return Presence::Ready;
     }
+    let said = stderr.lines().find(|l| !l.trim().is_empty());
+    if code == Some(127) && said.is_none() {
+        return Presence::Missing;
+    }
+    let detail = said
+        .unwrap_or("it exited with an error and said nothing")
+        .trim()
+        .chars()
+        .take(160)
+        .collect();
+    Presence::Broken { detail }
 }
 
 pub fn is_installed(adapter: &Adapter) -> bool {
@@ -1052,4 +1070,77 @@ fn last_line(text: &str) -> String {
 /// Where to put a tool's report while it is being read.
 pub fn scratch_dir() -> PathBuf {
     std::env::temp_dir()
+}
+
+#[cfg(test)]
+mod presence_tests {
+    use super::*;
+
+    #[test]
+    fn a_silent_127_is_missing_and_one_that_says_why_is_broken() {
+        assert_eq!(judge_presence(None), Presence::Missing);
+        assert_eq!(
+            judge_presence(Some((Some(0), String::new()))),
+            Presence::Ready
+        );
+        assert_eq!(
+            judge_presence(Some((Some(127), "\n  \n".into()))),
+            Presence::Missing
+        );
+        assert_eq!(
+            judge_presence(Some((
+                Some(127),
+                "env: 'python3': No such file or directory".into()
+            ))),
+            Presence::Broken {
+                detail: "env: 'python3': No such file or directory".into()
+            }
+        );
+        assert!(matches!(
+            judge_presence(Some((Some(1), String::new()))),
+            Presence::Broken { .. }
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_program_that_starts_and_exits_127_in_silence_reads_as_missing() {
+        // What emulation does to a program that does not exist, played by a real one.
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("sv-presence-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let silent = dir.join("gone");
+        std::fs::write(&silent, "#!/bin/sh\nexit 127\n").unwrap();
+        std::fs::set_permissions(&silent, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let loud = dir.join("broken");
+        std::fs::write(
+            &loud,
+            "#!/bin/sh\necho 'its interpreter is gone' >&2\nexit 127\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&loud, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let adapter = |command: &std::path::Path| {
+            let file: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../data/adapters.json"),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let mut a: Adapter =
+                serde_json::from_value(file["adapters"][0].clone()).expect("a real adapter");
+            a.version.command = command.display().to_string();
+            a.version.args = Vec::new();
+            a
+        };
+        let silent_presence = presence(&adapter(&silent));
+        let loud_presence = presence(&adapter(&loud));
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(silent_presence, Presence::Missing);
+        assert!(
+            matches!(loud_presence, Presence::Broken { ref detail } if detail.contains("interpreter")),
+            "{loud_presence:?}"
+        );
+    }
 }
