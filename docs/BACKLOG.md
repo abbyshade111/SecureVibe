@@ -1005,6 +1005,12 @@ another session is not a claim.
      owner's asking to continue with the backlog, in branch `claude/securevibe-e9-running-halves`. Item 5 was
      looked at first and left: measuring the CodeQL suites needs the CodeQL bundle, which does not fit in this
      session's disk.
+     **Done the same day** (DESIGN, "A development console that answers, and the model name the app really
+     sent"). `probe.development-console-open` (V15.2.3, V13.4.2) asks for Werkzeug's console and Rails' information
+     page and knows each by words only that page carries, read from each tool's source; Django's debug 404 page
+     joins the error-page markers. `probe.ai-floating-model-sent` (C3.2.3) reads the model name the app sent the test
+     model. Five guards broken in turn, each caught. Not done: other frameworks' consoles, and looking up whether a
+     name without `latest` is an alias its vendor moves.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
