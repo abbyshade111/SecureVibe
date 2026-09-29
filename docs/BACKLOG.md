@@ -691,6 +691,12 @@ another session is not a claim.
   `looks_like_placeholder` knows `${VAR}`, `<name>`, and `{{ var }}` but not the single-brace `{name}` `sv`'s own
   manifest uses. Fix: a value that is entirely one `{identifier}` is a placeholder; `"{new_password}x9Q2vL"` is
   still judged. A test that `sv init`'s own output raises no findings would catch a return. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **A missing outside tool is reported as installed and broken under amd64 emulation.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `presence()` in
+  `crates/sv-check/src/adapters.rs` reads a spawn that failed as missing and one that exited non-zero as broken;
+  under QEMU on an ARM Mac, spawning a program that does not exist succeeds and the child exits 127, so Semgrep and
+  CodeQL, absent from the image, read as "installed and would not start". Fix: exit status 127 with nothing on
+  stderr is missing, the shell's own meaning of 127. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
