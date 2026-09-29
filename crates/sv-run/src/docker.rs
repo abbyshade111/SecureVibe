@@ -13,7 +13,9 @@
 //! 5. Run the declared test command inside the app container.
 //! 6. Tear everything down, whatever happened.
 
-use crate::{Backend, CannotRun, Fence, REPORT_DIR, RunOutcome, RunPlan, TestResult, output_of};
+use crate::{
+    Backend, CannotRun, Fence, REPORT_DIR, RunFailed, RunOutcome, RunPlan, TestResult, output_of,
+};
 use std::process::Command;
 use std::time::Duration;
 
@@ -157,9 +159,28 @@ impl Backend for DockerBackend {
         &self,
         plan: &RunPlan,
         probes: &[sv_check::probes::ProbeRequest],
-    ) -> Result<RunOutcome, CannotRun> {
+    ) -> Result<RunOutcome, RunFailed> {
         // Before anything is started, so Ctrl-C from here on removes what was.
         crate::catch_interrupts();
+        // First, and outside the run proper, so that a run that then fails still says what it
+        // removed.
+        let left_over_removed = self.remove_leftovers();
+        self.run_after_cleanup(plan, probes, left_over_removed.clone())
+            .map_err(|reason| RunFailed {
+                reason,
+                left_over_removed,
+            })
+    }
+}
+
+impl DockerBackend {
+    /// The run itself, once what earlier runs left has been removed.
+    fn run_after_cleanup(
+        &self,
+        plan: &RunPlan,
+        probes: &[sv_check::probes::ProbeRequest],
+        left_over_removed: Vec<String>,
+    ) -> Result<RunOutcome, CannotRun> {
         let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
@@ -169,7 +190,6 @@ impl Backend for DockerBackend {
         let browser_name = format!("{run_id}-browser");
         let model_name = format!("{run_id}-model");
         let switched_off = format!("{run_id}-app-off");
-        let left_over_removed = self.remove_leftovers();
         let guard = Teardown {
             backend: self,
             network: network.clone(),

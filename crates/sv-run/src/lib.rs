@@ -99,6 +99,28 @@ impl CannotRun {
     }
 }
 
+/// A run that could not be finished, and what it removed from this computer before it failed.
+///
+/// A run removes what an earlier, killed run left behind before it starts anything (`cleanup`).
+/// That has happened whether or not the app then starts, so a failed run says so as well: removing
+/// containers and a network from the owner's computer is never done without a word.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunFailed {
+    pub reason: CannotRun,
+    /// As `RunOutcome::left_over_removed`.
+    pub left_over_removed: Vec<String>,
+}
+
+impl RunFailed {
+    /// Why the run failed, and then what it removed first, when it removed anything.
+    pub fn explain(&self) -> String {
+        match cleanup::removed_sentence(&self.left_over_removed) {
+            Some(removed) => format!("{} {removed}", self.reason.explain()),
+            None => self.reason.explain(),
+        }
+    }
+}
+
 /// Whether the app never answering is the backend not seeing its folder: `inside` is what `ls -A`
 /// listed in `/app` inside a container, or `None` when that could not be asked. Only an empty
 /// listing of a folder that has something in it on this computer counts.
@@ -361,7 +383,7 @@ pub trait Backend {
         &self,
         plan: &RunPlan,
         probes: &[sv_check::probes::ProbeRequest],
-    ) -> Result<RunOutcome, CannotRun>;
+    ) -> Result<RunOutcome, RunFailed>;
 }
 
 /// The backend to use, or why there is none.

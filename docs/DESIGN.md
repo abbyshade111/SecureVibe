@@ -5110,6 +5110,13 @@ Both are fixed in `crates/sv-run/src/lib.rs`.
   real containers: a run killed with `kill -9` leaves its app and network (the control), and the next
   `sv run`, and the next `sv report --run`, each remove them and name them.
 
+**Later still: a run that fails says what it removed as well.** The removal happens before the app is started,
+so it has happened whether or not the app then answers. At first only a run that succeeded said so; one that
+failed afterwards (an app that never answered, a Docker that refused) gave its reason and nothing else, and
+containers and a network had gone from the owner's computer without a word. Seen on the owner's Mac, where a
+failing test run had quietly cleaned up. A failed run is now a `RunFailed`: the reason, and what was removed
+first, and its explanation gives both, so `sv run` and `sv report --run` say it on either path.
+
 ## `sv` audits its own dependencies, weekly (28 September 2026)
 
 Review item 12: `sv` holds apps to V15.2.1 and did not hold itself. `.github/workflows/audit.yml` now runs
