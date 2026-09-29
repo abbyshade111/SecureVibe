@@ -710,6 +710,11 @@ another session is not a claim.
   them crashed, with a test that crashes each request of a correct app and fails when one of these appears.
   **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
   branch `claude/securevibe-e2-crash-findings`.
+  **Done the same day:** five findings, not three: the sweep that crashes each request of a correct app also raised
+  `RESET_REVEALS_ACCOUNT` (a reset for nobody that failed) and `NO_BRUTE_FORCE_LIMIT` (a guess that failed may not have
+  been counted). `RAISED_ON_A_REFUSAL` names each one's requests, and a finding one of whose requests crashed is not
+  assessed, naming them. The test fails on any finding a crash raises, listed or not. See DESIGN, "A crash is not a
+  refusal", its "Later the same day" part.
 
 - **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
   session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's
