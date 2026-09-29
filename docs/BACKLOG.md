@@ -691,6 +691,17 @@ another session is not a claim.
   requirement is not assessed with the status; a finding from a 5xx (a stack trace, say) is a separate question.
   **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
   branch `claude/securevibe-e2-server-error`.
+  **Done the same day:** `Patient` records every signed-in request answered with a 5xx or not at all, and
+  `RESTS_ON_A_REFUSAL` names the requests each of the 29 refusal-credited passes rests on; a pass one of whose
+  requests crashed is not assessed, naming them, and the rest of the run's passes and all its findings stay. A test crashes every request of six setups, one at a time, and fails when a rule found at fault comes back credited; it found requests of five kinds the first list missed. Six guards, each broken in turn, each caught. See DESIGN, "A crash is
+  not a refusal".
+- **Three findings are raised from a refusal, so a crash can raise them falsely.** Found on 29 September 2026 by
+  session securevibe-e2 while fixing the item above. `SIGN_OUT_ON_GET` (`signin.rs`, `private-after-get-logout` not
+  2xx read as the session ended), and `COMPOSITION_RULES` and `LONG_PASSWORD` (`passwords.rs`, a strong or long
+  password that did not work read as refused). A crash on those requests reports a fault the app may not have. A fix
+  in the same shape: record which requests those findings rest on, and move the finding to not assessed when one of
+  them crashed, with a test that crashes each request of a correct app and fails when one of these appears.
+  **Not claimed.**
 
 - **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
   session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's

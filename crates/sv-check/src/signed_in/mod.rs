@@ -596,6 +596,7 @@ pub fn run_with(
 ) -> Outcome {
     let mut patient = Patient::new(http);
     let mut out = run_checks(&mut patient, users, accounts, seeded, policy, slow);
+    withhold_what_rests_on_a_crash(&patient.crashed, &mut out);
     if patient.still_limited.is_empty() {
         return out;
     }
@@ -633,6 +634,152 @@ pub fn run_with(
         ));
     }
     out
+}
+
+/// The passes the signed-in checks credit because the app refused something, and the requests
+/// whose refusal earns each: an id, or the start of one when it ends in `-`. A server error (5xx),
+/// or no answer at all, is read as "not 2xx" and so as refused wherever a refusal is read, which
+/// credited a page that crashes for a stranger as refused to somebody not signed in. A crash is
+/// not an answer to the question, so a pass here is withheld when any of its requests crashed.
+///
+/// `a_crash_never_turns_a_finding_into_a_pass` holds it: it runs the scripted app with its flaws
+/// switched on, crashes each request a run sends, one at a time, and fails when a rule found at
+/// fault is credited. It found requests this list first missed, of five kinds. It can only try a rule some
+/// scenario finds at fault, and fails when a rule listed here is not; a new check that credits a
+/// refusal needs its flaw added to a scenario there.
+const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
+    (PRIVATE_PAGE.rule_id, &["private-anonymous"]),
+    (ADMIN_PAGE.rule_id, &["login-a", "admin-a"]),
+    (ROLE_FIELD.rule_id, &["role-admin-"]),
+    (
+        OTHER_USERS_DATA.rule_id,
+        &["login-b", "owned-b", "owned-anonymous"],
+    ),
+    (FORGERY.rule_id, &["forged-create"]),
+    (STEP_SKIPPED.rule_id, &["flow-flow-b"]),
+    (
+        EMAIL_CODE_UNBOUND.rule_id,
+        &["email-code-use-crossed", "email-code-private-crossed"],
+    ),
+    (
+        EMAIL_CODE_REUSABLE.rule_id,
+        &["email-code-use-again", "email-code-private-again"],
+    ),
+    (
+        EMAIL_CODE_LONG_LIVED.rule_id,
+        &["email-code-use-late", "email-code-private-late"],
+    ),
+    (
+        EMAIL_CODE_GUESSING.rule_id,
+        &[
+            "email-code-use-guess-",
+            "email-code-use-after-guesses",
+            "email-code-private-after-guesses",
+        ],
+    ),
+    (NO_BRUTE_FORCE_LIMIT.rule_id, &["guess-"]),
+    (
+        BREACHED_PASSWORD.rule_id,
+        &["signup-breached", "login-breached", "private-breached"],
+    ),
+    (
+        SHORT_PASSWORD.rule_id,
+        &["signup-short", "login-short", "private-short"],
+    ),
+    (
+        COMMON_PASSWORD.rule_id,
+        &["signup-common", "login-common", "private-common"],
+    ),
+    (
+        CONTEXT_WORD_PASSWORD.rule_id,
+        &["signup-context", "login-context", "private-context"],
+    ),
+    (
+        ALTERED_PASSWORD.rule_id,
+        &["login-case", "private-case", "login-cut", "private-cut"],
+    ),
+    (CHANGE_PASSWORD.rule_id, &["login-old", "private-old"]),
+    (
+        CHANGE_WITHOUT_CURRENT.rule_id,
+        &[
+            "change-password-wrong-current",
+            "login-wrong-current",
+            "private-wrong-current",
+            "login-changed",
+            "private-changed",
+        ],
+    ),
+    (
+        SESSIONS_SURVIVE_DELETION.rule_id,
+        &["delete-after", "login-deleted", "private-deleted"],
+    ),
+    (NO_IDLE_TIMEOUT.rule_id, &["timeout-idle-after"]),
+    (
+        NO_SESSION_LIFETIME.rule_id,
+        &["timeout-busy-after-lifetime"],
+    ),
+    (SESSION_TOKEN_UNVERIFIED.rule_id, &["invented-session"]),
+    (
+        WS_WITHOUT_SESSION.rule_id,
+        &["websocket-no-session", "websocket-invented-session"],
+    ),
+    (WS_FOREIGN_ORIGIN.rule_id, &["websocket-foreign-origin"]),
+    (LOGOUT.rule_id, &["after-logout"]),
+    (
+        TOTP_OLD_CODE.rule_id,
+        &["login-1", "totp-1", "totp-confirm-1"],
+    ),
+    (
+        TOTP_REUSED.rule_id,
+        &["login-3-", "totp-3-", "totp-confirm-3-"],
+    ),
+    (OVERSIZED_FILE.rule_id, &["upload-oversized"]),
+    (CONTENT_MISMATCH.rule_id, &["upload-mismatched"]),
+];
+
+/// Whether `id` is one of `requests`: equal to one, or the page fetched for its form's token
+/// first (`signup-short-page`), or starting with one that ends in `-`.
+fn one_of(id: &str, requests: &[&str]) -> bool {
+    let id = id.strip_suffix("-page").unwrap_or(id);
+    requests
+        .iter()
+        .any(|r| id == *r || (r.ends_with('-') && id.starts_with(r)))
+}
+
+/// Moves each pass that rests on a refusal to not assessed when one of its requests crashed.
+fn withhold_what_rests_on_a_crash(crashed: &[(String, String)], out: &mut Outcome) {
+    if crashed.is_empty() {
+        return;
+    }
+    let mut kept = Vec::new();
+    for credit in std::mem::take(&mut out.verified) {
+        let rests_on = RESTS_ON_A_REFUSAL
+            .iter()
+            .find(|(rule, _)| *rule == credit.check_id)
+            .map_or(&[][..], |(_, requests)| *requests);
+        let answers: Vec<String> = crashed
+            .iter()
+            .filter(|(id, _)| one_of(id, rests_on))
+            .map(|(id, status)| format!("{id} ({status})"))
+            .collect();
+        if answers.is_empty() {
+            kept.push(credit);
+            continue;
+        }
+        out.not_assessed.push((
+            credit.requirement_ids.join(", "),
+            format!(
+                "`{}` would have been credited ({}) because the app did not let something \
+                 through, but the app crashed or did not answer rather than refusing: {}. A crash \
+                 is not an answer to whether it would have let it through, so this is not \
+                 credited. Fix the error, and run it again.",
+                credit.check_id,
+                credit.scope,
+                answers.join(", ")
+            ),
+        ));
+    }
+    out.verified = kept;
 }
 
 /// Seconds to wait before asking again, when `response` is a rate limiter's rather than an answer to
@@ -690,6 +837,9 @@ struct Patient<'a> {
     still_limited: Vec<String>,
     /// Seconds waited so far, against `MOST_WAITING`.
     waited: u64,
+    /// Requests answered with a server error (5xx) or not answered at all: (request id, status or
+    /// "no answer").
+    crashed: Vec<(String, String)>,
 }
 
 /// All the waiting one run does for a rate limiter. Each wait is at most a minute, but a limiter
@@ -703,12 +853,14 @@ impl<'a> Patient<'a> {
             inner,
             still_limited: Vec::new(),
             waited: 0,
+            crashed: Vec::new(),
         }
     }
 }
 
-impl Http for Patient<'_> {
-    fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+impl Patient<'_> {
+    /// The app's answer, with a rate limiter's waited out once.
+    fn answer(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
         let first = self.inner.send(request);
         if request.id.contains("guess") {
             return first;
@@ -733,6 +885,23 @@ impl Http for Patient<'_> {
                 .push(format!("{} ({})", request.id, r.status));
         }
         second
+    }
+}
+
+impl Http for Patient<'_> {
+    fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        let answer = self.answer(request);
+        // A crash, or no answer at all, is not the app refusing. Recorded for every request,
+        // the guesses included, and read against `RESTS_ON_A_REFUSAL` once the run is over.
+        let crashed = match &answer {
+            None => Some("no answer".to_owned()),
+            Some(r) if r.status >= 500 && rate_limited(r).is_none() => Some(r.status.to_string()),
+            Some(_) => None,
+        };
+        if let Some(status) = crashed {
+            self.crashed.push((request.id.clone(), status));
+        }
+        answer
     }
 
     fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
@@ -1985,6 +2154,333 @@ mod rate_limit_tests {
                 .iter()
                 .any(|v| v.check_id == "probe.source-control-exposed"),
             "the false pass this prevents"
+        );
+    }
+}
+
+#[cfg(test)]
+mod crash_tests {
+    use super::fake_app::*;
+    use super::tests::with_signup;
+    use super::*;
+    use std::collections::BTreeSet;
+
+    /// The fake app, answering 500 to every request whose id is `crash` (or nothing at all, with
+    /// `silent`), and noting every id sent.
+    struct Crashing {
+        app: FakeApp,
+        crash: Option<String>,
+        silent: bool,
+        sent: BTreeSet<String>,
+    }
+
+    impl Http for Crashing {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.sent.insert(r.id.clone());
+            if self.crash.as_deref() == Some(r.id.as_str()) {
+                if self.silent {
+                    return None;
+                }
+                return Some(ProbeResponse {
+                    id: r.id.clone(),
+                    status: 500,
+                    headers: Vec::new(),
+                    body: "Internal Server Error".into(),
+                });
+            }
+            self.app.send(r)
+        }
+        fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
+            self.app.mail(to, at_least)
+        }
+        fn now(&mut self) -> u64 {
+            self.app.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.app.wait(seconds);
+        }
+    }
+
+    /// One fixture: the app's flaws, what securevibe.toml says, and how the run is made.
+    struct Scenario {
+        name: &'static str,
+        flaws: Flaws,
+        users: UsersSection,
+        seeded: bool,
+        policy: sv_manifest::PolicySection,
+        slow: bool,
+        /// Session limits for the fake app, in seconds: idle, lifetime.
+        limits: (Option<u64>, Option<u64>),
+    }
+
+    impl Scenario {
+        fn new(name: &'static str, flaws: Flaws, users: UsersSection, seeded: bool) -> Self {
+            Scenario {
+                name,
+                flaws,
+                users,
+                seeded,
+                policy: Default::default(),
+                slow: false,
+                limits: (None, None),
+            }
+        }
+
+        /// One run, crashing on `crash`: the outcome and every request id sent.
+        fn run(&self, crash: Option<&str>) -> (Outcome, BTreeSet<String>) {
+            self.run_answering(crash, false)
+        }
+
+        /// `run`, with the crash answered by nothing at all when `silent`.
+        fn run_answering(&self, crash: Option<&str>, silent: bool) -> (Outcome, BTreeSet<String>) {
+            let mut app = FakeApp::new(self.flaws);
+            app.idle_limit = self.limits.0;
+            app.lifetime_limit = self.limits.1;
+            let mut acc = accounts();
+            if self.seeded {
+                for account in [&acc.a, &acc.b] {
+                    app.users
+                        .insert(account.user.clone(), (account.password.clone(), false));
+                }
+                let admin = acc.admin.clone().unwrap();
+                app.users.insert(admin.user, (admin.password, true));
+                let totp = acc.totp.clone().unwrap();
+                app.users.insert(
+                    totp.account.user.clone(),
+                    (totp.account.password.clone(), false),
+                );
+                app.totp.insert(totp.account.user, totp.secret);
+            } else {
+                acc.admin = None;
+                acc.totp = None;
+            }
+            let mut http = Crashing {
+                app,
+                crash: crash.map(str::to_owned),
+                silent,
+                sent: BTreeSet::new(),
+            };
+            let out = run_with(
+                &mut http,
+                &self.users,
+                &acc,
+                self.seeded,
+                &self.policy,
+                self.slow,
+            );
+            (out, http.sent)
+        }
+
+        /// Crashes each request the run sends, one at a time. Every rule found at fault without a
+        /// crash and credited with one, with the request that crashed; and the rules found at
+        /// fault, so the caller can see what the sweep reached.
+        fn sweep(&self) -> (Vec<String>, BTreeSet<String>) {
+            let (plain, sent) = self.run(None);
+            let found: BTreeSet<String> =
+                plain.findings.iter().map(|f| f.rule_id.clone()).collect();
+            let sent: Vec<&String> = sent.iter().collect();
+            let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+            let turned = std::thread::scope(|scope| {
+                let handles: Vec<_> = sent
+                    .chunks(sent.len().div_ceil(threads).max(1))
+                    .map(|ids| {
+                        let found = &found;
+                        scope.spawn(move || {
+                            let mut turned = Vec::new();
+                            for id in ids {
+                                let (crashed, _) = self.run(Some(id));
+                                for credit in &crashed.verified {
+                                    if found.contains(&credit.check_id) {
+                                        turned.push(format!(
+                                            "{}: {} credited when {id} crashed",
+                                            self.name, credit.check_id
+                                        ));
+                                    }
+                                }
+                            }
+                            turned
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .flat_map(|h| h.join().unwrap())
+                    .collect()
+            });
+            (turned, found)
+        }
+    }
+
+    fn scenarios() -> Vec<Scenario> {
+        // Sign-up and seeding both: the password rules need the app's own sign-up, and the role
+        // check needs a seeded admin to compare with.
+        let mut signed_up = with_signup();
+        signed_up.seed = Some("seed".into());
+        signed_up.admin = vec!["/admin".into()];
+        let mut sockets_and_files = users();
+        sockets_and_files.private_websocket = Some("/ws".into());
+        sockets_and_files.upload = Some(sv_manifest::UploadSection {
+            path: "/upload".into(),
+            field: "file".into(),
+            form: [("csrf_token".to_owned(), "{csrf}".to_owned())].into(),
+            serves_at: Some("/files/{name}".into()),
+            max_bytes: Some(UPLOAD_LIMIT as u64),
+        });
+        vec![
+            Scenario::new(
+                "seeded",
+                Flaws {
+                    private_open: true,
+                    admin_open: true,
+                    idor: true,
+                    no_csrf_check: true,
+                    logout_keeps_session: true,
+                    flow_unguarded: true,
+                    ..Default::default()
+                },
+                users(),
+                true,
+            ),
+            Scenario::new(
+                "two-factor codes twice",
+                Flaws {
+                    totp_reusable: true,
+                    ..Default::default()
+                },
+                users(),
+                true,
+            ),
+            Scenario {
+                policy: sv_manifest::PolicySection {
+                    context_words: vec!["Acme Notes".into()],
+                    failed_sign_ins: Some(3),
+                    within_minutes: Some(15),
+                    failed_codes: Some(3),
+                    ..Default::default()
+                },
+                ..Scenario::new(
+                    "signed up",
+                    Flaws {
+                        short_password_ok: true,
+                        common_password_ok: true,
+                        breached_password_ok: true,
+                        context_word_ok: true,
+                        case_folded: true,
+                        change_without_current: true,
+                        code_guessing_unlimited: true,
+                        signup_trusts_role: true,
+                        ..Default::default()
+                    },
+                    signed_up,
+                    true,
+                )
+            },
+            Scenario::new(
+                "signed up, emailed codes",
+                Flaws {
+                    code_reusable: true,
+                    code_unbound: true,
+                    change_keeps_old: true,
+                    deletion_keeps_sessions: true,
+                    ..Default::default()
+                },
+                with_signup(),
+                false,
+            ),
+            Scenario::new(
+                "a private WebSocket, uploads, and any session cookie",
+                Flaws {
+                    ws_open: true,
+                    oversized_upload_ok: true,
+                    unchecked_contents_ok: true,
+                    session_not_verified: true,
+                    ..Default::default()
+                },
+                sockets_and_files,
+                true,
+            ),
+            Scenario {
+                policy: sv_manifest::PolicySection {
+                    idle_timeout_minutes: Some(15),
+                    session_lifetime_minutes: Some(60),
+                    ..Default::default()
+                },
+                slow: true,
+                ..Scenario::new(
+                    "slow, sessions and codes that never end, and two-factor codes of any age",
+                    Flaws {
+                        totp_any_age: true,
+                        code_long_lived: true,
+                        ..Default::default()
+                    },
+                    users(),
+                    true,
+                )
+            },
+        ]
+    }
+
+    #[test]
+    fn a_private_page_that_crashes_for_a_stranger_is_not_credited_as_refused() {
+        // The control: the correct app credits the private page.
+        let plain = Scenario::new("plain", Flaws::default(), users(), true);
+        let (o, _) = plain.run(None);
+        assert!(
+            verified_ids(&o).contains(&PRIVATE_PAGE.rule_id),
+            "{:?}",
+            o.steps
+        );
+
+        // The same app crashing on that one request: not credited, and the owner is told why.
+        let (o, _) = plain.run(Some("private-anonymous"));
+        assert!(!verified_ids(&o).contains(&PRIVATE_PAGE.rule_id));
+        let (ids, why) = o
+            .not_assessed
+            .iter()
+            .find(|(_, why)| why.contains(PRIVATE_PAGE.rule_id))
+            .unwrap_or_else(|| panic!("{:?}", o.not_assessed));
+        assert!(ids.contains("V8.2.1"), "{ids}");
+        assert!(why.contains("private-anonymous (500)"), "{why}");
+        assert!(why.contains("crashed or did not answer"), "{why}");
+        // Everything that did not rest on that request is still credited.
+        assert!(
+            verified_ids(&o).contains(&ADMIN_PAGE.rule_id),
+            "{:?}",
+            verified_ids(&o)
+        );
+
+        // No answer at all is not a refusal either.
+        let (o, _) = plain.run_answering(Some("private-anonymous"), true);
+        assert!(!verified_ids(&o).contains(&PRIVATE_PAGE.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("private-anonymous (no answer)")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_crash_never_turns_a_finding_into_a_pass() {
+        let mut reached = BTreeSet::new();
+        let mut turned = Vec::new();
+        for scenario in scenarios() {
+            let (t, found) = scenario.sweep();
+            turned.extend(t);
+            reached.extend(found);
+        }
+        assert!(turned.is_empty(), "{turned:#?}");
+        // The sweep is only as good as the findings it starts from: a rule listed here that no
+        // scenario found at fault was never tried, so it is named rather than passed quietly.
+        let missed: Vec<&str> = RESTS_ON_A_REFUSAL
+            .iter()
+            .map(|(rule, _)| *rule)
+            .filter(|rule| !reached.contains(*rule))
+            .collect();
+        assert!(
+            missed.is_empty(),
+            "no scenario found these at fault: {missed:?}"
         );
     }
 }
