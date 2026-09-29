@@ -238,6 +238,9 @@ pub struct RunOutcome {
     pub fence: Fence,
     /// What the probes asked the app while it was up, and what it answered.
     pub probe_responses: Vec<sv_check::probes::ProbeResponse>,
+    /// The anonymous questions the app's rate limiter was still answering after waiting as it asked,
+    /// as "id (status)". Left out of `probe_responses`, since the limiter's page is not the app's.
+    pub probes_rate_limited: Vec<String>,
     /// What asking as signed-in users showed, when securevibe.toml says how to sign in.
     pub signed_in: Option<sv_check::signed_in::Outcome>,
     /// What signing in through the test provider showed, when the app signs in through another

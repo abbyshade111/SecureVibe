@@ -1221,6 +1221,27 @@ fn running_app_evidence(
     (findings, verified, not_assessed)
 }
 
+/// What the report and `sv run` say about the anonymous questions the app's rate limiter answered
+/// in the app's place. Those answers were left out, so nothing was judged from them; this says so,
+/// rather than letting them read as questions the app never answered.
+fn rate_limited_gap(limited: &[String]) -> Option<sv_report::Gap> {
+    if limited.is_empty() {
+        return None;
+    }
+    Some(sv_report::Gap {
+        what: format!(
+            "what the app answers to {} of the questions asked as somebody not signed in",
+            limited.len()
+        ),
+        why: format!(
+            "the app's rate limiter answered them in its place, still, after `sv` waited as long \
+             as it asked: {}. A rate limiter's page is not the app's, so nothing was judged from \
+             it, neither a finding nor a pass. Raise the limit for the test run and run it again.",
+            limited.join(", ")
+        ),
+    })
+}
+
 fn cmd_run(args: &[String]) -> Result<()> {
     let mut app_dir = PathBuf::from(".");
     // Opt-in: waiting out the session timeouts the owner states can take as long as they are.
@@ -1272,11 +1293,14 @@ fn cmd_run(args: &[String]) -> Result<()> {
                     "s"
                 }
             );
-            if outcome.probe_responses.len() < requests.len() {
-                println!(
-                    "  {} got no answer at all, so nothing is claimed about them.",
-                    requests.len() - outcome.probe_responses.len()
-                );
+            let unanswered = requests
+                .len()
+                .saturating_sub(outcome.probe_responses.len() + outcome.probes_rate_limited.len());
+            if unanswered > 0 {
+                println!("  {unanswered} got no answer at all, so nothing is claimed about them.");
+            }
+            if let Some(gap) = rate_limited_gap(&outcome.probes_rate_limited) {
+                println!("  {} — {}", gap.what, gap.why);
             }
 
             if let Some(signed_in) = &outcome.signed_in
@@ -2698,6 +2722,7 @@ fn assemble_report(
                         why,
                     });
                 }
+                gaps.extend(rate_limited_gap(&outcome.probes_rate_limited));
                 // What asking it could not reach. These replace the "it was never started" gap
                 // rather than removing it: the app running answers some questions and not others,
                 // and the ones it cannot answer are the ones behind a login.
@@ -4037,6 +4062,25 @@ mod dependency_gap_tests {
         assert!(
             !named.iter().any(|w| w.contains("Rust")),
             "the locked Rust packages are not a gap: {named:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod rate_limited_gap_tests {
+    use super::*;
+
+    #[test]
+    fn questions_the_limiter_answered_are_named_and_nothing_else_is_said() {
+        assert!(rate_limited_gap(&[]).is_none(), "no limiter, no gap");
+        let gap = rate_limited_gap(&["home (429)".to_owned(), "git-head (429)".to_owned()])
+            .expect("a gap when the limiter answered");
+        assert!(gap.what.contains("2 of the questions"), "{}", gap.what);
+        assert!(
+            gap.why.contains("home (429), git-head (429)")
+                && gap.why.contains("neither a finding nor a pass"),
+            "{}",
+            gap.why
         );
     }
 }

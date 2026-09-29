@@ -594,10 +594,7 @@ pub fn run_with(
     policy: &sv_manifest::PolicySection,
     slow: bool,
 ) -> Outcome {
-    let mut patient = Patient {
-        inner: http,
-        still_limited: Vec::new(),
-    };
+    let mut patient = Patient::new(http);
     let mut out = run_checks(&mut patient, users, accounts, seeded, policy, slow);
     if patient.still_limited.is_empty() {
         return out;
@@ -656,6 +653,28 @@ pub(crate) fn rate_limited(response: &ProbeResponse) -> Option<u64> {
     )
 }
 
+/// The questions asked as somebody not signed in, each through the same wait as the signed-in
+/// ones, and what came back.
+///
+/// An answer that is still the rate limiter's after the wait is left out, as a request that got no
+/// answer is: the checks that read these (`probes::evaluate`, `probes::verified`,
+/// `probes::evaluate_api`, `running::evaluate`) judge whatever they are given as the app's, so a
+/// limiter's page on `/` would be a security-headers finding the app does not deserve, and a
+/// limiter's 429 on `/.git/HEAD` would be credited as the folder not exposed. The requests left
+/// out are returned, as "id (status)", for the run to say which they were.
+pub fn ask_anonymously(
+    http: &mut dyn Http,
+    requests: &[ProbeRequest],
+) -> (Vec<ProbeResponse>, Vec<String>) {
+    let mut patient = Patient::new(http);
+    let answers = requests
+        .iter()
+        .filter_map(|request| patient.send(request))
+        .filter(|answer| rate_limited(answer).is_none())
+        .collect();
+    (answers, patient.still_limited)
+}
+
 /// The app, with a rate limiter's answer waited out once.
 ///
 /// A 429 from a limiter says nothing about the question asked: a private page refused with 429 was
@@ -669,6 +688,23 @@ struct Patient<'a> {
     inner: &'a mut dyn Http,
     /// Requests the limiter was still answering after the wait, as "id (status)".
     still_limited: Vec<String>,
+    /// Seconds waited so far, against `MOST_WAITING`.
+    waited: u64,
+}
+
+/// All the waiting one run does for a rate limiter. Each wait is at most a minute, but a limiter
+/// answering every request would otherwise hold a run up for a minute a request; past this, a
+/// limited answer is recorded as the limiter's without waiting.
+const MOST_WAITING: u64 = 300;
+
+impl<'a> Patient<'a> {
+    fn new(inner: &'a mut dyn Http) -> Self {
+        Patient {
+            inner,
+            still_limited: Vec::new(),
+            waited: 0,
+        }
+    }
 }
 
 impl Http for Patient<'_> {
@@ -680,6 +716,16 @@ impl Http for Patient<'_> {
         let Some(wait) = first.as_ref().and_then(rate_limited) else {
             return first;
         };
+        if self.waited + wait > MOST_WAITING {
+            if let Some(r) = &first {
+                self.still_limited.push(format!(
+                    "{} ({}, not waited for: {MOST_WAITING} seconds already spent waiting)",
+                    request.id, r.status
+                ));
+            }
+            return first;
+        }
+        self.waited += wait;
         self.inner.wait(wait);
         let second = self.inner.send(request);
         if let Some(r) = second.as_ref().filter(|r| rate_limited(r).is_some()) {
@@ -1628,7 +1674,7 @@ mod rate_limit_tests {
 
     impl Http for Limited {
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
-            if r.id == self.id && self.times > 0 {
+            if (r.id == self.id || self.id == "*") && self.times > 0 {
                 self.times -= 1;
                 self.limited += 1;
                 return Some(ProbeResponse {
@@ -1857,15 +1903,88 @@ mod rate_limit_tests {
         // The guessing checks send wrong passwords and codes to see the limiter answer. Waiting
         // would change what they measure and send one guess more than they count.
         let mut inner = limited("guess-3", 429, Some("30"), 99);
-        let mut patient = Patient {
-            inner: &mut inner,
-            still_limited: Vec::new(),
-        };
+        let mut patient = Patient::new(&mut inner);
         let request = get("guess-3", "/login", &Session::default());
         let answer = patient.send(&request).expect("an answer");
         assert_eq!(answer.status, 429);
         assert!(patient.still_limited.is_empty());
         drop(patient);
         assert_eq!((inner.limited, inner.waited), (1, 0));
+    }
+
+    #[test]
+    fn a_limiter_answering_everything_is_waited_for_five_minutes_in_all() {
+        // Ten requests, each answered by the limiter asking for a minute: five are waited for,
+        // and the rest are recorded as the limiter's without waiting.
+        let mut inner = limited("*", 429, Some("60"), 1000);
+        let mut patient = Patient::new(&mut inner);
+        for n in 0..10 {
+            patient.send(&get(&format!("page-{n}"), "/", &Session::default()));
+        }
+        assert_eq!(
+            patient.still_limited.len(),
+            10,
+            "{:?}",
+            patient.still_limited
+        );
+        assert!(
+            patient.still_limited[9].contains("not waited for"),
+            "{:?}",
+            patient.still_limited
+        );
+        drop(patient);
+        assert_eq!(inner.waited, MOST_WAITING);
+        assert_eq!(inner.limited, 15, "five asked twice, five once");
+    }
+
+    #[test]
+    fn an_anonymous_answer_is_waited_for_and_one_still_limited_is_left_out() {
+        let requests = crate::probes::requests("/");
+        let home = requests
+            .iter()
+            .find(|r| r.id == "home")
+            .expect("the probes ask for the home page");
+
+        // The limiter says no once: waited out, and the app's own answer is what comes back.
+        let mut once = limited("home", 429, Some("2"), 1);
+        let (answers, left_out) = ask_anonymously(&mut once, std::slice::from_ref(home));
+        assert!(left_out.is_empty(), "{left_out:?}");
+        assert_eq!(answers.len(), 1);
+        assert_ne!(answers[0].status, 429);
+        assert_eq!(once.waited, 2);
+
+        // The limiter never lets go: the answer is left out rather than judged as the app's.
+        let mut always = limited("home", 429, Some("2"), 99);
+        let (answers, left_out) = ask_anonymously(&mut always, &requests);
+        assert!(
+            answers.iter().all(|a| a.id != "home"),
+            "the limiter's page was kept: {answers:?}"
+        );
+        assert_eq!(left_out, ["home (429)"]);
+        // Every other question still got its answer.
+        assert_eq!(answers.len(), requests.len() - 1);
+
+        // Why the limiter's page is left out rather than judged: read as the app's, a 429 page
+        // without headers is a security-headers finding, and two 429s on `/.git` are a credit for
+        // the folder not being exposed.
+        let page = |id: &str| ProbeResponse {
+            id: id.to_owned(),
+            status: 429,
+            headers: vec![("retry-after".to_owned(), "2".to_owned())],
+            body: "slow down".into(),
+        };
+        let judged = [page("home"), page("git-head"), page("git-config")];
+        assert!(
+            crate::probes::evaluate(&judged)
+                .iter()
+                .any(|f| f.rule_id == "probe.security-headers"),
+            "the false alarm this prevents"
+        );
+        assert!(
+            crate::probes::verified(&judged)
+                .iter()
+                .any(|v| v.check_id == "probe.source-control-exposed"),
+            "the false pass this prevents"
+        );
     }
 }
