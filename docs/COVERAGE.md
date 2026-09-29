@@ -58,11 +58,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 18 | 0 | 12 |
+| V1 Encoding and Sanitization | 30 | 19 | 0 | 11 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 9 | 0 | 7 |
-| V5 File Handling | 13 | 8 | 0 | 5 |
+| V5 File Handling | 13 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 23 | 1 | 23 |
 | V7 Session Management | 19 | 9 | 0 | 10 |
 | V8 Authorization | 13 | 4 | 1 | 8 |
@@ -104,6 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `react-dangerouslysetinnerhtml`) |
@@ -249,6 +250,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
+| V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |

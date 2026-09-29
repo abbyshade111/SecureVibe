@@ -150,6 +150,8 @@ RUST_CHECKS = {
     "probe.password-change-ends-sessions": ("signed-in", ["V7.4.3"]),
     "probe.password-change-notified": ("signed-in", ["V6.3.7"]),
     "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
+    "probe.uploaded-svg-keeps-script": ("signed-in", ["V1.3.4"]),
+    "probe.upload-not-scanned": ("signed-in", ["V5.4.3"]),
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
     "probe.reset-reusable": ("signed-in", ["V6.4.3"]),

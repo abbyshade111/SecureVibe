@@ -738,6 +738,8 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     ),
     (OVERSIZED_FILE.rule_id, &["upload-oversized"]),
     (CONTENT_MISMATCH.rule_id, &["upload-mismatched"]),
+    (UPLOAD_SVG_SCRIPT.rule_id, &["upload-svg"]),
+    (UPLOAD_NOT_SCANNED.rule_id, &["upload-eicar"]),
 ];
 
 /// The findings the signed-in checks raise because the app refused something, or answered two
@@ -2485,6 +2487,8 @@ mod crash_tests {
                     ws_open: true,
                     oversized_upload_ok: true,
                     unchecked_contents_ok: true,
+                    svg_scripts_kept: true,
+                    no_malware_scan: true,
                     session_not_verified: true,
                     ..Default::default()
                 },
