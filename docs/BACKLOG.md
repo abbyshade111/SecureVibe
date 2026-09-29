@@ -1030,6 +1030,11 @@ another session is not a claim.
      Spring Authorization Server, league/oauth2-server, fosite, and node-oauth2-server), and only ever a finding.
      **Claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
      in branch `claude/securevibe-e9-retired-grants`.
+  9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
+     code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
+     as a key. Only ever a finding; a count read from a setting is not judged.
+     **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
+     in branch `claude/securevibe-e2-weak-kdf`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
