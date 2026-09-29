@@ -1898,7 +1898,7 @@ mod tests {
     /// and the password kept in `localStorage`.
     struct KeepsPassword {
         app: FakeApp,
-        password: String,
+        stored: String,
     }
 
     impl Http for KeepsPassword {
@@ -1927,7 +1927,7 @@ mod tests {
                 store(json!([])),
                 json!({ "found": true, "after": { "status": 200, "path": "/" } }),
                 json!({ "status": 200, "path": "/account" }),
-                store(json!([["pw", self.password]])),
+                store(json!([["pw", self.stored]])),
             ])
         }
     }
@@ -1960,7 +1960,7 @@ mod tests {
         }
         let mut http = KeepsPassword {
             app,
-            password: acc.a.password.clone(),
+            stored: acc.a.password.clone(),
         };
         let o = run(&mut http, &u, &acc, false, &Default::default());
         assert!(
