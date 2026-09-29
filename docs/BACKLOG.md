@@ -689,7 +689,8 @@ another session is not a claim.
   credited as "refused to somebody not signed in" (V8.2.1), as a 429 was. A crash is not an answer to whether the
   page is private. Fix, as a suggestion: read a 5xx as no answer wherever a refusal would be credited, and say the
   requirement is not assessed with the status; a finding from a 5xx (a stack trace, say) is a separate question.
-  **Not claimed.**
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-server-error`.
 
 - **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
   session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's
