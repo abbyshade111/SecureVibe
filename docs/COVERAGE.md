@@ -243,7 +243,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.3.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `grpc-client-insecure-connection`, `grpc-nodejs-insecure-connection`, `grpc-server-insecure-connection`) |
 | V15.3.5 | L2 | Outside tools: `codeql-javascript` |
 | V15.3.6 | L2 | Outside tools: `codeql-javascript` |
-| V15.4.2 | L3 | Outside tools: `bandit` (bandit only ever as a finding: `B306`) |
+| V15.4.2 | L3 | Outside tools: `bandit`, `codeql-javascript`, `codeql-python` (bandit only ever as a finding: `B306`; codeql-python only ever as a finding: `py/insecure-temporary-file`) |
 | V15.4.3 | L3 | Outside tools: `semgrep` (semgrep only ever as a finding: `missing-unlock-before-return`) |
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |

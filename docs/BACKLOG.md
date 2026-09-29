@@ -964,6 +964,11 @@ another session is not a claim.
      **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
      in branch `claude/securevibe-e2-codeql-suites`: list what the two security-extended suites run, measured with
      CodeQL itself, and map the two queries for V15.4.2 if they are in them.
+     **Done the same day** (DESIGN, "Which queries the CodeQL suites run"). Measured with CodeQL 2.27.1: the Python
+     suite selects 52 queries and the JavaScript one 105, both proposed queries among them, and all 81 queries
+     already mapped too. `data/codeql-suites.json` records the lists, `tools/codeql_suites.py` writes it, and a test
+     fails on a mapped query its suite does not select. `js/file-system-race` counts for V15.4.2;
+     `py/insecure-temporary-file` is found-failing-only there, as bandit's B306 for the same call already was.
   6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
      no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
      V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
