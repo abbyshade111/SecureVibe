@@ -1636,8 +1636,26 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
         sbom.components.len(),
         if sbom.components.len() == 1 { "" } else { "s" }
     );
+    // Said before the verdict on completeness, which it does not change: the list is a full
+    // reading of one lockfile, and this says which one.
+    for passed in &sbom.passed_over {
+        eprintln!(
+            "{}: {}. Remove the lockfile that is not in use.",
+            passed.project,
+            passed.explain()
+        );
+    }
     if sbom.is_complete() {
-        eprintln!("Every ecosystem in use was read from a lockfile, so this is what is installed.");
+        if sbom.passed_over.is_empty() {
+            eprintln!(
+                "Every ecosystem in use was read from a lockfile, so this is what is installed."
+            );
+        } else {
+            eprintln!(
+                "Every ecosystem in use was read from a lockfile. It is what is installed only if \
+                 the app is installed from the lockfile named as read above."
+            );
+        }
         return Ok(());
     }
     eprintln!("\nThis list is NOT complete, and the document says so too:");
@@ -1788,6 +1806,13 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         println!(
             "\nAnd the list itself is incomplete, so this comparison covered less than the whole app.\n\
              `sv sbom` says what is missing."
+        );
+    }
+    for passed in &sbom.passed_over {
+        println!(
+            "\nNot assessed — {}: {}. Remove the lockfile that is not in use.",
+            passed.project,
+            passed.explain()
         );
     }
 
@@ -2265,6 +2290,18 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
             *declared.entry(component.ecosystem.as_str()).or_default() += 1;
         }
     }
+    // A project with two lockfiles of its kind: the list is a full reading of one of them, and
+    // nothing here says the app is installed from that one.
+    for passed in &sbom.passed_over {
+        gaps.push(sv_report::Gap {
+            what: format!("which lockfile {} is installed from", passed.project),
+            why: format!(
+                "{}. Remove the lockfile that is not in use, and the next report reads the one that is",
+                passed.explain()
+            ),
+        });
+    }
+
     for (ecosystem, count) in declared {
         gaps.push(sv_report::Gap {
             what: format!("which {ecosystem} versions are really installed"),
@@ -2445,6 +2482,15 @@ fn assemble_report(
                 }
                 if !bill_of_materials.is_complete() {
                     short.push("the list of packages is incomplete".to_owned());
+                }
+                // A finding that stops appearing because a different lockfile was read is not a
+                // fixed finding, so a second lockfile nothing compared keeps this from `ran`.
+                for passed in &bill_of_materials.passed_over {
+                    short.push(format!(
+                        "{} not read beside `{}`",
+                        passed.not_read_list(),
+                        passed.read
+                    ));
                 }
                 examined.push(if short.is_empty() {
                     sv_report::Examined::ran("advisory.")
@@ -3929,6 +3975,7 @@ mod dependency_gap_tests {
         // reach: given a document whose every version came from a lockfile, there is nothing to
         // report, and a gap row for nothing reads as a hole where there is none.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![
                 component("npm", "react", sbom::VersionSource::Locked),
                 component("npm", "express", sbom::VersionSource::Locked),
@@ -3944,6 +3991,7 @@ mod dependency_gap_tests {
         // The distinction the whole item is about, held at one place rather than across two apps:
         // these are two different gaps and must not collapse into one sentence again.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![component("Python", "flask", sbom::VersionSource::Declared)],
             unread: vec![(
                 "npm".to_owned(),
@@ -3976,6 +4024,7 @@ mod dependency_gap_tests {
         // to say each of those about the right one — which is exactly what a single sentence for
         // every ecosystem could not do.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![
                 component("Python", "flask", sbom::VersionSource::Declared),
                 component("Rust", "serde", sbom::VersionSource::Locked),

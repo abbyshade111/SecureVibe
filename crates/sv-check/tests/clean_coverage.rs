@@ -1260,6 +1260,7 @@ fn one_advisory_about(ecosystem: &str, package: &str, fixed: &str) -> Advisory {
 #[test]
 fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
     let complete = Sbom {
+        passed_over: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![],
     };
@@ -1269,6 +1270,7 @@ fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
     // An app with no dependencies `sv` could find is far more often an app whose manifests were
     // never read. Claiming a complete inventory of nothing is the easiest false green line here.
     let empty = Sbom {
+        passed_over: Vec::new(),
         components: vec![],
         unread: vec![],
     };
@@ -1286,6 +1288,7 @@ fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
 #[test]
 fn an_unread_ecosystem_stops_the_bill_of_materials_claiming_anything() {
     let partial = Sbom {
+        passed_over: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![("npm".into(), "package-lock.json could not be read".into())],
     };
@@ -1298,6 +1301,7 @@ fn an_unread_ecosystem_stops_the_bill_of_materials_claiming_anything() {
 #[test]
 fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
     let sbom = Sbom {
+        passed_over: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![],
     };
@@ -1321,6 +1325,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
 
     // Nothing to compare is nothing examined.
     let nothing = Sbom {
+        passed_over: Vec::new(),
         components: vec![],
         unread: vec![],
     };
@@ -1331,6 +1336,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
 
     // An ecosystem the database says nothing about: those packages were never really checked.
     let two_ecosystems = Sbom {
+        passed_over: Vec::new(),
         components: vec![
             locked("flask", "3.0.0", "Python"),
             locked("left-pad", "1.0.0", "npm"),
@@ -1343,6 +1349,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
 
     // A component list known to be partial is a clean answer to a question nobody asked.
     let incomplete = Sbom {
+        passed_over: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![("npm".into(), "no lockfile".into())],
     };
@@ -1357,6 +1364,7 @@ fn a_version_that_cannot_be_compared_stops_the_claim() {
     // The subtle one. The package is in a covered ecosystem and matches no advisory, so the naive
     // reading is that it is fine — but nothing could actually be decided about it.
     let odd = Sbom {
+        passed_over: Vec::new(),
         components: vec![locked("flask", "not-a-version", "Python")],
         unread: vec![],
     };
