@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How sv Works</title>
+<style>
+  /* Layout: three columns read left to right — what goes in, what sv does, what comes out —
+     with a return lane underneath for the MCP loop; stacked top to bottom on a phone. */
+  :root {
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee; --surface-3: #e9e7e0;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd;
+    --owner: #2a78d6; --sv: #eb6834; --fence: #6a5acd; --bad: #d03b3b; --ok: #2f8a57;
+    --sv-tint: #fbe6dc; --owner-tint: #dde9f8; --fence-tint: #e7e4f7;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --surface-3: #2e2d29;
+      --text-primary: #fff; --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --owner: #3987e5; --sv: #d95926; --fence: #8f82e6; --bad: #e66767; --ok: #4fb57c;
+      --sv-tint: #3a2419; --owner-tint: #1d2b3d; --fence-tint: #26223d;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --surface-3: #2e2d29;
+    --text-primary: #fff; --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --owner: #3987e5; --sv: #d95926; --fence: #8f82e6; --bad: #e66767; --ok: #4fb57c;
+    --sv-tint: #3a2419; --owner-tint: #1d2b3d; --fence-tint: #26223d;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.5 var(--sans); padding-block: 24px; padding-inline: 16px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; text-wrap: balance; }
+  .sub { color: var(--text-secondary); margin: 0 0 20px; font-size: .9rem; max-width: 72ch; }
+  code { font-family: var(--mono); font-size: .86em; }
+
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 2.1fr) 28px minmax(0, 1fr); gap: 0; align-items: stretch; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .colhead { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 2px; }
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+  .arrow svg { width: 22px; height: 22px; }
+
+  .box { border-radius: 8px; padding: 10px 12px; background: var(--surface-2); min-width: 0; }
+  .box h3 { margin: 0 0 3px; font-size: .9rem; line-height: 1.3; }
+  .box p { margin: 0; font-size: .8rem; color: var(--text-secondary); }
+  .box .cmd { display: inline-block; margin-top: 5px; font-family: var(--mono); font-size: .72rem; color: var(--text-muted); }
+  .owner { background: var(--owner-tint); box-shadow: inset 3px 0 0 var(--owner); }
+  .file { background: var(--surface-2); border: 1px dashed var(--grid); }
+  .stage { background: var(--sv-tint); }
+  .stage h3 { color: var(--text-primary); }
+  .svframe { border: 2px solid var(--sv); border-radius: 12px; padding: 10px; display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  .svframe > .colhead { grid-column: 1 / -1; color: var(--sv); }
+  .wide { grid-column: 1 / -1; }
+  .fence { grid-column: 1 / -1; border: 2px dashed var(--fence); border-radius: 10px; padding: 10px; background: var(--fence-tint); }
+  .fence > h3 { margin: 0 0 3px; font-size: .9rem; }
+  .fence > p { margin: 0 0 8px; font-size: .8rem; color: var(--text-secondary); }
+  .inside { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
+  .inside div { background: var(--surface-1); border-radius: 6px; padding: 6px 8px; font-size: .76rem; color: var(--text-secondary); }
+  .inside b { display: block; color: var(--text-primary); font-size: .8rem; }
+  .inside .app { outline: 2px solid var(--text-primary); }
+  .probes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .probes span { font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--fence); }
+
+  .ladder { display: grid; gap: 3px; margin-top: 6px; }
+  .ladder div { display: grid; grid-template-columns: 8px 1fr; gap: 8px; align-items: center; font-size: .78rem; }
+  .ladder i { width: 8px; height: 8px; border-radius: 2px; background: var(--text-muted); }
+  .ladder .f i { background: var(--bad); }
+  .ladder .c i { background: var(--ok); }
+  .ladder .n i { background: transparent; border: 1px solid var(--text-muted); }
+  .out { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--sv); }
+
+  .loop { margin-top: 12px; border-top: 2px dashed var(--owner); padding-top: 8px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-secondary); font-size: .82rem; }
+  .loop svg { flex: none; width: 22px; height: 22px; color: var(--owner); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .78rem; color: var(--text-secondary); margin: 14px 0 0; }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+  .note { color: var(--text-muted); font-size: .78rem; margin-top: 12px; max-width: 90ch; }
+
+  @media (max-width: 860px) {
+    .flow { grid-template-columns: minmax(0, 1fr); }
+    .arrow { height: 28px; }
+    .arrow svg { transform: rotate(90deg); }
+    .svframe { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="viz-root">
+  <h1>How <code>sv</code> works</h1>
+  <p class="sub">The owner builds the app with their own AI coding tool, in any language. <code>sv</code> reads what was
+    built, runs it behind a network fence to ask it questions, and writes a report that ranks every piece of evidence
+    and names what nothing examined. Every stage below is a command of its own; <code>sv report</code> runs them together.</p>
+
+  <div class="flow" role="figure" aria-label="Inputs flow into sv's stages, which produce ranked evidence and reports">
+    <div class="col">
+      <p class="colhead">What goes in</p>
+      <div class="box owner"><h3>The owner</h3><p>Decides what the app is for, answers the questions no tool can, and downloads the vulnerability data.</p></div>
+      <div class="box owner"><h3>Their AI coding tool</h3><p>Writes the app, and fills in <code>securevibe.toml</code> from the spec <code>sv init</code> gives it.</p></div>
+      <div class="box file"><h3>The app's folder</h3><p>Code in any language, lockfiles, and the app's own tests.</p></div>
+      <div class="box file"><h3><code>securevibe.toml</code></h3><p>What the app is: its stack, how to start it, its test users, AI and sign-in settings, and answers to design questions.</p></div>
+      <div class="box file"><h3><code>security-notes.md</code></h3><p>The owner's written answers, one question per requirement (<code>sv notes</code>).</p></div>
+      <div class="box file"><h3>Advisory data</h3><p>OSV exports the owner downloaded. <code>sv</code> never fetches them itself.</p></div>
+    </div>
+
+    <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+
+    <div class="svframe">
+      <p class="colhead">What <code>sv</code> does</p>
+      <div class="box stage wide"><h3>Scope</h3><p>OWASP ASVS 5.0, AISVS 1.0, and the Secure by Design checklist, narrowed by what the manifest and the code say the app has: which requirements apply, and why.</p><span class="cmd">sv scope</span></div>
+      <div class="box stage"><h3>Read the code</h3><p>One walk of the folder: credentials, configuration and start commands, a bill of materials, tree-sitter rules in 15 languages, and the app's own tests that name a requirement.</p><span class="cmd">sv check · sv sbom</span></div>
+      <div class="box stage"><h3>Outside tools</h3><p>Semgrep, Bandit, CodeQL, gosec, and Brakeman, when installed, each rule mapped to the requirements it can speak to.</p><span class="cmd">--tools</span></div>
+      <div class="box stage"><h3>Known vulnerabilities</h3><p>Every package compared against the downloaded advisories, offline. A comparison that did not cover the whole app says so.</p><span class="cmd">sv audit · --advisories</span></div>
+      <div class="box stage"><h3>The live site</h3><p>The one network exception: at most four read-only requests to an address the owner types, for certificates, HTTPS, and cookies.</p><span class="cmd">sv probe &lt;address&gt;</span></div>
+      <div class="fence">
+        <h3>The running app, behind the fence</h3>
+        <p>A Docker network made with <code>--internal</code> for each run, and confirmed internal before anything starts: nothing inside can reach the internet. A rate limiter's answer is waited out, never read as the app's.</p>
+        <div class="inside">
+          <div class="app"><b>The app</b>in the image the manifest names, with its build and start commands</div>
+          <div><b>Test model</b>stands in for the AI service, and serves a test MCP tool</div>
+          <div><b>Test sign-in provider</b>for apps that sign in with OIDC</div>
+          <div><b>Mail catcher</b>reads reset and notice emails</div>
+          <div><b>Headless browser</b>signs in and reads browser storage</div>
+        </div>
+        <div class="probes" aria-label="Kinds of questions asked">
+          <span>as a stranger</span><span>as signed-in users</span><span>of the AI feature</span><span>of an MCP server</span><span>the app's own test suite</span>
+        </div>
+        <span class="cmd">sv run · --run</span>
+      </div>
+    </div>
+
+    <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+
+    <div class="col">
+      <p class="colhead">What comes out</p>
+      <div class="box out"><h3>Evidence, ranked</h3><p>Each requirement gets the strongest thing behind it. A finding outranks everything.</p>
+        <div class="ladder">
+          <div class="f"><i></i>needs attention</div>
+          <div class="c"><i></i>checked</div>
+          <div><i></i>documented by the owner</div>
+          <div><i></i>checked by hand by the owner</div>
+          <div><i></i>attested by the owner</div>
+          <div><i></i>stated by the AI coding tool</div>
+          <div class="n"><i></i>not verified</div>
+        </div>
+      </div>
+      <div class="box out"><h3>The report</h3><p>HTML, Markdown, SARIF, and JSON. It opens with what was not examined, and adds a threat model, the tests worth writing, and what only the owner can check. Nothing in it says a requirement passed.</p><span class="cmd">sv report</span></div>
+      <div class="box out"><h3>The bundle</h3><p>The app, its report, and a SHA-256 for every file, in one zip.</p><span class="cmd">sv bundle</span></div>
+      <div class="box out"><h3>The MCP server</h3><p>The same checks, served to the AI coding tool, kept inside one folder.</p><span class="cmd">sv mcp --root</span></div>
+    </div>
+  </div>
+
+  <div class="loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7H6l4-4M6 7l4 4M4 17h14l-4-4m4 4-4 4"/></svg>
+    <p style="margin:0">The loop closes through the AI coding tool: it reads the findings over MCP or from the report, changes the app, and runs the checks again. The owner decides when it is done.</p></div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--owner)"></i>the owner and their tool</span>
+    <span><i class="sw" style="background:var(--sv)"></i><code>sv</code>'s own stages</span>
+    <span><i class="sw" style="background:var(--fence)"></i>inside the network fence</span>
+  </div>
+  <p class="note">A stage that cannot run, such as no container backend, no advisory data, or a language no rule
+    reads, marks what depended on it <em>not assessed</em>: never a pass and never a failure. Drawn from
+    <code>main</code> on 29 September 2026: <code>crates/sv-cli/src/main.rs</code> (the commands),
+    <code>crates/sv-run/src/docker.rs</code> (the fence and its services), <code>crates/sv-report/src/lib.rs</code>
+    (the ranking), and <code>data/adapters.json</code> (the outside tools).</p>
+</div>
+</body>
+</html>
