@@ -738,7 +738,8 @@ another session is not a claim.
   that test does not touch); it passed three times alone. Not reproduced. A guess, marked as one: it asserts that
   the four bytes `4471`, a fragment of the planted secret, appear nowhere in the zip's raw bytes
   (`crates/sv-cli/src/mcp.rs`), and a zip holds timestamps and compressed data in which four given bytes can occur
-  by chance. If so, the fix is to read the zip's entries and look in their contents. **Not claimed.**
+  by chance. If so, the fix is to read the zip's entries and look in their contents. **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take a backlog item, in
+  branch `claude/securevibe-e2-bundle-test`.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
