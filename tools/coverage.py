@@ -152,6 +152,8 @@ RUST_CHECKS = {
     "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
     "probe.uploaded-svg-keeps-script": ("signed-in", ["V1.3.4"]),
     "probe.upload-not-scanned": ("signed-in", ["V5.4.3"]),
+    "probe.token-in-browser-storage": ("signed-in", ["V10.1.1"]),
+    "probe.password-in-browser-storage": ("signed-in", ["V14.3.3"]),
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
     "probe.reset-reusable": ("signed-in", ["V6.4.3"]),
@@ -211,6 +213,8 @@ RUST_FINDINGS_ONLY = {
     "probe.ai-injection-other-languages",
     "probe.ai-raw-response-exposed",
     "probe.identity-header-trusted",
+    "probe.token-in-browser-storage",
+    "probe.password-in-browser-storage",
 }
 
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they

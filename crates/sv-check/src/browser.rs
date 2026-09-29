@@ -203,11 +203,11 @@ fn markup_line(token: &str) -> String {
     )
 }
 
-fn field<'a>(v: &'a Value, key: &str) -> &'a Value {
+pub(crate) fn field<'a>(v: &'a Value, key: &str) -> &'a Value {
     v.get(key).unwrap_or(&Value::Null)
 }
 
-fn opened(v: &Value, path: &str) -> bool {
+pub(crate) fn opened(v: &Value, path: &str) -> bool {
     field(v, "status")
         .as_u64()
         .is_some_and(|s| (200..300).contains(&s))
@@ -420,7 +420,7 @@ fn needles(account: &Account, cookies: &[(String, String)]) -> Vec<Needle> {
 }
 
 /// Base64 without padding, in the standard alphabet or the one made for web addresses.
-fn base64(bytes: &[u8], url_safe: bool) -> String {
+pub(crate) fn base64(bytes: &[u8], url_safe: bool) -> String {
     let alphabet: &[u8; 64] = if url_safe {
         b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
     } else {
@@ -439,7 +439,7 @@ fn base64(bytes: &[u8], url_safe: bool) -> String {
 }
 
 /// A web address or form body as a person would read it: `%40` back to `@`, and `+` to a space.
-fn readable(text: &str) -> String {
+pub(crate) fn readable(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
