@@ -357,22 +357,40 @@ pub fn presence(adapter: &Adapter) -> Presence {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .output();
-    match output {
-        Err(_) => Presence::Missing,
-        Ok(out) if out.status.success() => Presence::Ready,
-        Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let detail = stderr
-                .lines()
-                .find(|l| !l.trim().is_empty())
-                .unwrap_or("it exited with an error and said nothing")
-                .trim()
-                .chars()
-                .take(160)
-                .collect();
-            Presence::Broken { detail }
-        }
+    judge_presence(output.ok().map(|out| {
+        (
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        )
+    }))
+}
+
+/// What a tool's version command showed: `None` when it could not be started at all, else its exit
+/// code and what it wrote to stderr.
+///
+/// Exit status 127 with nothing said is the shell's "command not found", and is missing, not broken:
+/// under amd64 emulation on an ARM Mac, starting a program that does not exist succeeds and the
+/// child exits 127, so Semgrep and CodeQL, absent from the image, read as "installed and would not
+/// start" until 29 September 2026 (found by the owner's comparison study). A tool that exits 127 and
+/// says why (a wrapper whose interpreter is gone) did start, and stays broken with its words.
+fn judge_presence(ran: Option<(Option<i32>, String)>) -> Presence {
+    let Some((code, stderr)) = ran else {
+        return Presence::Missing;
+    };
+    if code == Some(0) {
+        return Presence::Ready;
     }
+    let said = stderr.lines().find(|l| !l.trim().is_empty());
+    if code == Some(127) && said.is_none() {
+        return Presence::Missing;
+    }
+    let detail = said
+        .unwrap_or("it exited with an error and said nothing")
+        .trim()
+        .chars()
+        .take(160)
+        .collect();
+    Presence::Broken { detail }
 }
 
 pub fn is_installed(adapter: &Adapter) -> bool {
@@ -975,18 +993,49 @@ fn relative_to(file: &str, app_dir: &Path) -> String {
     if app_dir.as_os_str().is_empty() {
         return file.to_owned();
     }
-    let prefix = app_dir.to_string_lossy();
-    // Only when the prefix really matched. Trimming the separator unconditionally turned
-    // `/elsewhere/lib.py` into `elsewhere/lib.py` for an app somewhere else entirely — a path that
-    // looks relative, is not, and points at nothing.
-    let Some(rest) = file.strip_prefix(prefix.as_ref()) else {
-        return file.to_owned();
-    };
-    let trimmed = rest.trim_start_matches(['/', '\\']);
-    if trimmed.is_empty() {
-        file.to_owned()
+    // The folder as it was given, then cleaned of `.` parts and trailing separators, then as the
+    // system resolves it: a tool may echo any of the three. `sv report app/.` left every Bandit
+    // path absolute until 29 September 2026, because Bandit wrote `…/app/backend/x.py`, which
+    // `…/app/.` is not a prefix of, and the fingerprints then differed from a scan of `app`.
+    let cleaned = clean_folder(app_dir);
+    let canonical = std::fs::canonicalize(app_dir).ok();
+    for prefix in [Some(app_dir.to_path_buf()), Some(cleaned), canonical]
+        .into_iter()
+        .flatten()
+    {
+        let prefix = prefix.to_string_lossy().into_owned();
+        if prefix.is_empty() {
+            continue;
+        }
+        // Only when the prefix really matched, and ended at a separator. Trimming the separator
+        // unconditionally turned `/elsewhere/lib.py` into `elsewhere/lib.py` for an app somewhere
+        // else entirely — a path that looks relative, is not, and points at nothing.
+        let Some(rest) = file.strip_prefix(prefix.as_str()) else {
+            continue;
+        };
+        if !(rest.is_empty() || rest.starts_with(['/', '\\']) || prefix.ends_with(['/', '\\'])) {
+            continue;
+        }
+        let trimmed = rest.trim_start_matches(['/', '\\']);
+        if !trimmed.is_empty() {
+            return trimmed.to_owned();
+        }
+    }
+    file.to_owned()
+}
+
+/// A folder without its `.` parts or a trailing separator: `app/.` and `./app/` are `app`, and `.`
+/// is itself. The one form the command line passes on, so the reports of one folder, however it
+/// was typed, are the same report.
+pub fn clean_folder(folder: &Path) -> std::path::PathBuf {
+    let cleaned: std::path::PathBuf = folder
+        .components()
+        .filter(|c| !matches!(c, std::path::Component::CurDir))
+        .collect();
+    if cleaned.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
     } else {
-        trimmed.to_owned()
+        cleaned
     }
 }
 
@@ -1052,4 +1101,136 @@ fn last_line(text: &str) -> String {
 /// Where to put a tool's report while it is being read.
 pub fn scratch_dir() -> PathBuf {
     std::env::temp_dir()
+}
+
+#[cfg(test)]
+mod folder_tests {
+    use super::*;
+
+    #[test]
+    fn a_path_under_the_app_folder_is_made_relative_however_the_folder_was_typed() {
+        let dir = std::env::temp_dir().join(format!("sv-folder-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("backend")).unwrap();
+        let abs = dir.display().to_string();
+        let file = format!("{abs}/backend/app.py");
+        for typed in [
+            abs.clone(),
+            format!("{abs}/"),
+            format!("{abs}/."),
+            format!("{abs}/./"),
+        ] {
+            assert_eq!(
+                relative_to(&file, Path::new(&typed)),
+                "backend/app.py",
+                "{typed}"
+            );
+        }
+        // A tool that echoes the folder as it was given, relative.
+        assert_eq!(
+            relative_to("./app/backend/x.py", Path::new("./app")),
+            "backend/x.py"
+        );
+        assert_eq!(
+            relative_to("app/backend/x.py", Path::new("app/.")),
+            "backend/x.py"
+        );
+        // The controls: a path elsewhere stays as it is, and so does one that only shares the
+        // folder's name as the start of a longer one.
+        assert_eq!(
+            relative_to("/elsewhere/lib.py", Path::new(&abs)),
+            "/elsewhere/lib.py"
+        );
+        let sibling = format!("{abs}-other/x.py");
+        assert_eq!(relative_to(&sibling, Path::new(&abs)), sibling);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_is_cleaned_of_its_dots_and_trailing_separator() {
+        for (typed, clean) in [
+            ("app", "app"),
+            ("app/", "app"),
+            ("app/.", "app"),
+            ("./app", "app"),
+            ("./app/./", "app"),
+            (".", "."),
+            ("./", "."),
+            ("/srv/app/.", "/srv/app"),
+        ] {
+            assert_eq!(clean_folder(Path::new(typed)), Path::new(clean), "{typed}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod presence_tests {
+    use super::*;
+
+    #[test]
+    fn a_silent_127_is_missing_and_one_that_says_why_is_broken() {
+        assert_eq!(judge_presence(None), Presence::Missing);
+        assert_eq!(
+            judge_presence(Some((Some(0), String::new()))),
+            Presence::Ready
+        );
+        assert_eq!(
+            judge_presence(Some((Some(127), "\n  \n".into()))),
+            Presence::Missing
+        );
+        assert_eq!(
+            judge_presence(Some((
+                Some(127),
+                "env: 'python3': No such file or directory".into()
+            ))),
+            Presence::Broken {
+                detail: "env: 'python3': No such file or directory".into()
+            }
+        );
+        assert!(matches!(
+            judge_presence(Some((Some(1), String::new()))),
+            Presence::Broken { .. }
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_program_that_starts_and_exits_127_in_silence_reads_as_missing() {
+        // What emulation does to a program that does not exist, played by a real one.
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("sv-presence-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let silent = dir.join("gone");
+        std::fs::write(&silent, "#!/bin/sh\nexit 127\n").unwrap();
+        std::fs::set_permissions(&silent, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let loud = dir.join("broken");
+        std::fs::write(
+            &loud,
+            "#!/bin/sh\necho 'its interpreter is gone' >&2\nexit 127\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&loud, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let adapter = |command: &std::path::Path| {
+            let file: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../data/adapters.json"),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let mut a: Adapter =
+                serde_json::from_value(file["adapters"][0].clone()).expect("a real adapter");
+            a.version.command = command.display().to_string();
+            a.version.args = Vec::new();
+            a
+        };
+        let silent_presence = presence(&adapter(&silent));
+        let loud_presence = presence(&adapter(&loud));
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(silent_presence, Presence::Missing);
+        assert!(
+            matches!(loud_presence, Presence::Broken { ref detail } if detail.contains("interpreter")),
+            "{loud_presence:?}"
+        );
+    }
 }

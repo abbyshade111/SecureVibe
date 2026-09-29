@@ -120,9 +120,21 @@ enum NoHistory {
     Unreadable,
 }
 
-/// Asks git which files it is tracking.
+/// The folder holding the git repository the app is in: the app folder itself, or one above it
+/// when the app is a subfolder of a larger repository. Until 29 September 2026 only the app folder
+/// was looked at, so `sv report repo/app` said "not a git repository" of an app in one.
+fn repository_root(app_dir: &Path) -> Option<std::path::PathBuf> {
+    let full = std::fs::canonicalize(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
+    full.ancestors()
+        .find(|folder| folder.join(".git").exists())
+        .map(Path::to_path_buf)
+}
+
+/// Asks git which files it is tracking under the app folder. Run from inside the folder, git lists
+/// only the files under it, named from it, so a file elsewhere in a larger repository is not the
+/// app's and is not reported.
 fn tracked_files(app_dir: &Path) -> Result<Vec<String>, NoHistory> {
-    if !app_dir.join(".git").exists() {
+    if repository_root(app_dir).is_none() {
         return Err(NoHistory::NotARepository);
     }
     read_tracked(app_dir).ok_or(NoHistory::Unreadable)
@@ -219,13 +231,25 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
     let path = app_dir.join(".gitignore");
     let Ok(text) = std::fs::read_to_string(&path) else {
         // No .gitignore is only a problem if this is a repository at all.
-        if app_dir.join(".git").exists() {
+        let root = repository_root(app_dir);
+        let full = std::fs::canonicalize(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
+        if root.as_deref() == Some(full.as_path()) {
             return Outcome::Failed(Box::new(env_not_ignored_finding(
                 ".gitignore",
                 "This app is in version control and has no .gitignore, so nothing stops `.env` being \
                  committed."
                     .to_owned(),
             )));
+        }
+        // A subfolder of a larger repository: the .gitignore that matters may be in a folder
+        // above, which is outside what `sv` was pointed at.
+        if root.is_some() {
+            return Outcome::NotAssessed(
+                "This app is a folder inside a larger git repository and has no .gitignore of its \
+                 own. A .gitignore in a folder above it may leave out .env, but `sv` reads only the \
+                 app's folder, so this check did not run."
+                    .to_owned(),
+            );
         }
         return Outcome::NotAssessed(
             "There is no .gitignore and this folder is not a git repository, so there is nothing for \
@@ -548,6 +572,59 @@ mod tests {
         let _ = Command::new("git")
             .args(["-C", d, "commit", "-q", "-m", "t"])
             .status();
+    }
+
+    #[test]
+    fn an_app_in_a_subfolder_of_a_repository_is_checked_against_its_history() {
+        // Found in the owner's comparison study (29 September 2026): `sv report repo/app` said
+        // "not a git repository" of an app in one, because only `app/.git` was looked for.
+        let Some(repo) = git_repo("subfolder") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        let app = repo.join("app");
+        fs::create_dir_all(&app).unwrap();
+        fs::create_dir_all(repo.join("other")).unwrap();
+        fs::write(app.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        fs::write(repo.join("other").join(".env"), "SESSION_SECRET=x\n").unwrap();
+        commit_all(&repo);
+        // The setup worked: both files really are in the repository's history.
+        let listed = read_tracked(&repo).expect("git lists the repository");
+        assert!(
+            listed.iter().any(|f| f == "app/.env") && listed.iter().any(|f| f == "other/.env"),
+            "{listed:?}"
+        );
+
+        let report = check_dir(&app);
+        let found = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.secrets-file-committed")
+            .unwrap_or_else(|| panic!("no finding; report was {report:?}"));
+        // Named from the app's folder, as every other finding is.
+        assert_eq!(found.location.file, ".env");
+        // It has no .gitignore of its own, and the repository's may be above it: not a failure.
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.gitignore-covers-env")
+            .unwrap_or_else(|| panic!("not recorded as not assessed: {report:?}"));
+        assert!(why.contains("inside a larger git repository"), "{why}");
+
+        // The control: a sibling folder whose only neighbor committed a secrets file. That file is
+        // not the app's, and the app's own history is clean.
+        let clean = repo.join("clean");
+        fs::create_dir_all(&clean).unwrap();
+        fs::write(clean.join("main.py"), "print(1)\n").unwrap();
+        commit_all(&repo);
+        assert!(
+            check_dir(&clean)
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.secrets-file-committed"),
+            "a file elsewhere in the repository must not be reported against this app"
+        );
+        fs::remove_dir_all(&repo).ok();
     }
 
     #[test]

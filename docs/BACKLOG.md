@@ -691,24 +691,38 @@ another session is not a claim.
   `looks_like_placeholder` knows `${VAR}`, `<name>`, and `{{ var }}` but not the single-brace `{name}` `sv`'s own
   manifest uses. Fix: a value that is entirely one `{identifier}` is a placeholder; `"{new_password}x9Q2vL"` is
   still judged. A test that `sv init`'s own output raises no findings would catch a return. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** a value that is wholly one `{identifier}` is a placeholder, and one with anything around the
+  braces is still judged. A test scans `sv init`'s real template and fails on any credential finding; breaking the
+  rule turned it and a unit test red.
 - **A missing outside tool is reported as installed and broken under amd64 emulation.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `presence()` in
   `crates/sv-check/src/adapters.rs` reads a spawn that failed as missing and one that exited non-zero as broken;
   under QEMU on an ARM Mac, spawning a program that does not exist succeeds and the child exits 127, so Semgrep and
   CodeQL, absent from the image, read as "installed and would not start". Fix: exit status 127 with nothing on
   stderr is missing, the shell's own meaning of 127. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** a silent 127 is missing; a 127 that says something on stderr stays broken, since a program
+  that exists can exit 127 too. Tested with a real adapter whose version command is a stand-in script; breaking it
+  turned two tests red. Not run under QEMU here.
 - **An app folder given with a trailing `/.` leaves outside tools' paths absolute, and their fingerprints change.**
   Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `sv report app/.` reported every Bandit finding at an absolute path, because `relative_to` in
   `adapters.rs` strips the folder as text and `…/app/.` is not a prefix of `…/app/backend/…`; the fingerprints
   differed from the same scan of `app`, so a reviewed finding stops matching. Fix: normalize the folder once, where
   `sv` receives it, so `app`, `app/`, `app/.`, `./app`, and its absolute path give the same report. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** the command line cleans the folder of `.` parts and trailing separators, and `relative_to`
+  tries the folder as given, cleaned, and canonical, only where the match ends at a separator (so `app-other` is
+  not under `app`). Each guard broken in turn turned its test red.
 - **An app in a subfolder of a git repository is reported as not in git.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `tracked_files` in
   `crates/sv-check/src/config.rs` looks for `.git` in the app folder itself, which exists only at a repository's
   root, so `config.secrets-file-committed` says "This folder is not a git repository" and advises putting it in git.
   Fix: ask git (`git -C <app> rev-parse --is-inside-work-tree`, then `ls-files`, which lists the subfolder's tracked
   files relative to it). **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day,** by looking for `.git` in the app's folder and every folder above it rather than asking
+  `rev-parse`, so a `.git` git cannot read is still told from none: git is asked from inside the app's folder, so
+  only its own files count, and a secrets file committed elsewhere in the repository is not reported. An app in a
+  subfolder with no `.gitignore` of its own is not assessed rather than failed. See DESIGN, "A check reports one
+  of three things".
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
@@ -993,6 +1007,11 @@ another session is not a claim.
      **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
      in branch `claude/securevibe-e2-codeql-suites`: list what the two security-extended suites run, measured with
      CodeQL itself, and map the two queries for V15.4.2 if they are in them.
+     **Done the same day** (DESIGN, "Which queries the CodeQL suites run"). Measured with CodeQL 2.27.1: the Python
+     suite selects 52 queries and the JavaScript one 105, both proposed queries among them, and all 81 queries
+     already mapped too. `data/codeql-suites.json` records the lists, `tools/codeql_suites.py` writes it, and a test
+     fails on a mapped query its suite does not select. `js/file-system-race` counts for V15.4.2;
+     `py/insecure-temporary-file` is found-failing-only there, as bandit's B306 for the same call already was.
   6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
      no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
      V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
@@ -1011,6 +1030,12 @@ another session is not a claim.
      joins the error-page markers. `probe.ai-floating-model-sent` (C3.2.3) reads the model name the app sent the test
      model. Five guards broken in turn, each caught. Not done: other frameworks' consoles, and looking up whether a
      name without `latest` is an alias its vendor moves.
+  8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
+     from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
+     grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
+     Spring Authorization Server, league/oauth2-server, fosite, and node-oauth2-server), and only ever a finding.
+     **Claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
+     in branch `claude/securevibe-e9-retired-grants`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that

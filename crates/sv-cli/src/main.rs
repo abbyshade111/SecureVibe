@@ -952,7 +952,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
         match arg.as_str() {
             "--print" => print = true,
             other if other.starts_with("--") => bail!("unknown option: {other}"),
-            other => app_dir = PathBuf::from(other),
+            other => app_dir = sv_check::adapters::clean_folder(Path::new(other)),
         }
     }
     if !app_dir.is_dir() {
@@ -1250,7 +1250,7 @@ fn cmd_run(args: &[String]) -> Result<()> {
         match arg.as_str() {
             "--slow" => slow = true,
             other if other.starts_with('-') => bail!("unknown option: {other}"),
-            other => app_dir = PathBuf::from(other),
+            other => app_dir = sv_check::adapters::clean_folder(Path::new(other)),
         }
     }
     let manifest_path = app_dir.join("securevibe.toml");
@@ -1718,7 +1718,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
                 ));
             }
             other if other.starts_with("--") => bail!("unknown option: {other}"),
-            other => app_dir = PathBuf::from(other),
+            other => app_dir = sv_check::adapters::clean_folder(Path::new(other)),
         }
     }
     if !app_dir.is_dir() {
@@ -3562,7 +3562,7 @@ fn parse_report_args(args: &[String], out_wants: &str) -> Result<ReportArgs> {
                 ));
             }
             other if other.starts_with('-') => bail!("unknown option: {other}"),
-            other => parsed.app_dir = PathBuf::from(other),
+            other => parsed.app_dir = sv_check::adapters::clean_folder(Path::new(other)),
         }
     }
     Ok(parsed)

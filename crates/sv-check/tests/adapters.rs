@@ -833,6 +833,60 @@ fn every_pack_the_semgrep_adapter_runs_has_been_measured() {
     }
 }
 
+fn codeql_suites() -> serde_json::Value {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/codeql-suites.json");
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+#[test]
+fn every_codeql_query_the_map_counts_is_in_the_suite_its_adapter_runs() {
+    // Each CodeQL adapter runs one suite. A query mapped to a requirement but not selected by that
+    // suite never runs, so it would count in the coverage document for nothing. What each suite
+    // selects is measured with `codeql resolve queries` by tools/codeql_suites.py.
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(data()).unwrap()).unwrap();
+    let suites = codeql_suites();
+    let mut adapters = 0;
+    let mut checked = 0;
+    for adapter in data["adapters"].as_array().unwrap() {
+        let id = adapter["id"].as_str().unwrap();
+        if !id.starts_with("codeql") {
+            continue;
+        }
+        adapters += 1;
+        let run: Vec<&str> = adapter["run"]["args"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|a| a.as_str())
+            .filter(|a| a.ends_with(".qls"))
+            .collect();
+        assert_eq!(run.len(), 1, "{id} runs one suite: {run:?}");
+        let selected: Vec<&str> = suites["suites"][run[0]]["rules"]
+            .as_array()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{id} runs {}, which data/codeql-suites.json has not measured",
+                    run[0]
+                )
+            })
+            .iter()
+            .map(|r| r.as_str().unwrap())
+            .collect();
+        for query in adapter["rules"].as_object().unwrap().keys() {
+            assert!(
+                selected.contains(&query.as_str()),
+                "{id} maps {query}, which {} does not select, so it never runs",
+                run[0]
+            );
+            checked += 1;
+        }
+    }
+    // The setup: both adapters were read, and their maps are not empty.
+    assert_eq!(adapters, 2);
+    assert!(checked > 50, "{checked}");
+}
+
 // ---- Arguments that depend on the app
 
 fn semgrep_of(adapters: &Adapters) -> &sv_check::adapters::Adapter {
