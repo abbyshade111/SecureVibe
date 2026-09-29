@@ -654,6 +654,11 @@ another session is not a claim.
   guessing checks). A fix would treat 429 (and 503 with `Retry-After`) as "the app did not answer the question":
   wait out `Retry-After` once and ask again, else not assessed, never refused. The file is frozen for the split
   until step 2; this waits for it, or for the session holding slice b (private pages).
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-rate-limited`, now that the split is done. The claim covers the false pass found
+  while looking (a 429 or a 503 with `Retry-After` read as the app's own answer, in the signed-in checks and any
+  other probe that reads a status the same way); the reported CRITICAL still needs the other project's report
+  from the owner, and stays open until it is read.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
