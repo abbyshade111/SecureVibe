@@ -147,6 +147,9 @@ RUST_CHECKS = {
     "probe.sign-out-on-get": ("signed-in", ["V3.5.3"]),
     "probe.password-change": ("signed-in", ["V6.2.2"]),
     "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
+    "probe.password-change-ends-sessions": ("signed-in", ["V7.4.3"]),
+    "probe.password-change-notified": ("signed-in", ["V6.3.7"]),
+    "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
     "probe.sessions-survive-deletion": ("signed-in", ["V7.4.2"]),
     "probe.password-hints": ("signed-in", ["V6.4.2"]),
     "probe.reset-reusable": ("signed-in", ["V6.4.3"]),
@@ -205,6 +208,14 @@ RUST_FINDINGS_ONLY = {
     "probe.ai-input-truncated",
     "probe.ai-injection-other-languages",
     "probe.ai-raw-response-exposed",
+    "probe.identity-header-trusted",
+}
+
+# The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
+# would find missing may be met some way the check cannot see, so it is left not assessed.
+RUST_CREDITS_ONLY = {
+    "probe.password-change-ends-sessions",
+    "probe.password-change-notified",
 }
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
@@ -727,11 +738,13 @@ def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only
                             "words": "; ".join(sorted(set(what))[:6])
                                      + (f"; and {len(set(what)) - 6} more" if len(set(what)) > 6 else ""),
                             "rules": len(set(what)), "finding_only": finding_only,
+                            "credited_only": False,
                         })
                     else:
                         label, text = words.get(c, ("Looks for", ""))
                         checks.append({"id": c, "kind": tier_name[t], "tool": False, "label": label,
-                                       "words": text, "finding_only": c in only})
+                                       "words": text, "finding_only": c in only,
+                                       "credited_only": c in RUST_CREDITS_ONLY})
             rows.append({
                 "id": q, "framework": name, "level": v["level"],
                 "family": v["chapter"], "family_name": v["chapter_name"],
@@ -761,6 +774,8 @@ def requirements_markdown(rows):
     w("  a passing test names the requirement's id; otherwise it stays *not verified*.")
     w("- *found failing only*: that check can show the requirement is not met, and finding nothing does")
     w("  not show it is, so a clean run credits nothing.")
+    w("- *credited only*: that check can show the requirement is met, and never marks it *needs")
+    w("  attention*, since the app may meet it in a way the check cannot see; it says so instead.")
     w("- Each check says what kind it is and so what it needs to run:\n")
     w("| Kind | Needs |")
     w("|---|---|")
@@ -796,6 +811,8 @@ def requirements_markdown(rows):
                             desc += f", {ch['label'].lower()}: {ch['words']}"
                         if ch["finding_only"]:
                             desc += " (found failing only)"
+                        if ch["credited_only"]:
+                            desc += " (credited only)"
                         parts.append(desc.replace("|", "\\|"))
                     text = r["text"].replace("|", "\\|").replace("\n", " ")
                     checks = "<br>".join(parts) if parts else "–"

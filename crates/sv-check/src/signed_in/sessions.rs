@@ -1005,6 +1005,68 @@ pub(super) fn session_checks(a: &SignedIn, signed_in_works: bool, out: &mut Outc
     }
 }
 
+/// The headers a proxy in front of an app adds to say who the user is, each with the value it would
+/// carry for the first test user.
+const IDENTITY_HEADERS: [&str; 8] = [
+    "X-User-ID",
+    "X-User",
+    "X-Forwarded-User",
+    "X-Remote-User",
+    "Remote-User",
+    "X-Auth-Request-User",
+    "X-Auth-Request-Email",
+    "X-Forwarded-Email",
+];
+
+/// V4.1.3: a private page asked for by somebody not signed in, carrying in turn each header a proxy
+/// uses to say who the user is. An app that lets the request in takes the header's word for who is
+/// asking, so anybody can be anybody. Only pages that refused a stranger, on a run where signing in
+/// was shown to open them, are asked, so an opened page is the header's doing. Only ever a finding:
+/// refusing these eight says nothing about a header not tried.
+pub(super) fn identity_header_check(
+    http: &mut dyn Http,
+    user: &str,
+    private: &[String],
+    out: &mut Outcome,
+) {
+    let mut opened = Vec::new();
+    let mut asked = 0;
+    for path in private {
+        for (n, header) in IDENTITY_HEADERS.iter().enumerate() {
+            let value = if *header == "X-User-ID" { "1" } else { user };
+            let mut request = get(&format!("identity-header-{n}"), path, &Session::default());
+            request
+                .headers
+                .push(((*header).to_owned(), value.to_owned()));
+            asked += 1;
+            if ok(&http.send(&request)) {
+                opened.push(format!("{path} with {header}: {value}"));
+            }
+        }
+    }
+    out.steps.push(format!(
+        "asked for {} private page{} without signing in, carrying {} header{} that name a user: {} \
+         let in",
+        private.len(),
+        if private.len() == 1 { "" } else { "s" },
+        asked,
+        if asked == 1 { "" } else { "s" },
+        opened.len()
+    ));
+    if !opened.is_empty() {
+        out.findings.push(finding(
+            &IDENTITY_HEADER,
+            "A header that names a user opens a private page without signing in",
+            Severity::High,
+            format!(
+                "Asked for without a session, a page that refused somebody not signed in opened \
+                 when the request named the test user in a header: {}.",
+                opened.join("; ")
+            ),
+        ));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::fake_app::*;
@@ -1996,6 +2058,85 @@ mod tests {
                 .any(|w| w.contains("sign-out itself was refused")),
             "{:?}",
             o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_header_that_names_a_user_and_opens_a_private_page_is_found() {
+        let o = run_against(
+            Flaws {
+                trusts_identity_header: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == IDENTITY_HEADER.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(
+            found.description.contains("X-Remote-User"),
+            "{}",
+            found.description
+        );
+        // Only the header the app trusts is named.
+        assert!(
+            !found.description.contains("X-Forwarded-User"),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&o).contains(&IDENTITY_HEADER.rule_id));
+    }
+
+    #[test]
+    fn an_app_that_ignores_identity_headers_raises_nothing_and_says_it_asked() {
+        let o = run_against(Flaws::default(), &users());
+        assert!(!rule_ids(&o).contains(&IDENTITY_HEADER.rule_id));
+        // Never credited either: eight header names are not every header a proxy may use.
+        assert!(!verified_ids(&o).contains(&IDENTITY_HEADER.rule_id));
+        let step = o
+            .steps
+            .iter()
+            .find(|s| s.contains("headers that name a user"))
+            .unwrap_or_else(|| panic!("the check ran: {:?}", o.steps));
+        assert!(step.ends_with(": 0 let in"), "{step}");
+    }
+
+    #[test]
+    fn a_private_page_open_to_anybody_is_not_blamed_on_a_header() {
+        // Of two pages listed as private, one is open without any header; that is the
+        // private-page finding, and only the other is asked with one.
+        let mut u = users();
+        u.private.push("/notes".into());
+        let o = run_against(
+            Flaws {
+                trusts_identity_header: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        assert!(
+            rule_ids(&o).contains(&PRIVATE_PAGE.rule_id),
+            "{:?}",
+            o.steps
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == IDENTITY_HEADER.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(
+            !found.description.contains("/notes"),
+            "{}",
+            found.description
+        );
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("asked for 1 private page without signing in")),
+            "{:?}",
+            o.steps
         );
     }
 }

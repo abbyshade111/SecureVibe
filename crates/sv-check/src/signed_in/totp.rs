@@ -404,12 +404,36 @@ mod tests {
         }
     }
 
-    /// The seeded suite, starting `before` seconds ahead of a 30-second boundary, with the clock
-    /// moving `per_request` seconds with every request, as it does against a real app.
+    /// The seeded suite, with the two-factor check starting `before` seconds ahead of a 30-second
+    /// boundary, and the clock moving `per_request` seconds with every request, as it does against
+    /// a real app. Where the check starts depends on how many requests the checks before it send,
+    /// so a first run finds that moment, and the second starts its clock so the moment lands where
+    /// the test wants it.
     fn totp_ticking(flaws: Flaws, before: u64, per_request: u64) -> Outcome {
-        let mut app = FakeApp::new(flaws);
         let step = crate::totp::STEP;
-        app.clock = (app.clock / step + 10) * step - before;
+        let (_, first, started) = totp_ticking_from(flaws, None, per_request);
+        let target = (started / step + 10) * step - before;
+        let (o, _, again) = totp_ticking_from(flaws, Some(first + target - started), per_request);
+        assert_eq!(
+            again % step,
+            target % step,
+            "the two-factor check did not start where the test put it"
+        );
+        o
+    }
+
+    /// One seeded run from `clock`, or the app's own start: the outcome, the clock it started at,
+    /// and the clock when the two-factor check began (just after the request before its first).
+    fn totp_ticking_from(
+        flaws: Flaws,
+        clock: Option<u64>,
+        per_request: u64,
+    ) -> (Outcome, u64, u64) {
+        let mut app = FakeApp::new(flaws);
+        if let Some(clock) = clock {
+            app.clock = clock;
+        }
+        let first = app.clock;
         app.seconds_per_request = per_request;
         let acc = accounts();
         for account in [&acc.a, &acc.b] {
@@ -426,7 +450,14 @@ mod tests {
         );
         app.totp
             .insert(totp.account.user.clone(), totp.secret.clone());
-        run(&mut app, &users(), &acc, true, &Default::default())
+        let o = run(&mut app, &users(), &acc, true, &Default::default());
+        let at = app
+            .clock_log
+            .iter()
+            .position(|(id, _)| id == "login-page-1")
+            .expect("the two-factor check ran");
+        assert!(at > 0, "a request came before the two-factor check");
+        (o, first, app.clock_log[at - 1].1)
     }
 
     #[test]

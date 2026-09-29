@@ -710,7 +710,8 @@ pub(super) fn change_password_checks(
     confirm: Option<&str>,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V6.2.2, V6.2.3";
+    // V7.4.3 and V6.3.7 are asked about the same change, so they are not assessed whenever it is not.
+    const IDS: &str = "V6.2.2, V6.2.3, V7.4.3, V6.3.7";
     let Some(change) = &users.change_password else {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -818,10 +819,59 @@ pub(super) fn change_password_checks(
                 change.path
             ),
         ));
+        out.not_assessed.push((
+            "V7.4.3, V6.3.7".to_owned(),
+            "What a password change does to the account's other sessions, and whether it emails the \
+             account holder: the change was taken with a wrong current password, so the account's \
+             password was no longer the one known here to try it again."
+                .to_owned(),
+        ));
         return;
     }
 
-    let answer = changed(http, &account.password, &second, "right-current");
+    // Before the change that should take: a second session of the same account (V7.4.3), and how
+    // many emails the account has had (V6.3.7).
+    let mut quiet = Vec::new();
+    let bystander = sign_in(http, users, "bystander", &account, &mut quiet).map(|s| s.session);
+    let mail_before = http.mail(&account.user, 0).map(|m| m.len());
+    // The change, by hand rather than through `changed`, so the second session can be shown to
+    // work after the changing session signed in: an app that keeps one session per account would
+    // otherwise end it at that sign-in, and the change would be credited with it.
+    let (answer, bystander_open_before) =
+        match sign_in(http, users, "right-current", &account, &mut quiet) {
+            None => (None, false),
+            Some(signed_in) => {
+                let open_before = bystander
+                    .as_ref()
+                    .is_some_and(|b| ok(&http.send(&get("bystander-before", confirm, b))));
+                let mut session = signed_in.session;
+                let values = Values {
+                    user: &account.user,
+                    password: &account.password,
+                    new_password: &second,
+                    ..Default::default()
+                };
+                let pages: Vec<String> = users.private.clone();
+                let answer = send_template(
+                    http,
+                    "change-password-right-current",
+                    change,
+                    &values,
+                    &mut session,
+                    &pages,
+                )
+                .0;
+                (answer, open_before)
+            }
+        };
+    let bystander_open_after = bystander
+        .as_ref()
+        .filter(|_| bystander_open_before)
+        .map(|b| ok(&http.send(&get("bystander-after", confirm, b))));
+    let mail_after = mail_before.and_then(|before| {
+        http.mail(&account.user, before + 1)
+            .map(|m| (before, m.len()))
+    });
     out.steps.push(format!(
         "asked to change the password giving the right current one ({})",
         status(&answer)
@@ -878,6 +928,67 @@ pub(super) fn change_password_checks(
             change.path
         ),
     ));
+    sessions_after_change(bystander_open_after, &change.path, out);
+    email_after_change(mail_after, &change.path, out);
+}
+
+/// V7.4.3: whether a second session of the account still opened a private page after the password
+/// was changed in another. `None` when that second session could not be shown working just before
+/// the change.
+fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome) {
+    match open_after {
+        Some(false) => out.verified.push(crate::Verified::new(
+            CHANGE_ENDS_SESSIONS.rule_id,
+            CHANGE_ENDS_SESSIONS.requirement_ids,
+            format!(
+                "a second session of the account, open just before the password was changed \
+                 through {path}, and shut just after"
+            ),
+        )),
+        Some(true) => out.not_assessed.push((
+            "V7.4.3".to_owned(),
+            format!(
+                "Another session of the account kept working after the password was changed \
+                 through {path}. That meets V7.4.3 only if the app offers to end the other \
+                 sessions when the password changes; check whether it does. Not a finding: an \
+                 offer on the page cannot be seen from here."
+            ),
+        )),
+        None => out.not_assessed.push((
+            "V7.4.3".to_owned(),
+            "Whether a password change ends the account's other sessions: a second session could \
+             not be shown opening a private page just before the change, so its being shut \
+             afterwards would show nothing."
+                .to_owned(),
+        )),
+    }
+}
+
+/// V6.3.7: whether an email reached the account holder after the password was changed, as
+/// (emails before, emails after), or `None` when the run has no mail server to read.
+fn email_after_change(mail: Option<(usize, usize)>, path: &str, out: &mut Outcome) {
+    match mail {
+        Some((before, after)) if after > before => out.verified.push(crate::Verified::new(
+            CHANGE_NOTIFIED.rule_id,
+            CHANGE_NOTIFIED.requirement_ids,
+            format!("an email to the account holder after a password change through {path}"),
+        )),
+        Some(_) => out.not_assessed.push((
+            "V6.3.7".to_owned(),
+            format!(
+                "No email reached the account holder after the password was changed through \
+                 {path}. If the app tells people about a changed password some other way, such as \
+                 a message in the app, say so; if not, it should email them. Not a finding: \
+                 another way cannot be seen from here."
+            ),
+        )),
+        None => out.not_assessed.push((
+            "V6.3.7".to_owned(),
+            "Whether the account holder is emailed when the password changes: this run has no \
+             mail server to read, so no email could have been seen."
+                .to_owned(),
+        )),
+    }
 }
 
 /// Whether the answer to a reset request tells an address with an account from one without.
@@ -1344,7 +1455,7 @@ mod tests {
         let (_, why) = o
             .not_assessed
             .iter()
-            .find(|(ids, _)| ids == "V6.2.2, V6.2.3")
+            .find(|(ids, _)| ids == "V6.2.2, V6.2.3, V7.4.3, V6.3.7")
             .expect("both are named as not assessed");
         assert!(why.contains("did not take"), "{why}");
     }
@@ -1361,7 +1472,7 @@ mod tests {
         let (_, why) = o
             .not_assessed
             .iter()
-            .find(|(ids, _)| ids == "V6.2.2, V6.2.3")
+            .find(|(ids, _)| ids == "V6.2.2, V6.2.3, V7.4.3, V6.3.7")
             .expect("named as not assessed");
         assert!(why.contains("`change-password`"), "{why}");
     }
@@ -1950,5 +2061,154 @@ mod tests {
             ),
             1
         );
+    }
+
+    /// The account's sign-up run against `app`, which may have settings of its own.
+    fn run_app(http: &mut dyn Http) -> Outcome {
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        run(http, &with_signup(), &acc, false, &Default::default())
+    }
+
+    fn not_assessed_for<'a>(o: &'a Outcome, ids: &str) -> Vec<&'a str> {
+        o.not_assessed
+            .iter()
+            .filter(|(i, _)| i == ids)
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_correct_change_ends_the_other_sessions_and_emails_the_account_holder() {
+        let o = run_signing_up(Flaws::default());
+        for rule in [&CHANGE_ENDS_SESSIONS, &CHANGE_NOTIFIED] {
+            assert!(
+                verified_ids(&o).contains(&rule.rule_id),
+                "{}: {:?}",
+                rule.rule_id,
+                o.steps
+            );
+            assert!(!rule_ids(&o).contains(&rule.rule_id));
+        }
+        assert!(
+            not_assessed_for(&o, "V7.4.3").is_empty(),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            not_assessed_for(&o, "V6.3.7").is_empty(),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn other_sessions_left_open_are_asked_about_never_found_or_credited() {
+        // V7.4.3 lets the app offer to end them instead, and an offer cannot be seen from here.
+        let o = run_signing_up(Flaws {
+            change_keeps_sessions: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id));
+        assert!(!rule_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id));
+        let why = not_assessed_for(&o, "V7.4.3");
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("kept working"), "{}", why[0]);
+        assert!(
+            why[0].contains("offers to end the other sessions"),
+            "{}",
+            why[0]
+        );
+        // The email is its own question, answered as before.
+        assert!(verified_ids(&o).contains(&CHANGE_NOTIFIED.rule_id));
+    }
+
+    #[test]
+    fn no_email_after_a_change_is_asked_about_never_found_or_credited() {
+        let o = run_signing_up(Flaws {
+            change_sends_no_email: true,
+            ..Default::default()
+        });
+        assert!(!verified_ids(&o).contains(&CHANGE_NOTIFIED.rule_id));
+        assert!(!rule_ids(&o).contains(&CHANGE_NOTIFIED.rule_id));
+        let why = not_assessed_for(&o, "V6.3.7");
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("No email reached"), "{}", why[0]);
+        assert!(verified_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id));
+    }
+
+    /// The fake app with no mail server to read.
+    struct NoMail(FakeApp);
+
+    impl Http for NoMail {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.0.send(r)
+        }
+        fn now(&mut self) -> u64 {
+            self.0.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.0.wait(seconds);
+        }
+    }
+
+    #[test]
+    fn with_no_mail_server_the_email_is_not_assessed() {
+        let mut http = NoMail(FakeApp::new(Flaws::default()));
+        let o = run_app(&mut http);
+        // The change itself was checked: the rest of it is credited.
+        assert!(
+            verified_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&CHANGE_NOTIFIED.rule_id));
+        let why = not_assessed_for(&o, "V6.3.7");
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("no mail server"), "{}", why[0]);
+        // The app did send it: only the reading was missing.
+        assert!(
+            http.0
+                .outbox
+                .iter()
+                .any(|(_, text)| text.contains("Your password was changed")),
+            "{:?}",
+            http.0.outbox
+        );
+    }
+
+    #[test]
+    fn an_app_with_one_session_per_account_is_not_credited_for_ending_them_on_a_change() {
+        // Signing in to make the change already ends the second session, so its being shut
+        // afterwards says nothing about the change.
+        let mut app = FakeApp::new(Flaws {
+            change_keeps_sessions: true,
+            ..Default::default()
+        });
+        app.one_session_per_user = true;
+        let o = run_app(&mut app);
+        assert!(
+            app.clock_log.iter().any(|(id, _)| id == "bystander-before"),
+            "the second session was asked about"
+        );
+        assert!(!verified_ids(&o).contains(&CHANGE_ENDS_SESSIONS.rule_id));
+        let why = not_assessed_for(&o, "V7.4.3");
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("could not be shown"), "{}", why[0]);
+    }
+
+    #[test]
+    fn a_change_taken_with_a_wrong_current_password_leaves_both_questions_open() {
+        let o = run_signing_up(Flaws {
+            change_without_current: true,
+            ..Default::default()
+        });
+        for rule in [&CHANGE_ENDS_SESSIONS, &CHANGE_NOTIFIED] {
+            assert!(!verified_ids(&o).contains(&rule.rule_id));
+        }
+        let why = not_assessed_for(&o, "V7.4.3, V6.3.7");
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("wrong current password"), "{}", why[0]);
     }
 }

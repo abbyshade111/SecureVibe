@@ -394,6 +394,19 @@ pub(super) const FORWARDED_TRUSTED: Rule = Rule {
           setting to your proxy rather than reading the header yourself.",
 };
 
+/// Only ever a finding: an app that ignores these headers has shown nothing about the others a
+/// proxy might add.
+pub(super) const IDENTITY_HEADER: Rule = Rule {
+    rule_id: "probe.identity-header-trusted",
+    requirement_ids: &["V4.1.3"],
+    cwe: &["CWE-290"],
+    impact: "Anybody can open a private page as somebody else, without signing in, by adding a \
+             header that says who they are.",
+    fix: "Take who the user is from the session alone. Trust a header such as X-Remote-User only \
+          behind a proxy you run that sets it on every request and strips it from what the browser \
+          sends, and never read it from a request that did not come through that proxy.",
+};
+
 pub(super) const COMPOSITION_RULES: Rule = Rule {
     rule_id: "probe.password-composition-rules",
     requirement_ids: &["V6.2.5"],
@@ -492,6 +505,29 @@ pub(super) const CHANGE_WITHOUT_CURRENT: Rule = Rule {
              through a stolen cookie, can change the password and keep the account.",
     fix: "Ask for the current password when the password is changed, check it against the stored \
           hash, and refuse the change when it does not match.",
+};
+
+/// Only ever credited. Other sessions that keep working after a change are not a finding, since
+/// V7.4.3 is also met by an app that offers to end them, which no request can see.
+pub(super) const CHANGE_ENDS_SESSIONS: Rule = Rule {
+    rule_id: "probe.password-change-ends-sessions",
+    requirement_ids: &["V7.4.3"],
+    cwe: &["CWE-613"],
+    impact: "Somebody who already has a session, from a stolen cookie or a computer left signed in, \
+             keeps it after the account holder changes the password to lock them out.",
+    fix: "When the password is changed, end every other session of that account, or offer the \
+          person a way to do so on the same page.",
+};
+
+/// Only ever credited. No email is not a finding: the app may tell people some other way.
+pub(super) const CHANGE_NOTIFIED: Rule = Rule {
+    rule_id: "probe.password-change-notified",
+    requirement_ids: &["V6.3.7"],
+    cwe: &["CWE-778"],
+    impact: "Somebody who takes over an account and changes its password does so without the \
+             account holder being told, so they find out only when they cannot sign in.",
+    fix: "Send an email to the account's address whenever its password is changed, saying when, and \
+          what to do if it was not them.",
 };
 
 pub(super) const RESET_REUSABLE: Rule = Rule {
