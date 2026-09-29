@@ -152,6 +152,16 @@ fn looks_like_placeholder(value: &str) -> bool {
     if v.is_empty() {
         return true;
     }
+    // `{new_password}`, `{code}`: the single-brace blanks `sv`'s own securevibe.toml fills in, whole.
+    // `sv init`'s template raised a HIGH finding at its own commented example until 29 September
+    // 2026 (found by the owner's comparison study). `{new_password}x9Q2vL` has text of its own.
+    if let Some(name) = v.strip_prefix('{').and_then(|r| r.strip_suffix('}'))
+        && !name.is_empty()
+        && name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return true;
+    }
     let lower = v.to_lowercase();
     const MARKERS: &[&str] = &[
         "example",
@@ -543,6 +553,40 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
 /// Above this, a file is not something a person typed and reading it all costs more than it finds.
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sv_init_s_own_template_raises_no_credential_finding() {
+        let found = scan_text(
+            &rules(),
+            "securevibe.toml",
+            sv_manifest::spec::STARTER_MANIFEST,
+        );
+        assert!(
+            found.is_empty(),
+            "{:?}",
+            found
+                .iter()
+                .map(|f| (&f.rule_id, f.location.line))
+                .collect::<Vec<_>>()
+        );
+        // The setup: the template really has the line that tripped it.
+        assert!(sv_manifest::spec::STARTER_MANIFEST.contains(r#"password = "{new_password}""#));
+    }
+
+    #[test]
+    fn a_blank_in_sv_s_own_braces_is_a_placeholder_and_a_value_around_one_is_not() {
+        let judged = |line: &str| {
+            !assignment_findings("securevibe.toml", line, 1, &(0..usize::MAX)).is_empty()
+        };
+        assert!(!judged(r#"password = "{new_password}""#));
+        assert!(!judged(r#"token = "{code}""#));
+        // The control: the same blank with text of its own is still reported. Named, not printed.
+        let with_text = ["{new_password}", "x9Q2vL7kP"].concat();
+        assert!(
+            judged(&format!(r#"password = "{with_text}""#)),
+            "a value around a blank was passed over"
+        );
+    }
+
     #[test]
     fn a_value_that_is_wholly_a_reference_is_not_a_credential_and_one_that_contains_one_is() {
         let judged =

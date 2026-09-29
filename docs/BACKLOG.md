@@ -691,24 +691,38 @@ another session is not a claim.
   `looks_like_placeholder` knows `${VAR}`, `<name>`, and `{{ var }}` but not the single-brace `{name}` `sv`'s own
   manifest uses. Fix: a value that is entirely one `{identifier}` is a placeholder; `"{new_password}x9Q2vL"` is
   still judged. A test that `sv init`'s own output raises no findings would catch a return. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** a value that is wholly one `{identifier}` is a placeholder, and one with anything around the
+  braces is still judged. A test scans `sv init`'s real template and fails on any credential finding; breaking the
+  rule turned it and a unit test red.
 - **A missing outside tool is reported as installed and broken under amd64 emulation.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `presence()` in
   `crates/sv-check/src/adapters.rs` reads a spawn that failed as missing and one that exited non-zero as broken;
   under QEMU on an ARM Mac, spawning a program that does not exist succeeds and the child exits 127, so Semgrep and
   CodeQL, absent from the image, read as "installed and would not start". Fix: exit status 127 with nothing on
   stderr is missing, the shell's own meaning of 127. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** a silent 127 is missing; a 127 that says something on stderr stays broken, since a program
+  that exists can exit 127 too. Tested with a real adapter whose version command is a stand-in script; breaking it
+  turned two tests red. Not run under QEMU here.
 - **An app folder given with a trailing `/.` leaves outside tools' paths absolute, and their fingerprints change.**
   Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `sv report app/.` reported every Bandit finding at an absolute path, because `relative_to` in
   `adapters.rs` strips the folder as text and `…/app/.` is not a prefix of `…/app/backend/…`; the fingerprints
   differed from the same scan of `app`, so a reviewed finding stops matching. Fix: normalize the folder once, where
   `sv` receives it, so `app`, `app/`, `app/.`, `./app`, and its absolute path give the same report. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day:** the command line cleans the folder of `.` parts and trailing separators, and `relative_to`
+  tries the folder as given, cleaned, and canonical, only where the match ends at a separator (so `app-other` is
+  not under `app`). Each guard broken in turn turned its test red.
 - **An app in a subfolder of a git repository is reported as not in git.** Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
   --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `tracked_files` in
   `crates/sv-check/src/config.rs` looks for `.git` in the app folder itself, which exists only at a repository's
   root, so `config.secrets-file-committed` says "This folder is not a git repository" and advises putting it in git.
   Fix: ask git (`git -C <app> rev-parse --is-inside-work-tree`, then `ls-files`, which lists the subfolder's tracked
   files relative to it). **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+  **Done the same day,** by looking for `.git` in the app's folder and every folder above it rather than asking
+  `rev-parse`, so a `.git` git cannot read is still told from none: git is asked from inside the app's folder, so
+  only its own files count, and a secrets file committed elsewhere in the repository is not reported. An app in a
+  subfolder with no `.gitignore` of its own is not assessed rather than failed. See DESIGN, "A check reports one
+  of three things".
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
