@@ -1041,6 +1041,11 @@ another session is not a claim.
      names read from its own source, and only where the library is among the app's packages or the file names it.
      Six guards broken in turn, each caught. Not done: league/oauth2-server (its source could not be fetched here),
      Spring (whose authorization server has no password grant to switch on), and settings kept in a database.
+  9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
+     code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
+     as a key. Only ever a finding; a count read from a setting is not judged.
+     **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
+     in branch `claude/securevibe-e2-weak-kdf`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
