@@ -1656,7 +1656,17 @@ mod rate_limit_tests {
     }
 
     fn limited(id: &'static str, status: u16, retry: Option<&'static str>, times: u32) -> Limited {
-        let mut app = FakeApp::new(Flaws::default());
+        limited_with(Flaws::default(), id, status, retry, times)
+    }
+
+    fn limited_with(
+        flaws: Flaws,
+        id: &'static str,
+        status: u16,
+        retry: Option<&'static str>,
+        times: u32,
+    ) -> Limited {
+        let mut app = FakeApp::new(flaws);
         let acc = accounts();
         for account in [&acc.a, &acc.b] {
             app.users
@@ -1756,6 +1766,7 @@ mod rate_limit_tests {
         let mut always = limited("private-after-get-logout", 429, Some("2"), 99);
         let o = run_limited(&mut always);
         assert!(rule_ids(&o).contains(&SIGN_OUT_ON_GET.rule_id));
+        assert!(o.verified.is_empty(), "credited: {:?}", verified_ids(&o));
         assert!(
             o.not_assessed
                 .iter()
@@ -1787,6 +1798,58 @@ mod rate_limit_tests {
             Some(5),
             "a date: five seconds"
         );
+    }
+
+    #[test]
+    fn a_real_finding_is_kept_through_a_persistent_limit_and_flagged() {
+        // An app with a default admin account, behind a limiter that never lets the stranger's look
+        // at the private page through. The default account is found by signing in, which the
+        // limiter does not touch: the finding stays, and the run says it may rest on the limiter.
+        let flaws = Flaws {
+            default_admin: true,
+            ..Default::default()
+        };
+        let mut limiter = limited_with(flaws, "private-anonymous", 429, Some("1"), 99);
+        let o = run_limited(&mut limiter);
+        assert!(
+            rule_ids(&o).contains(&DEFAULT_ACCOUNT.rule_id),
+            "{:?}",
+            rule_ids(&o)
+        );
+        assert!(o.verified.is_empty(), "credited: {:?}", verified_ids(&o));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V6.3.2") && why.contains("may be the limiter's")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn what_counts_as_a_limiter_and_how_long_it_is_waited() {
+        let answer = |status: u16, retry: Option<&str>| {
+            rate_limited(&ProbeResponse {
+                id: String::new(),
+                status,
+                headers: retry
+                    .map(|v| vec![("retry-after".to_owned(), v.to_owned())])
+                    .unwrap_or_default(),
+                body: String::new(),
+            })
+        };
+        assert_eq!(answer(429, Some("12")), Some(12));
+        assert_eq!(answer(429, Some("3600")), Some(60), "at most a minute");
+        assert_eq!(answer(429, None), Some(5));
+        assert_eq!(answer(503, Some("3")), Some(3));
+        assert_eq!(
+            answer(503, None),
+            None,
+            "a 503 that names no wait is the app failing"
+        );
+        assert_eq!(answer(500, Some("3")), None);
+        assert_eq!(answer(401, Some("3")), None, "a refusal is an answer");
+        assert_eq!(answer(200, None), None);
     }
 
     #[test]
