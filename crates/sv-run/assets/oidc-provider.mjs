@@ -16,6 +16,8 @@
 //   wrong-iss    the sign-in's `iss` parameter names another provider (used up at /authorize, since
 //                an app that refuses it never asks for a token)
 //   wrong-token-iss  an ID token whose `iss` claim names another provider
+//   other-person     a different person (another `sub`) who has the same email address
+//   new-email        the same person (the same `sub`) after their email address changed
 import http from 'node:http';
 import crypto from 'node:crypto';
 
@@ -30,7 +32,7 @@ const KID = 'sv-1';
 // A provider that does not exist, named where a mix-up attack would name one.
 const OTHER_ISSUER = 'http://sv-other-idp.invalid';
 const codes = new Map(); // code -> what the sign-in asked for
-const tokens = new Map(); // access token -> sub
+const tokens = new Map(); // access token -> { sub, email }
 let mode = 'normal';
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
@@ -129,18 +131,18 @@ http
       const now = Math.floor(Date.now() / 1000);
       const claims = {
         iss: how === 'wrong-token-iss' ? OTHER_ISSUER : ISSUER,
-        sub: 'sv-oidc-user',
+        sub: how === 'other-person' ? 'sv-oidc-other-person' : 'sv-oidc-user',
         aud: how === 'wrong-aud' ? 'some-other-client' : CLIENT_ID,
         exp: now + 300,
         iat: now,
         auth_time: now,
-        email: 'sv-oidc-user@example.test',
+        email: how === 'new-email' ? 'sv-oidc-user-new@example.test' : 'sv-oidc-user@example.test',
         email_verified: true,
       };
       if (grant.nonce !== null) claims.nonce = how === 'wrong-nonce' ? `not-${grant.nonce}` : grant.nonce;
       else if (how === 'wrong-nonce') claims.nonce = 'a-nonce-nobody-sent';
       const access = b64url(crypto.randomBytes(24));
-      tokens.set(access, claims.sub);
+      tokens.set(access, { sub: claims.sub, email: claims.email });
       return json(res, 200, {
         access_token: access,
         token_type: 'Bearer',
@@ -150,13 +152,17 @@ http
     }
     if (req.method === 'GET' && path === '/userinfo') {
       const bearer = /^Bearer (.+)$/i.exec(req.headers.authorization || '');
-      const sub = bearer && tokens.get(bearer[1]);
-      if (!sub) return json(res, 401, { error: 'invalid_token' });
-      return json(res, 200, { sub, email: 'sv-oidc-user@example.test', email_verified: true });
+      const who = bearer && tokens.get(bearer[1]);
+      if (!who) return json(res, 401, { error: 'invalid_token' });
+      return json(res, 200, { sub: who.sub, email: who.email, email_verified: true });
     }
     if (req.method === 'POST' && path === '/_sv/mode') {
       const wanted = new URLSearchParams(await body(req)).get('mode');
-      if (!['normal', 'wrong-nonce', 'wrong-aud', 'unsigned', 'wrong-key', 'wrong-iss', 'wrong-token-iss'].includes(wanted)) {
+      const modes = [
+        'normal', 'wrong-nonce', 'wrong-aud', 'unsigned', 'wrong-key', 'wrong-iss', 'wrong-token-iss',
+        'other-person', 'new-email',
+      ];
+      if (!modes.includes(wanted)) {
         return json(res, 400, { error: 'unknown mode' });
       }
       mode = wanted;

@@ -21,6 +21,10 @@ health = "/"
 [stack.run.oidc]
 start = "/login/google"
 private = "/account"
+# How to save something as the signed-in person, and where it shows, so the probes can tell whose
+# account each sign-in reaches: two people who share an email address must not share one (V10.5.2).
+create = { path = "/notes", form = { text = "{marker}" } }
+shows = "/notes"
 
 [capabilities]
 auth = true

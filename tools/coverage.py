@@ -134,6 +134,7 @@ RUST_CHECKS = {
     "probe.oidc-audience-not-checked": ("signed-in", ["V10.5.4"]),
     "probe.oidc-signature-not-checked": ("signed-in", ["V6.8.2"]),
     "probe.oidc-issuer-not-checked": ("signed-in", ["V10.2.2"]),
+    "probe.oidc-user-keyed-on-email": ("signed-in", ["V10.5.2"]),
     "probe.sign-out-control-hidden": ("signed-in", ["V7.4.4"]),
     "probe.text-rendered-as-markup": ("signed-in", ["V3.2.2"]),
     "probe.storage-kept-after-sign-out": ("signed-in", ["V14.3.1"]),
