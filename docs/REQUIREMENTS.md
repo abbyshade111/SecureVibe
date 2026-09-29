@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 154 can be checked, 9 where a check helps but a person decides, and 182 with no check.
+345 requirements: 155 can be checked, 9 where a check helps but a person decides, and 181 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 78 can be checked)
+### Level 2 (183 requirements, 79 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -336,7 +336,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V10.4.10** Verify that confidential client is authenticated for client-to-authorized server backchannel requests such as token requests, pushed authorization requests (PAR), and token revocation requests. | No check | – |
 | **V10.4.11** Verify that the authorization server configuration only assigns the required scopes to the OAuth client. | No check | – |
 | **V10.5.1** Verify that the client (as the relying party) mitigates ID Token replay attacks. For example, by ensuring that the 'nonce' claim in the ID Token matches the 'nonce' value sent in the authentication request to the OpenID Provider (in OAuth2 refereed to as the authorization request sent to the authorization server). | Can be checked | Signed in: `probe.oidc-nonce-not-checked`, if it fails: An ID token captured from one sign-in can be played back to sign in again. |
-| **V10.5.2** Verify that the client uniquely identifies the user from ID Token claims, usually the 'sub' claim, which cannot be reassigned to other users (for the scope of an identity provider). | No check | – |
+| **V10.5.2** Verify that the client uniquely identifies the user from ID Token claims, usually the 'sub' claim, which cannot be reassigned to other users (for the scope of an identity provider). | Can be checked | Signed in: `probe.oidc-user-keyed-on-email`, if it fails: The app decides who someone is by their email address at the sign-in provider rather than by the provider's permanent id for them. An email address can pass from one person to another (a reused work address, a provider that lets people choose it), and whoever holds it next is signed in to the first person's account. |
 | **V10.5.3** Verify that the client rejects attempts by a malicious authorization server to impersonate another authorization server through authorization server metadata. The client must reject authorization server metadata if the issuer URL in the authorization server metadata does not exactly match the pre-configured issuer URL expected by the client. | No check | – |
 | **V10.5.4** Verify that the client validates that the ID Token is intended to be used for that client (audience) by checking that the 'aud' claim from the token is equal to the 'client_id' value for the client. | Can be checked | Signed in: `probe.oidc-audience-not-checked`, if it fails: An ID token issued to any other app that uses the same provider signs its holder in here — including an app an attacker wrote to collect them. |
 | **V10.5.5** Verify that, when using OIDC back-channel logout, the relying party mitigates denial of service through forced logout and cross-JWT confusion in the logout flow. The client must verify that the logout token is correctly typed with a value of 'logout+jwt', contains the 'event' claim with the correct member name, and does not contain a 'nonce' claim. Note that it is also recommended to have a short expiration (e.g., 2 minutes). | No check | – |
