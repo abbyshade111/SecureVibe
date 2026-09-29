@@ -17,6 +17,7 @@ pub mod confirm;
 pub mod cvss;
 pub mod design;
 pub mod finding;
+pub mod grants;
 pub mod hand;
 pub mod human;
 pub mod junit;
