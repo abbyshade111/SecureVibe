@@ -1024,6 +1024,12 @@ another session is not a claim.
      owner's asking to continue with the backlog, in branch `claude/securevibe-e9-running-halves`. Item 5 was
      looked at first and left: measuring the CodeQL suites needs the CodeQL bundle, which does not fit in this
      session's disk.
+     **Done the same day** (DESIGN, "A development console that answers, and the model name the app really
+     sent"). `probe.development-console-open` (V15.2.3, V13.4.2) asks for Werkzeug's console and Rails' information
+     page and knows each by words only that page carries, read from each tool's source; Django's debug 404 page
+     joins the error-page markers. `probe.ai-floating-model-sent` (C3.2.3) reads the model name the app sent the test
+     model. Five guards broken in turn, each caught. Not done: other frameworks' consoles, and looking up whether a
+     name without `latest` is an alias its vendor moves.
   8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
      from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
      grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
