@@ -993,18 +993,49 @@ fn relative_to(file: &str, app_dir: &Path) -> String {
     if app_dir.as_os_str().is_empty() {
         return file.to_owned();
     }
-    let prefix = app_dir.to_string_lossy();
-    // Only when the prefix really matched. Trimming the separator unconditionally turned
-    // `/elsewhere/lib.py` into `elsewhere/lib.py` for an app somewhere else entirely — a path that
-    // looks relative, is not, and points at nothing.
-    let Some(rest) = file.strip_prefix(prefix.as_ref()) else {
-        return file.to_owned();
-    };
-    let trimmed = rest.trim_start_matches(['/', '\\']);
-    if trimmed.is_empty() {
-        file.to_owned()
+    // The folder as it was given, then cleaned of `.` parts and trailing separators, then as the
+    // system resolves it: a tool may echo any of the three. `sv report app/.` left every Bandit
+    // path absolute until 29 September 2026, because Bandit wrote `…/app/backend/x.py`, which
+    // `…/app/.` is not a prefix of, and the fingerprints then differed from a scan of `app`.
+    let cleaned = clean_folder(app_dir);
+    let canonical = std::fs::canonicalize(app_dir).ok();
+    for prefix in [Some(app_dir.to_path_buf()), Some(cleaned), canonical]
+        .into_iter()
+        .flatten()
+    {
+        let prefix = prefix.to_string_lossy().into_owned();
+        if prefix.is_empty() {
+            continue;
+        }
+        // Only when the prefix really matched, and ended at a separator. Trimming the separator
+        // unconditionally turned `/elsewhere/lib.py` into `elsewhere/lib.py` for an app somewhere
+        // else entirely — a path that looks relative, is not, and points at nothing.
+        let Some(rest) = file.strip_prefix(prefix.as_str()) else {
+            continue;
+        };
+        if !(rest.is_empty() || rest.starts_with(['/', '\\']) || prefix.ends_with(['/', '\\'])) {
+            continue;
+        }
+        let trimmed = rest.trim_start_matches(['/', '\\']);
+        if !trimmed.is_empty() {
+            return trimmed.to_owned();
+        }
+    }
+    file.to_owned()
+}
+
+/// A folder without its `.` parts or a trailing separator: `app/.` and `./app/` are `app`, and `.`
+/// is itself. The one form the command line passes on, so the reports of one folder, however it
+/// was typed, are the same report.
+pub fn clean_folder(folder: &Path) -> std::path::PathBuf {
+    let cleaned: std::path::PathBuf = folder
+        .components()
+        .filter(|c| !matches!(c, std::path::Component::CurDir))
+        .collect();
+    if cleaned.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
     } else {
-        trimmed.to_owned()
+        cleaned
     }
 }
 
@@ -1070,6 +1101,65 @@ fn last_line(text: &str) -> String {
 /// Where to put a tool's report while it is being read.
 pub fn scratch_dir() -> PathBuf {
     std::env::temp_dir()
+}
+
+#[cfg(test)]
+mod folder_tests {
+    use super::*;
+
+    #[test]
+    fn a_path_under_the_app_folder_is_made_relative_however_the_folder_was_typed() {
+        let dir = std::env::temp_dir().join(format!("sv-folder-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("backend")).unwrap();
+        let abs = dir.display().to_string();
+        let file = format!("{abs}/backend/app.py");
+        for typed in [
+            abs.clone(),
+            format!("{abs}/"),
+            format!("{abs}/."),
+            format!("{abs}/./"),
+        ] {
+            assert_eq!(
+                relative_to(&file, Path::new(&typed)),
+                "backend/app.py",
+                "{typed}"
+            );
+        }
+        // A tool that echoes the folder as it was given, relative.
+        assert_eq!(
+            relative_to("./app/backend/x.py", Path::new("./app")),
+            "backend/x.py"
+        );
+        assert_eq!(
+            relative_to("app/backend/x.py", Path::new("app/.")),
+            "backend/x.py"
+        );
+        // The controls: a path elsewhere stays as it is, and so does one that only shares the
+        // folder's name as the start of a longer one.
+        assert_eq!(
+            relative_to("/elsewhere/lib.py", Path::new(&abs)),
+            "/elsewhere/lib.py"
+        );
+        let sibling = format!("{abs}-other/x.py");
+        assert_eq!(relative_to(&sibling, Path::new(&abs)), sibling);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_is_cleaned_of_its_dots_and_trailing_separator() {
+        for (typed, clean) in [
+            ("app", "app"),
+            ("app/", "app"),
+            ("app/.", "app"),
+            ("./app", "app"),
+            ("./app/./", "app"),
+            (".", "."),
+            ("./", "."),
+            ("/srv/app/.", "/srv/app"),
+        ] {
+            assert_eq!(clean_folder(Path::new(typed)), Path::new(clean), "{typed}");
+        }
+    }
 }
 
 #[cfg(test)]
