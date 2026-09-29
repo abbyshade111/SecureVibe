@@ -643,10 +643,12 @@ pub fn run_with(
 /// not an answer to the question, so a pass here is withheld when any of its requests crashed.
 ///
 /// `a_crash_never_turns_a_finding_into_a_pass` holds it: it runs the scripted app with its flaws
-/// switched on, crashes each request a run sends, one at a time, and fails when a rule found at
-/// fault is credited. It found requests this list first missed, of five kinds. It can only try a rule some
-/// scenario finds at fault, and fails when a rule listed here is not; a new check that credits a
-/// refusal needs its flaw added to a scenario there.
+/// switched on, crashes each request a run sends, one at a time, and fails when a rule held back
+/// without the crash is credited with it. It found requests this list first missed, of
+/// five kinds. It can only try a rule some scenario holds back (finds at fault, or, for a rule
+/// that is only ever credited, leaves open), and fails when
+/// a rule listed here is not; a new check that credits a refusal needs its flaw added to a
+/// scenario there.
 const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (PRIVATE_PAGE.rule_id, &["private-anonymous"]),
     (ADMIN_PAGE.rule_id, &["login-a", "admin-a"]),
@@ -709,6 +711,7 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
             "private-changed",
         ],
     ),
+    (CHANGE_ENDS_SESSIONS.rule_id, &["bystander-after"]),
     (
         SESSIONS_SURVIVE_DELETION.rule_id,
         &["delete-after", "login-deleted", "private-deleted"],
@@ -1090,6 +1093,18 @@ fn run_checks(
                 if users.private.len() == 1 { "" } else { "s" }
             ),
         ));
+    }
+
+    // 2a. The same private pages, as nobody but naming A in a header a proxy would add. Here,
+    //     because only now is it known that signing in opens them and a stranger does not.
+    if signed_in_works {
+        let refused: Vec<String> = users
+            .private
+            .iter()
+            .filter(|p| !served_anonymously.contains(p))
+            .cloned()
+            .collect();
+        identity_header_check(http, &accounts.a.user, &refused, &mut out);
     }
 
     // 2b. The session timeouts, which mean waiting. Here, while A's password is still the one it
@@ -2326,13 +2341,27 @@ mod crash_tests {
             (out, http.sent)
         }
 
-        /// Crashes each request the run sends, one at a time. Every rule found at fault without a
-        /// crash and credited with one, with the request that crashed; and the rules found at
-        /// fault, so the caller can see what the sweep reached.
+        /// Crashes each request the run sends, one at a time. Every rule the run without a crash
+        /// held back and the run with one credited, with the request that crashed; and the rules
+        /// held back, so the caller can see what the sweep reached. Held back is found at fault,
+        /// or, for a rule in `ONLY_CREDITED`, left open: a rule whose check never ran without the crash may be rightly credited with one,
+        /// once the crash hides a flaw that stood in its way.
         fn sweep(&self) -> (Vec<String>, BTreeSet<String>) {
             let (plain, sent) = self.run(None);
-            let found: BTreeSet<String> =
+            let credited: BTreeSet<String> =
+                plain.verified.iter().map(|v| v.check_id.clone()).collect();
+            let mut found: BTreeSet<String> =
                 plain.findings.iter().map(|f| f.rule_id.clone()).collect();
+            found.extend(
+                ONLY_CREDITED
+                    .iter()
+                    .filter(|rule| {
+                        let ids = rule.requirement_ids.join(", ");
+                        !credited.contains(rule.rule_id)
+                            && plain.not_assessed.iter().any(|(i, _)| *i == ids)
+                    })
+                    .map(|rule| rule.rule_id.to_owned()),
+            );
             let sent: Vec<&String> = sent.iter().collect();
             let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
             let turned = std::thread::scope(|scope| {
@@ -2365,6 +2394,12 @@ mod crash_tests {
             (turned, found)
         }
     }
+
+    /// The rules that are never a finding, only credited or left open: for these, held back is
+    /// left open (not assessed under the rule's own requirements alone) by the run without a
+    /// crash. Listed here rather than read from `RESTS_ON_A_REFUSAL`, so a rule missing from that
+    /// list is still tried.
+    const ONLY_CREDITED: &[&Rule] = &[&CHANGE_ENDS_SESSIONS, &CHANGE_NOTIFIED];
 
     fn scenarios() -> Vec<Scenario> {
         // Sign-up and seeding both: the password rules need the app's own sign-up, and the role
@@ -2436,6 +2471,8 @@ mod crash_tests {
                     code_reusable: true,
                     code_unbound: true,
                     change_keeps_old: true,
+                    change_keeps_sessions: true,
+                    change_sends_no_email: true,
                     deletion_keeps_sessions: true,
                     ..Default::default()
                 },

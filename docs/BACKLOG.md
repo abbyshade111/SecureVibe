@@ -846,6 +846,12 @@ another session is not a claim.
      at the owner's asking to take the next backlog item, in branch `claude/securevibe-e2-signed-in-partials`: the
      three that need only the signed-in requests and the mail server. The other six (V1.3.4, V5.4.3, V10.1.1,
      V10.5.2, V14.3.3, C9.5.3) stay unclaimed.
+     **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
+     `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
+     headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
+     `probe.password-change-notified` (V6.3.7) are only ever credited: a second session left open, or no email, is
+     not assessed, since the app may offer to end sessions or tell people another way. Not done: reading the change
+     page for such an offer, or what the email says.
      **The seven that read the code done the same day**, each able only to show its requirement failing, so a
      clean run credits none of them. Four are rules in `data/ast-rules.json`: `ast.digest-compared-with-equals`
      (V11.2.4, taught fourteen languages; shell has no timing to measure), `ast.model-loaded-with-pickle`

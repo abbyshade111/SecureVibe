@@ -28,6 +28,9 @@ pub(super) struct FakeApp {
     leaked_once: bool,
     /// From this moment on the clock, every sign-in is refused, as by an app that went down.
     pub(super) sign_ins_refused_from: Option<u64>,
+    /// Every request's id and the clock just after it was answered, in order, so a test can find
+    /// when one check began.
+    pub(super) clock_log: Vec<(String, u64)>,
     /// Signing in ends every other session of the same user.
     pub(super) one_session_per_user: bool,
     /// Two-factor secrets, by user.
@@ -192,6 +195,13 @@ pub(super) struct Flaws {
     pub(super) change_keeps_old: bool,
     /// A password change answers as if it worked and changes nothing.
     pub(super) change_does_nothing: bool,
+    /// A password change leaves the account's other sessions working (V7.4.3).
+    pub(super) change_keeps_sessions: bool,
+    /// A password change sends the account holder no email (V6.3.7).
+    pub(super) change_sends_no_email: bool,
+    /// A request carrying `X-Remote-User` naming an account is served as that account, signed in
+    /// or not, as behind a proxy the app trusts without one being there (V4.1.3).
+    pub(super) trusts_identity_header: bool,
     /// The new-password field of the change page alone is an ordinary text field.
     pub(super) new_field_shown: bool,
     /// Deleting an account leaves its other sessions working.
@@ -553,6 +563,7 @@ impl Http for FakeApp {
     fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
         // Time passing as requests are answered, when a test asks for it.
         self.clock += self.seconds_per_request;
+        self.clock_log.push((r.id.clone(), self.clock));
         // A bearer token is a session id too, for the JSON sign-in below.
         let bearer = r
             .headers
@@ -590,6 +601,18 @@ impl Http for FakeApp {
             .or_else(|| {
                 (self.flaws.session_not_verified && sid.as_deref().is_some_and(|s| !s.is_empty()))
                     .then(|| "believed@example.test".to_owned())
+            })
+            .or_else(|| {
+                self.flaws
+                    .trusts_identity_header
+                    .then(|| {
+                        r.headers
+                            .iter()
+                            .find(|(k, _)| k.eq_ignore_ascii_case("X-Remote-User"))
+                            .map(|(_, v)| v.clone())
+                    })
+                    .flatten()
+                    .filter(|named| self.users.contains_key(named))
             });
         let foreign = r
             .headers
@@ -778,6 +801,17 @@ impl Http for FakeApp {
                         self.kept.insert(who.clone(), stored);
                     }
                     self.users.get_mut(&who)?.0 = new;
+                    if !self.flaws.change_keeps_sessions {
+                        let current = sid.clone().unwrap_or_default();
+                        self.sessions.retain(|id, u| *u != who || *id == current);
+                    }
+                    if !self.flaws.change_sends_no_email {
+                        self.outbox.push((
+                            who.clone(),
+                            "Your password was changed. If this was not you, reset it now."
+                                .to_owned(),
+                        ));
+                    }
                 }
                 Self::respond(303, vec![("Location", "/account".into())], "")
             }

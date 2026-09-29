@@ -16,6 +16,8 @@ decided per app, from its `securevibe.toml` and its code.
   a passing test names the requirement's id; otherwise it stays *not verified*.
 - *found failing only*: that check can show the requirement is not met, and finding nothing does
   not show it is, so a clean run credits nothing.
+- *credited only*: that check can show the requirement is met, and never marks it *needs
+  attention*, since the app may meet it in a way the check cannot see; it says so instead.
 - Each check says what kind it is and so what it needs to run:
 
 | Kind | Needs |
@@ -29,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 147 can be checked, 7 where a check helps but a person decides, and 191 with no check.
+345 requirements: 150 can be checked, 7 where a check helps but a person decides, and 188 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -178,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. |
 
-### Level 2 (183 requirements, 72 can be checked)
+### Level 2 (183 requirements, 74 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -237,7 +239,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **V4.1.2** Verify that only user-facing endpoints (intended for manual web-browser access) automatically redirect from HTTP to HTTPS, while other services or endpoints do not implement transparent redirects. This is to avoid a situation where a client is erroneously sending unencrypted HTTP requests, but since the requests are being automatically redirected to HTTPS, the leakage of sensitive data goes undiscovered. | No check | – |
-| **V4.1.3** Verify that any HTTP header field used by the application and set by an intermediary layer, such as a load balancer, a web proxy, or a backend-for-frontend service, cannot be overridden by the end-user. Example headers might include X-Real-IP, X-Forwarded-*, or X-User-ID. | No check | – |
+| **V4.1.3** Verify that any HTTP header field used by the application and set by an intermediary layer, such as a load balancer, a web proxy, or a backend-for-frontend service, cannot be overridden by the end-user. Example headers might include X-Real-IP, X-Forwarded-*, or X-User-ID. | Can be checked | Signed in: `probe.identity-header-trusted`, if it fails: Anybody can open a private page as somebody else, without signing in, by adding a header that says who they are. (found failing only) |
 | **V4.2.1** Verify that all application components (including load balancers, firewalls, and application servers) determine boundaries of incoming HTTP messages using the appropriate mechanism for the HTTP version to prevent HTTP request smuggling. In HTTP/1.x, if a Transfer-Encoding header field is present, the Content-Length header must be ignored per RFC 2616. When using HTTP/2 or HTTP/3, if a Content-Length header field is present, the receiver must ensure that it is consistent with the length of the DATA frames. | No check | – |
 | **V4.3.1** Verify that a query allowlist, depth limiting, amount limiting, or query cost analysis is used to prevent GraphQL or data layer expression Denial of Service (DoS) as a result of expensive, nested queries. | Can be checked | The running app: `probe.graphql-no-amount-limit`, if it fails: One request can make the server do a thousand times the work of an ordinary one, which is the cheapest way there is to slow an API down for everybody. |
 | **V4.3.2** Verify that GraphQL introspection queries are disabled in the production environment unless the GraphQL API is meant to be used by other parties. | Can be checked | The running app: `probe.graphql-introspection`, if it fails: The schema is a map of every query and field the API has, including the ones no page uses, handed to whoever asks. |
@@ -291,7 +293,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V7.1.3** Verify that all systems that create and manage user sessions as part of a federated identity management ecosystem (such as SSO systems) are documented along with controls to coordinate session lifetimes, termination, and any other conditions that require re-authentication. | No check | – |
 | **V7.3.1** Verify that there is an inactivity timeout such that re-authentication is enforced according to risk analysis and documented security decisions. | Can be checked | Signed in: `probe.session-idle-timeout`, if it fails: A session left open on a shared or stolen computer stays signed in long after its owner walked away. |
 | **V7.3.2** Verify that there is an absolute maximum session lifetime such that re-authentication is enforced according to risk analysis and documented security decisions. | Can be checked | Signed in: `probe.session-lifetime`, if it fails: A session kept busy — by its owner, or by whoever stole it — never has to sign in again. |
-| **V7.4.3** Verify that the application gives the option to terminate all other active sessions after a successful change or removal of any authentication factor (including password change via reset or recovery and, if present, an MFA settings update). | No check | – |
+| **V7.4.3** Verify that the application gives the option to terminate all other active sessions after a successful change or removal of any authentication factor (including password change via reset or recovery and, if present, an MFA settings update). | Can be checked | Signed in: `probe.password-change-ends-sessions`, if it fails: Somebody who already has a session, from a stolen cookie or a computer left signed in, keeps it after the account holder changes the password to lock them out. (credited only) |
 | **V7.4.4** Verify that all pages that require authentication have easy and visible access to logout functionality. | Can be checked | Signed in: `probe.sign-out-control-hidden`, if it fails: The sign-out control is in the page but a person cannot see it, so somebody who wants to sign out cannot, and a session left open on a shared machine is the next person's session.<br>Signed in: `probe.no-sign-out-link`, if it fails: Somebody who cannot find how to sign out stays signed in, and a session left open on a shared machine is the next person's session. |
 | **V7.4.5** Verify that application administrators are able to terminate active sessions for an individual user or for all users. | No check | – |
 | **V7.5.1** Verify that the application requires full re-authentication before allowing modifications to sensitive account attributes which may affect authentication such as email address, phone number, MFA configuration, or other information used in account recovery. | No check | – |
@@ -448,7 +450,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V17.3.1** Verify that the signaling server is able to continue processing legitimate incoming signaling messages during a flood attack. This should be achieved by implementing rate limiting at the signaling level. | No check | – |
 | **V17.3.2** Verify that the signaling server is able to continue processing legitimate signaling messages when encountering malformed signaling message that could cause a denial of service condition. This could include implementing input validation, safely handling integer overflows, preventing buffer overflows, and employing other robust error-handling techniques. | No check | – |
 
-### Level 3 (92 requirements, 19 can be checked)
+### Level 3 (92 requirements, 20 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -508,7 +510,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V6.3.5** Verify that users are notified of suspicious authentication attempts (successful or unsuccessful). This may include authentication attempts from an unusual location or client, partially successful authentication (only one of multiple factors), an authentication attempt after a long period of inactivity or a successful authentication after several unsuccessful attempts. | No check | – |
 | **V6.3.6** Verify that email is not used as either a single-factor or multi-factor authentication mechanism. | No check | – |
-| **V6.3.7** Verify that users are notified after updates to authentication details, such as credential resets or modification of the username or email address. | No check | – |
+| **V6.3.7** Verify that users are notified after updates to authentication details, such as credential resets or modification of the username or email address. | Can be checked | Signed in: `probe.password-change-notified`, if it fails: Somebody who takes over an account and changes its password does so without the account holder being told, so they find out only when they cannot sign in. (credited only) |
 | **V6.3.8** Verify that valid users cannot be deduced from failed authentication challenges, such as by basing on error messages, HTTP response codes, or different response times. Registration and forgot password functionality must also have this protection. | Can be checked | Signed in: `probe.reset-reveals-account`, if it fails: Anybody can find out whether an email address has an account, which is where guessing passwords and targeted phishing begin. |
 | **V6.4.5** Verify that renewal instructions for authentication mechanisms which expire are sent with enough time to be carried out before the old authentication mechanism expires, configuring automated reminders if necessary. | No check | – |
 | **V6.4.6** Verify that administrative users can initiate the password reset process for the user, but that this does not allow them to change or choose the user's password. This prevents a situation where they know the user's password. | No check | – |

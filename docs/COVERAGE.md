@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 147 (43%) | 7 | 191 |
+| OWASP ASVS 5.0 | 345 | 150 (43%) | 7 | 188 |
 | OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,8 +43,8 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 72 | 6 | 0 | 14 | 31 | 28 | 1 |
-| L3 | 92 | 19 | 2 | 0 | 8 | 1 | 6 | 2 |
+| L2 | 183 | 74 | 6 | 0 | 14 | 33 | 28 | 1 |
+| L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -61,10 +61,10 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V1 Encoding and Sanitization | 30 | 18 | 0 | 12 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
-| V4 API and Web Service | 16 | 8 | 0 | 8 |
+| V4 API and Web Service | 16 | 9 | 0 | 7 |
 | V5 File Handling | 13 | 8 | 0 | 5 |
-| V6 Authentication | 47 | 22 | 1 | 24 |
-| V7 Session Management | 19 | 8 | 0 | 11 |
+| V6 Authentication | 47 | 23 | 1 | 23 |
+| V7 Session Management | 19 | 9 | 0 | 10 |
 | V8 Authorization | 13 | 3 | 1 | 9 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 6 | 0 | 30 |
@@ -100,7 +100,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (87)
+### Settled by asking the running app (90)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -121,6 +121,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
 | V3.5.6 | L3 | The running app: `probe.jsonp-enabled` |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
+| V4.1.3 | L2 | Signed in: `probe.identity-header-trusted` (sv only ever as a finding: `probe.identity-header-trusted`) |
 | V4.1.4 | L3 | The running app: `probe.unused-method-accepted` |
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
 | V4.3.2 | L2 | The running app: `probe.graphql-introspection` |
@@ -144,6 +145,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V6.2.11 | L2 | Signed in: `probe.context-word-password-accepted` |
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
 | V6.3.2 | L1 | Signed in: `probe.default-account` |
+| V6.3.7 | L3 | Signed in: `probe.password-change-notified` |
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` |
 | V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` |
@@ -161,6 +163,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.3.2 | L2 | Signed in: `probe.session-lifetime` |
 | V7.4.1 | L1 | Signed in: `probe.logout-keeps-session` |
 | V7.4.2 | L1 | Signed in: `probe.sessions-survive-deletion` |
+| V7.4.3 | L2 | Signed in: `probe.password-change-ends-sessions` |
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
