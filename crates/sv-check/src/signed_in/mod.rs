@@ -737,6 +737,30 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (CONTENT_MISMATCH.rule_id, &["upload-mismatched"]),
 ];
 
+/// The findings the signed-in checks raise because the app refused something, or answered two
+/// requests differently, and the requests whose answer raises each. A crash on one of them reads
+/// as the app refusing: a page that fails after signing out by a plain link reads as the session
+/// ended, a sign-up with a lowercase or a long password that fails reads as the password refused,
+/// a reset for nobody that fails reads as answered differently from one for a real account, and a
+/// guess that fails may never have been counted by the app's limit. So a finding here is moved to
+/// not assessed when any of its requests crashed.
+///
+/// `a_crash_on_a_correct_app_raises_no_finding` holds it: it crashes each request of a correct
+/// app, one at a time, and fails on any finding that appears, listed here or not.
+const RAISED_ON_A_REFUSAL: &[(&str, &[&str])] = &[
+    (SIGN_OUT_ON_GET.rule_id, &["private-after-get-logout"]),
+    (
+        COMPOSITION_RULES.rule_id,
+        &["signup-lower", "login-lower", "private-lower"],
+    ),
+    (
+        LONG_PASSWORD.rule_id,
+        &["signup-long", "login-long", "private-long"],
+    ),
+    (RESET_REVEALS_ACCOUNT.rule_id, &["reset-request-"]),
+    (NO_BRUTE_FORCE_LIMIT.rule_id, &["guess-"]),
+];
+
 /// Whether `id` is one of `requests`: equal to one, or the page fetched for its form's token
 /// first (`signup-short-page`), or starting with one that ends in `-`.
 fn one_of(id: &str, requests: &[&str]) -> bool {
@@ -746,7 +770,8 @@ fn one_of(id: &str, requests: &[&str]) -> bool {
         .any(|r| id == *r || (r.ends_with('-') && id.starts_with(r)))
 }
 
-/// Moves each pass that rests on a refusal to not assessed when one of its requests crashed.
+/// Moves each pass that rests on a refusal, and each finding raised from one, to not assessed when
+/// one of its requests crashed.
 fn withhold_what_rests_on_a_crash(crashed: &[(String, String)], out: &mut Outcome) {
     if crashed.is_empty() {
         return;
@@ -780,6 +805,36 @@ fn withhold_what_rests_on_a_crash(crashed: &[(String, String)], out: &mut Outcom
         ));
     }
     out.verified = kept;
+
+    let mut kept = Vec::new();
+    for finding in std::mem::take(&mut out.findings) {
+        let rests_on = RAISED_ON_A_REFUSAL
+            .iter()
+            .find(|(rule, _)| *rule == finding.rule_id)
+            .map_or(&[][..], |(_, requests)| *requests);
+        let answers: Vec<String> = crashed
+            .iter()
+            .filter(|(id, _)| one_of(id, rests_on))
+            .map(|(id, status)| format!("{id} ({status})"))
+            .collect();
+        if answers.is_empty() {
+            kept.push(finding);
+            continue;
+        }
+        out.not_assessed.push((
+            finding.requirement_ids.join(", "),
+            format!(
+                "`{}` (\"{}\") would have been reported because the app seemed to refuse \
+                 something, but the app crashed or did not answer rather than refusing: {}. A \
+                 crash is not an answer, so this is neither reported nor credited. Fix the error, \
+                 and run it again.",
+                finding.rule_id,
+                finding.title,
+                answers.join(", ")
+            ),
+        ));
+    }
+    out.findings = kept;
 }
 
 /// Seconds to wait before asking again, when `response` is a rate limiter's rather than an answer to
@@ -2459,6 +2514,143 @@ mod crash_tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn a_page_that_crashes_after_a_plain_sign_out_link_is_not_reported_as_signed_out() {
+        let correct = Scenario::new("correct", Flaws::default(), users(), true);
+        let (o, sent) = correct.run(Some("private-after-get-logout"));
+        assert!(
+            sent.contains("private-after-get-logout"),
+            "the setup reaches the check"
+        );
+        assert!(!rule_ids(&o).contains(&SIGN_OUT_ON_GET.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(_, why)| why.contains(SIGN_OUT_ON_GET.rule_id))
+            .unwrap_or_else(|| panic!("{:?}", o.not_assessed));
+        assert!(why.contains("private-after-get-logout (500)"), "{why}");
+        assert!(why.contains("neither reported nor credited"), "{why}");
+
+        // The app that really does sign out on a plain link is still reported, crash or no crash
+        // elsewhere.
+        let flawed = Scenario::new(
+            "signs out on a plain link",
+            Flaws {
+                logout_on_get: true,
+                ..Default::default()
+            },
+            users(),
+            true,
+        );
+        let (o, _) = flawed.run(Some("private-anonymous"));
+        assert!(
+            rule_ids(&o).contains(&SIGN_OUT_ON_GET.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_crash_on_a_correct_app_raises_no_finding() {
+        // The other direction: a correct app, each request crashed in turn. Any finding that
+        // appears was raised by the crash, whether or not `RAISED_ON_A_REFUSAL` lists it.
+        let mut signed_up = with_signup();
+        signed_up.seed = Some("seed".into());
+        signed_up.admin = vec!["/admin".into()];
+        let mut sockets_and_files = users();
+        sockets_and_files.private_websocket = Some("/ws".into());
+        sockets_and_files.upload = Some(sv_manifest::UploadSection {
+            path: "/upload".into(),
+            field: "file".into(),
+            form: [("csrf_token".to_owned(), "{csrf}".to_owned())].into(),
+            serves_at: Some("/files/{name}".into()),
+            max_bytes: Some(UPLOAD_LIMIT as u64),
+        });
+        let scenarios = [
+            Scenario {
+                policy: sv_manifest::PolicySection {
+                    context_words: vec!["Acme Notes".into()],
+                    failed_sign_ins: Some(3),
+                    within_minutes: Some(15),
+                    failed_codes: Some(3),
+                    ..Default::default()
+                },
+                ..Scenario::new(
+                    "signed up, with a limit on wrong passwords",
+                    Flaws {
+                        locks_out_after: Some(3),
+                        ..Default::default()
+                    },
+                    signed_up,
+                    true,
+                )
+            },
+            Scenario::new(
+                "a private WebSocket and uploads",
+                Flaws::default(),
+                sockets_and_files,
+                true,
+            ),
+            Scenario {
+                policy: sv_manifest::PolicySection {
+                    idle_timeout_minutes: Some(15),
+                    session_lifetime_minutes: Some(60),
+                    ..Default::default()
+                },
+                slow: true,
+                limits: (Some(15 * 60), Some(60 * 60)),
+                ..Scenario::new(
+                    "slow, with sessions that end",
+                    Flaws::default(),
+                    users(),
+                    true,
+                )
+            },
+        ];
+        let mut raised = Vec::new();
+        for scenario in &scenarios {
+            let (plain, sent) = scenario.run(None);
+            // The setup is a correct app: nothing to find before anything crashes.
+            assert!(
+                plain.findings.is_empty(),
+                "{}: {:?}",
+                scenario.name,
+                plain
+                    .findings
+                    .iter()
+                    .map(|f| &f.rule_id)
+                    .collect::<Vec<_>>()
+            );
+            let sent: Vec<&String> = sent.iter().collect();
+            let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+            raised.extend(std::thread::scope(|scope| {
+                let handles: Vec<_> = sent
+                    .chunks(sent.len().div_ceil(threads).max(1))
+                    .map(|ids| {
+                        scope.spawn(move || {
+                            let mut raised = Vec::new();
+                            for id in ids {
+                                let (crashed, _) = scenario.run(Some(id));
+                                for f in &crashed.findings {
+                                    raised.push(format!(
+                                        "{}: {} raised when {id} crashed",
+                                        scenario.name, f.rule_id
+                                    ));
+                                }
+                            }
+                            raised
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .flat_map(|h| h.join().unwrap())
+                    .collect::<Vec<_>>()
+            }));
+        }
+        assert!(raised.is_empty(), "{raised:#?}");
     }
 
     #[test]

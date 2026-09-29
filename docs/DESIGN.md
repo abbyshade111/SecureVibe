@@ -5317,3 +5317,18 @@ password (`COMPOSITION_RULES`, `LONG_PASSWORD`, from a strong or long password t
 own backlog item. The anonymous probes and the sign-in provider and MCP checks were not looked at for a crash read as
 a refusal.
 
+**Later the same day: findings raised from a crash.** The other direction. A correct app, each request crashed in
+turn, raised five findings it did not deserve: signing out by a plain link (`SIGN_OUT_ON_GET`: the page after it
+failed, read as the session ended), the composition rules and the long password (`COMPOSITION_RULES`,
+`LONG_PASSWORD`: a sign-up with a lowercase or long password that failed, read as refused), the reset form revealing
+accounts (`RESET_REVEALS_ACCOUNT`: a reset for nobody that failed, read as answered differently from a real one), and
+the wrong-password limit (`NO_BRUTE_FORCE_LIMIT`: a guess that failed may never have been counted, so the limit
+seemed not to hold). The backlog entry named the first three; the sweep found the last two. `RAISED_ON_A_REFUSAL`
+names each finding's requests, and a finding one of whose requests crashed moves to not assessed, naming them, as a
+pass does.
+
+`a_crash_on_a_correct_app_raises_no_finding` holds it without trusting the list: it runs a correct app in three setups
+(signed up with a limit on wrong passwords; a private WebSocket and uploads; slow, with sessions that end), asserts
+nothing is found before anything crashes, then crashes each request, one at a time, and fails on any finding at all.
+A finding raised from a crash that is not listed is caught the same way as one that is. It takes about 55 seconds in a
+test build. Each of the five rows, removed in turn, turns it red, and so does keeping every finding; a direct test (`a_page_that_crashes_after_a_plain_sign_out_link_is_not_reported_as_signed_out`) also catches that, and catches dropping every finding, which the sweep cannot see.
