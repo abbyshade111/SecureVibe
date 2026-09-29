@@ -97,7 +97,8 @@ another session is not a claim.
      `requirements.lock` beside `requirements.txt`, `uv.lock` and `requirements.lock` beside `pyproject.toml`,
      `package-lock.json` and `yarn.lock`, and so on). If the two disagree, the bill of materials and the advisory
      comparison describe one of them and the owner is not told which. The bill of materials could carry a note
-     naming the file read and the ones passed over. **Not claimed.**
+     naming the file read and the ones passed over. **Claimed on 29 September 2026 by session securevibe-e2**, at
+     the owner's asking to pick a backlog item, in branch `claude/securevibe-e2-which-lockfile`.
 
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.
