@@ -1019,6 +1019,12 @@ another session is not a claim.
      owner's asking to continue with the backlog, in branch `claude/securevibe-e9-running-halves`. Item 5 was
      looked at first and left: measuring the CodeQL suites needs the CodeQL bundle, which does not fit in this
      session's disk.
+  8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
+     from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
+     grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
+     Spring Authorization Server, league/oauth2-server, fosite, and node-oauth2-server), and only ever a finding.
+     **Claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
+     in branch `claude/securevibe-e9-retired-grants`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
