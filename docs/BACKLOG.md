@@ -998,6 +998,13 @@ another session is not a claim.
      V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
      failed. Most checks of an app that is itself an MCP server, or itself a sign-in service, need a new securevibe.toml
      section, and apply to few apps.
+  7. **Two running-app halves left from item 3.** C3.2.3: the model name the app really sent the test model,
+     finding when it floats (`latest`, or a name ending `-latest`). V15.2.3: a development debug console that
+     answers on the running app (Werkzeug's console and the like), judged by the page's own content, never by its
+     status alone. Both only ever findings. **Claimed on 29 September 2026 by session securevibe-e9**, at the
+     owner's asking to continue with the backlog, in branch `claude/securevibe-e9-running-halves`. Item 5 was
+     looked at first and left: measuring the CodeQL suites needs the CodeQL bundle, which does not fit in this
+     session's disk.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
