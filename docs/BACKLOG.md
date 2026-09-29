@@ -701,7 +701,8 @@ another session is not a claim.
   password that did not work read as refused). A crash on those requests reports a fault the app may not have. A fix
   in the same shape: record which requests those findings rest on, and move the finding to not assessed when one of
   them crashed, with a test that crashes each request of a correct app and fails when one of these appears.
-  **Not claimed.**
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-crash-findings`.
 
 - **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
   session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's
