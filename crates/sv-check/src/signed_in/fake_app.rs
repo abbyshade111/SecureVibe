@@ -272,6 +272,8 @@ pub(super) struct Flaws {
     pub(super) already_refusing: Option<u16>,
     /// Private pages come back without `Cache-Control: no-store`.
     pub(super) private_page_cacheable: bool,
+    /// Private pages come back as `public, max-age=300`, for shared caches to keep.
+    pub(super) private_page_shared_cache: bool,
     /// Private pages carry no link or form pointing at the sign-out address — but do name it
     /// in a script, which is what a page built by JavaScript looks like and what a check
     /// searching the whole page for the text would wrongly credit.
@@ -1119,6 +1121,9 @@ impl Http for FakeApp {
                     // visible way out. Each half is switched off by its own flaw, so a test
                     // that breaks one is not quietly relying on the other.
                     let headers = match (&self.cache_control, self.flaws.private_page_cacheable) {
+                        _ if self.flaws.private_page_shared_cache => {
+                            vec![("Cache-Control", "public, max-age=300".to_string())]
+                        }
                         (_, true) => vec![],
                         (Some(value), _) => vec![("Cache-Control", value.clone())],
                         (None, _) => vec![("Cache-Control", "no-store".to_string())],

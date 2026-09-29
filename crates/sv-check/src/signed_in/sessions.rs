@@ -683,6 +683,7 @@ pub(super) fn private_page_checks(
     let mut opened = Vec::new();
     let mut not_stored = Vec::new();
     let mut stored = Vec::new();
+    let mut shared = Vec::new();
     let mut with_link = Vec::new();
     let mut without_link = Vec::new();
 
@@ -703,13 +704,19 @@ pub(super) fn private_page_checks(
             .header("cache-control")
             .unwrap_or_default()
             .to_lowercase();
-        if cache_control
-            .split(',')
-            .any(|part| part.trim() == "no-store")
-        {
+        let parts: Vec<&str> = cache_control.split(',').map(str::trim).collect();
+        if parts.contains(&"no-store") {
             not_stored.push(path.clone());
         } else {
             stored.push(path.clone());
+        }
+        // Shared caches may keep a response marked `public` or given an `s-maxage`, unless
+        // `private` or `no-store` says otherwise, which each overrides.
+        if (parts.contains(&"public") || parts.iter().any(|p| p.starts_with("s-maxage")))
+            && !parts.contains(&"private")
+            && !parts.contains(&"no-store")
+        {
+            shared.push(path.clone());
         }
 
         if logout_path.is_some_and(|logout| points_at(&response.body, logout)) {
@@ -754,6 +761,28 @@ pub(super) fn private_page_checks(
             format!(
                 "Opened by a signed-in user, {} came back without `Cache-Control: no-store`.",
                 stored.join(", ")
+            ),
+        ));
+    }
+
+    // ---- V14.2.2: a private page shared caches are told they may keep. Only ever a finding.
+    out.steps.push(format!(
+        "{} of {} private page{} told shared caches they may keep {}",
+        shared.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" },
+        if opened.len() == 1 { "it" } else { "them" }
+    ));
+    if !shared.is_empty() {
+        out.findings.push(finding(
+            &PRIVATE_PAGE_SHARED_CACHE,
+            "A private page tells shared caches they may keep it",
+            Severity::Medium,
+            format!(
+                "Opened by a signed-in user, {} came back marked `public` or with an `s-maxage`, \
+                 which lets a load balancer or content delivery network keep it and serve it to \
+                 someone else.",
+                shared.join(", ")
             ),
         ));
     }
@@ -1135,6 +1164,14 @@ mod tests {
                     .iter()
                     .any(|r| r == "V15.3.1")
             );
+            // The reading half of field-level access (BOPLA), and only ever a finding.
+            assert!(
+                out.findings[0]
+                    .requirement_ids
+                    .iter()
+                    .any(|r| r == "V8.2.3")
+            );
+            assert!(out.verified.is_empty());
         }
     }
 
@@ -1251,6 +1288,7 @@ mod tests {
             "private",
             "max-age=0",
             "no-cache, private, max-age=0",
+            "private, s-maxage=60",
         ] {
             let mut app = FakeApp::new(Flaws::default());
             app.cache_control = Some(value.to_string());
@@ -1270,6 +1308,91 @@ mod tests {
             assert!(
                 !verified_ids(&o).contains(&PRIVATE_PAGE_CACHING.rule_id),
                 "`{value}` was credited as no-store"
+            );
+            // None of these tells a shared cache it may keep the page.
+            assert!(
+                !rule_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id),
+                "`{value}` was read as open to shared caches"
+            );
+        }
+    }
+
+    #[test]
+    fn an_app_whose_private_pages_are_public_is_found_in_a_full_run() {
+        let o = run_against(
+            Flaws {
+                private_page_shared_cache: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            rule_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id),
+            "{:?}",
+            rule_ids(&o)
+        );
+        assert!(!verified_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id));
+    }
+
+    /// A signed-in run against a fake app whose private pages send exactly `cache_control`.
+    fn run_with_cache_control(cache_control: &str) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        app.cache_control = Some(cache_control.to_string());
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        run(&mut app, &users(), &acc, true, &Default::default())
+    }
+
+    #[test]
+    fn a_private_page_shared_caches_may_keep_is_found_against_v14_2_2() {
+        for value in [
+            "public, max-age=60",
+            "s-maxage=300",
+            "Public",
+            "max-age=0, s-maxage=60",
+        ] {
+            let o = run_with_cache_control(value);
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == PRIVATE_PAGE_SHARED_CACHE.rule_id)
+                .unwrap_or_else(|| panic!("`{value}` was not found: {:?}", rule_ids(&o)));
+            assert_eq!(f.requirement_ids, vec!["V14.2.2"]);
+            assert!(
+                o.steps
+                    .join(" | ")
+                    .contains("1 of 1 private page told shared caches they may keep it"),
+                "{:?}",
+                o.steps
+            );
+        }
+        // The controls: `private` or `no-store` keeps it out of shared caches whatever else is
+        // there, and a page that says nothing about shared caches is not found either. None is
+        // ever credited: a server cache this cannot see may still keep the page.
+        for value in [
+            "private, s-maxage=60",
+            "public, no-store",
+            "no-cache",
+            "no-store",
+            "max-age=60",
+        ] {
+            let o = run_with_cache_control(value);
+            assert!(
+                !rule_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id),
+                "`{value}` was found"
+            );
+            assert!(!verified_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id));
+            assert!(
+                o.steps
+                    .join(" | ")
+                    .contains("0 of 1 private page told shared caches they may keep it"),
+                "the page was not really opened for `{value}`: {:?}",
+                o.steps
             );
         }
     }

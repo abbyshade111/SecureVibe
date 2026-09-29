@@ -935,6 +935,45 @@ mod tests {
         u
     }
 
+    #[test]
+    fn field_level_access_is_found_from_both_sides_in_a_full_run() {
+        // Writing a field the user has no permission to (the role on sign-up)...
+        let wrote = run_against(
+            Flaws {
+                signup_trusts_role: true,
+                ..Default::default()
+            },
+            &with_role_signup(),
+        );
+        // ...and reading one (a record handed back with its password hash).
+        let read = run_against(
+            Flaws {
+                record_leaks_fields: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        for (o, rule) in [
+            (&wrote, ROLE_FIELD.rule_id),
+            (&read, RECORD_LEAKS_FIELDS.rule_id),
+        ] {
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == rule)
+                .unwrap_or_else(|| panic!("{rule} was not found: {:?}", rule_ids(o)));
+            assert!(f.requirement_ids.iter().any(|q| q == "V8.2.3"), "{f:?}");
+        }
+        // The control: a correct app carries V8.2.3 in nothing it credits.
+        let correct = run_against(Flaws::default(), &with_role_signup());
+        assert!(
+            !correct
+                .verified
+                .iter()
+                .any(|v| v.requirement_ids.iter().any(|q| q == "V8.2.3"))
+        );
+    }
+
     fn role_findings(o: &Outcome) -> Vec<&Finding> {
         o.findings
             .iter()
@@ -953,7 +992,10 @@ mod tests {
         );
         let found = role_findings(&o);
         assert_eq!(found.len(), 1, "{:#?}\n{:#?}", o.findings, o.not_assessed);
-        assert_eq!(found[0].requirement_ids, vec!["V8.3.1", "V15.3.3"]);
+        assert_eq!(
+            found[0].requirement_ids,
+            vec!["V8.3.1", "V15.3.3", "V8.2.3"]
+        );
         assert!(
             found[0].description.contains("/admin"),
             "{}",
