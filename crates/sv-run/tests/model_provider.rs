@@ -165,4 +165,46 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     assert_ne!(seen(port, "1e1f")["reply_screened"], true);
     assert!(moderate(port, "SV-REPLY-1e1f Hello from the test model."));
     assert_eq!(seen(port, "1e1f")["reply_screened"], true);
+
+    // C9.5.3: a FETCH message has the model call the app's own tool it names, with its arguments,
+    // and what the app sends back as that tool's result is recorded.
+    let call = serde_json::json!({"tool": "get_note", "args": {"id": "7"}}).to_string();
+    let hex: String = call.bytes().map(|b| format!("{b:02x}")).collect();
+    let message = format!("Look it up. SV-PROBE-FETCH-2a2b SV-CALL-{hex}");
+    let tools = serde_json::json!([{"type": "function", "function": {"name": "get_note"}}]);
+    let asked: serde_json::Value = serde_json::from_str(&call_json(
+        port,
+        serde_json::json!({"model": "m", "tools": tools, "messages": [{"role": "user", "content": message}]}),
+    ))
+    .unwrap();
+    let requested = &asked["choices"][0]["message"]["tool_calls"][0]["function"];
+    assert_eq!(requested["name"], "get_note", "{asked}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(requested["arguments"].as_str().unwrap())
+            .unwrap(),
+        serde_json::json!({"id": "7"})
+    );
+    call_json(
+        port,
+        serde_json::json!({"model": "m", "tools": tools, "messages": [
+            {"role": "user", "content": message},
+            {"role": "tool", "tool_call_id": "call_sv", "content": "SV-OWN-5c5d the note"}
+        ]}),
+    );
+    let fetched = seen(port, "2a2b");
+    assert_eq!(fetched["tool_requested"], true);
+    assert!(
+        fetched["tool_result"]
+            .as_str()
+            .unwrap()
+            .contains("SV-OWN-5c5d"),
+        "{fetched}"
+    );
+    // The control: with no such tool offered, nothing is asked for.
+    chat(port, "Look it up. SV-PROBE-FETCH-3a3b SV-CALL-7b7d");
+    assert_ne!(seen(port, "3a3b")["tool_requested"], true);
+}
+
+fn call_json(port: u16, body: serde_json::Value) -> String {
+    call(port, "POST", "/v1/chat/completions", &body.to_string())
 }

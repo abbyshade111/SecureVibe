@@ -488,6 +488,34 @@ fn send_template_as(
 
 /// Sends a template whose own placeholders are already filled in, fetching the page's anti-forgery
 /// token first when it asks for one, as `send_template` does for the checks here.
+/// Creates the `owned` record as whoever `session` belongs to, with `marker` in it, and gives back
+/// the app's answer and the id it gave the record. For the AI checks, which ask the app's own tools
+/// for a record by its id (C9.5.3).
+pub(crate) fn create_owned(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    session: &mut Session,
+    marker: &str,
+) -> (Option<ProbeResponse>, Option<String>) {
+    let Some(owned) = &users.owned else {
+        return (None, None);
+    };
+    let values = Values {
+        marker,
+        ..Default::default()
+    };
+    let (created, _) = send_template(
+        http,
+        "owned-create-ai",
+        &owned.create,
+        &values,
+        session,
+        &users.private,
+    );
+    let id = created.as_ref().and_then(|r| record_id(owned, r));
+    (created, id)
+}
+
 pub(crate) fn send_filled(
     http: &mut dyn Http,
     id: &str,

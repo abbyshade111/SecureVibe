@@ -480,6 +480,7 @@ impl DockerBackend {
                 policy: &plan.policy,
                 health: &plan.health_path,
                 seeded: plan.users.as_ref().is_some_and(|u| u.seed.is_some()),
+                owner: accounts.as_ref().map(|accounts| &accounts.a),
             };
             let (mut outcome, markers) = sv_check::ai::run(&mut http, section, &context);
             // Then what the app wrote down about it, read after the questions, as the signed-in

@@ -925,6 +925,11 @@ another session is not a claim.
      the sign-in callback).
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
+     **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
+     `probe.ai-tool-reads-others-records`: a new `record-tool` under [stack.run.ai] names the app's own tool; the
+     test model, chatting as the second user, asks it for the second user's record (the control) and then the
+     first user's. Handed over is a finding, refused is credited. The test model is run under Node for the FETCH
+     call too. Not done: the static pointer (instructions to the model asking it to enforce permissions).
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and

@@ -626,7 +626,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 29 can be checked, 0 where a check helps but a person decides, and 162 with no check.
+191 requirements: 30 can be checked, 0 where a check helps but a person decides, and 161 with no check.
 
 ### Level 1 (51 requirements, 17 can be checked)
 
@@ -736,7 +736,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 10 can be checked)
+### Level 2 (95 requirements, 11 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -841,7 +841,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C9.4.2** Verify that agent-initiated actions are cryptographically bound to each step of the execution chain for non-repudiation. | No check | – |
 | **C9.5.1** Verify that agent actions are authorized against fine-grained policies enforced by the runtime that restrict which tools an agent may invoke, and which parameter values it may supply. | No check | – |
 | **C9.5.2** Verify that when an agent acts on a user's behalf, the runtime propagates an integrity-protected, scope-limited token that carries the user's authorization context and is enforced at every downstream call. | No check | – |
-| **C9.5.3** Verify that all access control decisions are enforced by application logic or a policy engine, never by the AI model itself. | No check | – |
+| **C9.5.3** Verify that all access control decisions are enforced by application logic or a policy engine, never by the AI model itself. | Can be checked | Signed in: `probe.ai-tool-reads-others-records`, if it fails: Anyone who can chat with the AI feature can have it read another person's records: the tool trusts whichever record the model names, and the model can be talked into naming any. |
 | **C9.5.4** Verify that secrets and credentials required by an agent at runtime are not exposed within the model's observable context, including the context window, system prompts, or tool call parameters. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an MCP tool that returns secrets or credentials into the model's context (found failing only) |
 | **C9.5.5** Verify that inter-agent task delegation is restricted by an explicit authorization policy. | No check | – |
 | **C9.6.2** Verify that when a human-approval gate is not satisfied within the defined approval time, the system blocks the pending action. | No check | – |
