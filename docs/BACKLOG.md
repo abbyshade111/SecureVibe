@@ -670,6 +670,9 @@ another session is not a claim.
   not a credential: `$NAME`, `$(command)` or backticks, `%NAME%`, and PowerShell's `$env:NAME`; a value that only
   contains one (`$NAME-extra`, `pa$$w0rd…`) is still judged. **Claimed on 29 September 2026 by session
   securevibe-e9**, at the cato-pipeline session's report on the owner's behalf.
+  **Done the same day:** `is_whole_reference` in `secrets.rs` passes over those five shapes, `${NAME}` included,
+  and nothing else. The report's table is a test, with the two values that only contain a reference as controls
+  that are still reported; skipping the check, or loosening it to "contains a `$`", turns it red.
 - **The MCP check still counts a large data file whose prose says "command".** Noted on 29 September 2026 by the
   cato-pipeline session: after the large-file work, `config.mcp-server-unpinned` is still not run on cato, because
   NIST's 10 MB catalog uses the word `command` in its text, and a large file is counted as read only when it never

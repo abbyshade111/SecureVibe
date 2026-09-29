@@ -128,6 +128,25 @@ pub struct SecretScan {
 }
 
 /// Values that mean "fill this in", not a credential.
+/// Whether the whole value is one reference to something kept elsewhere, in the shapes shells and
+/// build files write one: `$NAME`, `${NAME}`, `$(command)` or backticks, Windows' `%NAME%`, and
+/// PowerShell's `$env:NAME`. Only the whole value: `$NAME-extra-4f9a` or `pa$$w0rd…` carry text of
+/// their own and are still judged. `export CF_ZONE_API_TOKEN="$CF_DNS_API_TOKEN"` was a HIGH finding
+/// until 29 September 2026 (reported from cato-pipeline's CI), telling the owner to rotate a
+/// credential that was never in the file.
+fn is_whole_reference(value: &str) -> bool {
+    static REFERENCE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"(?i)^(\$[a-z_][a-z0-9_]*|\$\{[a-z_][a-z0-9_]*(:?[-=?+][^}]*)?\}|%[a-z_][a-z0-9_]*%|\$env:[a-z_][a-z0-9_]*)$",
+        )
+        .expect("static pattern")
+    });
+    let v = value.trim();
+    REFERENCE.is_match(v)
+        || (v.starts_with("$(") && v.ends_with(')'))
+        || (v.len() > 2 && v.starts_with('`') && v.ends_with('`'))
+}
+
 fn looks_like_placeholder(value: &str) -> bool {
     let v = value.trim();
     if v.is_empty() {
@@ -320,6 +339,7 @@ fn assignment_findings(
         if value.starts_with('/')
             || value.contains("://")
             || value.chars().all(|c| c.is_ascii_uppercase() || c == '_')
+            || is_whole_reference(value)
         {
             continue;
         }
@@ -523,6 +543,39 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
 /// Above this, a file is not something a person typed and reading it all costs more than it finds.
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_value_that_is_wholly_a_reference_is_not_a_credential_and_one_that_contains_one_is() {
+        let judged =
+            |line: &str| !assignment_findings("run.sh", line, 1, &(0..usize::MAX)).is_empty();
+        // Built from pieces, so no line here reads as a key to anything scanning this file.
+        let suffix = ["4f9a", "2c7b"].concat();
+        let password = ["pa$$w0rd", "Q7xZ9k2L"].concat();
+        for line in [
+            r#"export CF_ZONE_API_TOKEN="$CF_DNS_API_TOKEN""#.to_owned(),
+            r#"TOKEN="$(cat /run/secrets/token)""#.to_owned(),
+            r#"API_KEY="%API_KEY%""#.to_owned(),
+            r#"$Password = "$env:DB_PASSWORD""#.to_owned(),
+            "SECRET=\"`vault read -field=value secret/app`\"".to_owned(),
+        ] {
+            assert!(!judged(&line), "a reference was reported: {line}");
+        }
+        // The controls: a value with text of its own is still reported, so the lines above were
+        // passed over for being references and not for the shape of the line.
+        // Named rather than printed on failure: even a made-up credential is not written to output.
+        for (case, line) in [
+            (
+                "a reference with text after it",
+                format!(r#"API_KEY="$CF_DNS_API_TOKEN-extra-{suffix}""#),
+            ),
+            (
+                "a password with dollar signs in it",
+                format!(r#"PASSWORD="{password}""#),
+            ),
+        ] {
+            assert!(judged(&line), "not reported: {case}");
+        }
+    }
+
     use super::*;
 
     /// Builds a credential-shaped string at run time, from pieces.
