@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
+| L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 2 |
 | L2 | 183 | 79 | 6 | 0 | 15 | 38 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
-With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 18 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -78,7 +78,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (17)
+### Settled by reading the code (18)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -90,6 +90,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V10.4.4 | L1 | Reads the code: `config.retired-grant-enabled`; The running app: `probe.retired-grants-offered` (sv only ever as a finding: `config.retired-grant-enabled`, `probe.retired-grants-offered`) |
 | V11.2.4 | L3 | Reads the code: `ast.digest-compared-with-equals` (sv only ever as a finding: `ast.digest-compared-with-equals`) |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
@@ -174,7 +175,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.2 | L2 | Signed in: `probe.oidc-issuer-not-checked` |
-| V10.4.4 | L1 | The running app: `probe.retired-grants-offered` (sv only ever as a finding: `probe.retired-grants-offered`) |
+| V10.4.4 | L1 | Reads the code: `config.retired-grant-enabled`; The running app: `probe.retired-grants-offered` (sv only ever as a finding: `config.retired-grant-enabled`, `probe.retired-grants-offered`) |
 | V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
 | V10.5.2 | L2 | Signed in: `probe.oidc-user-keyed-on-email` |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
