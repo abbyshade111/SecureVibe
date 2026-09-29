@@ -654,9 +654,19 @@ another session is not a claim.
   guessing checks). A fix would treat 429 (and 503 with `Retry-After`) as "the app did not answer the question":
   wait out `Retry-After` once and ask again, else not assessed, never refused. The file is frozen for the split
   until step 2; this waits for it, or for the session holding slice b (private pages).
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-rate-limited`, now that the split is done. The claim covers the false pass found
+  while looking (a 429 or a 503 with `Retry-After` read as the app's own answer, in the signed-in checks and any
+  other probe that reads a status the same way); the reported CRITICAL still needs the other project's report
+  from the owner, and stays open until it is read.
   **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
   wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
+  **Claimed twice.** securevibe-e10's claim was made at 00:19 UTC on 29 September but pushed only to its own
+  branch, never merged; securevibe-e2 found the item unclaimed on `main` and claimed it at 00:38 UTC (#411), as
+  the rule says it should. **The owner's decision, the same day: securevibe-e10's finished work (#412) is merged,
+  and securevibe-e2 stands down or takes the part #412 left, the anonymous probes outside `signed_in/`** (the
+  entry below). The lesson is the rule's own: a claim counts when it is on `main`, so open its pull request at once.
   **Done the same day:** every signed-in request goes through `Patient`, which waits out a 429, or a 503 with
   `Retry-After`, once, as long as the app asks and at most a minute, except the guessing checks' own requests.
   A limiter still answering after that withdraws every credit of the run into not assessed, naming the
