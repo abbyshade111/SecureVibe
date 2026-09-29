@@ -842,6 +842,10 @@ another session is not a claim.
      V8.4.2, V10.4.4, V16.5.4, and V13.4.7, then the eight about AI apps. The nine signed-in ones (V1.3.4, V5.4.3,
      V4.1.3, V7.4.3, V6.3.7, V10.1.1, V10.5.2, V14.3.3, C9.5.3) are not claimed: their checks live in
      `signed_in/`, which is frozen until the split's step 2 is done.
+     **The freeze is lifted. V4.1.3, V7.4.3, and V6.3.7 claimed on 29 September 2026 by session securevibe-e2**,
+     at the owner's asking to take the next backlog item, in branch `claude/securevibe-e2-signed-in-partials`: the
+     three that need only the signed-in requests and the mail server. The other six (V1.3.4, V5.4.3, V10.1.1,
+     V10.5.2, V14.3.3, C9.5.3) stay unclaimed.
      **The seven that read the code done the same day**, each able only to show its requirement failing, so a
      clean run credits none of them. Four are rules in `data/ast-rules.json`: `ast.digest-compared-with-equals`
      (V11.2.4, taught fourteen languages; shell has no timing to measure), `ast.model-loaded-with-pickle`
