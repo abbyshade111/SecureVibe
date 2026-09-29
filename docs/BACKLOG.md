@@ -697,6 +697,12 @@ another session is not a claim.
   under QEMU on an ARM Mac, spawning a program that does not exist succeeds and the child exits 127, so Semgrep and
   CodeQL, absent from the image, read as "installed and would not start". Fix: exit status 127 with nothing on
   stderr is missing, the shell's own meaning of 127. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
+- **An app folder given with a trailing `/.` leaves outside tools' paths absolute, and their fingerprints change.**
+  Reported on 29 September 2026 by the cato-pipeline session, from the owner's comparison study (`sv report
+  --tools --advisories` on three apps, in CI under amd64 emulation and on the owner's Mac, `main` at `a836cd7`). `sv report app/.` reported every Bandit finding at an absolute path, because `relative_to` in
+  `adapters.rs` strips the folder as text and `…/app/.` is not a prefix of `…/app/backend/…`; the fingerprints
+  differed from the same scan of `app`, so a reviewed finding stops matching. Fix: normalize the folder once, where
+  `sv` receives it, so `app`, `app/`, `app/.`, `./app`, and its absolute path give the same report. **Claimed on 29 September 2026 by session securevibe-e9**, at that session's report on the owner's behalf.
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
