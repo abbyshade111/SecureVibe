@@ -1782,7 +1782,11 @@ mod rate_limit_tests {
             })
         };
         assert_eq!(limited_for("12"), Some(12));
-        assert_eq!(limited_for("Wed, 21 Oct 2026 07:28:00 GMT"), Some(5), "a date: five seconds");
+        assert_eq!(
+            limited_for("Wed, 21 Oct 2026 07:28:00 GMT"),
+            Some(5),
+            "a date: five seconds"
+        );
     }
 
     #[test]
