@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 152 can be checked, 9 where a check helps but a person decides, and 184 with no check.
+345 requirements: 154 can be checked, 9 where a check helps but a person decides, and 182 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 76 can be checked)
+### Level 2 (183 requirements, 78 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -321,7 +321,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **V10.1.1** Verify that tokens are only sent to components that strictly need them. For example, when using a backend-for-frontend pattern for browser-based JavaScript applications, access and refresh tokens shall only be accessible for the backend. | No check | – |
+| **V10.1.1** Verify that tokens are only sent to components that strictly need them. For example, when using a backend-for-frontend pattern for browser-based JavaScript applications, access and refresh tokens shall only be accessible for the backend. | Can be checked | Signed in: `probe.token-in-browser-storage`, if it fails: A sign-in token kept where the page's scripts can read it is taken by the first cross-site scripting bug or rogue package on the page, and whoever has it is signed in as the person. A refresh token keeps them signed in for weeks. (found failing only) |
 | **V10.1.2** Verify that the client only accepts values from the authorization server (such as the authorization code or ID Token) if these values result from an authorization flow that was initiated by the same user agent session and transaction. This requires that client-generated secrets, such as the proof key for code exchange (PKCE) 'code_verifier', 'state' or OIDC 'nonce', are not guessable, are specific to the transaction, and are securely bound to both the client and the user agent session in which the transaction was started. | Can be checked | Signed in: `probe.oidc-sign-in-from-another-session`, if it fails: Somebody can finish their own sign-in in another person's browser, and that person is then using the attacker's account without knowing — typing into it, uploading to it, saving card details to it. |
 | **V10.2.1** Verify that, if the code flow is used, the OAuth client has protection against browser-based request forgery attacks, commonly known as cross-site request forgery (CSRF), which trigger token requests, either by using proof key for code exchange (PKCE) functionality or checking the 'state' parameter that was sent in the authorization request. | Can be checked | Signed in: `probe.oidc-sign-in-from-another-session`, if it fails: Somebody can finish their own sign-in in another person's browser, and that person is then using the attacker's account without knowing — typing into it, uploading to it, saving card details to it. |
 | **V10.2.2** Verify that, if the OAuth client can interact with more than one authorization server, it has a defense against mix-up attacks. For example, it could require that the authorization server return the 'iss' parameter value and validate it in the authorization response and the token response. | Can be checked | Signed in: `probe.oidc-issuer-not-checked`, if it fails: An app that signs in through more than one provider can be tricked into sending a sign-in meant for one to another (a mix-up attack), when it does not check which provider the answer came from. |
@@ -400,7 +400,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V14.2.3** Verify that defined sensitive data is not sent to untrusted parties (e.g., user trackers) to prevent unwanted collection of data outside of the application's control. | A check helps; a person decides | Signed in: `probe.account-details-sent-elsewhere`, if it fails: A signed-in page sends the person's own account details to another website, such as an analytics or advertising service, where they are collected outside the app's control and its privacy promises. |
 | **V14.2.4** Verify that controls around sensitive data related to encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, privacy and privacy-enhancing technologies, are implemented as defined in the documentation for the specific data's protection level. | No check | – |
 | **V14.3.2** Verify that the application sets sufficient anti-caching HTTP response header fields (i.e., Cache-Control: no-store) so that sensitive data is not cached in browsers. | Can be checked | Signed in: `probe.private-page-cached`, if it fails: A private page a browser is allowed to store stays on the machine after the person signs out, where the next person to press Back can read it — which is what shared and public computers make ordinary. |
-| **V14.3.3** Verify that data stored in browser storage (such as localStorage, sessionStorage, IndexedDB, or cookies) does not contain sensitive data, with the exception of session tokens. | No check | – |
+| **V14.3.3** Verify that data stored in browser storage (such as localStorage, sessionStorage, IndexedDB, or cookies) does not contain sensitive data, with the exception of session tokens. | Can be checked | Signed in: `probe.password-in-browser-storage`, if it fails: The account's password is kept in the browser, where any script on the page can read it and where it stays after the person signs out: on a shared computer, the next person can read it too. (found failing only) |
 
 #### V15 Secure Coding and Architecture
 

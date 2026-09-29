@@ -1205,6 +1205,9 @@ fn run_checks(
             .map(|s| s.session);
         crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out);
     }
+    // And what the app keeps in the browser after a sign-in through its own form: another sign-in,
+    // so it goes here too.
+    crate::browser_storage::storage_check(http, users, &accounts.a, confirm.is_some(), &mut out);
 
     // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
     //     everything that needed A's first session.
@@ -1889,6 +1892,82 @@ mod tests {
         u.owned = None;
         u.private_websocket = Some("/ws".into());
         u
+    }
+
+    /// The fake app, with a browser that answers only the storage job: signed in through the form,
+    /// and the password kept in `localStorage`.
+    struct KeepsPassword {
+        app: FakeApp,
+        stored: String,
+    }
+
+    impl Http for KeepsPassword {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.app.send(r)
+        }
+        fn now(&mut self) -> u64 {
+            self.app.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.app.wait(seconds);
+        }
+        fn browser(&mut self, job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
+            use crate::browser::Action;
+            use serde_json::json;
+            let signs_in = job
+                .actions
+                .iter()
+                .any(|a| matches!(a, Action::Act(e) if e.contains("input[type=password]")));
+            if !signs_in {
+                return None;
+            }
+            let store = |pairs: serde_json::Value| json!({ "value": { "local": pairs, "session": [], "indexeddb": [], "cookie": "" } });
+            Some(vec![
+                json!({ "status": 200, "path": "/login" }),
+                store(json!([])),
+                json!({ "found": true, "after": { "status": 200, "path": "/" } }),
+                json!({ "status": 200, "path": "/account" }),
+                store(json!([["pw", self.stored]])),
+            ])
+        }
+    }
+
+    #[test]
+    fn the_suite_asks_the_browser_what_the_app_keeps_after_signing_in() {
+        let mut u = users();
+        u.browser = Some(Default::default());
+        let acc = accounts();
+
+        // No browser to start: said, never passed.
+        let mut app = FakeApp::new(Flaws::default());
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let o = run(&mut app, &u, &acc, false, &Default::default());
+        assert!(
+            o.not_assessed.iter().any(|(ids, why)| ids == "V10.1.1, V14.3.3"
+                && why.contains("could not be started")),
+            "{:?}",
+            o.not_assessed
+        );
+
+        // A browser that finds the password kept: the finding reaches the outcome.
+        let mut app = FakeApp::new(Flaws::default());
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let mut http = KeepsPassword {
+            app,
+            stored: acc.a.password.clone(),
+        };
+        let o = run(&mut http, &u, &acc, false, &Default::default());
+        assert!(
+            rule_ids(&o).contains(&crate::browser_storage::PASSWORD_IN_STORAGE.rule_id),
+            "{:?}",
+            o.steps
+        );
     }
 }
 
