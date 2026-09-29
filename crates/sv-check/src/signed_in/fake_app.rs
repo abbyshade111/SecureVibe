@@ -58,6 +58,8 @@ pub(super) struct FakeApp {
     pub(super) clear_site_data_value: Option<String>,
     /// Files the app has taken, by name.
     uploads: BTreeMap<String, String>,
+    /// When each file was taken, by the app's clock.
+    upload_times: BTreeMap<String, u64>,
     /// The largest file body the app was sent, accepted or not. This is how the size cap's
     /// promise is made observable: the promise is about what is sent, and no finding says it.
     pub(super) largest_upload: usize,
@@ -247,6 +249,25 @@ pub(super) struct Flaws {
     /// Refuses every upload, whatever it is. An app whose upload path does not work as
     /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
     pub(super) upload_broken: bool,
+    /// Keeps an uploaded SVG's `<script>` and `<foreignObject>` rather than removing them (V1.3.4).
+    pub(super) svg_scripts_kept: bool,
+    /// Turns an uploaded SVG into a GIF, as an app that makes a picture of each image does.
+    pub(super) svg_converted: bool,
+    /// Keeps the antivirus test file with the virus taken out, as a scanner that cleans files
+    /// rather than refusing them does.
+    pub(super) scan_cleans: bool,
+    /// Serves an uploaded SVG as an attachment rather than for the browser to show.
+    pub(super) svg_as_attachment: bool,
+    /// Refuses SVG uploads outright. Not a fault: an app that takes no SVG has nothing to clean.
+    pub(super) refuses_svg: bool,
+    /// Refuses `.txt` uploads, whatever is in them. Not a fault, but it leaves a refusal of the
+    /// antivirus test file saying nothing.
+    pub(super) refuses_text: bool,
+    /// Keeps and serves the antivirus test file, as an app with no scanner does (V5.4.3).
+    pub(super) no_malware_scan: bool,
+    /// Keeps the antivirus test file, then sets it aside this many seconds after taking it, as
+    /// a scanner that runs after the upload is stored does.
+    pub(super) scans_after: Option<u64>,
     /// Refuses sign-in with 429 once an account has this many failures in a row. `None` — the
     /// default, and what a naive app does — counts nothing and accepts guesses forever.
     pub(super) locks_out_after: Option<u32>,
@@ -1202,14 +1223,69 @@ impl Http for FakeApp {
                 if claims_gif && !is_gif && !self.flaws.unchecked_contents_ok {
                     return Some(Self::respond(415, vec![], "not a gif"));
                 }
+                if name.ends_with(".svg") && self.flaws.refuses_svg {
+                    return Some(Self::respond(415, vec![], "no svg"));
+                }
+                if name.ends_with(".txt") && self.flaws.refuses_text {
+                    return Some(Self::respond(415, vec![], "no text files"));
+                }
+                let infected = contents == super::uploads::eicar();
+                let contents = if infected && self.flaws.scan_cleans {
+                    "(this file held a virus, and it was removed)".to_owned()
+                } else {
+                    contents
+                };
+                if infected
+                    && !self.flaws.no_malware_scan
+                    && !self.flaws.scan_cleans
+                    && self.flaws.scans_after.is_none()
+                {
+                    return Some(Self::respond(422, vec![], "a virus was found in this file"));
+                }
+                // A sanitizer's work on an SVG: its two ways of running code removed.
+                let contents = if name.ends_with(".svg") && !self.flaws.svg_scripts_kept {
+                    let mut clean = contents;
+                    for (open, close) in [
+                        ("<script", "</script>"),
+                        ("<foreignObject", "</foreignObject>"),
+                    ] {
+                        while let Some(start) = clean.find(open) {
+                            let end = clean[start..]
+                                .find(close)
+                                .map_or(clean.len(), |e| start + e + close.len());
+                            clean.replace_range(start..end, "");
+                        }
+                    }
+                    clean
+                } else {
+                    contents
+                };
+                let contents = if name.ends_with(".svg") && self.flaws.svg_converted {
+                    "GIF87aa picture of the drawing".to_owned()
+                } else {
+                    contents
+                };
+                self.upload_times.insert(name.clone(), self.clock);
                 self.uploads.insert(name, contents);
                 Self::respond(201, vec![], "stored")
             }
             ("GET", path) if path.starts_with("/files/") => {
                 let name = path.trim_start_matches("/files/");
-                let Some(contents) = self.uploads.get(name) else {
+                let set_aside = self.flaws.scans_after.is_some_and(|after| {
+                    self.uploads.get(name) == Some(&super::uploads::eicar())
+                        && self.clock >= self.upload_times.get(name).copied().unwrap_or(0) + after
+                });
+                let Some(contents) = self.uploads.get(name).filter(|_| !set_aside) else {
                     return Some(Self::respond(404, vec![], "no such file"));
                 };
+                if name.ends_with(".svg") {
+                    // Served for the browser to show, as an image, unless told otherwise.
+                    let mut headers = vec![("Content-Type", "image/svg+xml".to_owned())];
+                    if self.flaws.svg_as_attachment {
+                        headers.push(("Content-Disposition", "attachment".into()));
+                    }
+                    return Some(Self::respond(200, headers, contents));
+                }
                 if name.ends_with(".php") {
                     if self.flaws.runs_uploaded_code {
                         // Only the output: the source is gone, which is what "it ran" means.

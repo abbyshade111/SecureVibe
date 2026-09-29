@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 150 (43%) | 7 | 188 |
+| OWASP ASVS 5.0 | 345 | 151 (44%) | 8 | 186 |
 | OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 74 | 6 | 0 | 14 | 33 | 28 | 1 |
+| L2 | 183 | 75 | 6 | 0 | 14 | 34 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -58,11 +58,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 18 | 0 | 12 |
+| V1 Encoding and Sanitization | 30 | 19 | 0 | 11 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 9 | 0 | 7 |
-| V5 File Handling | 13 | 8 | 0 | 5 |
+| V5 File Handling | 13 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 23 | 1 | 23 |
 | V7 Session Management | 19 | 9 | 0 | 10 |
 | V8 Authorization | 13 | 3 | 1 | 9 |
@@ -100,10 +100,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (90)
+### Settled by asking the running app (91)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `react-dangerouslysetinnerhtml`) |
@@ -243,11 +244,12 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (7)
+### Supporting only (8)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
+| V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
