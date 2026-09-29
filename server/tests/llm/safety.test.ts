@@ -4,7 +4,7 @@
  * log (one line per model call, redacted).
  */
 import { readFileSync } from 'node:fs';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -191,7 +191,15 @@ describe('audit log', () => {
   });
 
   it('never breaks a build when it cannot write', () => {
-    expect(() => appendAudit(entry(), { home: '/proc/definitely/not/writable' })).not.toThrow();
+    // A file where a directory has to be. The write fails with ENOTDIR, immediately, on every platform.
+    //
+    // This asked for /proc/definitely/not/writable until 23 September 2026. On macOS /proc does not exist and
+    // the call fails in microseconds, so the test passed and looked sound. On Linux mkdirSync with recursive
+    // never returns for that path, so this one line hung every CI run for four days: synchronously, which is
+    // why vitest's per-test timeout never fired and its reporter never printed a thing.
+    const blocker = join(home, 'not-a-directory');
+    writeFileSync(blocker, 'x', 'utf8');
+    expect(() => appendAudit(entry(), { home: join(blocker, 'below') })).not.toThrow();
   });
 });
 

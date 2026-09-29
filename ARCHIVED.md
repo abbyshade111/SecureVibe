@@ -13,7 +13,10 @@ still resolves.
   from the release `v1-paper-doi` on the same commit. Cite that version DOI. The concept DOI (ending 708) always
   follows the repository's latest release, which is now `sv`'s.
 - Tag `v1-final`: the last commit before the move. This branch (`v1`) starts there; the commits on top of it
-  are this file and one change to how CodeQL keeps its results (see "Known issues at archive time"). Neither touches v1's code.
+  are this file and one change to how CodeQL keeps its results (see "Known issues at archive time"). Neither touches v1's code. On 28 September 2026, at the owner's decision, the CI-hang fix from `claude/ci-hang`
+  was merged here: a test that asked `mkdirSync` to write into `/proc` (which spins forever on Linux) now uses a
+  path that fails at once, the template gains rule SC-27, and the workflow installs the template's packages. The
+  tags `v1-paper` and `v1-final` do not include it.
 
 **What is in this tree.** Everything v1 needs to run and everything that guards it: `server/`, `shared/`,
 `web/`, `templates/` (the app template every build starts from, with its own security test suite), `evals/` (the
