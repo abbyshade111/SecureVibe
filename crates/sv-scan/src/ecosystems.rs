@@ -95,6 +95,13 @@ pub struct DetectedEcosystem {
     /// The lockfile found, when one was, as a path from the app folder. It sits beside the manifest,
     /// or at the root of a workspace the manifest belongs to.
     pub lockfile: Option<String>,
+    /// Other lockfiles of the same kind in the folder `lockfile` came from, which were not read.
+    ///
+    /// `package-lock.json` beside a `yarn.lock`, or `uv.lock` beside a `requirements.lock`: one is
+    /// read, in the order the ecosystem lists them, and the rest are named here, because two
+    /// lockfiles can disagree and a report that described one of them without saying so would
+    /// leave the owner no way to tell which versions it was about.
+    pub passed_over: Vec<String>,
     /// Whether this ecosystem pins versions with a lockfile at all.
     ///
     /// Maven does not: versions live in `pom.xml` and there is no lockfile to look for. Without this
@@ -162,10 +169,16 @@ pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
             if !dir.join(eco.manifest).exists() {
                 continue;
             }
+            let lockfile = find_lockfile(app_dir, rel_dir, eco.lockfiles);
+            let passed_over = lockfile
+                .as_deref()
+                .map(|found| others_beside(app_dir, found, eco.lockfiles))
+                .unwrap_or_default();
             out.push(DetectedEcosystem {
                 name: eco.name.to_owned(),
                 manifest: join(rel_dir, eco.manifest),
-                lockfile: find_lockfile(app_dir, rel_dir, eco.lockfiles),
+                lockfile,
+                passed_over,
                 pins_with_lockfile: !eco.lockfiles.is_empty(),
             });
         }
@@ -220,6 +233,16 @@ fn find_lockfile(app_dir: &Path, rel_dir: &str, lockfiles: &[&str]) -> Option<St
         rel = parent;
     }
     None
+}
+
+/// The lockfiles of the same kind that sit in the same folder as `found` and were not read.
+fn others_beside(app_dir: &Path, found: &str, lockfiles: &[&str]) -> Vec<String> {
+    let dir = found.rsplit_once('/').map_or("", |(head, _)| head);
+    lockfiles
+        .iter()
+        .map(|f| join(dir, f))
+        .filter(|path| path != found && app_dir.join(path).exists())
+        .collect()
 }
 
 /// The member patterns a workspace root declares, when the folder is one.

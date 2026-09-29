@@ -317,3 +317,42 @@ fn a_large_data_file_leaves_the_credential_scan_and_the_mcp_check_finished() {
     assert!(why.contains("catalog.json"), "{why}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_second_lockfile_nothing_read_keeps_known_vulnerabilities_from_counting_as_looked_for() {
+    // `package-lock.json` is read and compared; a `yarn.lock` beside it is not, and may be the one
+    // the app is installed from. A finding that disappears because the other file was read is not
+    // a fixed finding, so a program must not be told the comparison was whole.
+    let dir = npm_app("two-lockfiles");
+    advisory(&dir, "GHSA-0000-0000-0002", "npm", "lodash");
+    let osv = dir.join("osv");
+    let osv = osv.to_str().unwrap();
+
+    let one = report(&dir, &["--advisories", osv]);
+    assert_eq!(
+        entry(&one, "advisory.").0,
+        "ran",
+        "the control: one lockfile"
+    );
+    assert!(!has_gap(&one, "which lockfile"));
+
+    std::fs::write(dir.join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+    let two = report(&dir, &["--advisories", osv]);
+    assert!(
+        two["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["rule_id"] == "advisory.GHSA-0000-0000-0002"),
+        "the lockfile that was read is still compared: {}",
+        two["findings"]
+    );
+    assert!(has_gap(&two, "which lockfile npm is installed from"));
+    let (state, why) = entry(&two, "advisory.");
+    assert_eq!(state, "partly");
+    assert!(
+        why.contains("`yarn.lock`") && why.contains("`package-lock.json`"),
+        "{why}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
