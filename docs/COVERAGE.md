@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 151 (44%) | 8 | 186 |
+| OWASP ASVS 5.0 | 345 | 152 (44%) | 9 | 184 |
 | OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 75 | 6 | 0 | 14 | 34 | 28 | 1 |
+| L2 | 183 | 76 | 6 | 0 | 14 | 35 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -100,7 +100,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (91)
+### Settled by asking the running app (92)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -245,7 +245,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (8)
+### Supporting only (9)
 
 | Requirement | Level | Checks |
 |---|---|---|
