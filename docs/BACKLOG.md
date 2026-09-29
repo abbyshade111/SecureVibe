@@ -662,6 +662,20 @@ another session is not a claim.
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
 
+- **A shell variable reference is reported as a hard-coded credential.** Reported on 29 September 2026 by the
+  cato-pipeline session, from its CI run against `sv` at `982f97e`: `export CF_ZONE_API_TOKEN="$CF_DNS_API_TOKEN"`
+  was a HIGH `secrets.credential-assignment`, telling the owner to rotate a credential that was never in the file.
+  `assignment_findings` (`crates/sv-check/src/secrets.rs`) skips a value that is all capitals and underscores, and
+  `looks_like_placeholder` skips `${NAME}`, but `$NAME` passes both. Fix: a value that is entirely one reference is
+  not a credential: `$NAME`, `$(command)` or backticks, `%NAME%`, and PowerShell's `$env:NAME`; a value that only
+  contains one (`$NAME-extra`, `pa$$w0rd…`) is still judged. **Claimed on 29 September 2026 by session
+  securevibe-e9**, at the cato-pipeline session's report on the owner's behalf.
+- **The MCP check still counts a large data file whose prose says "command".** Noted on 29 September 2026 by the
+  cato-pipeline session: after the large-file work, `config.mcp-server-unpinned` is still not run on cato, because
+  NIST's 10 MB catalog uses the word `command` in its text, and a large file is counted as read only when it never
+  says `command`. That is the check working as written; narrowing it to a `command` key (`"command"` followed by `:`,
+  or `command =`) would let a prose file through while still catching a configuration. **Not claimed.**
+
 - **Known-vulnerability matching ignores OSV's `last_affected`, so versions after it are reported.** Reported on 29
   September 2026 by the cato-pipeline session, from its CI run against `sv` at `3fc9324`: `advisory.GHSA-r374-rxx8-8654`
   (alias `PYSEC-2026-2858`) was reported against paramiko 5.0.0, while its range is `introduced: 0`, `last_affected:
