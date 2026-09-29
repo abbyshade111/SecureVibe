@@ -720,6 +720,14 @@ find. A shell script is not an application, so most of what the rules look for l
   (third-party components included from the expected repository). `curl … | sh`, `wget -qO- … | sudo
   bash`, and `bash <(curl …)` run whatever the address serves, unchecked. `curl … | sudo tee` writes a
   file and is not reported, and neither is the download-check-run form the rule's fix describes.
+  An interpreter runs what it is sent only when it takes its program from standard input, so the rule
+  reports `| sh`, `| sh -s stable`, `| python3 -`, and `| sudo -E bash`, and not `| python3 -c '…'`,
+  `| perl -ne '…'`, `| python3 -m json.tool`, or `| bash count.sh`, which read the download as data
+  (found by cato-pipeline, 28 September 2026). The program given with `-c` is the author's own text, the
+  same judgment `literal_argument_is_safe` makes for `eval("1 + 1")`: `python3 -c
+  "exec(sys.stdin.read())"` runs the download on purpose, and a rule cannot tell that from the text. The
+  command must begin with the interpreter, after any variable assignments and `sudo` or `doas` with its
+  options, so `| grep python` is not an interpreter.
   `sh -c "$(curl …)"` is found by the shell-command rule instead. Every other language has no pipe
   syntax, and says so; a literal `curl … | sh` written inside a Python string and handed to a shell is
   found by neither rule, because the shell-command rule only reports commands built from a value.
