@@ -1570,11 +1570,16 @@ mod tests {
         std::fs::write(root.join("app").join("main.py"), "print('hi')\n").unwrap();
         std::fs::write(
             root.join("app").join(".env"),
-            "TOKEN=only-in-the-env-file-4471\n",
+            format!("TOKEN={ENV_SECRET}\n"),
         )
         .unwrap();
         root
     }
+
+    /// What `bundle_root` puts in the app's `.env`, and nowhere else. Looked for whole: the four
+    /// digits at its end alone once failed the test whenever the process id held them, since the
+    /// bundle names the folder the test made, and that folder is named with the process id.
+    const ENV_SECRET: &str = "only-in-the-env-file-4471";
 
     #[test]
     fn the_bundle_tool_is_offered_and_the_report_points_to_it() {
@@ -1603,7 +1608,15 @@ mod tests {
 
     #[test]
     fn a_bundle_is_written_beside_the_app_inside_the_root_and_holds_no_secret() {
-        let root = bundle_root("beside");
+        // The folder's own name holds the secret's last four digits, as a process id once did, so
+        // a check that looks for less than the whole secret fails here every time.
+        let root = bundle_root("beside-4471");
+        assert!(
+            std::fs::read_to_string(root.join("app").join(".env"))
+                .unwrap()
+                .contains(ENV_SECRET),
+            "the secret is in the app, where it can be left out"
+        );
         let server = Server::new(&root).unwrap();
         let result = call(&server, "securevibe_bundle", json!({ "path": "app" }));
         assert_eq!(result["isError"], false, "{}", text(&result));
@@ -1618,8 +1631,16 @@ mod tests {
         let bytes = std::fs::read(&zip).unwrap();
         assert!(bytes.starts_with(b"PK"), "not a zip");
         assert!(
-            !bytes.windows(4).any(|w| w == b"4471"),
+            !bytes
+                .windows(ENV_SECRET.len())
+                .any(|w| w == ENV_SECRET.as_bytes()),
             "the secret is in the bundle"
+        );
+        assert!(
+            bytes
+                .windows(b"beside-4471".len())
+                .any(|w| w == b"beside-4471"),
+            "the setup: the bundle does name the folder, so its digits are there to be mistaken"
         );
         assert!(
             !root.join("app").join("app-securevibe-bundle.zip").exists(),
