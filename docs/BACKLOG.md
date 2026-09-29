@@ -99,6 +99,11 @@ another session is not a claim.
      comparison describe one of them and the owner is not told which. The bill of materials could carry a note
      naming the file read and the ones passed over. **Claimed on 29 September 2026 by session securevibe-e2**, at
      the owner's asking to pick a backlog item, in branch `claude/securevibe-e2-which-lockfile`.
+     **Done the same day:** one lockfile is still read, in the same order, and the others are named in the bill
+     of materials (a CycloneDX property), in `sv sbom`'s output, and in the report as a gap. `advisory.` is
+     `partly` in `examined`, and the clean "nothing found" claim is withheld, so `sv audit` exits 2 rather than
+     0. Six tests; each of eight guards, broken in turn, turns its own test red. See DESIGN, "Two lockfiles of
+     one kind".
 
 - **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
   the owner's asking.

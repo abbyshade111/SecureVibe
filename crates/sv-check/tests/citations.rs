@@ -323,6 +323,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     let known = requirements();
 
     let incomplete = Sbom {
+        passed_over: Vec::new(),
         components: vec![Component {
             name: "flask".into(),
             version: "3.0.0".into(),
@@ -333,6 +334,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     };
     let finding = sv_check::sbom::incompleteness_finding(&incomplete).expect("it is incomplete");
     let complete = Sbom {
+        passed_over: Vec::new(),
         components: vec![Component {
             name: "flask".into(),
             version: "3.0.0".into(),

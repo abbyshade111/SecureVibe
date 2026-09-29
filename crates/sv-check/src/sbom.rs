@@ -59,6 +59,44 @@ pub struct Sbom {
     pub components: Vec<Component>,
     /// Ecosystems that are present and whose contents `sv` could not read, with the reason.
     pub unread: Vec<(String, String)>,
+    /// Projects with more than one lockfile of their kind. The list is still a full reading of the
+    /// lockfile it came from, so this does not make it incomplete; it says which lockfile the
+    /// versions are from, and which were not read.
+    pub passed_over: Vec<PassedOver>,
+}
+
+/// One project's lockfiles when it has more than one: the one read, and the rest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PassedOver {
+    /// The project, as `DetectedEcosystem::label` names it: `npm`, or `npm in server/`.
+    pub project: String,
+    pub read: String,
+    pub not_read: Vec<String>,
+}
+
+impl PassedOver {
+    /// The files that were not read, each in backticks: "`yarn.lock`", or "`a` and `b`".
+    pub fn not_read_list(&self) -> String {
+        self.not_read
+            .iter()
+            .map(|f| format!("`{f}`"))
+            .collect::<Vec<_>>()
+            .join(" and ")
+    }
+
+    /// The sentence a person reads.
+    pub fn explain(&self) -> String {
+        let one = self.not_read.len() == 1;
+        format!(
+            "`{}` was read; {} {} there too and {} not read, so if the app is installed from {}, \
+             the versions listed here may not be the ones installed",
+            self.read,
+            self.not_read_list(),
+            if one { "is" } else { "are" },
+            if one { "was" } else { "were" },
+            if one { "it" } else { "one of them" },
+        )
+    }
 }
 
 impl Sbom {
@@ -103,6 +141,13 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
     // The file names below decide how each is read; the paths are where they really are, which for a
     // project in `server/` or a workspace member is not the top of the app folder.
     let lockfile_path = eco.lockfile.clone().unwrap_or_default();
+    if !eco.passed_over.is_empty() {
+        sbom.passed_over.push(PassedOver {
+            project: eco.label(),
+            read: lockfile_path.clone(),
+            not_read: eco.passed_over.clone(),
+        });
+    }
     let read = |name: &str| {
         let path = if sv_scan::ecosystems::file_name(&lockfile_path) == name {
             lockfile_path.as_str()
@@ -655,6 +700,12 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
             value: why.clone(),
         });
     }
+    for passed in &sbom.passed_over {
+        properties.push(Property {
+            name: format!("securevibe:lockfile-passed-over:{}", passed.project),
+            value: passed.explain(),
+        });
+    }
 
     CycloneDx {
         bom_format: "CycloneDX",
@@ -917,6 +968,51 @@ mod tests {
                 .iter()
                 .all(|c| c.source == VersionSource::Locked),
             "{sbom:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_lockfile_passed_over_is_named_in_the_document_and_leaves_it_complete() {
+        let dir = scratch("passed-over");
+        fs::write(dir.join("Cargo.toml"), "[package]\nname='x'\n").unwrap();
+        fs::write(
+            dir.join("Cargo.lock"),
+            "[[package]]\nname = \"serde\"\nversion = \"1.0.229\"\n",
+        )
+        .unwrap();
+        fs::write(dir.join("package.json"), "{\"name\":\"web\"}").unwrap();
+        fs::write(
+            dir.join("package-lock.json"),
+            r#"{"lockfileVersion":3,"packages":{"node_modules/lodash":{"version":"4.17.21"}}}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+        let sbom = build(&dir);
+        assert_eq!(
+            sbom.passed_over,
+            vec![PassedOver {
+                project: "npm".into(),
+                read: "package-lock.json".into(),
+                not_read: vec!["yarn.lock".into()],
+            }]
+        );
+        assert!(
+            sbom.is_complete(),
+            "a full reading of one lockfile: {sbom:?}"
+        );
+        let doc = serde_json::to_value(to_cyclonedx(&sbom)).unwrap();
+        let said = doc["metadata"]["properties"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["name"] == "securevibe:lockfile-passed-over:npm")
+            .unwrap_or_else(|| panic!("the document names it: {doc}"));
+        let said = said["value"].as_str().unwrap();
+        assert!(
+            said.contains("`package-lock.json` was read")
+                && said.contains("`yarn.lock` is there too"),
+            "{said}"
         );
         fs::remove_dir_all(&dir).ok();
     }

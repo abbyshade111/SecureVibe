@@ -1117,6 +1117,33 @@ fn a_requirements_lock_pins_a_pyproject_project_and_a_tools_own_lockfile_comes_f
 }
 
 #[test]
+fn a_second_lockfile_beside_the_one_read_is_named_as_passed_over() {
+    let dir = scratch("two-lockfiles");
+    std::fs::create_dir_all(dir.join("server")).unwrap();
+    std::fs::write(dir.join("package.json"), "{\"name\":\"web\"}").unwrap();
+    std::fs::write(dir.join("package-lock.json"), "{\"lockfileVersion\":3}").unwrap();
+    std::fs::write(dir.join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+    std::fs::write(dir.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+    // One lockfile only, in a project of its own below: nothing passed over there.
+    std::fs::write(dir.join("server/package.json"), "{\"name\":\"api\"}").unwrap();
+    std::fs::write(dir.join("server/yarn.lock"), "# yarn lockfile v1\n").unwrap();
+    let detected = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let project = |manifest: &str| {
+        detected
+            .iter()
+            .find(|e| e.manifest == manifest)
+            .unwrap_or_else(|| panic!("{manifest} is found: {detected:?}"))
+    };
+    let top = project("package.json");
+    assert_eq!(top.lockfile.as_deref(), Some("package-lock.json"));
+    assert_eq!(top.passed_over, vec!["yarn.lock", "pnpm-lock.yaml"]);
+    let server = project("server/package.json");
+    assert_eq!(server.lockfile.as_deref(), Some("server/yarn.lock"));
+    assert!(server.passed_over.is_empty(), "{server:?}");
+}
+
+#[test]
 fn a_workspace_member_is_pinned_by_the_lockfile_at_the_workspace_root() {
     // npm, pnpm, Yarn, Cargo and uv keep one lockfile at the root for every member.
     let dir = scratch("npm-workspace");
