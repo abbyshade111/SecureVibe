@@ -164,12 +164,12 @@ fn grants_in(library: &Library, found: &regex::Captures) -> Vec<&'static str> {
     }
 }
 
+/// A file, a line, the library, and the grants it switches on there.
+type Place = (String, usize, &'static str, Vec<&'static str>);
+
 /// Every place in the app's files where a listed library switches on either grant: the file, the
 /// line, the library, and the grants.
-fn switched_on(
-    listing: &Listing,
-    sbom: &Sbom,
-) -> (Vec<(String, usize, &'static str, Vec<&'static str>)>, bool) {
+fn switched_on(listing: &Listing, sbom: &Sbom) -> (Vec<Place>, bool) {
     let mut found = Vec::new();
     let mut any_library = false;
     for library in LIBRARIES {
