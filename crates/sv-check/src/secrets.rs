@@ -561,11 +561,18 @@ mod tests {
         }
         // The controls: a value with text of its own is still reported, so the lines above were
         // passed over for being references and not for the shape of the line.
-        for line in [
-            format!(r#"API_KEY="$CF_DNS_API_TOKEN-extra-{suffix}""#),
-            format!(r#"PASSWORD="{password}""#),
+        // Named rather than printed on failure: even a made-up credential is not written to output.
+        for (case, line) in [
+            (
+                "a reference with text after it",
+                format!(r#"API_KEY="$CF_DNS_API_TOKEN-extra-{suffix}""#),
+            ),
+            (
+                "a password with dollar signs in it",
+                format!(r#"PASSWORD="{password}""#),
+            ),
         ] {
-            assert!(judged(&line), "not reported: {line}");
+            assert!(judged(&line), "not reported: {case}");
         }
     }
 
