@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 153 (44%) | 8 | 184 |
+| OWASP ASVS 5.0 | 345 | 154 (45%) | 9 | 182 |
 | OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 77 | 6 | 0 | 14 | 36 | 28 | 1 |
+| L2 | 183 | 78 | 6 | 0 | 14 | 37 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -65,13 +65,13 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V5 File Handling | 13 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 23 | 1 | 23 |
 | V7 Session Management | 19 | 9 | 0 | 10 |
-| V8 Authorization | 13 | 3 | 1 | 9 |
+| V8 Authorization | 13 | 4 | 1 | 8 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 7 | 0 | 29 |
 | V11 Cryptography | 24 | 10 | 1 | 13 |
 | V12 Secure Communication | 12 | 7 | 1 | 4 |
 | V13 Configuration | 21 | 8 | 1 | 12 |
-| V14 Data Protection | 13 | 4 | 1 | 8 |
+| V14 Data Protection | 13 | 4 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
 | V16 Security Logging and Error Handling | 17 | 9 | 0 | 8 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
@@ -100,7 +100,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (93)
+### Settled by asking the running app (94)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -168,6 +168,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
+| V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V10.1.1 | L2 | Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `probe.token-in-browser-storage`) |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
@@ -187,7 +188,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V14.3.3 | L2 | Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `probe.password-in-browser-storage`) |
-| V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` |
+| V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`) |
 | V15.3.3 | L2 | Signed in: `probe.role-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
@@ -246,7 +247,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (8)
+### Supporting only (9)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -257,6 +258,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 9 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V14.2.2 | L2 | Signed in: `probe.private-page-shared-cache` (sv only ever as a finding: `probe.private-page-shared-cache`) |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
 ### Level 1 with no check at all (11)

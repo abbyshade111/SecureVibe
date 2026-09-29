@@ -78,9 +78,10 @@ pub(super) const ADMIN_ACTION: Rule = Rule {
 pub(super) const ROLE_FIELD: Rule = Rule {
     rule_id: "probe.role-field-trusted",
     // V8.3.1 names exactly this: an authorization decision resting on something the client can
-    // change. V15.3.3 is mass assignment: a field set that the action was never meant to take. Only
+    // change. V15.3.3 is mass assignment: a field set that the action was never meant to take.
+    // V8.2.3 is field-level access (BOPLA): a user writing a field they have no permission to. Only
     // ever a finding: five guessed field names refused say nothing about a sixth.
-    requirement_ids: &["V8.3.1", "V15.3.3"],
+    requirement_ids: &["V8.3.1", "V15.3.3", "V8.2.3"],
     cwe: &["CWE-915", "CWE-269"],
     impact: "Anybody who signs up can make themselves an administrator by adding one field to the \
              sign-up form, which takes a browser's developer tools and no skill.",
@@ -96,6 +97,21 @@ pub(super) const OTHER_USERS_DATA: Rule = Rule {
              how most data leaks from web apps happen.",
     fix: "Look records up by their owner as well as their id — `where id = ? and owner = ?` — so a \
           record that is not yours is simply not found.",
+};
+
+/// A private page that tells shared caches they may keep it (V14.2.2).
+pub(super) const PRIVATE_PAGE_SHARED_CACHE: Rule = Rule {
+    rule_id: "probe.private-page-shared-cache",
+    // V14.2.2 asks that sensitive data is kept out of server-side caches such as load balancers.
+    // `public` or `s-maxage` on a signed-in page tells exactly those caches they may keep it. Only
+    // ever a finding: a page without them can still be cached by a server this cannot see.
+    requirement_ids: &["V14.2.2"],
+    cwe: &["CWE-525"],
+    impact: "A shared cache in front of the app, such as a load balancer or a content delivery \
+             network, may keep one person's private page and hand it to the next person who asks \
+             for the same address.",
+    fix: "Send `Cache-Control: private, no-store` on every page that shows somebody's own data, \
+          and never `public` or `s-maxage` on one.",
 };
 
 pub(super) const PRIVATE_PAGE_CACHING: Rule = Rule {
@@ -261,7 +277,9 @@ pub(super) const WS_AFTER_SIGN_OUT: Rule = Rule {
 
 pub(super) const RECORD_LEAKS_FIELDS: Rule = Rule {
     rule_id: "probe.record-returns-secret-fields",
-    requirement_ids: &["V15.3.1"],
+    // V8.2.3 as well as V15.3.1: a field handed to a user with no permission to read it is the
+    // reading half of field-level access (BOPLA). Only ever a finding, like the check itself.
+    requirement_ids: &["V15.3.1", "V8.2.3"],
     cwe: &["CWE-213"],
     impact: "A record handed back to the browser carries fields nobody outside the server should \
              ever see. Whatever is in them has already left.",

@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 153 can be checked, 8 where a check helps but a person decides, and 184 with no check.
+345 requirements: 154 can be checked, 9 where a check helps but a person decides, and 182 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -178,9 +178,9 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V15.1.1** Verify that application documentation defines risk based remediation time frames for 3rd party component versions with vulnerabilities and for updating libraries in general, to minimize the risk from these components. | No check | – |
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
-| **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. |
+| **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 77 can be checked)
+### Level 2 (183 requirements, 78 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -306,7 +306,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **V8.1.2** Verify that authorization documentation defines rules for field-level access restrictions (both read and write) based on consumer permissions and resource attributes. Note that these rules might depend on other attribute values of the relevant data object, such as state or status. | No check | – |
-| **V8.2.3** Verify that the application ensures that field-level access is restricted to consumers with explicit permissions to specific fields to mitigate broken object property level authorization (BOPLA). | No check | – |
+| **V8.2.3** Verify that the application ensures that field-level access is restricted to consumers with explicit permissions to specific fields to mitigate broken object property level authorization (BOPLA). | Can be checked | Signed in: `probe.role-field-trusted`, if it fails: Anybody who signs up can make themselves an administrator by adding one field to the sign-up form, which takes a browser's developer tools and no skill. (found failing only)<br>Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 | **V8.4.1** Verify that multi-tenant applications use cross-tenant controls to ensure consumer operations will never affect tenants with which they do not have permissions to interact. | No check | – |
 
 #### V9 Self-contained Tokens
@@ -396,7 +396,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V14.1.1** Verify that all sensitive data created and processed by the application has been identified and classified into protection levels. This includes data that is only encoded and therefore easily decoded, such as Base64 strings or the plaintext payload inside a JWT. Protection levels need to take into account any data protection and privacy regulations and standards which the application is required to comply with. | No check | – |
 | **V14.1.2** Verify that all sensitive data protection levels have a documented set of protection requirements. This must include (but not be limited to) requirements related to general encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, database-level encryption, privacy and privacy-enhancing technologies to be used, and other confidentiality requirements. | No check | – |
-| **V14.2.2** Verify that the application prevents sensitive data from being cached in server components, such as load balancers and application caches, or ensures that the data is securely purged after use. | No check | – |
+| **V14.2.2** Verify that the application prevents sensitive data from being cached in server components, such as load balancers and application caches, or ensures that the data is securely purged after use. | A check helps; a person decides | Signed in: `probe.private-page-shared-cache`, if it fails: A shared cache in front of the app, such as a load balancer or a content delivery network, may keep one person's private page and hand it to the next person who asks for the same address. (found failing only) |
 | **V14.2.3** Verify that defined sensitive data is not sent to untrusted parties (e.g., user trackers) to prevent unwanted collection of data outside of the application's control. | A check helps; a person decides | Signed in: `probe.account-details-sent-elsewhere`, if it fails: A signed-in page sends the person's own account details to another website, such as an analytics or advertising service, where they are collected outside the app's control and its privacy promises. |
 | **V14.2.4** Verify that controls around sensitive data related to encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, privacy and privacy-enhancing technologies, are implemented as defined in the documentation for the specific data's protection level. | No check | – |
 | **V14.3.2** Verify that the application sets sufficient anti-caching HTTP response header fields (i.e., Cache-Control: no-store) so that sensitive data is not cached in browsers. | Can be checked | Signed in: `probe.private-page-cached`, if it fails: A private page a browser is allowed to store stays on the machine after the person signs out, where the next person to press Back can read it — which is what shared and public computers make ordinary. |

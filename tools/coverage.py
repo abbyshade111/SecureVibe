@@ -107,7 +107,7 @@ RUST_CHECKS = {
     "probe.private-page-anonymous": ("signed-in", ["V8.2.1"]),
     "probe.admin-page-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
     "probe.admin-action-ordinary-user": ("signed-in", ["V8.2.1", "V8.3.1"]),
-    "probe.role-field-trusted": ("signed-in", ["V8.3.1", "V15.3.3"]),
+    "probe.role-field-trusted": ("signed-in", ["V8.3.1", "V15.3.3", "V8.2.3"]),
     "probe.other-users-data": ("signed-in", ["V8.2.2"]),
     "probe.session-cookie-attributes": ("signed-in", ["V3.3.2", "V3.3.4"]),
     "probe.session-not-renewed": ("signed-in", ["V7.2.4"]),
@@ -175,6 +175,7 @@ RUST_CHECKS = {
     "probe.cookie-without-host-prefix": ("production", ["V3.3.3"]),
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
+    "probe.private-page-shared-cache": ("signed-in", ["V14.2.2"]),
     "probe.no-sign-out-link": ("signed-in", ["V7.4.4"]),
     "probe.oversized-file-accepted": ("signed-in", ["V5.2.1"]),
     "probe.file-contents-unchecked": ("signed-in", ["V5.2.2"]),
@@ -192,7 +193,7 @@ RUST_CHECKS = {
     "probe.websocket-origin-unchecked": ("running", ["V4.4.2"]),
     "probe.validation-only-in-the-browser": ("signed-in", ["V2.2.2"]),
     "probe.session-token-unverified": ("signed-in", ["V7.2.1"]),
-    "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1"]),
+    "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1", "V8.2.3"]),
     "probe.clear-site-data": ("signed-in", ["V14.3.1"]),
 }
 
@@ -201,6 +202,8 @@ RUST_CHECKS = {
 RUST_FINDINGS_ONLY = {
     "config.workflow-secrets-with-fork-code",
     "probe.role-field-trusted",
+    "probe.record-returns-secret-fields",
+    "probe.private-page-shared-cache",
     "probe.ai-output-fetched",
     "config.development-server-started",
     "config.mcp-server-unpinned",
