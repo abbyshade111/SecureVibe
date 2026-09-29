@@ -899,6 +899,8 @@ another session is not a claim.
      `create` and `shows` under [stack.run.oidc] let the probes save a mark as the first person and see whose
      account each sign-in reaches. Not done: the static companion (a user lookup keyed on the email claim in
      the sign-in callback).
+     **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
+     backlog: the test model asks the app's own record tool for another user's record.
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
