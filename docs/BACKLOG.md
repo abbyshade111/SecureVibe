@@ -885,6 +885,9 @@ another session is not a claim.
      `probe.password-in-browser-storage` (V14.3.3) and `probe.token-in-browser-storage` (V10.1.1) are only ever
      findings. Not done: tokens sent to other sites (a hosted backend on another address receives them by
      design), and the pointers from the code (`setItem` calls with such key names).
+     **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
+     backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
+     share an email address. C9.5.3 stays unclaimed.
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
