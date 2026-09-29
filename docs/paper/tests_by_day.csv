@@ -1,0 +1,18 @@
+date,version,tests_level,tests_level_measure,tests_level_first_parent,tests_added,commit,commit_first_parent,v1_stated_server_tests,faults_found,found_by_test,found_by_failing_test_only,found_other,product_faults,test_gaps,lines_changed,test_path_lines
+2026-09-17,v1,,"v1 it()/test() calls in *.test.ts, static",,,(destroyed history),,"810 (CORRECTIONS.md (17 Sep, destroyed history))",5,0,0,5,5,0,0,0
+2026-09-18,v1,982,"v1 it()/test() calls in *.test.ts, static",,,0d56fcb7,,949 (60d6e02 / 9bf6eca 'server suite 949 passing'),7,0,0,7,6,1,11594,3165
+2026-09-19,v1,1046,"v1 it()/test() calls in *.test.ts, static",,64,5f94d1c3,,1002 (5f94d1c 'Server suite 107 files / 1002 tests'),36,0,0,36,36,0,6036,1585
+2026-09-20,v1,1118,"v1 it()/test() calls in *.test.ts, static",,72,7fa07d64,,"1078 (last statement that day: 'Server suite: 113 files, 1,078 tests')",19,2,0,17,16,3,4714,1939
+2026-09-21,v1,1118,"v1 it()/test() calls in *.test.ts, static",,0,7fa07d64,,,0,0,0,0,0,0,0,0
+2026-09-22,v1,1118,"v1 it()/test() calls in *.test.ts, static",,0,517279a9,,,0,0,0,0,0,0,0,0
+2026-09-22,sv,54,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",54,54,517279a9,517279a9,,1,0,0,1,1,0,5045,1077
+2026-09-23,v1,1118,"v1 it()/test() calls in *.test.ts, static",,0,172a0c11,,,5,0,0,5,5,0,660,288
+2026-09-23,sv,161,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",54,107,172a0c11,5d8ba92c,,0,0,0,0,0,0,4349,0
+2026-09-24,v1,1177,"v1 it()/test() calls in *.test.ts, static",,59,dff9445d,,,4,1,1,3,4,0,3699,1229
+2026-09-24,sv,326,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",320,165,dff9445d,181b7983,,12,7,2,5,7,5,11021,3731
+2026-09-25,v1,1219,"v1 it()/test() calls in *.test.ts, static",,42,306431a3,,,3,0,0,3,1,2,2595,962
+2026-09-25,sv,687,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",687,361,306431a3,ea5cc3bd,,15,0,0,15,15,0,29677,6945
+2026-09-26,v1,1223,"v1 it()/test() calls in *.test.ts, static",,4,164dfd6,,,2,0,0,2,2,0,229,49
+2026-09-26,sv,1132,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1126,445,19572c7,e4054fe,,17,2,1,15,15,2,36231,10732
+2026-09-27,sv,1306,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1306,174,400bdae,400bdae,,17,4,2,13,13,4,13829,3697
+2026-09-28,sv,1341,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1341,35,273ba01,273ba01,,6,3,3,3,3,3,12200,1418

@@ -352,7 +352,34 @@ impl DockerBackend {
                 .docker(&["logs", "--tail", "20", &app])
                 .map(|(_, o)| o)
                 .unwrap_or_default();
+            // Whether the app had anything to start: the same folder, mounted the same way into a
+            // container of the small image the probes already use, listed. Asked only here, so a
+            // run that works pays nothing for it.
+            let inside = self
+                .docker(&[
+                    "run",
+                    "--rm",
+                    "--network",
+                    "none",
+                    "--read-only",
+                    "--cap-drop",
+                    "ALL",
+                    "--security-opt",
+                    "no-new-privileges",
+                    "-v",
+                    &mount,
+                    PROBE_IMAGE,
+                    "ls",
+                    "-A",
+                    "/app",
+                ])
+                .ok()
+                .filter(|(code, _)| *code == 0)
+                .map(|(_, listed)| listed);
             drop(guard);
+            if let Some(unseen) = crate::unseen_folder(&plan.app_dir, inside.as_deref()) {
+                return Err(unseen);
+            }
             return Err(CannotRun::NeverReady {
                 waited_seconds: READY_TIMEOUT_SECONDS,
                 detail: format!("Its last output was: {}", first_line(&logs)),
@@ -361,11 +388,28 @@ impl DockerBackend {
 
         // 4. The probes, while the app is up and the fence is in place. A request that gets no
         //    answer is left out rather than recorded as an empty response: "the app said nothing"
-        //    and "the app has no Content-Security-Policy" are not the same sentence.
-        let probe_responses = probes
-            .iter()
-            .filter_map(|request| self.probe(&via, &app, plan.port, request))
-            .collect();
+        //    and "the app has no Content-Security-Policy" are not the same sentence. So is one the
+        //    app's rate limiter was still answering after waiting as it asked: its page is not the
+        //    app's (`ask_anonymously`).
+        let (probe_responses, probes_rate_limited) = sv_check::signed_in::ask_anonymously(
+            &mut DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: None,
+            },
+            probes,
+        );
+        let mut liveness = vec![self.liveness(
+            &via,
+            &app,
+            plan,
+            "the questions asked as somebody not signed in",
+        )];
 
         // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
         //     those see the app as a stranger first; before the tests, which may change its data.
@@ -395,6 +439,21 @@ impl DockerBackend {
                 model: None,
             };
             sv_check::oidc::run(&mut http, section)
+        });
+
+        // 4c'. The app as an MCP server, when securevibe.toml says where it answers.
+        let mcp_server = plan.mcp_server.as_ref().map(|section| {
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: None,
+            };
+            sv_check::mcp_server::run(&mut http, section)
         });
 
         // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
@@ -469,6 +528,16 @@ impl DockerBackend {
             let _ = self.docker(&["rm", "-f", &switched_off]);
             outcome
         });
+
+        // Still up after everything else it was asked, while the sidecar can still ask it.
+        if signed_in.is_some() || oidc.is_some() || ai.is_some() || mcp_server.is_some() {
+            liveness.push(self.liveness(
+                &via,
+                &app,
+                plan,
+                "the signed-in, sign-in, and AI questions as well",
+            ));
+        }
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
@@ -561,10 +630,13 @@ impl DockerBackend {
             tests,
             fence: Fence::DockerInternalNetwork,
             probe_responses,
+            probes_rate_limited,
             signed_in,
             oidc,
             ai,
+            mcp_server,
             left_over_removed,
+            liveness,
         })
     }
 }
@@ -1171,6 +1243,59 @@ impl DockerBackend {
         }
     }
 
+    /// Whether the app is still running and answering, after `after`.
+    ///
+    /// Read from `docker inspect` and one request to the health path, tried three times two seconds
+    /// apart so a moment of slowness is not taken for a stopped app.
+    fn liveness(
+        &self,
+        via: &Via,
+        app: &str,
+        plan: &RunPlan,
+        after: &str,
+    ) -> sv_check::running::Liveness {
+        let state = self
+            .docker(&[
+                "inspect",
+                "-f",
+                "{{.State.Status}} {{.RestartCount}} {{.State.ExitCode}} {{.State.OOMKilled}}",
+                app,
+            ])
+            .ok()
+            .filter(|(code, _)| *code == 0)
+            .map(|(_, out)| out)
+            .unwrap_or_default();
+        let words: Vec<&str> = state.split_whitespace().collect();
+        let (status, restarts, exit_code, out_of_memory) = match words.as_slice() {
+            [status, restarts, exit_code, oom] => (
+                (*status).to_owned(),
+                restarts.parse().unwrap_or(0),
+                exit_code.parse().unwrap_or(0),
+                *oom == "true",
+            ),
+            _ => (String::new(), 0, 0, false),
+        };
+        let url = format!("http://{app}:{}{}", plan.port, plan.health_path);
+        let answered = status == "running"
+            && (0..3).any(|attempt| {
+                if attempt > 0 {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                }
+                matches!(
+                    self.inside_fence(via, &["wget", "-q", "-T", "5", "-O", "/dev/null", &url]),
+                    Ok((0, _))
+                )
+            });
+        sv_check::running::Liveness {
+            after: after.to_owned(),
+            status,
+            restarts,
+            exit_code,
+            out_of_memory,
+            answered,
+        }
+    }
+
     /// Polls the health path from inside the fence.
     ///
     /// This is the part that could not be done from the host. An `--internal` network is
@@ -1396,10 +1521,24 @@ fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option
     {
         return None;
     }
-    let mut raw = format!(
-        "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
-        request.method, request.path
-    );
+    // A request may name its own `Host`, to ask what the app does with a name that is not its
+    // own; it then replaces this one rather than being sent beside it, since two would be refused
+    // for being two.
+    let own_host = request
+        .headers
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case("host"));
+    let mut raw = if own_host {
+        format!(
+            "{} {} HTTP/1.0\r\nConnection: close\r\n",
+            request.method, request.path
+        )
+    } else {
+        format!(
+            "{} {} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n",
+            request.method, request.path
+        )
+    };
     for (name, value) in &request.headers {
         raw.push_str(&format!("{name}: {value}\r\n"));
     }
@@ -1886,6 +2025,23 @@ http.createServer((q, s) => {
             "{head}"
         );
         assert_eq!(body, r.body.as_deref().unwrap());
+    }
+
+    #[test]
+    fn a_request_naming_its_own_host_is_sent_with_that_one_only() {
+        let raw = request_bytes(
+            &req("POST", "/mcp", &[("Host", "sv-rebind.invalid")]),
+            "app",
+        )
+        .expect("a Host header is allowed");
+        let hosts: Vec<&str> = raw
+            .lines()
+            .filter(|l| l.to_ascii_lowercase().starts_with("host:"))
+            .collect();
+        assert_eq!(hosts, ["Host: sv-rebind.invalid"], "{raw}");
+        // The control: without one, the app's own name is sent.
+        let raw = request_bytes(&req("POST", "/mcp", &[]), "app").unwrap();
+        assert!(raw.contains("\r\nHost: app\r\n"), "{raw}");
     }
 
     #[test]

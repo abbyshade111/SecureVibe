@@ -393,7 +393,10 @@ pub fn audit_against(
     // looks like. It is kept as the statement of intent — the claim is about what was compared
     // against, and that must never be nothing — and labeled rather than left to look load-bearing.
     // The test asserts the behavior, not which condition produced it.
-    let complete_enough = sbom.unread.is_empty();
+    //
+    // A second lockfile nobody read is the same wrong question from the other side: every package
+    // in the list was compared, and the list may not be what the app is installed from.
+    let complete_enough = sbom.unread.is_empty() && sbom.passed_over.is_empty();
     if result.findings.is_empty()
         && result.advisories_read > 0
         && result.components_checked > 0
@@ -787,6 +790,7 @@ mod tests {
 
     fn sbom_of(components: Vec<Component>) -> Sbom {
         Sbom {
+            passed_over: Vec::new(),
             components,
             unread: Vec::new(),
         }
@@ -940,6 +944,28 @@ mod tests {
         assert!(
             result.findings.is_empty(),
             "a withdrawn record is not a finding: {result:?}"
+        );
+    }
+
+    #[test]
+    fn a_second_lockfile_nothing_read_stops_the_clean_claim() {
+        // lodash 4.17.21 is past the fix, so the comparison finds nothing. With only
+        // `package-lock.json` there, that is a clean claim; with a `yarn.lock` beside it that was
+        // never read, nothing says the app is installed from the file that was compared.
+        let mut sbom = sbom_of(vec![component("lodash", "4.17.21", "npm")]);
+        let one = audit(&sbom, &[advisory(LODASH)]);
+        assert_eq!(one.verified.len(), 1, "the control: {one:?}");
+
+        sbom.passed_over.push(crate::sbom::PassedOver {
+            project: "npm".into(),
+            read: "package-lock.json".into(),
+            not_read: vec!["yarn.lock".into()],
+        });
+        let two = audit(&sbom, &[advisory(LODASH)]);
+        assert!(two.findings.is_empty(), "{two:?}");
+        assert!(
+            two.verified.is_empty(),
+            "no clean claim with a lockfile unread: {two:?}"
         );
     }
 
@@ -1128,6 +1154,7 @@ mod deadline_tests {
 
     fn lodash() -> Sbom {
         Sbom {
+            passed_over: Vec::new(),
             components: vec![Component {
                 name: "lodash".into(),
                 version: "4.17.15".into(),

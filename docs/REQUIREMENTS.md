@@ -29,9 +29,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 140 can be checked, 7 where a check helps but a person decides, and 198 with no check.
+345 requirements: 147 can be checked, 7 where a check helps but a person decides, and 191 with no check.
 
-### Level 1 (70 requirements, 54 can be checked)
+### Level 1 (70 requirements, 56 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -42,7 +42,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V1.2.3** Verify that output encoding or escaping is used when dynamically building JavaScript content (including JSON), to avoid changing the message or document structure (to avoid JavaScript and JSON injection). | Can be checked | Outside tools: brakeman, 1 rule, its rules look for: cross-site scripting through JSON built from user input and written into JavaScript content without escaping |
 | **V1.2.4** Verify that data selection or database queries (e.g., SQL, HQL, NoSQL, Cypher) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from SQL Injection and other database injection attacks. This is also relevant when writing stored procedures. | Can be checked | Reads the code: `ast.sql-built-by-hand`, looks for: A database query is built by joining text together<br>Outside tools: bandit, 1 rule, its rules look for: SQL query built by string formatting or concatenation<br>Outside tools: gosec, 2 rules, its rules look for: SQL query built by string concatenation; SQL query built with a format string<br>Outside tools: brakeman, 3 rules, its rules look for: SQL injection through a dynamic finder method built from user input; SQL injection through a query's limit or offset built from user input; SQL injection: a database query built from user input<br>Outside tools: semgrep, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection)<br>Outside tools: codeql-python, 1 rule, its rules look for: a database query built from strings rather than parameterized (SQL or NoSQL injection) |
 | **V1.2.5** Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. | Can be checked | Reads the code: `ast.shell-command`, looks for: A shell command is built from a value<br>Reads the code: `ast.shell-command-backticks`, looks for: A command is run with backticks, built from text<br>Outside tools: bandit, 6 rules, its rules look for: a function called with shell=True; a process started through the operating system shell; a shell wildcard passed to an operating system command; an operating system command run from data that may be untrusted; an operating system command run through a shell (shell=True); an operating system command run without a shell, from data that may be untrusted<br>Outside tools: gosec, 1 rule, its rules look for: an operating system command executed from data that may be untrusted<br>Outside tools: brakeman, 1 rule, its rules look for: OS command injection: an operating system command built from user input<br>Outside tools: semgrep, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection)<br>Outside tools: codeql-python, 1 rule, its rules look for: an operating system command built from data that may be untrusted (OS command injection) |
-| **V1.3.1** Verify that all untrusted HTML input from WYSIWYG editors or similar is sanitized using a well-known and secure HTML sanitization library or framework feature. | No check | – |
+| **V1.3.1** Verify that all untrusted HTML input from WYSIWYG editors or similar is sanitized using a well-known and secure HTML sanitization library or framework feature. | Can be checked | Reads the code: `config.rich-text-without-sanitizer`, looks for: A rich-text editor is used and no HTML sanitizer is anywhere in the app (found failing only) |
 | **V1.3.2** Verify that the application avoids the use of eval() or other dynamic code execution features such as Spring Expression Language (SpEL). Where there is no alternative, any user input being included must be sanitized before being executed. | Can be checked | Reads the code: `ast.dynamic-code-execution`, looks for: Code is built at run time and executed<br>Outside tools: bandit, 1 rule, its rules look for: eval used to execute code built at runtime<br>Outside tools: brakeman, 4 rules, its rules look for: dangerous eval: user input handed to eval or another dynamic code execution feature; dangerous send: a method chosen by user input is called, a dynamic code execution feature; unsafe method reflection: a method chosen by user input is looked up and called, a dynamic code execution feature; unsafe reflection: a class chosen by user input is loaded with constantize, a dynamic code execution feature<br>Outside tools: semgrep, 2 rules, its rules look for: dynamic code execution, such as eval, on data that may be untrusted; dynamic code execution, such as eval, on data that may be untrusted; an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox<br>Outside tools: codeql-javascript, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted<br>Outside tools: codeql-python, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted |
 | **V1.5.1** Verify that the application configures XML parsers to use a restrictive configuration and that unsafe features such as resolving external entities are disabled to prevent XML eXternal Entity (XXE) attacks. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an XML parser that resolves external entities (XXE)<br>Outside tools: codeql-javascript, 1 rule, its rules look for: an XML parser that resolves external entities (XXE)<br>Outside tools: codeql-python, 1 rule, its rules look for: an XML parser that resolves external entities (XXE) |
 
@@ -138,7 +138,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V10.4.1** Verify that the authorization server validates redirect URIs based on a client-specific allowlist of pre-registered URIs using exact string comparison. | No check | – |
 | **V10.4.2** Verify that, if the authorization server returns the authorization code in the authorization response, it can be used only once for a token request. For the second valid request with an authorization code that has already been used to issue an access token, the authorization server must reject a token request and revoke any issued tokens related to the authorization code. | No check | – |
 | **V10.4.3** Verify that the authorization code is short-lived. The maximum lifetime can be up to 10 minutes for L1 and L2 applications and up to 1 minute for L3 applications. | No check | – |
-| **V10.4.4** Verify that for a given client, the authorization server only allows the usage of grants that this client needs to use. Note that the grants 'token' (Implicit flow) and 'password' (Resource Owner Password Credentials flow) must no longer be used. | No check | – |
+| **V10.4.4** Verify that for a given client, the authorization server only allows the usage of grants that this client needs to use. Note that the grants 'token' (Implicit flow) and 'password' (Resource Owner Password Credentials flow) must no longer be used. | Can be checked | The running app: `probe.retired-grants-offered`, if it fails: An app using the password grant sees every user's password, and a token sent the implicit way can be read by anything that sees the address. Both are why V10.4.4 says they must no longer be used. (found failing only) |
 | **V10.4.5** Verify that the authorization server mitigates refresh token replay attacks for public clients, preferably using sender-constrained refresh tokens, i.e., Demonstrating Proof of Possession (DPoP) or Certificate-Bound Access Tokens using mutual TLS (mTLS). For L1 and L2 applications, refresh token rotation may be used. If refresh token rotation is used, the authorization server must invalidate the refresh token after usage, and revoke all refresh tokens for that authorization if an already used and invalidated refresh token is provided. | No check | – |
 
 #### V11 Cryptography
@@ -178,7 +178,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. |
 
-### Level 2 (183 requirements, 71 can be checked)
+### Level 2 (183 requirements, 72 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -381,7 +381,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V13.2.3** Verify that if a credential has to be used for service authentication, the credential being used by the consumer is not a default credential (e.g., root/root or admin/admin). | Can be checked | Reads the code: `secrets.credential-assignment`, if it fails: Anyone who can read the code — or the history it is kept in — has the credential. |
 | **V13.2.4** Verify that an allowlist is used to define the external resources or systems with which the application is permitted to communicate (e.g., for outbound requests, data loads, or file access). This allowlist can be implemented at the application layer, web server, firewall, or a combination of different layers. | No check | – |
 | **V13.2.5** Verify that the web or application server is configured with an allowlist of resources or systems to which the server can send requests or load data or files from. | No check | – |
-| **V13.3.1** Verify that a secrets management solution, such as a key vault, is used to securely create, store, control access to, and destroy backend secrets. These could include passwords, key material, integrations with databases and third-party systems, keys and seeds for time-based tokens, other internal secrets, and API keys. Secrets must not be included in application source code or included in build artifacts. For an L3 application, this must involve a hardware-backed solution such as an HSM. | A check helps; a person decides | Reads the code: `secrets.anthropic-key`, looks for: Anthropic API key found in a file<br>Reads the code: `secrets.aws-access-key`, looks for: AWS access key ID found in a file<br>Reads the code: `secrets.github-token`, looks for: GitHub token found in a file<br>Reads the code: `secrets.slack-token`, looks for: Slack token found in a file<br>Reads the code: `secrets.stripe-key`, looks for: Stripe key found in a file<br>Reads the code: `secrets.google-api-key`, looks for: Google API key found in a file<br>Reads the code: `secrets.private-key-block`, looks for: Private key found in a file<br>Reads the code: `secrets.jwt`, looks for: JSON Web Token found in a file<br>Reads the code: `config.secrets-file-committed`, if it fails: Deleting the file does not help: version control keeps its history, and every clone, fork and backup already has a copy. Treat every credential in it as known to anyone who has ever had access to the repository.<br>Reads the code: `config.gitignore-covers-env`, looks for: Nothing stops the environment file being committed<br>Reads the code: `secrets.credential-assignment`, if it fails: Anyone who can read the code — or the history it is kept in — has the credential.<br>Outside tools: bandit, 3 rules, its rules look for: a password or secret as a hard-coded default argument; a password or secret passed as a hard-coded function argument; a password or secret written into the source as a string<br>Outside tools: gosec, 1 rule, its rules look for: a credential or secret written into the source as a string<br>Outside tools: brakeman, 1 rule, its rules look for: a secret such as a password or key is written into the application source code<br>Outside tools: semgrep, 1 rule, its rules look for: a secret, key, or password written into the source rather than kept in a secrets management solution |
+| **V13.3.1** Verify that a secrets management solution, such as a key vault, is used to securely create, store, control access to, and destroy backend secrets. These could include passwords, key material, integrations with databases and third-party systems, keys and seeds for time-based tokens, other internal secrets, and API keys. Secrets must not be included in application source code or included in build artifacts. For an L3 application, this must involve a hardware-backed solution such as an HSM. | A check helps; a person decides | Reads the code: `secrets.anthropic-key`, looks for: Anthropic API key found in a file<br>Reads the code: `secrets.openai-key`, looks for: OpenAI API key found in a file<br>Reads the code: `secrets.huggingface-token`, looks for: Hugging Face access token found in a file<br>Reads the code: `secrets.aws-access-key`, looks for: AWS access key ID found in a file<br>Reads the code: `secrets.github-token`, looks for: GitHub token found in a file<br>Reads the code: `secrets.slack-token`, looks for: Slack token found in a file<br>Reads the code: `secrets.stripe-key`, looks for: Stripe key found in a file<br>Reads the code: `secrets.google-api-key`, looks for: Google API key found in a file<br>Reads the code: `secrets.private-key-block`, looks for: Private key found in a file<br>Reads the code: `secrets.jwt`, looks for: JSON Web Token found in a file<br>Reads the code: `config.secrets-file-committed`, if it fails: Deleting the file does not help: version control keeps its history, and every clone, fork and backup already has a copy. Treat every credential in it as known to anyone who has ever had access to the repository.<br>Reads the code: `config.gitignore-covers-env`, looks for: Nothing stops the environment file being committed<br>Reads the code: `secrets.credential-assignment`, if it fails: Anyone who can read the code — or the history it is kept in — has the credential.<br>Outside tools: bandit, 3 rules, its rules look for: a password or secret as a hard-coded default argument; a password or secret passed as a hard-coded function argument; a password or secret written into the source as a string<br>Outside tools: gosec, 1 rule, its rules look for: a credential or secret written into the source as a string<br>Outside tools: brakeman, 1 rule, its rules look for: a secret such as a password or key is written into the application source code<br>Outside tools: semgrep, 1 rule, its rules look for: a secret, key, or password written into the source rather than kept in a secrets management solution |
 | **V13.3.2** Verify that access to secret assets adheres to the principle of least privilege. | No check | – |
 | **V13.4.2** Verify that debug modes are disabled for all components in production environments to prevent exposure of debugging features and information leakage. | Can be checked | The running app: `probe.error-detail-leak`, if it fails: A stack trace names the framework, its version, the file layout and often the query that failed. It is the first thing somebody looking for a way in would like to read.<br>Outside tools: bandit, 1 rule, its rules look for: a web framework left in debug mode<br>Outside tools: semgrep, 1 rule, its rules look for: a debug mode enabled that should be disabled in production<br>Outside tools: codeql-python, 1 rule, its rules look for: a web framework left in debug mode |
 | **V13.4.3** Verify that web servers do not expose directory listings to clients unless explicitly intended. | Can be checked | The running app: `probe.directory-listing`, if it fails: A folder that lists its contents shows everything in it, including files nobody linked to and nobody meant to publish — a backup, an export, a key. |
@@ -407,7 +407,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.1.2** Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories. | Can be checked | Reads the code: `config.versions-pinned`, if it fails: The inventory of third-party libraries this app ships is then a list of what was asked for rather than what is installed, so nobody can say whether a known vulnerability applies to it — and a component that is compromised upstream arrives on the next install without anything changing here.<br>Reads the code: `sbom`, looks for: Whether the list of what the app ships (its bill of materials) could be read completely from its lockfiles |
 | **V15.1.3** Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application. | No check | – |
 | **V15.2.2** Verify that the application has implemented defenses against loss of availability due to functionality which is time-consuming or resource-demanding, based on the documented security decisions and strategies for this. | No check | – |
-| **V15.2.3** Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | No check | – |
+| **V15.2.3** Verify that the production environment only includes functionality that is required for the application to function, and does not expose extraneous functionality such as test code, sample snippets, and development functionality. | Can be checked | Reads the code: `config.development-server-started`, looks for: The app is started with a development server (found failing only) |
 | **V15.3.2** Verify that where the application backend makes calls to external URLs, it is configured to not follow redirects unless it is intended functionality. | No check | – |
 | **V15.3.3** Verify that the application has countermeasures to protect against mass assignment attacks by limiting allowed fields per controller and action, e.g., it is not possible to insert or update a field value when it was not intended to be part of that action. | Can be checked | Signed in: `probe.role-field-trusted`, if it fails: Anybody who signs up can make themselves an administrator by adding one field to the sign-up form, which takes a browser's developer tools and no skill. (found failing only)<br>Outside tools: brakeman, 5 rules, its rules look for: mass assignment without protection: a model accepts fields that were not intended for the action; mass assignment: a dangerous field such as an admin flag is permitted for the action; mass assignment: a model is created or updated from all submitted fields; mass assignment: permit! allows every submitted field to be inserted or updated; mass assignment: permit_all_parameters allows every submitted field for every controller and action<br>Outside tools: semgrep, 1 rule, its rules look for: mass assignment: request fields bound straight onto a model |
 | **V15.3.4** Verify that all proxying and middleware components transfer the user's original IP address correctly using trusted data fields that cannot be manipulated by the end user, and the application and web server use this correct value for logging and security decisions such as rate limiting, taking into account that even the original IP address may not be reliable due to dynamic IPs, VPNs, or corporate firewalls. | Can be checked | Signed in: `probe.forwarded-for-trusted`, if it fails: Anybody can step around the limit on guessing passwords by claiming a different address in each request, which costs them nothing. |
@@ -448,7 +448,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V17.3.1** Verify that the signaling server is able to continue processing legitimate incoming signaling messages during a flood attack. This should be achieved by implementing rate limiting at the signaling level. | No check | – |
 | **V17.3.2** Verify that the signaling server is able to continue processing legitimate signaling messages when encountering malformed signaling message that could cause a denial of service condition. This could include implementing input validation, safely handling integer overflows, preventing buffer overflows, and employing other robust error-handling techniques. | No check | – |
 
-### Level 3 (92 requirements, 15 can be checked)
+### Level 3 (92 requirements, 19 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -534,7 +534,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V8.2.4** Verify that adaptive security controls based on a consumer's environmental and contextual attributes (such as time of day, location, IP address, or device) are implemented for authentication and authorization decisions, as defined in the application's documentation. These controls must be applied when the consumer tries to start a new session and also during an existing session. | No check | – |
 | **V8.3.2** Verify that changes to values on which authorization decisions are made are applied immediately. Where changes cannot be applied immediately, (such as when relying on data in self-contained tokens), there must be mitigating controls to alert when a consumer performs an action when they are no longer authorized to do so and revert the change. Note that this alternative would not mitigate information leakage. | No check | – |
 | **V8.3.3** Verify that access to an object is based on the originating subject's (e.g. consumer's) permissions, not on the permissions of any intermediary or service acting on their behalf. For example, if a consumer calls a web service using a self-contained token for authentication, and the service then requests data from a different service, the second service will use the consumer's token, rather than a machine-to-machine token from the first service, to make permission decisions. | No check | – |
-| **V8.4.2** Verify that access to administrative interfaces incorporates multiple layers of security, including continuous consumer identity verification, device security posture assessment, and contextual risk analysis, ensuring that network location or trusted endpoints are not the sole factors for authorization even though they may reduce the likelihood of unauthorized access. | No check | – |
+| **V8.4.2** Verify that access to administrative interfaces incorporates multiple layers of security, including continuous consumer identity verification, device security posture assessment, and contextual risk analysis, ensuring that network location or trusted endpoints are not the sole factors for authorization even though they may reduce the likelihood of unauthorized access. | Can be checked | The running app: `probe.admin-opened-by-address`, if it fails: Anyone on the internet can add those headers, so the admin pages are open to anyone who thinks to. Where the request came from is the only thing guarding them. (found failing only) |
 
 #### V10 OAuth and OIDC
 
@@ -554,7 +554,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V11.1.3** Verify that cryptographic discovery mechanisms are employed to identify all instances of cryptography in the system, including encryption, hashing, and signing operations. | No check | – |
 | **V11.1.4** Verify that a cryptographic inventory is maintained. This must include a documented plan that outlines the migration path to new cryptographic standards, such as post-quantum cryptography, in order to react to future threats. | No check | – |
-| **V11.2.4** Verify that all cryptographic operations are constant-time, with no 'short-circuit' operations in comparisons, calculations, or returns, to avoid leaking information. | No check | – |
+| **V11.2.4** Verify that all cryptographic operations are constant-time, with no 'short-circuit' operations in comparisons, calculations, or returns, to avoid leaking information. | Can be checked | Reads the code: `ast.digest-compared-with-equals`, looks for: A signature is compared in a way that leaks how much of it was right (found failing only) |
 | **V11.2.5** Verify that all cryptographic modules fail securely, and errors are handled in a way that does not enable vulnerabilities, such as Padding Oracle attacks. | No check | – |
 | **V11.3.4** Verify that nonces, initialization vectors, and other single-use numbers are not used for more than one encryption key and data-element pair. The method of generation must be appropriate for the algorithm being used. | Can be checked | Outside tools: gosec, 1 rule, its rules look for: an encryption IV or nonce fixed in the code, so it is reused (found failing only)<br>Outside tools: semgrep, 2 rules, its rules look for: an AES-GCM encryption nonce fixed in the code, so it is reused for every message; an encryption IV fixed in the code, so it is reused for every message (found failing only) |
 | **V11.3.5** Verify that any combination of an encryption algorithm and a MAC algorithm is operating in encrypt-then-MAC mode. | No check | – |
@@ -582,7 +582,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V13.3.3** Verify that all cryptographic operations are performed using an isolated security module (such as a vault or hardware security module) to securely manage and protect key material from exposure outside of the security module. | No check | – |
 | **V13.3.4** Verify that secrets are configured to expire and be rotated based on the application's documentation. | No check | – |
 | **V13.4.6** Verify that the application does not expose detailed version information of backend components. | Can be checked | The running app: `probe.version-disclosed`, if it fails: A version number tells an attacker which published weaknesses to try first, without having to guess. |
-| **V13.4.7** Verify that the web tier is configured to only serve files with specific file extensions to prevent unintentional information, configuration, and source code leakage. | No check | – |
+| **V13.4.7** Verify that the web tier is configured to only serve files with specific file extensions to prevent unintentional information, configuration, and source code leakage. | Can be checked | The running app: `probe.private-files-served`, if it fails: Anyone can download them. A settings file or key hands over the passwords and keys in it; server code shows exactly where to look for weaknesses; a dump or backup can hold every user's data. (found failing only) |
 
 #### V14 Data Protection
 
@@ -610,7 +610,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **V16.5.4** Verify that a "last resort" error handler is defined which will catch all unhandled exceptions. This is both to avoid losing error details that must go to log files and to ensure that an error does not take down the entire application process, leading to a loss of availability. | No check | – |
+| **V16.5.4** Verify that a "last resort" error handler is defined which will catch all unhandled exceptions. This is both to avoid losing error details that must go to log files and to ensure that an error does not take down the entire application process, leading to a loss of availability. | Can be checked | The running app: `probe.app-stopped-during-questions`, if it fails: Anyone who sends the same request can stop the app for everyone, as often as they like, and the error that did it may never reach the logs. (found failing only) |
 
 #### V17 WebRTC
 
@@ -624,9 +624,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 15 can be checked, 0 where a check helps but a person decides, and 176 with no check.
+191 requirements: 29 can be checked, 0 where a check helps but a person decides, and 162 with no check.
 
-### Level 1 (51 requirements, 10 can be checked)
+### Level 1 (51 requirements, 17 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -642,10 +642,10 @@ decided per app, from its `securevibe.toml` and its code.
 | **C2.1.1** Verify that input normalization is applied before tokenization or embedding. | No check | – |
 | **C2.1.2** Verify that encoding and representation smuggling in inputs is detected and mitigated. Approved mitigations include canonicalization, strict schema validation, policy-based rejection, or explicit marking. | No check | – |
 | **C2.1.3** Verify that all inputs that could steer model behavior are treated as untrusted and screened by a prompt injection detection ruleset or classifier, with flagged inputs blocked. | Can be checked | The running app: `probe.ai-injection-unscreened`, if it fails: A message written to take over the model reaches it untouched, so the model is the only thing between what a person types and whatever the feature can do. |
-| **C2.1.4** Verify that input length controls prevent content from exceeding the context window. The controls must reject inputs that exceed token limits rather than truncating them. | No check | – |
+| **C2.1.4** Verify that input length controls prevent content from exceeding the context window. The controls must reject inputs that exceed token limits rather than truncating them. | Can be checked | The running app: `probe.ai-input-truncated`, if it fails: A message cut short without saying so loses whatever was at its end, and the model answers something the person did not ask. Instructions or evidence placed at the end are exactly what is dropped. (found failing only) |
 | **C2.1.5** Verify that the system implements a character set restriction for all inputs. The restriction must use an allow-list approach that permits only characters that are explicitly required. | No check | – |
 | **C2.2.1** Verify that every prompt is scored by a content classifier for violence, self-harm, hate, and sexual content against configurable thresholds. Prompts that exceed those thresholds are rejected or sanitized before reaching the model context. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: prompts sent to the model without a content classifier scoring them, or its verdict not checked (found failing only) |
-| **C2.2.2** Verify that prompt content classification is evaluated for unsupported languages. | No check | – |
+| **C2.2.2** Verify that prompt content classification is evaluated for unsupported languages. | Can be checked | The running app: `probe.ai-injection-other-languages`, if it fails: The screen stops the attack in English and lets the same attack through in another language or encoded, so anyone who knows to translate it gets past. (found failing only) |
 
 #### C3 Model Lifecycle Management & Change Control
 
@@ -660,7 +660,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C4.1.1** Verify that AI models execute in isolated sandboxes. | No check | – |
-| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | No check | – |
+| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | Can be checked | Reads the code: `ast.model-loaded-with-pickle`, looks for: A model file is loaded in a way that can run code (found failing only) |
 | **C4.3.1** Verify that edge AI devices authenticate to central infrastructure using strong authentication mechanisms. | No check | – |
 
 #### C6 Supply Chain Security for Models
@@ -677,7 +677,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **C7.1.1** Verify that the application validates all model outputs against a defined schema and rejects any output that does not match. | No check | – |
 | **C7.1.2** Verify that model-generated output is bounded by length limits and termination controls. | Can be checked | The running app: `probe.ai-output-unbounded`, if it fails: Without a limit the model may write for as long as it likes: slow answers, a large bill, and a reply nothing downstream was built to hold. |
-| **C7.3.1** Verify that automated classifiers scan every response and block content that matches defined harmful content categories. | No check | – |
+| **C7.3.1** Verify that automated classifiers scan every response and block content that matches defined harmful content categories. | Can be checked | The running app: `probe.ai-flagged-reply-shown`, if it fails: The app asks a moderation service whether a reply is harmful, is told it is, and shows it anyway, so the screen it pays for protects nobody. |
 | **C7.4.1** Verify that responses generated using retrieval-augmented generation (RAG) include attribution to the source documents. | No check | – |
 | **C7.4.2** Verify that RAG attributions are derived from retrieval metadata and are not generated by the model, so provenance cannot be fabricated. | No check | – |
 
@@ -696,14 +696,14 @@ decided per app, from its `securevibe.toml` and its code.
 | **C9.1.2** Verify that per-execution budgets (e.g., max recursion depth, token use, and monetary spend) are configured and enforced by the runtime. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: a model called in a loop with no limit on iterations, token use, or spend (found failing only) |
 | **C9.2.1** Verify that the agent runtime blocks execution of privileged, high-impact, or irreversible actions until explicit human approval is received and verified. | No check | – |
 | **C9.3.1** Verify that each tool/plugin executes in a least-privilege sandbox or is otherwise isolated from model operations. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: dynamic code execution, such as eval, on data that may be untrusted; an agent tool that runs arbitrary code, not isolated in a least-privilege sandbox (found failing only) |
-| **C9.3.2** Verify that tool outputs are validated against schemas. | No check | – |
+| **C9.3.2** Verify that tool outputs are validated against schemas. | Can be checked | The running app: `probe.ai-mcp-output-unvalidated`, if it fails: A tool's result that does not match the shape the tool promised is passed to the model as if it did, so a broken or hostile MCP server decides what the model is told. |
 | **C9.6.1** Verify that a manual kill-switch mechanism exists to immediately halt AI model inference and outputs. | Can be checked | The running app: `probe.ai-kill-switch-ignored`, if it fails: A kill switch that does not stop the model is found not to work at the moment it is needed: when the feature is misbehaving and has to stop now. |
 
 #### C10 Model Context Protocol (MCP) Security
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C10.1.1** Verify that MCP components are obtained only from trusted sources and cryptographically verified. | No check | – |
+| **C10.1.1** Verify that MCP components are obtained only from trusted sources and cryptographically verified. | Can be checked | Reads the code: `config.mcp-server-unpinned`, looks for: An MCP server is downloaded fresh, at whatever version is newest, every time it starts (found failing only) |
 | **C10.2.1** Verify that MCP servers validate access tokens for each request and do not rely on transport security alone. | No check | – |
 | **C10.2.2** Verify that MCP servers validate the presented access token's issuer, audience, expiration, and scope claims in accordance with OAuth 2.1. | No check | – |
 | **C10.2.3** Verify that MCP servers acting as OAuth 2.1 resource servers do not store or persist access tokens or user credentials. | No check | – |
@@ -728,13 +728,13 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C12.1.1** Verify that AI interactions are logged with session context and AI-specific telemetry. | No check | – |
+| **C12.1.1** Verify that AI interactions are logged with session context and AI-specific telemetry. | Can be checked | The running app: `probe.ai-call-log-session`, if it fails: A record of a model call that does not say whose session it was in cannot answer who asked the model something, which is the first question when a reply goes wrong. |
 | **C12.2.1** Verify that the system detects and alerts on known jailbreak patterns, prompt injection attempts, and adversarial inputs. | Can be checked | The running app: `probe.ai-injection-logged`, looks for: Whether the app writes down that it caught the textbook prompt injection the run sent |
 | **C12.3.1** Verify that data drift detection monitors input distribution changes that may impact model performance, using statistically validated methods matched to the input data type (e.g., KS test or PSI for tabular numeric features, embedding-distance metrics for text or image). | No check | – |
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 5 can be checked)
+### Level 2 (95 requirements, 10 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -793,7 +793,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C6.1.3** Verify that every third-party model artifact can be integrity-verified. | No check | – |
+| **C6.1.3** Verify that every third-party model artifact can be integrity-verified. | Can be checked | Reads the code: `ast.model-download-not-pinned`, looks for: A model is downloaded by name without pinning the exact version (found failing only) |
 | **C6.1.4** Verify that models pass a behavioral acceptance test suite before being promoted to any non-development environment. | No check | – |
 | **C6.2.2** Verify that AI BOMs are cryptographically signed before deployment. | No check | – |
 | **C6.2.3** Verify that AI BOM completeness checks fail the build if any component metadata is missing. | No check | – |
@@ -805,7 +805,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C7.2.1** Verify that the system assesses the reliability of generated answers using a confidence estimation method. | No check | – |
 | **C7.2.2** Verify that the application automatically blocks answers or switches to a fallback message if the confidence score drops below a defined threshold. | No check | – |
 | **C7.3.2** Verify that output filters detect and block responses that disclose system prompt content or backend data. | Can be checked | The running app: `probe.ai-instructions-leaked`, if it fails: Whatever the app tells its model before the conversation — its rules, the data it looked up, sometimes a key — reaches anybody who asks the model to repeat it, and models can always be talked into repeating it. |
-| **C7.3.3** Verify that model-generated output is prevented from triggering outbound requests. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. |
+| **C7.3.3** Verify that model-generated output is prevented from triggering outbound requests. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. (found failing only) |
 | **C7.4.3** Verify that claims in a RAG response can be traced to the retrieved chunk. | No check | – |
 
 #### C8 Memory, Embeddings & Vector Database Security
@@ -834,13 +834,13 @@ decided per app, from its `securevibe.toml` and its code.
 | **C9.3.4** Verify that the runtime enforces the privileges, resource limits, and output-validation requirements declared in tool manifests. | No check | – |
 | **C9.3.5** Verify that components processing untrusted data are isolated from tool-calling capabilities, ensuring that compromised data processing cannot trigger unauthorized tool invocations. | No check | – |
 | **C9.3.6** Verify that there is architectural separation between processing of untrusted tool outputs and agent operations. | No check | – |
-| **C9.3.7** Verify that external resources named in model output are verified against an approved allow-list or registry before the agent installs or invokes them. | No check | – |
+| **C9.3.7** Verify that external resources named in model output are verified against an approved allow-list or registry before the agent installs or invokes them. | Can be checked | The running app: `probe.ai-output-fetched`, if it fails: An address a model writes into its reply is an address anybody who can steer the model chooses. Fetching it, or letting the page load it as an image, sends a request — and whatever is written into the address — wherever they point it. (found failing only) |
 | **C9.4.1** Verify that each agent instance has a unique cryptographic identity and authenticates as a first-class principal to downstream systems. | No check | – |
 | **C9.4.2** Verify that agent-initiated actions are cryptographically bound to each step of the execution chain for non-repudiation. | No check | – |
 | **C9.5.1** Verify that agent actions are authorized against fine-grained policies enforced by the runtime that restrict which tools an agent may invoke, and which parameter values it may supply. | No check | – |
 | **C9.5.2** Verify that when an agent acts on a user's behalf, the runtime propagates an integrity-protected, scope-limited token that carries the user's authorization context and is enforced at every downstream call. | No check | – |
 | **C9.5.3** Verify that all access control decisions are enforced by application logic or a policy engine, never by the AI model itself. | No check | – |
-| **C9.5.4** Verify that secrets and credentials required by an agent at runtime are not exposed within the model's observable context, including the context window, system prompts, or tool call parameters. | Can be checked | Reads the code: `secrets.anthropic-key`, looks for: Anthropic API key found in a file<br>Outside tools: semgrep, 1 rule, its rules look for: an MCP tool that returns secrets or credentials into the model's context (found failing only) |
+| **C9.5.4** Verify that secrets and credentials required by an agent at runtime are not exposed within the model's observable context, including the context window, system prompts, or tool call parameters. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an MCP tool that returns secrets or credentials into the model's context (found failing only) |
 | **C9.5.5** Verify that inter-agent task delegation is restricted by an explicit authorization policy. | No check | – |
 | **C9.6.2** Verify that when a human-approval gate is not satisfied within the defined approval time, the system blocks the pending action. | No check | – |
 
@@ -852,9 +852,9 @@ decided per app, from its `securevibe.toml` and its code.
 | **C10.1.3** Verify that locally launched MCP servers run in a least-privilege sandbox with restricted file system, network, and system access. | No check | – |
 | **C10.2.4** Verify that MCP tools/list returns only tools permitted by resource owners' authorized scopes. | No check | – |
 | **C10.2.5** Verify that MCP servers enforce access control on every tool invocation, validating that the user's access token authorizes both the requested tool and the specific argument values supplied. | No check | – |
-| **C10.2.6** Verify that MCP servers ensure all session artifacts are removed when a session terminates. | No check | – |
+| **C10.2.6** Verify that MCP servers ensure all session artifacts are removed when a session terminates. | Can be checked | The running app: `probe.mcp-session-survives-end`, if it fails: A session that still works after it was ended can be picked up by whoever learns its ID, and whatever the server kept for it is still there. |
 | **C10.2.7** Verify that MCP servers do not pass through access tokens received from clients to downstream APIs. | No check | – |
-| **C10.3.3** Verify that MCP servers validate both the Origin header and the Host header independently on all HTTP-based transports to prevent DNS rebinding attacks. | No check | – |
+| **C10.3.3** Verify that MCP servers validate both the Origin header and the Host header independently on all HTTP-based transports to prevent DNS rebinding attacks. | Can be checked | The running app: `probe.mcp-server-origin-unchecked`, if it fails: A web page open in someone's browser can send requests to an MCP server on their own computer or network, by pointing its own name at it (DNS rebinding). A server that does not check where requests come from answers them, and hands the page its tools. |
 | **C10.3.4** Verify that MCP clients enforce a minimum acceptable protocol version and reject initialize responses that propose a version below that minimum. | No check | – |
 | **C10.4.4** Verify that all MCP servers enforce strict schema validation. | No check | – |
 | **C10.4.5** Verify that all MCP transports enforce maximum payload size limits. | No check | – |
@@ -868,7 +868,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C11.1.4** Verify that models are hardened against adversarial inputs. | No check | – |
 | **C11.2.3** Verify that model outputs are calibrated to reduce overconfident predictions. | No check | – |
 | **C11.2.4** Verify that training on sensitive datasets employs differentially-private optimization. | No check | – |
-| **C11.3.2** Verify that raw model outputs are not directly exposed beyond the application backend, and that externally visible responses are calibrated to the extraction risk level. | No check | – |
+| **C11.3.2** Verify that raw model outputs are not directly exposed beyond the application backend, and that externally visible responses are calibrated to the extraction risk level. | Can be checked | The running app: `probe.ai-raw-response-exposed`, if it fails: The model service's whole response reaches the browser, with its identifiers and whatever else the service sends, where only the reply's text was needed. That is more than the person needs, and it helps anyone studying the model. (found failing only) |
 | **C11.4.1** Verify that inputs from external or untrusted sources pass through anomaly detection before model inference. | No check | – |
 | **C11.4.2** Verify that inputs flagged as anomalous trigger gating actions. | No check | – |
 
@@ -891,7 +891,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.3** Verify that all model changes generate immutable audit records. | No check | – |
 | **C12.5.4** Verify that every ingested document is tagged at write time with source, writer identity, and timestamp. | No check | – |
 
-### Level 3 (45 requirements, 0 can be checked)
+### Level 3 (45 requirements, 2 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -911,7 +911,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C3.2.3** Verify that provider model, version, or routing changes trigger security re-evaluation before continued use. | No check | – |
+| **C3.2.3** Verify that provider model, version, or routing changes trigger security re-evaluation before continued use. | Can be checked | Reads the code: `ast.floating-model-name`, looks for: A hosted model is asked for by a name that moves (found failing only) |
 | **C3.5.2** Verify that RLHF training stages include automated detection of reward hacking or reward model over-optimization. | No check | – |
 | **C3.5.3** Verify that in multi-stage fine-tuning pipelines, each stage's output is integrity-verified before it is consumed by the next stage. | No check | – |
 | **C3.5.4** Verify that fine-tuning checkpoints are registered as distinct artifacts. | No check | – |
@@ -945,7 +945,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C7.2.3** Verify that for responses classified as high-risk by policy, the system performs an additional verification step. | No check | – |
-| **C7.3.4** Verify that model outputs are checked for hidden, encoded, or misleading content created through homoglyphs, formatting, metadata, or structured fields. | No check | – |
+| **C7.3.4** Verify that model outputs are checked for hidden, encoded, or misleading content created through homoglyphs, formatting, metadata, or structured fields. | Can be checked | The running app: `probe.ai-hidden-content-passed`, if it fails: Characters a person cannot see, or a link whose text says one address and goes to another, reach the page as the model wrote them. They can carry instructions to the next system that reads the reply, or send a person somewhere they did not choose. |
 | **C7.4.4** Verify that generated media is watermarked to prove it was AI-generated. | No check | – |
 
 #### C8 Memory, Embeddings & Vector Database Security

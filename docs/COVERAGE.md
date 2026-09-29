@@ -31,8 +31,8 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 140 (41%) | 7 | 198 |
-| OWASP AISVS 1.0 | 191 | 15 (8%) | 0 | 176 |
+| OWASP ASVS 5.0 | 345 | 147 (43%) | 7 | 191 |
+| OWASP AISVS 1.0 | 191 | 29 (15%) | 0 | 162 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
 
@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 54 | 8 | 1 | 3 | 31 | 21 | 2 |
-| L2 | 183 | 71 | 5 | 0 | 14 | 31 | 28 | 1 |
-| L3 | 92 | 15 | 1 | 0 | 5 | 1 | 6 | 2 |
+| L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
+| L2 | 183 | 72 | 6 | 0 | 14 | 31 | 28 | 1 |
+| L3 | 92 | 19 | 2 | 0 | 8 | 1 | 6 | 2 |
 
-With nothing beyond plain `sv check`, 14 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -58,46 +58,49 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| V1 Encoding and Sanitization | 30 | 17 | 0 | 13 |
+| V1 Encoding and Sanitization | 30 | 18 | 0 | 12 |
 | V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 8 | 0 | 8 |
 | V5 File Handling | 13 | 8 | 0 | 5 |
 | V6 Authentication | 47 | 22 | 1 | 24 |
 | V7 Session Management | 19 | 8 | 0 | 11 |
-| V8 Authorization | 13 | 2 | 1 | 10 |
+| V8 Authorization | 13 | 3 | 1 | 9 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
-| V10 OAuth and OIDC | 36 | 5 | 0 | 31 |
-| V11 Cryptography | 24 | 9 | 1 | 14 |
+| V10 OAuth and OIDC | 36 | 6 | 0 | 30 |
+| V11 Cryptography | 24 | 10 | 1 | 13 |
 | V12 Secure Communication | 12 | 7 | 1 | 4 |
-| V13 Configuration | 21 | 7 | 1 | 13 |
+| V13 Configuration | 21 | 8 | 1 | 12 |
 | V14 Data Protection | 13 | 3 | 1 | 9 |
-| V15 Secure Coding and Architecture | 21 | 10 | 0 | 11 |
-| V16 Security Logging and Error Handling | 17 | 8 | 0 | 9 |
+| V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
+| V16 Security Logging and Error Handling | 17 | 9 | 0 | 8 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (14)
+### Settled by reading the code (17)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V11.2.4 | L3 | Reads the code: `ast.digest-compared-with-equals` (sv only ever as a finding: `ast.digest-compared-with-equals`) |
 | V11.3.1 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `brakeman`, `semgrep` |
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
 | V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
+| V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (83)
+### Settled by asking the running app (87)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -161,9 +164,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
+| V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.1 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |
 | V10.2.2 | L2 | Signed in: `probe.oidc-issuer-not-checked` |
+| V10.4.4 | L1 | The running app: `probe.retired-grants-offered` (sv only ever as a finding: `probe.retired-grants-offered`) |
 | V10.5.1 | L2 | Signed in: `probe.oidc-nonce-not-checked` |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
@@ -172,6 +177,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` |
 | V13.4.6 | L3 | The running app: `probe.version-disclosed` |
+| V13.4.7 | L3 | The running app: `probe.private-files-served` (sv only ever as a finding: `probe.private-files-served`) |
 | V14.2.1 | L1 | Signed in: `probe.password-in-url` |
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
@@ -184,6 +190,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
+| V16.5.4 | L3 | The running app: `probe.app-stopped-during-questions` (sv only ever as a finding: `probe.app-stopped-during-questions`) |
 
 ### Settled by known-vulnerability data (1)
 
@@ -242,14 +249,14 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
-| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.aws-access-key`, `secrets.github-token`, `secrets.slack-token` and 7 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 9 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
 
-### Level 1 with no check at all (13)
+### Level 1 with no check at all (11)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V1.3.1, V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.4, V10.4.5, V15.1.1
+V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 
@@ -260,37 +267,51 @@ does not reach.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | C1 Training Data Integrity & Traceability | 13 | 0 | 0 | 13 |
-| C2 Input Validation | 12 | 3 | 0 | 9 |
-| C3 Model Lifecycle Management & Change Control | 15 | 0 | 0 | 15 |
-| C4 Infrastructure, Configuration & Deployment Security | 14 | 0 | 0 | 14 |
+| C2 Input Validation | 12 | 5 | 0 | 7 |
+| C3 Model Lifecycle Management & Change Control | 15 | 1 | 0 | 14 |
+| C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 13 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
-| C6 Supply Chain Security for Models | 7 | 0 | 0 | 7 |
-| C7 Model Behavior, Output Control & Safety Assurance | 13 | 3 | 0 | 10 |
+| C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
+| C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
-| C9 Orchestration & Agentic Security | 34 | 4 | 0 | 30 |
-| C10 Model Context Protocol (MCP) Security | 23 | 2 | 0 | 21 |
-| C11 Adversarial Robustness | 17 | 1 | 0 | 16 |
-| C12 Monitoring, Logging & Anomaly Detection | 21 | 2 | 0 | 19 |
+| C9 Orchestration & Agentic Security | 34 | 6 | 0 | 28 |
+| C10 Model Context Protocol (MCP) Security | 23 | 5 | 0 | 18 |
+| C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
+| C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-5 of these 18 can only ever be marked *needs attention*: a check can
+15 of these 32 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
 
 - C2.1.3: settled by `probe.ai-injection-unscreened`.
+- C2.1.4: found failing by sv's `probe.ai-input-truncated`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
+- C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
+- C3.2.3: found failing by sv's `ast.floating-model-name`.
+- C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`.
+- C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
+- C7.3.1: settled by `probe.ai-flagged-reply-shown`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
-- C7.3.3: settled by `probe.ai-output-fetched`.
+- C7.3.3: found failing by sv's `probe.ai-output-fetched`.
+- C7.3.4: settled by `probe.ai-hidden-content-passed`.
 - C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
-- C9.5.4: settled by `secrets.anthropic-key` (its applicability rule classifies it `scanner-clean`, so a clean credential scan counts; the scan reads the repository, not what reaches the model's context at run time); and found failing by semgrep's `mcp-credential-in-response`.
+- C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
+- C9.3.7: found failing by sv's `probe.ai-output-fetched`.
+- C9.5.4: found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
+- C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
+- C10.2.6: settled by `probe.mcp-session-survives-end`.
+- C10.3.3: settled by `probe.mcp-server-origin-unchecked`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
+- C11.3.2: found failing by sv's `probe.ai-raw-response-exposed`.
 - AC.12.1: settled by `config.workflow-runs-fork-code`.
+- C12.1.1: settled by `probe.ai-call-log-session`.
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.
 - AC.12.2: settled by `config.workflow-checkout-keeps-token`.
 - C12.2.1: settled by `probe.ai-injection-logged`.

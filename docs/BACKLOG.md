@@ -9,6 +9,186 @@ another session is not a claim.
 
 ## Next
 
+- **`ast.download-piped-to-shell` flags a download read as data.** **Claimed on 28 September 2026 by session
+  cato-examined**, at the owner's asking. Found by cato-pipeline: `curl … | python3 -c '<fixed program>'` is
+  reported high, the same as `curl … | sh`, because the rule matches any pipeline from `curl`, `wget`, or `fetch`
+  into a shell or interpreter, whatever that command's arguments are. An interpreter runs what arrives on standard
+  input only when no program is given another way. Plan: keep flagging `| sh`, `| bash -s`, `| python3 -`, and
+  `| sudo bash`; stop flagging, or report at *possible* certainty, the forms that give the program another way
+  (`-c`, `-e`, a script file). A literal program is not proof of safety (`python3 -c "exec(sys.stdin.read())"`
+  runs the download), which is the case for *possible* rather than silence. A test for each side, and each guard
+  broken in turn.
+  **Done on 28 September 2026 by session cato-examined:** the rule reports an interpreter only when it takes its
+  program from standard input (`| sh`, `| sh -s stable`, `| python3 -`, `| sudo -E bash`), and not when the
+  program is given another way (`-c`, `-e`, `-m`, a script file). Not reported at *possible* certainty instead:
+  the engine has no per-match certainty, and the `-c` text is the author's own, as `literal_argument_is_safe`
+  already treats `eval("1 + 1")` (DESIGN). On the way: `| sudo -E sh` had been missed, because only the first
+  word after `sudo` was looked at, and `| grep python` would have been reported; the command must now begin
+  with the interpreter. 24 cases added to the rule table, 12 on each side; five guards broken in turn each turn a case red.
+
+- **Say in `report.json` what was examined, in a form a program can read.** **Claimed on 28 September 2026 by
+  session cato-examined**, at the owner's asking.
+  `report.json` says what was not examined only in sentences: `gaps`, and the SARIF's `sv.not-examined`
+  notices. A program that reads it cannot tell a finding that was fixed from one nobody looked for this time.
+  The owner's cato-pipeline turns `sv` findings into a plan of action and closes an item when its finding stops
+  appearing, so a tool that did not run, a check that could not read what it needed, or code rules silenced by an
+  unparsed language would each close items that were never fixed. Plan: an `examined` list in `report.json`,
+  one entry per family of findings (a `rule_id` prefix: each outside tool, `sv`'s code rules, each check that could
+  not run, known vulnerabilities, the running app), each `ran` or `not-run` with the reason the gap already gives,
+  filled where those gaps are decided, and a test for each source that fails when its entry is wrong. Touches
+  `sv-report` (the field), `sv-cli` (filling it), and `docs/DESIGN.md`.
+  **Done on 28 September 2026 by session cato-examined:** `report.json` has `examined`, one entry per family
+  of findings with a state of `ran`, `partly`, `not-run`, or `nothing-to-examine`; the longest matching
+  `rules` prefix decides (DESIGN, "What was examined, for a program"). Five tests through the binary and three
+  beside the code; each of six guards, removed in turn, turns its test red. `design.`, `hand.`, and `tests.`
+  findings have no entry yet, so a program reads them as not looked for, which is the safe side.
+
+- **Two limits cato-pipeline hit while wiring in `sv`.** Found on 28 September 2026 by a session on the owner's
+  cato-pipeline project, while integrating `sv` (cato's ADR 0009), with `sv` built from `main` at `5117b0a`, and
+  written up for this backlog. Session securevibe-e10 checked each claim about `sv`'s code against `main` the
+  same day before adding it here; the reproductions below are cato's and were not rerun. Both are honest,
+  fail-closed behavior; the cost is in what they block. **Each numbered item can be claimed on its own.**
+  1. **`requirements.lock` beside `pyproject.toml` is not read.** For a Python project with a `pyproject.toml`,
+     `sv` looks only for `poetry.lock`, `pdm.lock`, or `uv.lock` (`crates/sv-scan/src/ecosystems.rs`, the
+     `pyproject.toml` entry; checked). A hash-pinned `requirements.lock` beside it is ignored, though it is the
+     file `uv pip compile pyproject.toml -o requirements.lock` writes and the name Rye uses.
+     `requirements.lock` is already a known lockfile, but only for the `requirements.txt` manifest (checked), and
+     `from_pinned_requirements` in `crates/sv-check/src/sbom.rs` already skips `--hash` lines and reads
+     `name==version`. As a result `config.versions-pinned` (medium) says there is no lockfile, which is untrue;
+     the bill of materials lists no Python packages (`sbom.incomplete`, the gap "everything Python installs");
+     and `examined` has `advisory.` as `partly`. Seen on cato's own repository: `sv sbom` listed 0 components;
+     the same file renamed `requirements.txt` listed 41. Reproduce:
+     `printf '[project]\nname = "demo"\nversion = "0.1.0"\ndependencies = ["PyYAML>=6.0"]\n' > pyproject.toml`,
+     then `uv pip compile pyproject.toml --universal --generate-hashes -o requirements.lock`, then `sv sbom .`.
+     **The owner's decision, as cato's write-up records it: fix it here.** Fix: add `"requirements.lock"` to the
+     `pyproject.toml` entry's lockfiles. Two decisions come with it: which lockfile is read when several are
+     present, said in the report as it is for other ecosystems; and environment markers, since a universal lock
+     has lines like `colorama==0.4.6 ; sys_platform == 'win32'`, which the parser lists even where it would not
+     be installed (the safe side for an advisory comparison; the bill of materials then says slightly more than
+     is installed, which the report could say, or the marker could be read). Test: a `pyproject.toml` project
+     with a hash-pinned `requirements.lock`, `--hash` lines and one marker line included, gives components, no
+     `config.versions-pinned` finding, and `advisory.` as `ran` when the database covers PyPI; remove the new
+     entry and it goes red. **Claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking to
+     pick a backlog item, in branch `claude/securevibe-e2-pyproject-lock`.
+     **Done the same day:** `requirements.lock` is the last of the `pyproject.toml` lockfiles, so a `uv.lock`,
+     `pdm.lock`, or `poetry.lock` beside it is read first. A platform condition is not read, so such a package
+     is listed everywhere, and a line is now cut at its `;` whether or not a space comes before it, which fixes
+     `requirements.txt` as well. Three tests (the reader, which lockfile counts, and the report end to end); each
+     guard, broken in turn, turns its own test red. See DESIGN, "A `requirements.lock` beside `pyproject.toml`".
+     One correction to the entry above: no ecosystem's report says which lockfile was read when several are
+     there, so this one does not either. That is the next item.
+  2. **One large data file blocks two checks for the whole app.** `MAX_FILE_BYTES` (2 MB,
+     `crates/sv-scan/src/files.rs`; checked) is the largest file any check reads. cato vendors NIST's SP 800-53
+     catalog at `oscal/catalogs/nist-800-53-rev5/catalog.json`: 10 MB of standards text, no code, no
+     credentials. That one file leaves the credential scan `partly` ("1 file(s) were not read"), so a program
+     reading `examined` can never treat a missing `secrets.*` finding as fixed anywhere in the app. It also
+     leaves `config.mcp-server-unpinned` not assessed for the whole app: `mcp_servers` in
+     `crates/sv-check/src/launch.rs` reads every file `may_start_servers` selects, JSON included, and one it
+     cannot read means the check can never pass (checked; it still reads every other file and still reports an
+     unpinned server it finds, so it blocks the clean result, not the findings). Both are right by `sv`'s own
+     rules and `examined` reports them correctly; the problem is that a file the owner knows to be data blocks
+     two families permanently, with nothing the owner can do. Reproduce: a folder with a `securevibe.toml`, an
+     `app.py`, and `python3 -c "import json; json.dump({'text': 'x'*3_000_000}, open('catalog.json','w'))"`,
+     then `sv report . --out out`. **Options, for the owner to choose:**
+     (a) read large files in pieces for the credential scan, since its rules are line-oriented, so `secrets.`
+     can be `ran`, meeting the concern in `files.rs` (a large file is likelier to hold a hash than a key) by
+     giving findings there *possible* certainty rather than by not reading them; (b) stop one unrelated file
+     from blocking the MCP check: a file that starts an MCP server is small, so for one over the limit first
+     check whether it can be an MCP configuration at all (by name, or by scanning for `"mcpServers"` or
+     `"command"`), or report the check as `partly` naming the file; (c) let the manifest name data files, such
+     as `[repository] data = ["oscal/catalogs/**"]` with a reason, each listed in the report, which relies on a
+     manifest an AI tool may write and so would need the visibility `not-the-app` has. cato's write-up
+     recommends (a) and (b) together, which clear it without asking anyone to trust the manifest. Tests: a
+     3 MB plain-text JSON and no MCP configuration leaves the MCP check run, or `partly` and naming the file,
+     never not assessed; a key planted past the 2 MB mark of a large file is found and `secrets.` is `ran`;
+     each guard removed in turn turns its test red. **The owner's decision, 28 September 2026: (a) and (b)
+     together. Claimed the same day by session securevibe-e10**, in branch `claude/large-data-files`.
+     **Done the same day:** a file over 2 MB and up to 256 MB is read in pieces for credentials (an
+     assignment found in one is reported with low confidence), and the MCP check counts a large file as
+     read when it never says `command`, its own rule for any file. On cato's reproduction the credential
+     scan is `ran` and the MCP check is no longer not-run. See DESIGN, "A large data file no longer
+     blocks the credential scan or the MCP check".
+  3. **The report does not say which lockfile was read when a project has more than one.** Found on 28 September
+     2026 while doing item 1. `find_lockfile` in `crates/sv-scan/src/ecosystems.rs` takes the first name in each
+     ecosystem's list that exists and says nothing about the rest, for every ecosystem (`poetry.lock` and
+     `requirements.lock` beside `requirements.txt`, `uv.lock` and `requirements.lock` beside `pyproject.toml`,
+     `package-lock.json` and `yarn.lock`, and so on). If the two disagree, the bill of materials and the advisory
+     comparison describe one of them and the owner is not told which. The bill of materials could carry a note
+     naming the file read and the ones passed over. **Claimed on 29 September 2026 by session securevibe-e2**, at
+     the owner's asking to pick a backlog item, in branch `claude/securevibe-e2-which-lockfile`.
+     **Done the same day:** one lockfile is still read, in the same order, and the others are named in the bill
+     of materials (a CycloneDX property), in `sv sbom`'s output, and in the report as a gap. `advisory.` is
+     `partly` in `examined`, and the clean "nothing found" claim is withheld, so `sv audit` exits 2 rather than
+     0. Six tests; each of eight guards, broken in turn, turns its own test red. See DESIGN, "Two lockfiles of
+     one kind".
+
+- **Two more analyses for the paper.** **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking.
+  1. **What coordinating several AI sessions cost, and what it bought:** claims, merge conflicts, duplicated work,
+     harness collisions, and faults one session found in another's merged work, from git and this backlog.
+  2. **Test growth against fault discovery:** tests day by day beside when each fault was found and how, to see
+     whether more tests meant fewer surprises. Exploratory; it may not show a clean pattern.
+
+  Touches only `docs/paper/`.
+
+  **Done the same day.** 1 is `docs/paper/COORDINATION.md` with `coordination.csv` and `figure-coordination.html`;
+  2 is `TESTS-AND-FAULTS.md` with `faults.csv`, `tests_by_day.csv`, and `figure-tests-faults.html`. Two errors in
+  `CORRECTIONS.md`, written the same day, were fixed with them: row 31 is a v1 correction, not `sv`'s, and its
+  table of `sv` tests counted work still on branches for 23, 24, and 26 September. Eight disagreements in older
+  paper files are the entry below.
+
+- **Eight places where the paper's earlier files disagree with the record.** Found on 28 September 2026 by the
+  coordination and fault analyses above. **Claimed on 28 September 2026 by session admiring-murdock-875699**, at
+  the owner's asking. Check each against its source before changing it.
+  1. `figure-how-caught.html` says 50 of the 267 changes "mention a claim". Three of the 50 (#56, #67, #71) use
+     "claim" to mean an assertion: 47 were claims of work, 42 of them touching only the backlog.
+  2. `figure-how-caught.html` counts 7 faults in `sv` found by one session reviewing another's work. It misses
+     `11b0e6c`, `6225f3f`, and `672d4af`, each of whose messages says another session found it; the total is 10.
+  3. `figure-how-caught.html` counts 8 faults found by v1's evaluation harness; `faults.csv` has 13, adding
+     `2a5d2e8`'s four and `d46f119`.
+  4. `TIMELINE.md` says 214 of the 267 changes were pull requests. Twelve more on 26 September (#128 to #221) were
+     pull requests rebased onto `main` and appear as direct commits, so the figure is 226.
+  5. `TIMELINE.md` and `figure-how-caught.html` stop at 10:52 on 27 September; `main` had 469 changes by 16:18 on
+     28 September. Either extend them or say where they stop.
+  6. `TOP10.md` files the fence-test weakness (#148) as found by "running the suite";
+     `figure-how-caught.html` files it as "breaking a guard". The backlog says it was found running the suite on
+     the owner's Mac.
+  7. `TOP10.md` cites a `mkdirSync` fix, `a562749`, that is on neither `main` nor `v1`, only on
+     `origin/claude/ci-hang`. Check whether it reached either in another form.
+  8. `TOP10.md` says no verdict that failed open was caught by a failing test. That holds for its eight; two others
+     were (`faults.csv` SV-10 and SV-49, `corrections.csv` rows 22 and 47).
+
+  **Done the same day.** Each was checked against its source first; six held as written, and two were worse
+  than stated:
+  - 3: the full harness count is 14, not 13. The ledger had also missed `00456fe`, whose own title says the harness
+    caught it, so `faults.csv` gained a row (V1-77) and the fault totals in `TESTS-AND-FAULTS.md`,
+    `COORDINATION.md`, and their figures are now 149 (81 in v1).
+  - 7: the fix never reached `v1` in any form. The whole `claude/ci-hang` branch (`3e78e98`, the test fix, and
+    `a562749`, the rule) is unmerged, and `v1` as archived still has the test line that hung CI
+    (`server/tests/llm/safety.test.ts`, the `/proc/definitely/not/writable` call). `TOP10.md` and `faults.csv` now
+    say so. Patching `v1` is a separate decision, made on the `v1` branch if at all.
+    **The owner decided on 28 September 2026 to patch `v1`: merging `claude/ci-hang` into the `v1` branch is
+    claimed on 28 September 2026 by session admiring-murdock-875699.** The tags `v1-paper` and `v1-final` stay
+    where they are.
+  Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
+  (28 against 26).
+
+- **Two analyses for the paper, and a stale count.** **Claimed on 28 September 2026 by session
+  admiring-murdock-875699**, at the owner's asking.
+  1. **What the checks claimed against what turned out to be true:** a dated ledger of every time a reported
+     number or verdict was corrected, most often downward, because it had been overstated, set beside how many
+     tests existed at the time.
+  2. **Who decided what:** the project's major decisions, each with who proposed it and who chose it, quoted from
+     the transcripts and the backlog rather than paraphrased.
+  3. **"Ten of the twelve ADRs"** in `docs/paper/METHODOLOGY.md` and `TIMELINE.md` was true when written. v1 ended
+     with thirteen records, and there are seventeen across both versions (`docs/paper/ADRS.md`).
+
+  Touches only `docs/paper/`.
+
+  **Done the same day.** 1 is `docs/paper/CORRECTIONS.md` with `corrections.csv` and `figure-corrections.html`;
+  2 is `DECISIONS.md` with `figure-decisions.html`; 3 is fixed in both files, keeping the original count and
+  saying it was true when written.
+
 - **A review of `sv` on 27 September 2026: faults, and what could be faster.** By session securevibe-e8, at
   the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
   entry points, the runner, every walker, the checks' hot loops, the MCP server, `Cargo.toml`, the
@@ -157,6 +337,10 @@ another session is not a claim.
      169 KB while the part read before its appendix went from 63 KB to 14 KB. See DESIGN, "The
      report's shape". Not done, and not decided: `only_you_can_check` in `report.json` repeats
      word for word 50 entries of `questions_for_you` (27 KB on the example).
+     **The owner's decision, the same day: drop the duplicate. Claimed by session securevibe-e10**, in
+     branch `claude/only-you-once`.
+     **Done the same day:** `report.json` names them as `only_you_can_check_ids`, each a question in
+     `questions_for_you`; 334 KB to 306 KB on the example. See DESIGN, "The report's shape".
   10. **No release profile.** `Cargo.toml` sets none, and the binary is 35.6 MB. `lto`, `codegen-units =
       1`, and `strip = true` are the usual settings for a tool built once and shipped, and typically halve
       the size; the Docker image and the "download later" packaging item both carry the binary. Measure
@@ -195,6 +379,10 @@ another session is not a claim.
       change to a check lands in the same file, which is where this week's merge conflicts were. Split by
       check (sign-in, sessions, admin, passwords, uploads, flows, codes) with the fake app as a test
       module of its own. No behavior changes; the 231 tests are the guard.
+      **Done on 28 September 2026, and the freeze is lifted:** `crates/sv-check/src/signed_in/` is fourteen
+      files, none over 2,001 lines, with the same 233 tests; see DESIGN, "The signed-in checks, one file per
+      area". The changes waiting on the freeze (securevibe-e9's V14.2.2 and V8.2.3, and the nine signed-in
+      partial checks) can go ahead, each in its area's file.
 
       **The owner asked on 28 September 2026 for this to be shared across several sessions.** The plan
       below is by session securevibe-e9, from the file as it stood on `main` that day: 15,463 lines,
@@ -288,10 +476,85 @@ another session is not a claim.
         - `tools/coverage.py` now reads every file under a crate's `src`, subfolders included, and leaves
           out a file declared `#[cfg(test)] mod name;` (as `fake_app.rs` is). Before, it read `src/*.rs`
           only, and moving the rules down a folder made it lose every signed-in check.
-      - Step 1: slices a to d and f to h, not claimed.
+      - Step 1, slice d (`codes.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking, in branch `claude/securevibe-e2-split-codes`. One file, not split in two.
+        **Done the same day:** `signed_in/codes.rs`, 3,300 lines with its 64 tests; `mod.rs` is 1,442, and its
+        tests are the 12 that exercise several areas at once, beside the shared test helpers. With each of
+        the nine checks made to return at once, the moved tests catch every one. `codes.rs` is past the
+        2,500 lines step 2 checks for, so step 2 should split it, into emailed codes (reset, sign-in codes,
+        activation) and two-factor, as the plan allows.
+      - Step 1, slice a (`signin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-signin`.
+        **Done the same day:** `signed_in/signin.rs`, 1,140 lines with its 21 tests; `mod.rs` is 4,729.
+        `run_with`, `run_keeping_app`, and `seeded_with` stay in `mod.rs`'s tests, since slice d's tests
+        use them too. With each check made to return at once, the moved tests catch `guess_once`,
+        `forwarded_check`, `brute_force_check`, and `logout_check`. `default_account_check` (V6.3.2),
+        `password_in_url_check` (V14.2.1), `sign_out_on_get_check` (V3.5.3), and `plant_log_markers` are
+        caught only by cross-area tests in `mod.rs`, which was so before the split.
+      - Step 1, slice c (`passwords.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-passwords`.
+        **Done the same day:** `signed_in/passwords.rs`, 1,954 lines with its 33 tests; `mod.rs` is 5,859.
+        The breached-password evidence came along, and its `include_str!` path still works from beside
+        `mod.rs`. `run_signing_up`, `run_signing_up_with`, and `with_words` stay in `mod.rs`'s tests,
+        since slice d's tests use them too. With each of the eight checks made to return at once, the
+        moved tests catch every one.
+      - Step 1, slice b (`sessions.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-sessions`. A move
+        only, with `ws_handshake` and `websocket_session_checks`: securevibe-e9's V14.2.2 and V8.2.3
+        changes to the caching and record-field checks stay with securevibe-e9, after it.
+        **Done the same day:** `signed_in/sessions.rs`, 2,001 lines with its 41 tests; `mod.rs` is 7,800.
+        Shared and so left in `mod.rs`'s tests: `timeouts` (slice d's `code_slow_run` uses it), and
+        `WS_RULES`, `ws_run`, `ws_findings`, and `bearer_ws_users` (`forgery.rs` uses them). `most_bits` is
+        in `sessions.rs` as planned and `pub(super)`, since the code checks use it too. With each check
+        made to return at once, the moved tests catch six of the eight; `session_checks` (the cookie's
+        attributes, V3.3.2 and V3.3.4, and its renewal at sign-in, V7.2.4) and `session_id_check` (V7.2.3)
+        are caught only by four cross-area
+        tests in `mod.rs`, which was so before the split. `private_page_checks` and
+        `record_fields_check` are in `sessions.rs` now, for securevibe-e9's V14.2.2 and V8.2.3 changes.
+      - Step 1, slice g (`admin.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-admin`. A move only:
+        securevibe-e9's V8.2.3 change to `probe.role-field-trusted` stays with securevibe-e9, after it.
+        **Done the same day:** `signed_in/admin.rs`, 1,034 lines with its 17 tests; `mod.rs` is 9,787. With
+        each check made to return at once, the moved tests catch every one: `admin_checks` 3,
+        `admin_action_checks` 6, `role_field_check` 4, and `owned_checks` 2, besides the cross-area tests.
+        `role_field_check` is in `admin.rs` now, for securevibe-e9's V8.2.3 change.
+      - Step 1, slice h (`forgery.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-forgery`.
+        **Done the same day:** `signed_in/forgery.rs`, 777 lines with its 17 tests; `mod.rs` is 10,811. The
+        WebSocket foreign-origin tests use `ws_run`, `ws_findings`, and `bearer_ws_users`, which stay in
+        `mod.rs`'s tests for slice b and are `pub(super)`. Each check was made to return at once: breaking
+        `null_origin_check` turns 5 of the moved tests red, and `simple_request_check` 4. `forgery_check`
+        (V3.5.1) turns only the three cross-area tests in `mod.rs` red, none in `forgery.rs`: nothing
+        tests it on its own, which was so before the split and is left for a change that may add tests.
+      - Step 1, slice f (`flows.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
+        owner's asking to pick another item, in branch `claude/securevibe-e2-split-flows`.
+        **Done the same day:** `signed_in/flows.rs`, 371 lines with its 8 tests; `mod.rs` is 11,578. With
+        `flow_checks` made to return at once, 7 of the 8 go red (the eighth is the app with no flow), and
+        none of the tests left in `mod.rs` does: the all-flaws and correct-app tests do not cover flows.
       - Step 1, slice e (`uploads.rs`): **claimed on 28 September 2026 by session securevibe-e2**, at the
         owner's asking to pick another item, in branch `claude/securevibe-e2-split-uploads`.
-      - Step 2: not claimed.
+        **Done the same day:** `signed_in/uploads.rs`, 1,261 lines with its 20 tests; `mod.rs` is 11,940.
+        `MOST_UPLOAD_BYTES` came along, since only upload code uses it. `with_signup` stays in `mod.rs`'s
+        tests, shared by several areas, and is `pub(super)` so a slice's tests can `use
+        super::super::tests::with_signup`; other shared test helpers can be reached the same way.
+      - Step 2: **claimed on 28 September 2026 by session securevibe-e2**, at the owner's asking, in branch
+        `claude/securevibe-e2-split-step2`: `codes.rs` split in two, `mod.rs` tidied, a DESIGN section, and
+        this item marked done, which lifts the freeze.
+        **Done the same day.** `codes.rs` was split in four rather than two: two-factor out alone would have
+        left 2,700 lines, past the 2,500 checked for, so it is split by area into `reset.rs` (692 lines),
+        `activation.rs` (614), `totp.rs` (592), and `codes.rs` (1,426, the emailed sign-in code and what the
+        three email flows share). Each moved check, made to return at once, turns the tests in its new file
+        red. `mod.rs` (1,471) lost two headings with nothing under them and gained a map of the files at its
+        top, and DESIGN has the same map. Final lines: `mod.rs` 1,471, `fake_app.rs` 1,609, `rules.rs` 664,
+        `signin.rs` 1,140, `sessions.rs` 2,001, `passwords.rs` 1,954, `reset.rs` 692, `codes.rs` 1,426,
+        `activation.rs` 614, `totp.rs` 592, `admin.rs` 1,034, `forgery.rs` 777, `flows.rs` 371, `uploads.rs`
+        1,261; 15,606 in all, against 15,463 before. The difference is the new `mod`, `use`, and test-module
+        lines, blank lines between moved blocks, and the map, less the two headings. Tests: the same 233. Found on the way: `tools/pwned_passwords.py` still read the breached
+        password from `signed_in.rs`, which has not existed since step 0, and matched only `const BREACHED`,
+        not `pub(super) const BREACHED`; it has no test, so it would have failed the next time it was run.
+        Both fixed, and the reading part run to show it finds the password the evidence file records.
+        `docs/PARTIAL-CHECKS.md` still names `signed_in.rs` in about sixty places; left as it is, since the
+        name still points at the folder and securevibe-e9's open work edits that file.
 
 - **Three faults in the known-vulnerability comparison, found while `sv` audited itself.** Found on 28
   September 2026 by session securevibe-e9, doing review item 12. **Not claimed; each can be claimed on its
@@ -360,7 +623,16 @@ another session is not a claim.
      folder on this computer is not, stop the run as not assessed and say the container backend could not
      see the folder, naming Colima's shared-folder setting. A test: an app folder the backend cannot see
      (on Linux, where every folder is shared, this needs a stand-in, such as a folder the check is told is
-     empty inside). **Not claimed.**
+     empty inside). **Claimed on 28 September 2026 by session securevibe-e9**, at the owner's asking to continue
+     with the backlog.
+     **Done the same day:** when the app never answers, the run lists `/app` from a throwaway container of the
+     probes' own busybox image with the same mount (no network, read-only, no capabilities). Empty there while
+     the folder has files on this computer is `CannotRun::AppFolderUnseen`, which names the folder and Colima's
+     and Docker Desktop's sharing settings instead of blaming the app. Asked only on failure, so a run that
+     works pays nothing. `unseen_folder` in `crates/sv-run/src/lib.rs` is tested with the inside as a stand-in
+     (Linux shares every folder), with three controls; the existing never-starts test in
+     `crates/sv-run/tests/fence.rs` is the control that runs for real in CI, where the listing must see the
+     fixture's files and the reason must stay "never answered". Not tried on a Mac with Colima.
 
 - **A test that failed once on CI and passed when run again, not yet named.** Found on 28 September 2026 by
   session securevibe-e9 on #344: the `test` job of the push run for `51c6d71` failed in the Tests step after
@@ -389,6 +661,106 @@ another session is not a claim.
   its coverage and the checks that speak to it: what each looks for, read from where the check is defined,
   and what kind of check it is, which says what it needs to run. `crates/sv-check/tests/coverage_doc.rs`
   fails when it is out of date or leaves out a requirement.
+
+- **A rate limiter's 429 may be read as the app's answer about access.** Reported to the owner on 28 September
+  2026 by an agent in another project that was integrating `sv`: an open CRITICAL it listed as "F-0001, the
+  anonymous user denied runtime probe" had got HTTP 429 from the app's rate limiter rather than a refusal to sign in,
+  and may be a false positive. **Not claimed.** Their report was not available here, and no check of `sv`'s matches
+  that name at CRITICAL, so the first step is to get the report (rule id, the request, the answer) from the owner.
+  Found while looking: `probe.private-page-anonymous` (`signed_in/mod.rs`, step 1 of `run_with`) counts anything
+  but 2xx as refused. It raises a finding only on 2xx, so a 429 cannot cause a false alarm there, but a 429 **is
+  credited as a pass**: V8.2.1 "refused to somebody not signed in" when the rate limiter said no and the page's own
+  check never ran. That is the opposite fault, a false pass, and the same reading may be elsewhere (`ok()` and
+  `accepted()` are used throughout the signed-in checks, and 429 is already handled on its own in the sign-in
+  guessing checks). A fix would treat 429 (and 503 with `Retry-After`) as "the app did not answer the question":
+  wait out `Retry-After` once and ask again, else not assessed, never refused. The file is frozen for the split
+  until step 2; this waits for it, or for the session holding slice b (private pages).
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-rate-limited`, now that the split is done. The claim covers the false pass found
+  while looking (a 429 or a 503 with `Retry-After` read as the app's own answer, in the signed-in checks and any
+  other probe that reads a status the same way); the reported CRITICAL still needs the other project's report
+  from the owner, and stays open until it is read.
+  **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
+  `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
+  wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
+  **Claimed twice.** securevibe-e10's claim was made at 00:19 UTC on 29 September but pushed only to its own
+  branch, never merged; securevibe-e2 found the item unclaimed on `main` and claimed it at 00:38 UTC (#411), as
+  the rule says it should. **The owner's decision, the same day: securevibe-e10's finished work (#412) is merged,
+  and securevibe-e2 stands down or takes the part #412 left, the anonymous probes outside `signed_in/`** (the
+  entry below). The lesson is the rule's own: a claim counts when it is on `main`, so open its pull request at once.
+  **Done the same day:** every signed-in request goes through `Patient`, which waits out a 429, or a 503 with
+  `Retry-After`, once, as long as the app asks and at most a minute, except the guessing checks' own requests.
+  A limiter still answering after that withdraws every credit of the run into not assessed, naming the
+  requests, and keeps the findings with a note. See DESIGN, "A rate limiter's answer is not the app's".
+  Two things found and not changed are the entries below.
+
+- **A 500 from the app is read as a refusal, and can be credited as one.** Found on 28 September 2026 by session
+  securevibe-e10 while fixing the 429 entry above. The signed-in checks read anything but 2xx as the app refusing
+  (`ok()` in `crates/sv-check/src/signed_in/mod.rs`), so a private page that crashes for a stranger with a 500 is
+  credited as "refused to somebody not signed in" (V8.2.1), as a 429 was. A crash is not an answer to whether the
+  page is private. Fix, as a suggestion: read a 5xx as no answer wherever a refusal would be credited, and say the
+  requirement is not assessed with the status; a finding from a 5xx (a stack trace, say) is a separate question.
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-server-error`.
+  **Done the same day:** `Patient` records every signed-in request answered with a 5xx or not at all, and
+  `RESTS_ON_A_REFUSAL` names the requests each of the 29 refusal-credited passes rests on; a pass one of whose
+  requests crashed is not assessed, naming them, and the rest of the run's passes and all its findings stay. A test crashes every request of six setups, one at a time, and fails when a rule found at fault comes back credited; it found requests of five kinds the first list missed. Six guards, each broken in turn, each caught. See DESIGN, "A crash is
+  not a refusal".
+- **Three findings are raised from a refusal, so a crash can raise them falsely.** Found on 29 September 2026 by
+  session securevibe-e2 while fixing the item above. `SIGN_OUT_ON_GET` (`signin.rs`, `private-after-get-logout` not
+  2xx read as the session ended), and `COMPOSITION_RULES` and `LONG_PASSWORD` (`passwords.rs`, a strong or long
+  password that did not work read as refused). A crash on those requests reports a fault the app may not have. A fix
+  in the same shape: record which requests those findings rest on, and move the finding to not assessed when one of
+  them crashed, with a test that crashes each request of a correct app and fails when one of these appears.
+  **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to pick a backlog item, in
+  branch `claude/securevibe-e2-crash-findings`.
+  **Done the same day:** five findings, not three: the sweep that crashes each request of a correct app also raised
+  `RESET_REVEALS_ACCOUNT` (a reset for nobody that failed) and `NO_BRUTE_FORCE_LIMIT` (a guess that failed may not have
+  been counted). `RAISED_ON_A_REFUSAL` names each one's requests, and a finding one of whose requests crashed is not
+  assessed, naming them. The test fails on any finding a crash raises, listed or not. See DESIGN, "A crash is not a
+  refusal", its "Later the same day" part.
+
+- **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
+  session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's
+  429 is read there as the app's answer. The places read in passing only ever raise a finding, and each needs a 2xx
+  to do so, so none was seen to credit a limiter's refusal; `probe.admin-opened-by-address` (`running.rs`) reads
+  "shut to a stranger" from a non-2xx before finding it open from the app's own address, which a limiter could only
+  make more cautious. Not checked one by one. Fix, as a suggestion: route them through the same `Patient`, and check
+  each place a non-2xx is read. **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's word (the entry above: stand
+  down or take this part), in branch `claude/securevibe-e2-anonymous-limited`. With it, one thing `Patient` does not
+  have yet: a limit on all the waiting in one run. It waits up to a minute for every limited request, so a limiter
+  answering everything holds a run up for a minute a request; securevibe-e2's own version (not merged, in branch
+  `claude/securevibe-e2-rate-limited`) stopped at five minutes in all, with a test.
+  **Done the same day:** the anonymous questions go through `Patient` (`signed_in::ask_anonymously`, from step 4 of
+  the run); an answer still the limiter's is left out, as one that got no answer is, and `sv run` and the report name
+  those requests as a gap. Reading each place found two that did judge a limiter's answer: the security-headers
+  finding on a 429 page, and "source control not exposed" credited from two 429s; a test witnesses both. `Patient`
+  stops waiting after five minutes in all. Four guards, each broken in turn, each caught. Not run end to end against
+  a real app behind a limiter. See DESIGN, "A rate limiter's answer is not the app's", its "Later" part.
+- **`a_bundle_is_written_beside_the_app_inside_the_root_and_holds_no_secret` failed once.** Seen on 29 September
+  2026 by session securevibe-e2 in a whole-workspace run under load (a mutation run of the rate-limit code, which
+  that test does not touch); it passed three times alone. Not reproduced. A guess, marked as one: it asserts that
+  the four bytes `4471`, a fragment of the planted secret, appear nowhere in the zip's raw bytes
+  (`crates/sv-cli/src/mcp.rs`), and a zip holds timestamps and compressed data in which four given bytes can occur
+  by chance. If so, the fix is to read the zip's entries and look in their contents. **Not claimed.**
+
+- **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
+  September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
+  semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
+  `data/semgrep-packs.json`, `tools/semgrep_packs.py`), so the question is whether to switch, offer both, or stay.
+  Things to find out, each written down with how it was measured rather than recalled:
+  1. **Rules.** Which of the packs `sv` runs (`data/semgrep-packs.json`) Opengrep can load and run, under what
+     license each is published, and whether the rules mapped in `data/adapters.json` give the same findings. Run
+     both over the same apps (`examples/` and a few fixtures) and compare rule ids, files, and lines.
+  2. **Output.** Whether its SARIF is what `adapters::parse_sarif` reads, rule ids and levels included, and whether
+     `clean_run_evidence` would credit the same requirements.
+  3. **Installing it.** How an owner who is not a programmer installs it on a Mac and on Linux, whether it is one
+     file with no account or sign-in, and what the Docker image would need.
+  4. **Running it offline.** Whether it sends anything over the network by default (semgrep's metrics and rule
+     downloads), since `sv` promises no network connection of its own, and how to turn that off.
+  5. **Speed and upkeep.** Time over the same apps, how often it is released, and who maintains it.
+  The result is a recommendation in this item, with the numbers, for the owner to decide; nothing in the adapters
+  changes until then.
 
 - **Partial checks for the requirements no check speaks to, from the review of 28 September 2026.** The owner asked
   on 28 September 2026 for every requirement with no check to be reviewed for a partial check: a signal that tells the
@@ -419,6 +791,13 @@ another session is not a claim.
      either way.
      **V8.2.3, C9.3.2, C9.3.7, and V14.2.2 claimed on 28 September 2026 by session securevibe-e9**, at the
      owner's asking to go ahead with this group; V9.2.3 stays the owner's call.
+     **C9.3.2 and C9.3.7 done the same day** (`crates/sv-check/src/ai.rs`). **V8.2.3 and V14.2.2 wait for the
+     `signed_in.rs` freeze to lift**, since their checks live there: add V8.2.3 to the requirement lists of
+     `probe.role-field-trusted` and `probe.record-returns-secret-fields` (both only ever findings), and add a
+     finding-only `probe.private-page-shared-cache` (V14.2.2) beside `probe.private-page-cached` for a private
+     page whose `Cache-Control` has `public` or an `s-maxage` with neither `private` nor `no-store`. Session
+     securevibe-e9 wrote and tested both before the freeze was noticed, and holds the claim; the slice's
+     session may make them in its pull request instead (slices g and b).
   3. **Small new checks, the reviewers' first picks. Not verified.** Details for each are in `docs/PARTIAL-CHECKS.md`.
      Reads the code: V1.3.1 (a rich-text editor with no known sanitizer), V11.2.4 (a digest compared with `==`),
      V15.2.3 (a development server as the start command), C6.1.3 (model downloads not pinned to a commit),
@@ -434,9 +813,61 @@ another session is not a claim.
      a password change), V6.3.7 (an email after a password change), V10.1.1 (tokens in browser storage), V10.5.2 (two
      people sharing an email address at the test sign-in provider), V14.3.3 (the test password in browser storage),
      C9.5.3 (another user's record through a tool the model calls).
+     **The twenty that read the code or the running app claimed on 28 September 2026 by session securevibe-e9**, at
+     the owner's asking to go ahead with this group, in three pull requests: the seven that read the code, then
+     V8.4.2, V10.4.4, V16.5.4, and V13.4.7, then the eight about AI apps. The nine signed-in ones (V1.3.4, V5.4.3,
+     V4.1.3, V7.4.3, V6.3.7, V10.1.1, V10.5.2, V14.3.3, C9.5.3) are not claimed: their checks live in
+     `signed_in/`, which is frozen until the split's step 2 is done.
+     **The seven that read the code done the same day**, each able only to show its requirement failing, so a
+     clean run credits none of them. Four are rules in `data/ast-rules.json`: `ast.digest-compared-with-equals`
+     (V11.2.4, taught fourteen languages; shell has no timing to measure), `ast.model-loaded-with-pickle`
+     (C4.1.2, Python), `ast.model-download-not-pinned` (C6.1.3, Python and JavaScript), and
+     `ast.floating-model-name` (C3.2.3, all fifteen). Three are checks of the files:
+     `config.development-server-started` (V15.2.3, the last stage of each Dockerfile and a Procfile's `web:`
+     line, following `npm start` into package.json; files named for development are left out),
+     `config.mcp-server-unpinned` (C10.1.1, `npx`, `uvx`, `pipx run`, `pnpm dlx`, and `docker run` in the
+     app's own configuration and code; the developer's own AI-tool settings are left out), and
+     `config.rich-text-without-sanitizer` (V1.3.1, from the bill of materials and sanitizer names in the
+     code; not assessed while part of the bill could not be read). Not done from the proposals: the
+     running-app half of V15.2.3 (debug consoles that answer), committed model files opened by their
+     contents (C4.1.2), `ollama pull` and model-server images (C6.1.3), and the model name the app really
+     sent (C3.2.3), which goes with the AI checks.
+     **V8.4.2, V10.4.4, V13.4.7, and V16.5.4 done the same day** (`crates/sv-check/src/running.rs`), each only ever a
+     finding: `probe.admin-opened-by-address` (an admin page named in `[stack.run.users]` shut to a stranger and
+     open with `X-Forwarded-For: 127.0.0.1`; made in `probes`' anonymous requests, so `signed_in/` is untouched),
+     `probe.retired-grants-offered` (the password or implicit grant in the sign-in settings the app publishes at
+     `/.well-known/`), `probe.private-files-served` (up to sixteen settings, key, dump, build, and server-code files
+     from the app's folder, asked for by name and judged by their own first 200 characters), and
+     `probe.app-stopped-during-questions` (the container read after the anonymous questions and again after the
+     rest; `crates/sv-run/tests/stays_up.rs` runs a fixture that a request stops, with Docker in CI). Not done from
+     the proposals: the static half of V10.4.4 (grant settings in code), the static half of V13.4.7 (a static-file
+     handler pointed at the app's folder), and the error-handler signals for V16.5.4.
+     **Six of the eight about AI apps done the same day** (`crates/sv-check/src/ai.rs`, asked after the rate check,
+     a minute after its burst). Found and credited: `probe.ai-hidden-content-passed` (C7.3.4: invisible tag and
+     zero-width characters, a right-to-left override, and a misleading link in a reply, looked for in the answer
+     with JSON escapes, surrogate pairs, and HTML references read) and `probe.ai-flagged-reply-shown` (C7.3.1:
+     judged only when the app asked the test model's new moderation endpoint about the reply; a classifier
+     elsewhere is not seen). Only ever findings: `probe.ai-input-truncated` (C2.1.4: a 40,000-character message
+     with a marker at each end; the fence carries a request as one shell argument, so a message past any context
+     window cannot be sent, and one arriving whole is only a step), `probe.ai-injection-other-languages` (C2.2.2:
+     the injection in Zulu, Scottish Gaelic, Bengali, and base64, asked only where the English one was stopped),
+     and `probe.ai-raw-response-exposed` (C11.3.2: every reply's id now carries `SVRAW` and its tag). Credited
+     only: `probe.ai-call-log-session` (C12.1.1: the model-call log line of a signed-in run naming the user or a
+     user or session field). `crates/sv-run/tests/model_provider.rs` runs the test model under Node for the first
+     time. **C10.3.3 and C10.2.6 done the same day** (`crates/sv-check/src/mcp_server.rs`), for an app that is
+     itself an MCP server and says where in a new `[stack.run.mcp-server]` section: `probe.mcp-server-origin-unchecked`
+     (a foreign `Origin` and a foreign `Host`, each on its own, against an ordinary request as the control) and
+     `probe.mcp-session-survives-end` (a session ended with `DELETE` and used again). Both are credited when
+     refused. Not yet run against a real MCP library.
   4. **Two gaps in existing checks. Not verified.** `data/secret-rules.json` has an Anthropic key rule and none for
      OpenAI or Hugging Face keys. The `training` corroborator misses vendor fine-tuning calls such as OpenAI's
      `fine_tuning.jobs.create`.
+     **Claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
+     `claude/key-rules-fine-tuning`.
+     **Done the same day:** `secrets.openai-key` and `secrets.huggingface-token` in
+     `data/secret-rules.json`, from gitleaks' published patterns, and the vendor fine-tuning calls in
+     the `training` corroborator, each read from the vendor's own SDK or API definition. See DESIGN,
+     "OpenAI and Hugging Face keys, and fine-tuning through a vendor".
   5. **CodeQL queries that may already run.** `py/insecure-temporary-file` and `js/file-system-race` (V15.4.2) were
      proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
      semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
@@ -447,6 +878,22 @@ another session is not a claim.
      failed. Most checks of an app that is itself an MCP server, or itself a sign-in service, need a new securevibe.toml
      section, and apply to few apps.
 
+- **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
+  by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
+  "secrets and credentials required by an agent at runtime are not exposed within the model's observable
+  context, including the context window, system prompts, or tool call parameters". `secrets.anthropic-key`
+  in `data/secret-rules.json` cites it, so every Anthropic key found in a file is a finding against a
+  requirement about the model's context, which the file says nothing about. The new rules leave it out. The
+  semgrep rule `mcp-credential-in-response` also cites C9.5.4, and there it fits: a tool returning a
+  credential into the model's context is what C9.5.4 is about. Fix: take C9.5.4 off the Anthropic rule,
+  regenerate `docs/COVERAGE.md`, and see what else moves. **Claimed on 28 September 2026 by session
+  securevibe-e9**, at the owner's asking to continue with the backlog.
+  **Done the same day:** C9.5.4 is off `secrets.anthropic-key`, and it is now only ever found failing, by
+  semgrep's `mcp-credential-in-response`. Nothing else moved. The note in `tools/coverage.py` explaining why
+  a clean credential scan counted for it is gone with it. `no_rule_that_reads_files_for_keys_cites_the_model_context_requirement`
+  in `crates/sv-check/tests/citations.rs` holds it, beside the coverage document; putting the citation back
+  turns both red. Left as it is: `data/knowledge/applicability.json` still classes C9.5.4 as `scanner-clean`,
+  which no code reads and which no clean scan now backs.
 - ~~**The false-alarms test depends on which scanners the machine has installed.**~~ **Done the same day.** Found on 27 September 2026
   by session securevibe-e8 running the full suite on the owner's Mac. **Claimed the same day by session
   securevibe-e8**, at the owner's asking. `one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both`

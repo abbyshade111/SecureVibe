@@ -58,6 +58,13 @@ TIERS = [
 # Checks whose citations are written in Rust rather than in a data file.
 RUST_CHECKS = {
     "config.secrets-file-committed": ("static", ["V13.3.1"]),
+    "config.development-server-started": ("static", ["V15.2.3"]),
+    "config.mcp-server-unpinned": ("static", ["C10.1.1"]),
+    "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
+    "probe.retired-grants-offered": ("running", ["V10.4.4"]),
+    "probe.admin-opened-by-address": ("running", ["V8.4.2"]),
+    "probe.private-files-served": ("running", ["V13.4.7"]),
+    "probe.app-stopped-during-questions": ("running", ["V16.5.4"]),
     "config.gitignore-covers-env": ("static", ["V13.3.1"]),
     "config.versions-pinned": ("static", ["V15.1.2"]),
     "config.workflow-runs-fork-code": ("static", ["AC.12.1"]),
@@ -72,15 +79,23 @@ RUST_CHECKS = {
     "probe.error-detail-leak": ("running", ["V13.4.2", "V16.5.1"]),
     "probe.trace-enabled": ("running", ["V13.4.4"]),
     "probe.ai-instructions-leaked": ("running", ["C7.3.2"]),
-    "probe.ai-output-fetched": ("running", ["C7.3.3"]),
+    "probe.ai-output-fetched": ("running", ["C7.3.3", "C9.3.7"]),
     "probe.ai-output-unbounded": ("running", ["C7.1.2"]),
     "probe.ai-injection-unscreened": ("running", ["C2.1.3"]),
     "probe.ai-call-log-incomplete": ("running", ["C12.1.3"]),
     "probe.ai-injection-logged": ("running", ["C12.2.1"]),
     "probe.ai-rate-unlimited": ("running", ["C11.2.2"]),
     "probe.ai-kill-switch-ignored": ("running", ["C9.6.1"]),
-    "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1"]),
+    "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1", "C9.3.2"]),
     "probe.ai-mcp-injection-unscreened": ("running", ["C10.4.2"]),
+    "probe.ai-input-truncated": ("running", ["C2.1.4"]),
+    "probe.ai-injection-other-languages": ("running", ["C2.2.2"]),
+    "probe.ai-hidden-content-passed": ("running", ["C7.3.4"]),
+    "probe.ai-flagged-reply-shown": ("running", ["C7.3.1"]),
+    "probe.ai-raw-response-exposed": ("running", ["C11.3.2"]),
+    "probe.ai-call-log-session": ("running", ["C12.1.1"]),
+    "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),
+    "probe.mcp-session-survives-end": ("running", ["C10.2.6"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),
@@ -176,7 +191,21 @@ RUST_CHECKS = {
 
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
-RUST_FINDINGS_ONLY = {"config.workflow-secrets-with-fork-code", "probe.role-field-trusted"}
+RUST_FINDINGS_ONLY = {
+    "config.workflow-secrets-with-fork-code",
+    "probe.role-field-trusted",
+    "probe.ai-output-fetched",
+    "config.development-server-started",
+    "config.mcp-server-unpinned",
+    "config.rich-text-without-sanitizer",
+    "probe.retired-grants-offered",
+    "probe.admin-opened-by-address",
+    "probe.private-files-served",
+    "probe.app-stopped-during-questions",
+    "probe.ai-input-truncated",
+    "probe.ai-injection-other-languages",
+    "probe.ai-raw-response-exposed",
+}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the two ids `sv init` prints as
@@ -617,10 +646,7 @@ def main():
         parts = []
         if names:
             parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"
-                         + (f" and {len(names) - 4} more" if len(names) > 4 else "")
-                         + (" (its applicability rule classifies it `scanner-clean`, so a clean credential"
-                            " scan counts; the scan reads the repository, not what reaches the model's"
-                            " context at run time)" if any(c.startswith("secrets.") for c in names) else ""))
+                         + (f" and {len(names) - 4} more" if len(names) > 4 else ""))
         by_tool = defaultdict(list)
         for tool, r in rules:
             by_tool[tool].append(f"`{r}`")

@@ -1095,6 +1095,55 @@ fn a_nested_project_with_no_lockfile_is_unpinned_and_named() {
 }
 
 #[test]
+fn a_requirements_lock_pins_a_pyproject_project_and_a_tools_own_lockfile_comes_first() {
+    // `uv pip compile pyproject.toml -o requirements.lock` writes it, and Rye uses the name.
+    let dir = scratch("pyproject-requirements-lock");
+    std::fs::write(dir.join("pyproject.toml"), "[project]\nname = \"demo\"\n").unwrap();
+    std::fs::write(dir.join("requirements.lock"), "pyyaml==6.0.2\n").unwrap();
+    let alone = sv_scan::ecosystems::detect(&dir);
+    std::fs::write(dir.join("uv.lock"), "version = 1\n").unwrap();
+    let beside_uv = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let lockfile = |detected: &[sv_scan::ecosystems::DetectedEcosystem]| {
+        detected
+            .iter()
+            .find(|e| e.manifest == "pyproject.toml")
+            .expect("the project is found")
+            .lockfile
+            .clone()
+    };
+    assert_eq!(lockfile(&alone).as_deref(), Some("requirements.lock"));
+    assert_eq!(lockfile(&beside_uv).as_deref(), Some("uv.lock"));
+}
+
+#[test]
+fn a_second_lockfile_beside_the_one_read_is_named_as_passed_over() {
+    let dir = scratch("two-lockfiles");
+    std::fs::create_dir_all(dir.join("server")).unwrap();
+    std::fs::write(dir.join("package.json"), "{\"name\":\"web\"}").unwrap();
+    std::fs::write(dir.join("package-lock.json"), "{\"lockfileVersion\":3}").unwrap();
+    std::fs::write(dir.join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+    std::fs::write(dir.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+    // One lockfile only, in a project of its own below: nothing passed over there.
+    std::fs::write(dir.join("server/package.json"), "{\"name\":\"api\"}").unwrap();
+    std::fs::write(dir.join("server/yarn.lock"), "# yarn lockfile v1\n").unwrap();
+    let detected = sv_scan::ecosystems::detect(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+    let project = |manifest: &str| {
+        detected
+            .iter()
+            .find(|e| e.manifest == manifest)
+            .unwrap_or_else(|| panic!("{manifest} is found: {detected:?}"))
+    };
+    let top = project("package.json");
+    assert_eq!(top.lockfile.as_deref(), Some("package-lock.json"));
+    assert_eq!(top.passed_over, vec!["yarn.lock", "pnpm-lock.yaml"]);
+    let server = project("server/package.json");
+    assert_eq!(server.lockfile.as_deref(), Some("server/yarn.lock"));
+    assert!(server.passed_over.is_empty(), "{server:?}");
+}
+
+#[test]
 fn a_workspace_member_is_pinned_by_the_lockfile_at_the_workspace_root() {
     // npm, pnpm, Yarn, Cargo and uv keep one lockfile at the root for every member.
     let dir = scratch("npm-workspace");
@@ -1695,4 +1744,98 @@ fn an_agent_that_connects_to_a_remote_mcp_server_is_not_one() {
     );
     let server = answer(&report, Condition::McpServer);
     assert_ne!(server.value, Some(true), "{:?}", server.evidence);
+}
+
+#[test]
+fn a_fine_tuning_call_to_a_vendor_is_training_even_with_no_framework() {
+    // The `training` corroborator knew the frameworks (torch, transformers) and missed an app that
+    // fine-tunes with one call to a vendor and installs nothing of the kind. Each case is that
+    // vendor's call as its own SDK or API definition spells it, in an app with no ML dependency.
+    let cases: &[(&str, &str, &str, &str)] = &[
+        (
+            "openai-py",
+            "tune.py",
+            "from openai import OpenAI\nclient = OpenAI()\njob = client.fine_tuning.jobs.create(training_file=f.id, model=\"gpt-4o-mini\")\n",
+            "fine_tuning.jobs.create",
+        ),
+        (
+            "openai-node",
+            "tune.js",
+            "import OpenAI from \"openai\";\nconst client = new OpenAI();\nconst job = await client.fineTuning.jobs.create({ training_file: id, model: \"gpt-4o-mini\" });\n",
+            "fineTuning.jobs.create",
+        ),
+        (
+            "openai-http",
+            "tune.ts",
+            "await fetch(\"https://api.openai.com/v1/fine_tuning/jobs\", { method: \"POST\", body });\n",
+            "/fine_tuning/jobs",
+        ),
+        (
+            "vertex",
+            "tune.py",
+            "from vertexai.tuning import sft\njob = sft.train(source_model=\"gemini-2.0-flash-001\", train_dataset=uri)\n",
+            "sft.train(",
+        ),
+        (
+            "genai",
+            "tune.py",
+            "from google import genai\nclient = genai.Client()\njob = client.tunings.tune(base_model=m, training_dataset=d)\n",
+            "tunings.tune(",
+        ),
+        (
+            "bedrock-py",
+            "tune.py",
+            "import boto3\nbedrock = boto3.client(\"bedrock\")\nbedrock.create_model_customization_job(jobName=n, baseModelIdentifier=m)\n",
+            "create_model_customization_job",
+        ),
+        (
+            "bedrock-js",
+            "tune.ts",
+            "import { BedrockClient, CreateModelCustomizationJobCommand } from \"@aws-sdk/client-bedrock\";\nawait client.send(new CreateModelCustomizationJobCommand(input));\n",
+            "CreateModelCustomizationJob",
+        ),
+    ];
+    for (name, file, text, pattern) in cases {
+        let dir = scratch(&format!("fine-tune-{name}"));
+        std::fs::write(dir.join(file), text).unwrap();
+        let report = scan(&dir, &all_signatures()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        // Setup, asserted: the file was read, so an answer is about its contents.
+        assert_eq!(report.files_read, 1, "{name}: the file was not read");
+        let training = answer(&report, Condition::Training);
+        assert_eq!(
+            training.value,
+            Some(true),
+            "{name}: {:?}",
+            training.evidence
+        );
+        assert!(
+            matches!(&training.evidence, Evidence::Source { pattern: p, .. } if p.as_str() == *pattern),
+            "{name}: expected {pattern:?} as the evidence, got {:?}",
+            training.evidence
+        );
+    }
+}
+
+#[test]
+fn calling_a_hosted_model_is_not_training() {
+    // The control for the test above: the same vendors' clients, used to ask a model something,
+    // are not fine-tuning, and the corroborator must not say they are. Nothing found proves
+    // nothing for this claim, so the answer is "could not tell", never "no training".
+    let dir = scratch("hosted-model-only");
+    std::fs::write(
+        dir.join("ask.py"),
+        "from openai import OpenAI\nclient = OpenAI()\nreply = client.chat.completions.create(model=\"gpt-4o-mini\", messages=m)\nfiles = client.files.list()\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("ask.ts"),
+        "import OpenAI from \"openai\";\nconst client = new OpenAI();\nconst reply = await client.responses.create({ model: \"gpt-4o-mini\", input });\n",
+    )
+    .unwrap();
+    let report = scan(&dir, &all_signatures()).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(report.files_read, 2, "both files were read");
+    let training = answer(&report, Condition::Training);
+    assert_eq!(training.value, None, "{:?}", training.evidence);
 }

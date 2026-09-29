@@ -500,6 +500,40 @@ ships believing it was checked.
   than being dropped. It means either the requirement was excluded when it should not have been, or a
   check is citing a requirement that has nothing to do with it, and both are worth a look.
 
+### What was examined, for a program (28 September 2026)
+
+`gaps` tells a person what was not examined, in sentences. A program reading `report.json` needs the
+same thing in a form it can act on: the owner's cato-pipeline turns `sv` findings into a plan of action
+and closes an item when its finding stops appearing, and from `gaps` alone it could not tell a finding
+that was fixed from one nobody looked for this time. A tool that did not run, a check that could not
+read what it needed, or code rules silenced by a language without a parser all make findings disappear.
+
+So `report.json` carries `examined`: one entry per family of findings, each with `rules` (the start of
+every `rule_id` it speaks for: `bandit.`, `ast.`, or one check's whole id), a `state`, and, unless it
+ran in full, `why`. **The longest entry that a finding's `rule_id` starts with decides for it, and a
+finding no entry matches was not looked for.** The states:
+
+- `ran`: it looked at everything it reads. A finding of this family missing from the report was looked
+  for and not found.
+- `partly`: it looked at some of the app. A missing finding may be in the part it did not read.
+- `not-run`: it did not look.
+- `nothing-to-examine`: there was nothing of its kind to look at, such as a tool for a language the app
+  does not use. Without this, removing an app's last Python file would leave Bandit's findings looking
+  unexamined forever.
+
+The entries are decided where the gaps are, from the same facts, so the two cannot disagree: a symbolic
+link nothing followed leaves every check that reads files `partly`; an unopened or unparsed file, or a
+language with no parser, leaves the code rules (`ast.`) `partly`; a code rule whose query would not
+compile, or that has not been taught a language present, gets an entry of its own; a check that could
+not run (`config.secrets-file-committed` outside git) gets a `not-run` entry of its own under a family
+that ran; known vulnerabilities (`advisory.`) ran only when the comparison covered the whole app, as
+`sv audit` counts it; an outside tool that was told to skip part of the app is `partly`; the running
+app (`probe.`) is never more than `partly`, because what sits behind a sign-in and the requirements no
+question reaches are always in the gaps. Families this list does not name yet (`design.`, `hand.`,
+`tests.`) are not looked for, as far as a program can tell, which is the safe reading. Each of these
+has a test in `crates/sv-cli/tests/examined.rs` or beside the code, and removing each guard turns its
+test red.
+
 ## Fourteen languages, and why the fifteenth silences everything
 
 The rules that read code have grammars for Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#,
@@ -686,6 +720,14 @@ find. A shell script is not an application, so most of what the rules look for l
   (third-party components included from the expected repository). `curl … | sh`, `wget -qO- … | sudo
   bash`, and `bash <(curl …)` run whatever the address serves, unchecked. `curl … | sudo tee` writes a
   file and is not reported, and neither is the download-check-run form the rule's fix describes.
+  An interpreter runs what it is sent only when it takes its program from standard input, so the rule
+  reports `| sh`, `| sh -s stable`, `| python3 -`, and `| sudo -E bash`, and not `| python3 -c '…'`,
+  `| perl -ne '…'`, `| python3 -m json.tool`, or `| bash count.sh`, which read the download as data
+  (found by cato-pipeline, 28 September 2026). The program given with `-c` is the author's own text, the
+  same judgment `literal_argument_is_safe` makes for `eval("1 + 1")`: `python3 -c
+  "exec(sys.stdin.read())"` runs the download on purpose, and a rule cannot tell that from the text. The
+  command must begin with the interpreter, after any variable assignments and `sudo` or `doas` with its
+  options, so `| grep python` is not an interpreter.
   `sh -c "$(curl …)"` is found by the shell-command rule instead. Every other language has no pipe
   syntax, and says so; a literal `curl … | sh` written inside a Python string and handed to a shell is
   found by neither rule, because the shell-command rule only reports commands built from a value.
@@ -3670,6 +3712,47 @@ client, and a screen on results) was credited for both, and a careless one (raw 
 passed on as they came) raised both findings. The break round found one guard with no witness — a
 tool called once and then answered from memory — and three with one; each now has two.
 
+### Six more questions, after the rate check
+
+Added on 28 September 2026 from the partial-check review (`docs/PARTIAL-CHECKS.md`). They are asked
+after the rate check, and a minute after its burst when there was one, so the rate check sees the
+messages it always saw: an app that refuses every other message let the burst's first one through only
+while the count before it stayed even, which two tests caught when the new questions went first.
+
+- **C7.3.4:** the test model hides the tag in Unicode tag characters, adds zero-width characters and
+  a right-to-left override, and writes a link whose text is another address. The answer is read as a
+  browser or a JSON reader would get it: JSON escapes with surrogate pairs joined (Python's default
+  writes a character outside the first plane as two), and HTML character references. Anything left
+  is a finding, a right-to-left override alone at Low; all four gone, with the reply itself there,
+  is credited for that part.
+- **C7.3.1:** the test model answers `POST .../moderations` in OpenAI's shape and flags the HARM reply as
+  violent. Judged only when the app asked about that reply; a classifier elsewhere is not seen.
+- **C2.1.4:** 40,000 characters with a marker at each end, which the test model now records. A request
+  crosses the fence as one shell argument, capped at 128 KB, so nothing past any model's context
+  window can be sent: a message cut short is a finding, and one arriving whole is only a step.
+- **C2.2.2:** the injection in Zulu, Scottish Gaelic, Bengali, and base64, asked only where the English
+  one was stopped while a plain message got through. Only ever a finding.
+- **C11.3.2:** every reply's own id now carries `SVRAW` and its tag, which only the model service's
+  response holds; in the answer, it means that response was passed on whole. Only ever a finding.
+- **C12.1.1:** the model-call log line, found by its token counts, naming the signed-in user or
+  carrying a user or session field. Credited only for a signed-in run.
+
+`crates/sv-run/tests/model_provider.rs` runs the test model under Node, the first test to run the
+script itself rather than the Rust fake of it. None of the six has been tried against the real
+OpenAI or Anthropic libraries or a real app, as the MCP questions above were.
+
+### The app as an MCP server
+
+`[stack.run.mcp-server]` names the path an app that serves tools itself answers MCP's HTTP transport
+on. A session is started as any client starts one, as the control; then `Origin:
+http://sv-evil.invalid` and `Host: sv-rebind.invalid` are each sent on their own (C10.3.3), and a
+request may now name its own `Host`, which replaces the app's rather than being sent beside it. A
+session is then ended with `DELETE` and its `Mcp-Session-Id` and used again (C10.2.6), which the
+transport says must be answered with 404; files or caches it left are not visible, and the credit
+says so. A server that needs a token, keeps no sessions, or does not let clients end them is *not
+assessed*, each with its reason. Tested against a fake server in Rust only; no real MCP library has
+been run against it yet.
+
 ## A real browser inside the fence
 
 Some answers exist only once a page is drawn. Whether a sign-out control can be seen is not in the
@@ -4664,6 +4747,19 @@ there once, as before, and the chapter headings and their small tables are new. 
 shorter to read and the file smaller were different aims, and the decision was about the first.
 The level split the page used before (level 1, level 2, design review) remains on the HTML page.
 
+**The checks only a person can make, named once** (the owner's decision the same day, after the
+above). `only_you_can_check` in `report.json` was, entry for entry and word for word, a subset of
+`questions_for_you`: 50 of 62 on the Flask example, 27 KB written twice. It is now
+`only_you_can_check_ids`, the ids in the list's own order, each of which is a question in
+`questions_for_you`. The name changed with the shape, so a tool that read full entries under the old
+name finds no list rather than a list of a different kind. If an entry ever differs from the question
+of the same id, or has no question, the full list is kept, as a differing requirement text is. The
+file went from 334 KB to 306 KB on the example. Broken on purpose four ways: the step never called,
+caught by two tests; the list dropped without its ids, three; the ids in the questions' order rather
+than the list's, two unit tests (on the real catalogs the two orders happen to agree); and entries
+converted without checking each is a question, one, the unit test written for it, since no real
+report reaches that case.
+
 **Broken on purpose, eleven ways**, each restored from the bytes read before it, never from git,
 with cargo told to run every test file even after one fails. The first pass did not, and stopped
 at the first failing file: the wrong-key break looked caught by one test, and is caught by three. Text not filed: four tests. Rows keeping their text: three. A differing text
@@ -4674,6 +4770,187 @@ chapter is known; the first pass had one each, the end-to-end sum, which a swap 
 would pass. The AI tool's word counted as the owner's: two, after the witness was given an answer
 from the tool. Chapters merged by a wrong key: three. A chapter with one requirement left unlisted:
 six. No appendix: two. Text left in the chapter lists: two.
+
+## OpenAI and Hugging Face keys, and fine-tuning through a vendor (28 September 2026)
+
+Item 4 of the partial checks: two gaps in checks that already run.
+
+**The credential rules had Anthropic's key and no other AI vendor's.** An OpenAI key or a Hugging
+Face token in the code was found only when it happened to be assigned, in quotes, to a variable
+whose name says "key" or "token", with enough entropy: the assignment rule. It is not found in
+`.env.production` or any other env file (the assignment rule skips them on purpose, since holding
+values is what they are for), in a shell `export` or a Dockerfile `ENV` line, or anywhere unquoted.
+`secrets.openai-key` and `secrets.huggingface-token` now find them by shape, and because
+`redact_text` runs every rule, they are also cut from the failing-test output a report quotes.
+
+The shapes are gitleaks' `openai-api-key`, `huggingface-access-token`, and
+`huggingface-organization-api-token` rules, read from gitleaks' published `config/gitleaks.toml` on
+28 September 2026, not recalled. An OpenAI key is `sk-`, then `proj-`, `svcacct-`, or `admin-` and
+58 or 74 characters, or 20 characters for the older keys, then the marker `T3BlbkFJ` (`OpenAI` in
+base64), then the same again; a Hugging Face token is `hf_` or `api_org_` and 34 letters. Two
+changes from gitleaks, both forced: `sv`'s regex crate has no lookaround, and a finding shows the
+first four characters and the length of exactly what matched, so gitleaks' check of the character
+after the key (which it consumes) is left out. For OpenAI's newer keys that means no word boundary
+at the end either, since a key can end in `-` and a boundary after `-` fails before a quote or a
+space; the fixed lengths and the marker make one unnecessary. The rules cite V13.3.1 and SBD-AC-05.
+They do not cite C9.5.4, which the Anthropic rule does: C9.5.4 asks that an agent's credentials stay
+out of the model's own context, and a key in a file says nothing about that. The Anthropic rule's
+citation is a backlog entry of its own.
+
+**The `training` corroborator knew the frameworks and not the vendors.** An app that fine-tunes a
+model with one call to a vendor installs no torch or transformers, and its source matched none of
+the signatures, so a manifest saying "no training" read as consistent with code that trains. The
+Python, JavaScript, and TypeScript signatures now include each vendor's call as its own SDK or API
+definition spells it, each read from that definition the same day: OpenAI's
+`client.fine_tuning.jobs.create` (Python) and `client.fineTuning.jobs.create` (Node), from each
+SDK's `api.md`, and the `/fine_tuning/jobs` endpoint for an app that calls it over plain HTTP;
+Vertex AI's `sft.train`, which `vertexai/tuning/sft.py` exports; Google's genai `tunings.tune`; and
+Amazon Bedrock's `CreateModelCustomizationJob` operation from botocore's service definition, which
+boto3 calls `create_model_customization_job`, and its `/model-customization-jobs` endpoint. Nothing
+found still proves nothing for this claim: an app that only asks a hosted model questions is left
+"could not tell", and a test holds that.
+
+**Broken on purpose eight ways.** Each rule's pattern disabled: three tests each (found by shape,
+cut from output, one key one rule). OpenAI's marker made optional: two (the near misses, and one
+key one rule, since a pattern without the marker also claims Anthropic's `sk-ant-` keys). A word
+boundary added after OpenAI's key: three. Hugging Face organization tokens dropped: three. Hugging
+Face's end boundary dropped: one, the near-miss test written for it (a token one letter too long).
+The OpenAI Python call dropped from the signatures, and all the Python vendor calls dropped: two
+each, the scan test and an end-to-end report in which a manifest that denies training is
+contradicted by the code. The first pass had one test each for four of these; the one-key-one-rule
+test and the end-to-end report were added for three of them, and the end boundary stays with the
+test written for it. It also showed that renaming a rule's id is not
+removing it, since its pattern still ran and the redaction test stayed green; the breaks above
+disable the pattern itself.
+
+## A large data file no longer blocks the credential scan or the MCP check (28 September 2026)
+
+Found by a session on the owner's cato-pipeline project, which turns `sv report` into a plan of action
+and closes an item when its finding stops appearing. cato vendors NIST's SP 800-53 catalog, 10 MB of
+standards text in one JSON file, over the 2 MB `MAX_FILE_BYTES` every check reads. That one file left
+the credential scan `partly` for the whole app, so a program reading `examined` could never treat a
+missing `secrets.*` finding as fixed, and it left the MCP check unable to pass, since `mcp_servers`
+read every JSON file and one it could not read stopped the clean result. Both were right by `sv`'s own
+rules; the cost was that a file the owner knows to be data blocked two families for as long as it
+was there, with nothing the owner could do. Three options were written up; **the owner chose the two
+that do not rely on the manifest** (28 September 2026).
+
+**Reading a file in pieces** (`Entry::in_pieces`, `sv-scan/src/files.rs`). A file over 2 MB and up to
+256 MB (`MAX_PIECEWISE_BYTES`) can be read a piece at a time, holding one piece in memory. Each piece
+has a part of its own (`keep`) and text around it: look-ahead, so a match that starts in the piece's
+own part is whole, and look-behind, so a rule that asks what comes before a match (a word boundary)
+sees the character the file has there, not the start of a piece. The owned parts tile the file: every
+byte belongs to exactly one piece, and a match is reported by the piece where it starts. A character
+cut by the end of a window waits for the next read instead of making the file "not text". Each piece
+knows the line it starts on, so a finding gives the line an editor shows. The first version of this
+had its overlap only as look-ahead, and the next piece's own part started after it: a strip of 64 KB
+at every boundary belonged to no piece, and a key there would have been missed. The test that every
+byte is owned exactly once was written to catch that, and it would have.
+
+**The credential scan** reads a file over 2 MB in pieces of 1 MB overlapping by 64 KB, longer than any
+credential shape or any line the assignment rule reads. The concern in `files.rs`, that a large file
+is as likely to hold a hash as a key, is met by what is reported rather than by not reading: an
+assignment the entropy rule finds in such a file is reported with low confidence, and a vendor shape
+keeps its own, since a hash does not look like `AKIA` or `sk-ant-`. The clean result says how many
+files were read in pieces. A file over 256 MB is still refused and named.
+
+**The MCP check** already skipped every file whose text does not contain `command`: that is its rule
+for a file it reads. A file over 2 MB is now searched for that word in pieces. Without it, the file
+cannot start an MCP server by the check's own rule and counts as read; with it, the file stays unread
+and named, "larger than 2 MB, and it mentions `command`", and the check says it could not finish, as
+before. Nothing about a file's name or the manifest is trusted.
+
+On cato's reproduction (a `securevibe.toml`, an `app.py`, and a 3 MB JSON of plain text) the
+credential scan is now `ran` and the MCP check is no longer not-run.
+
+**Bundles follow.** `sv bundle` leaves out any file the credential scan could not vouch for, and a file
+over 2 MB used to be one. Read in pieces, a clean one now goes into the bundle, and one with a key past
+the 2 MB mark stays out as holding a credential, as any file with a key does. The bundle test's example
+of an unread file was a 3 MB one; it now checks both sides.
+
+**Broken on purpose eleven ways**, each restored from the bytes read before it, never from git. The
+reader: no look-behind, caught by three tests; a strip at each boundary owned by nobody, four; lines
+counted to the wrong place, four; a character cut by the window read as binary, two. The credential
+scan: large files still refused, seven; a vendor match or an assignment counted outside its piece's
+own part, two each; an assignment in a large file keeping its usual confidence, two; the clean result
+not saying it read in pieces, two. The MCP check: a large file counted as read without looking, two;
+a large file still blocking the check, two. The first pass found six of these caught by one test
+each, and a second witness went in for every one: look-behind checked by the reader itself, a large
+file of accented text, an assignment in the overlap on a line of its own (the assignment rule stands
+aside for a vendor key on the same line, which is right, and which is why the first try at this
+witness failed), the report's own words, and cato's reproduction run again with the word `command`
+in the catalog, where the MCP check must still say it could not finish and name the file.
+
+## A rate limiter's answer is not the app's (28 September 2026)
+
+Reported by an agent in another project integrating `sv`: a critical finding it listed as "F-0001" had
+got HTTP 429 from the app's rate limiter, not an answer from the app. That report is not in this
+repository, and nothing in `sv` matches its name at critical, so F-0001 itself is still open. Looking
+for it found the fault it pointed at. The signed-in checks read an answer through `ok()` (2xx) and
+`accepted()` (2xx and 3xx), and read everything else as the app refusing. A 429 is not a refusal: the
+request never reached the check it was asking about. So `probe.private-page-anonymous` credited V8.2.1,
+"refused to somebody not signed in", when a limiter had answered the stranger. The same misreading
+runs the other way too: `probe.sign-out-on-get` reads the private page being refused after a GET to
+the sign-out address as the session having ended, and a limiter answering that look reported a sign-out
+that never happened. There are about thirty places where these checks read an answer, and each reads
+it its own way.
+
+**The fix is where every request passes, not at the thirty places.** `run_with` now sends through
+`Patient`, which wraps the app. When the answer is a rate limiter's, a 429, or a 503 with `Retry-After`
+(a 503 that names no wait is the app failing, and is left as it was), it waits what the app asks, at
+most a minute, five seconds when it names none or names a date, and sends the request once more.
+Not for a request whose id says it is a guess: the guessing checks send wrong passwords and codes on
+purpose to see the limiter answer, and a wait would change what they measure and send one guess more
+than they count. Their follow-ups keep the word too, such as the right code after the guesses
+(`…-after-guesses`), so a lockout is read exactly as before. The wait goes through `Http::wait`, so
+the tests' fake app moves its clock rather than sleeping, and the two-factor checks, which read that
+same clock, see the time pass.
+
+**When the limiter is still answering after the wait,** no refusal in the run can be told from the
+limiter's. So nothing the run would have credited is credited: each credit becomes not assessed,
+saying what it would have been and naming the requests the limiter kept answering. Findings stay,
+since hiding a real one is the worse fault, and the run adds that one resting on a refusal may be the
+limiter's, under the findings' own requirement ids. Withdrawing every credit rather than only those
+the limited requests touched is deliberately coarse: no record says which conclusion rests on which
+request, and a limiter that will not let up after the wait it asked for is a run to repeat.
+
+**Not changed, and entries of their own:** a 500 from the app is still read as a refusal where the
+checks read `!ok()`, which can credit the same V8.2.1 when the private page crashes for a stranger;
+and the anonymous probes outside `signed_in/` (`probes.rs`, `running.rs`) read answers without this
+wrapper, though the ones read here only ever raise a finding, and each needs a 2xx to do so.
+
+**Broken on purpose nine ways**, each restored from the bytes read before it: never waiting a limit
+out, caught by six tests; waiting out guesses too, eight (the guessing checks' own tests among them);
+a persistent limit withdrawing nothing, three; no word about the findings, two; a 503 without
+`Retry-After` counted as a limiter, two; `Retry-After` ignored, four; no cap on the wait, two; resending
+without waiting, four; a limit still answering not recorded, three. The first pass had four of these
+caught by one test each; a real finding kept through a persistent limit (a default admin account,
+found by signing in, which the limiter did not touch), nothing credited in the sign-out case, and a
+direct test of what counts as a limiter were added for them.
+
+
+**Later, 29 September 2026: the anonymous questions, and a limit on all the waiting.** The paragraph above says the
+anonymous probes read here only ever raise a finding, each needing a 2xx. Reading each one showed two that do not:
+`security_headers` judges any answer on `/`, so a limiter's 429 page without the app's headers is a Medium finding
+the app does not deserve, and `probes::verified` credits "source control not exposed" when `/.git/HEAD` and
+`/.git/config` merely answered, so two 429s earned it. Both are witnessed in a test.
+
+So the anonymous questions go through the same `Patient`, by `signed_in::ask_anonymously`, called from step 4 of the
+run in `sv-run`. An answer the limiter was still giving after the wait is left out of `probe_responses`, as a request
+that got no answer is, since every reader of those answers (`probes::evaluate`, `probes::verified`,
+`probes::evaluate_api`, `running::evaluate`) judges what it is given as the app's. Leaving it out is enough: each
+reader already credits nothing from a missing answer. The requests left out travel in `RunOutcome::probes_rate_limited`,
+and `sv run` and the report say which they were, as a gap ("the app's rate limiter answered them in its place"),
+rather than counting them among the questions that got no answer at all.
+
+`Patient` also now stops waiting after five minutes in all (`MOST_WAITING`). Each wait was already at most a minute,
+but a limiter answering every request would have held a run up for a minute a request; past five minutes a limited
+answer is recorded as the limiter's without waiting, and says so.
+
+Broken on purpose four ways, each caught: keeping the limiter's page among the answers, not waiting for the anonymous
+questions, no limit on all the waiting, and the report's gap never said. Not tested end to end: no test here starts a
+real app behind a rate limiter, so the wiring in `sv-run` is checked by the compiler and by reading, not by a run. The
+sign-in provider (`oidc.rs`) and MCP server (`mcp_server.rs`) checks were not looked at for the same reading.
 
 ## The app's GitHub Actions workflows (27 September 2026)
 
@@ -4887,3 +5164,178 @@ two ratings of one flaw that disagree are settled toward care. The finding's tit
 
 Two records sharing a CVE are the same flaw under this rule, as they should be. Two records that share no name
 stay two findings, even if they describe the same flaw in different words: `sv` does not guess.
+
+## The signed-in checks, one file per area (28 September 2026)
+
+Everything `sv` asks of the running app as a signed-in user was one file, `crates/sv-check/src/signed_in.rs`,
+15,463 lines long by 28 September. A session changing one check read all of it, and every session's change to
+any check landed in the same file, which is where that week's merge conflicts were (item 13 of the review of
+27 September). It is now a folder, `crates/sv-check/src/signed_in/`, with one file per area:
+
+| File | What it holds |
+|---|---|
+| `mod.rs` | What every check shares: sessions and cookies, anti-forgery tokens, requests filled from the manifest's templates, signing in and up, and `run_with`, which calls each area in turn. Its tests are the ones that exercise several areas at once. |
+| `rules.rs` | Every rule a signed-in check can raise, with its requirements, impact, and fix. |
+| `signin.rs` | Wrong-password limits (V6.3.1), `X-Forwarded-For`, default accounts, a password in an address, signing out. |
+| `sessions.rs` | Session cookies, ids, and timeouts; invented sessions; private pages and their caching; `Clear-Site-Data`; the fields a record gives back; a private WebSocket's session and origin. |
+| `passwords.rs` | The password rules at sign-up, the password field, changing a password, hints, deleting an account. |
+| `reset.rs` | A forgotten-password reset, followed through its email. |
+| `codes.rs` | Signing in with an emailed code, and finding a code in an email, which all three email flows use. |
+| `activation.rs` | The activation code emailed at sign-up. |
+| `totp.rs` | Two-factor codes from an authenticator app. |
+| `admin.rs` | The admin page and admin actions, a role given at sign-up, records that belong to someone else. |
+| `forgery.rs` | Cross-site request forgery, `Origin: null`, forms another site can send without asking first. |
+| `flows.rs` | The steps of a multi-step flow, taken out of order. |
+| `uploads.rs` | Uploads and downloads. |
+| `fake_app.rs` | The scripted app every test drives, with each flaw switchable (tests only). |
+
+The same list is at the top of `mod.rs`, where a person changing a check will look first. A new check goes
+in its area's file with its tests beside it; a rule goes in `rules.rs`; something two areas share stays in
+`mod.rs`.
+
+**How it was moved.** The file was frozen from the first step's claim until this section was written: no
+other change touched it, so the several sessions moving it spent no time on merge conflicts. Each move was
+a move and nothing else, and each pull request showed it three ways:
+
+- The old file's lines equal the new files' lines, compared as lists with whitespace and `pub(super)` set
+  aside. The only new lines are `mod` and `use` lines and each test module's opening and closing lines.
+- The same 233 test names before and after every step.
+- Each check was made to return at once, and the tests that went red were counted. A check whose own
+  tests did not go red is guarded only by the tests that exercise several areas at once. Before the split
+  that was already so, but it could not be seen. There are seven: `forgery_check` (V3.5.1),
+  `session_checks` (V3.3.2, V3.3.4, V7.2.4), `session_id_check` (V7.2.3), `default_account_check`
+  (V6.3.2), `password_in_url_check` (V14.2.1), `sign_out_on_get_check` (V3.5.3), and `plant_log_markers`.
+  The multi-step flow check is the opposite case: its own tests catch it, and no test that exercises
+  several areas does.
+
+**Two things outside the folder had to follow it.** `tools/coverage.py` read only the files directly in each
+crate's `src`, so moving the rules down a folder made it lose every signed-in check (the coverage test
+caught this). It now reads subfolders too, and leaves out a file that is a test module of its own. And
+`tools/pwned_passwords.py`, which reads the breached password the sign-up check tries, still pointed at
+`signed_in.rs` and looked for a line beginning `const BREACHED`. It has no test, since it needs the
+network, so nothing caught it: it would have failed the next time it was run. It now reads
+`signed_in/passwords.rs`, and the part that reads the password was run to show it finds the same one the
+evidence file records.
+
+## A `requirements.lock` beside `pyproject.toml` (28 September 2026)
+
+cato-pipeline, wiring `sv` into its own pipeline, found that a Python project with a `pyproject.toml` and a
+`requirements.lock` beside it was told it had no lockfile. `requirements.lock` is the file
+`uv pip compile pyproject.toml -o requirements.lock` writes, and the name Rye uses, but `sv` only looked for it
+beside a `requirements.txt`. Three things followed from that one missing name: `config.versions-pinned` said, wrongly,
+that nothing pinned the app's packages; the bill of materials listed no Python packages; and known vulnerabilities in
+them were never compared. It is now one of the `pyproject.toml` lockfiles (`crates/sv-scan/src/ecosystems.rs`), and it
+is read the same way as beside `requirements.txt`: each `name==version` line, with `--hash` lines and comments left out.
+
+**Which lockfile, when there are several.** The first one found in the list is read, and `requirements.lock` is last.
+A project that has `uv.lock` or `poetry.lock` as well is read from that one, because it is the tool's own record and a
+`requirements.lock` beside it is usually an export made from it. The report does not say which lockfile was read when
+more than one was there. That is true of every ecosystem, not only this one: the backlog entry expected the report to
+say it "as it is for other ecosystems", and it does not for any. It is left as its own backlog item rather than
+widened into this change. (Done the next day: see "Two lockfiles of one kind".)
+
+**Platform conditions.** A universal lock has lines such as `colorama==0.4.6 ; sys_platform == 'win32'`, for
+packages installed only on some computers. The condition is not read: the package is listed wherever the app is
+installed. For the comparison with advisories that is the safe side, since a vulnerable package is never left out;
+the cost is a bill of materials that can say slightly more than one computer installs. Writing the condition with no
+space before the `;` used to leave it glued to the version (`306;sys_platform=='win32'`), which matches no advisory
+anywhere; the reader now cuts every line at its `;` first. That fix reaches `requirements.txt` too.
+
+**How it was checked.** Three tests, each at its own level: the reader
+(`a_requirements_lock_beside_pyproject_is_read_hashes_and_markers_included`, in `sbom.rs`), which lockfile counts
+(`a_requirements_lock_pins_a_pyproject_project_and_a_tools_own_lockfile_comes_first`, in `sv-scan`'s `scan.rs`), and
+the report end to end (`a_pyproject_app_locked_by_requirements_lock_is_compared_in_full`, in `sv-cli`'s
+`examined.rs`: an advisory about `pyyaml` is found, there is no `config.versions-pinned` finding, and `advisory.` is
+`ran`). Each guard was broken in turn across the whole workspace. Taking `requirements.lock` out of the list turns all
+three red. Putting it before `uv.lock` turns only the order test red. Reading the line without cutting at `;` turns
+only the reader test red, which is the one test that has a condition written without a space.
+
+## Two lockfiles of one kind (29 September 2026)
+
+A project can hold two lockfiles for the same package manager: a `package-lock.json` beside a `yarn.lock` left
+from before a switch, or a `uv.lock` beside the `requirements.lock` exported from it. `sv` reads the first one in
+the ecosystem's list and, until now, said nothing about the other. The two can disagree, and the one not read may be
+the one the app is installed from, so the bill of materials and the comparison with advisories could describe
+versions the app does not ship, with nothing in the report to say which file they came from.
+
+`sv` still reads one of them, in the same order, and now names the rest wherever the versions are used. Reading
+both and listing every version from either was considered, as the safe side for advisories, as platform conditions
+are handled; it was not done, because two lockfiles that disagree are a fault in the app for its owner to settle,
+and a list that silently merges them hides the fault rather than showing it.
+
+- **Detection** (`sv-scan`, `DetectedEcosystem::passed_over`): the other lockfiles of the same kind in the folder
+  the one read came from.
+- **The bill of materials** (`Sbom::passed_over`): which file was read and which were not, and in the CycloneDX
+  document a `securevibe:lockfile-passed-over:<project>` property. The list is still *complete* in the sense the
+  document already uses, a full reading of a lockfile, so `securevibe:complete` does not change; `sv sbom` no
+  longer ends with "so this is what is installed" when it is only what one of two files says.
+- **The report**: a gap, "which lockfile npm is installed from", naming both files and saying to remove the one not
+  in use. In `report.json`'s `examined` list, `advisory.` is `partly`, naming the file not read beside the one that
+  was: a finding that stops appearing because a different lockfile was read is not a fixed finding.
+- **The clean claim** (`advisories::audit_against`): "every package compared, nothing found" is withheld, as it is
+  for an incomplete list, since the question is whether the app ships anything vulnerable and the list may not be
+  what it ships. `sv audit` then exits 2 (not assessed) rather than 0, and says which file was not read. A
+  vulnerability found in the file that was read is still reported.
+
+**How it was checked.** Six tests: detection (`scan.rs`, three lockfiles beside one manifest and one below that has
+only one), the document (`sbom.rs`), the clean claim (`advisories.rs`, with the one-lockfile control), `sv sbom`'s
+terminal (`dependency_gap.rs`), `report.json` (`examined.rs`, with the one-lockfile control), and `sv audit`'s
+status (`audit_two_lockfiles.rs`, 0 with one lockfile and 2 with two). Each of eight guards was broken in turn across
+the whole workspace: detection finding nothing turns three red; the note left out of the bill of materials, two;
+each of the document's property, the report's gap, the `examined` reason, the claim, the `sv audit` line, and the
+`sv sbom` wording turns at least its own test red. No example app in the repository has two lockfiles of one kind, so
+no report of theirs changes.
+
+## A crash is not a refusal (29 September 2026)
+
+The signed-in checks read any answer that is not 2xx as the app refusing. A 429 from a rate limiter was the first
+case found (see "A rate limiter's answer is not the app's"); a crash is the other. A private page that fails with a
+500 for somebody not signed in was credited as refused to them (V8.2.1), and the same reading is in 29 places that
+credit a pass because something was refused: another user's record, the admin page, a short password at sign-up, a
+session after sign-out, a reused code, an oversized upload, and the rest. A crash, or no answer at all, says nothing
+about whether the app would have let the request through.
+
+**What changed.** `Patient`, which every signed-in request already goes through, records each request answered with a
+5xx (a rate limiter's 503 aside) or not answered at all. `RESTS_ON_A_REFUSAL` names, for each pass that is credited
+because something was refused, the requests whose refusal earns it: an id, the page fetched first for its form's
+token (`signup-short-page`), or the start of a family of ids (`guess-`, `totp-3-`). When the run is over, a pass one
+of whose requests crashed moves to not assessed, naming the requests and their status, and the owner is told to fix
+the error and run again. Passes that rest on no crashed request stay, and findings are untouched. This is narrower
+than the rate limiter's rule, which withholds every pass in the run, because a crash is the app's own answer to one
+request and says nothing about the others.
+
+**How the list was checked.** Writing it by reading the code was not enough. The test
+`a_crash_never_turns_a_finding_into_a_pass` runs the scripted app in six setups with flaws switched on, and for each
+setup crashes every request a normal run sends, one at a time, failing when a rule that was found at fault comes back
+credited. The first list passed the existing 247 tests and failed this one on requests of five kinds: the sign-up form's page fetch
+(a crash there means nothing was signed up, so the short password "was refused"), signing in as A or B before their
+checks, the sign-in before each two-factor code, the right code sent after the guesses, and a request in the password
+change check. The test also fails when a listed rule is not found at fault in any setup, since a rule never tried is
+not checked. It sends about 1,100 runs and takes about 75 seconds in a test build (11 in a release build); it spreads
+them over the machine's processors.
+
+Broken on purpose six ways, each caught: nothing withheld, the private page left out of the list, a 5xx not recorded,
+no answer not recorded, the form page not counted with its request, and the sign-in of A left out for the admin page.
+These were run against `sv-check`'s own tests rather than the whole workspace, since the change is contained there.
+
+**Not done here.** Three findings are raised from a refusal in the same way, so a crash can raise them falsely:
+signing out by a plain link (`SIGN_OUT_ON_GET`, from `private-after-get-logout`), the composition rules and the long
+password (`COMPOSITION_RULES`, `LONG_PASSWORD`, from a strong or long password that did not work). They are their
+own backlog item. The anonymous probes and the sign-in provider and MCP checks were not looked at for a crash read as
+a refusal.
+
+**Later the same day: findings raised from a crash.** The other direction. A correct app, each request crashed in
+turn, raised five findings it did not deserve: signing out by a plain link (`SIGN_OUT_ON_GET`: the page after it
+failed, read as the session ended), the composition rules and the long password (`COMPOSITION_RULES`,
+`LONG_PASSWORD`: a sign-up with a lowercase or long password that failed, read as refused), the reset form revealing
+accounts (`RESET_REVEALS_ACCOUNT`: a reset for nobody that failed, read as answered differently from a real one), and
+the wrong-password limit (`NO_BRUTE_FORCE_LIMIT`: a guess that failed may never have been counted, so the limit
+seemed not to hold). The backlog entry named the first three; the sweep found the last two. `RAISED_ON_A_REFUSAL`
+names each finding's requests, and a finding one of whose requests crashed moves to not assessed, naming them, as a
+pass does.
+
+`a_crash_on_a_correct_app_raises_no_finding` holds it without trusting the list: it runs a correct app in three setups
+(signed up with a limit on wrong passwords; a private WebSocket and uploads; slow, with sessions that end), asserts
+nothing is found before anything crashes, then crashes each request, one at a time, and fails on any finding at all.
+A finding raised from a crash that is not listed is caught the same way as one that is. It takes about 55 seconds in a
+test build. Each of the five rows, removed in turn, turns it red, and so does keeping every finding; a direct test (`a_page_that_crashes_after_a_plain_sign_out_link_is_not_reported_as_signed_out`) also catches that, and catches dropping every finding, which the sweep cannot see.

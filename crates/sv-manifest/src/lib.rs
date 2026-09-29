@@ -208,6 +208,18 @@ pub struct RunSection {
     /// see what the app does when that model misbehaves.
     #[serde(default)]
     pub ai: Option<AiSection>,
+    /// Where the app answers as an MCP server, when it serves tools to AI models itself, so the
+    /// run can ask whether it checks where requests come from and ends sessions when told to.
+    #[serde(default)]
+    pub mcp_server: Option<McpServerSection>,
+}
+
+/// `[stack.run.mcp-server]`: the app serves tools over the Model Context Protocol's HTTP transport.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct McpServerSection {
+    /// The path the MCP endpoint answers on, such as `/mcp`.
+    pub path: String,
 }
 
 /// `[stack.run.ai]`: the app has a feature that sends what a person types to a language model.

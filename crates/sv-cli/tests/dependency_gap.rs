@@ -179,6 +179,42 @@ fn an_app_with_a_lockfile_gets_no_dependency_gap_at_all() {
     );
 }
 
+#[test]
+fn sv_sbom_says_which_lockfile_it_read_when_there_are_two() {
+    // The same locked app with a `yarn.lock` beside it. The list is a full reading of
+    // `package-lock.json`, so it is still complete; what it no longer is, is certainly what is
+    // installed, and the terminal must not say it is.
+    let dir = app(
+        "two-lockfiles",
+        &[
+            ("package.json", PACKAGE_JSON),
+            ("server.js", SERVER_JS),
+            (
+                "package-lock.json",
+                "{ \"name\": \"shop\", \"lockfileVersion\": 3, \"packages\": {\
+                 \"node_modules/react\": { \"version\": \"18.0.0\" } } }\n",
+            ),
+            ("yarn.lock", "# yarn lockfile v1\n"),
+        ],
+    );
+    let run = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["sbom", dir.to_str().unwrap()])
+        .output()
+        .expect("sv runs");
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(run.status.success());
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains("pkg:npm/react@18.0.0"),
+        "package-lock.json was read"
+    );
+    let said = String::from_utf8_lossy(&run.stderr);
+    assert!(
+        said.contains("`package-lock.json` was read; `yarn.lock` is there too"),
+        "{said}"
+    );
+    assert!(!said.contains("so this is what is installed"), "{said}");
+}
+
 /// V15.1.2 as the report states it, for an app holding these files and the smallest manifest there
 /// is, with the bill of materials `sv sbom` writes for it.
 fn inventory_line(name: &str, files: &[(&str, &str)]) -> (serde_json::Value, String) {

@@ -55,6 +55,10 @@ pub enum CannotRun {
     BackendFailed { detail: String },
     /// The app was started and never became healthy.
     NeverReady { waited_seconds: u64, detail: String },
+    /// The app's folder has files on this computer and arrived empty in the container: the
+    /// container backend cannot see it. Colima shares only the home folder by default, and Docker
+    /// mounts a folder it cannot see as a new, empty one without complaint.
+    AppFolderUnseen { folder: String },
 }
 
 impl CannotRun {
@@ -82,6 +86,15 @@ impl CannotRun {
                  {detail} This is reported as not assessed rather than as a failure: an app that \
                  will not start under `sv` has not been shown to be insecure."
             ),
+            CannotRun::AppFolderUnseen { folder } => format!(
+                "The app's folder, {folder}, has files on this computer, and inside the container \
+                 it was empty: the container backend cannot see that folder, so the app had nothing \
+                 to start. On a Mac with Colima, only your home folder is shared by default: move \
+                 the app under your home folder, or share its folder (`colima start --mount \
+                 {folder}:w`, or `mounts` in ~/.colima/default/colima.yaml). With Docker Desktop, \
+                 add it under Settings, Resources, File sharing. This is reported as not assessed: \
+                 nothing about the app was seen."
+            ),
         }
     }
 }
@@ -108,6 +121,17 @@ impl RunFailed {
     }
 }
 
+/// Whether the app never answering is the backend not seeing its folder: `inside` is what `ls -A`
+/// listed in `/app` inside a container, or `None` when that could not be asked. Only an empty
+/// listing of a folder that has something in it on this computer counts.
+pub fn unseen_folder(app_dir: &Path, inside: Option<&str>) -> Option<CannotRun> {
+    let empty_inside = inside.is_some_and(|listed| listed.trim().is_empty());
+    let has_files = std::fs::read_dir(app_dir).is_ok_and(|mut entries| entries.next().is_some());
+    (empty_inside && has_files).then(|| CannotRun::AppFolderUnseen {
+        folder: app_dir.display().to_string(),
+    })
+}
+
 /// How to build, start and test the app, taken from the manifest and checked over.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunPlan {
@@ -132,6 +156,8 @@ pub struct RunPlan {
     /// How to talk to the app's AI feature, when securevibe.toml says. The run then starts a test
     /// model of `sv`'s own and points the app at it.
     pub ai: Option<sv_manifest::AiSection>,
+    /// Where the app answers as an MCP server, when securevibe.toml says.
+    pub mcp_server: Option<sv_manifest::McpServerSection>,
     /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
     pub graphql: Option<String>,
     pub websocket: Option<String>,
@@ -201,6 +227,7 @@ impl RunPlan {
             policy: manifest.policy.clone(),
             oidc: run.oidc.clone(),
             ai: run.ai.clone(),
+            mcp_server: run.mcp_server.clone(),
             graphql: run.graphql.clone(),
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
@@ -233,6 +260,9 @@ pub struct RunOutcome {
     pub fence: Fence,
     /// What the probes asked the app while it was up, and what it answered.
     pub probe_responses: Vec<sv_check::probes::ProbeResponse>,
+    /// The anonymous questions the app's rate limiter was still answering after waiting as it asked,
+    /// as "id (status)". Left out of `probe_responses`, since the limiter's page is not the app's.
+    pub probes_rate_limited: Vec<String>,
     /// What asking as signed-in users showed, when securevibe.toml says how to sign in.
     pub signed_in: Option<sv_check::signed_in::Outcome>,
     /// What signing in through the test provider showed, when the app signs in through another
@@ -242,9 +272,14 @@ pub struct RunOutcome {
     /// What asking the app's AI feature through the test model showed, when securevibe.toml says
     /// how to reach it.
     pub ai: Option<sv_check::signed_in::Outcome>,
+    /// What asking the app as an MCP server showed, when securevibe.toml says where it answers.
+    pub mcp_server: Option<sv_check::signed_in::Outcome>,
     /// Containers and networks an earlier run on this machine left behind when its process was
     /// killed outright, removed before this run started. See `cleanup`.
     pub left_over_removed: Vec<String>,
+    /// Whether the app was still running and answering after the anonymous questions, and again
+    /// after the signed-in, sign-in-provider, and AI questions when any of those were asked (V16.5.4).
+    pub liveness: Vec<sv_check::running::Liveness>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
@@ -804,5 +839,51 @@ mod tests {
                 "a reason must not read as a security verdict: {text}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod unseen_folder_tests {
+    use super::*;
+
+    fn scratch(name: &str, with_file: bool) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-unseen-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        if with_file {
+            std::fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn a_folder_with_files_that_is_empty_inside_is_named_as_unseen() {
+        // On Linux every folder is shared, so the container's side is a stand-in: told empty.
+        let dir = scratch("unseen", true);
+        let unseen = unseen_folder(&dir, Some("")).expect("empty inside, files here");
+        let said = unseen.explain();
+        assert!(said.contains(&dir.display().to_string()), "{said}");
+        assert!(
+            said.contains("Colima") && said.contains("not assessed"),
+            "{said}"
+        );
+        assert!(
+            !said.contains("never answered"),
+            "the app is not blamed: {said}"
+        );
+
+        // The controls: the files seen inside, the listing not asked, and an empty folder here.
+        assert!(unseen_folder(&dir, Some("app.py\n")).is_none());
+        assert!(
+            unseen_folder(&dir, None).is_none(),
+            "not knowing is not the same as empty"
+        );
+        let empty = scratch("empty", false);
+        assert!(
+            unseen_folder(&empty, Some("")).is_none(),
+            "a folder with nothing in it is empty everywhere"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::remove_dir_all(&empty).ok();
     }
 }

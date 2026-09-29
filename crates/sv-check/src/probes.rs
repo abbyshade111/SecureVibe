@@ -162,7 +162,7 @@ fn listing_id(path: &str) -> String {
 
 /// Requirements this suite cannot speak to, and why. Never folded into a pass.
 ///
-/// `signed_in_ran` is whether the signed-in probes (`signed_in.rs`) asked too. When they did, they
+/// `signed_in_ran` is whether the signed-in probes (`signed_in/`) asked too. When they did, they
 /// say for themselves what they reached and what they could not, so authorization, sessions and
 /// forgery are not repeated here as untouched.
 pub fn unassessed_requirements(signed_in_ran: bool) -> Vec<(&'static str, &'static str)> {

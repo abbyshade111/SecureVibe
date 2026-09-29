@@ -285,6 +285,7 @@ mod tests {
             threat_parts: Vec::new(),
             threat_atlas_release: None,
             gaps: Vec::new(),
+            examined: Vec::new(),
         }
     }
 

@@ -1158,7 +1158,22 @@ fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
         plan.graphql.as_deref(),
         plan.websocket.as_deref(),
     ));
+    let (admin_pages, private_files) = more_questions(plan);
+    requests.extend(sv_check::running::requests(&admin_pages, &private_files));
     requests
+}
+
+/// The admin pages securevibe.toml names, and the files in the app's folder that should never be
+/// served, for the questions in `sv_check::running`. Worked out the same way for the requests and
+/// for reading the answers, so the two agree on what was asked.
+fn more_questions(plan: &RunPlan) -> (Vec<String>, Vec<sv_check::running::PrivateFile>) {
+    let admin_pages = plan
+        .users
+        .as_ref()
+        .map(|users| users.admin.clone())
+        .unwrap_or_default();
+    let listing = sv_scan::files::Listing::of(&plan.app_dir);
+    (admin_pages, sv_check::running::private_files(&listing))
 }
 
 /// What the running app showed: the anonymous probes, and the signed-in ones when they ran.
@@ -1180,15 +1195,51 @@ fn running_app_evidence(
     findings.extend(api_findings);
     verified.extend(api_verified);
     not_assessed.extend(api_not_assessed);
-    for asked in [&outcome.signed_in, &outcome.oidc, &outcome.ai]
-        .into_iter()
-        .flatten()
+    let (admin_pages, private_files) = more_questions(plan);
+    let more = sv_check::running::evaluate(
+        &outcome.probe_responses,
+        &admin_pages,
+        &private_files,
+        &outcome.liveness,
+    );
+    findings.extend(more.findings);
+    verified.extend(more.verified);
+    not_assessed.extend(more.not_assessed);
+    for asked in [
+        &outcome.signed_in,
+        &outcome.oidc,
+        &outcome.ai,
+        &outcome.mcp_server,
+    ]
+    .into_iter()
+    .flatten()
     {
         findings.extend(asked.findings.iter().cloned());
         verified.extend(asked.verified.iter().cloned());
         not_assessed.extend(asked.not_assessed.iter().cloned());
     }
     (findings, verified, not_assessed)
+}
+
+/// What the report and `sv run` say about the anonymous questions the app's rate limiter answered
+/// in the app's place. Those answers were left out, so nothing was judged from them; this says so,
+/// rather than letting them read as questions the app never answered.
+fn rate_limited_gap(limited: &[String]) -> Option<sv_report::Gap> {
+    if limited.is_empty() {
+        return None;
+    }
+    Some(sv_report::Gap {
+        what: format!(
+            "what the app answers to {} of the questions asked as somebody not signed in",
+            limited.len()
+        ),
+        why: format!(
+            "the app's rate limiter answered them in its place, still, after `sv` waited as long \
+             as it asked: {}. A rate limiter's page is not the app's, so nothing was judged from \
+             it, neither a finding nor a pass. Raise the limit for the test run and run it again.",
+            limited.join(", ")
+        ),
+    })
 }
 
 fn cmd_run(args: &[String]) -> Result<()> {
@@ -1242,11 +1293,14 @@ fn cmd_run(args: &[String]) -> Result<()> {
                     "s"
                 }
             );
-            if outcome.probe_responses.len() < requests.len() {
-                println!(
-                    "  {} got no answer at all, so nothing is claimed about them.",
-                    requests.len() - outcome.probe_responses.len()
-                );
+            let unanswered = requests
+                .len()
+                .saturating_sub(outcome.probe_responses.len() + outcome.probes_rate_limited.len());
+            if unanswered > 0 {
+                println!("  {unanswered} got no answer at all, so nothing is claimed about them.");
+            }
+            if let Some(gap) = rate_limited_gap(&outcome.probes_rate_limited) {
+                println!("  {} — {}", gap.what, gap.why);
             }
 
             if let Some(signed_in) = &outcome.signed_in
@@ -1606,8 +1660,26 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
         sbom.components.len(),
         if sbom.components.len() == 1 { "" } else { "s" }
     );
+    // Said before the verdict on completeness, which it does not change: the list is a full
+    // reading of one lockfile, and this says which one.
+    for passed in &sbom.passed_over {
+        eprintln!(
+            "{}: {}. Remove the lockfile that is not in use.",
+            passed.project,
+            passed.explain()
+        );
+    }
     if sbom.is_complete() {
-        eprintln!("Every ecosystem in use was read from a lockfile, so this is what is installed.");
+        if sbom.passed_over.is_empty() {
+            eprintln!(
+                "Every ecosystem in use was read from a lockfile, so this is what is installed."
+            );
+        } else {
+            eprintln!(
+                "Every ecosystem in use was read from a lockfile. It is what is installed only if \
+                 the app is installed from the lockfile named as read above."
+            );
+        }
         return Ok(());
     }
     eprintln!("\nThis list is NOT complete, and the document says so too:");
@@ -1758,6 +1830,13 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         println!(
             "\nAnd the list itself is incomplete, so this comparison covered less than the whole app.\n\
              `sv sbom` says what is missing."
+        );
+    }
+    for passed in &sbom.passed_over {
+        println!(
+            "\nNot assessed — {}: {}. Remove the lockfile that is not in use.",
+            passed.project,
+            passed.explain()
         );
     }
 
@@ -2235,6 +2314,18 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
             *declared.entry(component.ecosystem.as_str()).or_default() += 1;
         }
     }
+    // A project with two lockfiles of its kind: the list is a full reading of one of them, and
+    // nothing here says the app is installed from that one.
+    for passed in &sbom.passed_over {
+        gaps.push(sv_report::Gap {
+            what: format!("which lockfile {} is installed from", passed.project),
+            why: format!(
+                "{}. Remove the lockfile that is not in use, and the next report reads the one that is",
+                passed.explain()
+            ),
+        });
+    }
+
     for (ecosystem, count) in declared {
         gaps.push(sv_report::Gap {
             what: format!("which {ecosystem} versions are really installed"),
@@ -2355,20 +2446,33 @@ fn assemble_report(
     // so: a report silent about known vulnerabilities reads as a report that found none.
     let mut advisory_verified = Vec::new();
     let mut advisory_gaps = Vec::new();
+    // What was examined, per family of findings, for a program reading report.json: the same
+    // limits as the gaps, decided in the same places (DESIGN, "What was examined, for a program").
+    let mut examined: Vec<sv_report::Examined> = vec![sv_report::Examined::ran("sbom.")];
     match &options.advisories {
-        None => advisory_gaps.push(sv_report::Gap {
-            what: "known vulnerabilities in the packages this app ships".to_owned(),
-            why: format!(
-                "{} `sv` does not fetch anything, because the list of packages an app depends on \
-                 is yours: download an OSV export for this app's ecosystems, unpack it, and pass \
-                 its folder with --advisories.",
-                options.why_no_advisories
-            ),
-        }),
+        None => {
+            examined.push(sv_report::Examined::not_run(
+                "advisory.",
+                "no advisory database was given (--advisories)",
+            ));
+            advisory_gaps.push(sv_report::Gap {
+                what: "known vulnerabilities in the packages this app ships".to_owned(),
+                why: format!(
+                    "{} `sv` does not fetch anything, because the list of packages an app depends \
+                     on is yours: download an OSV export for this app's ecosystems, unpack it, and \
+                     pass its folder with --advisories.",
+                    options.why_no_advisories
+                ),
+            })
+        }
         Some(dir) => {
             let database = advisories::load_database(dir)
                 .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
             if database.is_empty() {
+                examined.push(sv_report::Examined::not_run(
+                    "advisory.",
+                    "the advisory database holds no records `sv` could read",
+                ));
                 advisory_gaps.push(sv_report::Gap {
                     what: "known vulnerabilities in the packages this app ships".to_owned(),
                     why: format!(
@@ -2384,6 +2488,39 @@ fn assemble_report(
                     manifest.policy.fix_within_days.as_ref(),
                     advisories::Day::today(),
                 );
+                // Whole only as `sv audit` counts it: every ecosystem covered, every version
+                // comparable, and the list of packages itself complete.
+                let mut short = Vec::new();
+                if !result.uncovered.is_empty() {
+                    let names: Vec<String> = result.uncovered.iter().cloned().collect();
+                    short.push(format!(
+                        "the database holds nothing about {}",
+                        names.join(", ")
+                    ));
+                }
+                if !result.uncomparable.is_empty() {
+                    short.push(format!(
+                        "{} package version(s) could not be compared",
+                        result.uncomparable.len()
+                    ));
+                }
+                if !bill_of_materials.is_complete() {
+                    short.push("the list of packages is incomplete".to_owned());
+                }
+                // A finding that stops appearing because a different lockfile was read is not a
+                // fixed finding, so a second lockfile nothing compared keeps this from `ran`.
+                for passed in &bill_of_materials.passed_over {
+                    short.push(format!(
+                        "{} not read beside `{}`",
+                        passed.not_read_list(),
+                        passed.read
+                    ));
+                }
+                examined.push(if short.is_empty() {
+                    sv_report::Examined::ran("advisory.")
+                } else {
+                    sv_report::Examined::partly("advisory.", short.join("; "))
+                });
                 findings_from_advisories = result.findings;
                 advisory_verified = result.verified;
                 if !result.uncovered.is_empty() {
@@ -2456,6 +2593,7 @@ fn assemble_report(
             &not_holding,
             &sv_check::adapters::scratch_dir(),
         );
+        examined.extend(adapters_examined(&adapters, &languages, &outcome));
         findings.extend(outcome.findings);
         tool_verified = outcome.verified;
         for (id, why) in outcome.not_run {
@@ -2465,6 +2603,14 @@ fn assemble_report(
             });
         }
     } else {
+        if let Ok(adapters) = sv_check::adapters::Adapters::load(&adapters_path()) {
+            for adapter in adapters.all() {
+                examined.push(sv_report::Examined::not_run(
+                    format!("{}.", adapter.id),
+                    "outside tools run only with --tools",
+                ));
+            }
+        }
         tool_gaps.push(sv_report::Gap {
             what: "the security tool this language already has".to_owned(),
             why: format!(
@@ -2576,6 +2722,7 @@ fn assemble_report(
                         why,
                     });
                 }
+                gaps.extend(rate_limited_gap(&outcome.probes_rate_limited));
                 // What asking it could not reach. These replace the "it was never started" gap
                 // rather than removing it: the app running answers some questions and not others,
                 // and the ones it cannot answer are the ones behind a login.
@@ -2861,6 +3008,7 @@ fn assemble_report(
         });
     }
     gaps.extend(untaught_gaps(&code.untaught));
+    examined.extend(file_checks_examined(&listing, &code, &secrets, &config));
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions
@@ -3303,6 +3451,17 @@ fn assemble_report(
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
     );
     let findings = reviewed.findings;
+    examined.push(match &run_status {
+        // Started is still only part of what the app could be asked: what sits behind a sign-in
+        // it could not reach, and the requirements no question reaches, are in the gaps.
+        sv_report::RunStatus::Started { .. } => sv_report::Examined::partly(
+            "probe.",
+            "the running app was asked what `sv` knows to ask; the gaps say what that could not reach",
+        ),
+        sv_report::RunStatus::NotAsked { why } | sv_report::RunStatus::CouldNotStart { why } => {
+            sv_report::Examined::not_run("probe.", why.clone())
+        }
+    });
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -3334,6 +3493,7 @@ fn assemble_report(
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
     });
+    report.examined = examined;
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
     // wrote it with nothing to go on; `sv scope` always said, and now the report does too.
@@ -3565,6 +3725,118 @@ fn untaught_lines(untaught: &[sv_check::ast::Untaught]) -> Vec<String> {
 }
 
 /// The same, as gaps in the written report.
+/// One `examined` entry per outside tool `sv` knows: the ones that ran, in full or in part, the
+/// ones that could not, and the ones for a language this app does not have.
+fn adapters_examined(
+    adapters: &sv_check::adapters::Adapters,
+    languages: &[String],
+    run: &sv_check::adapters::AdapterRun,
+) -> Vec<sv_report::Examined> {
+    adapters
+        .all()
+        .iter()
+        .map(|adapter| {
+            let rules = format!("{}.", adapter.id);
+            let reason = |list: &[(String, String)]| {
+                list.iter()
+                    .find(|(id, _)| id == &adapter.id)
+                    .map(|(_, why)| why.clone())
+            };
+            if let Some(why) = reason(&run.partly) {
+                sv_report::Examined::partly(rules, why)
+            } else if run.ran.contains(&adapter.id) {
+                sv_report::Examined::ran(rules)
+            } else if let Some(why) = reason(&run.not_run) {
+                sv_report::Examined::not_run(rules, why)
+            } else if !languages.iter().any(|l| adapter.reads(l)) {
+                sv_report::Examined::nothing_to_examine(
+                    rules,
+                    format!("this app has no code in {}", adapter.language),
+                )
+            } else {
+                sv_report::Examined::not_run(rules, "it was not run")
+            }
+        })
+        .collect()
+}
+
+/// The checks that read the app's files, per family. Each one read only part of the app when a
+/// symbolic link was not followed; the rules that read code, also when a file was not opened or
+/// did not parse, or a language had no parser; a single code rule, when it could not run or had
+/// not been taught a language here.
+fn file_checks_examined(
+    listing: &sv_scan::files::Listing,
+    code: &sv_check::ast::AstScan,
+    secrets: &sv_check::secrets::SecretScan,
+    config: &sv_check::config::ConfigReport,
+) -> Vec<sv_report::Examined> {
+    let family = |rules: &str, short: Vec<String>| {
+        if short.is_empty() {
+            sv_report::Examined::ran(rules)
+        } else {
+            sv_report::Examined::partly(rules, short.join("; "))
+        }
+    };
+    let links: Vec<String> = if listing.links.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{} symbolic link(s) in the app were not followed",
+            listing.links.len()
+        )]
+    };
+
+    let mut code_short = links.clone();
+    if !code.unread_files.is_empty() {
+        code_short.push(format!(
+            "{} file(s) in a language the rules read were not opened",
+            code.unread_files.len()
+        ));
+    }
+    if !code.unread_languages.is_empty() {
+        let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
+        names.sort_unstable();
+        code_short.push(format!("no parser for {}", names.join(", ")));
+    }
+    if !code.unparsed_files.is_empty() {
+        code_short.push(format!(
+            "{} file(s) did not parse cleanly",
+            code.unparsed_files.len()
+        ));
+    }
+    let mut examined = vec![family("ast.", code_short)];
+    for broken in &code.broken_queries {
+        examined.push(sv_report::Examined::partly(
+            broken.rule_id.clone(),
+            format!(
+                "its query for {} would not compile: {}",
+                broken.language, broken.why
+            ),
+        ));
+    }
+    for untaught in &code.untaught {
+        examined.push(sv_report::Examined::partly(
+            untaught.rule_id.clone(),
+            format!("it has not been taught {}", untaught.languages.join(", ")),
+        ));
+    }
+
+    let mut secrets_short = links.clone();
+    if !secrets.coverage.skipped.is_empty() {
+        secrets_short.push(format!(
+            "{} file(s) were not read",
+            secrets.coverage.skipped.len()
+        ));
+    }
+    examined.push(family("secrets.", secrets_short));
+
+    examined.push(family("config.", links));
+    for (id, why) in &config.not_assessed {
+        examined.push(sv_report::Examined::not_run(id.clone(), why.clone()));
+    }
+    examined
+}
+
 fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
     untaught
         .iter()
@@ -3587,6 +3859,46 @@ fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_outside_tool_gets_an_entry_saying_whether_it_looked() {
+        let adapters = sv_check::adapters::Adapters::load(&adapters_path()).unwrap();
+        let run = sv_check::adapters::AdapterRun {
+            ran: vec!["bandit".into()],
+            partly: vec![("semgrep".into(), "told to skip tests/".into())],
+            not_run: vec![
+                (
+                    "semgrep".into(),
+                    "ran and found nothing, but was told not to look".into(),
+                ),
+                ("codeql-python".into(), "not installed".into()),
+            ],
+            ..Default::default()
+        };
+        let examined = adapters_examined(&adapters, &["python".to_owned()], &run);
+        let state = |rules: &str| {
+            examined
+                .iter()
+                .find(|e| e.rules == rules)
+                .unwrap_or_else(|| panic!("no entry for {rules}"))
+                .state
+        };
+        use sv_report::ExaminedState::*;
+        assert_eq!(state("bandit."), Ran);
+        assert_eq!(
+            state("semgrep."),
+            Partly,
+            "looking away outranks not having found anything"
+        );
+        assert_eq!(state("codeql-python."), NotRun);
+        assert_eq!(state("gosec."), NothingToExamine);
+        assert_eq!(state("brakeman."), NothingToExamine);
+        assert_eq!(
+            examined.len(),
+            adapters.all().len(),
+            "one entry per tool `sv` knows"
+        );
+    }
 
     fn untaught() -> Vec<sv_check::ast::Untaught> {
         vec![sv_check::ast::Untaught {
@@ -3688,6 +4000,7 @@ mod dependency_gap_tests {
         // reach: given a document whose every version came from a lockfile, there is nothing to
         // report, and a gap row for nothing reads as a hole where there is none.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![
                 component("npm", "react", sbom::VersionSource::Locked),
                 component("npm", "express", sbom::VersionSource::Locked),
@@ -3703,6 +4016,7 @@ mod dependency_gap_tests {
         // The distinction the whole item is about, held at one place rather than across two apps:
         // these are two different gaps and must not collapse into one sentence again.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![component("Python", "flask", sbom::VersionSource::Declared)],
             unread: vec![(
                 "npm".to_owned(),
@@ -3735,6 +4049,7 @@ mod dependency_gap_tests {
         // to say each of those about the right one — which is exactly what a single sentence for
         // every ecosystem could not do.
         let sbom = sbom::Sbom {
+            passed_over: Vec::new(),
             components: vec![
                 component("Python", "flask", sbom::VersionSource::Declared),
                 component("Rust", "serde", sbom::VersionSource::Locked),
@@ -3747,6 +4062,25 @@ mod dependency_gap_tests {
         assert!(
             !named.iter().any(|w| w.contains("Rust")),
             "the locked Rust packages are not a gap: {named:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod rate_limited_gap_tests {
+    use super::*;
+
+    #[test]
+    fn questions_the_limiter_answered_are_named_and_nothing_else_is_said() {
+        assert!(rate_limited_gap(&[]).is_none(), "no limiter, no gap");
+        let gap = rate_limited_gap(&["home (429)".to_owned(), "git-head (429)".to_owned()])
+            .expect("a gap when the limiter answered");
+        assert!(gap.what.contains("2 of the questions"), "{}", gap.what);
+        assert!(
+            gap.why.contains("home (429), git-head (429)")
+                && gap.why.contains("neither a finding nor a pass"),
+            "{}",
+            gap.why
         );
     }
 }

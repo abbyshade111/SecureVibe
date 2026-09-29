@@ -8,10 +8,10 @@ The repository's first commit, `c85c174`, is titled *"Restore SecureVibe after i
 and lands **687 files and 280,421 lines in one go** — a mature project appearing at once. The commits before it
 were lost when iCloud evicted the working copy, and what survived was reconstructed as a single starting point.
 
-Work demonstrably began earlier. Ten of the twelve architecture decision records are dated **16 September 2026**,
-two days before the repository's first commit, and the documentation references the 17th. So at least two days
-of development — including most of the foundational decisions the rest of the project rests on — happened before
-any commit in this timeline.
+Work demonstrably began earlier. Ten of v1's thirteen architecture decision records (twelve when this was written;
+`ADRS.md` covers all of them) are dated **16 September 2026**, two days before the repository's first commit, and
+the documentation references the 17th. So at least two days of development — including most of the foundational
+decisions the rest of the project rests on — happened before any commit in this timeline.
 
 What follows is therefore **the surviving record from 18 September onward**, not the project's life. Treat the
 commit count as a measure of the days it covers, and the ADRs as evidence of what came before them.
@@ -89,7 +89,9 @@ was merged. Subjects and pull-request titles are reproduced as written: they wer
 and why, and several of them are the primary record of a decision.
 
 The whole record comes to 882 commits, of which 267 reached `main` as the changes listed from the evening of
-20 September on, 214 of them as pull requests. A summary figure is in `figure-timeline.html`.
+20 September to 10:52 on 27 September, where this record stops, 226 of them as pull requests. Twelve of those,
+on 26 September, were rebased onto `main` rather than merged, so their commit is the change itself.
+`COORDINATION.md` counts every change to `main` up to 16:18 on 28 September. A summary figure is in `figure-timeline.html`.
 
 The project was built by an owner who is not a programmer, working with AI agents, against a fixed template and
 the OWASP Secure by Design, ASVS 5.0 and AISVS 1.0 checklists. Two people other than the owner used it, both on
@@ -446,7 +448,8 @@ reports written without a browser (#84).
 
 ## Day 8 — 26 September: the busiest day, and the move
 
-118 changes reached `main`, 00:00 to 23:44: 106 pull requests and 12 direct commits, out of 333 commits in all.
+118 changes reached `main`, 00:00 to 23:44, all of them pull requests: 106 merged and 12 rebased onto `main`, out
+of 333 commits in all.
 
 Most of the day went on questions `sv` can ask only of a running app, each fenced inside Docker: a mail server,
 for password reset and emailed codes (#120); two-factor codes (#129); a test provider for "Sign in with Google"
@@ -474,13 +477,13 @@ v1 moved to the `v1` branch, and `sv` moved to the top of the repository. Histor
 | 08:42 | `f8c9264` | #126 | CodeQL as an outside tool: following a value to where it is used |
 | 08:52 | `7bf2b46` | #124 | Review finding: the threat model's citations cannot be guarded as they are |
 | 08:54 | `07b5a99` | #129 | Check two-factor codes: once only, and only while current (V6.5.1, V6.5.5) |
-| 09:01 | `f9a77f4` |  | Review finding: an unanswered question excludes requirements (#128) |
+| 09:01 | `f9a77f4` | #128 | Review finding: an unanswered question excludes requirements (#128) |
 | 09:07 | `901e8e6` | #130 | Check whether the guessing limit believes a made-up address (V15.3.4) |
 | 09:15 | `0c362a0` | #131 | Claim the slow mode (securevibe-e9) |
-| 09:21 | `65020b2` |  | Review finding: the two-factor reuse check can credit V6.5.1 on a step boundary (#132) |
+| 09:21 | `65020b2` | #132 | Review finding: the two-factor reuse check can credit V6.5.1 on a step boundary (#132) |
 | 09:23 | `5ad525e` | #133 | An unanswered manifest question excludes nothing, whatever the scan found |
 | 09:33 | `1a49800` | #135 | Guard the threat model's citations through their `because` phrases |
-| 09:43 | `47659c8` |  | Review finding: a leaky guessing limit inverts the spoofed-address check (#134) |
+| 09:43 | `47659c8` | #134 | Review finding: a leaky guessing limit inverts the spoofed-address check (#134) |
 | 09:46 | `988fcc7` | #136 | Session timeouts, waited out with sv run --slow (V7.3.1, V7.3.2) |
 | 09:53 | `9ecff2b` | #137 | Claim the live-site TLS checks (securevibe-e9) |
 | 10:03 | `860a0f6` | #138 | sv: check "Sign in with Google" against a test provider inside the fence |
@@ -526,42 +529,42 @@ v1 moved to the `v1` branch, and `sv` moved to the top of the repository. Histor
 | 17:05 | `84fff3f` | #175 | sv: the AI coding tool interviews the owner, and its own answers are labeled |
 | 17:14 | `d2aea72` | #185 | sv: record the checks made by hand ([checked-by-hand]) |
 | 17:19 | `a2082e4` | #186 | Claim the fake model; record the owner's AISVS decision |
-| 17:23 | `c4e36d1` |  | Review finding: ten manual requirements that no catalog explains (#169) |
+| 17:23 | `c4e36d1` | #169 | Review finding: ten manual requirements that no catalog explains (#169) |
 | 17:24 | `7d61ad1` | #187 | sv: record the checks made by hand ([checked-by-hand]) |
-| 17:38 | `a352e33` |  | Backlog: V11.3.3 is the one no pack recovers, and could be an AST rule (#181) |
+| 17:38 | `a352e33` | #181 | Backlog: V11.3.3 is the one no pack recovers, and could be an AST rule (#181) |
 | 17:40 | `cea45df` | #188 | sv backlog: claim the ten manual-only requirements no catalog explains |
-| 17:48 | `0171385` |  | Backlog: garak findings as Thoughts on the existing fake-model-or-garak entry (#182) |
+| 17:48 | `0171385` | #182 | Backlog: garak findings as Thoughts on the existing fake-model-or-garak entry (#182) |
 | 17:48 | `65ac9a9` | #190 | sv: explain every requirement only a person can settle, and test that it stays so |
 | 17:49 | `1f0da09` | #189 | Ask an app's AI feature through a test model inside the fence |
 | 17:58 | `4ee47fa` | #191 | Claim C12.1.3 and C12.2.1 (securevibe-e9) |
 | 18:06 | `b3cbb4f` | #184 | Free the evaluation harness, record the Semgrep license decision and the golden-app numbers |
-| 18:08 | `5ecc47f` |  | Backlog: a walk-through for building from scratch in any AI tool (#193) |
+| 18:08 | `5ecc47f` | #193 | Backlog: a walk-through for building from scratch in any AI tool (#193) |
 | 18:08 | `12f094e` | #192 | sv backlog: claim V11.3.3 as sv's own finding-only AST rule |
 | 18:13 | `9116a57` | #194 | Read the AI feature's own log lines (C12.1.3, C12.2.1) |
 | 18:14 | `0538663` | #195 | Claim adopting p/default for semgrep (option B) |
 | 18:24 | `cefe215` | #196 | sv: find encryption that cannot show it was changed, as sv's own rule (V11.3.3) |
 | 18:28 | `5b1372c` | #197 | Claim C11.2.2, C9.6.1, C10.4.1, and C10.4.2 (securevibe-e9) |
-| 18:38 | `ce03269` |  | Backlog: packaging sv, a container now and a download later (#198) |
+| 18:38 | `ce03269` | #198 | Backlog: packaging sv, a container now and a download later (#198) |
 | 18:44 | `6a7d3e9` | #199 | Hold the AI feature to a stated rate limit (C11.2.2) |
 | 18:55 | `63e12ac` | #200 | Mark the evaluation harness in use |
 | 19:00 | `55122dc` | #201 | Try the AI feature's kill switch on a second copy of the app (C9.6.1) |
 | 19:17 | `0521739` | #202 | Check MCP tool results through a test MCP server (C10.4.1, C10.4.2) |
 | 19:17 | `6e03060` | #203 | Free the evaluation harness |
-| 19:28 | `0acfe49` |  | Backlog: what the owner's first build from scratch found, and a zip (#204) |
+| 19:28 | `0acfe49` | #204 | Backlog: what the owner's first build from scratch found, and a zip (#204) |
 | 19:32 | `80e7d3b` | #206 | Claim the committed sv container (securevibe-e9) |
 | 19:36 | `4d900c2` | #205 | sv: package sv as a container image, with a test that drives it as an AI tool would |
 | 19:43 | `58b240e` | #207 | Credit the container to securevibe-e8; withdraw e9's duplicate claim |
 | 19:48 | `b01d952` | #208 | sv: publish the image to GitHub's container registry from CI |
 | 19:50 | `a761fbd` | #209 | Claim V4.4.2 for a private WebSocket (securevibe-e9) |
-| 19:53 | `76156b3` |  | Backlog: promote sv to the top of the repository, keep v1 for the paper (#210) |
+| 19:53 | `76156b3` | #210 | Backlog: promote sv to the top of the repository, keep v1 for the paper (#210) |
 | 20:02 | `a5b82f3` | #212 | sv backlog: claim the walk-through; add a community-standards entry |
 | 20:04 | `d3cd2e5` | #213 | Ask V4.4.2 of a private WebSocket with the signed-in session |
 | 20:07 | `8ac64c6` | #215 | Thoughts on promoting sv: what v1 needs to stay usable |
-| 20:07 | `8ced5fb` |  | Backlog: v1-paper is tagged and released (#216) |
+| 20:07 | `8ced5fb` | #216 | Backlog: v1-paper is tagged and released (#216) |
 | 20:08 | `afc8368` | #218 | sv: a walk-through for building an app with sv alongside; never cancel runs on main |
 | 20:09 | `cc3c5bd` | #214 | Claim the no-referrer, Origin: null self-refusal check (securevibe-e9) |
 | 20:10 | `153836a` | #211 | Adopt p/default for semgrep, and fix two template lines behind its false alarms |
-| 20:17 | `e91c717` |  | Backlog: record what the sessions agreed about the promotion (#221) |
+| 20:17 | `e91c717` | #221 | Backlog: record what the sessions agreed about the promotion (#221) |
 | 20:22 | `928e9cb` | #217 | Backlog: thoughts on promoting sv, from the test side |
 | 20:28 | `756f5ce` | #220 | sv: never read sv's own report as the app; stop two false alarms that changed correct code |
 | 20:29 | `a79e75c` | #222 | Say when an app refuses its own forms under no-referrer |

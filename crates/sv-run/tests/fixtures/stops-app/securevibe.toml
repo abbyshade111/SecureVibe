@@ -1,0 +1,19 @@
+manifest-version = 1
+
+[app]
+name = "Stops fixture"
+audience = "just-me"
+deployment = "local-only"
+
+[stack]
+languages = []
+
+[stack.run]
+# busybox, as the other fixtures. `/cgi-bin/stop.sh` stops the server the way an unhandled error
+# stops an app, so the run can see it is gone afterwards; nothing else here does anything.
+# The `; exit 3` keeps the shell as the container's first process: given `cd /app && httpd …` alone,
+# busybox's shell becomes httpd, and a first process ignores the signal `killall` sends it, so the
+# server would never stop.
+image = "busybox:1.36"
+start = "httpd -f -h /app -p $PORT; exit 3"
+health = "/cgi-bin/home.sh"

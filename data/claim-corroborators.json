@@ -1014,7 +1014,7 @@
     {
       "condition": "training",
       "absenceIsEvidence": false,
-      "note": "Training needs a framework, but a fine-tuning job can also be one HTTP call to a vendor.",
+      "note": "Training needs a framework, but a fine-tuning job can also be one call to a vendor: OpenAI's fine_tuning.jobs.create (fineTuning in Node) or its /fine_tuning/jobs endpoint, Vertex AI's sft.train, Google's genai tunings.tune, and Amazon Bedrock's CreateModelCustomizationJob (create_model_customization_job in boto3) or its /model-customization-jobs endpoint. Each name was read from that vendor's own SDK or API definition on 28 September 2026.",
       "packages": {
         "Python": [
           "torch",
@@ -1041,13 +1041,27 @@
           "backward()",
           "optimizer.step",
           "fine_tune",
-          "fine-tuning"
+          "fine-tuning",
+          "fine_tuning.jobs.create",
+          "/fine_tuning/jobs",
+          "sft.train(",
+          "tunings.tune(",
+          "create_model_customization_job",
+          "/model-customization-jobs"
         ],
         "javascript": [
-          "model.fit("
+          "model.fit(",
+          "fineTuning.jobs.create",
+          "/fine_tuning/jobs",
+          "CreateModelCustomizationJob",
+          "/model-customization-jobs"
         ],
         "typescript": [
-          "model.fit("
+          "model.fit(",
+          "fineTuning.jobs.create",
+          "/fine_tuning/jobs",
+          "CreateModelCustomizationJob",
+          "/model-customization-jobs"
         ],
         "rust": [
           "candle_core"
