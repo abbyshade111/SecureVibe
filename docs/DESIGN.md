@@ -4920,6 +4920,30 @@ caught by one test each; a real finding kept through a persistent limit (a defau
 found by signing in, which the limiter did not touch), nothing credited in the sign-out case, and a
 direct test of what counts as a limiter were added for them.
 
+
+**Later, 29 September 2026: the anonymous questions, and a limit on all the waiting.** The paragraph above says the
+anonymous probes read here only ever raise a finding, each needing a 2xx. Reading each one showed two that do not:
+`security_headers` judges any answer on `/`, so a limiter's 429 page without the app's headers is a Medium finding
+the app does not deserve, and `probes::verified` credits "source control not exposed" when `/.git/HEAD` and
+`/.git/config` merely answered, so two 429s earned it. Both are witnessed in a test.
+
+So the anonymous questions go through the same `Patient`, by `signed_in::ask_anonymously`, called from step 4 of the
+run in `sv-run`. An answer the limiter was still giving after the wait is left out of `probe_responses`, as a request
+that got no answer is, since every reader of those answers (`probes::evaluate`, `probes::verified`,
+`probes::evaluate_api`, `running::evaluate`) judges what it is given as the app's. Leaving it out is enough: each
+reader already credits nothing from a missing answer. The requests left out travel in `RunOutcome::probes_rate_limited`,
+and `sv run` and the report say which they were, as a gap ("the app's rate limiter answered them in its place"),
+rather than counting them among the questions that got no answer at all.
+
+`Patient` also now stops waiting after five minutes in all (`MOST_WAITING`). Each wait was already at most a minute,
+but a limiter answering every request would have held a run up for a minute a request; past five minutes a limited
+answer is recorded as the limiter's without waiting, and says so.
+
+Broken on purpose four ways, each caught: keeping the limiter's page among the answers, not waiting for the anonymous
+questions, no limit on all the waiting, and the report's gap never said. Not tested end to end: no test here starts a
+real app behind a rate limiter, so the wiring in `sv-run` is checked by the compiler and by reading, not by a run. The
+sign-in provider (`oidc.rs`) and MCP server (`mcp_server.rs`) checks were not looked at for the same reading.
+
 ## The app's GitHub Actions workflows (27 September 2026)
 
 A workflow is code that runs with the repository's credentials, and the dangerous shapes are few and

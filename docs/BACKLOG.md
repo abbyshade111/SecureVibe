@@ -702,6 +702,18 @@ another session is not a claim.
   have yet: a limit on all the waiting in one run. It waits up to a minute for every limited request, so a limiter
   answering everything holds a run up for a minute a request; securevibe-e2's own version (not merged, in branch
   `claude/securevibe-e2-rate-limited`) stopped at five minutes in all, with a test.
+  **Done the same day:** the anonymous questions go through `Patient` (`signed_in::ask_anonymously`, from step 4 of
+  the run); an answer still the limiter's is left out, as one that got no answer is, and `sv run` and the report name
+  those requests as a gap. Reading each place found two that did judge a limiter's answer: the security-headers
+  finding on a 429 page, and "source control not exposed" credited from two 429s; a test witnesses both. `Patient`
+  stops waiting after five minutes in all. Four guards, each broken in turn, each caught. Not run end to end against
+  a real app behind a limiter. See DESIGN, "A rate limiter's answer is not the app's", its "Later" part.
+- **`a_bundle_is_written_beside_the_app_inside_the_root_and_holds_no_secret` failed once.** Seen on 29 September
+  2026 by session securevibe-e2 in a whole-workspace run under load (a mutation run of the rate-limit code, which
+  that test does not touch); it passed three times alone. Not reproduced. A guess, marked as one: it asserts that
+  the four bytes `4471`, a fragment of the planted secret, appear nowhere in the zip's raw bytes
+  (`crates/sv-cli/src/mcp.rs`), and a zip holds timestamps and compressed data in which four given bytes can occur
+  by chance. If so, the fix is to read the zip's entries and look in their contents. **Not claimed.**
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when

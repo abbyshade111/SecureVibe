@@ -368,11 +368,22 @@ impl Backend for DockerBackend {
 
         // 4. The probes, while the app is up and the fence is in place. A request that gets no
         //    answer is left out rather than recorded as an empty response: "the app said nothing"
-        //    and "the app has no Content-Security-Policy" are not the same sentence.
-        let probe_responses = probes
-            .iter()
-            .filter_map(|request| self.probe(&via, &app, plan.port, request))
-            .collect();
+        //    and "the app has no Content-Security-Policy" are not the same sentence. So is one the
+        //    app's rate limiter was still answering after waiting as it asked: its page is not the
+        //    app's (`ask_anonymously`).
+        let (probe_responses, probes_rate_limited) = sv_check::signed_in::ask_anonymously(
+            &mut DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: None,
+            },
+            probes,
+        );
         let mut liveness = vec![self.liveness(
             &via,
             &app,
@@ -599,6 +610,7 @@ impl Backend for DockerBackend {
             tests,
             fence: Fence::DockerInternalNetwork,
             probe_responses,
+            probes_rate_limited,
             signed_in,
             oidc,
             ai,
