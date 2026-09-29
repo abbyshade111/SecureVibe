@@ -846,6 +846,9 @@ another session is not a claim.
      at the owner's asking to take the next backlog item, in branch `claude/securevibe-e2-signed-in-partials`: the
      three that need only the signed-in requests and the mail server. The other six (V1.3.4, V5.4.3, V10.1.1,
      V10.5.2, V14.3.3, C9.5.3) stay unclaimed.
+     **V1.3.4 and V5.4.3 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take
+     another backlog item, in branch `claude/securevibe-e2-upload-partials`: the SVG with a script and the EICAR
+     test file, through the upload probe. V10.1.1, V10.5.2, V14.3.3, and C9.5.3 stay unclaimed.
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").
      `probe.identity-header-trusted` (V4.1.3) asks each private page a stranger was refused again with one of eight
      headers naming the test user, and is only ever a finding. `probe.password-change-ends-sessions` (V7.4.3) and
