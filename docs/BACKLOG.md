@@ -671,6 +671,12 @@ another session is not a claim.
   does not know as a range it cannot compare, so the next unsupported field is a gap in the report rather than a
   false finding. **Claimed on 29 September 2026 by session securevibe-e9**, at the cato-pipeline session's report
   on the owner's behalf.
+  **Done the same day:** `Event` reads `last_affected` (above it, not affected; at it, still affected), and
+  keeps every other key, so a range carrying one this does not read is not compared (it counts toward "not fully
+  compared", exit status 2) rather than read without it. `a_version_after_the_last_affected_one_is_not_reported`
+  holds the four versions from the report (3.5.1 and 4.0.0 affected, 4.0.1 and 5.0.0 not), and
+  `a_range_with_an_event_this_does_not_read_is_not_compared_rather_than_reported` the unknown key, with the
+  same record as its control; breaking either guard turns its test red.
 
 - **A rate limiter's 429 may be read as the app's answer about access.** Reported to the owner on 28 September
   2026 by an agent in another project that was integrating `sv`: an open CRITICAL it listed as "F-0001, the

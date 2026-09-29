@@ -90,6 +90,16 @@ pub struct Event {
     pub introduced: Option<String>,
     #[serde(default)]
     pub fixed: Option<String>,
+    /// The last version affected, for a range with no fixed release yet: the version named is
+    /// affected, and the ones after it are not.
+    #[serde(default)]
+    pub last_affected: Option<String>,
+    /// Every other key, kept so a range carrying one is known to say something this does not read.
+    /// Until 29 September 2026 serde dropped them without a word, and a range ending in
+    /// `last_affected` read as never ending: paramiko 5.0.0 was reported under an advisory whose
+    /// last affected version is 4.0.0.
+    #[serde(flatten)]
+    pub other: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 /// What the database covers, so silence can be read correctly.
@@ -234,6 +244,12 @@ fn in_range(version: &str, range: &Range) -> Option<bool> {
     if range.kind == "GIT" {
         return None;
     }
+    // An event this does not read (OSV's `limit` belongs to GIT ranges, and a field added later
+    // would land here too) could end the range anywhere, so the range is not compared rather than
+    // read without it: a gap in the report, not a finding made up.
+    if range.events.iter().any(|e| !e.other.is_empty()) {
+        return None;
+    }
     let mut affected = false;
     for event in &range.events {
         if let Some(introduced) = &event.introduced {
@@ -246,6 +262,13 @@ fn in_range(version: &str, range: &Range) -> Option<bool> {
         }
         if let Some(fixed) = &event.fixed
             && compare(version, fixed)? != std::cmp::Ordering::Less
+        {
+            affected = false;
+        }
+        // `last_affected` is the last version still affected, where `fixed` is the first that is
+        // not: past it, not affected; at it, still affected.
+        if let Some(last) = &event.last_affected
+            && compare(version, last)? == std::cmp::Ordering::Greater
         {
             affected = false;
         }
@@ -818,6 +841,63 @@ mod tests {
         );
         assert_eq!(result.findings.len(), 1, "{result:?}");
         assert!(result.findings[0].title.contains("CVE-2020-8203"));
+    }
+
+    /// The record the cato-pipeline session reported, cut down: no fixed release, only the last
+    /// affected one, and no list of versions that would decide it first.
+    const LAST_AFFECTED: &str = r#"{
+      "id": "GHSA-r374-rxx8-8654",
+      "aliases": ["PYSEC-2026-2858"],
+      "summary": "An issue in paramiko",
+      "affected": [{
+        "package": {"ecosystem": "PyPI", "name": "paramiko"},
+        "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"last_affected": "4.0.0"}]}]
+      }]
+    }"#;
+
+    #[test]
+    fn a_version_after_the_last_affected_one_is_not_reported() {
+        for (version, affected) in [
+            ("3.5.1", true),
+            ("4.0.0", true),
+            ("4.0.1", false),
+            ("5.0.0", false),
+        ] {
+            let result = audit(
+                &sbom_of(vec![component("paramiko", version, "Python")]),
+                &[advisory(LAST_AFFECTED)],
+            );
+            assert_eq!(
+                result.findings.len(),
+                usize::from(affected),
+                "{version}: {result:?}"
+            );
+            assert!(result.uncomparable.is_empty(), "{version}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn a_range_with_an_event_this_does_not_read_is_not_compared_rather_than_reported() {
+        let unknown = LAST_AFFECTED.replace("\"last_affected\"", "\"ends_somewhere\"");
+        let result = audit(
+            &sbom_of(vec![component("paramiko", "5.0.0", "Python")]),
+            &[advisory(&unknown)],
+        );
+        assert!(result.findings.is_empty(), "{result:?}");
+        assert_eq!(result.uncomparable.len(), 1, "{result:?}");
+        assert!(
+            result.verified.is_empty(),
+            "a range not read is not a clean result"
+        );
+        // The control: the same record with the event this reads decides it.
+        let known = audit(
+            &sbom_of(vec![component("paramiko", "5.0.0", "Python")]),
+            &[advisory(LAST_AFFECTED)],
+        );
+        assert!(
+            known.findings.is_empty() && known.uncomparable.is_empty(),
+            "{known:?}"
+        );
     }
 
     #[test]
