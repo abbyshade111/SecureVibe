@@ -697,7 +697,11 @@ another session is not a claim.
   to do so, so none was seen to credit a limiter's refusal; `probe.admin-opened-by-address` (`running.rs`) reads
   "shut to a stranger" from a non-2xx before finding it open from the app's own address, which a limiter could only
   make more cautious. Not checked one by one. Fix, as a suggestion: route them through the same `Patient`, and check
-  each place a non-2xx is read. **Not claimed.**
+  each place a non-2xx is read. **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's word (the entry above: stand
+  down or take this part), in branch `claude/securevibe-e2-anonymous-limited`. With it, one thing `Patient` does not
+  have yet: a limit on all the waiting in one run. It waits up to a minute for every limited request, so a limiter
+  answering everything holds a run up for a minute a request; securevibe-e2's own version (not merged, in branch
+  `claude/securevibe-e2-rate-limited`) stopped at five minutes in all, with a test.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
