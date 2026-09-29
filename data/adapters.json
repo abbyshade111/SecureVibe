@@ -10424,6 +10424,12 @@
           "requirements": [
             "V5.3.3"
           ]
+        },
+        "js/file-system-race": {
+          "what": "a file's state checked separately before the file is used, which another process can change in between",
+          "requirements": [
+            "V15.4.2"
+          ]
         }
       }
     },
@@ -10658,6 +10664,13 @@
           "what": "an XML parser that resolves external entities (XXE)",
           "requirements": [
             "V1.5.1"
+          ]
+        },
+        "py/insecure-temporary-file": {
+          "what": "a temporary file name made with tempfile.mktemp, which another process can take before the file is created",
+          "requirements": [],
+          "findings_against": [
+            "V15.4.2"
           ]
         }
       }
