@@ -652,6 +652,27 @@ another session is not a claim.
   **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
   wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
+  **Done the same day:** every signed-in request goes through `Patient`, which waits out a 429, or a 503 with
+  `Retry-After`, once, as long as the app asks and at most a minute, except the guessing checks' own requests.
+  A limiter still answering after that withdraws every credit of the run into not assessed, naming the
+  requests, and keeps the findings with a note. See DESIGN, "A rate limiter's answer is not the app's".
+  Two things found and not changed are the entries below.
+
+- **A 500 from the app is read as a refusal, and can be credited as one.** Found on 28 September 2026 by session
+  securevibe-e10 while fixing the 429 entry above. The signed-in checks read anything but 2xx as the app refusing
+  (`ok()` in `crates/sv-check/src/signed_in/mod.rs`), so a private page that crashes for a stranger with a 500 is
+  credited as "refused to somebody not signed in" (V8.2.1), as a 429 was. A crash is not an answer to whether the
+  page is private. Fix, as a suggestion: read a 5xx as no answer wherever a refusal would be credited, and say the
+  requirement is not assessed with the status; a finding from a 5xx (a stack trace, say) is a separate question.
+  **Not claimed.**
+
+- **The anonymous probes outside `signed_in/` read answers without the rate-limit wait.** Found the same day by
+  session securevibe-e10. `probes.rs` and `running.rs` read `(200..300).contains(&status)` directly, so a limiter's
+  429 is read there as the app's answer. The places read in passing only ever raise a finding, and each needs a 2xx
+  to do so, so none was seen to credit a limiter's refusal; `probe.admin-opened-by-address` (`running.rs`) reads
+  "shut to a stranger" from a non-2xx before finding it open from the app's own address, which a limiter could only
+  make more cautious. Not checked one by one. Fix, as a suggestion: route them through the same `Patient`, and check
+  each place a non-2xx is read. **Not claimed.**
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when

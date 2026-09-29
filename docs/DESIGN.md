@@ -4873,6 +4873,53 @@ aside for a vendor key on the same line, which is right, and which is why the fi
 witness failed), the report's own words, and cato's reproduction run again with the word `command`
 in the catalog, where the MCP check must still say it could not finish and name the file.
 
+## A rate limiter's answer is not the app's (28 September 2026)
+
+Reported by an agent in another project integrating `sv`: a critical finding it listed as "F-0001" had
+got HTTP 429 from the app's rate limiter, not an answer from the app. That report is not in this
+repository, and nothing in `sv` matches its name at critical, so F-0001 itself is still open. Looking
+for it found the fault it pointed at. The signed-in checks read an answer through `ok()` (2xx) and
+`accepted()` (2xx and 3xx), and read everything else as the app refusing. A 429 is not a refusal: the
+request never reached the check it was asking about. So `probe.private-page-anonymous` credited V8.2.1,
+"refused to somebody not signed in", when a limiter had answered the stranger. The same misreading
+runs the other way too: `probe.sign-out-on-get` reads the private page being refused after a GET to
+the sign-out address as the session having ended, and a limiter answering that look reported a sign-out
+that never happened. There are about thirty places where these checks read an answer, and each reads
+it its own way.
+
+**The fix is where every request passes, not at the thirty places.** `run_with` now sends through
+`Patient`, which wraps the app. When the answer is a rate limiter's, a 429, or a 503 with `Retry-After`
+(a 503 that names no wait is the app failing, and is left as it was), it waits what the app asks, at
+most a minute, five seconds when it names none or names a date, and sends the request once more.
+Not for a request whose id says it is a guess: the guessing checks send wrong passwords and codes on
+purpose to see the limiter answer, and a wait would change what they measure and send one guess more
+than they count. Their follow-ups keep the word too, such as the right code after the guesses
+(`…-after-guesses`), so a lockout is read exactly as before. The wait goes through `Http::wait`, so
+the tests' fake app moves its clock rather than sleeping, and the two-factor checks, which read that
+same clock, see the time pass.
+
+**When the limiter is still answering after the wait,** no refusal in the run can be told from the
+limiter's. So nothing the run would have credited is credited: each credit becomes not assessed,
+saying what it would have been and naming the requests the limiter kept answering. Findings stay,
+since hiding a real one is the worse fault, and the run adds that one resting on a refusal may be the
+limiter's, under the findings' own requirement ids. Withdrawing every credit rather than only those
+the limited requests touched is deliberately coarse: no record says which conclusion rests on which
+request, and a limiter that will not let up after the wait it asked for is a run to repeat.
+
+**Not changed, and entries of their own:** a 500 from the app is still read as a refusal where the
+checks read `!ok()`, which can credit the same V8.2.1 when the private page crashes for a stranger;
+and the anonymous probes outside `signed_in/` (`probes.rs`, `running.rs`) read answers without this
+wrapper, though the ones read here only ever raise a finding, and each needs a 2xx to do so.
+
+**Broken on purpose nine ways**, each restored from the bytes read before it: never waiting a limit
+out, caught by six tests; waiting out guesses too, eight (the guessing checks' own tests among them);
+a persistent limit withdrawing nothing, three; no word about the findings, two; a 503 without
+`Retry-After` counted as a limiter, two; `Retry-After` ignored, four; no cap on the wait, two; resending
+without waiting, four; a limit still answering not recorded, three. The first pass had four of these
+caught by one test each; a real finding kept through a persistent limit (a default admin account,
+found by signing in, which the limiter did not touch), nothing credited in the sign-out case, and a
+direct test of what counts as a limiter were added for them.
+
 ## The app's GitHub Actions workflows (27 September 2026)
 
 A workflow is code that runs with the repository's credentials, and the dangerous shapes are few and
