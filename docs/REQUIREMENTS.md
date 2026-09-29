@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 155 can be checked, 9 where a check helps but a person decides, and 181 with no check.
+345 requirements: 156 can be checked, 9 where a check helps but a person decides, and 180 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 79 can be checked)
+### Level 2 (183 requirements, 80 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -358,7 +358,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V11.3.3** Verify that encrypted data is protected against unauthorized modification preferably by using an approved authenticated encryption method or by combining an approved encryption method with an approved MAC algorithm. | Can be checked | Reads the code: `ast.unauthenticated-encryption`, looks for: Data is encrypted in a way that does not show whether it was changed (found failing only) |
 | **V11.4.2** Verify that passwords are stored using an approved, computationally intensive, key derivation function (also known as a "password hashing function"), with parameter settings configured based on current guidance. The settings should balance security and performance to make brute-force attacks sufficiently challenging for the required level of security. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: passwords stored with a hash function that is not a slow key derivation function<br>Outside tools: codeql-javascript, 1 rule, its rules look for: passwords stored with a hash function that is not a slow key derivation function |
 | **V11.4.3** Verify that hash functions used in digital signatures, as part of data authentication or data integrity are collision resistant and have appropriate bit-lengths. If collision resistance is required, the output length must be at least 256 bits. If only resistance to second pre-image attacks is required, the output length must be at least 128 bits. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: a hash function whose output length is too short to be collision resistant |
-| **V11.4.4** Verify that the application uses approved key derivation functions with key stretching parameters when deriving secret keys from passwords. The parameters in use must balance security and performance to prevent brute-force attacks from compromising the resulting cryptographic key. | No check | – |
+| **V11.4.4** Verify that the application uses approved key derivation functions with key stretching parameters when deriving secret keys from passwords. The parameters in use must balance security and performance to prevent brute-force attacks from compromising the resulting cryptographic key. | Can be checked | Reads the code: `ast.weak-password-key-derivation`, looks for: A key is made from a password with too few rounds of work (found failing only) |
 | **V11.5.1** Verify that all random numbers and strings which are intended to be non-guessable must be generated using a cryptographically secure pseudo-random number generator (CSPRNG) and have at least 128 bits of entropy. Note that UUIDs do not respect this condition. | Can be checked | Outside tools: gosec, 1 rule, its rules look for: a random number generator that is not cryptographically secure<br>Outside tools: semgrep, 1 rule, its rules look for: random numbers that must not be guessable taken from a generator that is not cryptographically secure<br>Outside tools: codeql-javascript, 1 rule, its rules look for: random numbers that must not be guessable taken from a generator that is not cryptographically secure |
 | **V11.6.1** Verify that only approved cryptographic algorithms and modes of operation are used for key generation and seeding, and digital signature generation and verification. Key generation algorithms must not generate insecure keys vulnerable to known attacks, for example, RSA keys which are vulnerable to Fermat factorization. | No check | – |
 

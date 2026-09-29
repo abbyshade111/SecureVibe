@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 155 (45%) | 9 | 181 |
+| OWASP ASVS 5.0 | 345 | 156 (45%) | 9 | 180 |
 | OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -43,10 +43,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 9 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 79 | 6 | 0 | 14 | 38 | 28 | 1 |
+| L2 | 183 | 80 | 7 | 0 | 14 | 38 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
-With nothing beyond plain `sv check`, 17 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 18 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -68,7 +68,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8 Authorization | 13 | 4 | 1 | 8 |
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
-| V11 Cryptography | 24 | 10 | 1 | 13 |
+| V11 Cryptography | 24 | 11 | 1 | 12 |
 | V12 Secure Communication | 12 | 7 | 1 | 4 |
 | V13 Configuration | 21 | 8 | 1 | 12 |
 | V14 Data Protection | 13 | 4 | 2 | 7 |
@@ -78,7 +78,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (17)
+### Settled by reading the code (18)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -95,6 +95,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
 | V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
+| V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |

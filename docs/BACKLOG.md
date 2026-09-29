@@ -1035,6 +1035,11 @@ another session is not a claim.
      as a key. Only ever a finding; a count read from a setting is not judged.
      **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
      in branch `claude/securevibe-e2-weak-kdf`.
+     **Done the same day** for PBKDF2 (DESIGN, "A key made from a password with too few rounds"):
+     `ast.weak-password-key-derivation` reports a count written into the code below 210,000 in all fifteen languages `sv` reads, and is
+     only ever a finding. Not done: a single hash of a password used as a key, since nothing in the code says a
+     hashed value is a password without guessing from its name; the standard library's `crypto/pbkdf2` in Go; C#'s
+     two-argument `Rfc2898DeriveBytes`; and counts between 210,000 and 600,000 with SHA-256.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
