@@ -754,6 +754,13 @@ another session is not a claim.
   (`crates/sv-cli/src/mcp.rs`), and a zip holds timestamps and compressed data in which four given bytes can occur
   by chance. If so, the fix is to read the zip's entries and look in their contents. **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take a backlog item, in
   branch `claude/securevibe-e2-bundle-test`.
+  **Done the same day, and the guess was wrong:** the zip is stored uncompressed with fixed dates, so four bytes
+  do not turn up by chance. The bundle names the folder the test made, 17 times, and that folder was named with the
+  process id (`sv-mcp-bundle-beside-<pid>`), so the test failed whenever the process id held `4471`. Reproduced
+  every time by putting `4471` in the folder's name. The test now looks for the whole secret, and its folder is
+  named `beside-4471` on purpose, with an assertion that the bundle does carry that name, so looking for less than
+  the whole secret fails on every run. Broken both ways: the four-digit check put back fails it, and a `.env` let
+  into the bundle fails it (and `files_named_like_secrets_keys_and_databases_stay_out` in `tests/bundle.rs`).
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
