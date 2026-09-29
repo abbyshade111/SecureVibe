@@ -961,6 +961,9 @@ another session is not a claim.
      proposed, but nothing records which queries the security-extended suites run, as `data/semgrep-packs.json` does for
      semgrep, so whether they run is not known. Measure the suites first. Bandit B113 (a web request with no time limit)
      was proposed for V13.1.3, which asks for documentation, so it can only ever be shown beside it, never counted.
+     **Claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another backlog item,
+     in branch `claude/securevibe-e2-codeql-suites`: list what the two security-extended suites run, measured with
+     CodeQL itself, and map the two queries for V15.4.2 if they are in them.
   6. **Cautions for whoever builds these.** V12.1.4 (certificate status stapling): Let's Encrypt certificates have named
      no OCSP address since 2025, so report only when the certificate names one and the server still does not staple.
      V6.3.3 stays supporting: an account that opens with its password alone may be a test account whose two-factor setup
