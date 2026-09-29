@@ -225,7 +225,12 @@ pub(super) fn upload_checks(
         ));
     }
 
-    // 4. V5.3.1 and V3.2.1: what the app does with an upload when it is fetched back.
+    // 4. V1.3.4 and V5.4.3: an SVG image carrying a script, and the antivirus test file. Each can
+    //    be answered by a refusal, so each is sent whether or not the app serves uploads back.
+    svg_check(http, upload, session, token.as_deref(), out);
+    scan_check(http, upload, session, token.as_deref(), out);
+
+    // 5. V5.3.1 and V3.2.1: what the app does with an upload when it is fetched back.
     let Some(serves_at) = &upload.serves_at else {
         out.not_assessed.push((
             "V5.3.1, V3.2.1".to_owned(),
@@ -238,6 +243,273 @@ pub(super) fn upload_checks(
     };
     served_upload_checks(http, upload, serves_at, session, token.as_deref(), out);
     download_name_checks(http, upload, serves_at, session, token.as_deref(), out);
+}
+
+/// The EICAR antivirus test file: 68 harmless characters every antivirus scanner is built to
+/// recognize, made for checking that a scanner is there at all.
+///
+/// Kept here as three pieces, each backwards, and put together only while the check runs, so
+/// neither this source nor the `sv` binary holds it: a scanner on the owner's computer would
+/// otherwise set aside the repository, or `sv` itself. For the same reason it is never written
+/// into a report, a step, or a test's output.
+pub(super) fn eicar() -> String {
+    [
+        "$}7)CC7)^P(45XZP\\4[PA@%P!O5X",
+        "-SURIVITNA-DRADNATS-RACIE",
+        "*H+H$!ELIF-TSET",
+    ]
+    .iter()
+    .map(|piece| piece.chars().rev().collect::<String>())
+    .collect()
+}
+
+/// Whether the app refused an upload: an error, or no answer at all. A crash reads the same way,
+/// which `RESTS_ON_A_REFUSAL` answers for the passes that rest on one.
+fn refused(answer: &Option<ProbeResponse>) -> bool {
+    answer.as_ref().is_none_or(|r| r.status >= 400)
+}
+
+/// V1.3.4: an SVG image carrying a script, and whether the script is still in it when it comes
+/// back.
+///
+/// The image has two ways to run code (a `<script>` and a `<foreignObject>` holding HTML) and one
+/// harmless drawing (a `<circle>`). Refused is credited: an app that takes no SVG has disabled
+/// the scriptable content V1.3.4 is about. Fetched back with the drawing and neither of the two is
+/// credited for those two, which is not every dangerous SVG feature. Either one still there is a
+/// finding. A file that comes back without the drawing either was changed into something else,
+/// and is not judged.
+fn svg_check(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    session: &Session,
+    token: Option<&str>,
+    out: &mut Outcome,
+) {
+    const MARKER: &str = "sv-probe-svg-marker-3d9e";
+    let svg = Upload {
+        id: "upload-svg",
+        name: "sv-probe.svg",
+        contents: format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>/*{MARKER}*/</script>\
+             <foreignObject><div>{MARKER}</div></foreignObject><circle r=\"1\"/></svg>"
+        ),
+    };
+    let stored = send_upload(http, upload, &svg, session, token);
+    if refused(&stored) {
+        out.steps
+            .push("sent an SVG image carrying a script: refused".to_owned());
+        out.verified.push(crate::Verified::new(
+            UPLOAD_SVG_SCRIPT.rule_id,
+            UPLOAD_SVG_SCRIPT.requirement_ids,
+            format!(
+                "an SVG image carrying a script, refused at {} where an ordinary GIF was accepted",
+                upload.path
+            ),
+        ));
+        return;
+    }
+    let Some(serves_at) = &upload.serves_at else {
+        out.not_assessed.push((
+            "V1.3.4".to_owned(),
+            "An SVG image carrying a script was accepted, and the `upload` entry has no \
+             `serves-at`, so nothing here could fetch it back to see whether the script was kept."
+                .to_owned(),
+        ));
+        return;
+    };
+    let path = serves_at.replace("{name}", svg.name);
+    let fetched = http.send(&get("upload-svg-fetch", &path, session));
+    let Some(fetched) = fetched.filter(|r| r.status < 400) else {
+        out.not_assessed.push((
+            "V1.3.4".to_owned(),
+            format!(
+                "An SVG image carrying a script was accepted but could not be fetched back from \
+                 {path}, so nothing here saw whether the script was kept."
+            ),
+        ));
+        return;
+    };
+    let body = fetched.body.to_lowercase();
+    let kept: Vec<&str> = [
+        ("<script", "its `<script>`"),
+        ("<foreignobject", "its `<foreignObject>`"),
+    ]
+    .iter()
+    .filter(|(tag, _)| body.contains(tag))
+    .map(|(_, what)| *what)
+    .collect();
+    if !kept.is_empty() {
+        let disposition = fetched
+            .header("content-disposition")
+            .unwrap_or_default()
+            .to_lowercase();
+        let csp = fetched
+            .header("content-security-policy")
+            .unwrap_or_default()
+            .to_lowercase();
+        let contained = disposition.contains("attachment") || csp.contains("sandbox");
+        out.steps.push(format!(
+            "fetched an uploaded SVG back from {path}: {} kept",
+            kept.join(" and ")
+        ));
+        out.findings.push(finding(
+            &UPLOAD_SVG_SCRIPT,
+            "An uploaded SVG image keeps its script",
+            if contained {
+                Severity::Medium
+            } else {
+                Severity::High
+            },
+            format!(
+                "An SVG image this check uploaded came back from {path} with {} still in it. {}",
+                kept.join(" and "),
+                if contained {
+                    "It was served as an attachment or with a sandbox policy, so opening that \
+                     address does not run it, but the file itself was not cleaned."
+                } else {
+                    "It was served for the browser to show, so opening that address runs the \
+                     script as this app."
+                }
+            ),
+        ));
+    } else if body.contains("<circle") {
+        out.steps.push(format!(
+            "fetched an uploaded SVG back from {path}: cleaned, its drawing kept"
+        ));
+        out.verified.push(crate::Verified::new(
+            UPLOAD_SVG_SCRIPT.rule_id,
+            UPLOAD_SVG_SCRIPT.requirement_ids,
+            format!(
+                "an SVG image uploaded with a `<script>` and a `<foreignObject>`, fetched back from \
+                 {path} with both removed and its drawing kept (these two, not every dangerous SVG \
+                 feature)"
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            "V1.3.4".to_owned(),
+            format!(
+                "An SVG image carrying a script came back from {path} without its drawing either, \
+                 so it was changed into something else and there was no SVG left to judge."
+            ),
+        ));
+    }
+}
+
+/// V5.4.3: the antivirus test file, and whether the app keeps it and hands it back.
+///
+/// A plain text file of the same kind goes first, so a refusal can only be about the contents:
+/// an app that takes no `.txt` files at all refuses both, and then nothing is said. The test file
+/// served back unchanged is looked for again after a short wait, since a scanner may run a little
+/// after the upload is stored.
+fn scan_check(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    session: &Session,
+    token: Option<&str>,
+    out: &mut Outcome,
+) {
+    /// Seconds a scanner that runs after the upload is stored is given before the file is
+    /// looked for again.
+    const SCANNER_GRACE: u64 = 10;
+    let plain = Upload {
+        id: "upload-plain-text",
+        name: "sv-probe-plain.txt",
+        contents: "sv-probe: an ordinary text file, sent to show that text files are accepted.\n"
+            .to_owned(),
+    };
+    let control = send_upload(http, upload, &plain, session, token);
+    if refused(&control) {
+        out.not_assessed.push((
+            "V5.4.3".to_owned(),
+            format!(
+                "An ordinary text file was refused at {} ({}), so a refusal of the antivirus test \
+                 file, also a text file, could not be told from a refusal of text files.",
+                upload.path,
+                status(&control)
+            ),
+        ));
+        return;
+    }
+    let test_file = Upload {
+        id: "upload-eicar",
+        name: "sv-probe-eicar.txt",
+        contents: eicar(),
+    };
+    let stored = send_upload(http, upload, &test_file, session, token);
+    if refused(&stored) {
+        out.steps.push(
+            "sent the antivirus test file (EICAR) after an ordinary text file: refused".to_owned(),
+        );
+        out.verified.push(crate::Verified::new(
+            UPLOAD_NOT_SCANNED.rule_id,
+            UPLOAD_NOT_SCANNED.requirement_ids,
+            format!(
+                "the antivirus test file (EICAR), refused at {} where an ordinary text file was \
+                 accepted",
+                upload.path
+            ),
+        ));
+        return;
+    }
+    let Some(serves_at) = &upload.serves_at else {
+        out.not_assessed.push((
+            "V5.4.3".to_owned(),
+            "The antivirus test file (EICAR) was accepted, and the `upload` entry has no \
+             `serves-at`, so nothing here could see whether it was kept or set aside afterwards."
+                .to_owned(),
+        ));
+        return;
+    };
+    let path = serves_at.replace("{name}", test_file.name);
+    let unchanged = |answer: &Option<ProbeResponse>| {
+        answer
+            .as_ref()
+            .is_some_and(|r| r.status < 400 && r.body == test_file.contents)
+    };
+    let first = http.send(&get("upload-eicar-fetch", &path, session));
+    if !unchanged(&first) {
+        out.not_assessed.push((
+            "V5.4.3".to_owned(),
+            format!(
+                "The antivirus test file (EICAR) was accepted but did not come back unchanged from \
+                 {path} ({}). It may have been set aside or cleaned, which would be right, or it may \
+                 be served somewhere else; nothing here can tell which.",
+                status(&first)
+            ),
+        ));
+        return;
+    }
+    http.wait(SCANNER_GRACE);
+    let again = http.send(&get("upload-eicar-fetch-again", &path, session));
+    if !unchanged(&again) {
+        out.not_assessed.push((
+            "V5.4.3".to_owned(),
+            format!(
+                "The antivirus test file (EICAR) was accepted and served back unchanged from \
+                 {path}, and {SCANNER_GRACE} seconds later it no longer was ({}). A scanner may \
+                 have caught it after it was stored, but it was served in the meantime.",
+                status(&again)
+            ),
+        ));
+        return;
+    }
+    out.steps.push(format!(
+        "sent the antivirus test file (EICAR): accepted, and served back unchanged from {path} \
+         {SCANNER_GRACE} seconds later"
+    ));
+    out.findings.push(finding(
+        &UPLOAD_NOT_SCANNED,
+        "Uploaded files are not scanned for viruses",
+        Severity::Medium,
+        format!(
+            "The antivirus test file (EICAR), which every antivirus scanner recognizes, was \
+             accepted at {} and served back unchanged from {path}, both at once and \
+             {SCANNER_GRACE} seconds later. A scanner that runs later than that would not show \
+             here.",
+            upload.path
+        ),
+    ));
 }
 
 /// The parameters of a `Content-Disposition` value, split on `;` the way RFC 6266 means it:
@@ -1257,5 +1529,311 @@ mod tests {
             assert!(!verified_ids(&o).contains(&rule));
             assert!(!rule_ids(&o).contains(&rule));
         }
+    }
+
+    #[test]
+    fn the_antivirus_test_file_is_the_standard_one_and_this_source_does_not_hold_it() {
+        // Checked without printing it: a test's output is a file a scanner may read too.
+        let file = eicar();
+        assert_eq!(file.len(), 68);
+        assert!(file.starts_with("X5O!") && file.ends_with("H+H*"));
+        assert_eq!(file.bytes().map(u32::from).sum::<u32>(), 4622);
+        assert!(
+            !include_str!("uploads.rs").contains(file.as_str()),
+            "found in uploads.rs"
+        );
+        assert!(
+            !include_str!("fake_app.rs").contains(file.as_str()),
+            "found in fake_app.rs"
+        );
+    }
+
+    /// Every word of the outcome, to show the test file was never written into it.
+    fn every_word(o: &Outcome) -> String {
+        let mut all = o.steps.join("\n");
+        for f in &o.findings {
+            all.push_str(&f.description);
+            all.push_str(&f.title);
+        }
+        for (ids, why) in &o.not_assessed {
+            all.push_str(ids);
+            all.push_str(why);
+        }
+        for v in &o.verified {
+            all.push_str(&v.scope);
+        }
+        all
+    }
+
+    fn svg_verdict(flaws: Flaws, serves_at: Option<&str>) -> Outcome {
+        upload_run_keeping_app(flaws, &with_upload(serves_at, None)).0
+    }
+
+    #[test]
+    fn an_svg_cleaned_of_its_script_is_credited_for_those_parts() {
+        let o = svg_verdict(Flaws::default(), Some("/files/{name}"));
+        assert!(!rule_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id));
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == UPLOAD_SVG_SCRIPT.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(credit.scope.contains("both removed"), "{}", credit.scope);
+        assert!(
+            credit.scope.contains("not every dangerous SVG feature"),
+            "{}",
+            credit.scope
+        );
+    }
+
+    #[test]
+    fn an_svg_that_keeps_its_script_is_found_and_how_it_is_served_sets_how_serious() {
+        for (attachment, severity, words) in [
+            (false, Severity::High, "runs the script as this app"),
+            (true, Severity::Medium, "the file itself was not cleaned"),
+        ] {
+            let o = svg_verdict(
+                Flaws {
+                    svg_scripts_kept: true,
+                    svg_as_attachment: attachment,
+                    ..Default::default()
+                },
+                Some("/files/{name}"),
+            );
+            let found = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == UPLOAD_SVG_SCRIPT.rule_id)
+                .unwrap_or_else(|| panic!("{:?}", o.steps));
+            assert_eq!(found.severity, severity);
+            assert!(
+                found.description.contains("`<script>`"),
+                "{}",
+                found.description
+            );
+            assert!(
+                found.description.contains("`<foreignObject>`"),
+                "{}",
+                found.description
+            );
+            assert!(found.description.contains(words), "{}", found.description);
+            assert!(!verified_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id));
+        }
+    }
+
+    #[test]
+    fn an_svg_refused_is_credited_and_one_kept_unseen_is_not_assessed() {
+        let o = svg_verdict(
+            Flaws {
+                refuses_svg: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(
+            verified_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id),
+            "{:?}",
+            o.steps
+        );
+
+        // Kept, with no `serves-at` to fetch it from: nothing seen, so nothing said.
+        let o = svg_verdict(
+            Flaws {
+                svg_scripts_kept: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id));
+        assert!(!verified_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V1.3.4" && why.contains("no `serves-at`")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    fn scan_verdict(flaws: Flaws, serves_at: Option<&str>) -> (Outcome, FakeApp) {
+        upload_run_keeping_app(flaws, &with_upload(serves_at, None))
+    }
+
+    fn scan_not_assessed(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids == "V5.4.3")
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn the_antivirus_test_file_refused_after_a_text_file_is_credited() {
+        let (o, app) = scan_verdict(Flaws::default(), Some("/files/{name}"));
+        assert!(
+            app.clock_log.iter().any(|(id, _)| id == "upload-eicar"),
+            "the test file was sent"
+        );
+        assert!(
+            verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        assert!(
+            !every_word(&o).contains(eicar().as_str()),
+            "the test file is in the outcome"
+        );
+    }
+
+    #[test]
+    fn the_antivirus_test_file_kept_and_served_is_found_without_being_repeated() {
+        let (o, _) = scan_verdict(
+            Flaws {
+                no_malware_scan: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == UPLOAD_NOT_SCANNED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(
+            found.description.contains("10 seconds later"),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        assert!(
+            !every_word(&o).contains(eicar().as_str()),
+            "the test file is in the outcome"
+        );
+    }
+
+    #[test]
+    fn a_scanner_that_runs_after_storing_is_given_a_moment_and_not_blamed_or_credited() {
+        // Caught within the wait: served for a while, so not credited, and not found either.
+        let (o, _) = scan_verdict(
+            Flaws {
+                scans_after: Some(5),
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(
+            !rule_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        let why = scan_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("no longer was"), "{}", why[0]);
+
+        // Slower than the wait: it reads as no scanner, and the finding says so.
+        let (o, _) = scan_verdict(
+            Flaws {
+                scans_after: Some(600),
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == UPLOAD_NOT_SCANNED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(
+            found.description.contains("runs later than that"),
+            "{}",
+            found.description
+        );
+    }
+
+    #[test]
+    fn an_app_that_takes_no_text_files_is_not_credited_with_a_scanner() {
+        let (o, _) = scan_verdict(
+            Flaws {
+                refuses_text: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(
+            !verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        let why = scan_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(
+            why[0].contains("ordinary text file was refused"),
+            "{}",
+            why[0]
+        );
+    }
+
+    #[test]
+    fn the_antivirus_test_file_kept_with_nowhere_to_fetch_it_is_not_assessed() {
+        let (o, _) = scan_verdict(
+            Flaws {
+                no_malware_scan: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        assert!(!verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        let why = scan_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("was accepted"), "{}", why[0]);
+    }
+
+    #[test]
+    fn an_svg_turned_into_something_else_is_not_judged() {
+        let o = svg_verdict(
+            Flaws {
+                svg_converted: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id));
+        assert!(
+            !verified_ids(&o).contains(&UPLOAD_SVG_SCRIPT.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V1.3.4" && why.contains("without its drawing")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_scanner_that_cleans_the_file_is_neither_blamed_nor_credited() {
+        // Accepted, and served back, but not as it was sent: the app did something to it, and
+        // this check cannot tell a scanner's cleaning from anything else.
+        let (o, _) = scan_verdict(
+            Flaws {
+                scan_cleans: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(
+            !rule_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&UPLOAD_NOT_SCANNED.rule_id));
+        let why = scan_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("did not come back unchanged"), "{}", why[0]);
     }
 }

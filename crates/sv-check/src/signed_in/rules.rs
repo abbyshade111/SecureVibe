@@ -140,6 +140,29 @@ pub(super) const CONTENT_MISMATCH: Rule = Rule {
           library for the type rather than by hand.",
 };
 
+pub(super) const UPLOAD_SVG_SCRIPT: Rule = Rule {
+    rule_id: "probe.uploaded-svg-keeps-script",
+    requirement_ids: &["V1.3.4"],
+    cwe: &["CWE-79"],
+    impact: "An SVG image can carry a script. Stored as it came in and opened from this app's own \
+             address, it runs as the app for whoever opens it, with their cookies.",
+    fix: "Refuse SVG uploads if the app does not need them. If it does, clean each one with an SVG \
+          sanitizer (DOMPurify with its SVG profile, or svg-sanitizer) before storing it, and serve \
+          uploads with `Content-Disposition: attachment` or a `Content-Security-Policy: sandbox` \
+          header as well.",
+};
+
+pub(super) const UPLOAD_NOT_SCANNED: Rule = Rule {
+    rule_id: "probe.upload-not-scanned",
+    requirement_ids: &["V5.4.3"],
+    cwe: &["CWE-434"],
+    impact: "Nothing checks uploaded files for known malicious content, so a file carrying a known \
+             virus is kept and handed to whoever downloads it next.",
+    fix: "Scan each uploaded file with antivirus software before keeping it: your host's upload \
+          service may offer this, or a scanner such as ClamAV can be added. Refuse or set aside \
+          what it flags.",
+};
+
 pub(super) const UPLOAD_EXECUTED: Rule = Rule {
     rule_id: "probe.uploaded-file-executed",
     requirement_ids: &["V5.3.1"],
