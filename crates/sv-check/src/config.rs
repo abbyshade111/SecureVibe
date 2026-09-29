@@ -84,6 +84,7 @@ pub fn check_dir_in(
     );
     crate::launch::check(listing, &mut report);
     crate::rich_text::check(listing, bill_of_materials, &mut report);
+    crate::grants::check(listing, bill_of_materials, &mut report);
     let workflows = crate::workflows::check(app_dir);
     report.findings.extend(workflows.findings);
     report.passed.extend(workflows.passed);
