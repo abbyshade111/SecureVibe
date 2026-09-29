@@ -165,6 +165,29 @@ const RAW: Rule = Rule {
           the response object from the model's library.",
 };
 
+const FLOATING_SENT: Rule = Rule {
+    rule_id: "probe.ai-floating-model-sent",
+    requirement_ids: &["C3.2.3"],
+    cwe: &["CWE-1357"],
+    impact: "The provider points a name like this at a new model whenever it releases one, so the \
+             model behind the app changes on the provider's schedule with no change to your code, \
+             and nothing prompts anyone to test the new one before users meet it.",
+    fix: "Name a dated model version (for example `gpt-4o-2024-08-06` rather than \
+          `chatgpt-4o-latest`), and when you move to a new one, do it on purpose and re-run your \
+          checks.",
+};
+
+/// Whether a model name the app sent moves on its own: `latest`, or a name ending in `-latest`,
+/// `:latest`, or `@latest`. The name really went to a model service, so, unlike
+/// `ast.floating-model-name`, it need not begin with a vendor's family to count.
+fn floating(model: &str) -> bool {
+    let lower = model.trim().to_lowercase();
+    lower == "latest"
+        || ["-latest", ":latest", "@latest"]
+            .iter()
+            .any(|end| lower.ends_with(end))
+}
+
 const SESSION_LOG: Rule = Rule {
     rule_id: "probe.ai-call-log-session",
     requirement_ids: &["C12.1.1"],
@@ -631,6 +654,28 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
              identifier for it"
                 .to_owned(),
         );
+    }
+    // 1c. C3.2.3: the model name the plain message's request asked for. Only ever a finding: a
+    //     dated name today says nothing of how the app chooses its model tomorrow, and a name
+    //     without `latest` may still be an alias the vendor moves (`gpt-4o`). The name is the
+    //     app's to write, so only its start is quoted.
+    let sent: String = plain_seen.model.chars().take(80).collect();
+    if floating(&plain_seen.model) {
+        out.findings.push(finding(
+            &FLOATING_SENT,
+            "The app asks for its model by a name that moves",
+            Severity::Low,
+            format!(
+                "The request the app made to its model for a message sent through {} asked for \
+                 the model `{}`.",
+                section.chat.path, sent
+            ),
+        ));
+    } else if !sent.is_empty() {
+        out.steps.push(format!(
+            "the request the app made to its model asked for `{sent}`, which does not end in \
+             `latest`; whether the vendor moves that name was not looked at"
+        ));
     }
     if plain_seen.input_tokens > 0 && plain_seen.output_tokens > 0 {
         markers.call = Some(Call {
@@ -2114,6 +2159,8 @@ mod tests {
         ignores_moderation: bool,
         /// Its answer is the model service's response object, id and all.
         raw_response: bool,
+        /// It asks for its model by a name that moves (`gpt-4o-latest`).
+        floating_model: bool,
         /// Its record of each model call names the signed-in user.
         logs_user: bool,
         /// Its record tool returns whatever record the model names, whoever is signed in.
@@ -2191,6 +2238,31 @@ mod tests {
     }
 
     const MODEL: &str = "gpt-test";
+
+    #[test]
+    fn a_model_name_that_moves_is_told_from_one_that_does_not() {
+        for name in [
+            "latest",
+            "gpt-4o-latest",
+            "claude-3-5-sonnet-latest",
+            "llama3:latest",
+            "Mistral-Large-LATEST ",
+            "model@latest",
+        ] {
+            assert!(floating(name), "{name}");
+        }
+        for name in [
+            "",
+            "gpt-test",
+            "gpt-4o-2024-08-06",
+            "claude-sonnet-4-5-20250929",
+            "llama3:8b",
+            "latest-model-v2",
+            "gpt-latestish",
+        ] {
+            assert!(!floating(name), "{name}");
+        }
+    }
 
     /// The token counts the fake model reports for a tag: fixed per tag, and unlike anything else
     /// in the fake app's log.
@@ -2643,7 +2715,8 @@ mod tests {
                             self.mcp.get(tag).cloned().unwrap_or_default();
                         serde_json::json!({
                             "received": true, "system": system, "bounded": bounded,
-                            "fetched": fetched, "model": MODEL,
+                            "fetched": fetched,
+                            "model": if self.flaws.floating_model { "gpt-4o-latest" } else { MODEL },
                             "input_tokens": input, "output_tokens": output,
                             "tools_offered": if requested { vec!["sv_lookup"] } else { vec![] },
                             "tool_requested": requested, "mcp_called": called,
@@ -2817,6 +2890,13 @@ mod tests {
                     ..Default::default()
                 },
                 RAW.rule_id,
+            ),
+            (
+                Flaws {
+                    floating_model: true,
+                    ..Default::default()
+                },
+                FLOATING_SENT.rule_id,
             ),
             (
                 Flaws {

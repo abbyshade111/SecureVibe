@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 80 | 7 | 0 | 14 | 38 | 28 | 1 |
+| L2 | 183 | 80 | 7 | 0 | 15 | 38 | 28 | 1 |
 | L3 | 92 | 20 | 2 | 0 | 8 | 2 | 6 | 2 |
 
 With nothing beyond plain `sv check`, 19 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -99,10 +99,10 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
-| V15.2.3 | L2 | Reads the code: `config.development-server-started` (sv only ever as a finding: `config.development-server-started`) |
+| V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (95)
+### Settled by asking the running app (96)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -181,7 +181,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10.5.2 | L2 | Signed in: `probe.oidc-user-keyed-on-email` |
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
-| V13.4.2 | L2 | The running app: `probe.error-detail-leak`; Outside tools: `bandit`, `semgrep`, `codeql-python` |
+| V13.4.2 | L2 | The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `semgrep`, `codeql-python` (sv only ever as a finding: `probe.development-console-open`) |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` |
@@ -191,6 +191,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V14.3.3 | L2 | Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `probe.password-in-browser-storage`) |
+| V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`) |
 | V15.3.3 | L2 | Signed in: `probe.role-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |
@@ -301,7 +302,7 @@ need `--tools`.
 - C2.1.6: found failing by codeql-javascript's `js/system-prompt-injection`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
 - C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
-- C3.2.3: found failing by sv's `ast.floating-model-name`.
+- C3.2.3: found failing by sv's `ast.floating-model-name`, `probe.ai-floating-model-sent`.
 - C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`.
 - C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.

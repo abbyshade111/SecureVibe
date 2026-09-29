@@ -137,6 +137,13 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         headers: Vec::new(),
         body: None,
     }))
+    .chain(CONSOLES.iter().map(|console| ProbeRequest {
+        id: console_id(console.path),
+        method: "GET".into(),
+        path: console.path.to_owned(),
+        headers: Vec::new(),
+        body: None,
+    }))
     .collect()
 }
 
@@ -252,6 +259,7 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     out.extend(unused_methods(responses));
     out.extend(jsonp(responses));
     out.extend(exposed_endpoints(responses));
+    out.extend(development_console(responses));
     out.extend(version_disclosed(responses));
     out.extend(opener_policy(responses));
     if let Some(home) = find("home") {
@@ -910,6 +918,9 @@ const TRACE_MARKERS: &[&str] = &[
     "stack trace",
     "Werkzeug Debugger",
     "django.core.exceptions",
+    // Django's own 404 and 500 pages with debug on (`views/templates/technical_404.html`, read in
+    // Django 5.2.17), which name the routes rather than print a trace.
+    "because you have <code>DEBUG = True</code>",
     "org.springframework",
     "java.lang.",
     "goroutine ",
@@ -1189,6 +1200,89 @@ fn exposed_endpoints(responses: &[ProbeResponse]) -> Option<Finding> {
             found
                 .iter()
                 .map(|(path, what, _)| format!("{what} at {path}"))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+    ))
+}
+
+/// A development tool's own page, and the words only that page carries, read from each tool's
+/// source on 29 September 2026: Werkzeug 3.1.9 (`debug/tbtools.py`, served at `/console` only when
+/// the debugger may run code) and Rails 8.1.4 (`application/finisher.rb`, which adds the info pages
+/// only in development, and `info.rb`, which writes each property's name in its own cell).
+struct Console {
+    path: &'static str,
+    what: &'static str,
+    marks: &'static [&'static str],
+}
+
+const CONSOLES: &[Console] = &[
+    Console {
+        path: "/console",
+        what: "Werkzeug's interactive console, which runs Python typed into the page",
+        marks: &[
+            "// Werkzeug Debugger</title>",
+            "<h1>Interactive Console</h1>",
+        ],
+    },
+    Console {
+        path: "/rails/info/properties",
+        what: "Rails' development information page",
+        marks: &[
+            "<td class=\"name\">Rails version</td>",
+            "<td class=\"name\">Environment</td>",
+        ],
+    },
+];
+
+fn console_id(path: &str) -> String {
+    format!("console-{}", path.trim_matches('/').replace('/', "-"))
+}
+
+const CONSOLE: Rule = Rule {
+    rule_id: "probe.development-console-open",
+    confidence: Confidence::High,
+    // V15.2.3 is development functionality left in production; V13.4.2 is debug modes turned off
+    // there. Each page answers only with its tool's debug or development mode on.
+    requirement_ids: &["V15.2.3", "V13.4.2"],
+    cwe: &["CWE-489", "CWE-215"],
+    impact: "A development console is built for the person writing the app, on their own computer. \
+             On an address others can reach it shows how the app is set up, and Werkzeug's runs \
+             code on the server for anybody who gets past its PIN.",
+    fix: "Start the app the way it is meant to run for others: debug mode off (`debug=False`, no \
+          `FLASK_DEBUG`), and Rails in the production environment (`RAILS_ENV=production`).",
+};
+
+/// A development console that answered, judged by the page's own words and never by its status
+/// alone: an app that answers every path with its home page is not a console.
+///
+/// Only ever a finding. Two consoles are two guesses, and one that is not found may be on
+/// another path or behind a tool this does not know.
+fn development_console(responses: &[ProbeResponse]) -> Option<Finding> {
+    let found: Vec<&Console> = CONSOLES
+        .iter()
+        .filter(|console| {
+            responses
+                .iter()
+                .find(|r| r.id == console_id(console.path))
+                .is_some_and(|r| {
+                    (200..300).contains(&r.status)
+                        && console.marks.iter().all(|m| r.body.contains(m))
+                })
+        })
+        .collect();
+    if found.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &CONSOLE,
+        "A development console answers on the running app",
+        Severity::High,
+        format!(
+            "Asked as somebody not signed in, the app served {}.",
+            found
+                .iter()
+                .map(|c| format!("{} at {}", c.what, c.path))
                 .collect::<Vec<_>>()
                 .join("; ")
         ),
@@ -1607,6 +1701,28 @@ mod tests {
     }
 
     #[test]
+    fn django_s_debug_404_is_a_leak_though_it_prints_no_trace() {
+        let findings = evaluate(&[response(
+            "missing",
+            404,
+            &[],
+            "<h1>Page not found <span>(404)</span></h1>\n<p>Using the URLconf defined in \
+             <code>shop.urls</code>, Django tried these URL patterns</p>\n<footer id=\"explanation\">\
+             <p>You\u{2019}re seeing this error because you have <code>DEBUG = True</code> in\n\
+             your Django settings file.</p></footer>",
+        )]);
+        assert_eq!(ids(&findings), vec!["probe.error-detail-leak"]);
+        // And a page that only mentions the setting is not the debug page.
+        let findings = evaluate(&[response(
+            "missing",
+            404,
+            &[],
+            "<p>Not found. Set DEBUG = True to see more.</p>",
+        )]);
+        assert!(ids(&findings).is_empty());
+    }
+
+    #[test]
     fn a_go_panic_is_a_leak_too() {
         // Second witness of a different shape: the marker list exists because apps are not all
         // written in Python, and a check exercised by one language is a check for one language.
@@ -1750,7 +1866,11 @@ mod tests {
         let requests = requests("/healthz");
         assert_eq!(
             requests.len(),
-            6 + LISTING_PATHS.len() + UNUSED_METHODS.len() + 1 + EXPOSED_PATHS.len()
+            6 + LISTING_PATHS.len()
+                + UNUSED_METHODS.len()
+                + 1
+                + EXPOSED_PATHS.len()
+                + CONSOLES.len()
         );
         for path in EXPOSED_PATHS {
             let request = requests
@@ -2368,6 +2488,74 @@ mod tests {
             .into_iter()
             .map(|v| v.check_id)
             .collect()
+    }
+
+    /// The start of Werkzeug 3.1.9's console page, as `render_console_html` writes it, with its
+    /// per-process secret replaced.
+    const WERKZEUG_CONSOLE: &str = "<!doctype html>\n<html lang=en>\n  <head>\n    <title>Console // Werkzeug Debugger</title>\n    <link rel=\"stylesheet\" href=\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\">\n    <script>\n      var CONSOLE_MODE = true,\n          EVALEX = true,\n          EVALEX_TRUSTED = false,\n          SECRET = \"sv-test\";\n    </script>\n  </head>\n  <body style=\"background-color: #fff\">\n    <div class=\"debugger\">\n<h1>Interactive Console</h1>\n<div class=\"explanation\">\nIn this console you can execute Python expressions in the context of the\napplication.";
+
+    /// Rails 8.1.4's properties page, as `Rails::Info.to_html` writes the table inside it.
+    const RAILS_PROPERTIES: &str = "<h1>Properties</h1><table><tr><td class=\"name\">Rails version</td><td class=\"value\">8.1.4</td></tr><tr><td class=\"name\">Ruby version</td><td class=\"value\">3.3.6</td></tr><tr><td class=\"name\">Environment</td><td class=\"value\">development</td></tr></table>";
+
+    #[test]
+    fn a_development_console_that_answers_is_found_by_its_own_words() {
+        for (console, body) in CONSOLES.iter().zip([WERKZEUG_CONSOLE, RAILS_PROPERTIES]) {
+            let findings = evaluate(&[
+                good_home(),
+                response(&console_id(console.path), 200, &[], body),
+            ]);
+            assert_eq!(
+                ids(&findings),
+                vec!["probe.development-console-open"],
+                "{}",
+                console.path
+            );
+            assert!(
+                findings[0].description.contains(console.path),
+                "{}",
+                findings[0].description
+            );
+            assert_eq!(findings[0].requirement_ids, vec!["V15.2.3", "V13.4.2"]);
+            // Refused, the same page is nothing: a status alone is never read as the console.
+            let refused = evaluate(&[
+                good_home(),
+                response(&console_id(console.path), 404, &[], body),
+            ]);
+            assert!(ids(&refused).is_empty(), "{}", console.path);
+        }
+        // Every console is asked for.
+        let asked = requests("/");
+        for console in CONSOLES {
+            assert!(
+                asked
+                    .iter()
+                    .any(|r| r.id == console_id(console.path) && r.path == console.path)
+            );
+        }
+    }
+
+    #[test]
+    fn a_page_that_is_not_a_console_is_not_read_as_one() {
+        // An app that answers every path with its home page, and one of Werkzeug's traceback pages,
+        // which shares the title's second half but is not the console, and a page that talks about
+        // Rails without being its information page.
+        for (path, body) in [
+            (
+                "/console",
+                "<html><title>Shop</title><h1>Welcome</h1></html>",
+            ),
+            (
+                "/console",
+                "<title>ZeroDivisionError // Werkzeug Debugger</title><h1>ZeroDivisionError</h1>",
+            ),
+            (
+                "/rails/info/properties",
+                "<p>Rails version 8.1 is out. Environment matters.</p>",
+            ),
+        ] {
+            let findings = evaluate(&[good_home(), response(&console_id(path), 200, &[], body)]);
+            assert!(ids(&findings).is_empty(), "{path}: {body}");
+        }
     }
 
     #[test]
