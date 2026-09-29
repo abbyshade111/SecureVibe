@@ -17,15 +17,20 @@
 //! # What is not asked
 //!
 //! V6.8.1 and V10.2.2 need a second provider; V10.5.3 needs the provider's published details to
-//! change under an app that usually reads them once at start-up; V10.5.2 and V6.8.4 turn on what
-//! the app decides, not on anything the provider can send wrong.
+//! change under an app that usually reads them once at start-up; V6.8.4 turns on what the app
+//! decides, not on anything the provider can send wrong.
+//!
+//! V10.5.2 is asked by sending two identities that are each correct: a different person who shares
+//! the first one's email address, and the first person after their email address changed. When
+//! securevibe.toml says how to save something as the signed-in person (`create`), what the first
+//! person saved shows whose account each sign-in reached.
 
 use crate::finding::Severity;
 use crate::probes::{ProbeRequest, ProbeResponse};
-use crate::signed_in::{Http, Outcome, Rule, Session, finding, get, ok, status};
+use crate::signed_in::{Http, Outcome, Rule, Session, finding, get, ok, send_filled, status};
 use sv_manifest::OidcSection;
 
-const IDS: &str = "V10.1.2, V10.2.1, V10.5.1, V10.5.4, V6.8.2, V10.2.2";
+const IDS: &str = "V10.1.2, V10.2.1, V10.5.1, V10.5.4, V6.8.2, V10.2.2, V10.5.2";
 
 const CROSS_SESSION: Rule = Rule {
     rule_id: "probe.oidc-sign-in-from-another-session",
@@ -79,6 +84,23 @@ const MIX_UP: Rule = Rule {
     fix: "Check the `iss` parameter in the sign-in's return, and the `iss` claim in the ID token, \
           against the provider the sign-in was started with.",
 };
+
+const SAME_EMAIL: Rule = Rule {
+    rule_id: "probe.oidc-user-keyed-on-email",
+    requirement_ids: &["V10.5.2"],
+    cwe: &["CWE-287"],
+    impact: "The app decides who someone is by their email address at the sign-in provider rather \
+             than by the provider's permanent id for them. An email address can pass from one \
+             person to another (a reused work address, a provider that lets people choose it), and \
+             whoever holds it next is signed in to the first person's account.",
+    fix: "Look people up by the provider's `sub` claim (with the issuer), which the provider never \
+          gives to anyone else, and keep the email address only as a detail of the account. To \
+          link a sign-in to an existing account by email, ask the person to prove they own that \
+          account first.",
+};
+
+/// The text the first person saves, looked for to tell whose account a sign-in reached.
+const MARKER: &str = "sv-oidc-same-email-marker-5e19";
 
 /// One sign-in, begun: the session it started in, and where the provider sends the browser back.
 struct Begun {
@@ -183,6 +205,170 @@ fn finish(
         &section.private,
         session,
     )))
+}
+
+/// A whole sign-in, with the provider set to `mode` for it, keeping the session: `None` when the
+/// private page did not open.
+fn session_for(
+    http: &mut dyn Http,
+    section: &OidcSection,
+    mode: &str,
+    who: &str,
+) -> Result<Option<Session>, String> {
+    if !set_mode(http, mode) {
+        return Err("the test provider did not take its instructions".to_owned());
+    }
+    let mut begun = begin(http, section, who)?;
+    let back = begun.back.clone();
+    Ok(finish(http, section, &mut begun.session, &back, who).then_some(begun.session))
+}
+
+/// Whether the page that shows what was saved, read in `session`, has the marker on it.
+fn shows_marker(http: &mut dyn Http, section: &OidcSection, session: &Session, who: &str) -> bool {
+    let page = section.shows.as_deref().unwrap_or(&section.private);
+    http.send(&get(&format!("oidc-shows-{who}"), page, session))
+        .is_some_and(|r| r.status < 400 && r.body.contains(MARKER))
+}
+
+/// V10.5.2: whether a different person who shares the first one's email address reaches the first
+/// one's account, and whether the first person, after their email address changed, still does.
+///
+/// The first person saves something marked, and signs in again in a new session to show that the
+/// mark can be found at all. Only then is its absence evidence.
+fn same_email_check(http: &mut dyn Http, section: &OidcSection, out: &mut Outcome) {
+    let not_assessed = |out: &mut Outcome, why: String| {
+        out.not_assessed.push(("V10.5.2".to_owned(), why));
+    };
+    let Some(create) = &section.create else {
+        not_assessed(
+            out,
+            "Whether the app tells apart two people who share an email address at the provider \
+             was not asked. Add `create` under [stack.run.oidc], a request that saves something \
+             with `{marker}` in a field, and `shows`, a page where it appears, and it will be."
+                .to_owned(),
+        );
+        return;
+    };
+    let page = section.shows.as_deref().unwrap_or(&section.private);
+    let fill = |text: &str| text.replace("{marker}", MARKER);
+    let marked = sv_manifest::RequestTemplate {
+        method: create.method.clone(),
+        path: fill(&create.path),
+        form: create
+            .form
+            .iter()
+            .map(|(k, v)| (k.clone(), fill(v)))
+            .collect(),
+        json: create
+            .json
+            .iter()
+            .map(|(k, v)| (k.clone(), fill(v)))
+            .collect(),
+    };
+    let mut first = match session_for(http, section, "normal", "same-first") {
+        Ok(Some(session)) => session,
+        other => {
+            not_assessed(
+                out,
+                format!(
+                    "The first sign-in for this question did not open {} ({}).",
+                    section.private,
+                    match other {
+                        Err(why) => why,
+                        _ => "the private page did not open".to_owned(),
+                    }
+                ),
+            );
+            return;
+        }
+    };
+    let saved = send_filled(http, "oidc-create", &marked, &mut first, &[page.to_owned()]);
+    // The control: the same person, in a new session, finds what they saved.
+    let again = session_for(http, section, "normal", "same-again")
+        .ok()
+        .flatten();
+    if !again
+        .as_ref()
+        .is_some_and(|s| shows_marker(http, section, s, "same-again"))
+    {
+        not_assessed(
+            out,
+            format!(
+                "What the first person saved through `create` ({}) did not show on {page} when \
+                 they signed in again, so its absence could not show anything. Check `create` \
+                 and `shows` under [stack.run.oidc].",
+                status(&saved)
+            ),
+        );
+        return;
+    }
+    // A different person with the same email address, and the same person with a new one.
+    let other = session_for(http, section, "other-person", "same-other")
+        .ok()
+        .flatten()
+        .map(|s| shows_marker(http, section, &s, "same-other"));
+    let moved = session_for(http, section, "new-email", "same-moved")
+        .ok()
+        .flatten()
+        .map(|s| shows_marker(http, section, &s, "same-moved"));
+    let said = |r: Option<bool>, yes: &'static str, no: &'static str| match r {
+        Some(true) => yes,
+        Some(false) => no,
+        None => "not signed in",
+    };
+    out.steps.push(format!(
+        "saved a mark as the person at the test provider, and found it on {page} after signing in \
+         again; a different person with the same email address: {}; the same person with a new \
+         email address: {}",
+        said(other, "saw it", "did not see it"),
+        said(moved, "saw it", "did not see it")
+    ));
+    if other == Some(true) {
+        out.findings.push(finding(
+            &SAME_EMAIL,
+            "A different person with the same email address reaches the first person's account",
+            Severity::High,
+            format!(
+                "Signed in at the test provider as a different person (another `sub`) who has the \
+                 same email address, the app showed on {page} what the first person had saved. If \
+                 this is deliberate account linking by email, it trusts the provider never to give \
+                 that address to anyone else."
+            ),
+        ));
+    }
+    if moved == Some(false) {
+        out.findings.push(finding(
+            &SAME_EMAIL,
+            "The same person reaches a different account after their email address changes",
+            Severity::Medium,
+            format!(
+                "Signed in at the test provider as the same person (the same `sub`) after their \
+                 email address changed, the app did not show on {page} what they had saved: it \
+                 took them for somebody else, so it tells people apart by email address."
+            ),
+        ));
+    }
+    match (other, moved) {
+        (Some(false), Some(true)) => out.verified.push(crate::Verified::new(
+            SAME_EMAIL.rule_id,
+            SAME_EMAIL.requirement_ids,
+            format!(
+                "a different person with the same email address did not see what the first person \
+                 saved on {page}, and the first person still did after their email address changed"
+            ),
+        )),
+        _ if !out.findings.iter().any(|f| f.rule_id == SAME_EMAIL.rule_id) => not_assessed(
+            out,
+            format!(
+                "A different person with the same email address: {}; the same person with a new \
+                 email address: {}. An app may rightly refuse a sign-in like these, but a refusal \
+                 does not show which account it would have reached.",
+                said(other, "reached the first person's account", "did not"),
+                said(moved, "reached their account", "did not")
+            ),
+        ),
+        _ => {}
+    }
 }
 
 /// A whole sign-in, with the provider set to `mode` for it.
@@ -413,6 +599,16 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
             },
         ));
     }
+    if still_works {
+        same_email_check(http, section, &mut out);
+    } else {
+        out.not_assessed.push((
+            "V10.5.2".to_owned(),
+            "An ordinary sign-in stopped working partway through, so whether the app tells apart \
+             two people who share an email address was not asked."
+                .to_owned(),
+        ));
+    }
     out
 }
 
@@ -489,6 +685,15 @@ mod tests {
         no_iss_param_check: bool,
         /// The app ignores the ID token's `iss` claim.
         no_token_iss_check: bool,
+        /// The app finds the account by the ID token's email address, not its `sub`.
+        keys_on_email: bool,
+        /// The app finds the account by `sub` and email address together, so a changed address
+        /// is a new account while a different person is still kept apart.
+        keys_on_both: bool,
+        /// The app refuses a sign-in whose email address another account already has.
+        refuses_shared_email: bool,
+        /// What is saved is not shown anywhere.
+        saves_nothing: bool,
     }
 
     /// A token as the fake provider issues it: what it says, and how it was signed.
@@ -498,6 +703,8 @@ mod tests {
         aud: String,
         signed: &'static str, // "good", "none", or "stranger"
         iss: &'static str,
+        sub: &'static str,
+        email: &'static str,
     }
 
     #[derive(Default)]
@@ -506,7 +713,11 @@ mod tests {
         mode: String,
         codes: BTreeMap<String, (Option<String>, Token)>, // code -> (nonce sent, token to issue)
         pending: BTreeMap<String, (String, Option<String>)>, // session -> (state, nonce)
-        signed_in: Vec<String>,
+        /// Signed-in sessions, and the account each is in.
+        signed_in: BTreeMap<String, String>,
+        /// Accounts by what the app keys them on, each with its `sub`, its email address, and
+        /// what it saved.
+        accounts: BTreeMap<String, (String, String, Vec<String>)>,
         next: u32,
         refused_once: bool,
         mode_requests: u32,
@@ -609,7 +820,26 @@ mod tests {
                         return Some(answer(400, vec![]));
                     };
                     if self.accepts(&token, &nonce) {
-                        self.signed_in.push(sid);
+                        let both = format!("{}|{}", token.sub, token.email);
+                        let key = if self.flaws.keys_on_email {
+                            token.email
+                        } else if self.flaws.keys_on_both {
+                            both.as_str()
+                        } else {
+                            token.sub
+                        };
+                        // Another person already has this email address.
+                        let taken = self
+                            .accounts
+                            .values()
+                            .any(|(sub, email, _)| email == token.email && sub != token.sub);
+                        if self.flaws.refuses_shared_email && taken {
+                            return Some(answer(409, vec![]));
+                        }
+                        self.accounts.entry(key.to_owned()).or_insert_with(|| {
+                            (token.sub.to_owned(), token.email.to_owned(), Vec::new())
+                        });
+                        self.signed_in.insert(sid, key.to_owned());
                         answer(302, vec![("location", "/account".into())])
                     } else {
                         self.refused_once = true;
@@ -617,11 +847,28 @@ mod tests {
                     }
                 }
                 "/account" => {
-                    if self.flaws.private_public || sid.is_some_and(|s| self.signed_in.contains(&s))
+                    if self.flaws.private_public
+                        || sid.as_ref().is_some_and(|s| self.signed_in.contains_key(s))
                     {
                         answer(200, vec![])
                     } else {
                         answer(302, vec![("location", "/login/oidc".into())])
+                    }
+                }
+                "/notes" => {
+                    let Some(key) = sid.and_then(|s| self.signed_in.get(&s).cloned()) else {
+                        return Some(answer(302, vec![("location", "/login/oidc".into())]));
+                    };
+                    let saved = &mut self.accounts.get_mut(&key).expect("signed in").2;
+                    if r.method == "POST" {
+                        if !self.flaws.saves_nothing {
+                            saved.push(r.body.clone().unwrap_or_default());
+                        }
+                        answer(201, vec![])
+                    } else {
+                        let mut page = answer(200, vec![]);
+                        page.body = saved.join("\n");
+                        page
                     }
                 }
                 _ => answer(404, vec![]),
@@ -669,6 +916,16 @@ mod tests {
                 } else {
                     "idp"
                 },
+                sub: if mode == "other-person" {
+                    "other-person"
+                } else {
+                    "person"
+                },
+                email: if mode == "new-email" {
+                    "new@x"
+                } else {
+                    "shared@x"
+                },
             };
             self.codes.insert(code.clone(), (nonce, token));
             Some(answer(
@@ -689,7 +946,166 @@ mod tests {
         OidcSection {
             start: "/login/oidc".into(),
             private: "/account".into(),
+            create: None,
+            shows: None,
         }
+    }
+
+    /// With a way to save something, and the page that shows it.
+    fn saving() -> OidcSection {
+        OidcSection {
+            create: Some(sv_manifest::RequestTemplate {
+                method: "POST".into(),
+                path: "/notes".into(),
+                form: [("text".to_owned(), "{marker}".to_owned())].into(),
+                json: BTreeMap::new(),
+            }),
+            shows: Some("/notes".into()),
+            ..section()
+        }
+    }
+
+    fn run_saving(flaws: Flaws) -> Outcome {
+        let mut fake = Fake {
+            flaws,
+            mode: "normal".into(),
+            ..Default::default()
+        };
+        run(&mut fake, &saving())
+    }
+
+    fn same_email_not_assessed(o: &Outcome) -> Vec<&str> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids == "V10.5.2")
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn an_app_that_knows_people_by_sub_is_credited_for_v10_5_2() {
+        let o = run_saving(Flaws::default());
+        assert!(o.findings.is_empty(), "{:?}", found(&o));
+        assert!(credited(&o).contains(&SAME_EMAIL.rule_id), "{:?}", o.steps);
+        assert!(
+            same_email_not_assessed(&o).is_empty(),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            o.steps.iter().any(|s| s.contains(
+                "a different person with the same email address: did not see it; the same \
+                 person with a new email address: saw it"
+            )),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn an_app_that_knows_people_by_email_is_found_both_ways() {
+        let o = run_saving(Flaws {
+            keys_on_email: true,
+            ..Default::default()
+        });
+        let ours: Vec<_> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == SAME_EMAIL.rule_id)
+            .collect();
+        assert_eq!(ours.len(), 2, "{:?}", found(&o));
+        assert_eq!(ours[0].severity, Severity::High);
+        assert!(
+            ours[0].title.contains("different person"),
+            "{}",
+            ours[0].title
+        );
+        assert_eq!(ours[1].severity, Severity::Medium);
+        assert!(
+            ours[1].title.contains("email address changes"),
+            "{}",
+            ours[1].title
+        );
+        assert!(!credited(&o).contains(&SAME_EMAIL.rule_id));
+        assert!(
+            same_email_not_assessed(&o).is_empty(),
+            "{:?}",
+            o.not_assessed
+        );
+        // Nothing else was found: the other sign-in checks still pass.
+        assert_eq!(found(&o), [SAME_EMAIL.rule_id, SAME_EMAIL.rule_id]);
+    }
+
+    #[test]
+    fn keeping_a_different_person_apart_is_not_credit_when_a_changed_address_loses_the_account() {
+        let o = run_saving(Flaws {
+            keys_on_both: true,
+            ..Default::default()
+        });
+        assert!(
+            !credited(&o).contains(&SAME_EMAIL.rule_id),
+            "{:?}",
+            credited(&o)
+        );
+        let ours: Vec<_> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == SAME_EMAIL.rule_id)
+            .collect();
+        assert_eq!(ours.len(), 1, "{:?}", found(&o));
+        assert_eq!(ours[0].severity, Severity::Medium);
+    }
+
+    #[test]
+    fn a_refused_sign_in_is_neither_found_nor_credited() {
+        // Refusing a second person with the same address is safe, but says nothing about which
+        // account they would have reached.
+        let o = run_saving(Flaws {
+            refuses_shared_email: true,
+            ..Default::default()
+        });
+        assert!(!found(&o).contains(&SAME_EMAIL.rule_id), "{:?}", found(&o));
+        assert!(!credited(&o).contains(&SAME_EMAIL.rule_id));
+        let why = same_email_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("not signed in"), "{}", why[0]);
+    }
+
+    #[test]
+    fn nothing_is_said_when_what_was_saved_cannot_be_found_again() {
+        // The control: an app keyed on email, but whose saved things never show, is not found.
+        let o = run_saving(Flaws {
+            keys_on_email: true,
+            saves_nothing: true,
+            ..Default::default()
+        });
+        assert!(!found(&o).contains(&SAME_EMAIL.rule_id), "{:?}", found(&o));
+        assert!(!credited(&o).contains(&SAME_EMAIL.rule_id));
+        let why = same_email_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("did not show on /notes"), "{}", why[0]);
+    }
+
+    #[test]
+    fn without_create_the_question_says_how_to_ask_it() {
+        let o = run_with(Flaws::default());
+        assert!(!credited(&o).contains(&SAME_EMAIL.rule_id));
+        let why = same_email_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("Add `create`"), "{}", why[0]);
+    }
+
+    #[test]
+    fn it_is_not_asked_once_ordinary_sign_ins_stop_working() {
+        let o = run_saving(Flaws {
+            breaks_after_a_refusal: true,
+            keys_on_email: true,
+            ..Default::default()
+        });
+        assert!(!found(&o).contains(&SAME_EMAIL.rule_id), "{:?}", found(&o));
+        let why = same_email_not_assessed(&o);
+        assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
+        assert!(why[0].contains("stopped working"), "{}", why[0]);
     }
 
     fn run_with(flaws: Flaws) -> Outcome {

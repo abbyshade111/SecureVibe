@@ -894,6 +894,11 @@ another session is not a claim.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
+     **V10.5.2 done the same day** (DESIGN, "Two people with one email address at the sign-in provider").
+     `probe.oidc-user-keyed-on-email`: the test provider gains `other-person` and `new-email`, and a new optional
+     `create` and `shows` under [stack.run.oidc] let the probes save a mark as the first person and see whose
+     account each sign-in reaches. Not done: the static companion (a user lookup keyed on the email claim in
+     the sign-in callback).
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **V4.1.3, V7.4.3, and V6.3.7 done the same day** (DESIGN, "Three small signed-in checks").

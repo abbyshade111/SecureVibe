@@ -301,6 +301,15 @@ pub struct OidcSection {
     pub start: String,
     /// A page only a signed-in person sees, to tell whether a sign-in worked.
     pub private: String,
+    /// Saves something as the signed-in person, with `{marker}` in a field (and `{csrf}` where the
+    /// page's anti-forgery token goes). With it, the probes can tell whose account a sign-in lands
+    /// in: two people who share an email address at the provider must not share an account
+    /// (V10.5.2).
+    #[serde(default)]
+    pub create: Option<RequestTemplate>,
+    /// A page, for the signed-in person, where what `create` saved appears. Defaults to `private`.
+    #[serde(default)]
+    pub shows: Option<String>,
 }
 
 /// One request the probes make on the app's behalf: how to sign up, sign in, or create something.

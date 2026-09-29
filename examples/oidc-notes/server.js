@@ -3,7 +3,8 @@
 // a `nonce`, and an RS256 signature verified against the provider's published keys, with `iss`,
 // `aud`, and `exp` checked. `flaws.json`, if present, lists checks to leave out, so the same app
 // can show what `sv` finds when one is missing: "state", "pkce", "nonce", "aud", "signature",
-// "iss" (the ID token's issuer), "iss-param" (the issuer the provider's return names, RFC 9207).
+// "iss" (the ID token's issuer), "iss-param" (the issuer the provider's return names, RFC 9207),
+// "email" (the account is found by the email address rather than the provider's `sub`).
 const http = require('node:http');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -13,6 +14,7 @@ const CLIENT_ID = process.env.OIDC_CLIENT_ID;
 const CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET;
 const flaws = new Set(fs.existsSync('flaws.json') ? JSON.parse(fs.readFileSync('flaws.json', 'utf8')) : []);
 const sessions = new Map();
+const notes = new Map(); // account -> the notes saved in it
 const b64 = (b) => Buffer.from(b).toString('base64url');
 let provider;
 
@@ -113,7 +115,9 @@ http
           res.writeHead(401);
           return res.end(`refused: ${wrong}`);
         }
-        s.user = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url')).sub;
+        const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url'));
+        // The provider's `sub` is the one thing it never gives to anybody else; an email address is not.
+        s.user = flaws.has('email') ? claims.email : claims.sub;
         res.writeHead(302, { location: '/account' });
         return res.end();
       }
@@ -123,6 +127,23 @@ http
           return res.end();
         }
         return res.end(`Signed in as ${s.user}.`);
+      }
+      if (url.pathname === '/notes') {
+        if (!s.user) {
+          res.writeHead(302, { location: '/login/google' });
+          return res.end();
+        }
+        const mine = notes.get(s.user) || [];
+        if (req.method === 'POST') {
+          let data = '';
+          for await (const chunk of req) data += chunk;
+          mine.push(new URLSearchParams(data).get('text') || '');
+          notes.set(s.user, mine);
+          res.writeHead(303, { location: '/notes' });
+          return res.end();
+        }
+        res.setHeader('content-type', 'text/plain; charset=utf-8');
+        return res.end(mine.join('\n'));
       }
       res.writeHead(404);
       res.end('not found');
