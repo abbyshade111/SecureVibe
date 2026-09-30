@@ -1096,6 +1096,11 @@ another session is not a claim.
       Whether `probe.oidc-audience-not-checked` should also cite V9.2.3 stays the owner's call. **Claimed on 30
       September 2026 by session securevibe-e2**, at the owner's asking to find another small check, in branch
       `claude/securevibe-e2-jwt-audience`.
+      **Done the same day** (DESIGN, "A token check told not to check who the token is for"):
+      `ast.token-audience-not-checked` reads Python, Ruby, C#, Rust, and Go, each switch read from its library's own
+      source or documentation; the other ten languages have no known switch and say so. Broken ten ways, each caught.
+      Not done: a check never given an audience, and Keycloak's JSON setting. `jsonwebtoken`'s `ignoreAudience`,
+      named in `docs/PARTIAL-CHECKS.md`, does not exist; the library checks the audience only when given one.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
