@@ -762,6 +762,9 @@ another session is not a claim.
   wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
   **The owner, on 30 September 2026: close F-0001** without the report. Claimed for closing the same day by
   session securevibe-e2, in branch `claude/securevibe-e2-adr-notes`.
+  **Closed the same day**, at the owner's word, without the report. What came of it stays: the false passes from
+  a rate limiter's or a crash's answer are fixed (the entries around this one). If the report turns up, it is a new
+  entry.
   **Claimed twice.** securevibe-e10's claim was made at 00:19 UTC on 29 September but pushed only to its own
   branch, never merged; securevibe-e2 found the item unclaimed on `main` and claimed it at 00:38 UTC (#411), as
   the rule says it should. **The owner's decision, the same day: securevibe-e10's finished work (#412) is merged,
@@ -1168,6 +1171,10 @@ another session is not a claim.
   **The owner's answer, 30 September 2026: the note in `docs/adr/README.md`; and the Rust half of 8 is
   written from the owner's reason, memory safety.** Items 1 to 4, 7, and the Rust half of 8 **claimed the same day
   by session securevibe-e2**, at the owner's asking, in branch `claude/securevibe-e2-adr-notes`.
+  **Done the same day:** `docs/adr/README.md` has a section, "Where v1's records disagree with what v1 built", with
+  items 1 to 4 and 7, each checked again against the `v1` branch; and ADR-020 records Rust from the owner's reason,
+  with what memory safety does not cover in `sv` (five `unsafe` blocks, the C code parsers, and integer overflow in
+  the release build). Every item of this entry is now done.
   1. **v1's ADR-012 cites "ADR-011's sibling change", and no record carries the number ADR-011.** The file named
      `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
      ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
@@ -3240,7 +3247,10 @@ another session is not a claim.
      OCSP stapling (V12.1.4), which could not be observed from the machine this was built on (its
      only way out intercepts TLS); **claimed on 29 September 2026 by session securevibe-e10**, at the owner's
      asking, from a machine where a stapled answer was observed (DigiCert's and Microsoft's sites, the
-     certificate seen being the site's own), in branch `claude/ocsp-stapling`; and request smuggling (V4.2.1), which means
+     certificate seen being the site's own), in branch `claude/ocsp-stapling`; **done the same day**: `sv probe` reads
+     whether the certificate names an OCSP responder from the handshake it already makes, and asks for the
+     stapled status only when it does, still within four requests (DESIGN, "OCSP stapling, from the
+     handshake `sv probe` already makes"); and request smuggling (V4.2.1), which means
      sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
      not allow.
 
