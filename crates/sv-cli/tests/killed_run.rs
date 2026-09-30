@@ -119,6 +119,29 @@ fn wait_for_exit(child: &mut Child) -> std::process::ExitStatus {
     panic!("sv did not exit after the signal");
 }
 
+/// Waits until no removal the killed run started is still going. Killing `sv` does not kill its
+/// `docker` calls: a `docker rm -f` of the sidecar in flight at the kill finishes on its own, and when
+/// it did so after the listing below, the list named a container the next run found already gone
+/// (seen once on CI). Only removals are waited for: a `docker exec` of the suite, also left going,
+/// runs for minutes and removes nothing.
+fn wait_for_its_removals(pid: u32) {
+    let removals = format!("(rm -f|network rm) sv-{pid}-");
+    let deadline = Instant::now() + Duration::from_secs(120);
+    while Instant::now() < deadline {
+        let still = Command::new("pgrep")
+            .args(["-f", &removals])
+            .output()
+            .expect("pgrep runs");
+        // 1 is pgrep's "nothing matched"; anything else but 0 means it could not look.
+        match still.status.code() {
+            Some(1) => return,
+            Some(0) => std::thread::sleep(Duration::from_millis(200)),
+            other => panic!("pgrep could not look for the killed run's removals: {other:?}"),
+        }
+    }
+    panic!("the killed run's removals were still going after two minutes");
+}
+
 /// Starts a run with a long suite, kills it outright, and returns what it left behind.
 fn leave_a_run_behind(name: &str) -> Vec<String> {
     let dir = app(name, "test = \"sleep 300\"");
@@ -128,6 +151,7 @@ fn leave_a_run_behind(name: &str) -> Vec<String> {
     // `kill -9` runs nothing at all in the process, so this is what used to happen on Ctrl-C too.
     signal(pid, "-KILL");
     wait_for_exit(&mut run);
+    wait_for_its_removals(pid);
     let left = started_by(pid);
     assert!(
         left.iter().any(|n| n.ends_with("-app")) && left.iter().any(|n| n.ends_with("-net")),
