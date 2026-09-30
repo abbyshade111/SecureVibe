@@ -1104,6 +1104,13 @@ another session is not a claim.
       broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
       kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
       opcode, and a model downloaded when the app runs.
+  12. **The code half of V9.2.3: a token check told not to check who the token is for.** From
+      `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
+      running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
+      `ValidateAudience = false` in ASP.NET, and their like. Only ever a finding.
+      Whether `probe.oidc-audience-not-checked` should also cite V9.2.3 stays the owner's call. **Claimed on 30
+      September 2026 by session securevibe-e2**, at the owner's asking to find another small check, in branch
+      `claude/securevibe-e2-jwt-audience`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
