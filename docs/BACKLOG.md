@@ -854,7 +854,8 @@ another session is not a claim.
   seen catching a removal in flight in both halves of the test, and a kill moved into the suite still passed.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
-  September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
+  September 2026. **Claimed on 29 September 2026 by session securevibe-e10**, at the owner's asking, on a machine
+  that reaches GitHub's releases and semgrep.dev (checked the same day), in branch `claude/opengrep-evaluation`. Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
   semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
   `data/semgrep-packs.json`, `tools/semgrep_packs.py`), so the question is whether to switch, offer both, or stay.
   Things to find out, each written down with how it was measured rather than recalled:
@@ -1094,6 +1095,18 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
+  11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
+      whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
+      (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
+      opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
+      September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
+      `claude/securevibe-e9-pickle-files`.
+      **Done the same day** (DESIGN, "Model files that can run code when loaded"). `config.model-file-can-run-code`
+      judges each file by its bytes, with each format read from its library's source (PyTorch 2.14's
+      `serialization.py`, joblib 1.5's `compressor.py`); Git LFS pointers are counted and not judged. Seven guards
+      broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
+      kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
+      opcode, and a model downloaded when the app runs.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
@@ -3216,7 +3229,9 @@ another session is not a claim.
      resolver, and the HSTS preload list from a copy the owner downloads (`--hsts-preload FILE`).
      Level 3 goes from 4 to 6 of 92. See DESIGN, "Two more things about the live site". Left out:
      OCSP stapling (V12.1.4), which could not be observed from the machine this was built on (its
-     only way out intercepts TLS) and is not claimed; and request smuggling (V4.2.1), which means
+     only way out intercepts TLS); **claimed on 29 September 2026 by session securevibe-e10**, at the owner's
+     asking, from a machine where a stapled answer was observed (DigiCert's and Microsoft's sites, the
+     certificate seen being the site's own), in branch `claude/ocsp-stapling`; and request smuggling (V4.2.1), which means
      sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
      not allow.
 
@@ -3750,7 +3765,8 @@ another session is not a claim.
   **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
   at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
   own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
-  word. Not decided yet; B is not claimed.
+  word. Not decided yet; B is not claimed. (Both settled later the same day: B was chosen, and the license was
+  reviewed and judged acceptable. See "The owner, on 26 September 2026, on the license" below.)
 
   **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
   branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
@@ -3795,7 +3811,8 @@ another session is not a claim.
   `src/lib/route-path.ts`). The third, the prompt-injection ruleset in `src/features/ai/screening.ts`,
   stays, because its patterns come from the operator's own data file and not from a visitor; apps with
   the AI feature show that one false alarm. See DESIGN, "`p/default` beside `p/security-audit`".
-  The owner's condition above still holds: the license questions are looked at before B is built.
+  The owner's condition above still holds: the license questions are looked at before B is built. (Met the
+  same day: see the next paragraph.)
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
   this use acceptable. The license allows use for one's own purposes, personal or a company's own, and
@@ -3828,7 +3845,9 @@ another session is not a claim.
 
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
-  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all. (No
+  longer a blocker: the owner reviewed the license on 26 September 2026, and on 30 September 2026 confirmed that
+  this work is unblocked.)
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real

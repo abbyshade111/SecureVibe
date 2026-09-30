@@ -85,6 +85,7 @@ pub fn check_dir_in(
     crate::launch::check(listing, &mut report);
     crate::rich_text::check(listing, bill_of_materials, &mut report);
     crate::grants::check(listing, bill_of_materials, &mut report);
+    crate::model_files::check(listing, &mut report);
     let workflows = crate::workflows::check(app_dir);
     report.findings.extend(workflows.findings);
     report.passed.extend(workflows.passed);
@@ -1076,17 +1077,18 @@ mod passed_evidence_tests {
         // A check may honestly be evidence about no requirement in any loaded framework, and one
         // is: nothing in ASVS, AISVS or Appendix C asks for a way to report a vulnerability. That
         // has to be a decision somebody wrote down, not a forgotten field, so it is listed here
-        // and every other check has to say what it is evidence about. The four after it can only
+        // and every other check has to say what it is evidence about. The five after it can only
         // ever show their requirement failing (a start command the files do not show, a pinned
         // version that is not a cryptographic check, a sanitizer that may clean another field, a
-        // grant switched on in a database rather than a file), so a clean reading of them is
-        // evidence about nothing, on purpose.
+        // grant switched on in a database rather than a file, a model downloaded when the app
+        // runs), so a clean reading of them is evidence about nothing, on purpose.
         const CITES_NOTHING_ON_PURPOSE: &[&str] = &[
             "config.security-contact",
             crate::launch::DEV_SERVER,
             crate::launch::MCP_UNPINNED,
             crate::rich_text::RICH_TEXT,
             crate::grants::RETIRED_GRANT,
+            crate::model_files::PICKLE_MODEL,
         ];
         let silent: Vec<&str> = report
             .passed
