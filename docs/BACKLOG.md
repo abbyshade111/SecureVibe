@@ -1059,6 +1059,13 @@ another session is not a claim.
      only ever a finding. Not done: a single hash of a password used as a key, since nothing in the code says a
      hashed value is a password without guessing from its name; the standard library's `crypto/pbkdf2` in Go; C#'s
      two-argument `Rfc2898DeriveBytes`; and counts between 210,000 and 600,000 with SHA-256.
+  10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
+      running half asks for private files by name. A rule that reads the code for a web framework told to serve files
+      from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
+      Starlette's `StaticFiles`, Go's `http.FileServer(http.Dir("."))`, and `python -m http.server` in a script),
+      which hands out the source, settings, and `.env` beside it. Only ever a finding. **Claimed on 30 September 2026
+      by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
+      `claude/securevibe-e9-static-root`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
