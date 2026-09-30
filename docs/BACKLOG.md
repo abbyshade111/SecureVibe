@@ -1066,6 +1066,11 @@ another session is not a claim.
       which hands out the source, settings, and `.env` beside it. Only ever a finding. **Claimed on 30 September 2026
       by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
       `claude/securevibe-e9-static-root`.
+      **Done the same day** (DESIGN, "Static files served from the app's own folder").
+      `ast.static-files-from-app-folder` reads JavaScript, TypeScript, Python, Go, and shell, with what each handler
+      serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
+      Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
+      in settings or built at run time.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that

@@ -1085,6 +1085,67 @@
         "swift": "CommonCrypto's `CCKeyDerivationPBKDF(...)`, the count as the seventh argument",
         "shell": "`openssl ... -iter` followed by a number"
       }
+    },
+    {
+      "id": "ast.static-files-from-app-folder",
+      "title": "The app serves files from the folder its own code is in",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V13.4.7"
+      ],
+      "cwe": [
+        "CWE-538",
+        "CWE-552"
+      ],
+      "description": "A static-file handler is given the folder the code itself is in, or the folder the app was started from, rather than a folder that holds only files meant for visitors.",
+      "impact": "Everything beside the code can be downloaded by anyone who guesses its name: the source code, the settings, a `.env` file with keys in it, a database file, and backups. That shows how the app works and often hands over its secrets.",
+      "fix": "Keep the files visitors should get (pages, images, styles, scripts for the browser) in a folder of their own, such as `public` or `static`, and point the handler only at that folder.",
+      "findingsOnly": true,
+      "looksFor": "a web framework's static-file handler given the folder the code is in, or the folder the app was started from, rather than a folder of its own; a folder named in settings or built at run time is not seen, so finding none credits nothing",
+      "queries": {
+        "javascript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg",
+        "typescript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg",
+        "python": "[(call function: (attribute attribute: (identifier) @fn)) (call function: (identifier) @fn)] @hit @arg",
+        "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)) @hit @arg",
+        "shell": "(command name: (command_name) @fn) @hit @arg"
+      },
+      "functionPatterns": {
+        "javascript": "^(static|serveStatic)$",
+        "typescript": "^(static|serveStatic)$",
+        "python": "^(Flask|StaticFiles)$",
+        "go": "^(FileServer|Static)$",
+        "shell": "^python[0-9.]*$"
+      },
+      "argumentPatterns": {
+        "javascript": "^[\\w.]*\\(\\s*(['\\\"`]\\.?/?['\\\"`]|__dirname|process\\.cwd\\(\\)|path\\.(join|resolve)\\(\\s*(__dirname|process\\.cwd\\(\\)|['\\\"`]\\.?/?['\\\"`])?\\s*\\))\\s*[,)]",
+        "typescript": "^[\\w.]*\\(\\s*(['\\\"`]\\.?/?['\\\"`]|__dirname|process\\.cwd\\(\\)|path\\.(join|resolve)\\(\\s*(__dirname|process\\.cwd\\(\\)|['\\\"`]\\.?/?['\\\"`])?\\s*\\))\\s*[,)]",
+        "python": "\\b(static_folder|directory)\\s*=\\s*(['\\\"]\\.?/?['\\\"]|os\\.getcwd\\(\\)|os\\.path\\.(dirname|abspath)\\(\\s*(os\\.path\\.abspath\\(\\s*)?__file__\\s*\\)?\\s*\\)|Path\\(\\s*__file__\\s*\\)(\\.resolve\\(\\))?\\.parent|Path\\.cwd\\(\\))\\s*[,)]",
+        "go": "^[\\w.]*FileServer\\(\\s*http\\.(Dir\\(\\s*\\\"\\.?/?\\\"\\s*\\)|FS\\(\\s*os\\.DirFS\\(\\s*\\\"\\.?/?\\\"\\s*\\)\\s*\\))\\s*\\)|^[\\w.]*Static\\(\\s*\\\"[^\\\"]*\\\"\\s*,\\s*\\\"\\.?/?\\\"\\s*\\)",
+        "shell": "^python[0-9.]*\\s+-m\\s+http\\.server\\b"
+      },
+      "safeArgumentPatterns": {
+        "shell": "\\s(-d|--directory)(\\s|=)"
+      },
+      "looksForIn": {
+        "javascript": "Express's and serve-static's `static(...)` given `.`, `__dirname`, or `process.cwd()`",
+        "typescript": "Express's and serve-static's `static(...)` given `.`, `__dirname`, or `process.cwd()`",
+        "python": "Flask's `static_folder` and Starlette's or FastAPI's `StaticFiles(directory=...)` set to `.`, the code's own folder, or the current folder",
+        "go": "`http.FileServer(http.Dir(\".\"))`, and Gin's or Echo's `Static(prefix, \".\")`",
+        "shell": "`python -m http.server` with no `--directory`, which serves the folder it was started in"
+      },
+      "nothingToFind": {
+        "php": "No web framework in common use for PHP is looked for here (PHP's own server is started with `php -S`, and its document root is set outside the code). A static-file handler pointed at the app's own folder is not found.",
+        "ruby": "No web framework in common use for Ruby is looked for here (Rails serves only `public/`, and a Rack `Static` setting is not read). A static-file handler pointed at the app's own folder is not found.",
+        "java": "No web framework in common use for Java is looked for here. A static-file handler pointed at the app's own folder is not found.",
+        "csharp": "No web framework in common use for C# is looked for here (ASP.NET's `UseStaticFiles` serves `wwwroot` unless given a provider, which is not read). A static-file handler pointed at the app's own folder is not found.",
+        "kotlin": "No web framework in common use for Kotlin is looked for here. A static-file handler pointed at the app's own folder is not found.",
+        "dart": "No web framework in common use for Dart is looked for here. A static-file handler pointed at the app's own folder is not found.",
+        "swift": "No web framework in common use for Swift is looked for here. A static-file handler pointed at the app's own folder is not found.",
+        "rust": "No web framework in common use for Rust is looked for here (tower-http's `ServeDir` and actix-files are not read). A static-file handler pointed at the app's own folder is not found.",
+        "c": "No web framework in common use for C is looked for here. A static-file handler pointed at the app's own folder is not found.",
+        "cpp": "No web framework in common use for C++ is looked for here. A static-file handler pointed at the app's own folder is not found."
+      }
     }
   ]
 }
