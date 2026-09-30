@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 156 can be checked, 9 where a check helps but a person decides, and 180 with no check.
+345 requirements: 157 can be checked, 9 where a check helps but a person decides, and 179 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 80 can be checked)
+### Level 2 (183 requirements, 81 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -314,7 +314,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **V9.2.2** Verify that the service receiving a token validates the token to be the correct type and is meant for the intended purpose before accepting the token's contents. For example, only access tokens can be accepted for authorization decisions and only ID Tokens can be used for proving user authentication. | No check | – |
-| **V9.2.3** Verify that the service only accepts tokens which are intended for use with that service (audience). For JWTs, this can be achieved by validating the 'aud' claim against an allowlist defined in the service. | No check | – |
+| **V9.2.3** Verify that the service only accepts tokens which are intended for use with that service (audience). For JWTs, this can be achieved by validating the 'aud' claim against an allowlist defined in the service. | Can be checked | Reads the code: `ast.token-audience-not-checked`, looks for: A token check is told not to check who the token is for (found failing only) |
 | **V9.2.4** Verify that, if a token issuer uses the same private key for issuing tokens to different audiences, the issued tokens contain an audience restriction that uniquely identifies the intended audiences. This will prevent a token from being reused with an unintended audience. If the audience identifier is dynamically provisioned, the token issuer must validate these audiences in order to make sure that they do not result in audience impersonation. | No check | – |
 
 #### V10 OAuth and OIDC
