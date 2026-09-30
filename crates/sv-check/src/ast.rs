@@ -2733,6 +2733,34 @@ mod tests {
         ("ast.weak-password-key-derivation", "shell", "openssl pkcs12 -export -iter 1000 -in cert.pem -out cert.p12", true),
         ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -in a -out b", false),
         ("ast.weak-password-key-derivation", "shell", "openssl rand -hex 32", false),
+        // Static files from the app's own folder: the handler given the code's folder or the
+        // current one, beside the same handler given a folder of its own.
+        ("ast.static-files-from-app-folder", "javascript", "app.use(express.static(__dirname))", true),
+        ("ast.static-files-from-app-folder", "javascript", "app.use(express.static('.'))", true),
+        ("ast.static-files-from-app-folder", "javascript", "app.use(serveStatic(process.cwd(), { index: false }))", true),
+        ("ast.static-files-from-app-folder", "javascript", "app.use(express.static(path.join(__dirname)))", true),
+        ("ast.static-files-from-app-folder", "javascript", "app.use(express.static(path.join(__dirname, 'public')))", false),
+        ("ast.static-files-from-app-folder", "javascript", "app.use(express.static('public'))", false),
+        ("ast.static-files-from-app-folder", "javascript", "app.use('/static', express.static('./dist'))", false),
+        ("ast.static-files-from-app-folder", "typescript", "app.use(express.static(process.cwd()))", true),
+        ("ast.static-files-from-app-folder", "typescript", "app.use(express.static(path.resolve(__dirname, '../public')))", false),
+        ("ast.static-files-from-app-folder", "python", "app = Flask(__name__, static_folder='.', static_url_path='')", true),
+        ("ast.static-files-from-app-folder", "python", "app = Flask(__name__, static_folder=os.path.dirname(os.path.abspath(__file__)))", true),
+        ("ast.static-files-from-app-folder", "python", "app.mount('/', StaticFiles(directory='.', html=True), name='site')", true),
+        ("ast.static-files-from-app-folder", "python", "app.mount('/', StaticFiles(directory=Path(__file__).resolve().parent))", true),
+        ("ast.static-files-from-app-folder", "python", "app = Flask(__name__, static_folder='static')", false),
+        ("ast.static-files-from-app-folder", "python", "app.mount('/static', StaticFiles(directory='static'), name='static')", false),
+        ("ast.static-files-from-app-folder", "python", "app = Flask(__name__)", false),
+        ("ast.static-files-from-app-folder", "go", "http.Handle(\"/\", http.FileServer(http.Dir(\".\")))", true),
+        ("ast.static-files-from-app-folder", "go", "http.Handle(\"/\", http.FileServer(http.FS(os.DirFS(\".\"))))", true),
+        ("ast.static-files-from-app-folder", "go", "r.Static(\"/\", \"./\")", true),
+        ("ast.static-files-from-app-folder", "go", "http.Handle(\"/\", http.FileServer(http.Dir(\"./public\")))", false),
+        ("ast.static-files-from-app-folder", "go", "e.Static(\"/static\", \"assets\")", false),
+        ("ast.static-files-from-app-folder", "shell", "python3 -m http.server 8000", true),
+        ("ast.static-files-from-app-folder", "shell", "python -m http.server", true),
+        ("ast.static-files-from-app-folder", "shell", "python3 -m http.server 8000 --directory public", false),
+        ("ast.static-files-from-app-folder", "shell", "python3 -m http.server -d dist", false),
+        ("ast.static-files-from-app-folder", "shell", "python3 -m venv .venv", false),
     ];
 
     #[test]
@@ -2777,6 +2805,7 @@ mod tests {
             "ast.model-download-not-pinned",
             "ast.floating-model-name",
             "ast.weak-password-key-derivation",
+            "ast.static-files-from-app-folder",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {
