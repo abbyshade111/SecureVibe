@@ -1102,6 +1102,7 @@
       "impact": "Everything beside the code can be downloaded by anyone who guesses its name: the source code, the settings, a `.env` file with keys in it, a database file, and backups. That shows how the app works and often hands over its secrets.",
       "fix": "Keep the files visitors should get (pages, images, styles, scripts for the browser) in a folder of their own, such as `public` or `static`, and point the handler only at that folder.",
       "findingsOnly": true,
+      "looksFor": "a web framework's static-file handler given the folder the code is in, or the folder the app was started from, rather than a folder of its own; a folder named in settings or built at run time is not seen, so finding none credits nothing",
       "queries": {
         "javascript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg",
         "typescript": "[(call_expression function: (member_expression property: (property_identifier) @fn)) (call_expression function: (identifier) @fn)] @hit @arg",
