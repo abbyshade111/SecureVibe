@@ -1073,6 +1073,12 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
+  11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
+      whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
+      (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
+      opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
+      September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
+      `claude/securevibe-e9-pickle-files`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
