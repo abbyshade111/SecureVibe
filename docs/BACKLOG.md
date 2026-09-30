@@ -3738,7 +3738,8 @@ another session is not a claim.
   **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
   at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
   own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
-  word. Not decided yet; B is not claimed.
+  word. Not decided yet; B is not claimed. (Both settled later the same day: B was chosen, and the license was
+  reviewed and judged acceptable. See "The owner, on 26 September 2026, on the license" below.)
 
   **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
   branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
@@ -3783,7 +3784,8 @@ another session is not a claim.
   `src/lib/route-path.ts`). The third, the prompt-injection ruleset in `src/features/ai/screening.ts`,
   stays, because its patterns come from the operator's own data file and not from a visitor; apps with
   the AI feature show that one false alarm. See DESIGN, "`p/default` beside `p/security-audit`".
-  The owner's condition above still holds: the license questions are looked at before B is built.
+  The owner's condition above still holds: the license questions are looked at before B is built. (Met the
+  same day: see the next paragraph.)
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
   this use acceptable. The license allows use for one's own purposes, personal or a company's own, and
@@ -3816,7 +3818,9 @@ another session is not a claim.
 
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
-  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all. (No
+  longer a blocker: the owner reviewed the license on 26 September 2026, and on 30 September 2026 confirmed that
+  this work is unblocked.)
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
