@@ -760,6 +760,8 @@ another session is not a claim.
   **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
   wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
+  **The owner, on 30 September 2026: close F-0001** without the report. Claimed for closing the same day by
+  session securevibe-e2, in branch `claude/securevibe-e2-adr-notes`.
   **Claimed twice.** securevibe-e10's claim was made at 00:19 UTC on 29 September but pushed only to its own
   branch, never merged; securevibe-e2 found the item unclaimed on `main` and claimed it at 00:38 UTC (#411), as
   the rule says it should. **The owner's decision, the same day: securevibe-e10's finished work (#412) is merged,
@@ -849,7 +851,8 @@ another session is not a claim.
   seen catching a removal in flight in both halves of the test, and a kill moved into the suite still passed.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
-  September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
+  September 2026. **Claimed on 29 September 2026 by session securevibe-e10**, at the owner's asking, on a machine
+  that reaches GitHub's releases and semgrep.dev (checked the same day), in branch `claude/opengrep-evaluation`. Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
   semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
   `data/semgrep-packs.json`, `tools/semgrep_packs.py`), so the question is whether to switch, offer both, or stay.
   Things to find out, each written down with how it was measured rather than recalled:
@@ -1089,10 +1092,22 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
-  11. **The code half of V9.2.3: a token check told not to check who the token is for.** From
+  11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
+      whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
+      (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
+      opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
+      September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
+      `claude/securevibe-e9-pickle-files`.
+      **Done the same day** (DESIGN, "Model files that can run code when loaded"). `config.model-file-can-run-code`
+      judges each file by its bytes, with each format read from its library's source (PyTorch 2.14's
+      `serialization.py`, joblib 1.5's `compressor.py`); Git LFS pointers are counted and not judged. Seven guards
+      broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
+      kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
+      opcode, and a model downloaded when the app runs.
+  12. **The code half of V9.2.3: a token check told not to check who the token is for.** From
       `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
       running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
-      `ValidateAudience = false` in ASP.NET, `ignoreAudience` in jsonwebtoken, and their like. Only ever a finding.
+      `ValidateAudience = false` in ASP.NET, and their like. Only ever a finding.
       Whether `probe.oidc-audience-not-checked` should also cite V9.2.3 stays the owner's call. **Claimed on 30
       September 2026 by session securevibe-e2**, at the owner's asking to find another small check, in branch
       `claude/securevibe-e2-jwt-audience`.
@@ -1150,6 +1165,9 @@ another session is not a claim.
   records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
   `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
   the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.
+  **The owner's answer, 30 September 2026: the note in `docs/adr/README.md`; and the Rust half of 8 is
+  written from the owner's reason, memory safety.** Items 1 to 4, 7, and the Rust half of 8 **claimed the same day
+  by session securevibe-e2**, at the owner's asking, in branch `claude/securevibe-e2-adr-notes`.
   1. **v1's ADR-012 cites "ADR-011's sibling change", and no record carries the number ADR-011.** The file named
      `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
      ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
@@ -1202,6 +1220,10 @@ another session is not a claim.
 
   v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
   "records that disagree with what was built" entry above describes.
+
+  **Reviews.**
+  - **The first, for the week to 30 September 2026: claimed that day by session securevibe-e2**, at the owner's
+    asking, in branch `claude/securevibe-e2-adr-review`.
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
@@ -3216,7 +3238,9 @@ another session is not a claim.
      resolver, and the HSTS preload list from a copy the owner downloads (`--hsts-preload FILE`).
      Level 3 goes from 4 to 6 of 92. See DESIGN, "Two more things about the live site". Left out:
      OCSP stapling (V12.1.4), which could not be observed from the machine this was built on (its
-     only way out intercepts TLS) and is not claimed; and request smuggling (V4.2.1), which means
+     only way out intercepts TLS); **claimed on 29 September 2026 by session securevibe-e10**, at the owner's
+     asking, from a machine where a stapled answer was observed (DigiCert's and Microsoft's sites, the
+     certificate seen being the site's own), in branch `claude/ocsp-stapling`; and request smuggling (V4.2.1), which means
      sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
      not allow.
 
