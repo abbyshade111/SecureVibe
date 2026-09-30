@@ -35,7 +35,10 @@
 
 use crate::{Confidence, Finding, Location, Severity, Verified};
 
-/// The most requests one run may make. Three is the plan; the fourth is slack for one redirect.
+/// The most requests one run may make. A run makes at most three: HTTPS; then either the same
+/// address without verification, only when the certificate failed, or the question about its
+/// stapled status (V12.1.4), only when it passed and names an OCSP responder, never both; then plain
+/// HTTP. The fourth is slack.
 pub const MOST_REQUESTS: usize = 4;
 
 /// What a request to the live site came back with, or why it could not be made.
@@ -46,6 +49,29 @@ pub struct Answer {
     pub headers: Vec<(String, String)>,
     /// Absent when the request itself failed: a refused TLS handshake, no such host, a timeout.
     pub failure: Option<String>,
+    /// What the site's certificate says about checking whether it was revoked, from this same
+    /// request's handshake. `None` when nothing reported the certificate's details.
+    pub revocation: Option<Revocation>,
+}
+
+/// Whether the certificate names an OCSP responder, the address a browser would ask whether it was
+/// revoked. Let's Encrypt's have named none since 2025, and then there is nothing to staple.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Revocation {
+    Ocsp(String),
+    NoOcsp,
+}
+
+/// What asking for the certificate's stapled status came back with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Stapling {
+    /// The site sent a status for its certificate in the handshake, and it said the certificate is
+    /// good.
+    Stapled,
+    /// The handshake carried no status for the certificate.
+    NotStapled,
+    /// The question could not be asked or answered, and why.
+    CannotAsk(String),
 }
 
 impl Answer {
@@ -68,6 +94,12 @@ pub trait Fetch {
     /// "the certificate is not trusted" apart from "the host is not there", and never to get a
     /// result that is then reported as if verification had passed.
     fn get(&mut self, url: &str, verify: bool) -> Answer;
+
+    /// A HEAD to `url` that asks for the certificate's stapled status (V12.1.4), with verification
+    /// on. One more request, counted against the same cap.
+    fn stapled(&mut self, _url: &str) -> Stapling {
+        Stapling::CannotAsk("this fetcher cannot ask for a stapled status".to_owned())
+    }
 }
 
 /// The address to probe, once it has been checked.
@@ -197,6 +229,19 @@ const TEMPORARY_REDIRECT: Rule = Rule {
           plain HTTP at all.",
 };
 
+const OCSP_NOT_STAPLED: Rule = Rule {
+    rule_id: "probe.ocsp-not-stapled",
+    requirement_ids: &["V12.1.4"],
+    title: "The site does not staple its certificate's revocation status",
+    severity: Severity::Low,
+    impact: "A browser that wants to know whether the certificate was revoked has to ask the \
+             certificate authority itself, which tells the authority which site is being visited, or \
+             skip the check, as most do.",
+    fix: "Turn on OCSP stapling where TLS ends: nginx `ssl_stapling on;` with `ssl_stapling_verify \
+          on;`, Apache `SSLUseStapling On`. Most hosting and CDN services staple when it is switched on \
+          in their TLS settings.",
+};
+
 const NO_HSTS: Rule = Rule {
     rule_id: "probe.no-hsts",
     requirement_ids: &["V3.4.1"],
@@ -284,6 +329,66 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                 target.https
             ),
         ));
+    }
+
+    // 1b. The certificate's revocation status, stapled into the handshake (V12.1.4). Only for a
+    //     certificate this machine trusts, and only when it names an OCSP responder: without one
+    //     there is nothing to staple, which is so for every Let's Encrypt certificate since 2025,
+    //     and says nothing about how revocation is handled instead. Made only where the unverified
+    //     retry above was not, so a run still makes at most three requests.
+    if secure.failure.is_none() {
+        match &secure.revocation {
+            None => out.not_assessed.push((
+                "V12.1.4".to_owned(),
+                "Whether the site staples its certificate's revocation status: curl on this \
+                 machine did not report the certificate's details, so whether it names an OCSP \
+                 responder is not known."
+                    .to_owned(),
+            )),
+            Some(Revocation::NoOcsp) => out.not_assessed.push((
+                "V12.1.4".to_owned(),
+                format!(
+                    "The certificate {} presented names no OCSP responder, so there is no status \
+                     to staple (Let's Encrypt's have named none since 2025). Whether revocation is \
+                     handled another way, such as short-lived certificates, is not something this \
+                     asks.",
+                    target.https
+                ),
+            )),
+            Some(Revocation::Ocsp(responder)) => {
+                out.requested.push(format!(
+                    "{} (asking for the certificate's stapled status)",
+                    target.https
+                ));
+                match http.stapled(&target.https) {
+                    Stapling::Stapled => out.verified.push(Verified::new(
+                        OCSP_NOT_STAPLED.rule_id,
+                        OCSP_NOT_STAPLED.requirement_ids,
+                        format!(
+                            "{} stapled a good status for its certificate into the handshake \
+                             (its responder is {responder})",
+                            target.https
+                        ),
+                    )),
+                    Stapling::NotStapled => out.findings.push(finding(
+                        &OCSP_NOT_STAPLED,
+                        format!(
+                            "{}'s certificate names an OCSP responder ({responder}), but the \
+                             handshake carried no stapled status for it.",
+                            target.https
+                        ),
+                        &target.host,
+                    )),
+                    Stapling::CannotAsk(why) => out.not_assessed.push((
+                        "V12.1.4".to_owned(),
+                        format!(
+                            "Whether {} staples its certificate's status could not be asked: {why}",
+                            target.https
+                        ),
+                    )),
+                }
+            }
+        }
     }
 
     // The handshake succeeding is what V12.2.2 asks about, and it is answered above whatever comes
@@ -439,14 +544,24 @@ mod tests {
     pub struct FakeSite {
         /// url -> answer
         answers: BTreeMap<String, Answer>,
-        /// Every (url, verify) pair asked for, in order.
+        /// Every (url, verify) pair asked for, in order. A stapling question counts as a request.
         asked: Vec<(String, bool)>,
+        /// What asking for the stapled status gets; `None` is a fetcher that cannot ask.
+        stapling: Option<Stapling>,
     }
 
     impl Fetch for FakeSite {
+        fn stapled(&mut self, url: &str) -> Stapling {
+            self.asked.push((url.to_owned(), true));
+            self.stapling
+                .clone()
+                .unwrap_or_else(|| Stapling::CannotAsk("the fake was given no answer".to_owned()))
+        }
+
         fn get(&mut self, url: &str, verify: bool) -> Answer {
             self.asked.push((url.to_owned(), verify));
             self.answers.get(url).cloned().unwrap_or(Answer {
+                revocation: None,
                 status: 0,
                 headers: Vec::new(),
                 failure: Some("no such host".to_owned()),
@@ -456,6 +571,7 @@ mod tests {
 
     pub fn ok(headers: &[(&str, &str)]) -> Answer {
         Answer {
+            revocation: None,
             status: 200,
             headers: headers
                 .iter()
@@ -467,6 +583,7 @@ mod tests {
 
     pub fn redirect(status: u16, to: &str) -> Answer {
         Answer {
+            revocation: None,
             status,
             headers: vec![("location".to_owned(), to.to_owned())],
             failure: None,
@@ -480,6 +597,7 @@ mod tests {
                 .map(|(u, a)| ((*u).to_owned(), a.clone()))
                 .collect(),
             asked: Vec::new(),
+            stapling: None,
         }
     }
 
@@ -550,6 +668,7 @@ mod tests {
         s.answers.insert(
             "https://example.test/".to_owned(),
             Answer {
+                revocation: None,
                 status: 0,
                 headers: Vec::new(),
                 failure: Some("self-signed certificate".to_owned()),
@@ -710,6 +829,223 @@ mod tests {
             rules(&out)
         );
     }
+
+    /// A well-set-up HTTPS answer whose certificate says this about revocation.
+    fn secure_with(revocation: Option<Revocation>) -> Answer {
+        let mut a = ok(&[("strict-transport-security", "max-age=31536000")]);
+        a.revocation = revocation;
+        a
+    }
+
+    fn stapling_site(revocation: Option<Revocation>, stapling: Option<Stapling>) -> FakeSite {
+        let mut s = site(&[
+            ("https://example.test/", secure_with(revocation)),
+            (
+                "http://example.test/",
+                redirect(301, "https://example.test/"),
+            ),
+        ]);
+        s.stapling = stapling;
+        s
+    }
+
+    fn stapling_asked(s: &FakeSite) -> usize {
+        // The stapling question is the only request made twice to the HTTPS address with
+        // verification on; the first is the ordinary look.
+        s.asked
+            .iter()
+            .filter(|(u, v)| u == "https://example.test/" && *v)
+            .count()
+            .saturating_sub(1)
+    }
+
+    fn ocsp() -> Option<Revocation> {
+        Some(Revocation::Ocsp("http://ocsp.example.test".into()))
+    }
+
+    #[test]
+    fn a_site_that_staples_is_credited_and_one_that_does_not_is_found() {
+        let mut stapled = stapling_site(ocsp(), Some(Stapling::Stapled));
+        let out = run(&mut stapled, &target());
+        assert_eq!(stapling_asked(&stapled), 1, "asked once");
+        assert!(
+            out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id
+                    && v.scope.contains("http://ocsp.example.test")),
+            "{:?}",
+            out.verified
+        );
+        assert!(!rules(&out).contains(&OCSP_NOT_STAPLED.rule_id));
+
+        let mut not = stapling_site(ocsp(), Some(Stapling::NotStapled));
+        let out = run(&mut not, &target());
+        assert!(
+            rules(&out).contains(&OCSP_NOT_STAPLED.rule_id),
+            "{:?}",
+            rules(&out)
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
+        );
+    }
+
+    #[test]
+    fn asking_about_stapling_keeps_a_run_to_three_requests_all_reported() {
+        // The unverified retry happens only when the certificate failed, and the stapling question
+        // only when it passed, so a run never makes both: HTTPS, one of the two, plain HTTP.
+        for stapling in [Stapling::Stapled, Stapling::NotStapled] {
+            let mut s = stapling_site(ocsp(), Some(stapling));
+            let out = run(&mut s, &target());
+            assert_eq!(s.asked.len(), 3, "{:?}", s.asked);
+            assert_eq!(
+                out.requested.len(),
+                s.asked.len(),
+                "every request, the stapling question included, is reported to the owner"
+            );
+            assert!(s.asked.len() < MOST_REQUESTS);
+        }
+    }
+
+    #[test]
+    fn a_certificate_naming_no_responder_is_not_asked_about_and_not_judged() {
+        // Every Let's Encrypt certificate since 2025. There is nothing to staple, and that says
+        // nothing about revocation being handled badly.
+        let mut s = stapling_site(Some(Revocation::NoOcsp), Some(Stapling::NotStapled));
+        let out = run(&mut s, &target());
+        assert_eq!(
+            stapling_asked(&s),
+            0,
+            "no request for a status that cannot exist"
+        );
+        assert!(!rules(&out).contains(&OCSP_NOT_STAPLED.rule_id));
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
+        );
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V12.1.4" && why.contains("names no OCSP responder")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn unknown_certificate_details_and_a_question_that_failed_settle_nothing() {
+        let mut unknown = stapling_site(None, Some(Stapling::Stapled));
+        let out = run(&mut unknown, &target());
+        assert_eq!(stapling_asked(&unknown), 0);
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V12.1.4" && why.contains("did not report")),
+            "{:?}",
+            out.not_assessed
+        );
+        let mut failed = stapling_site(ocsp(), Some(Stapling::CannotAsk("timed out".into())));
+        let out = run(&mut failed, &target());
+        assert!(!rules(&out).contains(&OCSP_NOT_STAPLED.rule_id));
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
+        );
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V12.1.4" && why.contains("timed out")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_certificate_nothing_trusts_is_never_asked_about_stapling() {
+        let mut s = stapling_site(ocsp(), Some(Stapling::Stapled));
+        s.answers.insert(
+            "https://example.test/".to_owned(),
+            Answer {
+                revocation: ocsp(),
+                status: 0,
+                headers: Vec::new(),
+                failure: Some("self-signed certificate".to_owned()),
+            },
+        );
+        let out = run(&mut s, &target());
+        assert_eq!(
+            stapling_asked(&s),
+            0,
+            "an untrusted certificate is not asked about"
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
+        );
+        assert!(!out.not_assessed.iter().any(|(ids, _)| ids == "V12.1.4"));
+    }
+
+    /// curl 8.12.1's `%{certs}` for a certificate that names a responder, cut to the lines that
+    /// matter and with no key material: the site's certificate, then its issuer's.
+    const CERTS_WITH_OCSP: &str = "Subject:CN = www.example.test\nIssuer:C = US, O = DigiCert Inc, CN = DigiCert EV RSA CA G2\nX509v3 CRL Distribution Points:Full Name:\nAuthority Information Access:OCSP - URI:http://ocsp.digicert.com\nCA Issuers - URI:http://cacerts.digicert.com/DigiCertEVRSACAG2.crt\n-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\nSubject:C = US, O = DigiCert Inc, CN = DigiCert EV RSA CA G2\nAuthority Information Access:OCSP - URI:http://ocsp.digicert.com\n-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n";
+
+    /// The same for letsencrypt.org, whose certificate names only where its issuer is published.
+    /// Its issuer names a responder of its own, which is not the site's certificate.
+    const CERTS_WITHOUT_OCSP: &str = "Subject:CN = letsencrypt.org\nIssuer:C = US, O = Let's Encrypt, CN = YE2\nAuthority Information Access:CA Issuers - URI:http://ye2.i.lencr.org/\n-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\nSubject:C = US, O = Let's Encrypt, CN = YE2\nAuthority Information Access:OCSP - URI:http://x1.o.lencr.org\n-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n";
+
+    #[test]
+    fn the_responder_is_read_from_the_sites_own_certificate_only() {
+        assert_eq!(
+            parse_revocation(CERTS_WITH_OCSP),
+            Some(Revocation::Ocsp("http://ocsp.digicert.com".into()))
+        );
+        assert_eq!(
+            parse_revocation(CERTS_WITHOUT_OCSP),
+            Some(Revocation::NoOcsp)
+        );
+        assert_eq!(
+            parse_revocation(""),
+            None,
+            "no details is not the same as no responder"
+        );
+        let head = "HTTP/2 200\r\nstrict-transport-security: max-age=1\r\n\r\n";
+        let a = read_curl_output(&format!("{head}{CERTS_MARK}{CERTS_WITH_OCSP}"));
+        assert_eq!(a.status, 200);
+        assert_eq!(a.header("strict-transport-security"), Some("max-age=1"));
+        assert_eq!(
+            a.revocation,
+            Some(Revocation::Ocsp("http://ocsp.digicert.com".into()))
+        );
+        assert_eq!(
+            read_curl_output(head).revocation,
+            None,
+            "not asked for, not known"
+        );
+    }
+
+    #[test]
+    fn curls_answer_to_the_stapling_question_is_read_for_what_it_says() {
+        assert_eq!(stapling_from(Some(0), ""), Stapling::Stapled);
+        assert_eq!(
+            stapling_from(Some(91), "curl: (91) No OCSP response received"),
+            Stapling::NotStapled
+        );
+        // A status that came back and said something else is not "none stapled".
+        assert!(matches!(
+            stapling_from(Some(91), "curl: (91) SSL certificate revocation reason: keyCompromise"),
+            Stapling::CannotAsk(why) if why.contains("keyCompromise")
+        ));
+        assert!(matches!(
+            stapling_from(Some(4), "curl: option --cert-status: the installed libcurl version does not support this"),
+            Stapling::CannotAsk(why) if why.contains("does not support")
+        ));
+        assert!(matches!(stapling_from(None, ""), Stapling::CannotAsk(_)));
+    }
 }
 
 /// The real fetcher: `curl`, with the flags that make the limits above true rather than intended.
@@ -750,6 +1086,7 @@ impl Fetch for Curl {
         // past it, which is the point of putting it here rather than in `run`.
         if self.made >= MOST_REQUESTS {
             return Answer {
+                revocation: None,
                 status: 0,
                 headers: Vec::new(),
                 failure: Some(format!(
@@ -778,7 +1115,12 @@ impl Fetch for Curl {
             "--no-alpn",
             "--disable",
         ];
-        if !verify {
+        if verify {
+            // The certificate's details, after the headers and marked off from them, so whether it
+            // names an OCSP responder is read from this same handshake rather than asked again.
+            args.push("--write-out");
+            args.push(CERTS_WRITE_OUT);
+        } else {
             args.push("--insecure");
         }
         args.push(url);
@@ -787,6 +1129,7 @@ impl Fetch for Curl {
             Ok(out) => out,
             Err(e) => {
                 return Answer {
+                    revocation: None,
                     status: 0,
                     headers: Vec::new(),
                     failure: Some(format!("curl could not be run: {e}")),
@@ -795,6 +1138,7 @@ impl Fetch for Curl {
         };
         if !out.status.success() {
             return Answer {
+                revocation: None,
                 status: 0,
                 headers: Vec::new(),
                 failure: Some(
@@ -805,7 +1149,102 @@ impl Fetch for Curl {
                 ),
             };
         }
-        parse_head(&String::from_utf8_lossy(&out.stdout))
+        read_curl_output(&String::from_utf8_lossy(&out.stdout))
+    }
+
+    fn stapled(&mut self, url: &str) -> Stapling {
+        if self.made >= MOST_REQUESTS {
+            return Stapling::CannotAsk(format!(
+                "this check makes at most {MOST_REQUESTS} requests, and that is all of them"
+            ));
+        }
+        self.made += 1;
+        let out = match std::process::Command::new("curl")
+            .args([
+                // curl refuses the handshake when no stapled status comes back, with its own exit
+                // code, 91; any other failure is not an answer to this question.
+                "--cert-status",
+                "--head",
+                "--silent",
+                "--show-error",
+                "--max-redirs",
+                "0",
+                "--max-time",
+                "15",
+                "--user-agent",
+                "sv-probe (OWASP ASVS check, read-only)",
+                "--no-alpn",
+                "--disable",
+                "--output",
+                "/dev/null",
+                url,
+            ])
+            .output()
+        {
+            Ok(out) => out,
+            Err(e) => return Stapling::CannotAsk(format!("curl could not be run: {e}")),
+        };
+        stapling_from(out.status.code(), &String::from_utf8_lossy(&out.stderr))
+    }
+}
+
+/// Curl's output for a request: the headers, then, when asked for, the certificate's details after
+/// [`CERTS_MARK`].
+pub fn read_curl_output(text: &str) -> Answer {
+    let (head, certs) = match text.split_once(CERTS_MARK) {
+        Some((head, certs)) => (head, Some(certs)),
+        None => (text, None),
+    };
+    let mut answer = parse_head(head);
+    answer.revocation = certs.and_then(parse_revocation);
+    answer
+}
+
+/// How `Curl::get` marks where the headers end and the certificate's details begin.
+const CERTS_MARK: &str = "\n@@sv-probe-certs@@\n";
+const CERTS_WRITE_OUT: &str = "\n@@sv-probe-certs@@\n%{certs}";
+
+/// Reads curl's `%{certs}`: the certificate chain, the site's own first, each with its extensions
+/// as text. The site's certificate names an OCSP responder on a line such as `Authority Information
+/// Access:OCSP - URI:http://ocsp.digicert.com`. `None` when curl reported no certificate details at
+/// all, which a curl built without them, or too old for `%{certs}`, does.
+pub fn parse_revocation(certs: &str) -> Option<Revocation> {
+    let leaf = certs
+        .split("-----END CERTIFICATE-----")
+        .next()
+        .unwrap_or_default();
+    if !leaf.lines().any(|l| l.starts_with("Subject:")) {
+        return None;
+    }
+    let responder = leaf
+        .lines()
+        .filter_map(|l| l.split_once("OCSP - URI:").map(|(_, rest)| rest))
+        .map(|rest| {
+            rest.split(|c: char| c.is_whitespace() || c == ',')
+                .next()
+                .unwrap_or_default()
+                .to_owned()
+        })
+        .find(|uri| !uri.is_empty());
+    Some(responder.map_or(Revocation::NoOcsp, Revocation::Ocsp))
+}
+
+/// What curl's exit says about the stapled status. 0 is a good status stapled. 91 with "No OCSP
+/// response received" is none stapled. Any other 91 means a status came back and said something else
+/// (revoked, expired, not verifiable), which is not "none stapled" and is passed on in curl's own
+/// words; anything else did not get as far as the question.
+pub fn stapling_from(code: Option<i32>, stderr: &str) -> Stapling {
+    let said: String = stderr
+        .trim()
+        .trim_start_matches("curl: ")
+        .chars()
+        .take(200)
+        .collect();
+    match code {
+        Some(0) => Stapling::Stapled,
+        Some(91) if said.contains("No OCSP response received") => Stapling::NotStapled,
+        _ if said.is_empty() => Stapling::CannotAsk("curl did not say why".to_owned()),
+        _ => Stapling::CannotAsk(said),
     }
 }
 
@@ -836,6 +1275,7 @@ fn parse_head(text: &str) -> Answer {
         }
     }
     Answer {
+        revocation: None,
         status,
         headers,
         failure: None,
@@ -904,6 +1344,7 @@ mod error_answer_tests {
             (
                 "https://example.test/",
                 Answer {
+                    revocation: None,
                     status: 400,
                     headers: Vec::new(),
                     failure: None,
