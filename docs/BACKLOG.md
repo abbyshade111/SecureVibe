@@ -1209,6 +1209,10 @@ another session is not a claim.
   v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
   "records that disagree with what was built" entry above describes.
 
+  **Reviews.**
+  - **The first, for the week to 30 September 2026: claimed that day by session securevibe-e2**, at the owner's
+    asking, in branch `claude/securevibe-e2-adr-review`.
+
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
   28 September 2026 by session admiring-murdock-875699**, at the owner's asking. **Done the same day:** `TIMELINE.md`
