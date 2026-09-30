@@ -11,7 +11,7 @@ changes two things:
   the app right. `sv` picks the code up afterwards.
 * **No language.** Nothing in the pipeline assumes Node, Express or the SecureVibe template.
 
-Written in Rust. The OWASP data files were shared with v1 rather than copied until the move; since then
+Written in Rust, a memory-safe language (`docs/adr/ADR-020.md`). The OWASP data files were shared with v1 rather than copied until the move; since then
 there are two copies (`docs/adr/ADR-016.md`).
 
 ## What carries over unchanged
