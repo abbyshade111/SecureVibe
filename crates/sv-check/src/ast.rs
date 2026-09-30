@@ -2761,6 +2761,28 @@ mod tests {
         ("ast.static-files-from-app-folder", "shell", "python3 -m http.server 8000 --directory public", false),
         ("ast.static-files-from-app-folder", "shell", "python3 -m http.server -d dist", false),
         ("ast.static-files-from-app-folder", "shell", "python3 -m venv .venv", false),
+        ("ast.token-audience-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"], options={\"verify_aud\": False})", true),
+        ("ast.token-audience-not-checked", "python", "claims = jose_jwt.decode(token, key, options={'verify_aud': False})", true),
+        ("ast.token-audience-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"], options=dict(verify_aud=False))", true),
+        ("ast.token-audience-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"], audience=\"my-api\", options={\"verify_aud\": True})", false),
+        ("ast.token-audience-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"], options={\"verify_exp\": False})", false),
+        ("ast.token-audience-not-checked", "python", "settings = {\"verify_aud_label\": False}", false),
+        ("ast.token-audience-not-checked", "ruby", "decoded = JWT.decode(token, key, true, { algorithm: 'RS256', verify_aud: false })", true),
+        ("ast.token-audience-not-checked", "ruby", "decoded = JWT.decode(token, key, true, { :verify_aud => false })", true),
+        ("ast.token-audience-not-checked", "ruby", "decoded = JWT.decode(token, key, true, { aud: 'my-api', verify_aud: true })", false),
+        ("ast.token-audience-not-checked", "ruby", "decoded = JWT.decode(token, key, true, { verify_expiration: false })", false),
+        ("ast.token-audience-not-checked", "csharp", "class A { void M() { var p = new TokenValidationParameters { ValidateIssuer = true, ValidateAudience = false }; } }", true),
+        ("ast.token-audience-not-checked", "csharp", "class A { void M(TokenValidationParameters p) { p.ValidateAudience = false; } }", true),
+        ("ast.token-audience-not-checked", "csharp", "class A { void M() { var p = new TokenValidationParameters { ValidateAudience = true, ValidAudience = \"my-api\" }; } }", false),
+        ("ast.token-audience-not-checked", "csharp", "class A { void M() { var p = new TokenValidationParameters { ValidateLifetime = false }; } }", false),
+        ("ast.token-audience-not-checked", "rust", "fn m() { let mut v = Validation::new(Algorithm::RS256); v.validate_aud = false; }", true),
+        ("ast.token-audience-not-checked", "rust", "fn m() { let v = Validation { validate_aud: false, ..Default::default() }; }", true),
+        ("ast.token-audience-not-checked", "rust", "fn m() { let mut v = Validation::new(Algorithm::RS256); v.set_audience(&[\"my-api\"]); v.validate_aud = true; }", false),
+        ("ast.token-audience-not-checked", "rust", "fn m() { let mut v = Validation::new(Algorithm::RS256); v.validate_exp = false; }", false),
+        ("ast.token-audience-not-checked", "go", "package m\nfunc f() { v := provider.Verifier(&oidc.Config{SkipClientIDCheck: true}) }", true),
+        ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithoutClaimsValidation()) }", true),
+        ("ast.token-audience-not-checked", "go", "package m\nfunc f() { v := provider.Verifier(&oidc.Config{ClientID: \"my-api\", SkipClientIDCheck: false}) }", false),
+        ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithAudience(\"my-api\")) }", false),
     ];
 
     #[test]
@@ -2806,6 +2828,7 @@ mod tests {
             "ast.floating-model-name",
             "ast.weak-password-key-derivation",
             "ast.static-files-from-app-folder",
+            "ast.token-audience-not-checked",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {

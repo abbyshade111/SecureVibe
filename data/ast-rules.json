@@ -1146,6 +1146,53 @@
         "c": "No web framework in common use for C is looked for here. A static-file handler pointed at the app's own folder is not found.",
         "cpp": "No web framework in common use for C++ is looked for here. A static-file handler pointed at the app's own folder is not found."
       }
+    },
+    {
+      "id": "ast.token-audience-not-checked",
+      "title": "A token check is told not to check who the token is for",
+      "severity": "medium",
+      "confidence": "high",
+      "requirementIds": [
+        "V9.2.3"
+      ],
+      "cwe": [
+        "CWE-287"
+      ],
+      "description": "The code checks a signed token (such as a JWT) with its audience check switched off: `verify_aud` set to false in PyJWT, python-jose, or ruby-jwt; `ValidateAudience = false` in .NET; `validate_aud = false` in Rust's `jsonwebtoken`; `SkipClientIDCheck: true` in Go's `go-oidc`; or `WithoutClaimsValidation()` in Go's `golang-jwt`, which skips the audience with every other claim.",
+      "impact": "A token made for a different app or service, signed by the same sign-in server, is accepted here as if it were meant for this app. Somebody who holds a token for any service that server signs for can use it to get in.",
+      "fix": "Turn the audience check back on and give it this app's own name, the one the sign-in server writes into the token's `aud` field (for example `audience=\"my-api\"` in PyJWT, `ValidAudience` in .NET, `set_audience` in Rust, or the client ID in `go-oidc`). In .NET, an `AudienceValidator` of your own still runs when `ValidateAudience` is false; if you wrote one on purpose, say so to whoever reads this finding.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "[(pair key: (string) @fn value: (false)) (keyword_argument name: (identifier) @fn value: (false))] @hit",
+        "ruby": "(pair key: [(hash_key_symbol) (simple_symbol) (string)] @fn value: (false)) @hit",
+        "csharp": "(assignment_expression left: [(identifier) @fn (member_access_expression name: (identifier) @fn)] right: (boolean_literal) @arg) @hit",
+        "rust": "[(assignment_expression left: (field_expression field: (field_identifier) @fn) right: (boolean_literal) @arg) (field_initializer field: (field_identifier) @fn value: (boolean_literal) @arg)] @hit",
+        "go": "[(keyed_element key: (literal_element (identifier) @fn) value: (literal_element (true))) (call_expression function: (selector_expression field: (field_identifier) @fn) arguments: (argument_list))] @hit"
+      },
+      "functionPatterns": {
+        "python": "^(verify_aud|\"verify_aud\"|'verify_aud')$",
+        "ruby": "^(verify_aud|:verify_aud|\"verify_aud\"|'verify_aud')$",
+        "csharp": "^ValidateAudience$",
+        "rust": "^validate_aud$",
+        "go": "^(SkipClientIDCheck|WithoutClaimsValidation)$"
+      },
+      "argumentPatterns": {
+        "csharp": "^false$",
+        "rust": "^false$"
+      },
+      "looksFor": "the explicit switches that turn a token's audience check off: `verify_aud` false (Python, Ruby), `ValidateAudience = false` (C#), `validate_aud = false` (Rust), `SkipClientIDCheck: true` and `WithoutClaimsValidation()` (Go); a check that is simply never given an audience is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "javascript": "`jsonwebtoken`, `jose`, `express-jwt`, and `passport-jwt` check a token's audience only when the code names one, and have no setting that switches the check off, so there is no switch to find. A check that is never given an audience is not looked for: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "typescript": "`jsonwebtoken`, `jose`, `express-jwt`, and `passport-jwt` check a token's audience only when the code names one, and have no setting that switches the check off, so there is no switch to find. A check that is never given an audience is not looked for: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "java": "No setting that switches the audience check off is known for Java's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "kotlin": "No setting that switches the audience check off is known for Kotlin's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "php": "No setting that switches the audience check off is known for PHP's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "dart": "No setting that switches the audience check off is known for Dart's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "swift": "No setting that switches the audience check off is known for Swift's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "c": "No setting that switches the audience check off is known for C's common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "cpp": "No setting that switches the audience check off is known for C++'s common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
+        "shell": "Tokens are not checked in shell scripts in any way this rule can speak to."
+      }
     }
   ]
 }
