@@ -1236,7 +1236,7 @@ another session is not a claim.
     - ADR-019 matches but for one sentence: the app's own container is not run read-only, so "the only writable
       place" is not true, and the report folder has no size limit. A "Later" section says so, the code's comment is
       corrected, and whether to run the app read-only is its own entry below.
-    - ADR-020, not yet merged (#463), matches the code; its one slip (`--tools` belongs to `sv report` and `sv bundle`)
+    - ADR-020, merged the same day (#463), matches the code; its one slip (`--tools` belongs to `sv report` and `sv bundle`)
       is fixed there.
     - Cited requirement ids: ADR-015 to ADR-019 cite none; ADR-020's V1.4.1 to V1.4.3 exist and fit, and none is
       cited as met.
