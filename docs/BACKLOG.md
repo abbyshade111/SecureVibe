@@ -760,6 +760,8 @@ another session is not a claim.
   **The false pass claimed on 28 September 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/rate-limited-not-refused`: 429, and 503 with `Retry-After`, read as no answer rather than a refusal,
   wherever the signed-in checks read one. F-0001 itself still needs the other project's report.
+  **The owner, on 30 September 2026: close F-0001** without the report. Claimed for closing the same day by
+  session securevibe-e2, in branch `claude/securevibe-e2-adr-notes`.
   **Claimed twice.** securevibe-e10's claim was made at 00:19 UTC on 29 September but pushed only to its own
   branch, never merged; securevibe-e2 found the item unclaimed on `main` and claimed it at 00:38 UTC (#411), as
   the rule says it should. **The owner's decision, the same day: securevibe-e10's finished work (#412) is merged,
@@ -1096,6 +1098,12 @@ another session is not a claim.
       opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
       September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
       `claude/securevibe-e9-pickle-files`.
+      **Done the same day** (DESIGN, "Model files that can run code when loaded"). `config.model-file-can-run-code`
+      judges each file by its bytes, with each format read from its library's source (PyTorch 2.14's
+      `serialization.py`, joblib 1.5's `compressor.py`); Git LFS pointers are counted and not judged. Seven guards
+      broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
+      kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
+      opcode, and a model downloaded when the app runs.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
@@ -1145,6 +1153,9 @@ another session is not a claim.
   records, which live on the `v1` branch: a fix there is a new commit on that branch (the tags `v1-paper` and
   `v1-final` stay as they are, and history is not rewritten). Alternatively `docs/adr/README.md` here can record
   the correction, as it already does for ADR-014's file name. Which of the two is the owner's call.
+  **The owner's answer, 30 September 2026: the note in `docs/adr/README.md`; and the Rust half of 8 is
+  written from the owner's reason, memory safety.** Items 1 to 4, 7, and the Rust half of 8 **claimed the same day
+  by session securevibe-e2**, at the owner's asking, in branch `claude/securevibe-e2-adr-notes`.
   1. **v1's ADR-012 cites "ADR-011's sibling change", and no record carries the number ADR-011.** The file named
      `ADR-011.md` is titled ADR-014, which `docs/adr/README.md` already explains, but the dangling ADR-011 in
      ADR-012 is not mentioned there. The change it means is `dca2e6c` ("Say what was read, and stop scoring code
@@ -1197,6 +1208,10 @@ another session is not a claim.
 
   v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
   "records that disagree with what was built" entry above describes.
+
+  **Reviews.**
+  - **The first, for the week to 30 September 2026: claimed that day by session securevibe-e2**, at the owner's
+    asking, in branch `claude/securevibe-e2-adr-review`.
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on

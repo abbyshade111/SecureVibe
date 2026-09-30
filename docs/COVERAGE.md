@@ -304,7 +304,7 @@ need `--tools`.
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
 - C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
 - C3.2.3: found failing by sv's `ast.floating-model-name`, `probe.ai-floating-model-sent`.
-- C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`.
+- C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`, `config.model-file-can-run-code`.
 - C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.1: settled by `probe.ai-flagged-reply-shown`.
