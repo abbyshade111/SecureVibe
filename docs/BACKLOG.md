@@ -1096,6 +1096,12 @@ another session is not a claim.
       opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
       September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
       `claude/securevibe-e9-pickle-files`.
+      **Done the same day** (DESIGN, "Model files that can run code when loaded"). `config.model-file-can-run-code`
+      judges each file by its bytes, with each format read from its library's source (PyTorch 2.14's
+      `serialization.py`, joblib 1.5's `compressor.py`); Git LFS pointers are counted and not judged. Seven guards
+      broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
+      kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
+      opcode, and a model downloaded when the app runs.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that

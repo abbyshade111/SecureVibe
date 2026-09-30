@@ -25,6 +25,7 @@ pub mod launch;
 pub mod live_tls;
 pub mod logs;
 pub mod mcp_server;
+pub mod model_files;
 pub mod notes;
 pub mod oidc;
 pub mod probes;
