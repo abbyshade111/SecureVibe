@@ -5646,3 +5646,42 @@ name that moves on its own (`latest`, or one ending `-latest`, `:latest`, or `@l
 vendor's family, since the name really went to a model service. Any other name is only a step, and credits
 nothing: a name without `latest` may still be an alias the vendor moves (`gpt-4o`), which is not looked up,
 and a dated name today says nothing of how the app will choose its model tomorrow.
+
+## A key made from a password with too few rounds (29 September 2026)
+
+V11.4.4 asks that a key derived from a password is stretched: made with a function built to be slow, run enough
+times that guessing the password is expensive. PBKDF2, the one most code reaches for, takes the number of rounds as
+an argument, and the number written into the code is often a copy from an old tutorial (1,000, 4,096, 10,000).
+
+`ast.weak-password-key-derivation` reports PBKDF2 whose count is a number written into the code below 210,000. That is
+OWASP's lowest recommended figure for any PBKDF2 hash (210,000 for SHA-512; SHA-256 needs 600,000 and SHA-1 1,300,000),
+so a count below it is too low whichever hash is used, and the rule does not need to know which one it is. A count
+between 210,000 and 600,000 used with SHA-256 is too low too, and is not reported; the rule's description says so.
+The number may carry digit separators (`100_000`) or an integer suffix. A count read from a setting or a variable is
+not judged. It is only ever a finding: finding none says nothing about keys made elsewhere.
+
+It reads each language's usual call: Python's `hashlib.pbkdf2_hmac` and cryptography's `PBKDF2HMAC` (positional or
+`iterations=`), Node's `crypto.pbkdf2` and `pbkdf2Sync` and the browser's `crypto.subtle.deriveKey` and `deriveBits`
+(`iterations:`), Java's `PBEKeySpec`, Go's `golang.org/x/crypto/pbkdf2.Key`, PHP's `hash_pbkdf2` and
+`openssl_pbkdf2`, Ruby's `OpenSSL::PKCS5.pbkdf2_hmac` and `OpenSSL::KDF.pbkdf2_hmac`, C#'s `Rfc2898DeriveBytes`,
+OpenSSL's `PKCS5_PBKDF2_HMAC` in C and C++, `PBEKeySpec` in Kotlin, the `pbkdf2` crate in Rust, the `cryptography`
+package's `Pbkdf2` and pointycastle's `Pbkdf2Parameters` in Dart, CommonCrypto's `CCKeyDerivationPBKDF` in Swift, and
+`openssl ... -iter` in shell scripts: every language `sv` reads, which a test requires of every code rule. Each query
+names the argument that holds the count, so a key length in the same call (32, 256) is never read as one.
+
+One of those was wrong at first, and breaking the rule on purpose is what found it: the browser's `deriveBits` takes
+the key's length as its third argument, and the query written for Node's `pbkdf2Sync(password, salt, count, ...)`
+read `deriveBits(params, key, 256)` as 256 rounds. The positional form now needs at least five arguments, as Node's
+two functions always have and `deriveBits` never does, and a test case holds it.
+
+The test table has a case each way for every language, and cases at the boundary (209,999 reported, 210,000 not), a
+safe count beside a key length, a count from a variable, and the same shape of call on something else. Broken on
+purpose nineteen ways, each caught: any number counted, 210,000 read as below, any keyword taken for `iterations` in
+Python and any key in JavaScript, the wrong argument position in Python and C, any function name, any Go package,
+any Ruby receiver, and the five-argument guard removed; then, for the five languages added last, any number counted
+in each, any `openssl` option taken for `-iter`, any Rust function, the wrong argument in Swift, and any Dart label.
+
+**Not done here.** A single hash of a password used as an encryption key: nothing in the code says a hashed value is
+a password without guessing from its name. Go's standard-library `crypto/pbkdf2`, which takes the hash first (its
+argument order would need its own query, and the one for `x/crypto` would misread it). C#'s two-argument
+`Rfc2898DeriveBytes(password, salt)`, which uses 1,000 rounds without saying so. scrypt's and Argon2's own settings.
