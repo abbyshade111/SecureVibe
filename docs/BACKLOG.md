@@ -837,7 +837,16 @@ another session is not a claim.
   named is not known; a guess, marked as one: the next run's leftover listing, or its removal, can miss a container
   that is starting or already being removed. Needs a container backend to reproduce. **Claimed on 30 September
   2026 by session securevibe-e2**, at the owner's asking to pick another backlog item, in branch
-  `claude/securevibe-e2-killed-run`.
+  `claude/securevibe-e2-killed-run`. **Done the same day; the fault was in the test, not in `sv`.** A run removes
+  the sidecar once its questions are asked, and on CI the questions took less than the three seconds the test
+  waits before killing it, so the kill could land while `docker rm -f` of the sidecar was running. Killing `sv`
+  does not stop the `docker` calls it started: that removal finished on its own, after the test had listed the
+  sidecar as left behind and before the next run looked, so the next run rightly did not name it. Reproduced here
+  with a `docker` wrapper that holds the sidecar's removal for a second and the kill moved into it: 4 failures in
+  12 runs, the same message as CI. The test now waits, after the kill, until no `docker rm -f` or `docker network
+  rm` naming the killed run is still going, then lists what it left (a `docker exec` of the suite is not waited
+  for, since it runs for minutes and removes nothing). The same setup then failed 0 times in 22 runs, the wait was
+  seen catching a removal in flight in both halves of the test, and a kill moved into the suite still passed.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
   September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
@@ -974,6 +983,13 @@ another session is not a claim.
      running-app half of V15.2.3 (debug consoles that answer), committed model files opened by their
      contents (C4.1.2), `ollama pull` and model-server images (C6.1.3), and the model name the app really
      sent (C3.2.3), which goes with the AI checks.
+     **Looked at on 30 September 2026 by session securevibe-e9, and not built:** the `ollama pull` and model-server
+     image half of C6.1.3. Ollama 0.35.0's own source (`types/model/name.go`, `server/images.go`) parses a
+     `model:tag@digest` name, but its pull asks the registry for the tag alone and never uses the digest, and the
+     digest check is marked as removed. A finding telling the owner to pin with `@sha256:` would name a fix that
+     does nothing, so nothing is checked until Ollama honors the digest. A model server's container image is
+     software rather than a model artifact, so C6.1.3 ("every third-party model artifact") does not fit it; an
+     image pulled by tag rather than digest belongs with the V15 supply-chain checks, if anywhere.
      **V8.4.2, V10.4.4, V13.4.7, and V16.5.4 done the same day** (`crates/sv-check/src/running.rs`), each only ever a
      finding: `probe.admin-opened-by-address` (an admin page named in `[stack.run.users]` shut to a stranger and
      open with `X-Forwarded-For: 127.0.0.1`; made in `probes`' anonymous requests, so `signed_in/` is untouched),
@@ -1073,6 +1089,12 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
+  11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
+      whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
+      (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
+      opcode, or a PyTorch zip that holds `data.pkl`, rather than by name alone. Only ever a finding. **Claimed on 30
+      September 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in branch
+      `claude/securevibe-e9-pickle-files`.
 
 - **The Anthropic key rule cites C9.5.4, which a key in a file does not speak to.** Found on 28 September 2026
   by session securevibe-e10 while writing the OpenAI and Hugging Face rules beside it. C9.5.4 asks that
@@ -3722,7 +3744,8 @@ another session is not a claim.
   **The owner, on 26 September 2026:** leaning toward B, and wants the Semgrep Rules License looked
   at before anything more is built on semgrep's rules: both whether `sv` running them over an owner's
   own app is the owner's internal use, and the two SARIF fixtures that keep rule descriptions word for
-  word. Not decided yet; B is not claimed.
+  word. Not decided yet; B is not claimed. (Both settled later the same day: B was chosen, and the license was
+  reviewed and judged acceptable. See "The owner, on 26 September 2026, on the license" below.)
 
   **The local-folder half was also claimed the same day by session securevibe-e8**, on its own
   branch; the claim reached `main` after relaxed-nobel's, so the two crossed. It was already measured
@@ -3767,7 +3790,8 @@ another session is not a claim.
   `src/lib/route-path.ts`). The third, the prompt-injection ruleset in `src/features/ai/screening.ts`,
   stays, because its patterns come from the operator's own data file and not from a visitor; apps with
   the AI feature show that one false alarm. See DESIGN, "`p/default` beside `p/security-audit`".
-  The owner's condition above still holds: the license questions are looked at before B is built.
+  The owner's condition above still holds: the license questions are looked at before B is built. (Met the
+  same day: see the next paragraph.)
 
   **The owner, on 26 September 2026, on the license:** reviewed the Semgrep Rules License and judged
   this use acceptable. The license allows use for one's own purposes, personal or a company's own, and
@@ -3800,7 +3824,9 @@ another session is not a claim.
 
 - **Later, and not a priority: could C's false alarms be brought down, if `sv` is to reach all 50?**
   Asked for by the owner on 26 September 2026, for if the semgrep coverage is expanded down the line.
-  Not claimed. The license question above comes first, since it decides whether C can be run at all.
+  Not claimed. The license question above comes first, since it decides whether C can be run at all. (No
+  longer a blocker: the owner reviewed the license on 26 September 2026, and on 30 September 2026 confirmed that
+  this work is unblocked.)
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
