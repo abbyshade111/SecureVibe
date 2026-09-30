@@ -174,6 +174,7 @@ RUST_CHECKS = {
     "probe.failed-sign-ins-unlimited": ("signed-in", ["V6.3.1"]),
     "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
     "probe.plain-http-served": ("production", ["V12.2.1"]),
+    "probe.ocsp-not-stapled": ("production", ["V12.1.4"]),
     "probe.no-hsts": ("production", ["V3.4.1"]),
     "live.ech-not-offered": ("production", ["V12.1.5"]),
     "live.hsts-not-preloaded": ("production", ["V3.7.4"]),

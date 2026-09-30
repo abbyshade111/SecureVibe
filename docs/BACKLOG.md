@@ -3213,7 +3213,10 @@ another session is not a claim.
      OCSP stapling (V12.1.4), which could not be observed from the machine this was built on (its
      only way out intercepts TLS); **claimed on 29 September 2026 by session securevibe-e10**, at the owner's
      asking, from a machine where a stapled answer was observed (DigiCert's and Microsoft's sites, the
-     certificate seen being the site's own), in branch `claude/ocsp-stapling`; and request smuggling (V4.2.1), which means
+     certificate seen being the site's own), in branch `claude/ocsp-stapling`; **done the same day**: `sv probe` reads
+     whether the certificate names an OCSP responder from the handshake it already makes, and asks for the
+     stapled status only when it does, still within four requests (DESIGN, "OCSP stapling, from the
+     handshake `sv probe` already makes"); and request smuggling (V4.2.1), which means
      sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
      not allow.
 

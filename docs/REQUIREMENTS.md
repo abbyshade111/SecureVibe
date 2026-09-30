@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 156 can be checked, 9 where a check helps but a person decides, and 180 with no check.
+345 requirements: 157 can be checked, 9 where a check helps but a person decides, and 179 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -450,7 +450,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V17.3.1** Verify that the signaling server is able to continue processing legitimate incoming signaling messages during a flood attack. This should be achieved by implementing rate limiting at the signaling level. | No check | – |
 | **V17.3.2** Verify that the signaling server is able to continue processing legitimate signaling messages when encountering malformed signaling message that could cause a denial of service condition. This could include implementing input validation, safely handling integer overflows, preventing buffer overflows, and employing other robust error-handling techniques. | No check | – |
 
-### Level 3 (92 requirements, 20 can be checked)
+### Level 3 (92 requirements, 21 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -569,7 +569,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **V12.1.4** Verify that proper certification revocation, such as Online Certificate Status Protocol (OCSP) Stapling, is enabled and configured. | No check | – |
+| **V12.1.4** Verify that proper certification revocation, such as Online Certificate Status Protocol (OCSP) Stapling, is enabled and configured. | Can be checked | Your own live site: `probe.ocsp-not-stapled`, looks for: The site does not staple its certificate's revocation status |
 | **V12.1.5** Verify that Encrypted Client Hello (ECH) is enabled in the application's TLS settings to prevent exposure of sensitive metadata, such as the Server Name Indication (SNI), during TLS handshake processes. | Can be checked | Your own live site: `live.ech-not-offered`, looks for: The site does not offer Encrypted Client Hello |
 | **V12.3.5** Verify that services communicating internally within a system (intra-service communications) use strong authentication to ensure that each endpoint is verified. Strong authentication methods, such as TLS client authentication, must be employed to ensure identity, using public-key infrastructure and mechanisms that are resistant to replay attacks. For microservice architectures, consider using a service mesh to simplify certificate management and enhance security. | No check | – |
 
