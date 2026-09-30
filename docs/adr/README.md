@@ -38,3 +38,26 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-017](ADR-017.md) | `sv` never writes the app's code |
 | [ADR-018](ADR-018.md) | `sv` checks apps written in any language, with rules of its own among the checks (replaces ADR-012's ruling against such rules) |
 | [ADR-019](ADR-019.md) | `sv` runs the app in a container on a network with no way out (replaces v1's ADR-010 choice, for `sv`) |
+| [ADR-020](ADR-020.md) | `sv` is written in Rust, a memory-safe language (replaces v1's ADR-001 choice, for `sv`) |
+
+## Where v1's records disagree with what v1 built
+
+v1's records are archived on the `v1` branch and are not edited; the owner chose on 30 September 2026 to record
+their corrections here instead (BACKLOG, "Records that disagree with what was built"). Each was checked against
+the `v1` branch and its history on that day.
+
+- **ADR-001** cites V15.1.2 (keep an inventory of third-party components) for choosing "TypeScript everywhere
+  with a single npm install". A language choice is not an inventory; ADR-007, which ships the inventory, cites
+  the same requirement correctly. For `sv`, ADR-020 replaces this record's choice.
+- **ADR-008** lists three AI providers: `anthropic`, `null`, and `scripted`. OpenAI and Google providers were added
+  on 18 September 2026 (`7ecb4c3`, `71fae08`), with a choice of service for each step (`4b947ac`), and the record
+  was not updated.
+- **ADR-010** says generated code's network access is not restricted, and lists macOS `sandbox-exec` among the
+  alternatives set aside. On 18 September 2026, two days after it was accepted, v1 fenced the network of the code
+  it ran (`27b85e2`, `pipeline/net-fence.ts`): loopback only, through `sandbox-exec` on macOS and a network
+  namespace on Linux, as v1's `docs/CONTRACTS.md` describes. The record was not updated, and v1's `README.md`
+  still says "Network access is **not** restricted". For `sv`, ADR-019 replaces this record's choice.
+- **ADR-012** cites "ADR-011's sibling change". No record carries the number ADR-011 (the file named `ADR-011.md`
+  is ADR-014, as above). The change it means is `dca2e6c`, "Say what was read, and stop scoring code nobody read".
+- **ADR-013** says its PDF writer "lays it out on A4 pages", and its consequences, updated by `2ef4149`, say the
+  paper size is a setting with US Letter the default and A4 the other choice. The consequences are what v1 does.
