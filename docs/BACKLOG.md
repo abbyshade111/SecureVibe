@@ -1212,6 +1212,50 @@ another session is not a claim.
   **Reviews.**
   - **The first, for the week to 30 September 2026: claimed that day by session securevibe-e2**, at the owner's
     asking, in branch `claude/securevibe-e2-adr-review`.
+    **Done the same day.** Every record, and the index, read against `origin/main` and the 441 merges of the eight
+    days to 29 September (about 200 of them claims; the rest read by title, about fifteen opened in full):
+    - ADR-015 matches; its count of yes-or-no facts ("about twenty-five") is 35, and a dated "Later" section says so.
+    - ADR-016 matches: `data/knowledge` holds three files, and what reads each is as its own "Later" section says.
+    - ADR-017 matches: every file `sv` writes into an app's folder is one it lists.
+    - ADR-018 matches in its decision; its "twelve rules across fourteen languages" is 18 across fifteen, and a
+      "Later" section says so. The index's "fourteen" gains the same date.
+    - ADR-019 matches but for one sentence: the app's own container is not run read-only, so "the only writable
+      place" is not true, and the report folder has no size limit. A "Later" section says so, the code's comment is
+      corrected, and whether to run the app read-only is its own entry below.
+    - ADR-020, not yet merged (#463), matches the code; its one slip (`--tools` belongs to `sv report` and `sv bundle`)
+      is fixed there.
+    - Cited requirement ids: ADR-015 to ADR-019 cite none; ADR-020's V1.4.1 to V1.4.3 exist and fit, and none is
+      cited as met.
+    - Decisions made in the week's code with no record, each costly to undo without its reasons, are the entry
+      "Records owed" below.
+
+- **Records owed, from the first weekly review of the decision records (30 September 2026).** Each is a decision
+  in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in
+  `DESIGN.md` and the pull requests named. **Not claimed; each can be claimed on its own**, and which ones are worth a
+  record is the owner's call.
+  1. **A crash's or a rate limiter's answer is never read as the app refusing** (#412, #416, #418, #420). Undone
+     quietly, 29 passes come back that rest on an answer the app never gave.
+  2. **Whose word counts, and at which tier:** an AI tool's answers are marked as its own, the owner's are credited
+     at their own tier, and checks made by hand are recorded (#175, #242). The index points to v1's ADR-006; `sv`'s
+     own statuses have no record.
+  3. **False alarms and accepted risks a person records, and test code's findings listed apart** (#297, #303,
+     #316). These can move a finding out of the count, so the limits on them need their reasons.
+  4. **An unanswered data list holds the app to ASVS level 2** (#265): ADR-015's rule that silence is not a "no",
+     carried into choosing the level, which ADR-015 does not mention.
+  5. **`sv run` has an end:** time limits on Docker calls and on the tests, a suite stopped at its limit credits
+     nothing, Ctrl-C tears down, and a killed run's leftovers are removed by the next (#332, #336, #369). This is also
+     where all five `unsafe` blocks came in.
+  6. **The release build relies on a panic unwinding, so a crash still removes the app's containers** (#330; the
+     reason is in a comment in `Cargo.toml` and in `DESIGN.md`). Switching to `panic = "abort"` to save size would
+     leave fenced containers running. It could be a line in ADR-019 or ADR-020 rather than a record of its own.
+  7. **The container image is published from CI and runs as user 10001** (#333). Lower than the rest.
+
+- **The app's own container is not run read-only.** Found on 30 September 2026 by the first weekly review of the
+  decision records (ADR-019, "Later, 30 September 2026"). The app's folder is mounted read-only and every helper
+  container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
+  system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
+  in-memory `/tmp` would close that, at the cost of failing an app, or a build step, that writes elsewhere; a size
+  for the report folder is simpler. **Not claimed**, and whether to change it is the owner's call.
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
