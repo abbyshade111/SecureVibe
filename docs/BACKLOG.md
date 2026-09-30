@@ -974,6 +974,13 @@ another session is not a claim.
      running-app half of V15.2.3 (debug consoles that answer), committed model files opened by their
      contents (C4.1.2), `ollama pull` and model-server images (C6.1.3), and the model name the app really
      sent (C3.2.3), which goes with the AI checks.
+     **Looked at on 30 September 2026 by session securevibe-e9, and not built:** the `ollama pull` and model-server
+     image half of C6.1.3. Ollama 0.35.0's own source (`types/model/name.go`, `server/images.go`) parses a
+     `model:tag@digest` name, but its pull asks the registry for the tag alone and never uses the digest, and the
+     digest check is marked as removed. A finding telling the owner to pin with `@sha256:` would name a fix that
+     does nothing, so nothing is checked until Ollama honors the digest. A model server's container image is
+     software rather than a model artifact, so C6.1.3 ("every third-party model artifact") does not fit it; an
+     image pulled by tag rather than digest belongs with the V15 supply-chain checks, if anywhere.
      **V8.4.2, V10.4.4, V13.4.7, and V16.5.4 done the same day** (`crates/sv-check/src/running.rs`), each only ever a
      finding: `probe.admin-opened-by-address` (an admin page named in `[stack.run.users]` shut to a stranger and
      open with `X-Forwarded-For: 127.0.0.1`; made in `probes`' anonymous requests, so `signed_in/` is untouched),
