@@ -699,6 +699,13 @@ mod tests {
                 .any(|v| v.check_id == UNTRUSTED_CERTIFICATE.rule_id),
             "an untrusted certificate must never be credited"
         );
+        // Nor is anything said about its revocation status: the certificate is not one this
+        // machine trusts, so whether its status is stapled is not a question worth an answer.
+        assert!(
+            !out.not_assessed.iter().any(|(ids, _)| ids == "V12.1.4"),
+            "{:?}",
+            out.not_assessed
+        );
     }
 
     #[test]
