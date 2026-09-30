@@ -849,7 +849,8 @@ another session is not a claim.
   seen catching a removal in flight in both halves of the test, and a kill moved into the suite still passed.
 
 - **Evaluate Opengrep against semgrep as the outside tool `sv --tools` runs.** Asked for by the owner on 28
-  September 2026. **Not claimed.** Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
+  September 2026. **Claimed on 29 September 2026 by session securevibe-e10**, at the owner's asking, on a machine
+  that reaches GitHub's releases and semgrep.dev (checked the same day), in branch `claude/opengrep-evaluation`. Opengrep is the open-source fork of semgrep's engine, made in January 2025 when
   semgrep moved some of its features and rules behind its own license. `sv` runs semgrep today (`data/adapters.json`,
   `data/semgrep-packs.json`, `tools/semgrep_packs.py`), so the question is whether to switch, offer both, or stay.
   Things to find out, each written down with how it was measured rather than recalled:
@@ -3204,7 +3205,9 @@ another session is not a claim.
      resolver, and the HSTS preload list from a copy the owner downloads (`--hsts-preload FILE`).
      Level 3 goes from 4 to 6 of 92. See DESIGN, "Two more things about the live site". Left out:
      OCSP stapling (V12.1.4), which could not be observed from the machine this was built on (its
-     only way out intercepts TLS) and is not claimed; and request smuggling (V4.2.1), which means
+     only way out intercepts TLS); **claimed on 29 September 2026 by session securevibe-e10**, at the owner's
+     asking, from a machine where a stapled answer was observed (DigiCert's and Microsoft's sites, the
+     certificate seen being the site's own), in branch `claude/ocsp-stapling`; and request smuggling (V4.2.1), which means
      sending a live site deliberately malformed requests, which `sv probe`'s read-only rule does
      not allow.
 
