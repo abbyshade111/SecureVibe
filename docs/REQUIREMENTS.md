@@ -662,7 +662,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C4.1.1** Verify that AI models execute in isolated sandboxes. | No check | – |
-| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | Can be checked | Reads the code: `ast.model-loaded-with-pickle`, looks for: A model file is loaded in a way that can run code (found failing only) |
+| **C4.1.2** Verify that model artifact loading enforces an explicit allow-list of serialization formats that do not permit arbitrary code execution during deserialization. | Can be checked | Reads the code: `ast.model-loaded-with-pickle`, looks for: A model file is loaded in a way that can run code (found failing only)<br>Reads the code: `config.model-file-can-run-code`, looks for: A model file in the app is stored in a format that can run code when loaded (found failing only) |
 | **C4.3.1** Verify that edge AI devices authenticate to central infrastructure using strong authentication mechanisms. | No check | – |
 
 #### C6 Supply Chain Security for Models
