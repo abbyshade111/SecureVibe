@@ -26,8 +26,8 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
   clean result, and a wrong statement in a report is worse than a gap in it.
 
   ADR-012 also ruled out SecureVibe writing its own static-analysis rules for other languages. `sv` later
-  wrote such rules for fourteen languages (`DESIGN.md`, "Rules that read the code"). ADR-018 replaces that
-  ruling, and the rest of ADR-012 stays in force.
+  wrote such rules for fourteen languages, fifteen counting shell on 30 September 2026 (`DESIGN.md`, "Rules
+  that read the code"). ADR-018 replaces that ruling, and the rest of ADR-012 stays in force.
 
 ## `sv`'s records
 

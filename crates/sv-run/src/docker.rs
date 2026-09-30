@@ -281,7 +281,9 @@ impl DockerBackend {
             &network,
             "-v",
             &mount,
-            // The one writable place, and it is in memory rather than on the owner's disk.
+            // The one writable folder `sv` provides, in memory rather than on the owner's disk. The
+            // container's own file system outside `/app` is writable too, since the app is not run
+            // `--read-only` (ADR-019, "Later, 30 September 2026").
             // `/app` is read-only on purpose, so a test runner has nowhere to put its report
             // unless something is provided — which is how the first version of `test-report`
             // failed: the runner could not write the file and the report read as "no report",
