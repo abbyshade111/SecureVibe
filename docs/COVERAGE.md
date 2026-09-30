@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 156 (45%) | 9 | 180 |
+| OWASP ASVS 5.0 | 345 | 157 (46%) | 9 | 179 |
 | OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
@@ -44,7 +44,7 @@ A requirement reached by more than one kind of check is counted under each.
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 2 |
 | L2 | 183 | 80 | 7 | 0 | 15 | 38 | 28 | 1 |
-| L3 | 92 | 20 | 3 | 0 | 8 | 2 | 6 | 2 |
+| L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 20 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -69,7 +69,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V9 Self-contained Tokens | 7 | 3 | 0 | 4 |
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
 | V11 Cryptography | 24 | 11 | 1 | 12 |
-| V12 Secure Communication | 12 | 7 | 1 | 4 |
+| V12 Secure Communication | 12 | 8 | 1 | 3 |
 | V13 Configuration | 21 | 8 | 1 | 12 |
 | V14 Data Protection | 13 | 4 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
