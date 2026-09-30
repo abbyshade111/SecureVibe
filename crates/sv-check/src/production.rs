@@ -966,21 +966,40 @@ mod tests {
 
     #[test]
     fn a_certificate_nothing_trusts_is_never_asked_about_stapling() {
-        let mut s = stapling_site(ocsp(), Some(Stapling::Stapled));
-        s.answers.insert(
-            "https://example.test/".to_owned(),
-            Answer {
-                revocation: ocsp(),
-                status: 0,
-                headers: Vec::new(),
-                failure: Some("self-signed certificate".to_owned()),
-            },
+        // The certificate fails verification but the site answers without it, so the run goes on
+        // past the handshake. It names a responder; nothing about stapling may be asked or said,
+        // since the certificate is not one this machine trusts.
+        struct Untrusted(FakeSite);
+        impl Fetch for Untrusted {
+            fn get(&mut self, url: &str, verify: bool) -> Answer {
+                self.0.asked.push((url.to_owned(), verify));
+                if verify && url.starts_with("https") {
+                    Answer {
+                        revocation: ocsp(),
+                        status: 0,
+                        headers: Vec::new(),
+                        failure: Some("self-signed certificate".to_owned()),
+                    }
+                } else {
+                    let mut a = ok(&[]);
+                    a.revocation = ocsp();
+                    a
+                }
+            }
+            fn stapled(&mut self, url: &str) -> Stapling {
+                self.0.stapled(url)
+            }
+        }
+        let mut u = Untrusted(stapling_site(ocsp(), Some(Stapling::Stapled)));
+        let out = run(&mut u, &target());
+        assert!(
+            rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
+            "the setup: the certificate was not trusted and the site answered"
         );
-        let out = run(&mut s, &target());
-        assert_eq!(
-            stapling_asked(&s),
-            0,
-            "an untrusted certificate is not asked about"
+        assert!(
+            !out.requested.iter().any(|r| r.contains("stapled status")),
+            "{:?}",
+            out.requested
         );
         assert!(
             !out.verified
@@ -1025,6 +1044,101 @@ mod tests {
             read_curl_output(head).revocation,
             None,
             "not asked for, not known"
+        );
+    }
+
+    #[test]
+    fn curls_own_output_carries_through_to_what_the_probe_says() {
+        // End to end from what curl prints: the headers and `%{certs}` for the first request, and
+        // curl's exit and message for the stapling question, read the way `Curl` reads them.
+        struct CurlShaped {
+            certs: &'static str,
+            staple: (Option<i32>, &'static str),
+            asked: usize,
+        }
+        impl Fetch for CurlShaped {
+            fn get(&mut self, url: &str, _verify: bool) -> Answer {
+                self.asked += 1;
+                if url.starts_with("https") {
+                    let head = "HTTP/2 200\r\nstrict-transport-security: max-age=63072000\r\n\r\n";
+                    read_curl_output(&format!("{head}{CERTS_MARK}{}", self.certs))
+                } else {
+                    read_curl_output(
+                        "HTTP/1.1 301 Moved\r\nlocation: https://example.test/\r\n\r\n",
+                    )
+                }
+            }
+            fn stapled(&mut self, _url: &str) -> Stapling {
+                self.asked += 1;
+                stapling_from(self.staple.0, self.staple.1)
+            }
+        }
+        let probe = |certs, staple| {
+            let mut f = CurlShaped {
+                certs,
+                staple,
+                asked: 0,
+            };
+            let out = run(&mut f, &target());
+            (out, f.asked)
+        };
+        let v1214 = |out: &Outcome| {
+            out.not_assessed
+                .iter()
+                .filter(|(ids, _)| ids == "V12.1.4")
+                .map(|(_, why)| why.clone())
+                .collect::<Vec<_>>()
+        };
+
+        // Names a responder, none stapled: a finding, and the question is reported as asked.
+        let (out, asked) = probe(
+            CERTS_WITH_OCSP,
+            (Some(91), "curl: (91) No OCSP response received"),
+        );
+        assert!(
+            rules(&out).contains(&OCSP_NOT_STAPLED.rule_id),
+            "{:?}",
+            rules(&out)
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
+        );
+        assert!(out.requested.iter().any(|r| r.contains("stapled status")));
+        assert_eq!((asked, out.requested.len()), (3, 3));
+
+        // A stapled status that says the certificate was revoked is not "none stapled".
+        let (out, _) = probe(
+            CERTS_WITH_OCSP,
+            (
+                Some(91),
+                "curl: (91) SSL certificate revocation reason: keyCompromise",
+            ),
+        );
+        assert!(!rules(&out).contains(&OCSP_NOT_STAPLED.rule_id));
+        assert!(
+            v1214(&out).iter().any(|w| w.contains("keyCompromise")),
+            "{:?}",
+            v1214(&out)
+        );
+
+        // Only the issuer names a responder: the site's certificate names none, and nothing is asked.
+        let (out, asked) = probe(CERTS_WITHOUT_OCSP, (Some(0), ""));
+        assert_eq!(asked, 2);
+        assert!(
+            v1214(&out)
+                .iter()
+                .any(|w| w.contains("names no OCSP responder"))
+        );
+
+        // curl printed no certificate details: not known, and not "no responder".
+        let (out, asked) = probe("", (Some(0), ""));
+        assert_eq!(asked, 2);
+        assert!(
+            v1214(&out).iter().any(|w| w.contains("did not report")),
+            "{:?}",
+            v1214(&out)
         );
     }
 
